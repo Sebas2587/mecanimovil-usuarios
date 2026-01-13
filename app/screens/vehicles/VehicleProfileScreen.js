@@ -373,10 +373,21 @@ const VehicleProfileScreen = () => {
                 {/* Header Image */}
                 <View style={styles.imageContainer}>
                     {currentVehicle.foto ? (
-                        <Image source={{ uri: currentVehicle.foto }} style={styles.vehicleImage} />
+                        (() => {
+                            const imageUri = currentVehicle.foto;
+                            console.log(`📸 [VehicleProfileScreen] Vehículo ${currentVehicle.id} - URI de imagen: ${imageUri}`);
+                            return <Image source={{ uri: imageUri }} style={styles.vehicleImage} />;
+                        })()
                     ) : (
-                        <View style={styles.placeholderImage}>
-                            <Ionicons name="car-sport" size={100} color={COLORS.textLight} />
+                        (() => {
+                            console.log(`⚠️ [VehicleProfileScreen] Vehículo ${currentVehicle?.id} - No tiene foto`);
+                            return (
+                                <View style={styles.placeholderImage}>
+                                    <Ionicons name="car-sport" size={100} color={COLORS.textLight} />
+                                </View>
+                            );
+                        })()
+                    )}
                         </View>
                     )}
                     <View style={styles.imageOverlay} />

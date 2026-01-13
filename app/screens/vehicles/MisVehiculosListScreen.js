@@ -231,10 +231,20 @@ const MisVehiculosListScreen = () => {
         let imageUrl = null;
         if (vehicle.foto) {
           try {
-            imageUrl = await getMediaURL(vehicle.foto);
+            // Si la foto ya viene como URL completa del servidor, usarla directamente
+            if (vehicle.foto.startsWith('http://') || vehicle.foto.startsWith('https://')) {
+              imageUrl = vehicle.foto;
+              console.log(`📸 [MisVehiculosListScreen] Vehículo ${vehicle.id} - URI de imagen desde servidor: ${imageUrl}`);
+            } else {
+              // Si viene como ruta relativa, construir URL completa
+              imageUrl = await getMediaURL(vehicle.foto);
+              console.log(`📸 [MisVehiculosListScreen] Vehículo ${vehicle.id} - URI de imagen construida: ${imageUrl}`);
+            }
           } catch (err) {
             console.warn(`Error cargando imagen de vehículo ${vehicle.id}:`, err);
           }
+        } else {
+          console.log(`⚠️ [MisVehiculosListScreen] Vehículo ${vehicle.id} - No tiene foto`);
         }
 
         data[vehicle.id] = { health, serviceCount, imageUrl };
