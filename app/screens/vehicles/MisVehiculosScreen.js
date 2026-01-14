@@ -81,6 +81,11 @@ const MisVehiculosScreen = () => {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedVehicleHistory, setSelectedVehicleHistory] = useState([]);
 
+  // Estados para el checklist de inicialización
+  const [checklistItems, setChecklistItems] = useState([]);
+  const [selectedChecklistItems, setSelectedChecklistItems] = useState([]);
+  const [fetchingChecklist, setFetchingChecklist] = useState(false);
+
   // Opciones para el selector de imágenes
   const imagePickerOptions = {
     mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -252,7 +257,50 @@ const MisVehiculosScreen = () => {
       kilometraje: ''
     });
     setMarcaSeleccionada(null);
+    setChecklistItems([]);
+    setSelectedChecklistItems([]);
     setErrors({});
+  };
+
+  // Efecto para cargar el checklist cuando cambia el tipo de motor
+  useEffect(() => {
+    const fetchChecklist = async () => {
+      // Solo cargar si no es edición y tenemos un tipo de motor seleccionado
+      if (isEdit || !formData.tipo_motor) {
+        setChecklistItems([]);
+        return;
+      }
+
+      setFetchingChecklist(true);
+      try {
+        const motorName = typeof formData.tipo_motor === 'object'
+          ? formData.tipo_motor.nombre
+          : tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre;
+
+        if (motorName) {
+          const items = await vehicleService.getInitialChecklist(motorName);
+          setChecklistItems(items || []);
+          // Por defecto no marcamos nada (todo pendiente/crítico es lo más seguro, o dejar que el usuario elija)
+          setSelectedChecklistItems([]);
+        }
+      } catch (error) {
+        console.error('Error cargando checklist:', error);
+      } finally {
+        setFetchingChecklist(false);
+      }
+    };
+
+    fetchChecklist();
+  }, [formData.tipo_motor, isEdit]);
+
+  const toggleChecklistItem = (itemId) => {
+    setSelectedChecklistItems(prev => {
+      if (prev.includes(itemId)) {
+        return prev.filter(id => id !== itemId);
+      } else {
+        return [...prev, itemId];
+      }
+    });
   };
 
   const handleChange = (field, value) => {
@@ -456,6 +504,12 @@ const MisVehiculosScreen = () => {
           : tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre || 'Gasolina',
       };
 
+      // Si es creación y hay checklist seleccionado, lo agregamos
+      if (!isEdit && selectedChecklistItems.length > 0) {
+        vehicleData.componentes_al_dia = selectedChecklistItems;
+        console.log('✅ Agregando checklist inicial:', selectedChecklistItems);
+      }
+
       // Añadir el ID del cliente si está disponible
       if (clienteId) {
         vehicleData.cliente = clienteId;
@@ -478,7 +532,15 @@ const MisVehiculosScreen = () => {
         const formattedData = new FormData();
         Object.entries(vehicleData).forEach(([key, value]) => {
           if (value !== null && value !== undefined) {
-            formattedData.append(key, value);
+            // Asegurar que cliente sea un número (string para FormData)
+            if (key === 'cliente' && typeof value === 'number') {
+              formattedData.append(key, value.toString());
+            } else if (key === 'componentes_al_dia' && Array.isArray(value)) {
+              // Para listas en FormData, Django espera múltiples keys iguales
+              value.forEach(id => formattedData.append('componentes_al_dia', id));
+            } else {
+              formattedData.append(key, value);
+            }
           }
         });
         if (formData.foto) {
@@ -488,6 +550,11 @@ const MisVehiculosScreen = () => {
             name: `vehicle_${Date.now()}.jpg`,
           });
         }
+
+        // Log para debugging
+        console.log('📤 Enviando FormData con campos:', Object.keys(vehicleData));
+        console.log('📤 Cliente ID incluido:', vehicleData.cliente);
+
         if (method === 'create') {
           await vehicleService.createVehicle(formattedData);
         } else {
@@ -832,7 +899,7 @@ const MisVehiculosScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView 
+            <ScrollView
               style={styles.formContainer}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={true}
@@ -1047,6 +1114,49 @@ const MisVehiculosScreen = () => {
                 keyboardType="numeric"
                 error={errors.kilometraje}
               />
+
+              {/* Checklist de Inicialización (Solo creación) */}
+              {!isEdit && (checklistItems.length > 0 || fetchingChecklist) && (
+                <View style={styles.checklistContainer}>
+                  <Text style={styles.checklistTitle}>Estado Inicial de Mantenimiento</Text>
+                  <Text style={styles.checklistSubtitle}>
+                    Selecciona los componentes a los que les has realizado mantenimiento recientemente.
+                    Los no seleccionados se marcarán como pendientes de revisión técnica.
+                  </Text>
+
+                  {fetchingChecklist ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 10 }} />
+                  ) : (
+                    checklistItems.map((item) => {
+                      const isSelected = selectedChecklistItems.includes(item.id);
+                      return (
+                        <TouchableOpacity
+                          key={`checklist-${item.id}`}
+                          style={[
+                            styles.checklistItem,
+                            isSelected && styles.checklistItemActive
+                          ]}
+                          onPress={() => toggleChecklistItem(item.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={[
+                            styles.checkbox,
+                            isSelected && styles.checkboxActive
+                          ]}>
+                            {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                          </View>
+                          <View style={styles.checklistItemContent}>
+                            <Text style={styles.checklistItemText}>{item.nombre}</Text>
+                            {item.descripcion && (
+                              <Text style={styles.checklistItemSubtext}>{item.descripcion}</Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </View>
+              )}
 
               <View style={styles.buttonContainer}>
                 <TouchableOpacity
@@ -1587,7 +1697,76 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.35)',
     borderRadius: 10,
-    backgroundColor: 'rgba(235,244,245,0.20)',
+  },
+  checklistContainer: {
+    marginTop: 20,
+    marginBottom: 10,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  checklistTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1c2434',
+    marginBottom: 6,
+  },
+  checklistSubtitle: {
+    fontSize: 13,
+    color: COLORS.textLight,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  checklistItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E9ECEF',
+    marginBottom: 8,
+    backgroundColor: '#F8F9FA',
+  },
+  checklistItemActive: {
+    backgroundColor: '#F0F7FF', // Light primary color
+    borderColor: COLORS.primary,
+  },
+  checklistItemContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  checklistItemText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  checklistItemSubtext: {
+    fontSize: 12,
+    color: COLORS.textLight,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#CED4DA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginTop: 2,
+  },
+  checkboxActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   dropdownButtonActive: {
     borderColor: COLORS.primary,
@@ -1597,8 +1776,6 @@ const styles = StyleSheet.create({
     color: COLORS.textLight,
   },
   dropdownButtonTextActive: {
-    color: COLORS.primary,
-    fontWeight: '500',
   },
   disabledText: {
     color: COLORS.textLight,
