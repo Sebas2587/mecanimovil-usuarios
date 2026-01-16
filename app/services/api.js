@@ -5,6 +5,87 @@ import serverConfig from '../config/serverConfig';
 import logger from '../utils/logger';
 
 /**
+ * Sistema de cache simple para respetar headers Cache-Control del servidor
+ * Cachea respuestas por max-age especificado en Cache-Control header
+ */
+const responseCache = new Map();
+
+/**
+ * Parsea el header Cache-Control y retorna el max-age en milisegundos
+ * @param {string} cacheControl - Header Cache-Control del servidor
+ * @returns {number|null} - max-age en milisegundos o null si no se puede cachear
+ */
+function parseCacheControl(cacheControl) {
+  if (!cacheControl) return null;
+  
+  // Buscar max-age en el header
+  const maxAgeMatch = cacheControl.match(/max-age=(\d+)/);
+  if (maxAgeMatch) {
+    const maxAgeSeconds = parseInt(maxAgeMatch[1], 10);
+    return maxAgeSeconds * 1000; // Convertir a milisegundos
+  }
+  
+  return null;
+}
+
+/**
+ * Genera una clave de cache única para una petición
+ * @param {string} url - URL de la petición
+ * @param {object} params - Parámetros de la petición
+ * @returns {string} - Clave única de cache
+ */
+function getCacheKey(url, params = {}) {
+  const paramsStr = JSON.stringify(params);
+  return `${url}:${paramsStr}`;
+}
+
+/**
+ * Obtiene una respuesta del cache si está disponible y no ha expirado
+ * @param {string} url - URL de la petición
+ * @param {object} params - Parámetros de la petición
+ * @returns {object|null} - Datos cacheados o null si no hay cache válido
+ */
+function getCachedResponse(url, params = {}) {
+  const cacheKey = getCacheKey(url, params);
+  const cached = responseCache.get(cacheKey);
+  
+  if (!cached) return null;
+  
+  const now = Date.now();
+  const age = now - cached.timestamp;
+  
+  // Si el cache ha expirado, eliminarlo y retornar null
+  if (age >= cached.maxAge) {
+    responseCache.delete(cacheKey);
+    return null;
+  }
+  
+  logger.debug(`✅ Cache hit para ${url} (edad: ${Math.floor(age / 1000)}s, max: ${cached.maxAge / 1000}s)`);
+  return cached.data;
+}
+
+/**
+ * Guarda una respuesta en el cache
+ * @param {string} url - URL de la petición
+ * @param {object} params - Parámetros de la petición
+ * @param {object} data - Datos a cachear
+ * @param {string} cacheControl - Header Cache-Control del servidor
+ */
+function setCachedResponse(url, params = {}, data, cacheControl) {
+  const maxAge = parseCacheControl(cacheControl);
+  if (!maxAge) return; // No cachear si no hay max-age
+  
+  const cacheKey = getCacheKey(url, params);
+  responseCache.set(cacheKey, {
+    data,
+    timestamp: Date.now(),
+    maxAge
+  });
+  
+  logger.debug(`💾 Respuesta cacheada para ${url} por ${maxAge / 1000}s`);
+}
+
+/**
  * Configuración dinámica del API que detecta automáticamente la IP correcta
  */
 
@@ -94,6 +175,7 @@ async function createApiInstance() {
     timeout: 15000, // 15 segundos de timeout
     headers: {
       'Content-Type': 'application/json',
+      'Accept-Encoding': 'gzip, deflate, br', // Solicitar compresión del servidor
     },
   });
 }
@@ -435,14 +517,30 @@ function setupInterceptors(apiInstance) {
  * @param {object} params - Parámetros de la petición
  * @param {object} options - Opciones adicionales
  * @param {boolean} options.requiresAuth - Indica si la petición requiere autenticación
+ * @param {boolean} options.forceRefresh - Forzar refresh ignorando cache (default: false)
  */
 export const get = async (url, params = {}, options = {}) => {
   try {
+    // Intentar obtener del cache si no se fuerza refresh
+    if (!options.forceRefresh) {
+      const cachedData = getCachedResponse(url, params);
+      if (cachedData !== null) {
+        return cachedData;
+      }
+    }
+    
     const apiInstance = await getApiInstance();
     const response = await apiInstance.get(url, {
       params,
       requiresAuth: options.requiresAuth
     });
+    
+    // Cachear la respuesta si el servidor envía Cache-Control
+    const cacheControl = response.headers?.['cache-control'] || response.headers?.['Cache-Control'];
+    if (cacheControl) {
+      setCachedResponse(url, params, response.data, cacheControl);
+    }
+    
     return response.data;
   } catch (error) {
     // Casos especiales que no son errores críticos
