@@ -9,9 +9,9 @@ import {
   RefreshControl,
   FlatList,
   Platform,
-  Image,
   Dimensions
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,7 +52,7 @@ import websocketService from '../../services/websocketService';
  */
 const UserPanelScreen = () => {
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const colors = theme?.colors || {};
@@ -112,23 +112,27 @@ const UserPanelScreen = () => {
 
   // Cargar URL de foto de perfil cuando cambie el usuario
   useEffect(() => {
-    const loadProfileImage = async () => {
-      if (user?.foto_perfil) {
+    // El backend ahora devuelve foto_perfil_url con la URL completa de cPanel
+    if (user?.foto_perfil_url) {
+      setProfileImageUrl(user.foto_perfil_url);
+      console.log('✅ Foto de perfil cargada:', user.foto_perfil_url);
+    } else if (user?.foto_perfil) {
+      // Fallback: si no hay foto_perfil_url, construir URL con getMediaURL
+      const loadProfileImage = async () => {
         try {
           const fullUrl = await getMediaURL(user.foto_perfil);
           setProfileImageUrl(fullUrl);
-          console.log('✅ Foto de perfil cargada:', fullUrl);
+          console.log('✅ Foto de perfil cargada (fallback):', fullUrl);
         } catch (error) {
           console.error('Error cargando URL de foto de perfil:', error);
           setProfileImageUrl(null);
         }
-      } else {
-        setProfileImageUrl(null);
-      }
-    };
-
-    loadProfileImage();
-  }, [user?.foto_perfil]);
+      };
+      loadProfileImage();
+    } else {
+      setProfileImageUrl(null);
+    }
+  }, [user?.foto_perfil_url, user?.foto_perfil]);
 
   // Debug: Verificar valores
   useEffect(() => {
@@ -166,60 +170,64 @@ const UserPanelScreen = () => {
     loadInitialData();
   }, []); // Sin dependencias - solo al montar
 
-  // En focus, actualizar datos que cambian frecuentemente
+  // En focus, actualizar solo datos críticos (optimizado)
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', async () => {
-      // Si ya se cargó una vez, actualizar vehículos, solicitudes activas y alertas
+      // Si ya se cargó una vez, solo actualizar lo esencial en background
       if (hasLoadedOnce) {
-        console.log('🔄 UserPanel - Focus: Actualizando vehículos, solicitudes y alertas');
-        
-        // Recargar vehículos para detectar nuevos vehículos agregados
+        console.log('🔄 UserPanel - Focus: Actualizando datos críticos (optimizado)');
+
+        // OPTIMIZACIÓN: Solo recargar vehículos si realmente cambió algo
+        // Usar cache cuando sea posible
         try {
-          const userVehicles = await vehicleService.getUserVehicles();
-          setVehicles(userVehicles);
+          const userVehicles = await vehicleService.getUserVehicles(); // Usa cache automático
+          
+          // Solo actualizar si hay cambios significativos
+          const vehiclesChanged = userVehicles.length !== vehicles.length ||
+            !userVehicles.every((v, i) => vehicles[i]?.id === v.id);
+          
+          if (vehiclesChanged) {
+            setVehicles(userVehicles);
 
-          // Establecer vehículo activo si hay vehículos disponibles
-          if (userVehicles.length > 0) {
-            const currentActive = activeVehicle &&
-              userVehicles.find(v => v.id === activeVehicle.id)
-              ? activeVehicle
-              : userVehicles[0];
+            // Establecer vehículo activo si hay vehículos disponibles
+            if (userVehicles.length > 0) {
+              const currentActive = activeVehicle &&
+                userVehicles.find(v => v.id === activeVehicle.id)
+                ? activeVehicle
+                : userVehicles[0];
 
-            if (!activeVehicle || activeVehicle.id !== currentActive.id) {
-              setActiveVehicle(currentActive);
+              if (!activeVehicle || activeVehicle.id !== currentActive.id) {
+                setActiveVehicle(currentActive);
+              }
+            } else {
+              setActiveVehicle(null);
             }
-          } else {
-            setActiveVehicle(null);
-          }
 
-          // Cargar categorías filtradas por marcas de vehículos
-          if (userVehicles.length > 0) {
-            const marcasIds = [...new Set(userVehicles.map(v => v.marca).filter(Boolean))];
-            const categoriesData = await categoryService.getCategoriesByVehicleBrands(marcasIds);
-            setCategories(categoriesData || []);
-          } else {
-            setCategories([]);
-          }
-
-          // Cargar proveedores cercanos si hay vehículo y dirección
-          if (userVehicles.length > 0 && currentAddress) {
-            await loadNearbyProviders(userVehicles, currentAddress);
-          }
-
-          // Cargar datos de vehículos (salud, servicios, imágenes)
-          if (userVehicles.length > 0) {
-            await loadVehiclesData(userVehicles);
+            // Solo recargar categorías si cambió el número de vehículos
+            if (userVehicles.length > 0) {
+              const marcasIds = [...new Set(userVehicles.map(v => v.marca).filter(Boolean))];
+              categoryService.getCategoriesByVehicleBrands(marcasIds)
+                .then((categoriesData) => setCategories(categoriesData || []))
+                .catch((err) => console.warn('⚠️ Error cargando categorías:', err));
+            } else {
+              setCategories([]);
+            }
           }
         } catch (err) {
           console.error('Error recargando vehículos:', err);
         }
-        
-        // Actualizar solicitudes activas si el usuario es cliente
+
+        // OPTIMIZACIÓN: Actualizar solicitudes y alertas en background sin bloquear
         if (isClient && cargarSolicitudesActivas) {
-          cargarSolicitudesActivas();
+          cargarSolicitudesActivas().catch((err) => 
+            console.warn('⚠️ Error actualizando solicitudes:', err)
+          );
         }
-        // Forzar refresh de alertas cuando se enfoca la pantalla
-        loadUrgentAlerts(true);
+        
+        // Recargar alertas (usa cache si no es crítico)
+        loadUrgentAlerts(false).catch((err) => 
+          console.warn('⚠️ Error actualizando alertas:', err)
+        );
       } else {
         // Primera vez que la pantalla recibe focus - cargar todo
         console.log('🚀 UserPanel - Focus inicial: Cargando datos completos');
@@ -228,16 +236,17 @@ const UserPanelScreen = () => {
     });
 
     return unsubscribe;
-  }, [navigation, hasLoadedOnce, isClient, cargarSolicitudesActivas, loadUrgentAlerts, activeVehicle, currentAddress, loadNearbyProviders, loadVehiclesData]);
+  }, [navigation, hasLoadedOnce, isClient, cargarSolicitudesActivas, loadUrgentAlerts, activeVehicle, vehicles.length]);
 
   // Función para cargar proveedores cercanos (definida antes de loadInitialData)
+  // Filtra por marca del vehículo usando el endpoint proveedores_filtrados
   const loadNearbyProviders = useCallback(async (userVehicles, address) => {
     try {
-      // Cargar talleres cercanos
+      // Cargar talleres cercanos (filtrados por marca)
       const talleres = await providerService.getWorkshopsForUserVehicles(userVehicles);
       setNearbyTalleres(Array.isArray(talleres) ? talleres.slice(0, 5) : []); // Máximo 5
 
-      // Cargar mecánicos cercanos
+      // Cargar mecánicos cercanos (filtrados por marca)
       const mecanicos = await providerService.getMechanicsForUserVehicles(userVehicles);
       setNearbyMecanicos(Array.isArray(mecanicos) ? mecanicos.slice(0, 5) : []); // Máximo 5
     } catch (err) {
@@ -249,31 +258,39 @@ const UserPanelScreen = () => {
   }, []);
 
   // Función para cargar datos de vehículos (salud, servicios, imágenes)
+  // OPTIMIZACIÓN: Carga en paralelo cuando sea posible
   const loadVehiclesData = useCallback(async (vehiclesList, forceRefresh = false) => {
     const data = {};
 
-    // Cargar historial de servicios una sola vez
+    // OPTIMIZACIÓN: Cargar historial de servicios y salud de vehículos en paralelo
+    const [historyResult, ...healthResults] = await Promise.allSettled([
+      userService.getServicesHistory(), // Historial una sola vez
+      ...vehiclesList.map(vehicle => 
+        VehicleHealthService.getVehicleHealth(vehicle.id, forceRefresh)
+          .catch(err => {
+            console.warn(`Error cargando salud de vehículo ${vehicle.id}:`, err);
+            return null;
+          })
+      ),
+    ]);
+
+    // Procesar historial de servicios
     let allServices = [];
-    try {
-      const history = await userService.getServicesHistory();
+    if (historyResult.status === 'fulfilled') {
+      const history = historyResult.value;
       allServices = Array.isArray(history?.results)
         ? history.results
         : Array.isArray(history)
           ? history
           : [];
-    } catch (err) {
-      console.warn('Error cargando historial de servicios:', err);
     }
 
-    for (const vehicle of vehiclesList) {
+    // Procesar cada vehículo en paralelo (imágenes)
+    const vehicleDataPromises = vehiclesList.map(async (vehicle, index) => {
       try {
-        // Cargar salud del vehículo (forzar refresh si se solicita)
-        let health = null;
-        try {
-          health = await VehicleHealthService.getVehicleHealth(vehicle.id, forceRefresh);
-        } catch (err) {
-          console.warn(`Error cargando salud de vehículo ${vehicle.id}:`, err);
-        }
+        // Salud del vehículo (ya cargada en paralelo)
+        const healthResult = healthResults[index];
+        const health = healthResult?.status === 'fulfilled' ? healthResult.value : null;
 
         // Filtrar servicios del vehículo
         const vehicleServices = allServices.filter(
@@ -284,36 +301,44 @@ const UserPanelScreen = () => {
 
         const serviceCount = vehicleServices.filter(s => s.estado === 'completado').length;
 
-        // Cargar imagen del vehículo
+        // Cargar imagen del vehículo (si es necesario construir URL)
         let imageUrl = null;
         if (vehicle.foto) {
           try {
             // Si la foto ya viene como URL completa del servidor, usarla directamente
             if (vehicle.foto.startsWith('http://') || vehicle.foto.startsWith('https://')) {
               imageUrl = vehicle.foto;
-              console.log(`📸 [UserPanelScreen] Vehículo ${vehicle.id} - URI de imagen desde servidor: ${imageUrl}`);
             } else {
               // Si viene como ruta relativa, construir URL completa
               imageUrl = await getMediaURL(vehicle.foto);
-              console.log(`📸 [UserPanelScreen] Vehículo ${vehicle.id} - URI de imagen construida: ${imageUrl}`);
             }
           } catch (err) {
             console.warn(`Error cargando imagen de vehículo ${vehicle.id}:`, err);
           }
-        } else {
-          console.log(`⚠️ [UserPanelScreen] Vehículo ${vehicle.id} - No tiene foto`);
         }
 
-        data[vehicle.id] = { health, serviceCount, imageUrl };
+        return { vehicleId: vehicle.id, health, serviceCount, imageUrl };
       } catch (error) {
         console.error(`Error procesando vehículo ${vehicle.id}:`, error);
+        return { vehicleId: vehicle.id, health: null, serviceCount: 0, imageUrl: null };
       }
-    }
+    });
+
+    const vehicleDataResults = await Promise.allSettled(vehicleDataPromises);
+    
+    // Construir objeto de datos
+    vehicleDataResults.forEach((result) => {
+      if (result.status === 'fulfilled' && result.value) {
+        const { vehicleId, ...vehicleData } = result.value;
+        data[vehicleId] = vehicleData;
+      }
+    });
 
     setVehiclesData(data);
   }, []);
 
   // Función para cargar alertas urgentes de mantenimiento de TODOS los vehículos
+  // OPTIMIZACIÓN: Por defecto usa cache, solo forceRefresh cuando sea necesario
   const loadUrgentAlerts = useCallback(async (forceRefresh = false) => {
     if (!vehicles || vehicles.length === 0) {
       console.log('⚠️ loadUrgentAlerts: No hay vehículos');
@@ -439,10 +464,10 @@ const UserPanelScreen = () => {
     const handleHealthUpdate = (message) => {
       if (message.type === 'salud_vehiculo_actualizada' && message.vehicle_id) {
         console.log('🔄 [UserPanel] Actualización de salud recibida para vehículo:', message.vehicle_id);
-        
+
         // Invalidar cache del vehículo
         VehicleHealthService.invalidateCache(message.vehicle_id);
-        
+
         // Recargar alertas para todos los vehículos (fuerza refresh)
         if (vehicles && vehicles.length > 0) {
           loadUrgentAlerts(true);
@@ -461,22 +486,27 @@ const UserPanelScreen = () => {
 
   const loadInitialData = useCallback(async () => {
     try {
-      console.log('📦 UserPanel - Iniciando carga de datos');
+      console.log('📦 UserPanel - Iniciando carga de datos (optimizado)');
       setLoading(true);
       setError(null);
 
-      // Cargar vehículos
-      const userVehicles = await vehicleService.getUserVehicles();
-      setVehicles(userVehicles);
+      // OPTIMIZACIÓN: Cargar datos independientes en paralelo
+      const [userVehicles, mainAddress, userProfileResult] = await Promise.allSettled([
+        vehicleService.getUserVehicles(), // Usa cache automático
+        locationService.getMainAddress(),
+        user?.id ? userService.getUserProfile(user.id) : Promise.resolve(null),
+      ]);
+
+      // Procesar vehículos
+      const vehicles = userVehicles.status === 'fulfilled' ? userVehicles.value : [];
+      setVehicles(vehicles);
 
       // Establecer vehículo activo si hay vehículos disponibles
-      if (userVehicles.length > 0) {
-        // Si ya hay un vehículo activo que sigue existiendo, mantenerlo
-        // Si no, usar el primero de la lista
+      if (vehicles.length > 0) {
         const currentActive = activeVehicle &&
-          userVehicles.find(v => v.id === activeVehicle.id)
+          vehicles.find(v => v.id === activeVehicle.id)
           ? activeVehicle
-          : userVehicles[0];
+          : vehicles[0];
 
         if (!activeVehicle || activeVehicle.id !== currentActive.id) {
           setActiveVehicle(currentActive);
@@ -486,52 +516,91 @@ const UserPanelScreen = () => {
         setActiveVehicle(null);
       }
 
-      // Cargar dirección principal
-      const mainAddress = await locationService.getMainAddress();
-      setCurrentAddress(mainAddress);
+      // Procesar dirección
+      const address = mainAddress.status === 'fulfilled' ? mainAddress.value : null;
+      setCurrentAddress(address);
 
-      // Cargar categorías filtradas por marcas de vehículos
-      if (userVehicles.length > 0) {
-        const marcasIds = [...new Set(userVehicles.map(v => v.marca).filter(Boolean))];
-        console.log('🚗 Cargando categorías para marcas:', marcasIds);
-        const categoriesData = await categoryService.getCategoriesByVehicleBrands(marcasIds);
-        setCategories(categoriesData || []);
-        console.log('✅ Categorías cargadas:', categoriesData?.length || 0);
+      // Procesar perfil de usuario (no crítico)
+      if (userProfileResult.status === 'fulfilled' && userProfileResult.value) {
+        try {
+          updateProfile({ ...userProfileResult.value, _skipBackendUpdate: true });
+          console.log('✅ Perfil de usuario actualizado en contexto');
+        } catch (err) {
+          console.warn('⚠️ Error actualizando perfil (no crítico):', err);
+        }
+      }
+
+      // OPTIMIZACIÓN: Cargar categorías, proveedores y solicitudes en paralelo
+      const parallelTasks = [];
+
+      // Categorías
+      if (vehicles.length > 0) {
+        const marcasIds = [...new Set(vehicles.map(v => v.marca).filter(Boolean))];
+        parallelTasks.push(
+          categoryService.getCategoriesByVehicleBrands(marcasIds).then(
+            (categoriesData) => setCategories(categoriesData || []),
+            (err) => {
+              console.warn('⚠️ Error cargando categorías:', err);
+              setCategories([]);
+            }
+          )
+        );
       } else {
         setCategories([]);
       }
 
-      // Cargar proveedores cercanos si hay vehículo y dirección
-      if (userVehicles.length > 0 && mainAddress) {
-        try {
-          // Cargar talleres cercanos
-          const talleres = await providerService.getWorkshopsForUserVehicles(userVehicles);
-          setNearbyTalleres(Array.isArray(talleres) ? talleres.slice(0, 5) : []);
-
-          // Cargar mecánicos cercanos
-          const mecanicos = await providerService.getMechanicsForUserVehicles(userVehicles);
-          setNearbyMecanicos(Array.isArray(mecanicos) ? mecanicos.slice(0, 5) : []);
-        } catch (err) {
-          console.error('Error cargando proveedores cercanos:', err);
-          setNearbyTalleres([]);
-          setNearbyMecanicos([]);
-        }
+      // Proveedores cercanos (en paralelo si hay vehículos y dirección)
+      if (vehicles.length > 0 && address) {
+        parallelTasks.push(
+          Promise.allSettled([
+            providerService.getWorkshopsForUserVehicles(vehicles),
+            providerService.getMechanicsForUserVehicles(vehicles),
+          ]).then(([talleresResult, mecanicosResult]) => {
+            setNearbyTalleres(
+              talleresResult.status === 'fulfilled' && Array.isArray(talleresResult.value)
+                ? talleresResult.value.slice(0, 5)
+                : []
+            );
+            setNearbyMecanicos(
+              mecanicosResult.status === 'fulfilled' && Array.isArray(mecanicosResult.value)
+                ? mecanicosResult.value.slice(0, 5)
+                : []
+            );
+          }).catch((err) => {
+            console.error('Error cargando proveedores cercanos:', err);
+            setNearbyTalleres([]);
+            setNearbyMecanicos([]);
+          })
+        );
+      } else {
+        setNearbyTalleres([]);
+        setNearbyMecanicos([]);
       }
 
-      // Cargar solicitudes activas si el usuario es cliente
+      // Solicitudes activas (no crítico, en paralelo)
       const currentIsClient = user && (user.is_client === true || user.is_client === undefined);
       if (currentIsClient && cargarSolicitudesActivas) {
-        await cargarSolicitudesActivas();
+        parallelTasks.push(
+          cargarSolicitudesActivas().catch((err) => {
+            console.warn('⚠️ Error cargando solicitudes activas:', err);
+          })
+        );
       }
 
-      // Cargar datos de vehículos (salud, servicios, imágenes)
-      if (userVehicles.length > 0) {
-        await loadVehiclesData(userVehicles);
+      // Esperar que todas las tareas paralelas terminen
+      await Promise.allSettled(parallelTasks);
+
+      // Cargar datos de vehículos en background (no bloquea el render inicial)
+      if (vehicles.length > 0) {
+        // No esperar, dejar que cargue en background
+        loadVehiclesData(vehicles, false).catch((err) => {
+          console.warn('⚠️ Error cargando datos de vehículos:', err);
+        });
       }
 
       // Marcar que ya se cargó una vez
       setHasLoadedOnce(true);
-      console.log('✅ UserPanel - Datos cargados exitosamente');
+      console.log('✅ UserPanel - Datos cargados exitosamente (paralelo)');
     } catch (err) {
       console.error('❌ Error cargando datos iniciales:', err);
       setError('No se pudieron cargar los datos. Intenta de nuevo.');
@@ -657,7 +726,9 @@ const UserPanelScreen = () => {
             <Image
               source={{ uri: vehicleData.imageUrl }}
               style={styles.vehicleImage}
-              resizeMode="cover"
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
             />
           ) : (
             <View style={styles.vehicleImagePlaceholder}>
@@ -841,7 +912,9 @@ const UserPanelScreen = () => {
                 <Image
                   source={{ uri: profileImageUrl }}
                   style={styles.profileImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  transition={200}
+                  cachePolicy="memory-disk"
                   onError={() => {
                     console.log('❌ Error cargando foto de perfil:', profileImageUrl);
                     setProfileImageUrl(null);
@@ -873,7 +946,7 @@ const UserPanelScreen = () => {
             <Text style={styles.welcomeCardsSubtitle}>
               Para empezar, sigue estos sencillos pasos:
             </Text>
-            
+
             {/* Card 1: Agregar Vehículo */}
             <TouchableOpacity
               style={styles.welcomeCard}
@@ -1100,6 +1173,33 @@ const UserPanelScreen = () => {
                 </View>
               ))}
             </ScrollView>
+          </View>
+        )}
+
+        {/* Aviso cuando no hay dirección configurada pero sí hay vehículos */}
+        {vehicles.length > 0 && !currentAddress && nearbyTalleres.length === 0 && nearbyMecanicos.length === 0 && (
+          <View style={styles.sectionWithHorizontalScroll}>
+            <View style={styles.addressWarningContainer}>
+              <View style={[styles.addressWarningIconContainer, { backgroundColor: `${colors.warning?.[500] || '#F59E0B'}15` }]}>
+                <Ionicons name="location-outline" size={28} color={colors.warning?.[500] || '#F59E0B'} />
+              </View>
+              <View style={styles.addressWarningContent}>
+                <Text style={styles.addressWarningTitle}>
+                  Configura tu dirección
+                </Text>
+                <Text style={styles.addressWarningText}>
+                  Para ver los talleres y mecánicos disponibles según la marca de tu vehículo, necesitas configurar una dirección.
+                </Text>
+                <TouchableOpacity
+                  style={styles.addressWarningButton}
+                  onPress={handleAddNewAddress}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add-circle-outline" size={18} color={colors.base?.pureWhite || '#FFFFFF'} style={{ marginRight: spacing?.xs || 6 }} />
+                  <Text style={styles.addressWarningButtonText}>Agregar Dirección</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
 
@@ -1564,6 +1664,64 @@ const UserPanelScreenStyles = (colors, typography, spacing, borders) => StyleShe
     elevation: 1,
     borderWidth: borders.width?.thin || 1,
     borderColor: colors.border?.light || '#E5E7EB',
+  },
+  addressWarningContainer: {
+    backgroundColor: colors.background?.paper || '#FFFFFF',
+    marginHorizontal: spacing?.md || 16,
+    borderRadius: borders.radius?.card?.lg || 16,
+    padding: spacing?.lg || 20,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  addressWarningIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: borders.radius?.full || 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing?.md || 16,
+    flexShrink: 0,
+  },
+  addressWarningContent: {
+    flex: 1,
+    paddingTop: spacing?.xs || 2,
+  },
+  addressWarningTitle: {
+    fontSize: typography.fontSize?.xl || 20,
+    fontWeight: typography.fontWeight?.bold || '700',
+    color: colors.text?.primary || '#00171F',
+    marginBottom: spacing?.sm || 8,
+    lineHeight: 26,
+  },
+  addressWarningText: {
+    fontSize: typography.fontSize?.base || 14,
+    color: colors.text?.secondary || '#5D6F75',
+    lineHeight: 20,
+    marginBottom: spacing?.lg || 20,
+  },
+  addressWarningButton: {
+    backgroundColor: colors.primary?.[500] || '#003459',
+    borderRadius: borders.radius?.button?.md || 12,
+    paddingVertical: spacing?.sm || 10,
+    paddingHorizontal: spacing?.md || 16,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: colors.primary?.[500] || '#003459',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  addressWarningButtonText: {
+    color: colors.text?.inverse || '#FFFFFF',
+    fontSize: typography.fontSize?.base || 14,
+    fontWeight: typography.fontWeight?.semibold || '600',
   },
 });
 
