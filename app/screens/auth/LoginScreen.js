@@ -9,7 +9,8 @@ import {
   Alert,
   Image,
   Dimensions,
-  SafeAreaView
+  SafeAreaView,
+  Modal
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +24,6 @@ import { TOKENS } from '../../design-system/tokens';
 import { COLORS } from '../../design-system/tokens/colors';
 import logger from '../../utils/logger';
 import * as authService from '../../services/auth';
-import { Modal } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -127,30 +127,31 @@ const LoginScreen = () => {
     try {
       const response = await authService.forgotPassword(forgotPasswordEmail);
       
-      // Si el backend devuelve el token (en desarrollo), guardarlo y pasar al siguiente paso
-      if (response.token) {
-        setResetToken(response.token);
-        setForgotPasswordStep(2);
-        Alert.alert(
-          'Token generado',
-          'Se ha generado un token de recuperación. Si estás en modo desarrollo, puedes usar el token mostrado en la consola.',
-          [{ text: 'OK' }]
-        );
-      } else {
-        Alert.alert(
-          'Solicitud enviada',
-          'Si el correo existe, se ha enviado un enlace de recuperación. Revisa tu correo electrónico.',
-          [{ text: 'OK', onPress: () => {
-            setShowForgotPasswordModal(false);
-            setForgotPasswordEmail('');
-            setForgotPasswordStep(1);
-          }}]
-        );
-      }
+      // Si la solicitud fue exitosa, pasar al siguiente paso para ingresar el token
+      setForgotPasswordStep(2);
+      
+      Alert.alert(
+        'Solicitud enviada',
+        'Se ha enviado un token de recuperación a tu correo electrónico. Revisa tu bandeja de entrada y entra el token recibido.',
+        [{ text: 'OK' }]
+      );
     } catch (error) {
+      // Manejar errores específicos
       const errorMessage = error.response?.data?.error || error.message || 'Ocurrió un error al solicitar la recuperación. Intenta nuevamente.';
-      setForgotPasswordErrors({ email: errorMessage });
-      Alert.alert('Error', errorMessage);
+      const statusCode = error.response?.status || error.status;
+      
+      // Si el email no existe (404), mostrar error y quedarse en el paso 1
+      if (statusCode === 404) {
+        setForgotPasswordErrors({ email: errorMessage });
+        Alert.alert('Correo no registrado', errorMessage);
+      } else {
+        // Otros errores
+        setForgotPasswordErrors({ email: errorMessage });
+        Alert.alert('Error', errorMessage);
+      }
+      
+      // No avanzar al siguiente paso si hay error
+      setForgotPasswordStep(1);
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -459,28 +460,50 @@ const LoginScreen = () => {
         {/* Modal de Recuperación de Contraseña */}
         <Modal
           visible={showForgotPasswordModal}
-          animationType="slide"
+          animationType="fade"
           transparent={true}
           onRequestClose={closeForgotPasswordModal}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={[styles.modalTitle, { color: colors.text?.primary || '#00171F' }]}>
-                  {forgotPasswordStep === 1 ? 'Recuperar Contraseña' : 'Restablecer Contraseña'}
-                </Text>
-                <TouchableOpacity onPress={closeForgotPasswordModal} style={styles.modalCloseButton}>
-                  <Ionicons name="close" size={24} color={colors.text?.secondary || '#5D6F75'} />
+              {/* Header con icono y título */}
+              <View style={styles.modalHeaderContainer}>
+                <View style={styles.modalIconContainer}>
+                  <LinearGradient
+                    colors={[`${accentColor}20`, `${secondaryColor}20`]}
+                    style={styles.modalIconGradient}
+                  >
+                    <Ionicons 
+                      name={forgotPasswordStep === 1 ? "mail-outline" : "key-outline"} 
+                      size={32} 
+                      color={secondaryColor} 
+                    />
+                  </LinearGradient>
+                </View>
+                <TouchableOpacity 
+                  onPress={closeForgotPasswordModal} 
+                  style={styles.modalCloseButton}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="close-circle" size={28} color={colors.text?.secondary || '#9BAFB9'} />
                 </TouchableOpacity>
               </View>
 
+              <Text style={[styles.modalTitle, { color: colors.text?.primary || '#00171F' }]}>
+                {forgotPasswordStep === 1 ? 'Recuperar Contraseña' : 'Nueva Contraseña'}
+              </Text>
+
               {forgotPasswordStep === 1 ? (
-                <View style={styles.modalBody}>
+                <ScrollView 
+                  style={styles.modalBody}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
                   <Text style={[styles.modalDescription, { color: colors.text?.secondary || '#5D6F75' }]}>
                     Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
                   </Text>
                   
-                  <View style={styles.inputWrapper}>
+                  <View style={styles.modalInputWrapper}>
                     <Input
                       label="Correo Electrónico"
                       placeholder="ejemplo@correo.com"
@@ -510,22 +533,31 @@ const LoginScreen = () => {
                       end={{ x: 1, y: 0 }}
                       style={styles.modalButtonGradient}
                     >
-                      <Text style={styles.modalButtonText}>
-                        {forgotPasswordLoading ? 'Enviando...' : 'Enviar Solicitud'}
-                      </Text>
+                      {forgotPasswordLoading ? (
+                        <Text style={styles.modalButtonText}>Enviando...</Text>
+                      ) : (
+                        <>
+                          <Ionicons name="send" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                          <Text style={styles.modalButtonText}>Enviar Solicitud</Text>
+                        </>
+                      )}
                     </LinearGradient>
                   </TouchableOpacity>
-                </View>
+                </ScrollView>
               ) : (
-                <View style={styles.modalBody}>
+                <ScrollView 
+                  style={styles.modalBody}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
                   <Text style={[styles.modalDescription, { color: colors.text?.secondary || '#5D6F75' }]}>
-                    Ingresa el token que recibiste por correo y tu nueva contraseña.
+                    Revisa tu correo electrónico. Si el email existe, recibirás un token de recuperación. Ingresa el token recibido y tu nueva contraseña.
                   </Text>
                   
-                  <View style={styles.inputWrapper}>
+                  <View style={styles.modalInputWrapper}>
                     <Input
                       label="Token de Recuperación"
-                      placeholder="Ingresa el token"
+                      placeholder="Ingresa el token recibido"
                       value={resetToken}
                       onChangeText={(text) => {
                         setResetToken(text);
@@ -540,7 +572,7 @@ const LoginScreen = () => {
                     />
                   </View>
 
-                  <View style={styles.inputWrapper}>
+                  <View style={styles.modalInputWrapper}>
                     <Input
                       label="Nueva Contraseña"
                       placeholder="Mínimo 8 caracteres"
@@ -558,7 +590,7 @@ const LoginScreen = () => {
                     />
                   </View>
 
-                  <View style={styles.inputWrapper}>
+                  <View style={styles.modalInputWrapper}>
                     <Input
                       label="Confirmar Nueva Contraseña"
                       placeholder="Confirma tu contraseña"
@@ -587,9 +619,14 @@ const LoginScreen = () => {
                       end={{ x: 1, y: 0 }}
                       style={styles.modalButtonGradient}
                     >
-                      <Text style={styles.modalButtonText}>
-                        {forgotPasswordLoading ? 'Restableciendo...' : 'Restablecer Contraseña'}
-                      </Text>
+                      {forgotPasswordLoading ? (
+                        <Text style={styles.modalButtonText}>Restableciendo...</Text>
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark-circle" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                          <Text style={styles.modalButtonText}>Restablecer Contraseña</Text>
+                        </>
+                      )}
                     </LinearGradient>
                   </TouchableOpacity>
 
@@ -597,11 +634,12 @@ const LoginScreen = () => {
                     onPress={() => setForgotPasswordStep(1)}
                     style={styles.backToEmailButton}
                   >
+                    <Ionicons name="arrow-back" size={16} color={secondaryColor} style={{ marginRight: 6 }} />
                     <Text style={[styles.backToEmailText, { color: secondaryColor }]}>
                       Volver a ingresar email
                     </Text>
                   </TouchableOpacity>
-                </View>
+                </ScrollView>
               )}
             </View>
           </View>
@@ -750,78 +788,113 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 23, 31, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 24,
     width: '100%',
-    maxWidth: 400,
-    maxHeight: '80%',
-    padding: 24,
+    maxWidth: 420,
+    maxHeight: '85%',
+    padding: 0,
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  modalHeaderContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    position: 'relative',
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalIconGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseButton: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    zIndex: 10,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 8,
+    paddingHorizontal: 24,
+    color: '#00171F',
+  },
+  modalBody: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  modalDescription: {
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 24,
+    textAlign: 'left',
+    color: '#5D6F75',
+  },
+  modalInputWrapper: {
+    marginBottom: 16,
+  },
+  modalButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 8,
+    marginBottom: 16,
+    shadowColor: '#007EA7',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  modalBody: {
-    flex: 1,
-  },
-  modalDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  modalButton: {
-    borderRadius: 25,
-    overflow: 'hidden',
-    marginTop: 8,
-    shadowColor: '#007EA7',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    elevation: 6,
   },
   modalButtonDisabled: {
     opacity: 0.6,
   },
   modalButtonGradient: {
-    paddingVertical: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 25,
+    borderRadius: 16,
+    flexDirection: 'row',
   },
   modalButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   backToEmailButton: {
-    marginTop: 16,
-    paddingVertical: 8,
+    marginTop: 8,
+    paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
   },
   backToEmailText: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });
 
