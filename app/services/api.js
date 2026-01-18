@@ -322,13 +322,39 @@ function setupInterceptors(apiInstance) {
         }
 
         // Si el token ha expirado o es inválido (401)
-        if (error.response.status === 401) {
-          // Solo limpiar credenciales si no es un caso esperado (sin sesión activa)
-          if (!isUnauthorizedExpected) {
-            logger.info('🔒 Error 401: Token inválido o expirado, limpiando credenciales');
+        // CRÍTICO: Solo limpiar credenciales si es un error REAL de autenticación
+        // NO limpiar si hay problemas de servidor/BD/red que causan 401 incorrectamente
+        if (error.response.status === 401 && !isUnauthorizedExpected) {
+          // Verificar si es un error real de autenticación (token inválido/expirado)
+          const errorData = error.response.data;
+          const errorMessage = (errorData?.detail || errorData?.error || '').toLowerCase();
+          const errorString = JSON.stringify(errorData || {}).toLowerCase();
+          
+          // Solo limpiar credenciales si el mensaje indica claramente problema de autenticación
+          // NO limpiar si hay indicios de errores de servidor/BD/red
+          const isAuthError = (
+            errorMessage.includes('token') && !errorMessage.includes('server') ||
+            errorMessage.includes('authentication') && !errorMessage.includes('server') ||
+            errorMessage.includes('unauthorized') && !errorMessage.includes('server') ||
+            errorMessage.includes('invalid credentials') ||
+            errorMessage.includes('token expired') ||
+            errorString.includes('invalid_token') ||
+            errorString.includes('token_not_found')
+          ) && !(
+            errorMessage.includes('server error') ||
+            errorMessage.includes('connection') ||
+            errorMessage.includes('database') ||
+            errorMessage.includes('500') ||
+            errorString.includes('operationalerror')
+          );
+          
+          if (isAuthError) {
+            logger.info('🔒 Error 401 de autenticación: Token inválido o expirado, limpiando credenciales');
             AsyncStorage.removeItem('auth_token');
             AsyncStorage.removeItem('user');
-            // Aquí se podría disparar un evento para que el AuthContext se actualice
+          } else {
+            // 401 por problemas de servidor/BD - NO limpiar credenciales para evitar desconexiones incorrectas
+            logger.warn('⚠️ Error 401 posiblemente por problemas de servidor/BD/red. NO limpiando credenciales para evitar desconexiones incorrectas.');
           }
         }
 
