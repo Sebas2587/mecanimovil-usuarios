@@ -298,20 +298,55 @@ const UserPanelScreen = () => {
 
 
   const onRefresh = useCallback(async () => {
+    // Prevent multiple simultaneous refreshes
+    if (refreshing) {
+      console.log('[onRefresh] Already refreshing, skipping...');
+      return;
+    }
+
     setRefreshing(true);
-    await Promise.all([
-      queryClient.invalidateQueries(['vehicles']),
-      queryClient.invalidateQueries(['mainAddress']),
-      queryClient.invalidateQueries(['userProfile']),
-      queryClient.invalidateQueries(['servicesHistory']),
-      // Health queries invalidation?
-      // vehiclesHealthQuery typically doesn't have a single key.
-      // But we can invalidate 'vehicleHealth'.
-      queryClient.invalidateQueries(['vehicleHealth']),
-      isClient ? cargarSolicitudesActivas() : Promise.resolve()
-    ]);
-    setRefreshing(false);
-  }, [queryClient, isClient, cargarSolicitudesActivas]);
+
+    try {
+      // 1. CANCEL all in-flight queries before invalidating
+      // This prevents old requests from completing after new ones start
+      await queryClient.cancelQueries({ queryKey: ['vehicles'] });
+      await queryClient.cancelQueries({ queryKey: ['mainAddress'] });
+      await queryClient.cancelQueries({ queryKey: ['userProfile'] });
+      await queryClient.cancelQueries({ queryKey: ['servicesHistory'] });
+      await queryClient.cancelQueries({ queryKey: ['vehicleHealth'] });
+      await queryClient.cancelQueries({ queryKey: ['nearbyTalleres'] });
+      await queryClient.cancelQueries({ queryKey: ['nearbyMecanicos'] });
+      await queryClient.cancelQueries({ queryKey: ['categories'] });
+
+      console.log('[onRefresh] Cancelled in-flight requests');
+
+      // 2. Invalidate queries to trigger refetch
+      // Run critical queries first, then secondary ones
+      await Promise.all([
+        queryClient.invalidateQueries(['vehicles']),
+        queryClient.invalidateQueries(['mainAddress']),
+      ]);
+
+      // Wait a bit before fetching non-critical data
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      await Promise.all([
+        queryClient.invalidateQueries(['userProfile']),
+        queryClient.invalidateQueries(['servicesHistory']),
+        queryClient.invalidateQueries(['vehicleHealth']),
+        isClient ? cargarSolicitudesActivas() : Promise.resolve()
+      ]);
+
+      // Note: nearbyTalleres and nearbyMecanicos will automatically refetch
+      // when their dependencies (vehicles, address) update, thanks to React Query
+
+      console.log('[onRefresh] Refresh complete');
+    } catch (error) {
+      console.error('[onRefresh] Error during refresh:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [queryClient, isClient, cargarSolicitudesActivas, refreshing]);
 
 
   // Helper Renderers

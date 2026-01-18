@@ -3,33 +3,104 @@ import * as providerService from '../services/providers';
 import { get } from '../services/api';
 import * as userService from '../services/user';
 
+// Cache for concurrent request deduplication
+const requestCache = new Map();
+
+/**
+ * Batched hook for nearby talleres - groups vehicles by brand to minimize requests
+ * Uses strategic caching to prevent excessive refetching
+ */
 export const useNearbyTalleres = (vehicles, address) => {
     // Only run if we have vehicles and address
     const enabled = vehicles && vehicles.length > 0 && !!address;
 
+    // Create a stable key based on unique brands instead of vehicle IDs
+    const uniqueBrands = vehicles
+        ? [...new Set(vehicles.map(v => v.marca?.id || v.marca).filter(Boolean))].sort().join(',')
+        : '';
+
     return useQuery({
         queryKey: ['nearbyTalleres', {
-            vehicleIds: vehicles?.map(v => v.id).sort().join(','),
-            addressId: address?.id
+            brands: uniqueBrands,
+            addressId: address?.id,
+            vehicleCount: vehicles?.length || 0
         }],
-        queryFn: () => providerService.getWorkshopsForUserVehicles(vehicles),
+        queryFn: async ({ signal }) => {
+            const cacheKey = `talleres_${uniqueBrands}_${address?.id}`;
+
+            // Check if same request is in-flight
+            if (requestCache.has(cacheKey)) {
+                console.log('[useNearbyTalleres] Reusing in-flight request');
+                return requestCache.get(cacheKey);
+            }
+
+            // Create promise and cache it
+            const promise = providerService.getWorkshopsForUserVehicles(vehicles, signal);
+            requestCache.set(cacheKey, promise);
+
+            try {
+                const result = await promise;
+                return Array.isArray(result) ? result.slice(0, 5) : [];
+            } finally {
+                // Clean up cache after request completes
+                requestCache.delete(cacheKey);
+            }
+        },
         enabled: enabled,
-        staleTime: 1000 * 60 * 15, // 15 mins
+        staleTime: 1000 * 60 * 5, // 5 mins - data doesn't change that fast
+        cacheTime: 1000 * 60 * 30, // 30 mins - keep in memory
+        refetchOnMount: false, // Don't refetch on every mount
+        refetchOnWindowFocus: false, // Don't refetch on window focus
+        retry: 2, // Retry failed requests
         select: (data) => Array.isArray(data) ? data.slice(0, 5) : [],
     });
 };
 
+/**
+ * Batched hook for nearby mecanicos - groups vehicles by brand to minimize requests
+ * Uses strategic caching to prevent excessive refetching
+ */
 export const useNearbyMecanicos = (vehicles, address) => {
     const enabled = vehicles && vehicles.length > 0 && !!address;
 
+    // Create a stable key based on unique brands instead of vehicle IDs
+    const uniqueBrands = vehicles
+        ? [...new Set(vehicles.map(v => v.marca?.id || v.marca).filter(Boolean))].sort().join(',')
+        : '';
+
     return useQuery({
         queryKey: ['nearbyMecanicos', {
-            vehicleIds: vehicles?.map(v => v.id).sort().join(','),
-            addressId: address?.id
+            brands: uniqueBrands,
+            addressId: address?.id,
+            vehicleCount: vehicles?.length || 0
         }],
-        queryFn: () => providerService.getMechanicsForUserVehicles(vehicles),
+        queryFn: async ({ signal }) => {
+            const cacheKey = `mecanicos_${uniqueBrands}_${address?.id}`;
+
+            // Check if same request is in-flight
+            if (requestCache.has(cacheKey)) {
+                console.log('[useNearbyMecanicos] Reusing in-flight request');
+                return requestCache.get(cacheKey);
+            }
+
+            // Create promise and cache it
+            const promise = providerService.getMechanicsForUserVehicles(vehicles, signal);
+            requestCache.set(cacheKey, promise);
+
+            try {
+                const result = await promise;
+                return Array.isArray(result) ? result.slice(0, 5) : [];
+            } finally {
+                // Clean up cache after request completes
+                requestCache.delete(cacheKey);
+            }
+        },
         enabled: enabled,
-        staleTime: 1000 * 60 * 15, // 15 mins
+        staleTime: 1000 * 60 * 5, // 5 mins
+        cacheTime: 1000 * 60 * 30, // 30 mins
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+        retry: 2,
         select: (data) => Array.isArray(data) ? data.slice(0, 5) : [],
     });
 };
