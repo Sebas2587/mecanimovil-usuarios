@@ -21,11 +21,18 @@ class NotificationService {
    * Inicializar el servicio de notificaciones
    */
   async initializeService() {
+    console.log('📱 [NotificationService] Inicializando...');
     try {
-      // Solo inicializar en dispositivos físicos (Expo Go soporta notificaciones ahora)
-      if (!Constants.isDevice) {
-        console.log('📱 Notificaciones: Ejecutándose en Simulador - funcionalidad limitada');
-        return;
+      // Registrar info del entorno para debugging
+      console.log('📱 [NotificationService] Datos del entorno:', {
+        isDevice: Constants.isDevice,
+        appOwnership: Constants.appOwnership,
+        executionEnvironment: Constants.executionEnvironment,
+        platform: Platform.OS
+      });
+
+      if (!Constants.isDevice && Platform.OS !== 'web') {
+        console.log('⚠️ [NotificationService] Ejecutándose en SIMULADOR. Las notificaciones push no funcionarán aquí.');
       }
 
       // Configurar canal de notificaciones para Android
@@ -40,9 +47,9 @@ class NotificationService {
       }
 
       this.isInitialized = true;
-      console.log('📱 Servicio de notificaciones inicializado correctamente');
+      console.log('✅ [NotificationService] Servicio inicializado correctamente');
     } catch (error) {
-      console.error('❌ Error inicializando servicio de notificaciones:', error);
+      console.error('❌ [NotificationService] Error inicializando servicio:', error);
     }
   }
 
@@ -50,10 +57,11 @@ class NotificationService {
    * Verificar si las notificaciones están disponibles
    */
   isAvailable() {
-    // Las notificaciones push requieren dispositivo físico
-    if (!Constants.isDevice) {
-      return false;
-    }
+    // Si es web, las notificaciones push de Expo no están soportadas
+    if (Platform.OS === 'web') return false;
+
+    // NOTA: No bloqueamos por !Constants.isDevice aquí porque en algunos entornos 
+    // de producción/dev builds puede reportar false incorrectamente en dispositivos físicos.
     return true;
   }
 
@@ -61,29 +69,30 @@ class NotificationService {
    * Solicitar permisos para notificaciones
    */
   async requestPermissions() {
+    console.log('📱 [NotificationService] Solicitando permisos...');
     try {
-      if (!this.isAvailable()) {
-        console.log('📱 Notificaciones no disponibles en Expo Go');
-        return false;
-      }
+      if (Platform.OS === 'web') return false;
 
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      console.log('📱 [NotificationService] Estado actual de permisos:', existingStatus);
+
       let finalStatus = existingStatus;
 
       if (existingStatus !== 'granted') {
+        console.log('📱 [NotificationService] Los permisos no están otorgados. Solicitando...');
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
 
       if (finalStatus !== 'granted') {
-        console.log('❌ Permisos de notificación denegados');
+        console.log('❌ [NotificationService] Permisos denegados por el usuario');
         return false;
       }
 
-      console.log('✅ Permisos de notificación concedidos');
+      console.log('✅ [NotificationService] Permisos otorgados');
       return true;
     } catch (error) {
-      console.error('❌ Error al solicitar permisos de notificación:', error);
+      console.error('❌ [NotificationService] Error al solicitar permisos:', error);
       return false;
     }
   }
@@ -234,26 +243,31 @@ class NotificationService {
    * Obtener token de push (solo para builds de producción)
    */
   async obtenerPushToken() {
+    console.log('🔑 [NotificationService] Intentando obtener Expo Push Token...');
     try {
-      if (!this.isAvailable()) {
-        console.log('📱 Push tokens no disponibles en simuladores');
+      if (Platform.OS === 'web') {
+        console.log('⚠️ [NotificationService] Push tokens no disponibles en web');
         return null;
       }
 
       // IMPORTANTE: Para Expo Go necesitamos pedir permisos explícitamente aquí si no se han pedido
       const hasPermission = await this.requestPermissions();
-      if (!hasPermission) return null;
+      if (!hasPermission) {
+        console.log('❌ [NotificationService] No se puede obtener token sin permisos');
+        return null;
+      }
 
       // Obtener el token
+      console.log('🔑 [NotificationService] Llamando a getExpoPushTokenAsync...');
       const tokenData = await Notifications.getExpoPushTokenAsync({
         projectId: Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId,
       });
 
       const token = tokenData.data;
-      console.log('🔑 Push token obtenido:', token);
+      console.log('✅ [NotificationService] Push token obtenido exitosamente:', token);
       return token;
     } catch (error) {
-      console.error('❌ Error obteniendo push token:', error);
+      console.error('❌ [NotificationService] Error obteniendo push token:', error);
       return null;
     }
   }
