@@ -30,8 +30,13 @@ import Input from '../../components/base/Input/Input';
 import Header from '../../components/navigation/Header/Header';
 
 // Servicios
-import * as vehicleService from '../../services/vehicle';
-import * as userService from '../../services/user';
+// Servicios y Hooks
+// import * as vehicleService from '../../services/vehicle'; // Reemplazado por hooks
+// import * as userService from '../../services/user'; // Reemplazado parcialmente
+import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, useCarBrands, useCarModels } from '../../hooks/useVehicles';
+import { useServicesHistory } from '../../hooks/useServices';
+import * as userService from '../../services/user'; // needed for getClienteDetails
+import * as vehicleService from '../../services/vehicle'; // needed for getInitialChecklist (not yet in hooks, but should be?)
 
 const tiposMotor = [
   { id: 1, nombre: 'Gasolina' },
@@ -43,9 +48,17 @@ const MisVehiculosScreen = () => {
   const { token, user } = useAuth();
 
   // Estados para la lista de vehículos
-  const [vehicles, setVehicles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  // Estados para la lista de vehículos (Refactored to Hooks)
+  const { data: vehiclesData, isLoading: isLoadingVehicles, refetch: refetchVehicles, isRefetching: isRefetchingVehicles } = useVehicles();
+  const vehicles = vehiclesData || [];
+  const loading = isLoadingVehicles && vehicles.length === 0;
+
+  const [refreshing, setRefreshing] = useState(false); // Keep for UI refreshing state if needed, or map to isRefetching
+
+  // Mutations
+  const { mutateAsync: createVehicleAsync } = useCreateVehicle();
+  const { mutateAsync: updateVehicleAsync } = useUpdateVehicle();
+  const { mutateAsync: deleteVehicleAsync } = useDeleteVehicle();
 
   // Estado para el modal de creación
   const [modalVisible, setModalVisible] = useState(false);
@@ -56,8 +69,13 @@ const MisVehiculosScreen = () => {
   const [optionsVehicle, setOptionsVehicle] = useState(null);
 
   // Estados para el formulario
-  const [marcas, setMarcas] = useState([]);
-  const [modelos, setModelos] = useState([]);
+  // Estados para el formulario
+  const { data: carBrands } = useCarBrands();
+  const marcas = carBrands || [];
+
+  // const [modelos, setModelos] = useState([]); // Replaced by hook below
+  const { data: modelosData } = useCarModels(marcaSeleccionada?.id);
+  const modelos = modelosData || [];
   const [formData, setFormData] = useState({
     marca: '',
     modelo: '',
@@ -75,9 +93,6 @@ const MisVehiculosScreen = () => {
   const [showModelosDropdown, setShowModelosDropdown] = useState(false);
   const [showTiposMotorDropdown, setShowTiposMotorDropdown] = useState(false);
   const [clienteId, setClienteId] = useState(null);
-  const [vehicleHistories, setVehicleHistories] = useState({});
-  const [loadingHistories, setLoadingHistories] = useState(false);
-  const [historyError, setHistoryError] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedVehicleHistory, setSelectedVehicleHistory] = useState([]);
 
@@ -85,6 +100,10 @@ const MisVehiculosScreen = () => {
   const [checklistItems, setChecklistItems] = useState([]);
   const [selectedChecklistItems, setSelectedChecklistItems] = useState([]);
   const [fetchingChecklist, setFetchingChecklist] = useState(false);
+
+  // Estados para el flujo de onboarding por pasos
+  const [currentStep, setCurrentStep] = useState(1); // 1 = Datos básicos, 2 = Checklist
+  const totalSteps = 2;
 
   // Opciones para el selector de imágenes
   const imagePickerOptions = {
@@ -94,50 +113,35 @@ const MisVehiculosScreen = () => {
     quality: 0.7,
   };
 
-  const loadVehicleHistories = useCallback(async () => {
-    setLoadingHistories(true);
-    try {
-      const response = await userService.getServicesHistory();
-      const rawSolicitudes = Array.isArray(response?.results)
-        ? response.results
-        : Array.isArray(response)
-          ? response
-          : Array.isArray(response?.data)
-            ? response.data
-            : [];
+  // History Logic Refactored
+  const { data: rawServicesHistory, isLoading: isLoadingHistory, refetch: refetchHistory } = useServicesHistory(user?.id);
+  const loadingHistories = isLoadingHistory;
+  const historyError = null; // Error handling managed by hook
 
-      const grouped = rawSolicitudes.reduce((acc, solicitud) => {
-        const vehiculo = solicitud.vehiculo_detail;
-        if (vehiculo?.id) {
-          if (!acc[vehiculo.id]) {
-            acc[vehiculo.id] = {
-              vehiculo,
-              solicitudes: [],
-            };
-          }
-          acc[vehiculo.id].solicitudes.push(solicitud);
-        }
-        return acc;
-      }, {});
+  const vehicleHistories = React.useMemo(() => {
+    if (!rawServicesHistory) return {};
+    const raw = Array.isArray(rawServicesHistory) ? rawServicesHistory : [];
+    return raw.reduce((acc, solicitud) => {
+      const vId = solicitud.vehiculo_detail?.id || solicitud.vehiculo;
+      if (vId) {
+        if (!acc[vId]) acc[vId] = { vehiculo: solicitud.vehiculo_detail, solicitudes: [] };
+        acc[vId].solicitudes.push(solicitud);
+      }
+      return acc;
+    }, {});
+  }, [rawServicesHistory]);
 
-      setVehicleHistories(grouped);
-      setHistoryError(null);
-      return grouped;
-    } catch (error) {
-      console.error('Error al cargar historial de vehículos:', error);
-      setHistoryError('No se pudo cargar el historial de servicios.');
-      return null;
-    } finally {
-      setLoadingHistories(false);
-    }
-  }, []);
+  const loadVehicleHistories = async () => {
+    await refetchHistory();
+    return vehicleHistories;
+  };
 
   useEffect(() => {
-    fetchVehicles();
-    fetchMarcas();
+    // fetchVehicles(); // Managed by useVehicles
+    // fetchMarcas(); // Managed by useCarBrands
     fetchClienteDetails();
-    loadVehicleHistories();
-  }, [loadVehicleHistories]);
+    // loadVehicleHistories(); // Managed by useServicesHistory
+  }, []);
 
   const route = useRoute();
 
@@ -161,55 +165,9 @@ const MisVehiculosScreen = () => {
     }
   }, [route.params, vehicles]);
 
-  useEffect(() => {
-    if (marcaSeleccionada) {
-      fetchModelos(marcaSeleccionada.id);
-    } else {
-      setModelos([]);
-    }
-  }, [marcaSeleccionada]);
+  // Effect for fetching models removed (managed by useCarModels hook)
 
-  const fetchVehicles = async () => {
-    setLoading(true);
-    try {
-      console.log('Obteniendo vehículos del usuario...');
-      const data = await vehicleService.getUserVehicles();
-      console.log(`Se obtuvieron ${data ? data.length : 0} vehículos:`, data);
-      if (data && Array.isArray(data) && data.length > 0) {
-        setVehicles(data);
-      } else {
-        console.warn('No se obtuvieron vehículos o el formato de respuesta es incorrecto');
-        setVehicles([]);
-      }
-    } catch (error) {
-      console.error('Error al obtener vehículos:', error);
-      Alert.alert('Error', 'No se pudieron cargar tus vehículos. Inténtalo de nuevo.');
-      setVehicles([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const fetchMarcas = async () => {
-    try {
-      const data = await vehicleService.getCarBrands();
-      setMarcas(data);
-    } catch (error) {
-      console.error('Error al obtener marcas:', error);
-      Alert.alert('Error', 'No se pudieron cargar las marcas de vehículos.');
-    }
-  };
-
-  const fetchModelos = async (marcaId) => {
-    try {
-      const data = await vehicleService.getCarModels(marcaId);
-      setModelos(data);
-    } catch (error) {
-      console.error('Error al obtener modelos:', error);
-      Alert.alert('Error', 'No se pudieron cargar los modelos de vehículos.');
-    }
-  };
+  // Fetch functions removed (replaced by hooks)
 
   const fetchClienteDetails = async () => {
     try {
@@ -229,8 +187,10 @@ const MisVehiculosScreen = () => {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchVehicles();
-      await loadVehicleHistories();
+      await Promise.all([
+        refetchVehicles(),
+        refetchHistory()
+      ]);
     } catch (error) {
       console.error('Error al refrescar vehículos:', error);
     } finally {
@@ -239,10 +199,29 @@ const MisVehiculosScreen = () => {
   };
 
   const handleAddVehicle = () => {
-    resetForm();
+    alert('🔴 FUNCIÓN handleAddVehicle EJECUTADA - Si ves esto, el código se está ejecutando');
+    console.log('➕➕➕ ABRIENDO MODAL PARA AGREGAR VEHÍCULO ➕➕➕');
+    console.log('➕ Estado ANTES de reset:', {
+      currentStep,
+      isEdit,
+      modalVisible,
+      editingVehicleId
+    });
+
+    // Resetear TODO en orden específico
     setIsEdit(false);
     setEditingVehicleId(null);
+    setCurrentStep(1);
+    resetForm();
+
+    // Mostrar modal inmediatamente
     setModalVisible(true);
+    console.log('➕ Modal VISIBLE = true');
+    console.log('➕ Estado DESPUÉS de reset:', {
+      isEdit: false,
+      currentStep: 1,
+      modalVisible: true
+    });
   };
 
   const resetForm = () => {
@@ -259,39 +238,61 @@ const MisVehiculosScreen = () => {
     setMarcaSeleccionada(null);
     setChecklistItems([]);
     setSelectedChecklistItems([]);
+    setFetchingChecklist(false);
     setErrors({});
+    setCurrentStep(1); // Resetear al paso 1
   };
 
-  // Efecto para cargar el checklist cuando cambia el tipo de motor
+  // Efecto para cargar el checklist cuando se avanza al paso 2
   useEffect(() => {
     const fetchChecklist = async () => {
-      // Solo cargar si no es edición y tenemos un tipo de motor seleccionado
-      if (isEdit || !formData.tipo_motor) {
-        setChecklistItems([]);
+      // Solo cargar si estamos en el paso 2, no es edición y tenemos un tipo de motor seleccionado
+      if (currentStep !== 2 || isEdit || !formData.tipo_motor) {
         return;
       }
 
+      console.log('🔄 Checklist: Cargando para paso 2, tipo_motor:', formData.tipo_motor);
       setFetchingChecklist(true);
-      try {
-        const motorName = typeof formData.tipo_motor === 'object'
-          ? formData.tipo_motor.nombre
-          : tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre;
+      setChecklistItems([]);
 
-        if (motorName) {
-          const items = await vehicleService.getInitialChecklist(motorName);
-          setChecklistItems(items || []);
-          // Por defecto no marcamos nada (todo pendiente/crítico es lo más seguro, o dejar que el usuario elija)
-          setSelectedChecklistItems([]);
+      try {
+        // Obtener el nombre del motor desde el ID
+        let motorName = null;
+
+        if (typeof formData.tipo_motor === 'object' && formData.tipo_motor.nombre) {
+          motorName = formData.tipo_motor.nombre;
+        } else if (typeof formData.tipo_motor === 'string' || typeof formData.tipo_motor === 'number') {
+          const tipoEncontrado = tiposMotor.find(t =>
+            t.id.toString() === formData.tipo_motor.toString() ||
+            t.nombre.toLowerCase() === formData.tipo_motor.toString().toLowerCase()
+          );
+          motorName = tipoEncontrado?.nombre;
         }
+
+        if (!motorName) {
+          console.warn('⚠️ Checklist: No se encontró nombre del motor');
+          setChecklistItems([]);
+          setFetchingChecklist(false);
+          return;
+        }
+
+        console.log('📡 Checklist: Llamando API con motor:', motorName);
+        const items = await vehicleService.getInitialChecklist(motorName);
+        console.log('✅ Checklist: Items recibidos:', items?.length || 0);
+
+        const itemsArray = Array.isArray(items) ? items : [];
+        setChecklistItems(itemsArray);
+        setSelectedChecklistItems([]);
       } catch (error) {
-        console.error('Error cargando checklist:', error);
+        console.error('❌ Error cargando checklist:', error);
+        setChecklistItems([]);
       } finally {
         setFetchingChecklist(false);
       }
     };
 
     fetchChecklist();
-  }, [formData.tipo_motor, isEdit]);
+  }, [currentStep, formData.tipo_motor, isEdit]);
 
   const toggleChecklistItem = (itemId) => {
     setSelectedChecklistItems(prev => {
@@ -304,9 +305,14 @@ const MisVehiculosScreen = () => {
   };
 
   const handleChange = (field, value) => {
-    setFormData({
-      ...formData,
-      [field]: value
+    console.log(`📝 handleChange: ${field} =`, value, '(tipo:', typeof value, ')');
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [field]: value
+      };
+      console.log(`📝 Nuevo formData.${field}:`, newData[field]);
+      return newData;
     });
 
     // Limpiar el error del campo si existe
@@ -431,6 +437,70 @@ const MisVehiculosScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Validar solo los campos del paso 1 (datos básicos)
+  const validateStep1 = () => {
+    const newErrors = {};
+
+    if (!marcaSeleccionada) {
+      newErrors.marca = 'Selecciona una marca';
+    }
+
+    if (!formData.modelo) {
+      newErrors.modelo = 'Selecciona un modelo';
+    }
+
+    if (!formData.cilindraje) {
+      newErrors.cilindraje = 'Ingresa el cilindraje';
+    }
+
+    if (!formData.tipo_motor) {
+      newErrors.tipo_motor = 'Selecciona el tipo de motor';
+    }
+
+    if (!formData.year) {
+      newErrors.year = 'Ingresa el año';
+    } else {
+      const year = parseInt(formData.year);
+      const currentYear = new Date().getFullYear();
+      if (isNaN(year) || year < 1900 || year > currentYear + 1) {
+        newErrors.year = `El año debe estar entre 1900 y ${currentYear + 1}`;
+      }
+    }
+
+    if (!formData.patente) {
+      newErrors.patente = 'Ingresa la patente';
+    } else if (!validatePatente(formData.patente)) {
+      newErrors.patente = 'Formato de patente inválido';
+    }
+
+    if (!formData.kilometraje) {
+      newErrors.kilometraje = 'Ingresa el kilometraje';
+    } else if (isNaN(formData.kilometraje) || Number(formData.kilometraje) < 0) {
+      newErrors.kilometraje = 'Kilometraje inválido';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Avanzar al siguiente paso
+  const handleNextStep = () => {
+    if (currentStep === 1) {
+      if (validateStep1()) {
+        setCurrentStep(2);
+      } else {
+        Alert.alert('Campos incompletos', 'Por favor completa todos los campos requeridos antes de continuar.');
+      }
+    }
+  };
+
+  // Volver al paso anterior
+  const handlePreviousStep = () => {
+    if (currentStep === 2) {
+      setCurrentStep(1);
+    }
+  };
+
   const validatePatente = (patente) => {
     // Esta validación es básica, deberías adaptarla al formato específico de tu país
     return patente.length >= 4 && patente.length <= 8;
@@ -458,7 +528,7 @@ const MisVehiculosScreen = () => {
     setEditingVehicleId(vehicle.id);
     const marcaObj = { id: vehicle.marca, nombre: vehicle.marca_nombre };
     setMarcaSeleccionada(marcaObj);
-    try { await fetchModelos(marcaObj.id); } catch (e) { }
+    // fetchModelos call removed (handled by hook)
     setFormData({
       marca: String(marcaObj.id),
       modelo: String(vehicle.modelo || ''),
@@ -484,126 +554,82 @@ const MisVehiculosScreen = () => {
     setIsSubmitting(true);
 
     try {
-      // Preparar datos para enviar como JSON (no FormData)
+      // Preparar datos base
       const vehicleData = {
-        // Convertir marca y modelo a números
         marca: Number(marcaSeleccionada.id),
         modelo: typeof formData.modelo === 'object' ? Number(formData.modelo.id) : Number(formData.modelo),
-
-        // Convertir year y kilometraje a números
         year: parseInt(formData.year, 10),
         kilometraje: parseInt(formData.kilometraje || '0', 10),
-
-        // Campos de texto
         patente: formData.patente.trim().toUpperCase(),
         cilindraje: formData.cilindraje ? formData.cilindraje.trim() : null,
-
-        // Tipo de motor (texto)
         tipo_motor: typeof formData.tipo_motor === 'object'
           ? formData.tipo_motor.nombre
           : tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre || 'Gasolina',
       };
 
-      // Si es creación y hay checklist seleccionado, lo agregamos
       if (!isEdit && selectedChecklistItems.length > 0) {
         vehicleData.componentes_al_dia = selectedChecklistItems;
-        console.log('✅ Agregando checklist inicial:', selectedChecklistItems);
       }
 
-      // Añadir el ID del cliente si está disponible
       if (clienteId) {
         vehicleData.cliente = clienteId;
       } else {
-        // Si no tenemos el clienteId, obtenerlo de user
         const userData = await AsyncStorage.getItem('user');
         if (userData) {
           const parsedUser = JSON.parse(userData);
-          if (parsedUser.cliente_id) {
-            vehicleData.cliente = parsedUser.cliente_id;
-          } else if (parsedUser.id) {
-            vehicleData.cliente = parsedUser.id;
-          }
+          vehicleData.cliente = parsedUser.cliente_id || parsedUser.id;
         }
       }
 
-      console.log('Datos a enviar:', vehicleData);
+      let dataToSend = vehicleData;
 
-      const sendWithFormData = async (method) => {
-        const formattedData = new FormData();
+      // Si hay foto, usar FormData
+      if (formData.foto) {
+        const formDataObj = new FormData();
         Object.entries(vehicleData).forEach(([key, value]) => {
           if (value !== null && value !== undefined) {
-            // Asegurar que cliente sea un número (string para FormData)
             if (key === 'cliente' && typeof value === 'number') {
-              formattedData.append(key, value.toString());
+              formDataObj.append(key, value.toString());
             } else if (key === 'componentes_al_dia' && Array.isArray(value)) {
-              // Para listas en FormData, Django espera múltiples keys iguales
-              value.forEach(id => formattedData.append('componentes_al_dia', id));
+              value.forEach(id => formDataObj.append('componentes_al_dia', id));
             } else {
-              formattedData.append(key, value);
+              formDataObj.append(key, value);
             }
           }
         });
-        if (formData.foto) {
-          formattedData.append('foto', {
-            uri: formData.foto.uri,
-            type: 'image/jpeg',
-            name: `vehicle_${Date.now()}.jpg`,
-          });
-        }
-
-        // Log para debugging
-        console.log('📤 Enviando FormData con campos:', Object.keys(vehicleData));
-        console.log('📤 Cliente ID incluido:', vehicleData.cliente);
-
-        if (method === 'create') {
-          await vehicleService.createVehicle(formattedData);
-        } else {
-          await vehicleService.updateVehicle(editingVehicleId, formattedData);
-        }
-      };
-
-      if (isEdit) {
-        // Actualizar vehículo existente
-        if (formData.foto) {
-          console.log('Actualizando con foto (FormData)');
-          await sendWithFormData('update');
-        } else {
-          console.log('Actualizando sin foto (JSON)');
-          await vehicleService.updateVehicle(editingVehicleId, vehicleData);
-        }
-      } else {
-        // Crear nuevo vehículo
-        if (formData.foto) {
-          console.log('Creando con foto (FormData)');
-          await sendWithFormData('create');
-        } else {
-          console.log('Creando sin foto (JSON)');
-          await vehicleService.createVehicle(vehicleData);
-        }
+        formDataObj.append('foto', {
+          uri: formData.foto.uri,
+          type: 'image/jpeg',
+          name: `vehicle_${Date.now()}.jpg`,
+        });
+        dataToSend = formDataObj;
       }
 
-      // Cerrar modal y actualizar lista
+      if (isEdit) {
+        await updateVehicleAsync({ id: editingVehicleId, data: dataToSend });
+      } else {
+        await createVehicleAsync(dataToSend);
+      }
+
+      // Cerrar modal y limpiar
       setModalVisible(false);
       setIsEdit(false);
       setEditingVehicleId(null);
       Alert.alert('Éxito', 'Vehículo registrado correctamente');
-      // Recargar la lista de vehículos
-      await fetchVehicles();
-      await loadVehicleHistories();
-    } catch (error) {
-      console.error('Error al crear vehículo:', error);
 
-      // Manejar errores de validación del backend
+      // Auto-refetch happens via query invalidation handled in hooks
+
+    } catch (error) {
+      console.error('Error al crear/actualizar vehículo:', error);
+
       if (error.response && error.response.data) {
         const serverErrors = {};
-
         Object.entries(error.response.data).forEach(([key, value]) => {
           if (Array.isArray(value)) {
             serverErrors[key] = value.join(', ');
           } else if (typeof value === 'string') {
             serverErrors[key] = value;
           } else if (typeof value === 'object') {
-            // Manejar objetos anidados de errores
             serverErrors[key] = JSON.stringify(value);
           }
         });
@@ -612,14 +638,10 @@ const MisVehiculosScreen = () => {
           setErrors({ ...errors, ...serverErrors });
           Alert.alert('Error de validación', 'Revisa los campos marcados en rojo');
         } else {
-          Alert.alert('Error', 'Ha ocurrido un error al registrar el vehículo. Inténtalo de nuevo.');
+          Alert.alert('Error', 'Ha ocurrido un error al registrar el vehículo.');
         }
-      } else if (error.message) {
-        // Error general con mensaje
-        Alert.alert('Error', error.message);
       } else {
-        // Error desconocido
-        Alert.alert('Error', 'Ha ocurrido un error al registrar el vehículo. Inténtalo de nuevo.');
+        Alert.alert('Error', error.message || 'Ha ocurrido un error inesperado.');
       }
     } finally {
       setIsSubmitting(false);
@@ -641,16 +663,14 @@ const MisVehiculosScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true);
-              await vehicleService.deleteVehicle(vehicle.id);
-              await fetchVehicles(); // Actualizar la lista después de eliminar
-              await loadVehicleHistories();
+              // setLoading(true); // Handled by hooks global loading or individual
+              await deleteVehicleAsync(vehicle.id);
               Alert.alert('Éxito', 'Vehículo eliminado correctamente');
             } catch (error) {
               console.error('Error eliminando vehículo:', error);
               Alert.alert('Error', 'No se pudo eliminar el vehículo. Inténtalo de nuevo.');
             } finally {
-              setLoading(false);
+              // setLoading(false);
             }
           }
         }
@@ -882,18 +902,62 @@ const MisVehiculosScreen = () => {
         visible={modalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          console.log('❌ Modal onRequestClose llamado');
+          setModalVisible(false);
+          setCurrentStep(1);
+        }}
       >
+        {console.log('🔴 MODAL COMPONENTE RENDERIZANDO - visible:', modalVisible)}
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalContainer}
         >
           <View style={styles.modalContent}>
+            {/* BANNER DE DEBUG MUY VISIBLE */}
+            <View style={{
+              backgroundColor: '#FF0000',
+              padding: 10,
+              alignItems: 'center',
+              borderBottomWidth: 3,
+              borderBottomColor: '#000000'
+            }}>
+              <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+                🔴 DEBUG ACTIVO - Paso {currentStep} - isEdit: {String(isEdit)}
+              </Text>
+            </View>
+
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{isEdit ? 'Editar Vehículo' : 'Agregar Nuevo Vehículo'}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>
+                  {isEdit ? 'Editar Vehículo' : currentStep === 1 ? 'Datos del Vehículo' : 'Estado de Mantenimiento'}
+                </Text>
+                {!isEdit && (
+                  <View style={styles.progressBarContainer}>
+                    <View style={styles.progressBar}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            width: `${(currentStep / totalSteps) * 100}%`,
+                            minWidth: currentStep > 0 ? 10 : 0
+                          }
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.progressText}>
+                      Paso {currentStep} de {totalSteps}
+                    </Text>
+                  </View>
+                )}
+              </View>
               <TouchableOpacity
                 style={styles.closeButton}
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  console.log('❌ Cerrando modal');
+                  setModalVisible(false);
+                  setCurrentStep(1);
+                }}
               >
                 <Ionicons name="close" size={24} color={COLORS.text} />
               </TouchableOpacity>
@@ -904,275 +968,573 @@ const MisVehiculosScreen = () => {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={true}
             >
-              {/* Selector de Marca */}
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>Marca:</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.dropdownButton,
-                    marcaSeleccionada && styles.dropdownButtonActive,
-                    errors.marca && styles.inputError
-                  ]}
-                  onPress={() => setShowMarcasDropdown(!showMarcasDropdown)}
-                >
-                  <Text style={[
-                    styles.dropdownButtonText,
-                    marcaSeleccionada && styles.dropdownButtonTextActive
-                  ]}>
-                    {marcaSeleccionada ? marcaSeleccionada.nombre : 'Selecciona una marca'}
-                  </Text>
-                  <Ionicons
-                    name={showMarcasDropdown ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color={COLORS.textLight}
-                  />
-                </TouchableOpacity>
-                {errors.marca && <Text style={styles.errorText}>{errors.marca}</Text>}
+              {/* Paso 1: Datos Básicos del Vehículo */}
+              {(() => {
+                const shouldShowStep1 = currentStep === 1 && !isEdit;
+                console.log('🎨 Renderizando paso 1:', { shouldShowStep1, currentStep, isEdit });
+                return shouldShowStep1 ? (
+                  <>
+                    {/* Selector de Marca */}
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Marca:</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.dropdownButton,
+                          marcaSeleccionada && styles.dropdownButtonActive,
+                          errors.marca && styles.inputError
+                        ]}
+                        onPress={() => setShowMarcasDropdown(!showMarcasDropdown)}
+                      >
+                        <Text style={[
+                          styles.dropdownButtonText,
+                          marcaSeleccionada && styles.dropdownButtonTextActive
+                        ]}>
+                          {marcaSeleccionada ? marcaSeleccionada.nombre : 'Selecciona una marca'}
+                        </Text>
+                        <Ionicons
+                          name={showMarcasDropdown ? "chevron-up" : "chevron-down"}
+                          size={18}
+                          color={COLORS.textLight}
+                        />
+                      </TouchableOpacity>
+                      {errors.marca && <Text style={styles.errorText}>{errors.marca}</Text>}
 
-                {showMarcasDropdown && (
-                  <View style={styles.dropdownList}>
-                    <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
-                      {marcas.map(marca => (
-                        <TouchableOpacity
-                          key={`marca-${marca.id}`}
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            setMarcaSeleccionada(marca);
-                            setShowMarcasDropdown(false);
-                          }}
-                        >
-                          <Text style={styles.dropdownItemText}>{marca.nombre}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-              </View>
-
-              {/* Selector de Modelo */}
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>Modelo:</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.dropdownButton,
-                    formData.modelo && styles.dropdownButtonActive,
-                    errors.modelo && styles.inputError
-                  ]}
-                  onPress={() => {
-                    if (marcaSeleccionada) {
-                      setShowModelosDropdown(!showModelosDropdown);
-                    } else {
-                      Alert.alert('Atención', 'Primero selecciona una marca');
-                    }
-                  }}
-                  disabled={!marcaSeleccionada}
-                >
-                  <Text style={[
-                    styles.dropdownButtonText,
-                    formData.modelo && styles.dropdownButtonTextActive,
-                    !marcaSeleccionada && styles.disabledText
-                  ]}>
-                    {formData.modelo ?
-                      modelos.find(m => m.id.toString() === formData.modelo)?.nombre :
-                      'Selecciona un modelo'
-                    }
-                  </Text>
-                  <Ionicons
-                    name={showModelosDropdown ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color={marcaSeleccionada ? COLORS.textLight : COLORS.primary}
-                  />
-                </TouchableOpacity>
-                {errors.modelo && <Text style={styles.errorText}>{errors.modelo}</Text>}
-
-                {showModelosDropdown && (
-                  <View style={styles.dropdownList}>
-                    <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
-                      {modelos.map(modelo => (
-                        <TouchableOpacity
-                          key={`modelo-${modelo.id}`}
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            handleChange('modelo', modelo.id.toString());
-                            setShowModelosDropdown(false);
-                          }}
-                        >
-                          <Text style={styles.dropdownItemText}>{modelo.nombre}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-              </View>
-
-              {/* Cilindraje */}
-              <Input
-                label="Cilindraje:"
-                placeholder="Ej: 2.0L, 1600cc"
-                value={formData.cilindraje}
-                onChangeText={(text) => handleChange('cilindraje', text)}
-                error={errors.cilindraje}
-              />
-
-              {/* Tipo de Motor */}
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>Tipo de Motor:</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.dropdownButton,
-                    formData.tipo_motor && styles.dropdownButtonActive,
-                    errors.tipo_motor && styles.inputError
-                  ]}
-                  onPress={() => setShowTiposMotorDropdown(!showTiposMotorDropdown)}
-                >
-                  <Text style={[
-                    styles.dropdownButtonText,
-                    formData.tipo_motor && styles.dropdownButtonTextActive
-                  ]}>
-                    {formData.tipo_motor ?
-                      tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre :
-                      'Selecciona un tipo de motor'
-                    }
-                  </Text>
-                  <Ionicons
-                    name={showTiposMotorDropdown ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color={COLORS.textLight}
-                  />
-                </TouchableOpacity>
-                {errors.tipo_motor && <Text style={styles.errorText}>{errors.tipo_motor}</Text>}
-
-                {showTiposMotorDropdown && (
-                  <View style={styles.dropdownList}>
-                    <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
-                      {tiposMotor.map(tipo => (
-                        <TouchableOpacity
-                          key={`tipo-motor-${tipo.id}`}
-                          style={styles.dropdownItem}
-                          onPress={() => {
-                            handleChange('tipo_motor', tipo.id.toString());
-                            setShowTiposMotorDropdown(false);
-                          }}
-                        >
-                          <Text style={styles.dropdownItemText}>{tipo.nombre}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
-              </View>
-
-              {/* Año */}
-              <Input
-                label="Año:"
-                placeholder="Ej: 2020"
-                value={formData.year}
-                onChangeText={(text) => handleChange('year', text)}
-                keyboardType="numeric"
-                error={errors.year}
-                maxLength={4}
-              />
-
-              {/* Patente */}
-              <Input
-                label="Patente:"
-                placeholder="Ej: ABC123"
-                value={formData.patente}
-                onChangeText={(text) => handleChange('patente', text.toUpperCase())}
-                error={errors.patente}
-                autoCapitalize="characters"
-              />
-
-              {/* Foto */}
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>Foto del Vehículo:</Text>
-                <TouchableOpacity
-                  style={styles.photoButton}
-                  onPress={handleFotoSelect}
-                >
-                  {formData.foto ? (
-                    <Image
-                      source={{ uri: formData.foto.uri }}
-                      style={styles.photoPreview}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={styles.photoPlaceholder}>
-                      <Ionicons name="camera" size={40} color={COLORS.primary} />
-                      <Text style={styles.photoPlaceholderText}>Toca para agregar foto</Text>
+                      {showMarcasDropdown && (
+                        <View style={styles.dropdownList}>
+                          <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                            {marcas.map(marca => (
+                              <TouchableOpacity
+                                key={`marca-${marca.id}`}
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                  setMarcaSeleccionada(marca);
+                                  setShowMarcasDropdown(false);
+                                }}
+                              >
+                                <Text style={styles.dropdownItemText}>{marca.nombre}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
                     </View>
-                  )}
-                </TouchableOpacity>
-              </View>
 
-              {/* Kilometraje */}
-              <Input
-                label="Kilometraje (km):"
-                placeholder="Ej: 15000"
-                value={formData.kilometraje}
-                onChangeText={(text) => handleChange('kilometraje', text)}
-                keyboardType="numeric"
-                error={errors.kilometraje}
-              />
+                    {/* Selector de Modelo */}
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Modelo:</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.dropdownButton,
+                          formData.modelo && styles.dropdownButtonActive,
+                          errors.modelo && styles.inputError
+                        ]}
+                        onPress={() => {
+                          if (marcaSeleccionada) {
+                            setShowModelosDropdown(!showModelosDropdown);
+                          } else {
+                            Alert.alert('Atención', 'Primero selecciona una marca');
+                          }
+                        }}
+                        disabled={!marcaSeleccionada}
+                      >
+                        <Text style={[
+                          styles.dropdownButtonText,
+                          formData.modelo && styles.dropdownButtonTextActive,
+                          !marcaSeleccionada && styles.disabledText
+                        ]}>
+                          {formData.modelo ?
+                            modelos.find(m => m.id.toString() === formData.modelo)?.nombre :
+                            'Selecciona un modelo'
+                          }
+                        </Text>
+                        <Ionicons
+                          name={showModelosDropdown ? "chevron-up" : "chevron-down"}
+                          size={18}
+                          color={marcaSeleccionada ? COLORS.textLight : COLORS.primary}
+                        />
+                      </TouchableOpacity>
+                      {errors.modelo && <Text style={styles.errorText}>{errors.modelo}</Text>}
 
-              {/* Checklist de Inicialización (Solo creación) */}
-              {!isEdit && (checklistItems.length > 0 || fetchingChecklist) && (
-                <View style={styles.checklistContainer}>
-                  <Text style={styles.checklistTitle}>Estado Inicial de Mantenimiento</Text>
-                  <Text style={styles.checklistSubtitle}>
-                    Selecciona los componentes a los que les has realizado mantenimiento recientemente.
-                    Los no seleccionados se marcarán como pendientes de revisión técnica.
-                  </Text>
+                      {showModelosDropdown && (
+                        <View style={styles.dropdownList}>
+                          <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                            {modelos.map(modelo => (
+                              <TouchableOpacity
+                                key={`modelo-${modelo.id}`}
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                  handleChange('modelo', modelo.id.toString());
+                                  setShowModelosDropdown(false);
+                                }}
+                              >
+                                <Text style={styles.dropdownItemText}>{modelo.nombre}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
+                    </View>
 
-                  {fetchingChecklist ? (
-                    <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 10 }} />
-                  ) : (
-                    checklistItems.map((item) => {
-                      const isSelected = selectedChecklistItems.includes(item.id);
-                      return (
-                        <TouchableOpacity
-                          key={`checklist-${item.id}`}
-                          style={[
-                            styles.checklistItem,
-                            isSelected && styles.checklistItemActive
-                          ]}
-                          onPress={() => toggleChecklistItem(item.id)}
-                          activeOpacity={0.7}
-                        >
-                          <View style={[
-                            styles.checkbox,
-                            isSelected && styles.checkboxActive
-                          ]}>
-                            {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                    {/* Cilindraje */}
+                    <Input
+                      label="Cilindraje:"
+                      placeholder="Ej: 2.0L, 1600cc"
+                      value={formData.cilindraje}
+                      onChangeText={(text) => handleChange('cilindraje', text)}
+                      error={errors.cilindraje}
+                    />
+
+                    {/* Tipo de Motor */}
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Tipo de Motor:</Text>
+                      <TouchableOpacity
+                        style={[
+                          styles.dropdownButton,
+                          formData.tipo_motor && styles.dropdownButtonActive,
+                          errors.tipo_motor && styles.inputError
+                        ]}
+                        onPress={() => setShowTiposMotorDropdown(!showTiposMotorDropdown)}
+                      >
+                        <Text style={[
+                          styles.dropdownButtonText,
+                          formData.tipo_motor && styles.dropdownButtonTextActive
+                        ]}>
+                          {formData.tipo_motor ?
+                            tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre :
+                            'Selecciona un tipo de motor'
+                          }
+                        </Text>
+                        <Ionicons
+                          name={showTiposMotorDropdown ? "chevron-up" : "chevron-down"}
+                          size={18}
+                          color={COLORS.textLight}
+                        />
+                      </TouchableOpacity>
+                      {errors.tipo_motor && <Text style={styles.errorText}>{errors.tipo_motor}</Text>}
+
+                      {showTiposMotorDropdown && (
+                        <View style={styles.dropdownList}>
+                          <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                            {tiposMotor.map(tipo => (
+                              <TouchableOpacity
+                                key={`tipo-motor-${tipo.id}`}
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                  console.log('🎯 Usuario seleccionó tipo de motor:', tipo.id, tipo.nombre);
+                                  handleChange('tipo_motor', tipo.id.toString());
+                                  setShowTiposMotorDropdown(false);
+                                  // Forzar actualización inmediata del estado para que el useEffect se ejecute
+                                  console.log('🎯 Estado después de seleccionar:', { tipo_motor: tipo.id.toString() });
+                                }}
+                              >
+                                <Text style={styles.dropdownItemText}>{tipo.nombre}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Año */}
+                    <Input
+                      label="Año:"
+                      placeholder="Ej: 2020"
+                      value={formData.year}
+                      onChangeText={(text) => handleChange('year', text)}
+                      keyboardType="numeric"
+                      error={errors.year}
+                      maxLength={4}
+                    />
+
+                    {/* Patente */}
+                    <Input
+                      label="Patente:"
+                      placeholder="Ej: ABC123"
+                      value={formData.patente}
+                      onChangeText={(text) => handleChange('patente', text.toUpperCase())}
+                      error={errors.patente}
+                      autoCapitalize="characters"
+                    />
+
+                    {/* Foto */}
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Foto del Vehículo:</Text>
+                      <TouchableOpacity
+                        style={styles.photoButton}
+                        onPress={handleFotoSelect}
+                      >
+                        {formData.foto ? (
+                          <Image
+                            source={{ uri: formData.foto.uri }}
+                            style={styles.photoPreview}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={styles.photoPlaceholder}>
+                            <Ionicons name="camera" size={40} color={COLORS.primary} />
+                            <Text style={styles.photoPlaceholderText}>Toca para agregar foto</Text>
                           </View>
-                          <View style={styles.checklistItemContent}>
-                            <Text style={styles.checklistItemText}>{item.nombre}</Text>
-                            {item.descripcion && (
-                              <Text style={styles.checklistItemSubtext}>{item.descripcion}</Text>
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })
-                  )}
-                </View>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Kilometraje */}
+                    <Input
+                      label="Kilometraje (km):"
+                      placeholder="Ej: 15000"
+                      value={formData.kilometraje}
+                      onChangeText={(text) => handleChange('kilometraje', text)}
+                      keyboardType="numeric"
+                      error={errors.kilometraje}
+                    />
+
+                  </>
+                ) : null;
+              })()}
+
+              {/* Paso 2: Checklist de Mantenimiento (Solo creación) */}
+              {(() => {
+                const shouldShowStep2 = currentStep === 2 && !isEdit;
+                console.log('🎨 Renderizando paso 2:', { shouldShowStep2, currentStep, isEdit });
+                return shouldShowStep2 ? (
+                  <View style={styles.checklistStepContainer}>
+                    <View style={styles.checklistHeader}>
+                      <Ionicons name="construct-outline" size={32} color={COLORS.primary} />
+                      <Text style={styles.checklistStepTitle}>Estado Inicial de Mantenimiento</Text>
+                      <Text style={styles.checklistStepSubtitle}>
+                        Selecciona los componentes a los que les has realizado mantenimiento recientemente.
+                        Los no seleccionados se marcarán como pendientes de revisión técnica.
+                      </Text>
+                    </View>
+
+                    {fetchingChecklist ? (
+                      <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                        <ActivityIndicator size="large" color={COLORS.primary} />
+                        <Text style={{ marginTop: 16, color: COLORS.textLight, fontSize: 14 }}>
+                          Cargando componentes...
+                        </Text>
+                      </View>
+                    ) : checklistItems.length > 0 ? (
+                      <>
+                        <View style={styles.checklistInfo}>
+                          <Ionicons name="information-circle-outline" size={20} color={COLORS.primary} />
+                          <Text style={styles.checklistInfoText}>
+                            {checklistItems.length} componente{checklistItems.length !== 1 ? 's' : ''} disponible{checklistItems.length !== 1 ? 's' : ''}.
+                            La selección es opcional.
+                          </Text>
+                        </View>
+                        {checklistItems.map((item) => {
+                          const isSelected = selectedChecklistItems.includes(item.id);
+                          return (
+                            <TouchableOpacity
+                              key={`checklist-${item.id}`}
+                              style={[
+                                styles.checklistItem,
+                                isSelected && styles.checklistItemActive
+                              ]}
+                              onPress={() => toggleChecklistItem(item.id)}
+                              activeOpacity={0.7}
+                            >
+                              <View style={[
+                                styles.checkbox,
+                                isSelected && styles.checkboxActive
+                              ]}>
+                                {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                              </View>
+                              <View style={styles.checklistItemContent}>
+                                <Text style={styles.checklistItemText}>{item.nombre}</Text>
+                                {item.descripcion && (
+                                  <Text style={styles.checklistItemSubtext}>{item.descripcion}</Text>
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </>
+                    ) : (
+                      <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                        <Ionicons name="checkmark-circle-outline" size={48} color={COLORS.success} />
+                        <Text style={{ marginTop: 16, color: COLORS.text, fontSize: 16, fontWeight: '600', textAlign: 'center' }}>
+                          No hay componentes configurados
+                        </Text>
+                        <Text style={{ marginTop: 8, color: COLORS.textLight, fontSize: 13, textAlign: 'center' }}>
+                          Puedes continuar sin seleccionar componentes. El sistema inicializará el mantenimiento como pendiente.
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ) : null;
+              })()}
+
+              {/* Formulario de edición (siempre visible cuando isEdit) */}
+              {isEdit && (
+                <>
+                  {/* Selector de Marca */}
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>Marca:</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.dropdownButton,
+                        marcaSeleccionada && styles.dropdownButtonActive,
+                        errors.marca && styles.inputError
+                      ]}
+                      onPress={() => setShowMarcasDropdown(!showMarcasDropdown)}
+                    >
+                      <Text style={[
+                        styles.dropdownButtonText,
+                        marcaSeleccionada && styles.dropdownButtonTextActive
+                      ]}>
+                        {marcaSeleccionada ? marcaSeleccionada.nombre : 'Selecciona una marca'}
+                      </Text>
+                      <Ionicons
+                        name={showMarcasDropdown ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color={COLORS.textLight}
+                      />
+                    </TouchableOpacity>
+                    {errors.marca && <Text style={styles.errorText}>{errors.marca}</Text>}
+
+                    {showMarcasDropdown && (
+                      <View style={styles.dropdownList}>
+                        <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                          {marcas.map(marca => (
+                            <TouchableOpacity
+                              key={`marca-${marca.id}`}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                setMarcaSeleccionada(marca);
+                                setShowMarcasDropdown(false);
+                              }}
+                            >
+                              <Text style={styles.dropdownItemText}>{marca.nombre}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Selector de Modelo */}
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>Modelo:</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.dropdownButton,
+                        formData.modelo && styles.dropdownButtonActive,
+                        errors.modelo && styles.inputError
+                      ]}
+                      onPress={() => {
+                        if (marcaSeleccionada) {
+                          setShowModelosDropdown(!showModelosDropdown);
+                        } else {
+                          Alert.alert('Atención', 'Primero selecciona una marca');
+                        }
+                      }}
+                      disabled={!marcaSeleccionada}
+                    >
+                      <Text style={[
+                        styles.dropdownButtonText,
+                        formData.modelo && styles.dropdownButtonTextActive,
+                        !marcaSeleccionada && styles.disabledText
+                      ]}>
+                        {formData.modelo ?
+                          modelos.find(m => m.id.toString() === formData.modelo)?.nombre :
+                          'Selecciona un modelo'
+                        }
+                      </Text>
+                      <Ionicons
+                        name={showModelosDropdown ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color={marcaSeleccionada ? COLORS.textLight : COLORS.primary}
+                      />
+                    </TouchableOpacity>
+                    {errors.modelo && <Text style={styles.errorText}>{errors.modelo}</Text>}
+
+                    {showModelosDropdown && (
+                      <View style={styles.dropdownList}>
+                        <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                          {modelos.map(modelo => (
+                            <TouchableOpacity
+                              key={`modelo-${modelo.id}`}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                handleChange('modelo', modelo.id.toString());
+                                setShowModelosDropdown(false);
+                              }}
+                            >
+                              <Text style={styles.dropdownItemText}>{modelo.nombre}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Cilindraje */}
+                  <Input
+                    label="Cilindraje:"
+                    placeholder="Ej: 2.0L, 1600cc"
+                    value={formData.cilindraje}
+                    onChangeText={(text) => handleChange('cilindraje', text)}
+                    error={errors.cilindraje}
+                  />
+
+                  {/* Tipo de Motor */}
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>Tipo de Motor:</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.dropdownButton,
+                        formData.tipo_motor && styles.dropdownButtonActive,
+                        errors.tipo_motor && styles.inputError
+                      ]}
+                      onPress={() => setShowTiposMotorDropdown(!showTiposMotorDropdown)}
+                    >
+                      <Text style={[
+                        styles.dropdownButtonText,
+                        formData.tipo_motor && styles.dropdownButtonTextActive
+                      ]}>
+                        {formData.tipo_motor ?
+                          tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre :
+                          'Selecciona un tipo de motor'
+                        }
+                      </Text>
+                      <Ionicons
+                        name={showTiposMotorDropdown ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color={COLORS.textLight}
+                      />
+                    </TouchableOpacity>
+                    {errors.tipo_motor && <Text style={styles.errorText}>{errors.tipo_motor}</Text>}
+
+                    {showTiposMotorDropdown && (
+                      <View style={styles.dropdownList}>
+                        <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                          {tiposMotor.map(tipo => (
+                            <TouchableOpacity
+                              key={`tipo-motor-${tipo.id}`}
+                              style={styles.dropdownItem}
+                              onPress={() => {
+                                handleChange('tipo_motor', tipo.id.toString());
+                                setShowTiposMotorDropdown(false);
+                              }}
+                            >
+                              <Text style={styles.dropdownItemText}>{tipo.nombre}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Año */}
+                  <Input
+                    label="Año:"
+                    placeholder="Ej: 2020"
+                    value={formData.year}
+                    onChangeText={(text) => handleChange('year', text)}
+                    keyboardType="numeric"
+                    error={errors.year}
+                    maxLength={4}
+                  />
+
+                  {/* Patente */}
+                  <Input
+                    label="Patente:"
+                    placeholder="Ej: ABC123"
+                    value={formData.patente}
+                    onChangeText={(text) => handleChange('patente', text.toUpperCase())}
+                    error={errors.patente}
+                    autoCapitalize="characters"
+                  />
+
+                  {/* Foto */}
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>Foto del Vehículo:</Text>
+                    <TouchableOpacity
+                      style={styles.photoButton}
+                      onPress={handleFotoSelect}
+                    >
+                      {formData.foto ? (
+                        <Image
+                          source={{ uri: formData.foto.uri }}
+                          style={styles.photoPreview}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.photoPlaceholder}>
+                          <Ionicons name="camera" size={40} color={COLORS.primary} />
+                          <Text style={styles.photoPlaceholderText}>Toca para agregar foto</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Kilometraje */}
+                  <Input
+                    label="Kilometraje (km):"
+                    placeholder="Ej: 15000"
+                    value={formData.kilometraje}
+                    onChangeText={(text) => handleChange('kilometraje', text)}
+                    keyboardType="numeric"
+                    error={errors.kilometraje}
+                  />
+                </>
               )}
 
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity
-                  style={[styles.cancelButton, styles.cancelButtonOutline]}
-                  onPress={() => setModalVisible(false)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-                <Button
-                  title="Guardar Vehículo"
-                  onPress={handleSubmit}
-                  isLoading={isSubmitting}
-                  style={[styles.submitButton, styles.submitButtonPrimary]}
-                />
-              </View>
+              {/* Botones según el paso */}
+              {isEdit ? (
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={[styles.cancelButton, styles.cancelButtonOutline]}
+                    onPress={() => setModalVisible(false)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <Button
+                    title="Guardar Vehículo"
+                    onPress={handleSubmit}
+                    isLoading={isSubmitting}
+                    style={[styles.submitButton, styles.submitButtonPrimary]}
+                  />
+                </View>
+              ) : currentStep === 1 ? (
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={[styles.cancelButton, styles.cancelButtonOutline]}
+                    onPress={() => {
+                      setModalVisible(false);
+                      setCurrentStep(1);
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <Button
+                    title="Siguiente"
+                    onPress={handleNextStep}
+                    style={[styles.submitButton, styles.submitButtonPrimary]}
+                  />
+                </View>
+              ) : (
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={[styles.cancelButton, styles.cancelButtonOutline]}
+                    onPress={handlePreviousStep}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="chevron-back" size={18} color={COLORS.primary} style={{ marginRight: 4 }} />
+                    <Text style={styles.cancelButtonText}>Atrás</Text>
+                  </TouchableOpacity>
+                  <Button
+                    title="Guardar Vehículo"
+                    onPress={handleSubmit}
+                    isLoading={isSubmitting}
+                    style={[styles.submitButton, styles.submitButtonPrimary]}
+                  />
+                </View>
+              )}
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -1642,6 +2004,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingBottom: Platform.OS === 'ios' ? 40 : 20,
     maxHeight: '90%',
+    borderTopWidth: 5,
+    borderTopColor: '#FF0000', // BORDE ROJO MUY VISIBLE PARA DEBUG
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1669,6 +2033,30 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: COLORS.text,
+    marginBottom: 4,
+  },
+  progressBarContainer: {
+    marginTop: 8,
+    width: '100%',
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#E9ECEF',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 6,
+    width: '100%',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary,
+    borderRadius: 3,
+  },
+  progressText: {
+    fontSize: 12,
+    color: COLORS.textLight,
+    fontWeight: '500',
+    textAlign: 'left',
   },
   closeButton: {
     padding: 6,
@@ -1711,6 +2099,49 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  checklistStepContainer: {
+    padding: 20,
+    backgroundColor: '#F8F9FA',
+  },
+  checklistHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E9ECEF',
+  },
+  checklistStepTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1c2434',
+    marginTop: 12,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  checklistStepSubtitle: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  checklistInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F7FF',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#D0E7FF',
+  },
+  checklistInfoText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 13,
+    color: COLORS.text,
+    lineHeight: 18,
   },
   checklistTitle: {
     fontSize: 16,

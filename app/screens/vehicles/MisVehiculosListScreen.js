@@ -110,6 +110,15 @@ const MisVehiculosListScreen = () => {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingMarcas, setLoadingMarcas] = useState(false);
+  
+  // Estados para el sistema de pasos (onboarding)
+  const [currentStep, setCurrentStep] = useState(1); // 1 = Datos básicos, 2 = Checklist
+  const totalSteps = 2;
+  
+  // Estados para el checklist de inicialización
+  const [checklistItems, setChecklistItems] = useState([]);
+  const [selectedChecklistItems, setSelectedChecklistItems] = useState([]);
+  const [fetchingChecklist, setFetchingChecklist] = useState(false);
   const [loadingModelos, setLoadingModelos] = useState(false);
 
   // Opciones para el selector de imágenes
@@ -298,8 +307,12 @@ const MisVehiculosListScreen = () => {
   };
 
   const handleAddVehicle = () => {
+    console.log('➕➕➕ ABRIENDO MODAL PARA AGREGAR VEHÍCULO ➕➕➕');
     resetForm();
+    setCurrentStep(1);
+    setIsEdit(false);
     setModalVisible(true);
+    console.log('➕ Modal abierto, paso inicial:', 1);
   };
 
   const resetForm = () => {
@@ -321,6 +334,10 @@ const MisVehiculosListScreen = () => {
     setShowTiposMotorDropdown(false);
     setIsEdit(false);
     setEditingVehicleId(null);
+    setCurrentStep(1);
+    setChecklistItems([]);
+    setSelectedChecklistItems([]);
+    setFetchingChecklist(false);
   };
 
   const fetchMarcas = async () => {
@@ -472,6 +489,123 @@ const MisVehiculosListScreen = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Validar solo los campos del paso 1 (datos básicos)
+  const validateStep1 = () => {
+    const newErrors = {};
+
+    if (!marcaSeleccionada) {
+      newErrors.marca = 'Selecciona una marca';
+    }
+
+    if (!formData.modelo) {
+      newErrors.modelo = 'Selecciona un modelo';
+    }
+
+    if (!formData.tipo_motor) {
+      newErrors.tipo_motor = 'Selecciona el tipo de motor';
+    }
+
+    if (!formData.year) {
+      newErrors.year = 'Ingresa el año';
+    } else {
+      const year = parseInt(formData.year);
+      const currentYear = new Date().getFullYear();
+      if (isNaN(year) || year < 1900 || year > currentYear + 1) {
+        newErrors.year = `El año debe estar entre 1900 y ${currentYear + 1}`;
+      }
+    }
+
+    if (!formData.patente) {
+      newErrors.patente = 'Ingresa la patente';
+    } else if (formData.patente.length < 4 || formData.patente.length > 8) {
+      newErrors.patente = 'Formato de patente inválido';
+    }
+
+    if (!formData.kilometraje) {
+      newErrors.kilometraje = 'Ingresa el kilometraje';
+    } else if (isNaN(formData.kilometraje) || Number(formData.kilometraje) < 0) {
+      newErrors.kilometraje = 'Kilometraje inválido';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Avanzar al siguiente paso
+  const handleNextStep = () => {
+    if (currentStep === 1) {
+      if (validateStep1()) {
+        setCurrentStep(2);
+        console.log('✅ Validación paso 1 exitosa, avanzando al paso 2');
+      } else {
+        Alert.alert('Campos incompletos', 'Por favor completa todos los campos requeridos antes de continuar.');
+      }
+    }
+  };
+
+  // Volver al paso anterior
+  const handlePreviousStep = () => {
+    if (currentStep === 2) {
+      setCurrentStep(1);
+      console.log('⬅️ Volviendo al paso 1');
+    }
+  };
+
+  // Toggle checklist item
+  const toggleChecklistItem = (itemId) => {
+    setSelectedChecklistItems(prev => {
+      if (prev.includes(itemId)) {
+        return prev.filter(id => id !== itemId);
+      } else {
+        return [...prev, itemId];
+      }
+    });
+  };
+
+  // Efecto para cargar el checklist cuando se avanza al paso 2
+  useEffect(() => {
+    const fetchChecklist = async () => {
+      // Solo cargar si estamos en el paso 2, no es edición y tenemos un tipo de motor seleccionado
+      if (currentStep !== 2 || isEdit || !formData.tipo_motor) {
+        return;
+      }
+
+      console.log('🔄 Checklist: Cargando para paso 2, tipo_motor:', formData.tipo_motor);
+      setFetchingChecklist(true);
+      setChecklistItems([]);
+      
+      try {
+        // Obtener el nombre del motor desde el ID
+        const tipoEncontrado = tiposMotor.find(t => 
+          t.id.toString() === formData.tipo_motor.toString()
+        );
+        const motorName = tipoEncontrado?.nombre;
+
+        if (!motorName) {
+          console.warn('⚠️ Checklist: No se encontró nombre del motor');
+          setChecklistItems([]);
+          setFetchingChecklist(false);
+          return;
+        }
+
+        console.log('📡 Checklist: Llamando API con motor:', motorName);
+        const items = await vehicleService.getInitialChecklist(motorName);
+        console.log('✅ Checklist: Items recibidos:', items?.length || 0);
+        
+        const itemsArray = Array.isArray(items) ? items : [];
+        setChecklistItems(itemsArray);
+        setSelectedChecklistItems([]);
+      } catch (error) {
+        console.error('❌ Error cargando checklist:', error);
+        setChecklistItems([]);
+      } finally {
+        setFetchingChecklist(false);
+      }
+    };
+
+    fetchChecklist();
+  }, [currentStep, formData.tipo_motor, isEdit]);
+
   const handleSubmit = async () => {
     if (!validateForm()) {
       return;
@@ -490,6 +624,12 @@ const MisVehiculosListScreen = () => {
         cilindraje: formData.cilindraje ? formData.cilindraje.trim() : null,
         tipo_motor: tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre || 'Gasolina',
       };
+
+      // Si es creación (no edición) y hay checklist seleccionado, lo agregamos
+      if (!isEdit && selectedChecklistItems.length > 0) {
+        vehicleData.componentes_al_dia = selectedChecklistItems;
+        console.log('✅ Agregando checklist inicial:', selectedChecklistItems);
+      }
 
       // Obtener cliente ID - buscar en las diferentes estructuras posibles
       let clienteIdValue = null;
@@ -553,7 +693,15 @@ const MisVehiculosListScreen = () => {
         const formattedData = new FormData();
         Object.entries(vehicleData).forEach(([key, value]) => {
           if (value !== null && value !== undefined) {
-            formattedData.append(key, value);
+            // Asegurar que cliente sea un número (string para FormData)
+            if (key === 'cliente' && typeof value === 'number') {
+              formattedData.append(key, value.toString());
+            } else if (key === 'componentes_al_dia' && Array.isArray(value)) {
+              // Para listas en FormData, Django espera múltiples keys iguales
+              value.forEach(id => formattedData.append('componentes_al_dia', id));
+            } else {
+              formattedData.append(key, value);
+            }
           }
         });
         formattedData.append('foto', {
@@ -561,6 +709,10 @@ const MisVehiculosListScreen = () => {
           type: 'image/jpeg',
           name: `vehicle_${Date.now()}.jpg`,
         });
+
+        // Log para debugging
+        console.log('📤 Enviando FormData con campos:', Object.keys(vehicleData));
+        console.log('📤 Cliente ID incluido:', vehicleData.cliente);
 
         if (isEdit) {
           await vehicleService.updateVehicle(editingVehicleId, formattedData);
@@ -698,43 +850,56 @@ const MisVehiculosListScreen = () => {
     );
   };
 
-  // Renderizar header interno con botón de agregar vehículo
+  // Renderizar header interno
   const renderInternalHeader = () => {
     return (
       <CustomHeader
         title="Mis Vehículos"
         showBack={false}
         showProfile={true}
-        rightComponent={
-          <TouchableOpacity
-            style={styles.headerAddButton}
-            onPress={handleAddVehicle}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="add-circle" size={24} color={colors.primary?.[500] || '#003459'} />
-          </TouchableOpacity>
-        }
       />
     );
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="car-outline" size={64} color={colors.text?.secondary || '#5D6F75'} />
-      <Text style={styles.emptyTitle}>No tienes vehículos registrados</Text>
-      <Text style={styles.emptyText}>
-        Agrega tu primer vehículo para comenzar a recibir servicios personalizados
-      </Text>
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={handleAddVehicle}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-        <Text style={styles.addButtonText}>Agregar Vehículo</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  // Calcular altura del tab bar dinámicamente (debe coincidir con AppNavigator.js)
+  const safeBottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 0) : Math.max(insets.bottom, 5);
+  const tabBarHeight = Platform.OS === 'ios' ? 60 + safeBottomInset : 65 + Math.max(insets.bottom - 5, 0);
+
+  // Renderizar footer con botón de agregar vehículo
+  const renderListFooter = () => {
+    return (
+      <View style={[styles.listFooter, { paddingBottom: tabBarHeight + (spacing.md || 16) }]}>
+        <TouchableOpacity
+          style={styles.footerAddButton}
+          onPress={handleAddVehicle}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={20} color="#FFFFFF" />
+          <Text style={styles.footerAddButtonText}>Agregar Vehículo</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const renderEmptyState = () => {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="car-outline" size={64} color={colors.text?.secondary || '#5D6F75'} />
+        <Text style={styles.emptyTitle}>No tienes vehículos registrados</Text>
+        <Text style={styles.emptyText}>
+          Agrega tu primer vehículo para comenzar a recibir servicios personalizados
+        </Text>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={handleAddVehicle}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={20} color="#FFFFFF" />
+          <Text style={styles.addButtonText}>Agregar Vehículo</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   if (loading && !refreshing) {
     return (
@@ -750,10 +915,6 @@ const MisVehiculosListScreen = () => {
     );
   }
 
-  // Calcular altura del tab bar dinámicamente (debe coincidir con AppNavigator.js)
-  const safeBottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 0) : Math.max(insets.bottom, 5);
-  const tabBarHeight = Platform.OS === 'ios' ? 60 + safeBottomInset : 65 + Math.max(insets.bottom - 5, 0);
-
   return (
     <View style={styles.container}>
       {renderInternalHeader()}
@@ -768,6 +929,7 @@ const MisVehiculosListScreen = () => {
             { paddingBottom: tabBarHeight + (spacing.md || 16) } // Solo tab bar + padding
           ]}
           ListEmptyComponent={renderEmptyState}
+          ListFooterComponent={vehicles.length > 0 ? renderListFooter : null}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -813,12 +975,47 @@ const MisVehiculosListScreen = () => {
                 {/* Header del modal */}
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHeaderLeft}>
+                    {/* Botón de retroceso - Solo en paso 1 del onboarding */}
+                    {currentStep === 1 && !isEdit && (
+                      <TouchableOpacity
+                        style={styles.modalBackButton}
+                        onPress={() => {
+                          resetForm();
+                          setModalVisible(false);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="arrow-back" size={24} color={colors.primary?.[500] || '#003459'} />
+                      </TouchableOpacity>
+                    )}
                     <View style={styles.modalIconContainer}>
                       <Ionicons name="car-sport" size={24} color={colors.primary?.[500] || '#003459'} />
                     </View>
                     <View style={styles.modalTitleContainer}>
-                      <Text style={styles.modalTitle}>{isEdit ? 'Editar Vehículo' : 'Agregar Vehículo'}</Text>
-                      <Text style={styles.modalSubtitle}>Completa los datos de tu vehículo</Text>
+                      <Text style={styles.modalTitle}>
+                        {isEdit ? 'Editar Vehículo' : currentStep === 1 ? 'Datos del Vehículo' : 'Estado de Mantenimiento'}
+                      </Text>
+                      <Text style={styles.modalSubtitle}>
+                        {isEdit ? 'Completa los datos de tu vehículo' : currentStep === 1 ? 'Paso 1 de 2' : 'Paso 2 de 2'}
+                      </Text>
+                      {!isEdit && (
+                        <View style={{ marginTop: 8, width: '100%' }}>
+                          <View style={{
+                            height: 4,
+                            backgroundColor: colors.background?.secondary || '#E9ECEF',
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            marginBottom: 4,
+                          }}>
+                            <View style={{
+                              height: '100%',
+                              backgroundColor: colors.primary?.[500] || '#003459',
+                              width: `${(currentStep / totalSteps) * 100}%`,
+                              borderRadius: 2,
+                            }} />
+                          </View>
+                        </View>
+                      )}
                     </View>
                   </View>
                   <TouchableOpacity
@@ -850,6 +1047,9 @@ const MisVehiculosListScreen = () => {
                     setShowTiposMotorDropdown(false);
                   }}
                 >
+                  {/* Paso 1: Datos Básicos del Vehículo */}
+                  {currentStep === 1 && !isEdit && (
+                  <>
                   {/* Sección: Información del vehículo */}
                   <View style={styles.formSection}>
                     <View style={styles.formSectionHeader}>
@@ -1195,36 +1395,511 @@ const MisVehiculosListScreen = () => {
                       )}
                     </TouchableOpacity>
                   </View>
+                  </>
+                  )}
+
+                  {/* Paso 2: Checklist de Mantenimiento (Solo creación) */}
+                  {currentStep === 2 && !isEdit && (
+                    <View style={styles.checklistStepContainer}>
+                      <View style={styles.checklistHeader}>
+                        <Ionicons name="construct-outline" size={32} color={colors.primary?.[500] || '#003459'} />
+                        <Text style={styles.checklistStepTitle}>Estado Inicial de Mantenimiento</Text>
+                        <Text style={styles.checklistStepSubtitle}>
+                          Selecciona los componentes a los que les has realizado mantenimiento recientemente.
+                          Los no seleccionados se marcarán como pendientes de revisión técnica.
+                        </Text>
+                      </View>
+
+                      {fetchingChecklist ? (
+                        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                          <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
+                          <Text style={{ marginTop: 16, color: colors.text?.secondary || '#5D6F75', fontSize: 14 }}>
+                            Cargando componentes...
+                          </Text>
+                        </View>
+                      ) : checklistItems.length > 0 ? (
+                        <>
+                          <View style={styles.checklistInfo}>
+                            <Ionicons name="information-circle-outline" size={20} color={colors.primary?.[500] || '#003459'} />
+                            <Text style={styles.checklistInfoText}>
+                              {checklistItems.length} componente{checklistItems.length !== 1 ? 's' : ''} disponible{checklistItems.length !== 1 ? 's' : ''}. 
+                              La selección es opcional.
+                            </Text>
+                          </View>
+                          {checklistItems.map((item) => {
+                            const isSelected = selectedChecklistItems.includes(item.id);
+                            return (
+                              <TouchableOpacity
+                                key={`checklist-${item.id}`}
+                                style={[
+                                  styles.checklistItem,
+                                  isSelected && styles.checklistItemActive
+                                ]}
+                                onPress={() => toggleChecklistItem(item.id)}
+                                activeOpacity={0.7}
+                              >
+                                <View style={[
+                                  styles.checkbox,
+                                  isSelected && styles.checkboxActive
+                                ]}>
+                                  {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                                </View>
+                                <View style={styles.checklistItemContent}>
+                                  <Text style={styles.checklistItemText}>{item.nombre}</Text>
+                                  {item.descripcion && (
+                                    <Text style={styles.checklistItemSubtext}>{item.descripcion}</Text>
+                                  )}
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                          <Ionicons name="checkmark-circle-outline" size={48} color={colors.success?.[500] || '#28A745'} />
+                          <Text style={{ marginTop: 16, color: colors.text?.primary || '#00171F', fontSize: 16, fontWeight: '600', textAlign: 'center' }}>
+                            No hay componentes configurados
+                          </Text>
+                          <Text style={{ marginTop: 8, color: colors.text?.secondary || '#5D6F75', fontSize: 13, textAlign: 'center' }}>
+                            Puedes continuar sin seleccionar componentes. El sistema inicializará el mantenimiento como pendiente.
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Formulario de edición (siempre visible cuando isEdit) */}
+                  {isEdit && (
+                    <>
+                  {/* Sección: Información del vehículo */}
+                  <View style={styles.formSection}>
+                    <View style={styles.formSectionHeader}>
+                      <Ionicons name="car-outline" size={18} color={colors.primary?.[500] || '#003459'} />
+                      <Text style={styles.formSectionTitle}>Información del vehículo</Text>
+                    </View>
+
+                    {/* Selector de Marca */}
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Marca *</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.selectButton,
+                        marcaSeleccionada && styles.selectButtonActive,
+                        errors.marca && styles.selectButtonError
+                      ]}
+                      onPress={() => {
+                        setShowMarcasDropdown(!showMarcasDropdown);
+                        setShowModelosDropdown(false);
+                        setShowTiposMotorDropdown(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[
+                        styles.selectButtonText,
+                        marcaSeleccionada ? styles.selectButtonTextActive : styles.selectButtonTextPlaceholder
+                      ]}>
+                        {marcaSeleccionada ? marcaSeleccionada.nombre : 'Selecciona una marca'}
+                      </Text>
+                      {loadingMarcas ? (
+                        <ActivityIndicator size="small" color={colors.primary?.[500] || '#003459'} style={{ marginLeft: 8 }} />
+                      ) : (
+                        <Ionicons
+                          name={showMarcasDropdown ? "chevron-up" : "chevron-down"}
+                          size={20}
+                          color={marcaSeleccionada ? (colors.primary?.[500] || '#003459') : (colors.text?.secondary || '#5D6F75')}
+                        />
+                      )}
+                    </TouchableOpacity>
+                    {errors.marca && <Text style={styles.errorText}>{errors.marca}</Text>}
+
+                    {showMarcasDropdown && (
+                      <View style={styles.dropdownContainer}>
+                        <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                          {marcas.length > 0 ? (
+                            marcas.map(marca => (
+                              <TouchableOpacity
+                                key={`marca-${marca.id}`}
+                                style={[
+                                  styles.dropdownItem,
+                                  marcaSeleccionada?.id === marca.id && styles.dropdownItemActive
+                                ]}
+                                onPress={() => {
+                                  setMarcaSeleccionada(marca);
+                                  setShowMarcasDropdown(false);
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={[
+                                  styles.dropdownItemText,
+                                  marcaSeleccionada?.id === marca.id && styles.dropdownItemTextActive
+                                ]}>
+                                  {marca.nombre}
+                                </Text>
+                                {marcaSeleccionada?.id === marca.id && (
+                                  <Ionicons name="checkmark" size={18} color={colors.primary?.[500] || '#003459'} />
+                                )}
+                              </TouchableOpacity>
+                            ))
+                          ) : (
+                            <View style={styles.dropdownEmpty}>
+                              <Text style={styles.dropdownEmptyText}>Cargando marcas...</Text>
+                            </View>
+                          )}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Selector de Modelo */}
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>Modelo *</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.selectButton,
+                        formData.modelo && styles.selectButtonActive,
+                        errors.modelo && styles.selectButtonError,
+                        !marcaSeleccionada && styles.selectButtonDisabled
+                      ]}
+                      onPress={() => {
+                        if (marcaSeleccionada) {
+                          setShowModelosDropdown(!showModelosDropdown);
+                          setShowMarcasDropdown(false);
+                          setShowTiposMotorDropdown(false);
+                        } else {
+                          Alert.alert('Atención', 'Primero selecciona una marca');
+                        }
+                      }}
+                      disabled={!marcaSeleccionada}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[
+                        styles.selectButtonText,
+                        formData.modelo ? styles.selectButtonTextActive : styles.selectButtonTextPlaceholder,
+                        !marcaSeleccionada && styles.selectButtonTextDisabled
+                      ]}>
+                        {loadingModelos ? 'Cargando modelos...' :
+                          formData.modelo ?
+                            modelos.find(m => m.id.toString() === formData.modelo)?.nombre :
+                            'Selecciona un modelo'}
+                      </Text>
+                      {loadingModelos ? (
+                        <ActivityIndicator size="small" color={colors.primary?.[500] || '#003459'} style={{ marginLeft: 8 }} />
+                      ) : (
+                        <Ionicons
+                          name={showModelosDropdown ? "chevron-up" : "chevron-down"}
+                          size={20}
+                          color={marcaSeleccionada && formData.modelo ? (colors.primary?.[500] || '#003459') : (colors.text?.secondary || '#5D6F75')}
+                        />
+                      )}
+                    </TouchableOpacity>
+                    {errors.modelo && <Text style={styles.errorText}>{errors.modelo}</Text>}
+
+                    {showModelosDropdown && marcaSeleccionada && (
+                      <View style={styles.dropdownContainer}>
+                        <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                          {modelos.length > 0 ? (
+                            modelos.map(modelo => (
+                              <TouchableOpacity
+                                key={`modelo-${modelo.id}`}
+                                style={[
+                                  styles.dropdownItem,
+                                  formData.modelo === modelo.id.toString() && styles.dropdownItemActive
+                                ]}
+                                onPress={() => {
+                                  handleChange('modelo', modelo.id.toString());
+                                  setShowModelosDropdown(false);
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Text style={[
+                                  styles.dropdownItemText,
+                                  formData.modelo === modelo.id.toString() && styles.dropdownItemTextActive
+                                ]}>
+                                  {modelo.nombre}
+                                </Text>
+                                {formData.modelo === modelo.id.toString() && (
+                                  <Ionicons name="checkmark" size={18} color={colors.primary?.[500] || '#003459'} />
+                                )}
+                              </TouchableOpacity>
+                            ))
+                          ) : (
+                            <View style={styles.dropdownEmpty}>
+                              <Text style={styles.dropdownEmptyText}>No hay modelos disponibles</Text>
+                            </View>
+                          )}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Tipo de Motor */}
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>Tipo de Motor *</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.selectButton,
+                        formData.tipo_motor && styles.selectButtonActive,
+                        errors.tipo_motor && styles.selectButtonError
+                      ]}
+                      onPress={() => {
+                        setShowTiposMotorDropdown(!showTiposMotorDropdown);
+                        setShowMarcasDropdown(false);
+                        setShowModelosDropdown(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[
+                        styles.selectButtonText,
+                        formData.tipo_motor ? styles.selectButtonTextActive : styles.selectButtonTextPlaceholder
+                      ]}>
+                        {formData.tipo_motor ?
+                          tiposMotor.find(t => t.id.toString() === formData.tipo_motor)?.nombre :
+                          'Selecciona un tipo de motor'}
+                      </Text>
+                      <Ionicons
+                        name={showTiposMotorDropdown ? "chevron-up" : "chevron-down"}
+                        size={20}
+                        color={formData.tipo_motor ? (colors.primary?.[500] || '#003459') : (colors.text?.secondary || '#5D6F75')}
+                      />
+                    </TouchableOpacity>
+                    {errors.tipo_motor && <Text style={styles.errorText}>{errors.tipo_motor}</Text>}
+
+                    {showTiposMotorDropdown && (
+                      <View style={styles.dropdownContainer}>
+                        <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+                          {tiposMotor.map(tipo => (
+                            <TouchableOpacity
+                              key={`tipo-motor-${tipo.id}`}
+                              style={[
+                                styles.dropdownItem,
+                                formData.tipo_motor === tipo.id.toString() && styles.dropdownItemActive
+                              ]}
+                              onPress={() => {
+                                handleChange('tipo_motor', tipo.id.toString());
+                                setShowTiposMotorDropdown(false);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[
+                                styles.dropdownItemText,
+                                formData.tipo_motor === tipo.id.toString() && styles.dropdownItemTextActive
+                              ]}>
+                                {tipo.nombre}
+                              </Text>
+                              {formData.tipo_motor === tipo.id.toString() && (
+                                <Ionicons name="checkmark" size={18} color={colors.primary?.[500] || '#003459'} />
+                              )}
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                  </View>
+                  {/* Fin Sección: Información del vehículo */}
+
+                  {/* Sección: Identificación del vehículo */}
+                  <View style={styles.formSection}>
+                    <View style={styles.formSectionHeader}>
+                      <Ionicons name="document-text-outline" size={18} color={colors.primary?.[500] || '#003459'} />
+                      <Text style={styles.formSectionTitle}>Identificación</Text>
+                    </View>
+
+                    {/* Campos en dos columnas */}
+                    <View style={styles.formRow}>
+                      <View style={[styles.formField, styles.formFieldHalf]}>
+                        <Text style={styles.formLabel}>Año *</Text>
+                        <View style={styles.inputWithIcon}>
+                          <Ionicons name="calendar-outline" size={18} color={colors.text?.secondary || '#5D6F75'} style={styles.inputIcon} />
+                          <TextInput
+                            style={[
+                              styles.inputIconText,
+                              errors.year && styles.inputError
+                            ]}
+                            placeholder="Ej: 2020"
+                            placeholderTextColor={colors.text?.secondary || '#5D6F75'}
+                            value={formData.year}
+                            onChangeText={(text) => handleChange('year', text.replace(/[^0-9]/g, ''))}
+                            keyboardType="numeric"
+                            maxLength={4}
+                          />
+                        </View>
+                        {errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
+                      </View>
+
+                      <View style={[styles.formField, styles.formFieldHalf]}>
+                        <Text style={styles.formLabel}>Cilindraje</Text>
+                        <View style={styles.inputWithIcon}>
+                          <Ionicons name="speedometer-outline" size={18} color={colors.text?.secondary || '#5D6F75'} style={styles.inputIcon} />
+                          <TextInput
+                            style={styles.inputIconText}
+                            placeholder="Ej: 2.0L"
+                            placeholderTextColor={colors.text?.secondary || '#5D6F75'}
+                            value={formData.cilindraje}
+                            onChangeText={(text) => handleChange('cilindraje', text)}
+                          />
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Patente */}
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Patente *</Text>
+                      <View style={[styles.inputWithIcon, errors.patente && styles.inputWithIconError]}>
+                        <Ionicons name="card-outline" size={18} color={colors.text?.secondary || '#5D6F75'} style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.inputIconText}
+                          placeholder="Ej: ABC123"
+                          placeholderTextColor={colors.text?.secondary || '#5D6F75'}
+                          value={formData.patente}
+                          onChangeText={(text) => handleChange('patente', text.toUpperCase())}
+                          autoCapitalize="characters"
+                          maxLength={8}
+                        />
+                      </View>
+                      {errors.patente && <Text style={styles.errorText}>{errors.patente}</Text>}
+                    </View>
+
+                    {/* Kilometraje */}
+                    <View style={styles.formField}>
+                      <Text style={styles.formLabel}>Kilometraje (km) *</Text>
+                      <View style={[styles.inputWithIcon, errors.kilometraje && styles.inputWithIconError]}>
+                        <Ionicons name="speedometer-outline" size={18} color={colors.text?.secondary || '#5D6F75'} style={styles.inputIcon} />
+                        <TextInput
+                          style={styles.inputIconText}
+                          placeholder="Ej: 15000"
+                          placeholderTextColor={colors.text?.secondary || '#5D6F75'}
+                          value={formData.kilometraje}
+                          onChangeText={(text) => handleChange('kilometraje', text.replace(/[^0-9]/g, ''))}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                      {errors.kilometraje && <Text style={styles.errorText}>{errors.kilometraje}</Text>}
+                    </View>
+                  </View>
+
+                  {/* Sección: Foto del vehículo */}
+                  <View style={styles.formSection}>
+                    <View style={styles.formSectionHeader}>
+                      <Ionicons name="camera-outline" size={18} color={colors.primary?.[500] || '#003459'} />
+                      <Text style={styles.formSectionTitle}>Foto del vehículo</Text>
+                      <View style={styles.optionalBadge}>
+                        <Text style={styles.optionalBadgeText}>Opcional</Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.photoButton}
+                      onPress={handleFotoSelect}
+                      activeOpacity={0.8}
+                    >
+                      {formData.foto ? (
+                        <View style={styles.photoPreviewContainer}>
+                          <Image
+                            source={{ uri: formData.foto.uri }}
+                            style={styles.photoPreview}
+                            resizeMode="cover"
+                          />
+                          <View style={styles.photoOverlay}>
+                            <Ionicons name="camera" size={28} color="#FFFFFF" />
+                            <Text style={styles.photoOverlayText}>Cambiar foto</Text>
+                          </View>
+                        </View>
+                      ) : (
+                        <View style={styles.photoPlaceholder}>
+                          <View style={styles.photoIconContainer}>
+                            <Ionicons name="image-outline" size={32} color={colors.primary?.[500] || '#003459'} />
+                          </View>
+                          <Text style={styles.photoPlaceholderText}>Toca para agregar una foto</Text>
+                          <Text style={styles.photoPlaceholderSubtext}>JPG, PNG • Máx. 5MB</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  </>
+                  )}
                 </ScrollView>
 
                 {/* Footer del modal con botones */}
                 <View style={styles.modalFooter}>
-                  <TouchableOpacity
-                    style={styles.cancelButton}
-                    onPress={() => {
-                      resetForm();
-                      setModalVisible(false);
-                    }}
-                    activeOpacity={0.7}
-                    disabled={isSubmitting}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-                    onPress={handleSubmit}
-                    activeOpacity={0.8}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <>
-                        <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
-                        <Text style={styles.submitButtonText}>Guardar Vehículo</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                  {isEdit ? (
+                    <>
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => {
+                          resetForm();
+                          setModalVisible(false);
+                        }}
+                        activeOpacity={0.7}
+                        disabled={isSubmitting}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                        onPress={handleSubmit}
+                        activeOpacity={0.8}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                            <Text style={styles.submitButtonText}>Guardar Vehículo</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  ) : currentStep === 1 ? (
+                    <>
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => {
+                          resetForm();
+                          setModalVisible(false);
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancelar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.submitButton}
+                        onPress={handleNextStep}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.submitButtonText}>Siguiente</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#FFFFFF" style={{ marginLeft: 8 }} />
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={handlePreviousStep}
+                        activeOpacity={0.7}
+                        disabled={isSubmitting}
+                      >
+                        <Ionicons name="chevron-back" size={18} color={colors.primary?.[500] || '#003459'} style={{ marginRight: 4 }} />
+                        <Text style={styles.cancelButtonText}>Atrás</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                        onPress={handleSubmit}
+                        activeOpacity={0.8}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                            <Text style={styles.submitButtonText}>Guardar Vehículo</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </>
+                  )}
                 </View>
               </View>
             </View>
@@ -1245,12 +1920,30 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     flex: 1,
     backgroundColor: colors.background?.default || '#F8F9FA',
   },
-  headerAddButton: {
-    padding: spacing.xs || 4,
-    minWidth: 40,
-    minHeight: 40,
-    justifyContent: 'center',
+  listFooter: {
+    paddingHorizontal: spacing.md || 16,
+    paddingTop: spacing.md || 16,
+  },
+  footerAddButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary?.[500] || '#003459',
+    paddingVertical: spacing.md || 14,
+    paddingHorizontal: spacing.lg || 24,
+    borderRadius: borders.radius?.button?.md || 12,
+    gap: spacing.sm || 10,
+    shadowColor: colors.primary?.[500] || '#003459',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  footerAddButtonText: {
+    color: '#FFFFFF',
+    fontSize: typography.fontSize?.md || 16,
+    fontWeight: typography.fontWeight?.bold || '700',
+    letterSpacing: typography.letterSpacing?.normal || 0,
   },
   loadingContainer: {
     flex: 1,
@@ -1480,21 +2173,23 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.primary?.[500] || '#003459',
-    paddingVertical: spacing.sm || 12,
+    paddingVertical: spacing.md || 14,
     paddingHorizontal: spacing.lg || 24,
     borderRadius: borders.radius?.button?.md || 12,
-    gap: spacing.xs || 8,
+    gap: spacing.sm || 10,
     shadowColor: colors.primary?.[500] || '#003459',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 4,
   },
   addButtonText: {
     color: '#FFFFFF',
     fontSize: typography.fontSize?.md || 16,
-    fontWeight: typography.fontWeight?.semibold || '600',
+    fontWeight: typography.fontWeight?.bold || '700',
+    letterSpacing: typography.letterSpacing?.normal || 0,
   },
   // Estilos del modal
   modalContainer: {
@@ -1551,6 +2246,13 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  modalBackButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm || 8,
   },
   modalIconContainer: {
     width: 44,
@@ -1875,6 +2577,94 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     fontSize: typography.fontSize?.md || 16,
     fontWeight: typography.fontWeight?.bold || '700',
     color: '#FFFFFF',
+  },
+  // Estilos para el checklist de onboarding
+  checklistStepContainer: {
+    padding: spacing.md || 20,
+    backgroundColor: colors.background?.default || '#F8F9FA',
+  },
+  checklistHeader: {
+    alignItems: 'center',
+    marginBottom: spacing.lg || 24,
+    paddingBottom: spacing.md || 20,
+    borderBottomWidth: borders.width?.medium || 1.5,
+    borderBottomColor: colors.neutral?.gray?.[200] || '#E5E7EB',
+  },
+  checklistStepTitle: {
+    fontSize: typography.fontSize?.xl || 22,
+    fontWeight: typography.fontWeight?.bold || '700',
+    color: colors.text?.primary || '#00171F',
+    marginTop: spacing.sm || 12,
+    marginBottom: spacing.xs || 8,
+    textAlign: 'center',
+  },
+  checklistStepSubtitle: {
+    fontSize: typography.fontSize?.base || 14,
+    color: colors.text?.secondary || '#5D6F75',
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: spacing.md || 20,
+  },
+  checklistInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary?.[50] || '#E6F2F7',
+    padding: spacing.sm || 12,
+    borderRadius: borders.radius?.md || 8,
+    marginBottom: spacing.md || 20,
+    borderWidth: borders.width?.thin || 1,
+    borderColor: colors.primary?.[200] || '#B3D9E6',
+  },
+  checklistInfoText: {
+    flex: 1,
+    marginLeft: spacing.xs || 8,
+    fontSize: typography.fontSize?.sm || 13,
+    color: colors.text?.primary || '#00171F',
+    lineHeight: 18,
+  },
+  checklistItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: spacing.sm || 12,
+    paddingHorizontal: spacing.sm || 12,
+    borderRadius: borders.radius?.md || 8,
+    borderWidth: borders.width?.medium || 1.5,
+    borderColor: colors.neutral?.gray?.[200] || '#E5E7EB',
+    marginBottom: spacing.xs || 8,
+    backgroundColor: colors.background?.paper || '#FFFFFF',
+  },
+  checklistItemActive: {
+    backgroundColor: colors.primary?.[50] || '#E6F2F7',
+    borderColor: colors.primary?.[500] || '#003459',
+  },
+  checklistItemContent: {
+    flex: 1,
+    marginLeft: spacing.sm || 12,
+  },
+  checklistItemText: {
+    fontSize: typography.fontSize?.base || 14,
+    fontWeight: typography.fontWeight?.semibold || '600',
+    color: colors.text?.primary || '#00171F',
+    marginBottom: 2,
+  },
+  checklistItemSubtext: {
+    fontSize: typography.fontSize?.sm || 12,
+    color: colors.text?.secondary || '#5D6F75',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: borders.radius?.sm || 6,
+    borderWidth: borders.width?.medium || 2,
+    borderColor: colors.neutral?.gray?.[300] || '#D1D5DB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background?.paper || '#FFFFFF',
+    marginTop: 2,
+  },
+  checkboxActive: {
+    backgroundColor: colors.primary?.[500] || '#003459',
+    borderColor: colors.primary?.[500] || '#003459',
   },
 });
 

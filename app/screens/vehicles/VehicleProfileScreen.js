@@ -20,9 +20,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, ROUTES, LAYOUT, SPACING, FONT_SIZES, SHADOWS, BORDERS } from '../../utils/constants';
-import Button from '../../components/base/Button/Button';
-import Card from '../../components/base/Card/Card';
+import { ROUTES } from '../../utils/constants';
+import { useTheme } from '../../design-system/theme/useTheme';
+// Button y Card no se usan en este componente, se removieron para evitar errores
+// import Button from '../../components/base/Button/Button';
+// import Card from '../../components/base/Card/Card';
 import * as vehicleService from '../../services/vehicle';
 
 const { width } = Dimensions.get('window');
@@ -40,7 +42,38 @@ const VehicleProfileScreen = () => {
     const [loading, setLoading] = useState(false);
     const [healthData, setHealthData] = useState(null);
     const [serviceCount, setServiceCount] = useState(0);
+    const [totalInvertido, setTotalInvertido] = useState(0);
     const [currentVehicle, setCurrentVehicle] = useState(vehicle);
+
+    // Sistema de diseño
+    const theme = useTheme();
+    const colors = theme?.colors || {};
+    const typography = theme?.typography && theme?.typography?.fontSize && theme?.typography?.fontWeight
+        ? theme.typography
+        : {
+            fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24, '3xl': 28, '4xl': 32, '5xl': 36 },
+            fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
+            fontFamily: { regular: 'System', medium: 'System', bold: 'System' },
+        };
+    const spacing = theme?.spacing || {};
+    const borders = theme?.borders || { radius: {}, width: {} };
+
+    // Validar borders
+    const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined')
+        ? borders
+        : {
+            radius: {
+                none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
+                full: 9999,
+                button: { sm: 8, md: 12, lg: 16, full: 9999 },
+                input: { sm: 8, md: 12, lg: 16 },
+                card: { sm: 8, md: 12, lg: 16, xl: 20 },
+                modal: { sm: 12, md: 16, lg: 20, xl: 24 },
+                avatar: { sm: 16, md: 24, lg: 32, full: 9999 },
+                badge: { sm: 4, md: 8, lg: 12, full: 9999 },
+            },
+            width: { none: 0, thin: 1, medium: 2, thick: 4 }
+        };
 
     // Edit Form State
     const [modalVisible, setModalVisible] = useState(false);
@@ -99,7 +132,7 @@ const VehicleProfileScreen = () => {
             const health = await VehicleHealthService.getVehicleHealth(vehicleId);
             setHealthData(health);
 
-            // Fetch service count
+            // Fetch service count and total invertido
             const userService = require('../../services/user');
             const response = await userService.getServicesHistory();
             const rawSolicitudes = Array.isArray(response?.results)
@@ -114,6 +147,24 @@ const VehicleProfileScreen = () => {
                     solicitud.vehiculo?.toString() === vehicleId.toString()
             );
             setServiceCount(vehicleServices.length);
+
+            // Calcular total invertido de servicios completados
+            const serviciosCompletados = vehicleServices.filter(
+                (solicitud) => solicitud.estado === 'completado' || solicitud.estado === 'COMPLETADO'
+            );
+            
+            const total = serviciosCompletados.reduce((sum, solicitud) => {
+                // Intentar obtener el monto de diferentes campos posibles
+                const monto = solicitud.monto_total ||
+                    solicitud.precio_total ||
+                    solicitud.total_pagado ||
+                    solicitud.oferta_aceptada?.precio_total_ofrecido ||
+                    solicitud.oferta_aceptada_detail?.precio_total_ofrecido ||
+                    0;
+                return sum + (parseFloat(monto) || 0);
+            }, 0);
+            
+            setTotalInvertido(total);
         } catch (error) {
             console.error('Error fetching health/services:', error);
         }
@@ -287,13 +338,24 @@ const VehicleProfileScreen = () => {
             if (formData.foto) {
                 const formattedData = new FormData();
                 Object.entries(vehicleData).forEach(([key, value]) => {
-                    if (value !== null && value !== undefined) formattedData.append(key, value);
+                    if (value !== null && value !== undefined) {
+                        // Asegurar que los números se conviertan a string para FormData
+                        if (typeof value === 'number') {
+                            formattedData.append(key, value.toString());
+                        } else {
+                            formattedData.append(key, value);
+                        }
+                    }
                 });
                 formattedData.append('foto', {
                     uri: formData.foto.uri,
                     type: 'image/jpeg',
                     name: `vehicle_${Date.now()}.jpg`,
                 });
+                
+                // Log para debugging
+                console.log('📤 Actualizando vehículo con foto (FormData)');
+                
                 updatedVehicle = await vehicleService.updateVehicle(currentVehicle.id, formattedData);
             } else {
                 updatedVehicle = await vehicleService.updateVehicle(currentVehicle.id, vehicleData);
@@ -351,16 +413,19 @@ const VehicleProfileScreen = () => {
 
 
     const getHealthColor = (percentage) => {
-        if (percentage >= 70) return '#4CAF50';
-        if (percentage >= 40) return '#FF9800';
-        if (percentage >= 20) return '#F44336';
-        return '#D32F2F';
+        if (percentage >= 70) return colors.success?.[500] || '#10B981';
+        if (percentage >= 40) return colors.warning?.[500] || '#F59E0B';
+        if (percentage >= 20) return colors.error?.[500] || '#EF4444';
+        return colors.error?.[600] || '#DC2626';
     };
+
+    // Crear estilos dinámicos con los tokens del tema
+    const styles = createStyles(colors, typography, spacing, safeBorders);
 
     if (!currentVehicle) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
+                <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
             </View>
         );
     }
@@ -368,7 +433,11 @@ const VehicleProfileScreen = () => {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            <ScrollView 
+                showsVerticalScrollIndicator={false} 
+                contentContainerStyle={{ paddingBottom: 0 }}
+                style={{ flex: 1 }}
+            >
 
                 {/* Header Image */}
                 <View style={styles.imageContainer}>
@@ -383,33 +452,31 @@ const VehicleProfileScreen = () => {
                             console.log(`⚠️ [VehicleProfileScreen] Vehículo ${currentVehicle?.id} - No tiene foto`);
                             return (
                                 <View style={styles.placeholderImage}>
-                                    <Ionicons name="car-sport" size={100} color={COLORS.textLight} />
+                                    <Ionicons name="car-sport" size={100} color={colors.text?.secondary || '#5D6F75'} />
                                 </View>
                             );
                         })()
                     )}
-                        </View>
-                    )}
-                    <View style={styles.imageOverlay} />
-                    <View style={styles.headerInfo}>
-                        <View style={styles.badgeContainer}>
-                            <View style={styles.badge}>
-                                <Text style={styles.badgeText}>{currentVehicle.year}</Text>
-                            </View>
-                        </View>
-                        <Text style={styles.headerTitle}>{currentVehicle.marca_nombre} {currentVehicle.modelo_nombre}</Text>
-                        <Text style={styles.headerSubtitle}>{currentVehicle.patente}</Text>
-                    </View>
-
-                    {/* Floating Action Buttons */}
+                    {/* Overlay reducido solo en la parte inferior para mejor visibilidad */}
+                <View style={styles.imageOverlay} />
+                    {/* Floating Action Buttons - Arriba sobre la imagen */}
                     <View style={styles.floatingActions}>
                         <TouchableOpacity style={[styles.floatingButton, styles.editButton]} onPress={handleEdit}>
-                            <Ionicons name="create" size={24} color={COLORS.primary} />
+                            <Ionicons name="create-outline" size={22} color={colors.primary?.[500] || '#003459'} />
                         </TouchableOpacity>
                         <TouchableOpacity style={[styles.floatingButton, styles.deleteButton]} onPress={handleDelete}>
-                            <Ionicons name="trash" size={24} color={COLORS.danger} />
+                            <Ionicons name="trash-outline" size={22} color={colors.error?.[500] || '#EF4444'} />
                         </TouchableOpacity>
                     </View>
+                <View style={styles.headerInfo}>
+                    <View style={styles.badgeContainer}>
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{currentVehicle.year}</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.headerTitle}>{currentVehicle.marca_nombre} {currentVehicle.modelo_nombre}</Text>
+                    <Text style={styles.headerSubtitle}>{currentVehicle.patente}</Text>
+                </View>
                 </View>
 
                 <View style={styles.contentContainer}>
@@ -417,35 +484,51 @@ const VehicleProfileScreen = () => {
                     {/* Quick Actions */}
                     <View style={styles.actionsRow}>
                         <TouchableOpacity
-                            style={styles.actionButton}
+                            style={styles.actionButtonCard}
+                            activeOpacity={0.7}
                             onPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: currentVehicle.id, vehicle: currentVehicle })}
                         >
-                            <View style={[styles.actionIcon, { backgroundColor: '#E3F2FD' }]}>
-                                <Ionicons name="pulse" size={24} color={COLORS.primary} />
+                            <View style={[styles.actionIconContainer, { backgroundColor: `${colors.primary?.[500] || '#003459'}15` }]}>
+                                <Ionicons name="pulse" size={24} color={colors.primary?.[500] || '#003459'} />
                             </View>
-                            <Text style={styles.actionText}>Salud</Text>
+                            <Text style={styles.actionButtonTitle}>Salud</Text>
+                            <Text style={styles.actionButtonSubtitle}>Ver estado del vehículo</Text>
+                            <Ionicons 
+                                name="chevron-forward" 
+                                size={18} 
+                                color={colors.primary?.[500] || '#003459'} 
+                                style={styles.actionButtonChevron}
+                            />
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={styles.actionButton}
+                            style={styles.actionButtonCard}
+                            activeOpacity={0.7}
                             onPress={() => navigation.navigate(ROUTES.VEHICLE_HISTORY, { vehicleId: currentVehicle.id, vehicle: currentVehicle })}
                         >
-                            <View style={[styles.actionIcon, { backgroundColor: '#FFF3E0' }]}>
-                                <Ionicons name="time" size={24} color={COLORS.warning} />
+                            <View style={[styles.actionIconContainer, { backgroundColor: `${colors.warning?.[500] || '#F59E0B'}15` }]}>
+                                <Ionicons name="time" size={24} color={colors.warning?.[500] || '#F59E0B'} />
                             </View>
-                            <Text style={styles.actionText}>Historial</Text>
+                            <Text style={styles.actionButtonTitle}>Historial</Text>
+                            <Text style={styles.actionButtonSubtitle}>Servicios realizados</Text>
+                            <Ionicons 
+                                name="chevron-forward" 
+                                size={18} 
+                                color={colors.warning?.[500] || '#F59E0B'} 
+                                style={styles.actionButtonChevron}
+                            />
                         </TouchableOpacity>
                     </View>
 
                     {/* Specs Grid */}
                     <Text style={styles.sectionTitle}>Especificaciones</Text>
                     <View style={styles.specsGrid}>
-                        <SpecItem icon="speedometer-outline" label="Kilometraje" value={`${currentVehicle.kilometraje || 0} km`} />
-                        <SpecItem icon="flash-outline" label="Motor" value={currentVehicle.tipo_motor} />
-                        <SpecItem icon="hardware-chip-outline" label="Cilindraje" value={currentVehicle.cilindraje || 'N/A'} />
-                        <SpecItem icon="calendar-outline" label="Año" value={currentVehicle.year} />
-                        <SpecItem icon="barcode-outline" label="Patente" value={currentVehicle.patente} />
-                        <SpecItem icon="color-palette-outline" label="Color" value="N/A" />
+                        <SpecItem icon="speedometer-outline" label="Kilometraje" value={`${currentVehicle.kilometraje || 0} km`} colors={colors} styles={styles} />
+                        <SpecItem icon="flash-outline" label="Motor" value={currentVehicle.tipo_motor} colors={colors} styles={styles} />
+                        <SpecItem icon="hardware-chip-outline" label="Cilindraje" value={currentVehicle.cilindraje || 'N/A'} colors={colors} styles={styles} />
+                        <SpecItem icon="calendar-outline" label="Año" value={currentVehicle.year} colors={colors} styles={styles} />
+                        <SpecItem icon="barcode-outline" label="Patente" value={currentVehicle.patente} colors={colors} styles={styles} />
+                        <SpecItem icon="color-palette-outline" label="Color" value="N/A" colors={colors} styles={styles} />
                     </View>
 
                     {/* Stats Summary */}
@@ -458,7 +541,9 @@ const VehicleProfileScreen = () => {
                             </View>
                             <View style={styles.verticalDivider} />
                             <View style={styles.statItem}>
-                                <Text style={styles.statValue}>$0</Text>
+                                <Text style={styles.statValue}>
+                                    ${totalInvertido.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                </Text>
                                 <Text style={styles.statLabel}>Invertido</Text>
                             </View>
                             <View style={styles.verticalDivider} />
@@ -476,7 +561,7 @@ const VehicleProfileScreen = () => {
 
             {loading && (
                 <View style={styles.loadingOverlay}>
-                    <ActivityIndicator size="large" color={COLORS.white} />
+                    <ActivityIndicator size="large" color={colors.base?.pureWhite || '#FFFFFF'} />
                 </View>
             )}
 
@@ -495,7 +580,7 @@ const VehicleProfileScreen = () => {
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Editar Vehículo</Text>
                             <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <Ionicons name="close" size={24} color={COLORS.text} />
+                                <Ionicons name="close" size={24} color={colors.text?.primary || '#00171F'} />
                             </TouchableOpacity>
                         </View>
 
@@ -517,7 +602,7 @@ const VehicleProfileScreen = () => {
                                     <Text style={styles.selectButtonText}>
                                         {marcaSeleccionada ? marcaSeleccionada.nombre : 'Selecciona una marca'}
                                     </Text>
-                                    <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
+                                    <Ionicons name="chevron-down" size={20} color={colors.text?.secondary || '#5D6F75'} />
                                 </TouchableOpacity>
                                 {showMarcasDropdown && (
                                     <View style={styles.dropdown}>
@@ -554,7 +639,7 @@ const VehicleProfileScreen = () => {
                                     <Text style={styles.selectButtonText}>
                                         {formData.modelo ? modelos.find(m => m.id.toString() === formData.modelo)?.nombre : 'Selecciona un modelo'}
                                     </Text>
-                                    <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
+                                    <Ionicons name="chevron-down" size={20} color={colors.text?.secondary || '#5D6F75'} />
                                 </TouchableOpacity>
                                 {showModelosDropdown && (
                                     <View style={styles.dropdown}>
@@ -660,7 +745,7 @@ const VehicleProfileScreen = () => {
                                         <Image source={{ uri: formData.foto.uri }} style={styles.previewImage} />
                                     ) : (
                                         <View style={styles.photoPlaceholder}>
-                                            <Ionicons name="camera" size={24} color={COLORS.textLight} />
+                                            <Ionicons name="camera" size={24} color={colors.text?.secondary || '#5D6F75'} />
                                             <Text style={styles.photoText}>Cambiar foto</Text>
                                         </View>
                                     )}
@@ -680,9 +765,9 @@ const VehicleProfileScreen = () => {
                                     disabled={isSubmitting}
                                 >
                                     {isSubmitting ? (
-                                        <ActivityIndicator size="small" color={COLORS.white} />
+                                        <ActivityIndicator size="small" color={colors.base?.pureWhite || '#FFFFFF'} />
                                     ) : (
-                                        <Ionicons name="save-outline" size={20} color={COLORS.white} />
+                                        <Ionicons name="save-outline" size={20} color={colors.base?.pureWhite || '#FFFFFF'} />
                                     )}
                                     <Text style={styles.submitButtonText}>
                                         {isSubmitting ? "Guardando..." : "Guardar Cambios"}
@@ -697,10 +782,11 @@ const VehicleProfileScreen = () => {
     );
 };
 
-const SpecItem = ({ icon, label, value }) => (
+// SpecItem necesita recibir styles como prop o acceder a ellos de otra forma
+const SpecItem = ({ icon, label, value, colors, styles }) => (
     <View style={styles.specItem}>
         <View style={styles.specIconContainer}>
-            <Ionicons name={icon} size={20} color={COLORS.primary} />
+            <Ionicons name={icon} size={20} color={colors.primary?.[500] || '#003459'} />
         </View>
         <View>
             <Text style={styles.specLabel}>{label}</Text>
@@ -709,10 +795,11 @@ const SpecItem = ({ icon, label, value }) => (
     </View>
 );
 
-const styles = StyleSheet.create({
+// Función para crear estilos dinámicos con el sistema de diseño
+const createStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: colors.background?.default || '#F8F9FA',
     },
     loadingContainer: {
         flex: 1,
@@ -732,13 +819,17 @@ const styles = StyleSheet.create({
     placeholderImage: {
         width: '100%',
         height: '100%',
-        backgroundColor: '#CFD8DC',
+        backgroundColor: colors.neutral?.gray?.[200] || '#E5E7EB',
         justifyContent: 'center',
         alignItems: 'center',
     },
     imageOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.4)',
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '40%', // Solo overlay en la parte inferior para mejor visibilidad
+        backgroundColor: 'rgba(0,0,0,0.3)',
     },
     headerInfo: {
         position: 'absolute',
@@ -751,139 +842,170 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     badge: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
+        backgroundColor: colors.primary?.[500] || '#003459',
+        paddingHorizontal: spacing.sm || 10,
+        paddingVertical: spacing.xs || 4,
+        borderRadius: borders.radius?.badge?.md || 12,
     },
     badgeText: {
-        color: '#fff',
-        fontSize: 12,
-        fontWeight: 'bold',
+        color: colors.base?.pureWhite || '#FFFFFF',
+        fontSize: typography.fontSize?.xs || 12,
+        fontWeight: typography.fontWeight?.bold || '700',
     },
     headerTitle: {
-        color: COLORS.white,
-        fontSize: 32,
-        fontWeight: 'bold',
+        color: colors.base?.pureWhite || '#FFFFFF',
+        fontSize: typography.fontSize?.['3xl'] || 28,
+        fontWeight: typography.fontWeight?.bold || '700',
         textShadowColor: 'rgba(0, 0, 0, 0.75)',
         textShadowOffset: { width: -1, height: 1 },
         textShadowRadius: 10,
     },
     headerSubtitle: {
         color: 'rgba(255,255,255,0.9)',
-        fontSize: 18,
-        marginTop: 4,
-        fontWeight: '500',
+        fontSize: typography.fontSize?.lg || 18,
+        marginTop: spacing.xs || 4,
+        fontWeight: typography.fontWeight?.medium || '500',
         textShadowColor: 'rgba(0, 0, 0, 0.75)',
         textShadowOffset: { width: -1, height: 1 },
         textShadowRadius: 10,
     },
     contentContainer: {
-        padding: SPACING.md,
+        padding: spacing.md || 16,
         marginTop: -30,
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        backgroundColor: COLORS.background,
-        minHeight: 500,
+        borderTopLeftRadius: borders.radius?.card?.xl || 24,
+        borderTopRightRadius: borders.radius?.card?.xl || 24,
+        backgroundColor: colors.background?.default || '#F8F9FA',
+        flexGrow: 1,
+        paddingBottom: spacing.xl || 40,
     },
     actionsRow: {
         flexDirection: 'row',
-        justifyContent: 'space-around', // Changed from space-between to center the remaining 2 buttons
-        marginBottom: SPACING.xl,
-        marginTop: SPACING.sm,
-        backgroundColor: '#fff',
-        padding: 15,
-        borderRadius: 16,
-        ...SHADOWS.medium,
+        justifyContent: 'space-between',
+        gap: spacing.md || 12,
+        marginBottom: spacing.xl || 24,
+        marginTop: spacing.sm || 12,
     },
-    actionButton: {
-        alignItems: 'center',
-        width: '40%', // Increased width since there are only 2 buttons
+    actionButtonCard: {
+        flex: 1,
+        backgroundColor: colors.background?.paper || '#FFFFFF',
+        borderRadius: borders.radius?.card?.md || 12,
+        padding: spacing.md || 16,
+        position: 'relative',
+        borderWidth: borders.width?.thin || 1,
+        borderColor: colors.border?.light || '#E5E7EB',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
     },
     floatingActions: {
         position: 'absolute',
-        bottom: 60, // Higher position to avoid overlap with action buttons
-        right: 20,
+        top: 60, // Arriba sobre la imagen (debajo del safe area y header)
+        right: spacing.md || 20,
         flexDirection: 'row',
-        gap: 12,
+        gap: spacing.sm || 12,
         zIndex: 99,
         elevation: 5,
     },
     floatingButton: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        ...SHADOWS.medium,
-    },
-    editButton: {
-        // Icon color will be COLORS.primary
-    },
-    deleteButton: {
-        // Icon color will be COLORS.danger
-    },
-    actionIcon: {
         width: 48,
         height: 48,
-        borderRadius: 24,
+        borderRadius: borders.radius?.full || 24,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 8,
+        backgroundColor: colors.background?.paper || '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 5,
     },
-    actionText: {
-        fontSize: 11,
-        color: COLORS.text,
-        fontWeight: '600',
+    editButton: {
+        // Icon color uses colors.primary[500] from theme
+    },
+    deleteButton: {
+        // Icon color uses colors.error[500] from theme
+    },
+    actionIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: borders.radius?.full || 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: spacing.sm || 8,
+    },
+    actionButtonTitle: {
+        fontSize: typography.fontSize?.sm || 14,
+        fontWeight: typography.fontWeight?.bold || '700',
+        color: colors.text?.primary || '#00171F',
+        marginBottom: spacing.xs || 4,
+    },
+    actionButtonSubtitle: {
+        fontSize: typography.fontSize?.xs || 11,
+        color: colors.text?.secondary || '#5D6F75',
+        fontWeight: typography.fontWeight?.regular || '400',
+    },
+    actionButtonChevron: {
+        position: 'absolute',
+        top: spacing.md || 16,
+        right: spacing.md || 16,
     },
     sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: COLORS.textDark,
-        marginBottom: SPACING.md,
-        marginLeft: 4,
+        fontSize: typography.fontSize?.xl || 20,
+        fontWeight: typography.fontWeight?.bold || '700',
+        color: colors.text?.primary || '#00171F',
+        marginBottom: spacing.md || 16,
+        marginLeft: spacing.xs || 4,
     },
     specsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        marginBottom: SPACING.xl,
+        marginBottom: spacing.xl || 24,
     },
     specItem: {
         width: '48%',
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 12,
-        marginBottom: 12,
+        backgroundColor: colors.background?.paper || '#FFFFFF',
+        borderRadius: borders.radius?.card?.lg || 16,
+        padding: spacing.sm || 12,
+        marginBottom: spacing.sm || 12,
         flexDirection: 'row',
         alignItems: 'center',
-        ...SHADOWS.light,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
     },
     specIconContainer: {
         width: 36,
         height: 36,
-        borderRadius: 10,
-        backgroundColor: 'rgba(0, 122, 255, 0.1)', // Primary color with opacity
+        borderRadius: borders.radius?.md || 10,
+        backgroundColor: `${colors.primary?.[500] || '#003459'}15`,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 10,
+        marginRight: spacing.sm || 10,
     },
     specLabel: {
-        fontSize: 12,
-        color: COLORS.textLight,
-        marginBottom: 2,
+        fontSize: typography.fontSize?.xs || 12,
+        color: colors.text?.secondary || '#5D6F75',
+        marginBottom: spacing.xs || 2,
     },
     specValue: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.textDark,
+        fontSize: typography.fontSize?.base || 14,
+        fontWeight: typography.fontWeight?.bold || '700',
+        color: colors.text?.primary || '#00171F',
     },
     statsCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        ...SHADOWS.medium,
+        backgroundColor: colors.background?.paper || '#FFFFFF',
+        borderRadius: borders.radius?.card?.lg || 16,
+        padding: spacing.lg || 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
     },
     statRow: {
         flexDirection: 'row',
@@ -895,14 +1017,19 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     statValue: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: COLORS.textDark,
+        fontSize: typography.fontSize?.['2xl'] || 22,
+        fontWeight: typography.fontWeight?.bold || '700',
+        color: colors.text?.primary || '#00171F',
     },
     statLabel: {
-        fontSize: 13,
-        color: COLORS.textLight,
-        marginTop: 4,
+        fontSize: typography.fontSize?.sm || 13,
+        color: colors.text?.secondary || '#5D6F75',
+        marginTop: spacing.xs || 4,
+    },
+    verticalDivider: {
+        width: 1,
+        height: 40,
+        backgroundColor: colors.border?.light || '#E5E7EB',
     },
     // Modal Styles
     modalContainer: {
@@ -911,83 +1038,87 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: COLORS.white,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        backgroundColor: colors.background?.paper || '#FFFFFF',
+        borderTopLeftRadius: borders.radius?.modal?.xl || 24,
+        borderTopRightRadius: borders.radius?.modal?.xl || 24,
         height: '90%',
         display: 'flex',
         flexDirection: 'column',
-        ...SHADOWS.medium,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
     },
     modalHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.borderLight || '#E5E5E5',
+        paddingHorizontal: spacing.lg || 20,
+        paddingVertical: spacing.md || 16,
+        borderBottomWidth: borders.width?.thin || 1,
+        borderBottomColor: colors.border?.light || '#E5E7EB',
     },
     modalTitle: {
-        fontSize: FONT_SIZES?.h3 || 18,
-        fontWeight: '700',
-        color: COLORS.textDark,
+        fontSize: typography.fontSize?.xl || 18,
+        fontWeight: typography.fontWeight?.bold || '700',
+        color: colors.text?.primary || '#00171F',
     },
     modalScrollView: {
         flexGrow: 1,
     },
     modalScrollContent: {
-        padding: 20,
-        paddingBottom: 40,
+        padding: spacing.lg || 20,
+        paddingBottom: spacing.xl || 40,
     },
 
     // Form Styles
     formGroup: {
-        marginBottom: 20,
+        marginBottom: spacing.lg || 20,
     },
     label: {
-        fontSize: FONT_SIZES?.body || 14,
-        fontWeight: '600',
-        color: COLORS.text,
-        marginBottom: 8,
+        fontSize: typography.fontSize?.base || 14,
+        fontWeight: typography.fontWeight?.semibold || '600',
+        color: colors.text?.primary || '#00171F',
+        marginBottom: spacing.sm || 8,
     },
     input: {
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        backgroundColor: COLORS.background || '#F8F9FA',
-        borderRadius: BORDERS?.radius?.md || 12,
-        borderWidth: 1.5,
-        borderColor: COLORS.borderLight || '#E5E5E5',
-        fontSize: FONT_SIZES?.body || 15,
-        color: COLORS.text,
+        paddingHorizontal: spacing.md || 16,
+        paddingVertical: spacing.sm || 14,
+        backgroundColor: colors.background?.default || '#F8F9FA',
+        borderRadius: borders.radius?.input?.md || 12,
+        borderWidth: borders.width?.medium || 1.5,
+        borderColor: colors.border?.light || '#E5E7EB',
+        fontSize: typography.fontSize?.base || 15,
+        color: colors.text?.primary || '#00171F',
         minHeight: 50,
     },
     selectButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        backgroundColor: COLORS.background || '#F8F9FA',
-        borderRadius: BORDERS?.radius?.md || 12,
-        borderWidth: 1.5,
-        borderColor: COLORS.borderLight || '#E5E5E5',
+        paddingHorizontal: spacing.md || 16,
+        paddingVertical: spacing.sm || 14,
+        backgroundColor: colors.background?.default || '#F8F9FA',
+        borderRadius: borders.radius?.input?.md || 12,
+        borderWidth: borders.width?.medium || 1.5,
+        borderColor: colors.border?.light || '#E5E7EB',
         minHeight: 50,
     },
     selectButtonText: {
-        fontSize: FONT_SIZES?.body || 15,
-        color: COLORS.text,
+        fontSize: typography.fontSize?.base || 15,
+        color: colors.text?.primary || '#00171F',
     },
     disabledButton: {
         opacity: 0.6,
-        backgroundColor: '#F0F0F0',
+        backgroundColor: colors.neutral?.gray?.[100] || '#F0F0F0',
     },
     dropdown: {
-        marginTop: 8,
-        backgroundColor: COLORS.white,
-        borderRadius: BORDERS?.radius?.md || 12,
-        borderWidth: 1.5,
-        borderColor: COLORS.borderLight || '#E5E5E5',
+        marginTop: spacing.sm || 8,
+        backgroundColor: colors.background?.paper || '#FFFFFF',
+        borderRadius: borders.radius?.md || 12,
+        borderWidth: borders.width?.medium || 1.5,
+        borderColor: colors.border?.light || '#E5E7EB',
         maxHeight: 200,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
@@ -996,52 +1127,52 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
     dropdownItem: {
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.borderLight || '#F0F0F0',
+        paddingHorizontal: spacing.md || 16,
+        paddingVertical: spacing.sm || 14,
+        borderBottomWidth: borders.width?.thin || 1,
+        borderBottomColor: colors.border?.light || '#F0F0F0',
     },
     errorText: {
-        fontSize: 12,
-        color: COLORS.danger || '#E74C3C',
-        marginTop: 6,
-        marginLeft: 4,
+        fontSize: typography.fontSize?.xs || 12,
+        color: colors.error?.[500] || '#E74C3C',
+        marginTop: spacing.xs || 6,
+        marginLeft: spacing.xs || 4,
     },
     radioGroup: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: spacing.sm || 8,
     },
     radioButton: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 20,
-        borderWidth: 1.5,
-        borderColor: COLORS.borderLight || '#E5E5E5',
-        backgroundColor: COLORS.background || '#F8F9FA',
+        paddingHorizontal: spacing.md || 16,
+        paddingVertical: spacing.sm || 10,
+        borderRadius: borders.radius?.full || 20,
+        borderWidth: borders.width?.medium || 1.5,
+        borderColor: colors.border?.light || '#E5E7EB',
+        backgroundColor: colors.background?.default || '#F8F9FA',
     },
     radioButtonSelected: {
-        backgroundColor: `${COLORS.primary}15`, // 15% opacity
-        borderColor: COLORS.primary,
+        backgroundColor: `${colors.primary?.[500] || '#003459'}15`,
+        borderColor: colors.primary?.[500] || '#003459',
     },
     radioText: {
-        color: COLORS.text,
-        fontWeight: '500',
+        color: colors.text?.primary || '#00171F',
+        fontWeight: typography.fontWeight?.medium || '500',
     },
     radioTextSelected: {
-        color: COLORS.primary,
-        fontWeight: '600',
+        color: colors.primary?.[500] || '#003459',
+        fontWeight: typography.fontWeight?.semibold || '600',
     },
     photoButton: {
-        borderRadius: BORDERS?.radius?.md || 12,
+        borderRadius: borders.radius?.md || 12,
         overflow: 'hidden',
-        borderWidth: 1.5,
-        borderColor: COLORS.borderLight || '#E5E5E5',
+        borderWidth: borders.width?.medium || 1.5,
+        borderColor: colors.border?.light || '#E5E5E5',
         borderStyle: 'dashed',
         height: 180,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: COLORS.background || '#F8F9FA',
+        backgroundColor: colors.background?.default || '#F8F9FA',
     },
     previewImage: {
         width: '100%',
@@ -1051,46 +1182,46 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     photoText: {
-        marginTop: 8,
-        color: COLORS.textLight,
-        fontWeight: '500',
+        marginTop: spacing.sm || 8,
+        color: colors.text?.secondary || '#5D6F75',
+        fontWeight: typography.fontWeight?.medium || '500',
     },
     modalFooter: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.borderLight || '#E5E5E5',
-        gap: 12,
-        marginBottom: 20,
+        paddingHorizontal: spacing.lg || 20,
+        paddingVertical: spacing.md || 16,
+        borderTopWidth: borders.width?.thin || 1,
+        borderTopColor: colors.border?.light || '#E5E7EB',
+        gap: spacing.sm || 12,
+        marginBottom: spacing.lg || 20,
     },
     cancelButton: {
         flex: 1,
-        paddingVertical: 14,
-        paddingHorizontal: 20,
-        borderRadius: BORDERS?.radius?.md || 12,
-        backgroundColor: COLORS.background || '#F8F9FA',
+        paddingVertical: spacing.sm || 14,
+        paddingHorizontal: spacing.lg || 20,
+        borderRadius: borders.radius?.button?.md || 12,
+        backgroundColor: colors.background?.default || '#F8F9FA',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1.5,
-        borderColor: COLORS.borderLight || '#E5E5E5',
+        borderWidth: borders.width?.medium || 1.5,
+        borderColor: colors.border?.light || '#E5E7EB',
     },
     cancelButtonText: {
-        fontSize: FONT_SIZES?.body || 16,
-        fontWeight: '600',
-        color: COLORS.text,
+        fontSize: typography.fontSize?.base || 16,
+        fontWeight: typography.fontWeight?.semibold || '600',
+        color: colors.text?.primary || '#00171F',
     },
     submitButton: {
         flex: 2,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 20,
-        borderRadius: BORDERS?.radius?.md || 12,
-        backgroundColor: COLORS.primary,
-        gap: 8,
-        shadowColor: COLORS.primary,
+        paddingVertical: spacing.sm || 14,
+        paddingHorizontal: spacing.lg || 20,
+        borderRadius: borders.radius?.button?.md || 12,
+        backgroundColor: colors.primary?.[500] || '#003459',
+        gap: spacing.sm || 8,
+        shadowColor: colors.primary?.[500] || '#003459',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -1100,9 +1231,16 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     submitButtonText: {
-        fontSize: FONT_SIZES?.body || 16,
-        fontWeight: '700',
-        color: COLORS.white,
+        fontSize: typography.fontSize?.base || 16,
+        fontWeight: typography.fontWeight?.bold || '700',
+        color: colors.base?.pureWhite || '#FFFFFF',
+    },
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999,
     },
 });
 

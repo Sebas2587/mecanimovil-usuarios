@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Platform, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  ScrollView,
   Alert,
   Image,
   Dimensions,
@@ -24,6 +24,12 @@ import { TOKENS } from '../../design-system/tokens';
 import { COLORS } from '../../design-system/tokens/colors';
 import logger from '../../utils/logger';
 import * as authService from '../../services/auth';
+import { useQueryClient } from '@tanstack/react-query';
+import * as categoryService from '../../services/categories';
+import * as userService from '../../services/user';
+import ofertasService from '../../services/ofertasService';
+import vehiculoService from '../../services/vehicle';
+
 
 const { width } = Dimensions.get('window');
 
@@ -56,14 +62,16 @@ const SAFE_BORDERS = TOKENS?.borders || {
 
 const LoginScreen = () => {
   const navigation = useNavigation();
+
   const { login } = useAuth();
+  const queryClient = useQueryClient();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [rememberMe, setRememberMe] = useState(false);
-  
+
   // Estados para modal de recuperación de contraseña
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
@@ -93,7 +101,7 @@ const LoginScreen = () => {
         if (remembered === 'true') {
           const savedEmail = await AsyncStorage.getItem('savedEmail');
           const savedPassword = await AsyncStorage.getItem('savedPassword');
-          
+
           if (savedEmail && savedPassword) {
             setEmail(savedEmail);
             setPassword(savedPassword);
@@ -126,10 +134,10 @@ const LoginScreen = () => {
 
     try {
       const response = await authService.forgotPassword(forgotPasswordEmail);
-      
+
       // Si la solicitud fue exitosa, pasar al siguiente paso para ingresar el token
       setForgotPasswordStep(2);
-      
+
       Alert.alert(
         'Solicitud enviada',
         'Se ha enviado un token de recuperación a tu correo electrónico. Revisa tu bandeja de entrada y entra el token recibido.',
@@ -139,7 +147,7 @@ const LoginScreen = () => {
       // Manejar errores específicos
       const errorMessage = error.response?.data?.error || error.message || 'Ocurrió un error al solicitar la recuperación. Intenta nuevamente.';
       const statusCode = error.response?.status || error.status;
-      
+
       // Si el email no existe (404), mostrar error y quedarse en el paso 1
       if (statusCode === 404) {
         setForgotPasswordErrors({ email: errorMessage });
@@ -149,7 +157,7 @@ const LoginScreen = () => {
         setForgotPasswordErrors({ email: errorMessage });
         Alert.alert('Error', errorMessage);
       }
-      
+
       // No avanzar al siguiente paso si hay error
       setForgotPasswordStep(1);
     } finally {
@@ -184,18 +192,20 @@ const LoginScreen = () => {
 
     try {
       await authService.resetPassword(resetToken, newPassword);
-      
+
       Alert.alert(
         'Contraseña restablecida',
         'Tu contraseña ha sido restablecida exitosamente. Ahora puedes iniciar sesión con tu nueva contraseña.',
-        [{ text: 'OK', onPress: () => {
-          setShowForgotPasswordModal(false);
-          setForgotPasswordStep(1);
-          setForgotPasswordEmail('');
-          setResetToken('');
-          setNewPassword('');
-          setConfirmNewPassword('');
-        }}]
+        [{
+          text: 'OK', onPress: () => {
+            setShowForgotPasswordModal(false);
+            setForgotPasswordStep(1);
+            setForgotPasswordEmail('');
+            setResetToken('');
+            setNewPassword('');
+            setConfirmNewPassword('');
+          }
+        }]
       );
     } catch (error) {
       const errorMessage = error.response?.data?.error || error.message || 'Ocurrió un error al restablecer la contraseña. Verifica el token e intenta nuevamente.';
@@ -242,11 +252,49 @@ const LoginScreen = () => {
 
     setLoading(true);
     setErrors({}); // Limpiar errores anteriores
-    
+
     try {
       const result = await login(email, password);
-      
+
+
+
       if (result.success) {
+        // Prefetching crítico para experiencia "instantánea"
+        if (result.user?.id) {
+          const userId = result.user.id;
+
+          // 1. Prefetch Perfil de Usuario
+          queryClient.prefetchQuery({
+            queryKey: ['userProfile', userId],
+            queryFn: () => userService.getUserProfile(userId),
+            staleTime: 1000 * 60 * 5, // 5 minutos
+          });
+
+          // 2. Prefetch Categorías (Globales)
+          queryClient.prefetchQuery({
+            queryKey: ['categories'],
+            queryFn: categoryService.getAllCategories,
+            staleTime: 1000 * 60 * 60 * 24, // 24 horas
+          });
+
+          // 3. Prefetch Chats
+          queryClient.prefetchQuery({
+            queryKey: ['chats', 'list'],
+            queryFn: () => ofertasService.obtenerListaChats(),
+            staleTime: 1000 * 60 * 5,
+          });
+
+          // 4. Prefetch Vehículos
+          queryClient.prefetchQuery({
+            queryKey: ['vehicles'],
+            queryFn: () => vehiculoService.getUserVehicles(),
+            staleTime: 1000 * 60 * 5,
+          });
+
+
+          logger.debug('🚀 Datos precargados en Login (Perfil, Categorías, Chats, Vehículos)');
+        }
+
         // Guardar credenciales si "Recordarme" está activado
         if (rememberMe) {
           try {
@@ -276,7 +324,7 @@ const LoginScreen = () => {
         // Mostrar mensaje de error amigable al usuario
         // El mensaje ya viene amigable desde AuthContext, solo mostrarlo
         const errorMessage = result.error || 'Correo electrónico o contraseña incorrectos. Por favor, verifica tus credenciales e intenta nuevamente.';
-        
+
         Alert.alert(
           'Error al iniciar sesión',
           errorMessage,
@@ -288,7 +336,7 @@ const LoginScreen = () => {
       // pero por seguridad, manejar cualquier error inesperado
       // Log solo en desarrollo (__DEV__), nunca en producción (APK)
       logger.error('Error inesperado en handleLogin (solo visible en desarrollo):', error);
-      
+
       // NUNCA mostrar el error técnico al usuario
       // Siempre mostrar un mensaje amigable
       Alert.alert(
@@ -321,7 +369,7 @@ const LoginScreen = () => {
           end={{ x: 0.5, y: 1 }}
         />
 
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -332,8 +380,8 @@ const LoginScreen = () => {
         >
           {/* Header con Logo */}
           <View style={styles.headerContainer}>
-            <Image 
-              source={LOGO} 
+            <Image
+              source={LOGO}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -351,7 +399,7 @@ const LoginScreen = () => {
               <Text style={[styles.tabText, { color: secondaryColor }]}>Iniciar Sesión</Text>
               <View style={[styles.tabIndicator, { backgroundColor: secondaryColor }]} />
             </TouchableOpacity>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.tab}
               onPress={() => navigation.navigate(ROUTES.REGISTER)}
             >
@@ -408,7 +456,7 @@ const LoginScreen = () => {
 
             {/* Remember me y Forgot password */}
             <View style={styles.optionsRow}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.rememberContainer}
                 onPress={() => setRememberMe(!rememberMe)}
               >
@@ -473,15 +521,15 @@ const LoginScreen = () => {
                     colors={[`${accentColor}20`, `${secondaryColor}20`]}
                     style={styles.modalIconGradient}
                   >
-                    <Ionicons 
-                      name={forgotPasswordStep === 1 ? "mail-outline" : "key-outline"} 
-                      size={32} 
-                      color={secondaryColor} 
+                    <Ionicons
+                      name={forgotPasswordStep === 1 ? "mail-outline" : "key-outline"}
+                      size={32}
+                      color={secondaryColor}
                     />
                   </LinearGradient>
                 </View>
-                <TouchableOpacity 
-                  onPress={closeForgotPasswordModal} 
+                <TouchableOpacity
+                  onPress={closeForgotPasswordModal}
                   style={styles.modalCloseButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
@@ -494,7 +542,7 @@ const LoginScreen = () => {
               </Text>
 
               {forgotPasswordStep === 1 ? (
-                <ScrollView 
+                <ScrollView
                   style={styles.modalBody}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
@@ -502,7 +550,7 @@ const LoginScreen = () => {
                   <Text style={[styles.modalDescription, { color: colors.text?.secondary || '#5D6F75' }]}>
                     Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
                   </Text>
-                  
+
                   <View style={styles.modalInputWrapper}>
                     <Input
                       label="Correo Electrónico"
@@ -545,7 +593,7 @@ const LoginScreen = () => {
                   </TouchableOpacity>
                 </ScrollView>
               ) : (
-                <ScrollView 
+                <ScrollView
                   style={styles.modalBody}
                   showsVerticalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
@@ -553,7 +601,7 @@ const LoginScreen = () => {
                   <Text style={[styles.modalDescription, { color: colors.text?.secondary || '#5D6F75' }]}>
                     Revisa tu correo electrónico. Si el email existe, recibirás un token de recuperación. Ingresa el token recibido y tu nueva contraseña.
                   </Text>
-                  
+
                   <View style={styles.modalInputWrapper}>
                     <Input
                       label="Token de Recuperación"

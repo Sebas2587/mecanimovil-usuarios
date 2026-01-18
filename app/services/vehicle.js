@@ -82,10 +82,17 @@ export const getCarModels = async (marcaId) => {
  */
 export const getInitialChecklist = async (tipoMotor) => {
   try {
+    console.log('📡 [getInitialChecklist] Llamando API con tipoMotor:', tipoMotor);
     const data = await get(`/vehiculos/checklist-inicial/`, { tipo_motor: tipoMotor });
-    return data;
+    console.log('✅ [getInitialChecklist] Respuesta recibida:', data);
+    return Array.isArray(data) ? data : [];
   } catch (error) {
-    console.error('Error obteniendo checklist inicial:', error);
+    console.error('❌ [getInitialChecklist] Error obteniendo checklist inicial:', error);
+    console.error('❌ [getInitialChecklist] Detalles del error:', {
+      message: error.message,
+      status: error.status,
+      response: error.response?.data
+    });
     // Retornamos array vacío para no bloquear la creación, pero idealmente debería reintentarse
     return [];
   }
