@@ -281,8 +281,13 @@ const UserProfileScreen = () => {
   const displayEmail = displayData?.email || 'correo@ejemplo.com';
   const displayPhone = displayData?.telefono;
 
+  const Container = Platform.OS === 'web' ? View : SafeAreaView;
+  const containerProps = Platform.OS === 'web'
+    ? { style: styles.container }
+    : { style: styles.container, edges: ['top'] };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <Container {...containerProps}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
 
       <ScrollContainer
@@ -375,7 +380,7 @@ const UserProfileScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollContainer>
-    </SafeAreaView>
+    </Container>
   );
 };
 
