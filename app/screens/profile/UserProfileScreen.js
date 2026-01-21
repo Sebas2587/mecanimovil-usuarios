@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, StatusBar, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, StatusBar, Dimensions, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -236,29 +236,41 @@ const UserProfileScreen = () => {
 
   // Función para manejar el logout
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que deseas cerrar sesión?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              // La navegación se maneja automáticamente en el AuthContext
-            } catch (error) {
-              console.error('Error al cerrar sesión:', error);
-              Alert.alert('Error', 'No se pudo cerrar sesión. Intenta de nuevo.');
-            }
+    if (Platform.OS === 'web') {
+      // En web usamos window.confirm ya que Alert.alert no soporta botones custom
+      const confirm = window.confirm('¿Estás seguro de que deseas cerrar sesión?');
+      if (confirm) {
+        logout().catch(error => {
+          console.error('Error al cerrar sesión:', error);
+          alert('No se pudo cerrar sesión. Intenta de nuevo.');
+        });
+      }
+    } else {
+      // En móvil usamos el componente nativo Alert
+      Alert.alert(
+        'Cerrar Sesión',
+        '¿Estás seguro de que deseas cerrar sesión?',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
           },
-        },
-      ]
-    );
+          {
+            text: 'Cerrar Sesión',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await logout();
+                // La navegación se maneja automáticamente en el AuthContext
+              } catch (error) {
+                console.error('Error al cerrar sesión:', error);
+                Alert.alert('Error', 'No se pudo cerrar sesión. Intenta de nuevo.');
+              }
+            },
+          },
+        ]
+      );
+    }
   };
 
   // Mostrar nombre completo
