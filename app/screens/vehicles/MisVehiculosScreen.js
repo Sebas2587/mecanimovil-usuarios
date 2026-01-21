@@ -16,7 +16,7 @@ import {
   SafeAreaView,
   StatusBar
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, ROUTES, LAYOUT } from '../../utils/constants';
@@ -37,6 +37,7 @@ import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, useC
 import { useServicesHistory } from '../../hooks/useServices';
 import * as userService from '../../services/user'; // needed for getClienteDetails
 import * as vehicleService from '../../services/vehicle'; // needed for getInitialChecklist (not yet in hooks, but should be?)
+import ScrollContainer from '../../components/base/ScrollContainer';
 
 const tiposMotor = [
   { id: 1, nombre: 'Gasolina' },
@@ -145,14 +146,19 @@ const MisVehiculosScreen = () => {
 
   const route = useRoute();
 
-  useEffect(() => {
-    if (route.params?.refresh) {
-      fetchVehicles();
+  // Auto-refresh al enfocar la pantalla
+  useFocusEffect(
+    useCallback(() => {
+      // Refrescar vehículos y su historial cada vez que la pantalla gana foco
+      refetchVehicles();
       loadVehicleHistories();
-      // Limpiar params para evitar loops
-      navigation.setParams({ refresh: undefined });
-    }
-  }, [route.params?.refresh]);
+
+      // Manejar parámetros de refresco específicos si existen
+      if (route.params?.refresh) {
+        navigation.setParams({ refresh: undefined });
+      }
+    }, [route.params?.refresh, refetchVehicles])
+  );
 
   useEffect(() => {
     if (route.params?.action === 'edit' && route.params?.vehicleId) {
@@ -651,26 +657,45 @@ const MisVehiculosScreen = () => {
   // Agregar función para manejar la eliminación de vehículos
   const handleDeleteVehicle = (vehicle) => {
     Alert.alert(
-      'Eliminar Vehículo',
-      `¿Estás seguro que deseas eliminar ${vehicle.marca_nombre} ${vehicle.modelo_nombre}?`,
+      '⚠️ Eliminar Vehículo',
+      `¿Estás seguro que deseas eliminar permanentemente el vehículo ${vehicle.marca_nombre} ${vehicle.modelo_nombre}?\n\n❗ ESTA ACCIÓN NO SE PUEDE DESHACER.\n\nSe borrará todo el historial de servicios, diagnósticos y datos asociados de este vehículo.`,
       [
         {
           text: 'Cancelar',
           style: 'cancel'
         },
         {
-          text: 'Eliminar',
+          text: 'Sí, Eliminar Todo',
           style: 'destructive',
           onPress: async () => {
             try {
-              // setLoading(true); // Handled by hooks global loading or individual
+              // El hook useDeleteVehicle ya tiene setLoading internamente si se usa isPending
               await deleteVehicleAsync(vehicle.id);
-              Alert.alert('Éxito', 'Vehículo eliminado correctamente');
+
+              // Forzar actualización explícita de ambas listas
+              await Promise.all([
+                refetchVehicles(),
+                // refetchHistory() // Opcional, pero bueno para limpiar historial huérfano
+              ]);
+
+              Alert.alert('Éxito', 'Vehículo y todos sus datos han sido eliminados.');
             } catch (error) {
+              // Si el error es 404, significa que ya se eliminó, así que actualizamos la UI y "fingimos" éxito
+              if (error?.message?.includes('404') || error?.response?.status === 404) {
+                await refetchVehicles();
+                Alert.alert('Aviso', 'El vehículo ya no existe.');
+                return;
+              }
+
+              // MANEJO DE BLOQUEO DE SEGURIDAD (400 Bad Request)
+              // Si el backend rechaza la eliminación por servicios activos
+              if (error?.response?.status === 400 && error?.response?.data?.error) {
+                Alert.alert('🚫 Acción Bloqueada', error.response.data.error);
+                return;
+              }
+
               console.error('Error eliminando vehículo:', error);
-              Alert.alert('Error', 'No se pudo eliminar el vehículo. Inténtalo de nuevo.');
-            } finally {
-              // setLoading(false);
+              Alert.alert('Error', 'No se pudo eliminar el vehículo. Inténtalo de nuevo más tarde.');
             }
           }
         }
@@ -849,17 +874,55 @@ const MisVehiculosScreen = () => {
   };
 
   const EmptyVehiclesList = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="car-outline" size={80} color={COLORS.primary} />
-      <Text style={styles.emptyTitle}>No tienes vehículos registrados</Text>
-      <Text style={styles.emptyText}>
-        No se encontraron vehículos asociados a tu cuenta.
-        Agrega tu primer vehículo utilizando el botón de arriba.
-      </Text>
+    <View style={styles.guideContainer}>
+      <Text style={styles.guideTitle}>¡Bienvenido a MecaniMóvil!</Text>
+      <Text style={styles.guideSubtitle}>Sigue estos 3 pasos para empezar:</Text>
+
+      <View style={styles.stepCard}>
+        <View style={styles.stepIconContainer}>
+          <Text style={styles.stepNumber}>1</Text>
+        </View>
+        <View style={styles.stepContent}>
+          <Text style={styles.stepTitle}>Registra tu Vehículo</Text>
+          <Text style={styles.stepDescription}>
+            Agrega la marca, modelo y detalles de tu auto para personalizar tu experiencia.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.stepLine} />
+
+      <View style={[styles.stepCard, { opacity: 0.7 }]}>
+        <View style={[styles.stepIconContainer, { backgroundColor: COLORS.textLight }]}>
+          <Text style={styles.stepNumber}>2</Text>
+        </View>
+        <View style={styles.stepContent}>
+          <Text style={styles.stepTitle}>Valida tus Datos</Text>
+          <Text style={styles.stepDescription}>
+            Confirmamos la información para ofrecerte repuestos y servicios compatibles.
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.stepLine} />
+
+      <View style={[styles.stepCard, { opacity: 0.7 }]}>
+        <View style={[styles.stepIconContainer, { backgroundColor: COLORS.textLight }]}>
+          <Text style={styles.stepNumber}>3</Text>
+        </View>
+        <View style={styles.stepContent}>
+          <Text style={styles.stepTitle}>Accede a Servicios</Text>
+          <Text style={styles.stepDescription}>
+            Descubre mecánicos y talleres especializados en tu marca cerca de ti.
+          </Text>
+        </View>
+      </View>
+
       <Button
-        title="Agregar Vehículo"
+        title="Comenzar Registro"
         onPress={handleAddVehicle}
-        style={[styles.emptyButton, styles.primaryButton]}
+        style={[styles.emptyButton, styles.primaryButton, { marginTop: 24 }]}
+        textStyle={{ fontSize: 16, fontWeight: 'bold' }}
       />
     </View>
   );
@@ -963,8 +1026,7 @@ const MisVehiculosScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView
-              style={styles.formContainer}
+            <ScrollContainer
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={true}
             >
@@ -1535,7 +1597,7 @@ const MisVehiculosScreen = () => {
                   />
                 </View>
               )}
-            </ScrollView>
+            </ScrollContainer>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -2273,6 +2335,75 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
     marginBottom: 20,
+  },
+  // Nuevos estilos para la Guía Paso a Paso
+  guideContainer: {
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginTop: 20,
+    marginHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  guideTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.primary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  guideSubtitle: {
+    fontSize: 16,
+    color: COLORS.textLight,
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  stepCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '100%',
+  },
+  stepIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    marginTop: 2,
+  },
+  stepNumber: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1c2434',
+    marginBottom: 4,
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    lineHeight: 20,
+  },
+  stepLine: {
+    width: 2,
+    height: 24,
+    backgroundColor: '#E9ECEF',
+    marginLeft: 15, // (32/2) - (2/2) -> Centered below the icon
+    marginVertical: 4,
+    alignSelf: 'flex-start',
   },
   cancelButton: {
     flex: 1,

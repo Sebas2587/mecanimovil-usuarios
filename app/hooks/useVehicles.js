@@ -79,14 +79,37 @@ export const useDeleteVehicle = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: vehicleService.deleteVehicle,
+        onMutate: async (vehicleId) => {
+            // Cancelar queries en curso para evitar sobrescribir nuestro update optimista
+            await queryClient.cancelQueries({ queryKey: ['vehicles'] });
+
+            // Snapshot del valor anterior
+            const previousVehicles = queryClient.getQueryData(['vehicles']);
+
+            // Actualizar optimísticamente el cache
+            if (previousVehicles) {
+                queryClient.setQueryData(['vehicles'], (old) => {
+                    const oldList = Array.isArray(old) ? old : [];
+                    return oldList.filter(v => v.id !== vehicleId);
+                });
+            }
+
+            // Retornar contexto para rollback en caso de error
+            return { previousVehicles };
+        },
+        onError: (err, newVehicleId, context) => {
+            logger.error('Error deleting vehicle:', err);
+            // Rollback al valor anterior si falla
+            if (context?.previousVehicles) {
+                queryClient.setQueryData(['vehicles'], context.previousVehicles);
+            }
+        },
         onSuccess: () => {
+            // Ya actualizamos optimísticamente, pero invalidamos para asegurar consistencia final
+            logger.info('Vehicle deleted (optimistic update applied), invalidating cache');
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
             queryClient.invalidateQueries({ queryKey: ['categories'] });
-            logger.info('Vehicle deleted, cache invalidated');
         },
-        onError: (error) => {
-            logger.error('Error deleting vehicle:', error);
-        }
     });
 };
 

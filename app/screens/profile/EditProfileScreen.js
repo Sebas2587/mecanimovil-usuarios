@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../design-system/theme/useTheme';
 import * as userService from '../../services/user';
+import ScrollContainer from '../../components/base/ScrollContainer';
 
 // Componentes
 import Card from '../../components/base/Card/Card';
@@ -77,13 +78,13 @@ const EditProfileScreen = () => {
   const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  
+
   // Extraer valores del tema
   const colors = theme?.colors || {};
   const typography = theme?.typography || {};
   const spacing = theme?.spacing || {};
   const borders = theme?.borders || {};
-  
+
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -91,7 +92,7 @@ const EditProfileScreen = () => {
     telefono: '',
     username: '',
   });
-  
+
   const [formErrors, setFormErrors] = useState({});
 
   // Cargar datos del perfil al montar el componente
@@ -102,10 +103,10 @@ const EditProfileScreen = () => {
   const loadProfileData = async () => {
     try {
       setInitialLoading(true);
-      
+
       console.log('📥 Cargando datos del perfil...');
       console.log('👤 Usuario del contexto:', user);
-      
+
       // Intentar cargar desde el servicio primero (datos más actualizados del backend)
       let profileData = null;
       try {
@@ -117,13 +118,13 @@ const EditProfileScreen = () => {
         console.warn('⚠️ No se pudo cargar desde servicio, usando datos del contexto:', serviceError);
         // No lanzar error aquí, continuar con datos del contexto
       }
-      
+
       // Usar datos del perfil del backend si están disponibles, sino usar datos del contexto
       const dataSource = profileData || user;
-      
+
       if (dataSource) {
         console.log('📋 Datos fuente para el formulario:', dataSource);
-        
+
         // Normalizar datos - el backend puede devolver en snake_case o puede venir del contexto normalizado
         // Usar los datos del perfil si están disponibles, sino usar datos del contexto
         // Asegurarse de que los valores null/undefined se traten como strings vacíos para el formulario
@@ -134,16 +135,16 @@ const EditProfileScreen = () => {
           telefono: profileData?.telefono || dataSource?.telefono || '',
           username: profileData?.username || dataSource?.username || profileData?.email || dataSource?.email || '',
         };
-        
+
         console.log('✅ Datos normalizados para el formulario:', {
           first_name: normalizedData.first_name || '(vacío)',
           last_name: normalizedData.last_name || '(vacío)',
           email: normalizedData.email || '(vacío)',
           telefono: normalizedData.telefono || '(vacío)',
         });
-        
+
         setFormData(normalizedData);
-        
+
         // Si los datos del perfil tienen información actualizada, actualizar también el contexto
         if (profileData && user) {
           const updatedContextUser = {
@@ -156,7 +157,7 @@ const EditProfileScreen = () => {
             telefono: profileData.telefono || user.telefono || '',
             foto_perfil: profileData.foto_perfil || user.foto_perfil || null,
           };
-          
+
           // Actualizar el contexto sin hacer otra llamada al backend
           updateProfile({ ...updatedContextUser, _skipBackendUpdate: true }).catch(err => {
             console.warn('⚠️ No se pudo actualizar contexto automáticamente:', err);
@@ -173,41 +174,41 @@ const EditProfileScreen = () => {
       setInitialLoading(false);
     }
   };
-  
+
   // Función para validar el formulario
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.first_name.trim()) {
       errors.first_name = 'El nombre es obligatorio';
     }
-    
+
     if (!formData.last_name.trim()) {
       errors.last_name = 'El apellido es obligatorio';
     }
-    
+
     if (!formData.email.trim()) {
       errors.email = 'El correo electrónico es obligatorio';
     } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
       errors.email = 'Correo electrónico inválido';
     }
-    
+
     if (!formData.telefono.trim()) {
       errors.telefono = 'El teléfono es obligatorio';
     }
-    
+
     // Dirección es opcional
     // Username ya no es necesario validar porque se usa first_name como display name
-    
+
     return errors;
   };
-  
+
   const handleChange = (field, value) => {
     setFormData({
       ...formData,
       [field]: value,
     });
-    
+
     if (formErrors[field]) {
       setFormErrors({
         ...formErrors,
@@ -215,19 +216,19 @@ const EditProfileScreen = () => {
       });
     }
   };
-  
+
   const handleSubmit = async () => {
     // Validar formulario
     const errors = validateForm();
-    
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+
       // Crear un objeto con todos los datos necesarios
       // IMPORTANTE: No enviamos username porque es técnico (email) y no debe cambiarse desde aquí
       const updateData = {
@@ -236,10 +237,10 @@ const EditProfileScreen = () => {
         email: formData.email,
         telefono: formData.telefono || null,
       };
-      
+
       // Llamar al servicio para actualizar el perfil
       const updatedUserData = await userService.updateUserProfile(updateData);
-      
+
       // Actualizar el contexto de autenticación con la información actualizada
       // Normalizar los datos actualizados para consistencia
       if (updatedUserData) {
@@ -258,9 +259,9 @@ const EditProfileScreen = () => {
           is_client: user.is_client || false,
           _skipBackendUpdate: true, // Ya actualizamos en el backend, solo actualizar estado local
         };
-        
+
         await updateProfile(normalizedUpdatedUser);
-        
+
         Alert.alert(
           'Perfil Actualizado',
           'Tu información personal ha sido actualizada correctamente.',
@@ -274,17 +275,17 @@ const EditProfileScreen = () => {
       }
     } catch (error) {
       console.error('Error al actualizar perfil:', error);
-      
-      const errorMessage = error.data?.detail || 
-                          error.message || 
-                          'No se pudo actualizar la información. Inténtalo de nuevo.';
-      
+
+      const errorMessage = error.data?.detail ||
+        error.message ||
+        'No se pudo actualizar la información. Inténtalo de nuevo.';
+
       Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
   };
-  
+
   // Crear estilos dinámicos con los tokens del tema
   const styles = createStyles(colors, typography, spacing, borders);
 
@@ -292,7 +293,7 @@ const EditProfileScreen = () => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.background?.default || '#F8F9FA'} />
-        
+
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
           <Text style={styles.loadingText}>Cargando datos del perfil...</Text>
@@ -300,13 +301,12 @@ const EditProfileScreen = () => {
       </SafeAreaView>
     );
   }
-  
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background?.default || '#F8F9FA'} />
-      
-      <ScrollView 
-        style={styles.content} 
+
+      <ScrollContainer
         contentContainerStyle={[
           styles.contentContainer,
           { paddingBottom: insets.bottom + 20 }
@@ -315,7 +315,7 @@ const EditProfileScreen = () => {
       >
         <Card style={styles.formCard}>
           <Text style={styles.formSubtitle}>Información Personal</Text>
-          
+
           <Input
             label="Nombre"
             placeholder="Juan"
@@ -325,7 +325,7 @@ const EditProfileScreen = () => {
             autoCapitalize="words"
             leftIcon="person-outline"
           />
-          
+
           <Input
             label="Apellidos"
             placeholder="Pérez García"
@@ -335,7 +335,7 @@ const EditProfileScreen = () => {
             autoCapitalize="words"
             leftIcon="person-outline"
           />
-          
+
           <Input
             label="Correo electrónico"
             placeholder="usuario@ejemplo.com"
@@ -348,7 +348,7 @@ const EditProfileScreen = () => {
             editable={false}
             style={{ opacity: 0.7 }}
           />
-          
+
           <Input
             label="Teléfono"
             placeholder="+521234567890"
@@ -358,7 +358,7 @@ const EditProfileScreen = () => {
             keyboardType="phone-pad"
             leftIcon="call-outline"
           />
-          
+
           <View style={styles.buttonsContainer}>
             <Button
               title="Cancelar"
@@ -366,7 +366,7 @@ const EditProfileScreen = () => {
               style={styles.cancelButton}
               type="outline"
             />
-            
+
             <Button
               title="Guardar Cambios"
               onPress={handleSubmit}
@@ -375,7 +375,7 @@ const EditProfileScreen = () => {
             />
           </View>
         </Card>
-      </ScrollView>
+      </ScrollContainer>
     </SafeAreaView>
   );
 };

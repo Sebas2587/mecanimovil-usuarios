@@ -66,6 +66,7 @@ import SeleccionarProveedoresScreen from '../screens/solicitudes/SeleccionarProv
 import ComparadorOfertasScreen from '../screens/solicitudes/ComparadorOfertasScreen';
 import ChatOfertaScreen from '../screens/solicitudes/ChatOfertaScreen';
 import ChatsListScreen from '../screens/solicitudes/ChatsListScreen';
+import NotificationCenterScreen from '../screens/notifications/NotificationCenterScreen';
 
 // Pantallas temporales para completar la navegación
 // Estas pantallas deberán implementarse posteriormente
@@ -76,11 +77,11 @@ const PlaceholderScreen = ({ title, icon }) => {
   const colors = theme?.colors || {};
   const typography = theme?.typography || {};
   const spacing = theme?.spacing || {};
-  
+
   return (
     <View style={[placeholderStyles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]}>
       <Ionicons name={icon} size={64} color={colors.primary?.[500] || '#003459'} />
-      <Text style={[placeholderStyles.title, { 
+      <Text style={[placeholderStyles.title, {
         color: colors.text?.primary || '#00171F',
         fontSize: typography.fontSize?.['2xl'] || 24,
       }]}>{title}</Text>
@@ -196,13 +197,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { totalMensajesNoLeidos } = useChats();
   const { width } = Dimensions.get('window');
   const theme = useTheme();
-  
+
   // Extraer valores del tema de forma segura
   const colors = theme?.colors || {};
   const typography = theme?.typography || {};
   const spacing = theme?.spacing || {};
   const borders = theme?.borders || {};
-  
+
   // Asegurar que typography tenga todas las propiedades necesarias
   const safeTypography = typography?.fontSize && typography?.fontWeight
     ? typography
@@ -210,40 +211,40 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
       fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
     };
-  
+
   const safeBottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 0) : Math.max(insets.bottom, 5);
   const tabBarHeight = Platform.OS === 'ios' ? 60 + safeBottomInset : 65 + Math.max(insets.bottom - 5, 0);
-  
+
   // Color del gradiente para etiquetas activos usando el sistema de diseño
   const gradientTextColor = colors.primary?.[500] || colors.accent?.[500] || '#0061FF';
   const primaryColor = colors.primary?.[500] || '#003459';
   const textLightColor = colors.text?.secondary || colors.neutral?.gray?.[600] || '#7C8F97';
-  
+
   // IMPORTANTE: El tab bar debe estar visible para las pantallas principales
   // EXCEPCIÓN: CREAR_SOLICITUD puede ocultar el tab bar para mejorar la UX
   const currentRoute = state.routes[state.index];
   const currentRouteOptions = descriptors[currentRoute.key]?.options;
-  
+
   // Lista de rutas principales que normalmente muestran el tab bar
   const mainRoutes = [ROUTES.HOME, ROUTES.MIS_VEHICULOS, ROUTES.CHATS_LIST, ROUTES.MIS_SOLICITUDES];
   const isMainRoute = mainRoutes.includes(currentRoute.name);
-  
+
   // CREAR_SOLICITUD puede ocultar el tab bar si está configurado explícitamente
   const isCrearSolicitud = currentRoute.name === ROUTES.CREAR_SOLICITUD;
-  const shouldHideTabBar = currentRouteOptions?.tabBarStyle?.display === 'none' || 
-                          (isCrearSolicitud && currentRouteOptions?.tabBarStyle?.display === 'none');
-  
+  const shouldHideTabBar = currentRouteOptions?.tabBarStyle?.display === 'none' ||
+    (isCrearSolicitud && currentRouteOptions?.tabBarStyle?.display === 'none');
+
   // Si el tab bar debe estar oculto, no renderizar nada
   if (shouldHideTabBar) {
     return null;
   }
-  
+
   // Crear estilos dinámicos
   const styles = createTabBarStyles(colors, safeTypography, spacing, borders, primaryColor, textLightColor);
-  
+
   // Índice del botón central (CREAR_SOLICITUD)
   const centerIndex = 2;
-  
+
   // Calcular posición del botón central
   const centerButtonLeft = width / 2 - 30;
 
@@ -258,8 +259,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             const label = options.tabBarLabel !== undefined
               ? options.tabBarLabel
               : options.title !== undefined
-              ? options.title
-              : route.name;
+                ? options.title
+                : route.name;
 
             const isFocused = state.index === index;
             const isLastLeftTab = index === centerIndex - 1;
@@ -305,16 +306,16 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 activeOpacity={0.7}
               >
                 <View style={styles.tabIconContainer}>
-                  <Ionicons 
-                    name={iconName} 
-                    size={24} 
-                    color={isFocused ? primaryColor : textLightColor} 
+                  <Ionicons
+                    name={iconName}
+                    size={24}
+                    color={isFocused ? primaryColor : textLightColor}
                   />
                 </View>
-                <Text 
+                <Text
                   style={[
                     styles.tabLabel,
-                    { 
+                    {
                       color: isFocused ? gradientTextColor : textLightColor,
                       fontSize: safeTypography.fontSize?.xs || 11,
                       fontWeight: safeTypography.fontWeight?.semibold || '600',
@@ -328,7 +329,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               </TouchableOpacity>
             );
           })}
-          
+
           {/* Botón central flotante */}
           {(() => {
             const centerRoute = state.routes[centerIndex];
@@ -366,21 +367,21 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 style={[styles.centerButtonContainer, { left: centerButtonLeft }]}
                 activeOpacity={0.7}
               >
-                  <LinearGradient
-                    colors={[
-                      colors.accent?.[400] || colors.primary?.[400] || '#33BFE7',
-                      colors.primary?.[500] || colors.accent?.[500] || '#0061FF'
-                    ]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.centerButton}
-                  >
-                    <Ionicons name="add" size={32} color="#FFFFFF" style={{ fontWeight: 'bold' }} />
-                  </LinearGradient>
+                <LinearGradient
+                  colors={[
+                    colors.accent?.[400] || colors.primary?.[400] || '#33BFE7',
+                    colors.primary?.[500] || colors.accent?.[500] || '#0061FF'
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.centerButton}
+                >
+                  <Ionicons name="add" size={32} color="#FFFFFF" style={{ fontWeight: 'bold' }} />
+                </LinearGradient>
               </TouchableOpacity>
             );
           })()}
-          
+
           {/* Tabs derechos (después del botón central) */}
           {state.routes.slice(centerIndex + 1).map((route, index) => {
             const actualIndex = centerIndex + 1 + index;
@@ -388,8 +389,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             const label = options.tabBarLabel !== undefined
               ? options.tabBarLabel
               : options.title !== undefined
-              ? options.title
-              : route.name;
+                ? options.title
+                : route.name;
 
             const isFocused = state.index === actualIndex;
             const isFirstRightTab = index === 0;
@@ -437,10 +438,10 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                 <View style={styles.tabIconContainer}>
                   {route.name === ROUTES.CHATS_LIST && totalMensajesNoLeidos > 0 ? (
                     <View style={styles.iconWithBadge}>
-                      <Ionicons 
-                        name={iconName} 
-                        size={24} 
-                        color={isFocused ? primaryColor : textLightColor} 
+                      <Ionicons
+                        name={iconName}
+                        size={24}
+                        color={isFocused ? primaryColor : textLightColor}
                       />
                       <View style={[styles.tabBadge, { backgroundColor: colors.error?.[500] || '#FF6B6B' }]}>
                         <Text style={styles.tabBadgeText}>
@@ -449,17 +450,17 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                       </View>
                     </View>
                   ) : (
-                    <Ionicons 
-                      name={iconName} 
-                      size={24} 
-                      color={isFocused ? primaryColor : textLightColor} 
+                    <Ionicons
+                      name={iconName}
+                      size={24}
+                      color={isFocused ? primaryColor : textLightColor}
                     />
                   )}
                 </View>
-                <Text 
+                <Text
                   style={[
                     styles.tabLabel,
-                    { 
+                    {
                       color: isFocused ? gradientTextColor : textLightColor,
                       fontSize: safeTypography.fontSize?.xs || 11,
                       fontWeight: safeTypography.fontWeight?.semibold || '600',
@@ -563,7 +564,7 @@ const AppNavigator = () => {
       <Stack.Screen
         name={ROUTES.CATEGORY_SERVICES_LIST}
         component={CategoryServicesListScreen}
-        options={getHeaderOptions("Servicios Disponibles", { showProfile: true })}
+        options={getHeaderOptions("Servicios Disponibles", { showProfile: false })}
       />
 
       <Stack.Screen
@@ -577,6 +578,12 @@ const AppNavigator = () => {
         name={ROUTES.PROFILE}
         component={ProfileStackNavigator}
         options={{ headerShown: false }}
+      />
+
+      <Stack.Screen
+        name={ROUTES.NOTIFICATION_CENTER}
+        component={NotificationCenterScreen}
+        options={getHeaderOptions("Notificaciones", { showBack: true })}
       />
 
       {/* Ruta AgendamientoScreen eliminada - flujo antiguo de agendamiento */}

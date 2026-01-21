@@ -147,42 +147,10 @@ const Header = ({
       style
     ]}>
       <View style={[styles.content, { paddingHorizontal: SPACING.md }]}>
-        {/* Componente izquierdo (custom o back button) */}
+        {/* Componente izquierdo (custom, foto de perfil o back button) */}
         <View style={styles.leftContainer}>
           {leftComponent || (
-            shouldShowBack && (
-              <TouchableOpacity
-                onPress={handleBackPress}
-                style={styles.backButton}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
-              </TouchableOpacity>
-            )
-          )}
-        </View>
-
-        {/* Título */}
-        <View style={styles.titleContainer}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color: titleColor,
-                fontSize: SAFE_TYPOGRAPHY.fontSize.xl,
-                fontWeight: SAFE_TYPOGRAPHY.fontWeight.bold,
-              }
-            ]}
-            numberOfLines={1}
-          >
-            {title}
-          </Text>
-        </View>
-
-        {/* Componente derecho (custom o foto de perfil) */}
-        <View style={styles.rightContainer}>
-          {rightComponent || (
-            showProfile && (
+            showProfile ? (
               <TouchableOpacity
                 onPress={handleProfilePress}
                 activeOpacity={0.7}
@@ -205,9 +173,47 @@ const Header = ({
                     <Ionicons name="person" size={20} color={COLORS.text.secondary} />
                   </View>
                 )}
+              </TouchableOpacity>
+            ) : shouldShowBack ? (
+              <TouchableOpacity
+                onPress={handleBackPress}
+                style={styles.backButton}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+              </TouchableOpacity>
+            ) : null
+          )}
+        </View>
 
-                {/* Badge de notificaciones */}
-                {notificationBadge > 0 && (
+        {/* Título */}
+        <View style={styles.titleContainer}>
+          <Text
+            style={[
+              styles.title,
+              {
+                color: titleColor,
+                fontSize: SAFE_TYPOGRAPHY.fontSize.xl,
+                fontWeight: SAFE_TYPOGRAPHY.fontWeight.bold,
+              }
+            ]}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+        </View>
+
+        {/* Componente derecho (custom o notificación) */}
+        <View style={styles.rightContainer}>
+          {rightComponent || (
+            // Si hay showProfile, asumimos que puede haber notificaciones
+            (showProfile || notificationBadge > 0) && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
+                style={styles.notificationButton}
+              >
+                <Ionicons name="notifications-outline" size={24} color={COLORS.text.primary} />
+                {(notificationBadge > 0) && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>
                       {notificationBadge > 99 ? '99+' : notificationBadge}
@@ -300,6 +306,13 @@ const styles = StyleSheet.create({
     color: COLORS.text.inverse,
     fontSize: SAFE_TYPOGRAPHY.fontSize.xs,
     fontWeight: SAFE_TYPOGRAPHY.fontWeight.bold,
+  },
+  notificationButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
   },
 });
 

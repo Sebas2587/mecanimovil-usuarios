@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { COLORS, BORDERS, SPACING } from '../../../design-system/tokens';
+import { TOKENS } from '../../../design-system/tokens';
 
 /**
  * Divider Component
@@ -14,21 +14,24 @@ import { COLORS, BORDERS, SPACING } from '../../../design-system/tokens';
  * @param {string} variant - Variante: 'light', 'main', 'dark'
  * @param {object} style - Estilos adicionales
  */
-const Divider = ({ 
+const Divider = ({
   orientation = 'horizontal',
   variant = 'light',
   style,
-  ...props 
+  ...props
 }) => {
   // Obtener color según la variante
   const getColor = () => {
+    // Fallback safe access
+    const colors = TOKENS?.colors?.border || { light: '#D7DFE3', main: '#C3CFD5', dark: '#9BAFB9' };
+
     switch (variant) {
       case 'main':
-        return COLORS.border.main;
+        return colors.main;
       case 'dark':
-        return COLORS.border.dark;
+        return colors.dark;
       default: // 'light'
-        return COLORS.border.light;
+        return colors.light;
     }
   };
 
@@ -42,7 +45,7 @@ const Divider = ({
         isVertical ? styles.vertical : styles.horizontal,
         {
           backgroundColor: color,
-          [isVertical ? 'width' : 'height']: BORDERS.width.thin,
+          [isVertical ? 'width' : 'height']: TOKENS?.borders?.width?.thin || 1,
           [isVertical ? 'height' : 'width']: '100%',
         },
         style,
@@ -57,10 +60,10 @@ const styles = StyleSheet.create({
     // Estilos base definidos inline
   },
   horizontal: {
-    marginVertical: SPACING.sm,
+    marginVertical: TOKENS?.spacing?.sm || 8,
   },
   vertical: {
-    marginHorizontal: SPACING.sm,
+    marginHorizontal: TOKENS?.spacing?.sm || 8,
   },
 });
 

@@ -15,10 +15,12 @@ import * as Animatable from 'react-native-animatable';
 import { ROUTES } from '../../utils/constants';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import VehicleHealthService from '../../services/vehicleHealthService';
+import ScrollContainer from '../../components/base/ScrollContainer';
 import * as userService from '../../services/user';
 import { useTheme } from '../../design-system/theme/useTheme';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
+import { getVehicleById } from '../../services/vehicle';
 
 const { width } = Dimensions.get('window');
 
@@ -26,13 +28,13 @@ const VehicleHealthScreen = ({ route }) => {
   const navigation = useNavigation();
   const { vehicleId, vehicle } = route.params;
   const theme = useTheme();
-  
+
   // Extraer valores del tema de forma segura
   const colors = theme?.colors || {};
   const typography = theme?.typography || {};
   const spacing = theme?.spacing || {};
   const borders = theme?.borders || {};
-  
+
   // Asegurar que typography tenga todas las propiedades necesarias
   const safeTypography = typography?.fontSize && typography?.fontWeight
     ? typography
@@ -40,10 +42,10 @@ const VehicleHealthScreen = ({ route }) => {
       fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
       fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
     };
-  
+
   // Validar que borders esté completamente inicializado
-  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined') 
-    ? borders 
+  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined')
+    ? borders
     : {
       radius: {
         none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
@@ -57,11 +59,12 @@ const VehicleHealthScreen = ({ route }) => {
       },
       width: { none: 0, thin: 1, medium: 2, thick: 4 }
     };
-  
+
   // Crear estilos dinámicos con los tokens del tema
   const styles = createStyles(colors, safeTypography, spacing, safeBorders);
 
   const [healthData, setHealthData] = useState(null);
+  const [vehicleData, setVehicleData] = useState(vehicle); // Estado para guardar vehículo si se carga
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -70,7 +73,34 @@ const VehicleHealthScreen = ({ route }) => {
 
   // Cargar datos iniciales
   useEffect(() => {
-    fetchVehicleHealth();
+    const loadData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Cargar vehículo si no vino en params
+        let currentVehicle = vehicleData;
+        if (!currentVehicle && vehicleId) {
+          try {
+            console.log('🚗 Cargando datos del vehículo...', vehicleId);
+            currentVehicle = await getVehicleById(vehicleId);
+            setVehicleData(currentVehicle);
+          } catch (err) {
+            console.error('Error cargando vehículo:', err);
+            // No bloqueamos healthfetch, pero guardamos error en log
+          }
+        }
+
+        // Cargar salud
+        await fetchVehicleHealth(false);
+      } catch (err) {
+        console.error('Error general cargando pantalla:', err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    };
+
+    loadData();
   }, [vehicleId]);
 
   // Configurar WebSocket para actualizaciones en tiempo real
@@ -83,17 +113,17 @@ const VehicleHealthScreen = ({ route }) => {
     // Suscribirse a actualizaciones de salud del vehículo
     const handleSaludActualizada = (data) => {
       console.log('📨 [SALUD] Mensaje WebSocket recibido:', data);
-      
+
       // Solo procesar si es para este vehículo
       if (data.vehicle_id && String(data.vehicle_id) === String(vehicleId)) {
         console.log('✅ [SALUD] Actualización recibida para este vehículo, recargando datos...');
-        
+
         // Mostrar notificación push
         NotificationService.notificarSaludVehiculoActualizada(
           data.vehiculo_info || 'Vehículo',
           data.componentes_actualizados || 0
         );
-        
+
         // Recargar datos inmediatamente
         fetchVehicleHealth(true);
       }
@@ -149,8 +179,11 @@ const VehicleHealthScreen = ({ route }) => {
       console.error('Error fetching health data:', err);
       setError('No se pudo cargar el estado de salud del vehículo');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      // Solo actualizamos loading si no es refresh, pero ya lo manejamos en el useEffect principal para la carga inicial
+      if (refreshing) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 
@@ -167,7 +200,7 @@ const VehicleHealthScreen = ({ route }) => {
   };
 
   const handleComponentPress = useCallback((component) => {
-    if (!vehicle) {
+    if (!vehicleData) {
       console.warn('⚠️ No se encontró vehículo para el componente');
       return;
     }
@@ -195,7 +228,7 @@ const VehicleHealthScreen = ({ route }) => {
       navigation.navigate('TabNavigator', {
         screen: ROUTES.CREAR_SOLICITUD,
         params: {
-          vehicle,
+          vehicle: vehicleData,
           descripcionPrellenada: `Servicio de mantenimiento: ${componenteNombre}. ${component.mensaje_alerta || 'El componente requiere atención.'}`,
         },
       });
@@ -204,11 +237,11 @@ const VehicleHealthScreen = ({ route }) => {
       console.error('❌ Error navegando a CREAR_SOLICITUD:', error);
       // Fallback: intentar navegación directa
       navigation.navigate(ROUTES.CREAR_SOLICITUD, {
-        vehicle,
+        vehicle: vehicleData,
         descripcionPrellenada: `Servicio de mantenimiento: ${componenteNombre}. ${component.mensaje_alerta || 'El componente requiere atención.'}`,
       });
     }
-  }, [vehicle, navigation]);
+  }, [vehicleData, navigation]);
 
   const renderComponentCard = (component, index) => {
     const healthColor = getHealthColor(component.salud_porcentaje);
@@ -224,61 +257,61 @@ const VehicleHealthScreen = ({ route }) => {
           delay={index * 50}
           style={styles.componentCard}
         >
-        <View style={styles.componentHeader}>
-          <View style={[styles.componentIcon, { backgroundColor: `${healthColor}15` }]}>
-            <Ionicons
-              name={component.icono || 'construct-outline'}
-              size={20}
-              color={healthColor}
+          <View style={styles.componentHeader}>
+            <View style={[styles.componentIcon, { backgroundColor: `${healthColor}15` }]}>
+              <Ionicons
+                name={component.icono || 'construct-outline'}
+                size={20}
+                color={healthColor}
+              />
+            </View>
+            <View style={styles.componentInfo}>
+              <Text style={styles.componentName}>{component.nombre}</Text>
+              <Text style={styles.componentSubtitle}>
+                Último servicio: {component.km_ultimo_servicio?.toLocaleString() || 0} km
+              </Text>
+            </View>
+            <View style={styles.componentPercentage}>
+              <Text style={[styles.percentageText, { color: healthColor }]}>
+                {component.salud_porcentaje}%
+              </Text>
+              <Text style={styles.statusBadge}>{component.nivel_alerta_display || component.nivel_alerta}</Text>
+            </View>
+          </View>
+
+          {component.requiere_servicio_inmediato && component.mensaje_alerta && (
+            <View style={styles.alertBanner}>
+              <Ionicons name="warning" size={16} color={colors.error?.[500] || '#EF4444'} />
+              <Text style={styles.alertText}>{component.mensaje_alerta}</Text>
+            </View>
+          )}
+
+          <View style={styles.componentProgress}>
+            <View
+              style={[
+                styles.progressBar,
+                {
+                  width: `${component.salud_porcentaje}%`,
+                  backgroundColor: healthColor
+                }
+              ]}
             />
           </View>
-          <View style={styles.componentInfo}>
-            <Text style={styles.componentName}>{component.nombre}</Text>
-            <Text style={styles.componentSubtitle}>
-              Último servicio: {component.km_ultimo_servicio?.toLocaleString() || 0} km
-            </Text>
-          </View>
-          <View style={styles.componentPercentage}>
-            <Text style={[styles.percentageText, { color: healthColor }]}>
-              {component.salud_porcentaje}%
-            </Text>
-            <Text style={styles.statusBadge}>{component.nivel_alerta_display || component.nivel_alerta}</Text>
-          </View>
-        </View>
 
-        {component.requiere_servicio_inmediato && component.mensaje_alerta && (
-          <View style={styles.alertBanner}>
-            <Ionicons name="warning" size={16} color={colors.error?.[500] || '#EF4444'} />
-            <Text style={styles.alertText}>{component.mensaje_alerta}</Text>
+          <View style={styles.componentFooter}>
+            <View style={styles.footerItem}>
+              <Ionicons name="speedometer-outline" size={14} color={colors.text?.secondary || '#5D6F75'} />
+              <Text style={styles.footerText}>
+                {component.km_estimados_restantes?.toLocaleString() || 0} km restantes
+              </Text>
+            </View>
+            <View style={styles.footerItem}>
+              <Ionicons name="calendar-outline" size={14} color={colors.text?.secondary || '#5D6F75'} />
+              <Text style={styles.footerText}>
+                {component.dias_estimados_restantes || 0} días aprox.
+              </Text>
+            </View>
           </View>
-        )}
-
-        <View style={styles.componentProgress}>
-          <View
-            style={[
-              styles.progressBar,
-              {
-                width: `${component.salud_porcentaje}%`,
-                backgroundColor: healthColor
-              }
-            ]}
-          />
-        </View>
-
-        <View style={styles.componentFooter}>
-          <View style={styles.footerItem}>
-            <Ionicons name="speedometer-outline" size={14} color={colors.text?.secondary || '#5D6F75'} />
-            <Text style={styles.footerText}>
-              {component.km_estimados_restantes?.toLocaleString() || 0} km restantes
-            </Text>
-          </View>
-          <View style={styles.footerItem}>
-            <Ionicons name="calendar-outline" size={14} color={colors.text?.secondary || '#5D6F75'} />
-            <Text style={styles.footerText}>
-              {component.dias_estimados_restantes || 0} días aprox.
-            </Text>
-          </View>
-        </View>
         </Animatable.View>
       </TouchableOpacity>
     );
@@ -323,11 +356,10 @@ const VehicleHealthScreen = ({ route }) => {
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
+      <ScrollContainer
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={handleRefresh}
             colors={[colors.primary?.[500] || '#003459']}
             tintColor={colors.primary?.[500] || '#003459'}
@@ -341,13 +373,13 @@ const VehicleHealthScreen = ({ route }) => {
             <View style={styles.headerContent}>
               <View style={styles.vehicleInfo}>
                 <Text style={styles.vehicleTitle}>
-                  {vehicle?.marca_nombre || vehicle?.marca} {vehicle?.modelo_nombre || vehicle?.modelo}
+                  {vehicleData?.marca_nombre || vehicleData?.marca || 'Cargando...'} {vehicleData?.modelo_nombre || vehicleData?.modelo || ''}
                 </Text>
                 <Text style={styles.vehicleSubtitle}>
-                  {vehicle?.year} • {vehicle?.patente}
+                  {vehicleData?.year || ''} • {vehicleData?.patente || ''}
                 </Text>
                 <Text style={styles.vehicleKm}>
-                  {vehicle?.kilometraje?.toLocaleString() || 0} km
+                  {vehicleData?.kilometraje?.toLocaleString() || 0} km
                 </Text>
               </View>
 
@@ -424,7 +456,7 @@ const VehicleHealthScreen = ({ route }) => {
                     navigation.navigate('TabNavigator', {
                       screen: ROUTES.CREAR_SOLICITUD,
                       params: {
-                        vehicle,
+                        vehicle: vehicleData,
                         alertas: healthData.alertas
                       },
                     });
@@ -433,7 +465,7 @@ const VehicleHealthScreen = ({ route }) => {
                     console.error('❌ Error navegando a CREAR_SOLICITUD:', error);
                     // Fallback: intentar navegación directa
                     navigation.navigate(ROUTES.CREAR_SOLICITUD, {
-                      vehicle,
+                      vehicle: vehicleData,
                       alertas: healthData.alertas
                     });
                   }
@@ -446,7 +478,7 @@ const VehicleHealthScreen = ({ route }) => {
             </Animatable.View>
           )}
         </>
-      </ScrollView>
+      </ScrollContainer>
     </View>
   );
 };

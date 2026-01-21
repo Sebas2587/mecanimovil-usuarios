@@ -107,15 +107,12 @@ const NearbyMecanicoCard = ({ mecanico, onPress }) => {
           </Text>
         </BlurView>
 
-        {/* Indicador de estado de conexión - solo cuando está conectado */}
+        {/* Indicador de estado de conexión - Más visible y explícito */}
         {mecanico?.esta_conectado && (
-          <View style={styles.connectionIndicator}>
-            <Ionicons
-              name="checkmark"
-              size={8}
-              color="#FFFFFF"
-            />
-          </View>
+          <BlurView intensity={20} style={styles.connectionBadge}>
+            <View style={styles.connectionDot} />
+            <Text style={styles.connectionText}>Conectado</Text>
+          </BlurView>
         )}
       </View>
 
@@ -215,21 +212,31 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     fontWeight: typography.fontWeight?.semibold || '600',
     color: colors.text?.primary || '#00171F',
   },
-  connectionIndicator: {
+  connectionBadge: {
     position: 'absolute',
-    top: spacing.sm || 8,
+    bottom: spacing.sm || 8, // Changed to bottom for better visibility over image
     right: spacing.sm || 8,
-    width: 16,
-    height: 16,
-    borderRadius: borders.radius?.full || 9999,
-    backgroundColor: colors.success?.[500] || '#10B981',
+    borderRadius: borders.radius?.badge?.md || 8,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderWidth: borders.width?.thin || 1,
+    borderColor: colors.success?.[200] || '#A7F3D0',
+    paddingHorizontal: spacing.sm || 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.base?.inkBlack || '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
+    gap: 4,
+  },
+  connectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.success?.[500] || '#10B981',
+  },
+  connectionText: {
+    fontSize: typography.fontSize?.xs || 10,
+    fontWeight: typography.fontWeight?.bold || '700',
+    color: colors.success?.[700] || '#047857',
   },
   infoContainer: {
     flex: 1,

@@ -48,7 +48,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         if (pagoPendienteDataStr) {
           pagoPendienteDataRef.current = JSON.parse(pagoPendienteDataStr);
           console.log('💾 Datos de pago pendiente cargados:', pagoPendienteDataRef.current);
-          
+
           // IMPORTANTE: Verificar el estado inicial del pago ANTES de abrir el WebView
           // Si el pago ya está pagado, no abrir el WebView y mostrar mensaje
           if (pagoPendienteDataRef.current.ofertaId) {
@@ -58,21 +58,21 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
                 pagoPendienteDataRef.current.ofertaId
               );
               estadoInicialPagoRef.current = estadoInicial;
-              
+
               console.log('✅ Estado inicial del pago:', estadoInicial);
-              
+
               // Si el pago ya está pagado, cerrar el WebView y mostrar mensaje
               if (estadoInicial.oferta_estado === 'pagada') {
                 console.log('⚠️ El pago ya está pagado. Cerrando WebView...');
-                
+
                 // Limpiar datos de pago pendiente
                 await AsyncStorage.removeItem('pago_pendiente_data');
                 await AsyncStorage.removeItem('pago_pendiente');
                 await AsyncStorage.removeItem('expected_deep_link');
-                
+
                 // Cerrar el WebView
                 navigation.goBack();
-                
+
                 // Mostrar alerta
                 setTimeout(() => {
                   Alert.alert(
@@ -81,10 +81,10 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
                     [{ text: 'OK' }]
                   );
                 }, 500);
-                
+
                 return; // No continuar con el timeout
               }
-              
+
               // Si el pago está pendiente, continuar normalmente
               console.log('✅ Pago pendiente, continuando con el flujo normal');
             } catch (error) {
@@ -97,9 +97,9 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         console.warn('Error cargando datos de pago pendiente:', e);
       }
     };
-    
+
     loadPagoPendiente();
-    
+
     // Configurar un timeout para verificar el estado del pago después de un tiempo
     // IMPORTANTE: Solo verificamos el estado en el backend, NO asumimos que el pago fue completado
     // El webhook de Mercado Pago es la única fuente de verdad para confirmar pagos
@@ -108,13 +108,13 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         // Solo verificar si el estado inicial era pendiente
         if (estadoInicialPagoRef.current.oferta_estado !== 'pagada') {
           console.log('⏱️ Verificación periódica: consultando estado del pago en el backend...');
-          
+
           // Verificar si hay un deep link pendiente primero
           const pendingDeepLink = await AsyncStorage.getItem('pending_deep_link');
           if (!pendingDeepLink) {
             // Verificar el estado en el backend (solo lectura, no asume nada)
             const resultado = await verificarYConfirmarPago();
-            
+
             if (resultado.pagado) {
               console.log('✅ El backend confirmó que el pago fue procesado (webhook recibido)');
             } else if (resultado.pendiente) {
@@ -126,7 +126,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         }
       }
     }, 35000); // Verificar después de 35 segundos
-    
+
     return () => {
       clearTimeout(verificationTimeout);
       // Limpiar timeout de loading si existe
@@ -145,14 +145,14 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         nextAppState === 'active'
       ) {
         console.log('📱 App volvió al foreground desde WebView');
-        
+
         // Si hay datos de pago pendiente, verificar el estado del pago en el backend
         // IMPORTANTE: Solo verificamos, NO asumimos que el pago fue completado
         if (pagoPendienteDataRef.current) {
           console.log('🔍 Verificando estado del pago en el backend...');
-          
+
           const resultado = await verificarYConfirmarPago();
-          
+
           // Si el pago fue confirmado por el backend (webhook recibido), la función ya navegó
           if (resultado.pagado) {
             console.log('✅ Pago confirmado por el backend al volver al foreground');
@@ -169,8 +169,8 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
     };
   }, []);
 
-  // Función para verificar el estado del pago desde el backend
-  // IMPORTANTE: Esta función SOLO lee el estado, NO asume que el pago fue completado
+  // Función para verificar el estado del pago desde Mercado Pago DIRECTAMENTE
+  // IMPORTANTE: Esta función consulta la API de Mercado Pago a través del backend para buscar pagos
   const verificarYConfirmarPago = async (forzarConfirmacion = false) => {
     if (!pagoPendienteDataRef.current) {
       return { verificado: false, pagado: false };
@@ -178,77 +178,63 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
 
     try {
       const { ofertaId, tipoPago } = pagoPendienteDataRef.current;
-      
+
       if (!ofertaId) {
         console.warn('⚠️ No hay ofertaId para verificar el pago');
         return { verificado: false, pagado: false };
       }
 
-      console.log('📥 Verificando estado del pago desde backend para oferta:', ofertaId);
-      
-      // Obtener el estado actual del pago desde el backend
-      // El backend es la única fuente de verdad (actualizado por webhooks de Mercado Pago)
-      const estadoPago = await MercadoPagoService.getEstadoPagoOferta(ofertaId);
-      console.log('✅ Estado del pago obtenido:', estadoPago);
+      console.log('📥 Verificando pago DIRECTAMENTE con Mercado Pago API');
+      console.log('   - Oferta ID:', ofertaId);
+      console.log('   - Tipo pago:', tipoPago);
 
-      // IMPORTANTE: Comparar con el estado inicial
-      // Si el pago ya estaba pagado al inicio, no hacer nada
-      if (estadoInicialPagoRef.current && estadoInicialPagoRef.current.oferta_estado === 'pagada') {
-        if (estadoPago.oferta_estado === 'pagada') {
-          console.log('⚠️ El pago ya estaba pagado al inicio. No se procesará como pago nuevo.');
-          
-          // Limpiar datos de pago pendiente
-          await AsyncStorage.removeItem('pago_pendiente_data');
-          await AsyncStorage.removeItem('pago_pendiente');
-          await AsyncStorage.removeItem('expected_deep_link');
-          await AsyncStorage.removeItem('pending_deep_link');
-          
-          return { verificado: true, pagado: false, yaEstabaPagado: true };
-        }
+      // NUEVO: Llamar al endpoint que busca el pago directamente en Mercado Pago
+      const resultadoVerificacion = await MercadoPagoService.verificarPagoMercadoPago(
+        ofertaId,
+        tipoPago
+      );
+
+      console.log('✅ Resultado de verificación directa:', resultadoVerificacion);
+
+      // Si se encontró y está aprobado el pago
+      if (resultadoVerificacion.success && resultadoVerificacion.payment_approved) {
+        console.log('✅ ¡Pago encontrado y aprobado en Mercado Pago!');
+        console.log('   - Payment ID:', resultadoVerificacion.payment_id);
+        console.log('   - El backend ya actualizó los estados automáticamente');
+
+        // Limpiar datos de pago pendiente
+        await AsyncStorage.removeItem('pago_pendiente_data');
+        await AsyncStorage.removeItem('pago_pendiente');
+        await AsyncStorage.removeItem('expected_deep_link');
+        await AsyncStorage.removeItem('pending_deep_link');
+
+        // Navegar a pantalla de éxito
+        navigation.goBack();
+        setTimeout(() => {
+          navigation.navigate('PaymentCallback', {
+            status: 'success',
+            from_webview_verification: true,
+            ofertaId: ofertaId,
+            tipoPago: tipoPago,
+            paymentId: resultadoVerificacion.payment_id
+          });
+        }, 300);
+
+        return { verificado: true, pagado: true };
       }
 
-      // Si el pago ya está pagado Y cambió desde pendiente, es un pago exitoso real
-      if (estadoPago.oferta_estado === 'pagada') {
-        const cambioReal = !estadoInicialPagoRef.current || 
-                          estadoInicialPagoRef.current.oferta_estado !== 'pagada';
-        
-        if (cambioReal) {
-          console.log('✅ Pago confirmado por el backend (webhook recibido)');
-          
-          // Limpiar datos de pago pendiente
-          await AsyncStorage.removeItem('pago_pendiente_data');
-          await AsyncStorage.removeItem('pago_pendiente');
-          await AsyncStorage.removeItem('expected_deep_link');
-          await AsyncStorage.removeItem('pending_deep_link');
-          
-          // Navegar a pantalla de éxito
-          navigation.goBack();
-          setTimeout(() => {
-            navigation.navigate('PaymentCallback', {
-              status: 'success',
-              from_webview_verification: true,
-              ofertaId: ofertaId,
-              tipoPago: tipoPago
-            });
-          }, 300);
-          
-          return { verificado: true, pagado: true };
-        } else {
-          console.log('⚠️ El pago ya estaba pagado, no se procesará como pago nuevo');
-          return { verificado: true, pagado: false, yaEstabaPagado: true };
-        }
+      // Si se encontró pero no está aprobado
+      if (resultadoVerificacion.payment_found && !resultadoVerificacion.payment_approved) {
+        console.log('⏳ Pago encontrado pero aún  no aprobado');
+        console.log('   - Estado:', resultadoVerificacion.payment_status);
+        return { verificado: true, pagado: false, pendiente: true };
       }
 
-      // Si el pago aún está pendiente en el backend, NO asumir que fue completado
-      // El usuario puede haber cerrado el WebView sin pagar
-      console.log('⏳ Pago aún pendiente en el backend. NO se asumirá como completado.');
-      console.log('   - El webhook de Mercado Pago actualizará el estado cuando el pago sea procesado.');
-      
-      // NO llamar a confirmarPagoOferta - esto causaba el bug de marcar como pagado sin pagar
-      // Solo el webhook de Mercado Pago debe confirmar el pago
-      
-      return { verificado: true, pagado: false, pendiente: true };
-      
+      // Si no se encontró ningún pago
+      console.log('⚠️ No se encontró ningún pago en Mercado Pago');
+      console.log('   - El usuario probablemente canceló o no completó el pago');
+      return { verificado: true, pagado: false, noPago: true };
+
     } catch (error) {
       console.error('❌ Error verificando estado del pago:', error);
       return { verificado: false, pagado: false, error: error.message };
@@ -258,14 +244,14 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
   // Interceptar las redirecciones de Mercado Pago
   const handleShouldStartLoadWithRequest = (request) => {
     const { url } = request;
-    
+
     console.log('🌐 WebView intentando cargar URL:', url);
-    
+
     // Si la URL es un deep link de nuestra app, interceptarla
     if (url.startsWith('mecanimovil://')) {
       console.log('🔗 Deep link detectado en WebView:', url);
       console.log('   - URL completa:', url);
-      
+
       // Parsear la URL para ver qué parámetros tiene
       try {
         const urlObj = new URL(url);
@@ -277,13 +263,13 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
       } catch (e) {
         console.warn('   - Error parseando URL:', e);
       }
-      
+
       // Guardar el deep link en AsyncStorage
       AsyncStorage.setItem('pending_deep_link', url).catch(console.warn);
-      
+
       // Cerrar el modal y procesar el pago
       navigation.goBack();
-      
+
       // Navegar a PaymentCallbackScreen con el deep link
       // Usar un timeout más corto para respuesta más rápida
       setTimeout(() => {
@@ -293,11 +279,11 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
           from_webview: true
         });
       }, 300);
-      
+
       // No permitir que el WebView cargue el deep link
       return false;
     }
-    
+
     // IMPORTANTE: Permitir que el WebView cargue TODAS las demás URLs
     // Esto incluye redirecciones de Mercado Pago, URLs de pago, etc.
     console.log('✅ Permitiendo carga de URL en WebView');
@@ -312,18 +298,18 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
       canGoBack: navState.canGoBack,
       title: navState.title
     });
-    
+
     // IMPORTANTE: Verificar si la URL actual es un deep link
     // Esto puede ocurrir cuando Mercado Pago redirige pero onShouldStartLoadWithRequest no se dispara
     if (navState.url && navState.url.startsWith('mecanimovil://')) {
       console.log('🔗 Deep link detectado en onNavigationStateChange:', navState.url);
-      
+
       // Guardar el deep link en AsyncStorage
       AsyncStorage.setItem('pending_deep_link', navState.url).catch(console.warn);
-      
+
       // Cerrar el modal y procesar el pago
       navigation.goBack();
-      
+
       // Navegar a PaymentCallbackScreen con el deep link
       setTimeout(() => {
         console.log('📱 Navegando a PaymentCallbackScreen desde onNavigationStateChange:', navState.url);
@@ -332,21 +318,21 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
           from_webview: true
         });
       }, 300);
-      
+
       return; // No continuar procesando el estado de navegación
     }
-    
+
     // IMPORTANTE: Detectar si Mercado Pago muestra una página de éxito
     // Mercado Pago puede mostrar una página de éxito antes de redirigir al deep link
     if (navState.url && navState.title) {
       const urlLower = navState.url.toLowerCase();
       const titleLower = navState.title.toLowerCase();
-      
+
       // Detectar páginas de éxito de Mercado Pago
       // NOTA: Esto NO significa que el pago fue exitoso, solo que Mercado Pago mostró una página de éxito
       // El estado real se confirma por el webhook de Mercado Pago
       if (
-        urlLower.includes('success') || 
+        urlLower.includes('success') ||
         urlLower.includes('approved') ||
         titleLower.includes('pago exitoso') ||
         titleLower.includes('pago aprobado') ||
@@ -355,7 +341,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         console.log('📄 Página de éxito detectada en Mercado Pago (esperando confirmación del backend)');
         console.log('   - URL:', navState.url);
         console.log('   - Título:', navState.title);
-        
+
         // Esperar un poco para que el webhook de Mercado Pago procese el pago
         // Luego verificar el estado REAL en el backend
         setTimeout(async () => {
@@ -363,9 +349,9 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
           const pendingDeepLink = await AsyncStorage.getItem('pending_deep_link');
           if (!pendingDeepLink && pagoPendienteDataRef.current) {
             console.log('🔍 Verificando estado real del pago en el backend después de página de éxito...');
-            
+
             const resultado = await verificarYConfirmarPago();
-            
+
             if (resultado.pagado) {
               console.log('✅ El backend confirmó el pago exitoso');
             } else if (resultado.pendiente) {
@@ -376,21 +362,21 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         }, 3000);
       }
     }
-    
+
     // Actualizar el estado de loading basado en el estado de navegación
     setCanGoBack(navState.canGoBack);
-    
+
     // Si la página terminó de cargar, ocultar el loading
     if (!navState.loading) {
       console.log('✅ Página cargada completamente en WebView');
       pageLoadedRef.current = true;
-      
+
       // Limpiar timeout de seguridad si existe
       if (loadingTimeoutRef.current) {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
       }
-      
+
       // Asegurarse de que el loading esté en false después de un pequeño delay
       // para evitar parpadeos si hay recursos adicionales cargando
       setTimeout(() => {
@@ -413,13 +399,13 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
   const handleLoadEnd = () => {
     console.log('✅ WebView terminó de cargar');
     pageLoadedRef.current = true;
-    
+
     // Limpiar timeout de seguridad si existe
     if (loadingTimeoutRef.current) {
       clearTimeout(loadingTimeoutRef.current);
       loadingTimeoutRef.current = null;
     }
-    
+
     // Asegurarse de que el loading se oculte después de un pequeño delay
     // para evitar parpadeos si hay recursos adicionales cargando
     setTimeout(() => {
@@ -431,19 +417,19 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
   const handleLoadStart = () => {
     console.log('🔄 WebView comenzando a cargar');
     pageLoadedRef.current = false;
-    
+
     // Limpiar timeout de seguridad anterior si existe
     if (loadingTimeoutRef.current) {
       clearTimeout(loadingTimeoutRef.current);
     }
-    
+
     // Establecer timeout de seguridad para ocultar el loading después de 10 segundos
     loadingTimeoutRef.current = setTimeout(() => {
       console.warn('⚠️ Timeout de seguridad: Ocultando loading después de 10 segundos');
       setLoading(false);
       loadingTimeoutRef.current = null;
     }, 10000);
-    
+
     setLoading(true);
   };
 
@@ -457,40 +443,40 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
   // Cerrar el modal
   const handleClose = async () => {
     console.log('🔙 Usuario cerró el WebView de pago');
-    
+
     // Si hay datos de pago pendiente, verificar el estado REAL del pago en el backend
     if (pagoPendienteDataRef.current) {
       console.log('🔍 Verificando estado real del pago antes de cerrar...');
-      
+
       const resultado = await verificarYConfirmarPago();
-      
+
       // Si el pago fue confirmado por el backend (webhook recibido), la función ya navegó
       if (resultado.pagado) {
         console.log('✅ Pago confirmado por el backend, navegación manejada por verificarYConfirmarPago');
         return;
       }
-      
+
       // Si el pago ya estaba pagado desde antes, solo cerrar
       if (resultado.yaEstabaPagado) {
         console.log('⚠️ El pago ya estaba pagado, cerrando WebView');
         navigation.goBack();
         return;
       }
-      
+
       // Si el pago sigue pendiente, el usuario canceló o no completó el pago
       if (resultado.pendiente) {
         console.log('⚠️ Pago sigue pendiente - usuario canceló o no completó el pago');
-        
+
         // Limpiar datos de pago pendiente ya que el usuario decidió no pagar
         await AsyncStorage.removeItem('pago_pendiente_data');
         await AsyncStorage.removeItem('pago_pendiente');
         await AsyncStorage.removeItem('expected_deep_link');
         await AsyncStorage.removeItem('pending_deep_link');
-        
+
         // Simplemente cerrar el WebView sin mostrar mensaje de éxito
         // El pago no fue completado, la oferta mantiene su estado original
         navigation.goBack();
-        
+
         // Mostrar mensaje informativo de que el pago fue cancelado
         setTimeout(() => {
           Alert.alert(
@@ -499,11 +485,11 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
             [{ text: 'OK' }]
           );
         }, 300);
-        
+
         return;
       }
     }
-    
+
     // Si no hay datos de pago pendiente, simplemente cerrar
     navigation.goBack();
   };
@@ -615,13 +601,13 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
               const message = JSON.parse(event.nativeEvent.data);
               if (message.type === 'deep_link_detected' && message.url) {
                 console.log('🔗 Deep link detectado vía JavaScript injection:', message.url);
-                
+
                 // Guardar el deep link en AsyncStorage
                 AsyncStorage.setItem('pending_deep_link', message.url).catch(console.warn);
-                
+
                 // Cerrar el modal y procesar el pago
                 navigation.goBack();
-                
+
                 // Navegar a PaymentCallbackScreen con el deep link
                 setTimeout(() => {
                   console.log('📱 Navegando a PaymentCallbackScreen desde JavaScript injection:', message.url);

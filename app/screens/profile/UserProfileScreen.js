@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getMediaURL } from '../../services/api';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { useUserProfile } from '../../hooks/useUserProfile';
+import ScrollContainer from '../../components/base/ScrollContainer';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -272,8 +273,7 @@ const UserProfileScreen = () => {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
 
-      <ScrollView
-        style={styles.content}
+      <ScrollContainer
         contentContainerStyle={[
           styles.contentContainer,
           { paddingBottom: insets.bottom + spacing.xl || 32 }
@@ -362,7 +362,7 @@ const UserProfileScreen = () => {
             <Text style={styles.logoutText}>Cerrar Sesión</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </ScrollContainer>
     </SafeAreaView>
   );
 };

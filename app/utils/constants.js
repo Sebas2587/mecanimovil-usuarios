@@ -7,7 +7,7 @@
  */
 
 import { Dimensions, Platform } from 'react-native';
-import { 
+import {
   COLORS as DESIGN_COLORS,
   TYPOGRAPHY as DESIGN_TYPOGRAPHY_RAW,
   SPACING as DESIGN_SPACING,
@@ -32,23 +32,23 @@ export const COLORS = {
   secondary: safeColors.secondary?.[500] ?? '#007EA7',    // Cerulean #007EA7
   secondaryDark: safeColors.secondary?.[700] ?? '#005a7a',
   secondaryLight: safeColors.secondary?.[300] ?? '#00a3cc',
-  
+
   // Colores de fondo
   background: safeColors.background?.default ?? '#FFFFFF',
   white: safeColors.neutral?.white ?? '#FFFFFF',
   black: safeColors.base?.inkBlack ?? '#000000',
-  
+
   // Colores de texto
   text: safeColors.text?.primary ?? '#000000',
   textLight: safeColors.text?.secondary ?? '#666666',
   textDark: safeColors.text?.primary ?? '#000000',
-  
+
   // Colores semánticos
   success: safeColors.success?.[500] ?? '#10B981',
   danger: safeColors.error?.[500] ?? '#EF4444',
   warning: safeColors.warning?.[500] ?? '#F59E0B',
   info: safeColors.info?.[500] ?? '#3B82F6',
-  
+
   // Estados
   disabled: safeColors.states?.disabled?.text ?? '#9CA3AF',
   lightGray: safeColors.neutral?.gray?.[300] ?? '#D1D5DB',
@@ -72,13 +72,13 @@ export const COLORS = {
 let DESIGN_TYPOGRAPHY = null;
 try {
   // Intentar acceder a DESIGN_TYPOGRAPHY_RAW de forma segura
-  if (DESIGN_TYPOGRAPHY_RAW && 
-      DESIGN_TYPOGRAPHY_RAW.fontSize && 
-      typeof DESIGN_TYPOGRAPHY_RAW.fontSize === 'object' &&
-      DESIGN_TYPOGRAPHY_RAW.fontWeight &&
-      typeof DESIGN_TYPOGRAPHY_RAW.fontWeight === 'object' &&
-      typeof DESIGN_TYPOGRAPHY_RAW.fontSize.xs !== 'undefined' &&
-      typeof DESIGN_TYPOGRAPHY_RAW.fontSize['2xl'] !== 'undefined') {
+  if (DESIGN_TYPOGRAPHY_RAW &&
+    DESIGN_TYPOGRAPHY_RAW.fontSize &&
+    typeof DESIGN_TYPOGRAPHY_RAW.fontSize === 'object' &&
+    DESIGN_TYPOGRAPHY_RAW.fontWeight &&
+    typeof DESIGN_TYPOGRAPHY_RAW.fontWeight === 'object' &&
+    typeof DESIGN_TYPOGRAPHY_RAW.fontSize.xs !== 'undefined' &&
+    typeof DESIGN_TYPOGRAPHY_RAW.fontSize['2xl'] !== 'undefined') {
     DESIGN_TYPOGRAPHY = DESIGN_TYPOGRAPHY_RAW;
   }
 } catch (e) {
@@ -263,4 +263,7 @@ export const ROUTES = {
   VEHICLE_HEALTH: 'VehicleHealth',
   MIS_VEHICULOS: 'MisVehiculos',
   VEHICLE_PROFILE: 'VehicleProfile',
+
+  // Notificaciones
+  NOTIFICATION_CENTER: 'NotificationCenter',
 }; 

@@ -26,6 +26,7 @@ import { useTheme } from '../../design-system/theme/useTheme';
 // import Button from '../../components/base/Button/Button';
 // import Card from '../../components/base/Card/Card';
 import * as vehicleService from '../../services/vehicle';
+import ScrollContainer from '../../components/base/ScrollContainer';
 
 const { width } = Dimensions.get('window');
 
@@ -106,17 +107,7 @@ const VehicleProfileScreen = () => {
         quality: 0.7,
     };
 
-    useEffect(() => {
-        if (vehicle) {
-            navigation.setOptions({
-                title: `${vehicle.marca_nombre} ${vehicle.modelo_nombre}`,
-                headerShown: true,
-                headerTransparent: true,
-                headerTintColor: '#fff',
-                headerTitleStyle: { opacity: 0 }, // Ocultar título en header al inicio
-            });
-        }
-    }, [vehicle, navigation]);
+
 
     useEffect(() => {
         if (route.params?.vehicle) {
@@ -152,7 +143,7 @@ const VehicleProfileScreen = () => {
             const serviciosCompletados = vehicleServices.filter(
                 (solicitud) => solicitud.estado === 'completado' || solicitud.estado === 'COMPLETADO'
             );
-            
+
             const total = serviciosCompletados.reduce((sum, solicitud) => {
                 // Intentar obtener el monto de diferentes campos posibles
                 const monto = solicitud.monto_total ||
@@ -163,7 +154,7 @@ const VehicleProfileScreen = () => {
                     0;
                 return sum + (parseFloat(monto) || 0);
             }, 0);
-            
+
             setTotalInvertido(total);
         } catch (error) {
             console.error('Error fetching health/services:', error);
@@ -352,10 +343,10 @@ const VehicleProfileScreen = () => {
                     type: 'image/jpeg',
                     name: `vehicle_${Date.now()}.jpg`,
                 });
-                
+
                 // Log para debugging
                 console.log('📤 Actualizando vehículo con foto (FormData)');
-                
+
                 updatedVehicle = await vehicleService.updateVehicle(currentVehicle.id, formattedData);
             } else {
                 updatedVehicle = await vehicleService.updateVehicle(currentVehicle.id, vehicleData);
@@ -381,35 +372,60 @@ const VehicleProfileScreen = () => {
         }
     };
 
-    const handleDelete = () => {
+    const handleDeleteVehicle = () => {
         Alert.alert(
-            'Eliminar Vehículo',
-            `¿Estás seguro que deseas eliminar ${currentVehicle.marca_nombre} ${currentVehicle.modelo_nombre}?`,
+            '⚠️ Eliminar Vehículo',
+            `¿Estás seguro que deseas eliminar permanentemente ${currentVehicle.marca_nombre} ${currentVehicle.modelo_nombre}?\n\n❗ ESTA ACCIÓN NO SE PUEDE DESHACER.\n\nSe borrará todo el historial de servicios y datos asociados.`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Eliminar',
+                    text: 'Sí, Eliminar',
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            setLoading(true);
-                            await vehicleService.deleteVehicle(currentVehicle.id);
+                            setIsDeleting(true);
+                            await deleteVehicleAsync(currentVehicle.id);
+                            // Invalidación manejada por hook
                             Alert.alert('Éxito', 'Vehículo eliminado correctamente');
-                            navigation.navigate('TabNavigator', {
-                                screen: ROUTES.MIS_VEHICULOS,
-                                params: { refresh: true }
-                            });
+                            navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
                         } catch (error) {
+                            setIsDeleting(false);
                             console.error('Error eliminando vehículo:', error);
+
+                            // Manejo de 404 (ya borrado)
+                            if (error?.message?.includes('404') || error?.response?.status === 404) {
+                                Alert.alert('Aviso', 'El vehículo ya no existe.');
+                                navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
+                                return;
+                            }
+
+                            // MANEJO DE BLOQUEO DE SEGURIDAD (400)
+                            if (error?.response?.status === 400 && error?.response?.data?.error) {
+                                Alert.alert('🚫 Acción Bloqueada', error.response.data.error);
+                                return;
+                            }
+
                             Alert.alert('Error', 'No se pudo eliminar el vehículo.');
-                        } finally {
-                            setLoading(false);
                         }
                     }
                 }
             ]
         );
     };
+
+    // Configurar Header con botones de acción
+    // Configurar Header con botones de acción
+    useEffect(() => {
+        if (currentVehicle) {
+            navigation.setOptions({
+                title: `${currentVehicle.marca_nombre} ${currentVehicle.modelo_nombre}`,
+                headerShown: true,
+                headerTransparent: true, // Header transparente sobre la imagen
+                headerTintColor: '#fff',
+                headerTitleStyle: { opacity: 0 }, // Ocultar título en header al inicio (opcional)
+            });
+        }
+    }, [currentVehicle, navigation]);
 
 
     const getHealthColor = (percentage) => {
@@ -433,10 +449,9 @@ const VehicleProfileScreen = () => {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-            <ScrollView 
-                showsVerticalScrollIndicator={false} 
+            <ScrollContainer
+                showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 0 }}
-                style={{ flex: 1 }}
             >
 
                 {/* Header Image */}
@@ -458,25 +473,25 @@ const VehicleProfileScreen = () => {
                         })()
                     )}
                     {/* Overlay reducido solo en la parte inferior para mejor visibilidad */}
-                <View style={styles.imageOverlay} />
-                    {/* Floating Action Buttons - Arriba sobre la imagen */}
+                    <View style={styles.imageOverlay} />
+                    {/* Floating Action Buttons - Abajo a la derecha sobre la imagen */}
                     <View style={styles.floatingActions}>
                         <TouchableOpacity style={[styles.floatingButton, styles.editButton]} onPress={handleEdit}>
                             <Ionicons name="create-outline" size={22} color={colors.primary?.[500] || '#003459'} />
                         </TouchableOpacity>
-                        <TouchableOpacity style={[styles.floatingButton, styles.deleteButton]} onPress={handleDelete}>
+                        <TouchableOpacity style={[styles.floatingButton, styles.deleteButton]} onPress={handleDeleteVehicle}>
                             <Ionicons name="trash-outline" size={22} color={colors.error?.[500] || '#EF4444'} />
                         </TouchableOpacity>
                     </View>
-                <View style={styles.headerInfo}>
-                    <View style={styles.badgeContainer}>
-                        <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{currentVehicle.year}</Text>
+                    <View style={styles.headerInfo}>
+                        <View style={styles.badgeContainer}>
+                            <View style={styles.badge}>
+                                <Text style={styles.badgeText}>{currentVehicle.year}</Text>
+                            </View>
                         </View>
+                        <Text style={styles.headerTitle}>{currentVehicle.marca_nombre} {currentVehicle.modelo_nombre}</Text>
+                        <Text style={styles.headerSubtitle}>{currentVehicle.patente}</Text>
                     </View>
-                    <Text style={styles.headerTitle}>{currentVehicle.marca_nombre} {currentVehicle.modelo_nombre}</Text>
-                    <Text style={styles.headerSubtitle}>{currentVehicle.patente}</Text>
-                </View>
                 </View>
 
                 <View style={styles.contentContainer}>
@@ -493,10 +508,10 @@ const VehicleProfileScreen = () => {
                             </View>
                             <Text style={styles.actionButtonTitle}>Salud</Text>
                             <Text style={styles.actionButtonSubtitle}>Ver estado del vehículo</Text>
-                            <Ionicons 
-                                name="chevron-forward" 
-                                size={18} 
-                                color={colors.primary?.[500] || '#003459'} 
+                            <Ionicons
+                                name="chevron-forward"
+                                size={18}
+                                color={colors.primary?.[500] || '#003459'}
                                 style={styles.actionButtonChevron}
                             />
                         </TouchableOpacity>
@@ -511,10 +526,10 @@ const VehicleProfileScreen = () => {
                             </View>
                             <Text style={styles.actionButtonTitle}>Historial</Text>
                             <Text style={styles.actionButtonSubtitle}>Servicios realizados</Text>
-                            <Ionicons 
-                                name="chevron-forward" 
-                                size={18} 
-                                color={colors.warning?.[500] || '#F59E0B'} 
+                            <Ionicons
+                                name="chevron-forward"
+                                size={18}
+                                color={colors.warning?.[500] || '#F59E0B'}
                                 style={styles.actionButtonChevron}
                             />
                         </TouchableOpacity>
@@ -557,7 +572,7 @@ const VehicleProfileScreen = () => {
                     </View>
 
                 </View>
-            </ScrollView>
+            </ScrollContainer>
 
             {loading && (
                 <View style={styles.loadingOverlay}>
@@ -901,8 +916,8 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     },
     floatingActions: {
         position: 'absolute',
-        top: 60, // Arriba sobre la imagen (debajo del safe area y header)
-        right: spacing.md || 20,
+        bottom: 20, // Abajo en la imagen
+        right: spacing.md || 20, // Derecha
         flexDirection: 'row',
         gap: spacing.sm || 12,
         zIndex: 99,
@@ -927,6 +942,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     deleteButton: {
         // Icon color uses colors.error[500] from theme
     },
+
     actionIconContainer: {
         width: 48,
         height: 48,

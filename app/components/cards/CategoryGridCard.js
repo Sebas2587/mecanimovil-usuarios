@@ -18,8 +18,13 @@ const getCategoryImage = (categoryId, categoryName) => {
   const imagesByName = {
     'afinaciones': require('../../../assets/images/afinaciones.jpg'),
     'aire acondicionado': require('../../../assets/images/aire acondicionado.jpg'),
-    'sistema de frenos': require('../../../assets/images/sistema de frenos.jpg'),
+    'sistema de frenos': require('../../../assets/images/frenos_seguridad_icon.jpg'), // Actualizado
+    'frenos y seguridad': require('../../../assets/images/frenos_seguridad_icon.jpg'), // Nuevo mapeo
+    'electricidad y luces': require('../../../assets/images/electricidad_luces_icon.jpg'), // Nuevo icono luces
+    'estética y limpieza': require('../../../assets/images/estetica_limpieza_icon.jpg'), // Nuevo icono limpieza
     'mantenimiento preventivo': require('../../../assets/images/afinaciones.jpg'),
+    'diagnóstico e inspección': require('../../../assets/images/diagnostico_icon.jpg'), // Nuevo icono
+    'mantención preventiva y motor': require('../../../assets/images/mantencion_motor_icon.jpg'), // Nuevo icono motor
     // Agregar más categorías aquí según se vayan añadiendo imágenes
   };
 
@@ -28,11 +33,28 @@ const getCategoryImage = (categoryId, categoryName) => {
     return imagesById[categoryId];
   }
 
-  // Intentar por nombre
+  // Intentar por nombre exacto o normalizado
   if (categoryName) {
     const nombreNormalizado = categoryName.toLowerCase().trim();
     if (imagesByName[nombreNormalizado]) {
       return imagesByName[nombreNormalizado];
+    }
+
+    // Búsqueda por palabras clave para mayor robustez
+    if (nombreNormalizado.includes('frenos') || nombreNormalizado.includes('seguridad')) {
+      return imagesByName['frenos y seguridad'];
+    }
+    if (nombreNormalizado.includes('diagnostico') || nombreNormalizado.includes('diagnóstico') || nombreNormalizado.includes('inspeccion')) {
+      return imagesByName['diagnóstico e inspección'];
+    }
+    if (nombreNormalizado.includes('motor') || (nombreNormalizado.includes('mantenci') && nombreNormalizado.includes('preventiva'))) {
+      return imagesByName['mantención preventiva y motor'];
+    }
+    if (nombreNormalizado.includes('electric') || nombreNormalizado.includes('luces')) {
+      return imagesByName['electricidad y luces'];
+    }
+    if (nombreNormalizado.includes('estetic') || nombreNormalizado.includes('estétic') || nombreNormalizado.includes('limpieza')) {
+      return imagesByName['estética y limpieza'];
     }
   }
 
@@ -194,7 +216,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     width: 88, // Tamaño fijo del contenedor
     height: 88, // Tamaño fijo del contenedor
     backgroundColor: colors.background?.paper || '#FFFFFF', // Fondo blanco para la imagen
-    borderRadius: borders.radius?.md || 12, // Bordes redondeados
+    borderRadius: 44, // 88/2 = 44 para hacerlo completamente redondo (Círculo)
     // Sin sombra según solicitud del usuario
     // Sin borde según solicitud del usuario
     // Asegurar que el contenedor tenga un tamaño fijo y que las imágenes se ajusten
@@ -203,6 +225,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   image: {
     width: 88, // Mismo tamaño que el contenedor
     height: 88, // Mismo tamaño que el contenedor
+    borderRadius: 44, // Asegurar que la imagen también tenga bordes redondos
     // resizeMode cover para que todas las imágenes ocupen el mismo espacio
   },
   categoryName: {

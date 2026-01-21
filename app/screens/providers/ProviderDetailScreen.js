@@ -26,6 +26,7 @@ import { get } from '../../services/api';
 import * as userService from '../../services/user';
 import { ROUTES } from '../../utils/constants';
 import logger from '../../utils/logger';
+import ScrollContainer from '../../components/base/ScrollContainer';
 import {
   useProviderDetails,
   useProviderServices,
@@ -208,6 +209,35 @@ const ProviderDetailScreen = () => {
     gradient: [colors.primary?.[500] || '#003459', colors.primary?.[600] || '#002A47']
   };
 
+  // Función unificada para aplicar filtros (categoría + marca) - MOVED UP BEFORE useEffect
+  const applyFilters = useCallback((categoria, marca) => {
+    let filtered = provider?.servicios || [];
+
+    // Filtrar por categoría
+    if (categoria) {
+      filtered = filtered.filter(servicio => servicio.categoria === categoria);
+    }
+
+    // Filtrar por marca
+    if (marca) {
+      filtered = filtered.filter(servicio => {
+        let marcaDelServicio = 'General';
+
+        if (servicio.modelos_compatibles && servicio.modelos_compatibles.length > 0) {
+          const primerModelo = servicio.modelos_compatibles[0];
+          const partes = primerModelo.split(' ');
+          marcaDelServicio = partes[0];
+        } else if (provider?.marcas_atendidas_nombres && provider.marcas_atendidas_nombres.length > 0) {
+          marcaDelServicio = provider.marcas_atendidas_nombres[0];
+        }
+
+        return marcaDelServicio === marca;
+      });
+    }
+
+    setFilteredServices(filtered);
+  }, [provider?.servicios, provider?.marcas_atendidas_nombres]);
+
   // Actualizar filtros cuando cambian los servicios o los filtros seleccionados
   useEffect(() => {
     applyFilters(selectedCategory, selectedBrand);
@@ -280,35 +310,6 @@ const ProviderDetailScreen = () => {
     if (hoy === 6) return `Hoy: ${horarios.sabado}`;
     return `Hoy: ${horarios.lunes_viernes}`;
   };
-
-  // Función unificada para aplicar filtros (categoría + marca)
-  const applyFilters = useCallback((categoria, marca) => {
-    let filtered = provider?.servicios || [];
-
-    // Filtrar por categoría
-    if (categoria) {
-      filtered = filtered.filter(servicio => servicio.categoria === categoria);
-    }
-
-    // Filtrar por marca
-    if (marca) {
-      filtered = filtered.filter(servicio => {
-        let marcaDelServicio = 'General';
-
-        if (servicio.modelos_compatibles && servicio.modelos_compatibles.length > 0) {
-          const primerModelo = servicio.modelos_compatibles[0];
-          const partes = primerModelo.split(' ');
-          marcaDelServicio = partes[0];
-        } else if (provider?.marcas_atendidas_nombres && provider.marcas_atendidas_nombres.length > 0) {
-          marcaDelServicio = provider.marcas_atendidas_nombres[0];
-        }
-
-        return marcaDelServicio === marca;
-      });
-    }
-
-    setFilteredServices(filtered);
-  }, [provider?.servicios, provider?.marcas_atendidas_nombres]);
 
   const handleCategoryPress = (categoria) => {
     console.log('🏷️ Filtro seleccionado:', categoria);
@@ -689,8 +690,7 @@ const ProviderDetailScreen = () => {
       <SafeAreaView style={styles.safeArea}>
         <StatusBar barStyle="light-content" backgroundColor={themeColors.primary} />
 
-        <ScrollView
-          style={styles.scrollView}
+        <ScrollContainer
           contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
           showsVerticalScrollIndicator={false}
           onScroll={Animated.event(
@@ -1019,8 +1019,8 @@ const ProviderDetailScreen = () => {
                           </View>
                         )}
 
-                        {/* Precio - Abajo */}
-                        {price > 0 && (
+                        {/* Precio - Oculto por requerimiento */}
+                        {/* {price > 0 && (
                           <View style={styles.serviceCardPriceSection}>
                             <View style={styles.serviceCardPriceContainer}>
                               {hasDiscount && (
@@ -1033,7 +1033,7 @@ const ProviderDetailScreen = () => {
                               </Text>
                             </View>
                           </View>
-                        )}
+                        )} */}
                       </View>
                     </TouchableOpacity>
                   );
@@ -1171,7 +1171,7 @@ const ProviderDetailScreen = () => {
           </View>
 
 
-        </ScrollView>
+        </ScrollContainer>
 
         {/* Modal de selección de vehículo */}
         <VehicleSelectionModal

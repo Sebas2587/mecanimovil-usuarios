@@ -19,7 +19,7 @@ class MercadoPagoService {
         back_urls: backUrls,
         notification_url: notificationUrl,
       };
-      
+
       if (solicitudServicioId) {
         console.log('📤 Creando preferencia de pago para solicitud de servicio:', solicitudServicioId);
         requestData.solicitud_servicio_id = solicitudServicioId;
@@ -29,22 +29,22 @@ class MercadoPagoService {
       } else {
         throw new Error('Debe proporcionar carritoId o solicitudServicioId');
       }
-      
+
       const response = await post(
         '/mercadopago/preferences/create_preference/',
         requestData,
         { requiresAuth: true }
       );
-      
+
       console.log('✅ Preferencia creada exitosamente:', response.preference_id_mp);
-      
+
       return response;
     } catch (error) {
       console.error('❌ Error creando preferencia:', error);
       throw new Error(error.message || 'Error al crear la preferencia de pago');
     }
   }
-  
+
   /**
    * Obtiene el estado de un pago
    * @param {string} paymentId - ID del pago
@@ -53,22 +53,22 @@ class MercadoPagoService {
   async getPaymentStatus(paymentId) {
     try {
       console.log('📥 Obteniendo estado del pago:', paymentId);
-      
+
       const response = await get(
         `/mercadopago/payments/${paymentId}/status/`,
         {},
         { requiresAuth: true }
       );
-      
+
       console.log('✅ Estado del pago obtenido:', response.status);
-      
+
       return response;
     } catch (error) {
       console.error('❌ Error obteniendo estado del pago:', error);
       throw new Error(error.message || 'Error al obtener el estado del pago');
     }
   }
-  
+
   /**
    * Abre Checkout Pro usando WebView modal
    * 
@@ -81,7 +81,7 @@ class MercadoPagoService {
   async openCheckoutPro(initPoint) {
     try {
       console.log('🚀 Preparando Checkout Pro para WebView:', initPoint);
-      
+
       // Retornar la URL para que se abra en un WebView modal
       // El WebView interceptará las redirecciones y capturará el deep link
       return {
@@ -95,7 +95,7 @@ class MercadoPagoService {
       throw new Error(error.message || 'Error al preparar Checkout Pro');
     }
   }
-  
+
   /**
    * Maneja el retorno desde Checkout Pro
    * @param {string} url - URL de retorno desde Checkout Pro
@@ -104,16 +104,16 @@ class MercadoPagoService {
   parseCheckoutReturn(url) {
     try {
       console.log('📨 Procesando retorno de Checkout Pro:', url);
-      
+
       // Parsear los parámetros de la URL
       const urlObj = new URL(url);
       const params = {};
-      
+
       // Extraer parámetros de query
       urlObj.searchParams.forEach((value, key) => {
         params[key] = value;
       });
-      
+
       // Extraer información del fragmento (#) si existe
       const fragment = urlObj.hash.substring(1);
       if (fragment) {
@@ -124,9 +124,9 @@ class MercadoPagoService {
           }
         });
       }
-      
+
       console.log('✅ Parámetros extraídos:', params);
-      
+
       return {
         status: params.status || params.payment_status || 'unknown',
         payment_id: params.payment_id || params.preference_id || null,
@@ -143,7 +143,7 @@ class MercadoPagoService {
       };
     }
   }
-  
+
   /**
    * Obtiene la public key de Mercado Pago
    * @returns {Promise<string>} Public key
@@ -151,15 +151,15 @@ class MercadoPagoService {
   async getPublicKey() {
     try {
       console.log('🔑 Obteniendo public key de Mercado Pago');
-      
+
       const response = await get(
         '/mercadopago/public-key/',
         {},
         { requiresAuth: false }
       );
-      
+
       console.log('✅ Public key obtenida');
-      
+
       return response.public_key;
     } catch (error) {
       console.error('❌ Error obteniendo public key:', error);
@@ -180,7 +180,7 @@ class MercadoPagoService {
       console.log('📤 Creando preferencia de pago directo al proveedor');
       console.log('   - Oferta ID:', ofertaId);
       console.log('   - Tipo de pago:', tipoPago);
-      
+
       const response = await post(
         '/mercadopago/pago-proveedor/',
         {
@@ -190,12 +190,12 @@ class MercadoPagoService {
         },
         { requiresAuth: true }
       );
-      
+
       console.log('✅ Preferencia creada exitosamente');
       console.log('   - Init point:', response.init_point);
       console.log('   - Monto:', response.monto);
       console.log('   - Proveedor:', response.proveedor);
-      
+
       return response;
     } catch (error) {
       console.error('❌ Error creando preferencia de pago al proveedor:', error);
@@ -219,7 +219,7 @@ class MercadoPagoService {
       console.log('   - Tipo de pago:', tipoPago);
       console.log('   - Payment ID:', paymentId);
       console.log('   - Status:', status);
-      
+
       const response = await post(
         '/mercadopago/confirmar-pago-oferta/',
         {
@@ -231,13 +231,13 @@ class MercadoPagoService {
         },
         { requiresAuth: true }
       );
-      
+
       console.log('✅ Pago confirmado exitosamente');
       console.log('   - Oferta estado:', response.oferta_estado);
       console.log('   - Solicitud estado:', response.solicitud_estado);
       console.log('   - Estado pago repuestos:', response.estado_pago_repuestos);
       console.log('   - Estado pago servicio:', response.estado_pago_servicio);
-      
+
       return response;
     } catch (error) {
       console.error('❌ Error confirmando pago de oferta:', error);
@@ -253,22 +253,64 @@ class MercadoPagoService {
   async getEstadoPagoOferta(ofertaId) {
     try {
       console.log('📥 Obteniendo estado de pago de oferta:', ofertaId);
-      
+
       const response = await get(
         `/mercadopago/estado-pago-oferta/${ofertaId}/`,
         {},
         { requiresAuth: true }
       );
-      
+
       console.log('✅ Estado de pago obtenido');
       console.log('   - Estado pago repuestos:', response.estado_pago_repuestos);
       console.log('   - Estado pago servicio:', response.estado_pago_servicio);
       console.log('   - Puede pagar servicio:', response.puede_pagar_servicio);
-      
+
       return response;
     } catch (error) {
       console.error('❌ Error obteniendo estado de pago:', error);
       throw new Error(error.message || 'Error al obtener estado de pago');
+    }
+  }
+
+  /**
+   * Verifica directamente con Mercado Pago si un pago fue completado
+   * Este método busca pagos en MP por external_reference y confirma si encuentra uno aprobado
+   * @param {string} ofertaId - ID de la oferta
+   * @param {string} tipoPago - Tipo de pago: 'repuestos', 'servicio', o 'total'
+   * @param {string} preferenceId - ID de la preferencia (opcional)
+   * @returns {Promise<object>} Resultado de la verificación
+   */
+  async verificarPagoMercadoPago(ofertaId, tipoPago = 'total', preferenceId = null) {
+    try {
+      console.log('🔍 Verificando pago directamente con Mercado Pago');
+      console.log('   - Oferta ID:', ofertaId);
+      console.log('   - Tipo de pago:', tipoPago);
+      console.log('   - Preference ID:', preferenceId);
+
+      const response = await post(
+        '/mercadopago/verificar-pago-mercadopago/',
+        {
+          oferta_id: ofertaId,
+          tipo_pago: tipoPago,
+          preference_id: preferenceId,
+        },
+        { requiresAuth: true }
+      );
+
+      console.log('✅ Verificación completada');
+      console.log('   - success:', response.success);
+      console.log('   - payment_found:', response.payment_found);
+      console.log('   - payment_approved:', response.payment_approved);
+
+      if (response.payment_approved) {
+        console.log('   - Payment ID:', response.payment_id);
+        console.log('   - Oferta estado:', response.oferta_estado);
+      }
+
+      return response;
+    } catch (error) {
+      console.error('❌ Error verificando pago con Mercado Pago:', error);
+      throw new Error(error.message || 'Error al verificar el pago');
     }
   }
 }

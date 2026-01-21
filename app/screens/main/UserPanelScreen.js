@@ -29,6 +29,7 @@ import { useCategories } from '../../hooks/useCategories';
 import { useNearbyTalleres, useNearbyMecanicos } from '../../hooks/useProviders';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useServicesHistory } from '../../hooks/useServices';
+import { useUnreadCount } from '../../hooks/useNotifications';
 
 // Componentes
 import AddressSelector from '../../components/forms/AddressSelector';
@@ -110,6 +111,7 @@ const UserPanelScreen = () => {
   const { data: userProfile } = useUserProfile(user?.id);
   const { data: servicesHistory } = useServicesHistory(user?.id);
   const vehiclesHealthQuery = useVehiclesHealth(vehicles);
+  const { data: unreadNotifications } = useUnreadCount();
 
   // --- Local State ---
   const [activeVehicle, setActiveVehicle] = useState(null);
@@ -474,15 +476,8 @@ const UserPanelScreen = () => {
           style={styles.header}
         >
           <View style={styles.headerTopRow}>
-            <View style={styles.headerContent}>
-              <Text style={styles.headerTitle}>Bienvenido</Text>
-              {displayUser && (
-                <Text style={styles.headerSubtitle}>
-                  {displayUser.first_name || displayUser.username || 'Usuario'}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity onPress={() => navigation.navigate(ROUTES.PROFILE)} style={styles.profileButton}>
+            {/* Left: Profile Picture */}
+            <TouchableOpacity onPress={() => navigation.navigate(ROUTES.PROFILE)} style={[styles.profileButton, { marginRight: 12 }]}>
               {profileImageUrl ? (
                 <Image source={{ uri: profileImageUrl }} style={styles.profileImage} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
@@ -491,6 +486,42 @@ const UserPanelScreen = () => {
                 </View>
               )}
             </TouchableOpacity>
+
+            {/* Middle: Welcome Text */}
+            <View style={styles.headerContent}>
+              <Text style={styles.headerTitle}>Bienvenido</Text>
+              {displayUser && (
+                <Text style={styles.headerSubtitle}>
+                  {displayUser.first_name || displayUser.username || 'Usuario'}
+                </Text>
+              )}
+            </View>
+
+            {/* Right: Notification Icon */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
+                style={{
+                  width: 44, height: 44, justifyContent: 'center', alignItems: 'center',
+                  backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 22
+                }}
+              >
+                <Ionicons name="notifications-outline" size={24} color="#FFF" />
+                {(unreadNotifications?.unread_count > 0) && (
+                  <View style={{
+                    position: 'absolute',
+                    top: 8,
+                    right: 8,
+                    backgroundColor: colors.error?.[500] || '#EF4444',
+                    borderRadius: 5,
+                    width: 10,
+                    height: 10,
+                    borderWidth: 1,
+                    borderColor: '#FFF'
+                  }} />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.locationGlassContainer}>
             <AddressSelector currentAddress={mainAddress} onAddressChange={handleAddressChange} onAddNewAddress={handleAddNewAddress} glassStyle={true} />
@@ -516,7 +547,7 @@ const UserPanelScreen = () => {
           </View>
         )}
 
-        {/* Categories */}
+        {/* Categories - Only show if vehicles exist */}
         {loadingCategories && !categories ? (
           <View style={styles.sectionWithHorizontalScroll}>
             <View style={styles.loadingSectionContainer}>
@@ -524,7 +555,7 @@ const UserPanelScreen = () => {
               <Text style={styles.loadingSectionText}>Cargando categorías...</Text>
             </View>
           </View>
-        ) : categories && categories.length > 0 && (
+        ) : categories && categories.length > 0 && vehicles && vehicles.length > 0 && (
           <View style={styles.sectionWithHorizontalScroll}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesHorizontal} bounces={false}>
               {categories.map(c => <CategoryGridCard key={c.id} category={c} onPress={handleCategoryPress} />)}
@@ -569,8 +600,8 @@ const UserPanelScreen = () => {
         {/* Urgent Alerts Display (Simplified) - You might want to implement a MaintenanceAlertCard list here using urgentAlerts state */}
         {/* ... */}
 
-        {/* Nearby Workshops */}
-        {nearbyTalleres && nearbyTalleres.length > 0 && (
+        {/* Nearby Workshops - Only show if vehicles exist */}
+        {vehicles && vehicles.length > 0 && nearbyTalleres && nearbyTalleres.length > 0 && (
           <View style={styles.sectionWithHorizontalScroll}>
             <View style={styles.sectionHeaderWithPadding}><Text style={styles.sectionTitle}>Talleres Cercanos</Text></View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providersHorizontal} bounces={false}>
@@ -583,8 +614,8 @@ const UserPanelScreen = () => {
           </View>
         )}
 
-        {/* Nearby Mechanics */}
-        {nearbyMecanicos && nearbyMecanicos.length > 0 && (
+        {/* Nearby Mechanics - Only show if vehicles exist */}
+        {vehicles && vehicles.length > 0 && nearbyMecanicos && nearbyMecanicos.length > 0 && (
           <View style={styles.sectionWithHorizontalScroll}>
             <View style={styles.sectionHeaderWithPadding}><Text style={styles.sectionTitle}>Mecánicos Cercanos</Text></View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.providersHorizontal} bounces={false}>
@@ -614,6 +645,59 @@ const UserPanelScreen = () => {
             </View>
           </View>
         )}
+
+        {/* App Features Guide - Always visible at the bottom */}
+        <View style={styles.featuresGuideContainer}>
+          <Text style={styles.featuresGuideTitle}>Con MecaniMóvil podrás:</Text>
+
+          <View style={styles.featureItem}>
+            <View style={[styles.featureIconContainer, { backgroundColor: '#E0F2FE' }]}>
+              <Ionicons name="search" size={24} color="#0061FF" />
+            </View>
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureTitle}>Buscar mecánicos o talleres</Text>
+              <Text style={styles.featureDescription}>
+                Encuentra los más cercanos de acuerdo a la marca de tu auto.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.featureItem}>
+            <View style={[styles.featureIconContainer, { backgroundColor: '#DCFCE7' }]}>
+              <Ionicons name="pulse" size={24} color="#10B981" />
+            </View>
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureTitle}>Control de métricas</Text>
+              <Text style={styles.featureDescription}>
+                Lleva el control de tu auto con las métricas de salud.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.featureItem}>
+            <View style={[styles.featureIconContainer, { backgroundColor: '#F3E8FF' }]}>
+              <Ionicons name="checkbox-outline" size={24} color="#9333EA" />
+            </View>
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureTitle}>Ver checklist de servicios</Text>
+              <Text style={styles.featureDescription}>
+                Revisa el detalle de cada servicio realizado en tu auto.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.featureItem}>
+            <View style={[styles.featureIconContainer, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="star" size={24} color="#D97706" />
+            </View>
+            <View style={styles.featureTextContainer}>
+              <Text style={styles.featureTitle}>Ver y calificar</Text>
+              <Text style={styles.featureDescription}>
+                Evalúa a los talleres o mecánicos por su servicio.
+              </Text>
+            </View>
+          </View>
+        </View>
 
       </ScrollView>
     </SafeAreaView>
@@ -1048,7 +1132,7 @@ const UserPanelScreenStyles = (colors, typography, spacing, borders) => StyleShe
   },
   horizontalCardWrapper: {
     marginRight: spacing?.md || 16,
-    width: 250,
+    width: 200,
   },
   solicitudCardWrapper: {
     marginRight: spacing?.md || 16,
@@ -1064,7 +1148,57 @@ const UserPanelScreenStyles = (colors, typography, spacing, borders) => StyleShe
   loadingSectionText: {
     color: colors.text?.secondary || '#5D6F75',
     fontSize: typography.fontSize?.sm || 14,
-  }
+  },
+  // Features Guide Styles
+  featuresGuideContainer: {
+    marginTop: spacing?.xl || 32,
+    marginHorizontal: spacing?.md || 16,
+    marginBottom: spacing?.lg || 24,
+    backgroundColor: colors.background?.paper || '#FFFFFF',
+    borderRadius: borders.radius?.card?.lg || 16,
+    padding: spacing?.lg || 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.03)',
+  },
+  featuresGuideTitle: {
+    fontSize: typography.fontSize?.lg || 18,
+    fontWeight: typography.fontWeight?.bold || '800',
+    color: colors.text?.primary || '#00171F',
+    marginBottom: spacing?.lg || 20,
+    textAlign: 'center',
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing?.md || 16,
+  },
+  featureIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing?.md || 16,
+  },
+  featureTextContainer: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: typography.fontSize?.md || 15,
+    fontWeight: typography.fontWeight?.bold || '700',
+    color: colors.text?.primary || '#00171F',
+    marginBottom: 2,
+  },
+  featureDescription: {
+    fontSize: 13,
+    color: colors.text?.secondary || '#5D6F75',
+    lineHeight: 18,
+  },
 });
 
 export default UserPanelScreen;

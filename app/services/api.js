@@ -17,14 +17,14 @@ const responseCache = new Map();
  */
 function parseCacheControl(cacheControl) {
   if (!cacheControl) return null;
-  
+
   // Buscar max-age en el header
   const maxAgeMatch = cacheControl.match(/max-age=(\d+)/);
   if (maxAgeMatch) {
     const maxAgeSeconds = parseInt(maxAgeMatch[1], 10);
     return maxAgeSeconds * 1000; // Convertir a milisegundos
   }
-  
+
   return null;
 }
 
@@ -48,18 +48,18 @@ function getCacheKey(url, params = {}) {
 function getCachedResponse(url, params = {}) {
   const cacheKey = getCacheKey(url, params);
   const cached = responseCache.get(cacheKey);
-  
+
   if (!cached) return null;
-  
+
   const now = Date.now();
   const age = now - cached.timestamp;
-  
+
   // Si el cache ha expirado, eliminarlo y retornar null
   if (age >= cached.maxAge) {
     responseCache.delete(cacheKey);
     return null;
   }
-  
+
   logger.debug(`✅ Cache hit para ${url} (edad: ${Math.floor(age / 1000)}s, max: ${cached.maxAge / 1000}s)`);
   return cached.data;
 }
@@ -74,14 +74,14 @@ function getCachedResponse(url, params = {}) {
 function setCachedResponse(url, params = {}, data, cacheControl) {
   const maxAge = parseCacheControl(cacheControl);
   if (!maxAge) return; // No cachear si no hay max-age
-  
+
   const cacheKey = getCacheKey(url, params);
   responseCache.set(cacheKey, {
     data,
     timestamp: Date.now(),
     maxAge
   });
-  
+
   logger.debug(`💾 Respuesta cacheada para ${url} por ${maxAge / 1000}s`);
 }
 
@@ -175,7 +175,7 @@ async function createApiInstance() {
     timeout: 15000, // 15 segundos de timeout
     headers: {
       'Content-Type': 'application/json',
-      'Accept-Encoding': 'gzip, deflate, br', // Solicitar compresión del servidor
+      'Accept-Encoding': 'gzip, deflate', // Solicitar compresión (gzip/deflate soportados nativamente)
     },
   });
 }
@@ -266,7 +266,7 @@ function setupInterceptors(apiInstance) {
           });
         }
       }
-      
+
       logger.debug('✅ Respuesta exitosa:', {
         url: response.config.url,
         method: response.config?.method?.toUpperCase(),
@@ -292,8 +292,8 @@ function setupInterceptors(apiInstance) {
         // NUEVO: 401 esperado para endpoints que requieren auth cuando no hay sesión activa
         const isUnauthorizedExpected = error.response.status === 401 &&
           (error.config?.url?.includes('/solicitudes-publicas/activas/') ||
-           error.config?.url?.includes('/solicitudes/activas/') ||
-           error.config?.url?.includes('/ordenes/solicitudes-publicas/activas/'));
+            error.config?.url?.includes('/solicitudes/activas/') ||
+            error.config?.url?.includes('/ordenes/solicitudes-publicas/activas/'));
 
         if (isCarritoNotFound) {
           // Este es un estado normal, no un error crítico
@@ -329,7 +329,7 @@ function setupInterceptors(apiInstance) {
           const errorData = error.response.data;
           const errorMessage = (errorData?.detail || errorData?.error || '').toLowerCase();
           const errorString = JSON.stringify(errorData || {}).toLowerCase();
-          
+
           // Solo limpiar credenciales si el mensaje indica claramente problema de autenticación
           // NO limpiar si hay indicios de errores de servidor/BD/red
           const isAuthError = (
@@ -347,7 +347,7 @@ function setupInterceptors(apiInstance) {
             errorMessage.includes('500') ||
             errorString.includes('operationalerror')
           );
-          
+
           if (isAuthError) {
             logger.info('🔒 Error 401 de autenticación: Token inválido o expirado, limpiando credenciales');
             AsyncStorage.removeItem('auth_token');
@@ -361,7 +361,7 @@ function setupInterceptors(apiInstance) {
         // Extraer mensaje de error de diferentes formatos que puede devolver el backend
         // IMPORTANTE: Siempre generar mensajes amigables, nunca técnicos
         let errorMessage = null;
-        
+
         // Función auxiliar para validar si un mensaje es amigable (no técnico)
         const isFriendlyMessage = (msg) => {
           if (!msg || typeof msg !== 'string') return false;
@@ -375,22 +375,22 @@ function setupInterceptors(apiInstance) {
           // Verificar que no contenga palabras técnicas y tenga longitud razonable
           const lowerMsg = msg.toLowerCase();
           return !technicalKeywords.some(keyword => lowerMsg.includes(keyword.toLowerCase())) &&
-                 msg.length < 200 && // Mensajes muy largos suelen ser técnicos
-                 !msg.match(/^\d+$/); // No solo números (códigos de estado)
+            msg.length < 200 && // Mensajes muy largos suelen ser técnicos
+            !msg.match(/^\d+$/); // No solo números (códigos de estado)
         };
-        
+
         // Extraer mensaje del backend con prioridad
         if (error.response.data) {
           const candidates = [
             error.response.data.error,
             error.response.data.detail,
-            Array.isArray(error.response.data.non_field_errors) 
-              ? error.response.data.non_field_errors[0] 
+            Array.isArray(error.response.data.non_field_errors)
+              ? error.response.data.non_field_errors[0]
               : error.response.data.non_field_errors,
             error.response.data.message,
             typeof error.response.data === 'string' ? error.response.data : null
           ];
-          
+
           // Buscar el primer mensaje amigable
           for (const candidate of candidates) {
             if (candidate && isFriendlyMessage(candidate)) {
@@ -399,7 +399,7 @@ function setupInterceptors(apiInstance) {
             }
           }
         }
-        
+
         // Si no encontramos un mensaje amigable, generar uno basado en el código de estado
         if (!errorMessage || !isFriendlyMessage(errorMessage)) {
           switch (error.response.status) {
@@ -431,7 +431,7 @@ function setupInterceptors(apiInstance) {
               errorMessage = 'Ocurrió un error al procesar tu solicitud. Por favor, intenta nuevamente.';
           }
         }
-        
+
         // Asegurar que el mensaje final sea amigable (limpiar cualquier texto técnico residual)
         errorMessage = errorMessage
           .replace(/status\s*\d+/gi, '')
@@ -439,12 +439,12 @@ function setupInterceptors(apiInstance) {
           .replace(/HTTP\s*\d+/gi, '')
           .replace(/\s+/g, ' ')
           .trim();
-        
+
         // Si después de limpiar el mensaje está vacío, usar mensaje predeterminado
         if (!errorMessage || errorMessage.length === 0) {
           errorMessage = 'Ocurrió un error al procesar tu solicitud. Por favor, intenta nuevamente.';
         }
-        
+
         return Promise.reject({
           message: errorMessage,
           status: error.response.status,
@@ -459,7 +459,7 @@ function setupInterceptors(apiInstance) {
         // CASO ESPECIAL: Para DELETE, si la solicitud se completó (sin respuesta del servidor),
         // puede ser que el servidor haya procesado correctamente pero no haya enviado respuesta
         const isDeleteRequest = error.config?.method?.toLowerCase() === 'delete';
-        
+
         if (isDeleteRequest && !error.response) {
           // Para DELETE, si no hay respuesta pero la solicitud se envió, asumir éxito
           // Esto puede pasar cuando el servidor devuelve 204 y el cliente tiene problemas parseando
@@ -473,7 +473,7 @@ function setupInterceptors(apiInstance) {
             headers: {}
           });
         }
-        
+
         // Solo loguear en desarrollo (__DEV__), nunca en producción (APK)
         logger.error('🌐 Error de red detallado:', {
           url: error.config?.url,
@@ -526,7 +526,7 @@ function setupInterceptors(apiInstance) {
           message: error.message,
           // NO loguear config completa que puede contener datos sensibles
         });
-        
+
         // Siempre retornar mensaje amigable, nunca técnico
         return Promise.reject({
           message: 'Ocurrió un error al realizar la solicitud. Por favor, intenta nuevamente.',
@@ -554,19 +554,19 @@ export const get = async (url, params = {}, options = {}) => {
         return cachedData;
       }
     }
-    
+
     const apiInstance = await getApiInstance();
     const response = await apiInstance.get(url, {
       params,
       requiresAuth: options.requiresAuth
     });
-    
+
     // Cachear la respuesta si el servidor envía Cache-Control
     const cacheControl = response.headers?.['cache-control'] || response.headers?.['Cache-Control'];
     if (cacheControl) {
       setCachedResponse(url, params, response.data, cacheControl);
     }
-    
+
     return response.data;
   } catch (error) {
     // Casos especiales que no son errores críticos
@@ -618,7 +618,7 @@ export const post = async (url, data = {}, options = {}) => {
       // Si hay headers personalizados, agregarlos
       config.headers = options.headers;
     }
-    
+
     // Si se especifica timeout personalizado, usarlo
     if (options.timeout) {
       config.timeout = options.timeout;
@@ -689,7 +689,7 @@ export const patch = async (url, data = {}, options = {}) => {
       // Si hay headers personalizados, agregarlos
       config.headers = options.headers;
     }
-    
+
     // Si se especifica timeout personalizado, usarlo
     if (options.timeout) {
       config.timeout = options.timeout;
@@ -715,7 +715,7 @@ export const delete_ = async (url, options = {}) => {
     const response = await apiInstance.delete(url, {
       requiresAuth: options.requiresAuth !== false // Por defecto requiere auth
     });
-    
+
     // DELETE puede devolver 204 No Content (sin datos) o 200 con datos
     // Si el status es 204, no hay response.data, así que devolvemos null o un objeto vacío
     if (response.status === 204 || response.status === 200) {
@@ -724,11 +724,11 @@ export const delete_ = async (url, options = {}) => {
         tieneData: !!response.data
       });
       // Si hay datos, devolverlos; si no, devolver null o un objeto indicando éxito
-      return response.data !== undefined && response.data !== null && response.data !== '' 
-        ? response.data 
+      return response.data !== undefined && response.data !== null && response.data !== ''
+        ? response.data
         : { success: true, status: response.status };
     }
-    
+
     return response.data;
   } catch (error) {
     // Si el error es un 204 o 200 con respuesta vacía, tratarlo como éxito
@@ -736,7 +736,7 @@ export const delete_ = async (url, options = {}) => {
       logger.debug(`✅ DELETE exitoso a ${url} (respuesta vacía):`, error.response.status);
       return { success: true, status: error.response.status };
     }
-    
+
     logger.error(`Error en DELETE a ${url}:`, error);
     throw error;
   }

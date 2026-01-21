@@ -225,16 +225,16 @@ export const getWorkshopsForUserVehicles = async (userVehicles, signal = null) =
         vehiclesByBrand.set(brandId, v);
       }
     });
-    
+
     console.log(`📊 [Talleres] Batched ${userVehicles.length} vehicles -> ${vehiclesByBrand.size} brands`);
-    
+
     for (const [brandId, vehicle] of vehiclesByBrand) {
       if (vehicle.id) {
         try {
           const params = { vehiculo_id: vehicle.id };
           const response = await get('/usuarios/talleres/proveedores_filtrados/', params, signal);
           const workshops = response.talleres || [];
-          
+
           if (Array.isArray(workshops)) {
             workshops.forEach(workshop => {
               if (!workshopIds.has(workshop.id)) {
@@ -468,18 +468,22 @@ export const getMechanicsForUserVehicles = async (userVehicles, signal = null) =
     const allMechanics = [];
     const mechanicIds = new Set();
 
-    // Usar el endpoint proveedores_filtrados que filtra por marca del vehículo
-    for (const vehicle of userVehicles) {
+    // OPTIMIZATION: Group vehicles by brand to minimize API calls
+    const vehiclesByBrand = new Map();
+    userVehicles.forEach(v => {
+      const brandId = v.marca?.id || v.marca;
+      if (brandId && !vehiclesByBrand.has(brandId)) {
+        vehiclesByBrand.set(brandId, v);
+      }
+    });
+
+    console.log(`📊 [Mecanicos] Batched ${userVehicles.length} vehicles -> ${vehiclesByBrand.size} brands`);
+
+    for (const [brandId, vehicle] of vehiclesByBrand) {
       if (vehicle.id) {
         try {
-          // Usar el endpoint que filtra por marca del vehículo
-          const params = {
-            vehiculo_id: vehicle.id
-          };
-
-          const response = await get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params);
-
-          // El endpoint devuelve { mecanicos: [...], total: ..., filtros_aplicados: {...} }
+          const params = { vehiculo_id: vehicle.id };
+          const response = await get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params, signal);
           const mechanics = response.mecanicos || [];
 
           if (Array.isArray(mechanics)) {
@@ -491,8 +495,7 @@ export const getMechanicsForUserVehicles = async (userVehicles, signal = null) =
             });
           }
         } catch (error) {
-          console.error(`Error obteniendo mecánicos para vehículo ${vehicle.id}:`, error);
-          // Continuar con el siguiente vehículo si hay error
+          console.error(`Error mecanicos brand ${brandId}:`, error);
         }
       }
     }

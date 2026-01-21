@@ -18,7 +18,9 @@ export const getUserVehicles = async () => {
     console.log('Solicitando vehículos con token:', token.substring(0, 10) + '...');
 
     // Realizar la petición al endpoint correcto según la documentación
-    const data = await get('/vehiculos/');
+    // Usamos forceRefresh: true para evitar cache interno de api.js
+    // Agregamos timestamp para evitar cache de Cloudflare/CDN/Browser
+    const data = await get('/vehiculos/', { _t: Date.now() }, { forceRefresh: true });
     console.log('Respuesta de vehículos:', JSON.stringify(data));
 
     // Verificar si la respuesta es un array
@@ -41,6 +43,23 @@ export const getUserVehicles = async () => {
     console.error('Error obteniendo vehículos:', error);
     // Retornar un array vacío en caso de error para evitar errores en el componente
     return [];
+  }
+};
+
+/**
+ * Obtiene un vehículo por su ID
+ * @param {number} vehicleId - ID del vehículo
+ * @returns {Promise<Object>} Datos del vehículo
+ */
+export const getVehicleById = async (vehicleId) => {
+  try {
+    // Realizar la petición
+    // También forzamos refresh aquí para asegurar datos frescos al ver detalles/salud
+    const data = await get(`/vehiculos/${vehicleId}/`, {}, { forceRefresh: true });
+    return data;
+  } catch (error) {
+    console.error(`Error obteniendo vehículo ${vehicleId}:`, error);
+    throw error;
   }
 };
 

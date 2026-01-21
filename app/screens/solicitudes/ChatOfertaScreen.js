@@ -23,6 +23,7 @@ import WebSocketService from '../../services/websocketService';
 import solicitudesService from '../../services/solicitudesService';
 import { ROUTES } from '../../utils/constants';
 import { useTheme } from '../../design-system/theme/useTheme';
+import ScrollContainer from '../../components/base/ScrollContainer';
 
 /**
  * Pantalla de chat entre cliente y proveedor para una oferta
@@ -34,13 +35,13 @@ const ChatOfertaScreen = () => {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  
+
   // Extraer valores del tema de forma segura
   const colors = theme?.colors || {};
   const typography = theme?.typography || {};
   const spacing = theme?.spacing || {};
   const borders = theme?.borders || {};
-  
+
   // Asegurar que typography tenga todas las propiedades necesarias
   const safeTypography = typography?.fontSize && typography?.fontWeight
     ? typography
@@ -48,10 +49,10 @@ const ChatOfertaScreen = () => {
       fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
       fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
     };
-  
+
   // Validar que borders esté completamente inicializado
-  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined') 
-    ? borders 
+  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined')
+    ? borders
     : {
       radius: {
         none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
@@ -65,10 +66,10 @@ const ChatOfertaScreen = () => {
       },
       width: { none: 0, thin: 1, medium: 2, thick: 4 }
     };
-  
+
   // Crear estilos dinámicos con los tokens del tema
   const styles = createStyles(colors, safeTypography, spacing, safeBorders);
-  
+
   const [mensajes, setMensajes] = useState([]);
   const [oferta, setOferta] = useState(null);
   const [solicitud, setSolicitud] = useState(null);
@@ -76,7 +77,7 @@ const ChatOfertaScreen = () => {
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  
+
   const flatListRef = useRef(null);
   const esCliente = user && user.is_client;
   const ultimaActualizacionRef = useRef(0);
@@ -87,7 +88,7 @@ const ChatOfertaScreen = () => {
     React.useCallback(() => {
       cargarMensajes();
       suscribirWebSocket();
-      
+
       return () => {
         desuscribirWebSocket();
       };
@@ -121,7 +122,7 @@ const ChatOfertaScreen = () => {
         setKeyboardHeight(e.endCoordinates.height);
       }
     );
-    
+
     const keyboardWillHide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
@@ -137,24 +138,24 @@ const ChatOfertaScreen = () => {
 
   const cargarMensajes = async () => {
     if (!ofertaId) return;
-    
+
     try {
       setLoading(true);
-      
+
       // Cargar oferta y mensajes en paralelo
       const [ofertaResult, mensajesData] = await Promise.all([
         ofertasService.obtenerDetalleOferta(ofertaId),
         ofertasService.obtenerChatOferta(ofertaId),
       ]);
-      
+
       if (ofertaResult) {
         setOferta(ofertaResult);
-        
+
         // Cargar solicitud asociada si existe
         // Intentar obtener solicitudId de diferentes fuentes
         const solicitudIdFromOferta = ofertaResult.solicitud || ofertaResult.solicitud_id || ofertaResult.solicitud_detail?.id;
         const solicitudIdToLoad = solicitudIdFromOferta || solicitudId; // Usar solicitudId de route.params si existe
-        
+
         if (solicitudIdToLoad) {
           try {
             const solicitudData = await solicitudesService.obtenerDetalleSolicitud(solicitudIdToLoad);
@@ -169,11 +170,11 @@ const ChatOfertaScreen = () => {
           }
         }
       }
-      
+
       setMensajes(mensajesData || []);
-      
+
       // El scroll automático se maneja en el useEffect que depende de mensajes.length
-      
+
       // Marcar mensajes como leídos
       await ofertasService.marcarMensajesComoLeidos(ofertaId);
     } catch (error) {
@@ -185,24 +186,24 @@ const ChatOfertaScreen = () => {
 
   const suscribirWebSocket = () => {
     if (!ofertaId) return;
-    
+
     console.log('🔗 [CHAT CLIENTE] Suscribiendo a WebSocket para oferta:', ofertaId);
     console.log('🔗 [CHAT CLIENTE] WebSocket conectado?', WebSocketService.getConnectionStatus());
-    
+
     // Escuchar nuevos mensajes usando onMessage del servicio
     const handler = (data) => {
       console.log('📨 [CHAT CLIENTE] Handler recibió mensaje:', data);
       console.log('📨 [CHAT CLIENTE] Oferta actual:', ofertaId, 'Oferta del mensaje:', data.oferta_id);
-      
+
       if (data.type === 'nuevo_mensaje_chat' && data.oferta_id === ofertaId) {
         console.log('✅ [CHAT CLIENTE] Mensaje es para esta oferta');
-        
+
         // Evitar duplicados - si el mensaje ya fue enviado por nosotros, ignorarlo
         if (mensajesEnviadosRef.current.has(data.mensaje_id)) {
           console.log('💬 [CHAT CLIENTE] Mensaje ya procesado (enviado por nosotros), ignorando');
           return;
         }
-        
+
         // Debouncing - evitar actualizaciones muy frecuentes
         const ahora = Date.now();
         if (ahora - ultimaActualizacionRef.current < 500) {
@@ -210,9 +211,9 @@ const ChatOfertaScreen = () => {
           return;
         }
         ultimaActualizacionRef.current = ahora;
-        
+
         console.log('💬 [CHAT CLIENTE] Nuevo mensaje recibido por WebSocket:', data);
-        
+
         // Agregar mensaje a la lista (actualización en tiempo real)
         setMensajes(prev => {
           // Verificar que el mensaje no exista ya
@@ -220,9 +221,9 @@ const ChatOfertaScreen = () => {
             console.log('💬 [CHAT CLIENTE] Mensaje ya existe en la lista, ignorando');
             return prev;
           }
-          
+
           console.log('✨ [CHAT CLIENTE] Agregando mensaje a la lista');
-          
+
           // Crear objeto de mensaje
           const nuevoMensaje = {
             id: data.mensaje_id,
@@ -236,11 +237,11 @@ const ChatOfertaScreen = () => {
             fecha_lectura: null,
             archivo_adjunto: null,
           };
-          
+
           // El scroll automático se maneja en el useEffect que depende de mensajes.length
           return [...prev, nuevoMensaje];
         });
-        
+
         // Marcar como leído si el mensaje es del proveedor (no del cliente)
         if (data.es_proveedor) {
           // Debounced: marcar como leído después de un delay
@@ -253,7 +254,7 @@ const ChatOfertaScreen = () => {
         console.log('⚠️ [CHAT CLIENTE] Mensaje no es para esta oferta o tipo incorrecto');
       }
     };
-    
+
     wsHandlerRef.current = handler;
     WebSocketService.onMessage('nuevo_mensaje_chat', handler);
     console.log('✅ [CHAT CLIENTE] Handler registrado para nuevo_mensaje_chat');
@@ -271,12 +272,12 @@ const ChatOfertaScreen = () => {
       console.log('⚠️ [CHAT CLIENTE] Mensaje bloqueado:', { mensaje: !!nuevoMensaje.trim(), ofertaId: !!ofertaId, enviando });
       return;
     }
-    
+
     const mensajeTexto = nuevoMensaje.trim();
     const mensajeId = `temp-${Date.now()}`; // ID temporal para optimistic update
-    
+
     console.log('📤 [CHAT CLIENTE] Enviando mensaje:', mensajeTexto);
-    
+
     // Actualización optimista - agregar mensaje inmediatamente a la UI
     const mensajeOptimista = {
       id: mensajeId,
@@ -290,27 +291,27 @@ const ChatOfertaScreen = () => {
       fecha_lectura: null,
       archivo_adjunto: null,
     };
-    
+
     setEnviando(true);
     setMensajes(prev => [...prev, mensajeOptimista]);
     setNuevoMensaje('');
-    
+
     // El scroll automático se maneja en el useEffect que depende de mensajes.length
-    
+
     try {
       console.log('🔄 [CHAT CLIENTE] Llamando a ofertasService.enviarMensajeChat');
       const result = await ofertasService.enviarMensajeChat(ofertaId, mensajeTexto);
       console.log('✅ [CHAT CLIENTE] Mensaje enviado exitosamente:', result?.id);
-      
+
       // Marcar el mensaje como enviado para evitar duplicados del WebSocket
       if (result && result.id) {
         mensajesEnviadosRef.current.add(result.id);
-        
+
         // Reemplazar mensaje optimista con el real
-        setMensajes(prev => 
+        setMensajes(prev =>
           prev.map(m => m.id === mensajeId ? result : m)
         );
-        
+
         // Limpiar el Set después de un tiempo (para evitar memory leaks)
         setTimeout(() => {
           mensajesEnviadosRef.current.delete(result.id);
@@ -356,54 +357,54 @@ const ChatOfertaScreen = () => {
   // Funciones para formatear estado de solicitud con colores del tema
   const getEstadoConfig = (estado) => {
     const configs = {
-      creada: { 
-        color: colors.text?.secondary || '#5D6F75', 
-        backgroundColor: colors.neutral?.gray?.[100] || '#F3F4F6', 
-        texto: 'Creada', 
-        icon: 'document-text-outline' 
+      creada: {
+        color: colors.text?.secondary || '#5D6F75',
+        backgroundColor: colors.neutral?.gray?.[100] || '#F3F4F6',
+        texto: 'Creada',
+        icon: 'document-text-outline'
       },
-      seleccionando_servicios: { 
-        color: colors.info?.[600] || colors.primary?.[600] || '#002A47', 
-        backgroundColor: colors.info?.[50] || colors.primary?.[50] || '#E6F2F7', 
-        texto: 'Seleccionando Servicios', 
-        icon: 'settings-outline' 
+      seleccionando_servicios: {
+        color: colors.info?.[600] || colors.primary?.[600] || '#002A47',
+        backgroundColor: colors.info?.[50] || colors.primary?.[50] || '#E6F2F7',
+        texto: 'Seleccionando Servicios',
+        icon: 'settings-outline'
       },
-      publicada: { 
-        color: colors.primary?.[700] || '#001F2E', 
-        backgroundColor: colors.primary?.[50] || '#E6F2F7', 
-        texto: 'Publicada', 
-        icon: 'send-outline' 
+      publicada: {
+        color: colors.primary?.[700] || '#001F2E',
+        backgroundColor: colors.primary?.[50] || '#E6F2F7',
+        texto: 'Publicada',
+        icon: 'send-outline'
       },
-      con_ofertas: { 
-        color: colors.warning?.[700] || '#D97706', 
-        backgroundColor: colors.warning?.[50] || '#FFFBEB', 
-        texto: 'Con Ofertas', 
-        icon: 'bulb-outline' 
+      con_ofertas: {
+        color: colors.warning?.[700] || '#D97706',
+        backgroundColor: colors.warning?.[50] || '#FFFBEB',
+        texto: 'Con Ofertas',
+        icon: 'bulb-outline'
       },
-      adjudicada: { 
-        color: colors.success?.[700] || '#047857', 
-        backgroundColor: colors.success?.[50] || '#ECFDF5', 
-        texto: 'Adjudicada', 
-        icon: 'checkmark-circle-outline' 
+      adjudicada: {
+        color: colors.success?.[700] || '#047857',
+        backgroundColor: colors.success?.[50] || '#ECFDF5',
+        texto: 'Adjudicada',
+        icon: 'checkmark-circle-outline'
       },
-      expirada: { 
-        color: colors.error?.[700] || '#B91C1C', 
-        backgroundColor: colors.error?.[50] || '#FEF2F2', 
-        texto: 'Expirada', 
-        icon: 'time-outline' 
+      expirada: {
+        color: colors.error?.[700] || '#B91C1C',
+        backgroundColor: colors.error?.[50] || '#FEF2F2',
+        texto: 'Expirada',
+        icon: 'time-outline'
       },
-      cancelada: { 
-        color: colors.error?.[700] || '#B91C1C', 
-        backgroundColor: colors.error?.[50] || '#FEF2F2', 
-        texto: 'Cancelada', 
-        icon: 'close-circle-outline' 
+      cancelada: {
+        color: colors.error?.[700] || '#B91C1C',
+        backgroundColor: colors.error?.[50] || '#FEF2F2',
+        texto: 'Cancelada',
+        icon: 'close-circle-outline'
       }
     };
-    return configs[estado] || { 
-      color: colors.text?.secondary || '#5D6F75', 
-      backgroundColor: colors.neutral?.gray?.[100] || '#F3F4F6', 
-      texto: estado || 'Desconocido', 
-      icon: 'help-circle-outline' 
+    return configs[estado] || {
+      color: colors.text?.secondary || '#5D6F75',
+      backgroundColor: colors.neutral?.gray?.[100] || '#F3F4F6',
+      texto: estado || 'Desconocido',
+      icon: 'help-circle-outline'
     };
   };
 
@@ -420,10 +421,15 @@ const ChatOfertaScreen = () => {
     .map(s => s.nombre)
     .join(', ') || solicitud?.descripcion_problema || 'Sin servicios especificados';
 
+  const Container = Platform.OS === 'web' ? View : SafeAreaView;
+  const containerProps = Platform.OS === 'web'
+    ? { style: [styles.container, { height: '100vh', paddingTop: 0 }] }
+    : { style: styles.container, edges: ['top'] };
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <Container {...containerProps}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
-      
+
       {/* Header personalizado con nombre y foto del proveedor */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -458,10 +464,10 @@ const ChatOfertaScreen = () => {
           <View style={styles.solicitudContent}>
             <View style={styles.solicitudLeft}>
               <View style={[styles.solicitudIconContainer, { backgroundColor: getEstadoConfig(solicitud.estado).backgroundColor }]}>
-                <Ionicons 
-                  name={getEstadoConfig(solicitud.estado).icon} 
-                  size={20} 
-                  color={getEstadoConfig(solicitud.estado).color} 
+                <Ionicons
+                  name={getEstadoConfig(solicitud.estado).icon}
+                  size={20}
+                  color={getEstadoConfig(solicitud.estado).color}
                 />
               </View>
               <View style={styles.solicitudInfo}>
@@ -495,80 +501,122 @@ const ChatOfertaScreen = () => {
           <Text style={styles.loadingText}>Cargando chat...</Text>
         </View>
       ) : (
-        <View style={styles.contentContainer}>
-          <FlatList
-            ref={flatListRef}
-            data={mensajes}
-            keyExtractor={(item, index) => `mensaje-${item.id || index}`}
-            renderItem={renderMensaje}
-            contentContainerStyle={[
-              styles.mensajesList,
-              mensajes.length === 0 && styles.mensajesListEmpty,
-              { 
-                // Cuando el teclado está visible, el input sube, así que necesitamos menos padding
-                // Cuando el teclado NO está visible, necesitamos más padding para el input + safe area
-                paddingBottom: keyboardHeight > 0 ? 70 : (insets.bottom + 80)
-              }
-            ]}
-            ListEmptyComponent={renderEmptyState}
-            showsVerticalScrollIndicator={false}
-            maintainVisibleContentPosition={{
-              minIndexForVisible: 0,
-            }}
-          />
+        <View style={[
+          styles.contentContainer,
+          Platform.OS === 'web' && {
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+          }
+        ]}>
+          {Platform.OS === 'web' ? (
+            <>
+              <ScrollContainer
+                style={{ flex: 1 }}
+                contentContainerStyle={[
+                  styles.mensajesList,
+                  { paddingBottom: 150 } // Aumentado para asegurar visibilidad del último mensaje
+                ]}
+                showsVerticalScrollIndicator={false}
+              >
+                {mensajes.length === 0 ? (
+                  renderEmptyState()
+                ) : (
+                  <>
+                    {mensajes.map((item, index) => (
+                      <View key={`mensaje-${item.id || index}`}>
+                        {renderMensaje({ item })}
+                      </View>
+                    ))}
+                    {/* Espaciador explícito para asegurar que el último mensaje suba por encima del input fijo */}
+                    <View style={{ height: 120, width: '100%' }} />
+                  </>
+                )}
+              </ScrollContainer>
 
-          {/* Input de mensaje */}
-          <View style={[
-            styles.inputContainer, 
-            { 
-              paddingBottom: keyboardHeight > 0 ? spacing.xs || 8 : Math.max(insets.bottom, spacing.xs || 8),
-              bottom: keyboardHeight 
-            }
-          ]}>
-            <TouchableOpacity 
-              style={styles.actionButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add-circle-outline" size={24} color={colors.text?.secondary || '#5D6F75'} />
-            </TouchableOpacity>
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Escribe un mensaje..."
-              value={nuevoMensaje}
-              onChangeText={setNuevoMensaje}
-              multiline
-              maxLength={500}
-              placeholderTextColor={colors.text?.secondary || '#5D6F75'}
-              editable={!enviando}
-            />
-            
-            <TouchableOpacity 
-              style={styles.actionButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="mic-outline" size={24} color={colors.text?.secondary || '#5D6F75'} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.sendButton,
-                (!nuevoMensaje.trim() || enviando) && styles.sendButtonDisabled
+              {/* Input de mensaje - Web (FIXED) */}
+              <View style={[
+                styles.inputContainer,
+                {
+                  position: 'fixed',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 99999,
+                  elevation: 99999,
+                  backgroundColor: colors.background?.paper || '#FFFFFF',
+                  paddingBottom: Math.max(insets.bottom, spacing.xs || 8),
+                  borderTopWidth: 1,
+                  borderTopColor: colors.neutral?.gray?.[200] || '#E5E7EB',
+                  width: '100%',
+                }
+              ]}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add-circle-outline" size={24} color={colors.text?.secondary || '#5D6F75'} />
+                </TouchableOpacity>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Escribe un mensaje..."
+                  value={nuevoMensaje}
+                  onChangeText={setNuevoMensaje}
+                  multiline
+                  maxLength={500}
+                  placeholderTextColor={colors.text?.secondary || '#5D6F75'}
+                  editable={!enviando}
+                />
+
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="mic-outline" size={24} color={colors.text?.secondary || '#5D6F75'} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    (!nuevoMensaje.trim() || enviando) && styles.sendButtonDisabled
+                  ]}
+                  onPress={handleEnviarMensaje}
+                  disabled={!nuevoMensaje.trim() || enviando}
+                  activeOpacity={0.8}
+                >
+                  {enviando ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Ionicons name="send" size={18} color="#FFFFFF" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              style={{ flex: 1 }}
+              data={mensajes}
+              keyExtractor={(item, index) => `mensaje-${item.id || index}`}
+              renderItem={renderMensaje}
+              contentContainerStyle={[
+                styles.mensajesList,
+                mensajes.length === 0 && styles.mensajesListEmpty,
+                {
+                  paddingBottom: keyboardHeight > 0 ? 70 : (insets.bottom + 80)
+                }
               ]}
-              onPress={handleEnviarMensaje}
-              disabled={!nuevoMensaje.trim() || enviando}
-              activeOpacity={0.8}
-            >
-              {enviando ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Ionicons name="send" size={18} color="#FFFFFF" />
-              )}
-            </TouchableOpacity>
-          </View>
+              ListEmptyComponent={renderEmptyState}
+              showsVerticalScrollIndicator={false}
+              maintainVisibleContentPosition={{
+                minIndexForVisible: 0,
+              }}
+            />
+          )}
         </View>
       )}
-    </SafeAreaView>
+    </Container>
   );
 };
 
@@ -746,6 +794,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 8,
+    ...Platform.select({
+      web: {
+        zIndex: 1000,
+        pointerEvents: 'auto',
+      },
+    }),
   },
   actionButton: {
     padding: spacing.xs || 6,
