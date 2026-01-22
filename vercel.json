@@ -1,4 +1,10 @@
 {
+    "buildCommand": "npx expo export:web",
+    "git": {
+        "deploymentEnabled": {
+            "main": true
+        }
+    },
     "rewrites": [
         {
             "source": "/(.*)",
