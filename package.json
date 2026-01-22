@@ -10,7 +10,8 @@
     "ios": "expo run:ios",
     "ios:device": "expo run:ios --device",
     "web": "expo start --web",
-    "export": "expo export --platform web"
+    "export": "expo export --platform web",
+    "deploy:vercel": "curl -X POST https://api.vercel.com/v1/integrations/deploy/prj_onu4rpYmXcplOPOmS29auXoG4kZj/ppYbhmkdgZ -H 'Content-Type: application/json'"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
