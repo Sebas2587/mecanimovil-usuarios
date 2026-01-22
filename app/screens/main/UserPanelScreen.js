@@ -960,6 +960,7 @@ const UserPanelScreenStyles = (colors, typography, spacing, borders) => StyleShe
     paddingLeft: spacing?.md || 16,
     paddingRight: spacing?.md || 16,
     alignItems: 'flex-start',
+    gap: spacing?.md || 16,
   },
   vehiclesList: {
     paddingHorizontal: spacing?.md || 16,
@@ -1137,6 +1138,8 @@ const UserPanelScreenStyles = (colors, typography, spacing, borders) => StyleShe
   solicitudCardWrapper: {
     marginRight: spacing?.md || 16,
     width: 280,
+    minHeight: 200,
+    alignSelf: 'flex-start',
   },
   loadingSectionContainer: {
     padding: spacing?.lg || 24,

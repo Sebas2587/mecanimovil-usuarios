@@ -15,13 +15,13 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
   const { obtenerOfertasNuevasCountPorSolicitud } = useSolicitudes();
   const ofertasNuevasCount = obtenerOfertasNuevasCountPorSolicitud(solicitud.id);
   const theme = useTheme();
-  
+
   // Extraer valores del tema de forma segura
   const colors = theme?.colors || {};
   const typography = theme?.typography || {};
   const spacing = theme?.spacing || {};
   const borders = theme?.borders || {};
-  
+
   // Asegurar que typography tenga todas las propiedades necesarias
   const safeTypography = typography?.fontSize && typography?.fontWeight
     ? typography
@@ -29,10 +29,10 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
       fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
     };
-  
+
   // Validar que borders esté completamente inicializado
-  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined') 
-    ? borders 
+  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined')
+    ? borders
     : {
       radius: {
         none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
@@ -46,7 +46,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       },
       width: { none: 0, thin: 1, medium: 2, thick: 4 }
     };
-  
+
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     const date = new Date(dateString);
@@ -80,44 +80,44 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
   const getEstadoConfig = () => {
     // Verificar si tiene pago parcial basándose en la oferta seleccionada
     const oferta = solicitud.oferta_seleccionada_detail || solicitud.oferta_seleccionada;
-    const tienePagoParcial = oferta?.estado_pago_repuestos === 'pagado' && 
-                             oferta?.estado_pago_servicio === 'pendiente';
-    
+    const tienePagoParcial = oferta?.estado_pago_repuestos === 'pagado' &&
+      oferta?.estado_pago_servicio === 'pendiente';
+
     // Si el estado es 'pagada' pero tiene pago parcial, tratarlo como 'pagada_parcialmente'
-    const estadoEfectivo = (solicitud.estado === 'pagada' && tienePagoParcial) 
-      ? 'pagada_parcialmente' 
+    const estadoEfectivo = (solicitud.estado === 'pagada' && tienePagoParcial)
+      ? 'pagada_parcialmente'
       : solicitud.estado;
-    
+
     const configs = {
-      creada: { 
-        color: colors.text?.secondary || '#5D6F75', 
+      creada: {
+        color: colors.text?.secondary || '#5D6F75',
         bgColor: colors.neutral?.gray?.[100] || '#F3F4F6',
         borderColor: colors.neutral?.gray?.[300] || '#D1D5DB',
-        texto: 'Creada' 
+        texto: 'Creada'
       },
-      seleccionando_servicios: { 
-        color: colors.info?.[600] || colors.primary?.[600] || '#002A47', 
+      seleccionando_servicios: {
+        color: colors.info?.[600] || colors.primary?.[600] || '#002A47',
         bgColor: colors.info?.[50] || colors.primary?.[50] || '#E6F2F7',
         borderColor: colors.info?.[300] || colors.primary?.[300] || '#66B1D0',
-        texto: 'Seleccionando' 
+        texto: 'Seleccionando'
       },
-      publicada: { 
-        color: colors.primary?.[700] || '#001F2E', 
+      publicada: {
+        color: colors.primary?.[700] || '#001F2E',
         bgColor: colors.primary?.[50] || '#E6F2F7',
         borderColor: colors.primary?.[300] || '#66B1D0',
-        texto: 'Publicada' 
+        texto: 'Publicada'
       },
-      con_ofertas: { 
-        color: colors.warning?.[700] || '#D97706', 
+      con_ofertas: {
+        color: colors.warning?.[700] || '#D97706',
         bgColor: colors.warning?.[50] || '#FFFBEB',
         borderColor: colors.warning?.[300] || '#FCD34D',
-        texto: 'Con Ofertas' 
+        texto: 'Con Ofertas'
       },
-      adjudicada: { 
-        color: colors.success?.[700] || '#047857', 
+      adjudicada: {
+        color: colors.success?.[700] || '#047857',
         bgColor: colors.success?.[50] || '#ECFDF5',
         borderColor: colors.success?.[300] || '#6EE7B7',
-        texto: 'Adjudicada' 
+        texto: 'Adjudicada'
       },
       pagada: {
         color: colors.success?.[700] || '#047857',
@@ -131,24 +131,24 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         borderColor: colors.warning?.[300] || '#FCD34D',
         texto: 'Pagada Parcialmente'
       },
-      expirada: { 
-        color: colors.error?.[700] || '#B91C1C', 
+      expirada: {
+        color: colors.error?.[700] || '#B91C1C',
         bgColor: colors.error?.[50] || '#FEF2F2',
         borderColor: colors.error?.[300] || '#FCA5A5',
-        texto: 'Expirada' 
+        texto: 'Expirada'
       },
-      cancelada: { 
-        color: colors.error?.[700] || '#B91C1C', 
+      cancelada: {
+        color: colors.error?.[700] || '#B91C1C',
         bgColor: colors.error?.[50] || '#FEF2F2',
         borderColor: colors.error?.[300] || '#FCA5A5',
-        texto: 'Cancelada' 
+        texto: 'Cancelada'
       }
     };
-    return configs[estadoEfectivo] || { 
-      color: colors.text?.secondary || '#5D6F75', 
+    return configs[estadoEfectivo] || {
+      color: colors.text?.secondary || '#5D6F75',
       bgColor: colors.neutral?.gray?.[100] || '#F3F4F6',
       borderColor: colors.neutral?.gray?.[300] || '#D1D5DB',
-      texto: estadoEfectivo 
+      texto: estadoEfectivo
     };
   };
 
@@ -178,13 +178,13 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
   const styles = createStyles(colors, safeTypography, spacing, safeBorders);
 
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[
-        styles.card, 
+        styles.card,
         { backgroundColor: estadoConfig.bgColor },
         fullWidth && styles.cardFullWidth
       ]}
-      onPress={handlePress} 
+      onPress={handlePress}
       activeOpacity={0.85}
     >
       {/* Badge de estado - Esquina superior derecha (similar a MaintenanceAlertCard) */}
@@ -204,10 +204,10 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         {/* Header: Icono y título (similar a MaintenanceAlertCard) */}
         <View style={styles.header}>
           <View style={[styles.iconContainer, { backgroundColor: colors.background?.paper || '#FFFFFF' }]}>
-            <Ionicons 
-              name={getEstadoIcon()} 
-              size={24} 
-              color={estadoConfig.color} 
+            <Ionicons
+              name={getEstadoIcon()}
+              size={24}
+              color={estadoConfig.color}
             />
           </View>
           <View style={styles.titleContainer}>
@@ -227,7 +227,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         {/* Badge destacado del vehículo */}
         {solicitud.vehiculo_info?.marca && (
           <View style={styles.vehicleBadgeContainer}>
-            <View style={[styles.vehicleBadge, { 
+            <View style={[styles.vehicleBadge, {
               backgroundColor: colors.primary?.[50] || '#E6F2F7',
               borderColor: colors.primary?.[300] || '#66B1D0',
             }]}>
@@ -250,29 +250,29 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         </View>
 
         {/* Contador regresivo para solicitudes sin ofertas (48h) */}
-        {solicitud.estado === 'publicada' && 
-         solicitud.total_ofertas === 0 && 
-         solicitud.fecha_expiracion && (
-          <View style={styles.countdownContainer}>
-            <CountdownTimer
-              targetDate={solicitud.fecha_expiracion}
-              type="solicitud"
-              size="small"
-            />
-          </View>
-        )}
+        {solicitud.estado === 'publicada' &&
+          solicitud.total_ofertas === 0 &&
+          solicitud.fecha_expiracion && (
+            <View style={styles.countdownContainer}>
+              <CountdownTimer
+                targetDate={solicitud.fecha_expiracion}
+                type="solicitud"
+                size="small"
+              />
+            </View>
+          )}
 
         {/* Contador regresivo para ofertas adjudicadas sin pago */}
-        {(solicitud.estado === 'adjudicada' || solicitud.estado === 'pendiente_pago') && 
-         solicitud.fecha_limite_pago && (
-          <View style={styles.countdownContainer}>
-            <CountdownTimer
-              targetDate={solicitud.fecha_limite_pago}
-              type="pago"
-              size="small"
-            />
-          </View>
-        )}
+        {(solicitud.estado === 'adjudicada' || solicitud.estado === 'pendiente_pago') &&
+          solicitud.fecha_limite_pago && (
+            <View style={styles.countdownContainer}>
+              <CountdownTimer
+                targetDate={solicitud.fecha_limite_pago}
+                type="pago"
+                size="small"
+              />
+            </View>
+          )}
 
         {/* Footer: Información adicional */}
         {solicitud.total_ofertas > 0 && (
@@ -293,9 +293,9 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
 // Función para crear estilos dinámicos basados en el tema
 const createStyles = (colors, typography, spacing, borders) => StyleSheet.create({
   card: {
-    width: 300, // Mismo ancho que MaintenanceAlertCard (para scroll horizontal)
+    width: 280, // Match wrapper width from UserPanelScreen
+    minHeight: 200, // Ensure consistent minimum height
     borderRadius: borders.radius?.card?.md || 12,
-    marginRight: spacing.md || 16, // Margin para scroll horizontal
     overflow: 'hidden',
     position: 'relative',
     // Sombra sutil y armoniosa (igual que MaintenanceAlertCard)
@@ -307,7 +307,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   cardFullWidth: {
     width: '100%', // Para listas verticales
-    marginRight: 0, // Sin margin en listas verticales
+    minHeight: 180, // Slightly smaller minHeight for vertical lists
   },
   estadoBadge: {
     position: 'absolute',
