@@ -1339,7 +1339,7 @@ const DetalleSolicitudScreen = () => {
           {
             // Calcular paddingBottom: altura del actionsContainer (aprox 90px) + insets.bottom + padding adicional
             // Solo aplicar padding si estamos en tab principal y hay botones de acción
-            paddingBottom: (tabActivo === 'principal' && tieneBotonesAccion ? 90 : 0) + Math.max(insets.bottom, spacing.md || 16) + (spacing.md || 16),
+            paddingBottom: (tabActivo === 'principal' && tieneBotonesAccion ? (Platform.OS === 'web' ? 120 : 90) : 0) + Math.max(insets.bottom, spacing.md || 16) + (spacing.md || 16),
             // Respetar safe areas laterales usando el máximo entre insets y spacing
             paddingLeft: Math.max(insets.left, spacing.md || 16),
             paddingRight: Math.max(insets.right, spacing.md || 16),
@@ -2676,14 +2676,15 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     fontWeight: typography.fontWeight?.regular || '400',
   },
   actionsContainer: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 100, // Asegurar que esté por encima del contenido en web
     backgroundColor: colors.background?.paper || '#FFFFFF',
     paddingHorizontal: spacing.md || 16,
     paddingTop: spacing.md || 16,
-    paddingBottom: 0, // El paddingBottom se calcula dinámicamente con insets
+    paddingBottom: Platform.OS === 'web' ? (spacing.md || 16) : 0, // En web necesitamos padding explícito si insets es 0
     borderTopWidth: borders.width?.thin || 1,
     borderTopColor: colors.neutral?.gray?.[200] || '#E5E7EB',
     shadowColor: colors.base?.inkBlack || '#000',
