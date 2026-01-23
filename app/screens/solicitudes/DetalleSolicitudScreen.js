@@ -742,27 +742,43 @@ const DetalleSolicitudScreen = () => {
   };
 
   const handleCancelarSolicitud = () => {
-    Alert.alert(
-      'Cancelar Solicitud',
-      '¿Estás seguro de que deseas cancelar esta solicitud? Esta acción no se puede deshacer.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await cancelarSolicitud(solicitudId);
-              Alert.alert('Éxito', 'Solicitud cancelada correctamente');
-              navigation.goBack();
-            } catch (error) {
-              console.error('Error cancelando solicitud:', error);
-              Alert.alert('Error', 'No se pudo cancelar la solicitud');
+    if (Platform.OS === 'web') {
+      const confirm = window.confirm('¿Estás seguro de que deseas cancelar esta solicitud? Esta acción no se puede deshacer.');
+      if (confirm) {
+        (async () => {
+          try {
+            await cancelarSolicitud(solicitudId);
+            window.alert('Solicitud cancelada correctamente');
+            navigation.goBack();
+          } catch (error) {
+            console.error('Error cancelando solicitud:', error);
+            window.alert('No se pudo cancelar la solicitud');
+          }
+        })();
+      }
+    } else {
+      Alert.alert(
+        'Cancelar Solicitud',
+        '¿Estás seguro de que deseas cancelar esta solicitud? Esta acción no se puede deshacer.',
+        [
+          { text: 'No', style: 'cancel' },
+          {
+            text: 'Sí, cancelar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await cancelarSolicitud(solicitudId);
+                Alert.alert('Éxito', 'Solicitud cancelada correctamente');
+                navigation.goBack();
+              } catch (error) {
+                console.error('Error cancelando solicitud:', error);
+                Alert.alert('Error', 'No se pudo cancelar la solicitud');
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleReenviarSolicitud = () => {
