@@ -1340,7 +1340,7 @@ const DetalleSolicitudScreen = () => {
           {
             // Calcular paddingBottom: altura del actionsContainer (aprox 90px) + insets.bottom + padding adicional
             // Solo aplicar padding si estamos en tab principal y hay botones de acción
-            paddingBottom: (tabActivo === 'principal' && tieneBotonesAccion ? (Platform.OS === 'web' ? 120 : 90) : 0) + Math.max(insets.bottom, spacing.md || 16) + (spacing.md || 16),
+            paddingBottom: (tabActivo === 'principal' && tieneBotonesAccion ? (Platform.OS === 'web' ? 160 : 90) : 0) + Math.max(insets.bottom, spacing.md || 16) + (spacing.md || 16),
             // Respetar safe areas laterales usando el máximo entre insets y spacing
             paddingLeft: Math.max(insets.left, spacing.md || 16),
             paddingRight: Math.max(insets.right, spacing.md || 16),
