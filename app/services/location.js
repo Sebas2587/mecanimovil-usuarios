@@ -13,7 +13,7 @@ let inMemoryActiveAddress = null;
  */
 const validateAddressExists = async (address) => {
   if (!address || !address.id) return false;
-  
+
   try {
     console.log(`🔍 Validando existencia de dirección ID ${address.id}: ${address.direccion}`);
     const addresses = await getUserAddresses();
@@ -32,28 +32,28 @@ const validateAddressExists = async (address) => {
 const cleanObsoleteAddresses = async () => {
   try {
     console.log('🧹 Limpiando direcciones obsoletas de cachés...');
-    
+
     const [activeJson, mainJson] = await Promise.all([
       AsyncStorage.getItem('active_address'),
       AsyncStorage.getItem('main_address')
     ]);
-    
+
     const active = activeJson ? JSON.parse(activeJson) : null;
     const main = mainJson ? JSON.parse(mainJson) : null;
-    
+
     // Validar dirección activa
     if (active && !(await validateAddressExists(active))) {
       console.log('🧹 Limpiando dirección activa obsoleta:', active.direccion);
       inMemoryActiveAddress = null;
       await AsyncStorage.removeItem('active_address');
     }
-    
+
     // Validar dirección principal
     if (main && !(await validateAddressExists(main))) {
       console.log('🧹 Limpiando dirección principal obsoleta:', main.direccion);
       await AsyncStorage.removeItem('main_address');
     }
-    
+
     console.log('🧹 Limpieza de direcciones obsoletas completada');
   } catch (error) {
     console.warn('Error limpiando direcciones obsoletas:', error);
@@ -69,7 +69,7 @@ export const getUserAddresses = async () => {
     console.log('Llamando a API: /usuarios/direcciones/');
     const data = await get('/usuarios/direcciones/');
     console.log('Respuesta recibida:', JSON.stringify(data).substring(0, 100) + '...');
-    
+
     // La API podría devolver los resultados en un objeto con la propiedad 'results'
     // o directamente como un array, debemos manejar ambos casos
     if (data && typeof data === 'object') {
@@ -79,7 +79,7 @@ export const getUserAddresses = async () => {
         return data.results; // Si la API pagina los resultados
       }
     }
-    
+
     return [];
   } catch (error) {
     console.error('Error obteniendo direcciones del usuario:', error);
@@ -102,7 +102,7 @@ export const getActiveAddress = async () => {
         inMemoryActiveAddress = null;
       }
     }
-    
+
     const saved = await AsyncStorage.getItem('active_address');
     if (saved) {
       const parsed = JSON.parse(saved);
@@ -115,7 +115,7 @@ export const getActiveAddress = async () => {
         await AsyncStorage.removeItem('active_address');
       }
     }
-    
+
     return null;
   } catch (e) {
     console.warn('No se pudo leer active_address:', e);
@@ -152,7 +152,7 @@ export const clearActiveAddress = async () => {
 export const getMainAddress = async () => {
   try {
     console.log('📍 getMainAddress: Iniciando búsqueda de dirección principal...');
-    
+
     // 1) Priorizar la dirección activa si existe y es válida
     const activeAddress = await getActiveAddress(); // Ya incluye validación
     if (activeAddress) {
@@ -173,29 +173,29 @@ export const getMainAddress = async () => {
         await AsyncStorage.removeItem('main_address');
       }
     }
-    
+
     // 3) Si no hay dirección válida en caché, obtener del servidor
     try {
       console.log('📍 getMainAddress: Consultando servidor para dirección principal...');
       const response = await get('/usuarios/direcciones/principal/');
-      
+
       // Verificar si la respuesta contiene un mensaje de "no hay direcciones"
       if (response.mensaje === "No hay direcciones guardadas") {
         console.log('📍 getMainAddress: No hay direcciones guardadas en el servidor');
         return null;
       }
-      
+
       // Si hay dirección principal, guardarla en AsyncStorage y devolverla
       if (response && !response.mensaje) {
         await AsyncStorage.setItem('main_address', JSON.stringify(response));
         console.log('📍 getMainAddress: Dirección principal obtenida del servidor:', response.direccion);
         return response;
       }
-      
+
       return null;
     } catch (error) {
       console.log('📍 getMainAddress: Error del servidor, buscando direcciones disponibles...');
-      
+
       // Fallback: obtener todas las direcciones y usar la primera válida
       const addresses = await getUserAddresses();
       if (addresses && addresses.length > 0) {
@@ -204,7 +204,7 @@ export const getMainAddress = async () => {
         console.log('📍 getMainAddress: Usando primera dirección disponible:', mainAddress.direccion);
         return mainAddress;
       }
-      
+
       console.log('📍 getMainAddress: No hay direcciones disponibles');
       return null;
     }
@@ -222,17 +222,17 @@ export const getMainAddress = async () => {
 export const saveAddress = async (addressData) => {
   try {
     console.log('Guardando dirección con datos:', addressData);
-    
+
     // No necesitamos enviar el usuario explícitamente porque el backend
     // lo obtendrá del token de autenticación
     // Enviar los datos sin modificar el objeto original
     const data = await post('/usuarios/direcciones/', addressData);
-    
+
     // Si es la primera dirección o es marcada como principal, guardarla en AsyncStorage
     if (addressData.es_principal || !(await getMainAddress())) {
       await AsyncStorage.setItem('main_address', JSON.stringify(data));
     }
-    
+
     return data;
   } catch (error) {
     console.error('Error guardando dirección:', error);
@@ -249,12 +249,12 @@ export const saveAddress = async (addressData) => {
 export const updateAddress = async (addressId, addressData) => {
   try {
     const data = await patch(`/usuarios/direcciones/${addressId}/`, addressData);
-    
+
     // Si es marcada como principal, actualizar en AsyncStorage
     if (addressData.es_principal) {
       await AsyncStorage.setItem('main_address', JSON.stringify(data));
     }
-    
+
     return data;
   } catch (error) {
     console.error(`Error actualizando dirección ${addressId}:`, error);
@@ -308,7 +308,7 @@ export const deleteAddress = async (addressId) => {
     console.log(`🗑️ deleteAddress: Eliminando dirección ID ${addressId}...`);
     await delete_(`/usuarios/direcciones/${addressId}/`);
     console.log(`🗑️ deleteAddress: Dirección eliminada del servidor exitosamente`);
-    
+
     // Limpiar todos los cachés que apunten a esta dirección
     const [activeJson, mainJson] = await Promise.all([
       AsyncStorage.getItem('active_address'),
@@ -318,20 +318,21 @@ export const deleteAddress = async (addressId) => {
     const active = activeJson ? JSON.parse(activeJson) : null;
     const main = mainJson ? JSON.parse(mainJson) : null;
 
-    if (active && active.id === addressId) {
+    // Usar comparación laxa (==) para manejar diferencias de tipo (string/number)
+    if (active && active.id == addressId) {
       console.log('🗑️ deleteAddress: Limpiando dirección activa del caché');
       inMemoryActiveAddress = null;
       await AsyncStorage.removeItem('active_address');
     }
-    
-    if (main && main.id === addressId) {
+
+    if (main && main.id == addressId) {
       console.log('🗑️ deleteAddress: Limpiando dirección principal del caché');
       await AsyncStorage.removeItem('main_address');
     }
-    
+
     // Limpiar cualquier dirección obsoleta adicional
     await cleanObsoleteAddresses();
-    
+
     console.log('🗑️ deleteAddress: Eliminación y limpieza completada');
     return true;
   } catch (error) {
@@ -363,9 +364,9 @@ export const requestLocationPermission = async () => {
 const isLocationInChile = (latitude, longitude) => {
   // Coordenadas aproximadas de Chile: latitud entre -17.5 y -56, longitud entre -80 y -66
   return (
-    latitude <= -17.5 && 
-    latitude >= -56 && 
-    longitude <= -66 && 
+    latitude <= -17.5 &&
+    latitude >= -56 &&
+    longitude <= -66 &&
     longitude >= -80
   );
 };
@@ -378,11 +379,11 @@ const isLocationInChile = (latitude, longitude) => {
 export const getCurrentLocation = async (highAccuracy = true) => {
   try {
     const hasPermission = await requestLocationPermission();
-    
+
     if (!hasPermission) {
       throw new Error('No se tienen permisos de ubicación');
     }
-    
+
     // Usar configuración de alta precisión para obtener la mejor ubicación posible
     const locationOptions = {
       accuracy: highAccuracy ? Location.Accuracy.Highest : Location.Accuracy.Balanced,
@@ -390,14 +391,14 @@ export const getCurrentLocation = async (highAccuracy = true) => {
       distanceInterval: 1, // Actualizar cada metro de movimiento
       mayShowUserSettingsDialog: true // Permitir mostrar diálogo para mejorar precisión
     };
-    
+
     console.log('Solicitando ubicación con opciones:', JSON.stringify(locationOptions));
-    
+
     // Intentar obtener la ubicación real con la mayor precisión posible
     const realLocation = await Location.getCurrentPositionAsync(locationOptions);
-    
+
     console.log(`Ubicación obtenida del dispositivo: ${realLocation.coords.latitude}, ${realLocation.coords.longitude}, precisión: ${realLocation.coords.accuracy}m`);
-    
+
     // Verificar si son coordenadas por defecto del emulador (San Francisco, Apple HQ, Google HQ, etc.)
     const defaultEmulatorLocations = [
       { lat: 37.785834, lng: -122.406417 }, // San Francisco
@@ -405,15 +406,15 @@ export const getCurrentLocation = async (highAccuracy = true) => {
       { lat: 37.3318, lng: -122.0312 },     // Apple HQ
       { lat: 47.6062, lng: -122.3321 }      // Seattle
     ];
-    
-    const isEmulatorDefault = defaultEmulatorLocations.some(loc => 
-      Math.abs(realLocation.coords.latitude - loc.lat) < 0.01 && 
+
+    const isEmulatorDefault = defaultEmulatorLocations.some(loc =>
+      Math.abs(realLocation.coords.latitude - loc.lat) < 0.01 &&
       Math.abs(realLocation.coords.longitude - loc.lng) < 0.01
     );
-    
+
     if (isEmulatorDefault) {
       console.warn('Detectada ubicación por defecto del emulador. Se ignorará esta ubicación.');
-      
+
       // En un dispositivo real no deberíamos entrar aquí
       // En un emulador, usamos coordenadas chilenas predefinidas
       return {
@@ -429,15 +430,15 @@ export const getCurrentLocation = async (highAccuracy = true) => {
         timestamp: Date.now()
       };
     }
-    
+
     // Verificar si la ubicación está fuera de Chile
     if (!isLocationInChile(realLocation.coords.latitude, realLocation.coords.longitude)) {
       console.warn('Ubicación detectada fuera de Chile o potencialmente imprecisa.');
-      
+
       // Verificar si la precisión es muy baja (podría indicar una ubicación aproximada por IP)
       if (realLocation.coords.accuracy > 1000) { // Más de 1km de imprecisión
         console.warn(`Baja precisión detectada: ${realLocation.coords.accuracy}m. Usando ubicación predeterminada.`);
-        
+
         // Usar una ubicación predeterminada en Santiago
         return {
           coords: {
@@ -448,7 +449,7 @@ export const getCurrentLocation = async (highAccuracy = true) => {
           timestamp: realLocation.timestamp
         };
       }
-      
+
       // Si la precisión es buena pero está fuera de Chile, es posible que el usuario realmente esté fuera
       console.warn('El usuario podría estar fuera de Chile. Usando ubicación predeterminada por seguridad.');
       return {
@@ -460,13 +461,13 @@ export const getCurrentLocation = async (highAccuracy = true) => {
         timestamp: realLocation.timestamp
       };
     }
-    
+
     // La ubicación está en Chile y parece ser precisa
     console.log('Ubicación válida en Chile confirmada');
     return realLocation;
   } catch (error) {
     console.error('Error obteniendo ubicación actual:', error);
-    
+
     // En caso de error, devolver coordenadas predeterminadas para Santiago
     return {
       coords: {
@@ -488,7 +489,7 @@ export const getCurrentLocation = async (highAccuracy = true) => {
 const reverseGeocodeWithNominatim = async (latitude, longitude) => {
   try {
     console.log(`Intentando reverse geocoding con Nominatim para: ${latitude}, ${longitude}`);
-    
+
     const reverseUrl = `https://nominatim.openstreetmap.org/reverse?` +
       `lat=${latitude}&` +
       `lon=${longitude}&` +
@@ -496,23 +497,23 @@ const reverseGeocodeWithNominatim = async (latitude, longitude) => {
       `addressdetails=1&` +
       `accept-language=es&` +
       `zoom=18`; // Zoom 18 = address level (incluye número de casa)
-    
+
     const response = await fetch(reverseUrl, {
       headers: {
         'User-Agent': 'MecaniMovil App/1.0'
       }
     });
-    
+
     if (!response.ok) {
       console.warn('Nominatim reverse geocoding no respondió correctamente:', response.status);
       return null;
     }
-    
+
     const data = await response.json();
-    
+
     if (data && data.address) {
       const addr = data.address;
-      
+
       // Mapear campos de Nominatim al formato esperado
       const result = {
         street: addr.road || addr.pedestrian || addr.path || addr.street || null,
@@ -526,15 +527,15 @@ const reverseGeocodeWithNominatim = async (latitude, longitude) => {
         country: addr.country || 'Chile',
         isoCountryCode: addr.country_code?.toUpperCase() || 'CL',
         postalCode: addr.postcode || null,
-        name: addr.road ? 
-          (addr.house_number ? `${addr.road} ${addr.house_number}` : addr.road) : 
+        name: addr.road ?
+          (addr.house_number ? `${addr.road} ${addr.house_number}` : addr.road) :
           (addr.display_name || '')
       };
-      
+
       console.log('✅ Nominatim reverse geocoding exitoso:', result);
       return result;
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error en reverse geocoding con Nominatim:', error);
@@ -551,14 +552,14 @@ const reverseGeocodeWithNominatim = async (latitude, longitude) => {
 export const reverseGeocode = async (latitude, longitude) => {
   try {
     console.log(`Intentando geocodificación inversa para: ${latitude}, ${longitude}`);
-    
+
     // Verificar estrictamente si la ubicación está fuera de Chile
     if (!isLocationInChile(latitude, longitude)) {
       console.warn('Coordenadas fuera de Chile. Usando coordenadas de Santiago.');
       latitude = -33.4489;  // Santiago, Chile
       longitude = -70.6693;
     }
-    
+
     // Intentar obtener la dirección con Expo Location si está disponible
     let expoResult = null;
     if (Location.reverseGeocodeAsync) {
@@ -567,13 +568,13 @@ export const reverseGeocode = async (latitude, longitude) => {
           latitude,
           longitude
         });
-        
+
         // Filtrar resultados para que solo incluyan ubicaciones en Chile
         if (results && results.length > 0) {
           const chileResults = results.filter(
             result => result.country === 'Chile' || result.isoCountryCode === 'CL'
           );
-          
+
           if (chileResults.length > 0) {
             expoResult = chileResults[0];
             console.log('✅ Expo Location reverse geocoding exitoso:', expoResult);
@@ -583,20 +584,20 @@ export const reverseGeocode = async (latitude, longitude) => {
         console.warn('⚠️ Error con Expo Location.reverseGeocodeAsync:', expoError.message);
       }
     }
-    
+
     // Verificar si Expo Location devolvió número de dirección
     const hasStreetNumber = expoResult && (
-      expoResult.streetNumber || 
-      expoResult.number || 
+      expoResult.streetNumber ||
+      expoResult.number ||
       expoResult.houseNumber ||
       (expoResult.name && /\d+/.test(expoResult.name))
     );
-    
+
     // Si Expo Location no devolvió número, usar Nominatim como fallback
     if (!hasStreetNumber || !expoResult) {
       console.log('⚠️ Expo Location no devolvió número de dirección o falló, intentando con Nominatim...');
       const nominatimResult = await reverseGeocodeWithNominatim(latitude, longitude);
-      
+
       if (nominatimResult) {
         // Si Nominatim tiene más información (especialmente número), usarlo
         if (nominatimResult.streetNumber || nominatimResult.houseNumber || nominatimResult.number) {
@@ -609,12 +610,12 @@ export const reverseGeocode = async (latitude, longitude) => {
         }
       }
     }
-    
+
     // Si Expo Location devolvió resultado (con o sin número), usarlo
     if (expoResult) {
       return expoResult;
     }
-    
+
     // Si no hay resultados en Chile, usar una dirección predeterminada
     // Direcciones reales chilenas
     const chileanAddresses = [
@@ -647,10 +648,10 @@ export const reverseGeocode = async (latitude, longitude) => {
         region: 'Región Metropolitana',
       }
     ];
-    
+
     // Elegir una dirección aleatoria
     const randomAddress = chileanAddresses[Math.floor(Math.random() * chileanAddresses.length)];
-    
+
     const defaultAddress = {
       ...randomAddress,
       country: 'Chile',
@@ -658,18 +659,18 @@ export const reverseGeocode = async (latitude, longitude) => {
       postalCode: '8320000',
       name: `${randomAddress.street} ${randomAddress.streetNumber}`
     };
-    
+
     console.log('Usando dirección predeterminada para Chile:', defaultAddress);
     return defaultAddress;
   } catch (error) {
     console.error('Error en geocodificación inversa:', error);
-    
+
     // Dirección predeterminada en Santiago
     return {
       street: 'Av. Libertador Bernardo O\'Higgins',
       streetNumber: '1100',
       district: 'Santiago Centro',
-      city: 'Santiago', 
+      city: 'Santiago',
       region: 'Región Metropolitana',
       country: 'Chile',
       isoCountryCode: 'CL',
@@ -687,33 +688,33 @@ export const reverseGeocode = async (latitude, longitude) => {
 const geocodeWithNominatim = async (address) => {
   try {
     console.log(`Intentando geocodificar con Nominatim: ${address}`);
-    
+
     // Asegurar que la dirección incluya "Chile"
     let addressToGeocode = address;
     if (!address.toLowerCase().includes('chile')) {
       addressToGeocode = `${address}, Chile`;
     }
-    
+
     const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressToGeocode)}&countrycodes=cl&limit=1&addressdetails=1&accept-language=es`;
-    
+
     const response = await fetch(searchUrl, {
       headers: {
         'User-Agent': 'MecaniMovil App/1.0'
       }
     });
-    
+
     if (!response.ok) {
       console.warn('Nominatim no respondió correctamente:', response.status);
       return null;
     }
-    
+
     const data = await response.json();
-    
+
     if (data && data.length > 0) {
       const resultado = data[0];
       const lat = parseFloat(resultado.lat);
       const lng = parseFloat(resultado.lon);
-      
+
       if (!isNaN(lat) && !isNaN(lng) && isLocationInChile(lat, lng)) {
         console.log('✅ Nominatim geocodificación exitosa:', { lat, lng });
         return {
@@ -722,7 +723,7 @@ const geocodeWithNominatim = async (address) => {
         };
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error en geocodificación con Nominatim:', error);
@@ -738,25 +739,25 @@ const geocodeWithNominatim = async (address) => {
 export const geocodeAddress = async (address) => {
   try {
     console.log(`📍 Intentando geocodificar dirección: ${address}`);
-    
+
     // Asegurar que la dirección incluya "Chile"
     let addressToGeocode = address;
     if (!address.toLowerCase().includes('chile')) {
       addressToGeocode = `${address}, Chile`;
       console.log(`Añadiendo Chile a la dirección: ${addressToGeocode}`);
     }
-    
+
     // Intentar primero con Expo Location si está disponible
     if (Location.geocodeAsync) {
       try {
         console.log('Intentando geocodificar con Expo Location.geocodeAsync...');
         const results = await Location.geocodeAsync(addressToGeocode);
-        
+
         // Verificar si hay resultados
         if (results && results.length > 0) {
           // Verificar que las coordenadas estén en Chile
           const result = results[0];
-          
+
           if (result.latitude && result.longitude && isLocationInChile(result.latitude, result.longitude)) {
             console.log('✅ Expo Location geocodificación exitosa:', result);
             return {
@@ -776,13 +777,13 @@ export const geocodeAddress = async (address) => {
     } else {
       console.log('⚠️ Location.geocodeAsync no está disponible. Usando Nominatim...');
     }
-    
+
     // Si Expo Location falla o no está disponible, usar Nominatim
     const nominatimResult = await geocodeWithNominatim(addressToGeocode);
     if (nominatimResult) {
       return nominatimResult;
     }
-    
+
     // Si ambos fallan, usar coordenadas predeterminadas de Santiago
     console.warn('⚠️ No se pudo geocodificar la dirección. Usando coordenadas predeterminadas para Santiago.');
     return {
@@ -791,7 +792,7 @@ export const geocodeAddress = async (address) => {
     };
   } catch (error) {
     console.error('❌ Error general en geocodificación:', error);
-    
+
     // En caso de error crítico, devolver coordenadas del centro de Santiago
     return {
       latitude: -33.4489,  // Coordenadas del centro de Santiago
@@ -817,7 +818,7 @@ export const validateAddress = async (address) => {
     }
 
     console.log(`Validando dirección: ${address}`);
-    
+
     // Asegurar contexto de Chile para la búsqueda
     let searchAddress = address;
     if (!searchAddress.toLowerCase().includes('chile')) {
@@ -826,11 +827,11 @@ export const validateAddress = async (address) => {
 
     // Intentar geocodificar la dirección primero con Expo Location
     let coordinates = null;
-    
+
     if (Location.geocodeAsync) {
       try {
         const results = await Location.geocodeAsync(searchAddress);
-        
+
         if (results && results.length > 0) {
           const result = results[0];
           if (result.latitude && result.longitude && isLocationInChile(result.latitude, result.longitude)) {
@@ -841,12 +842,12 @@ export const validateAddress = async (address) => {
         console.warn('Error con Expo Location en validateAddress, intentando con Nominatim:', expoError.message);
       }
     }
-    
+
     // Si Expo Location falla, usar Nominatim
     if (!coordinates) {
       coordinates = await geocodeWithNominatim(searchAddress);
     }
-    
+
     // No se encontraron resultados
     if (!coordinates || !coordinates.latitude || !coordinates.longitude) {
       return {
@@ -858,7 +859,7 @@ export const validateAddress = async (address) => {
 
     // Obtener detalles completos mediante geocodificación inversa
     const addressDetails = await reverseGeocode(coordinates.latitude, coordinates.longitude);
-    
+
     // Verificar que sea una dirección en Chile
     if (addressDetails.country !== 'Chile' && addressDetails.isoCountryCode !== 'CL') {
       return {
@@ -873,9 +874,9 @@ export const validateAddress = async (address) => {
     const hasNumber = !!addressDetails.streetNumber;
     const hasDistrict = !!addressDetails.district || !!addressDetails.subregion;
     const hasCity = !!addressDetails.city;
-    
+
     const addressScore = [hasStreet, hasNumber, hasDistrict, hasCity].filter(Boolean).length;
-    
+
     // Construir detalles normalizados
     const normalizedDetails = {
       fullAddress: formatAddress(addressDetails),
@@ -889,7 +890,7 @@ export const validateAddress = async (address) => {
         longitude: coordinates.longitude
       }
     };
-    
+
     // Evaluar qué tan completa es la dirección
     if (addressScore >= 3) {
       return {
@@ -930,7 +931,7 @@ export const getAddressSuggestions = async (inputText, limit = 5) => {
     }
 
     console.log(`Buscando sugerencias para: ${inputText}`);
-    
+
     // Asegurar contexto de Chile para la búsqueda
     let searchText = inputText;
     if (!searchText.toLowerCase().includes('chile')) {
@@ -939,12 +940,12 @@ export const getAddressSuggestions = async (inputText, limit = 5) => {
 
     // Detectar si estamos en navegador web o dispositivo móvil
     const isWeb = Platform.OS === 'web';
-    
+
     // Función común para obtener sugerencias de Nominatim
     const getNominatimSuggestions = async (query) => {
       try {
         console.log(`Consultando Nominatim para: ${query}`);
-        
+
         // Consultar la API de Nominatim con parámetros optimizados
         const response = await fetch(
           `https://nominatim.openstreetmap.org/search?` +
@@ -957,31 +958,31 @@ export const getAddressSuggestions = async (inputText, limit = 5) => {
           `layer=address&` + // Prioriza direcciones sobre otros puntos de interés
           `dedupe=1`
         );
-        
+
         const data = await response.json();
         console.log(`Nominatim retornó ${data?.length || 0} resultados`);
-        
+
         if (!data || data.length === 0) {
           return [];
         }
-        
+
         // Analizar la consulta para extraer posibles números de dirección
         // Método 1: Buscar palabras que sean completamente números
         const queryWords = query.split(/\s+/); // Dividir por espacios
         const possibleNumbers = queryWords.filter(word => /^\d+$/.test(word.trim()));
-        
+
         // Método 2: Usar una expresión regular para encontrar números directamente
         const numberRegex = /\b(\d+)\b/g;
         const matches = [...query.matchAll(numberRegex)];
         const numbersInQuery = matches.map(match => match[1]);
-        
+
         // Usar el resultado de ambos métodos para mayor seguridad
         const detectedNumbers = [...new Set([...possibleNumbers, ...numbersInQuery])];
         const userProvidedNumber = detectedNumbers.length > 0 ? detectedNumbers[detectedNumbers.length - 1] : null;
-        
+
         console.log(`Números detectados en la consulta: ${detectedNumbers.join(', ') || 'ninguno'}`);
         console.log(`Número seleccionado para dirección: ${userProvidedNumber || 'ninguno'}`);
-        
+
         // Convertir los resultados al formato esperado por la aplicación
         return data.map((item, index) => {
           // Extraer detalles relevantes
@@ -989,49 +990,49 @@ export const getAddressSuggestions = async (inputText, limit = 5) => {
           const district = address.suburb || address.city_district || address.district || '';
           const city = address.city || address.town || address.municipality || 'Santiago';
           const region = address.state || 'Región Metropolitana';
-          
+
           // Asegurarse de que tenemos un número de calle
           let streetNumber = address.house_number || '';
-          
+
           // Si OpenStreetMap no provee un número pero el usuario lo ingresó en la consulta,
           // usar el número que proporcionó el usuario
           if (!streetNumber && userProvidedNumber) {
             streetNumber = userProvidedNumber;
             console.log(`Usando número proporcionado por el usuario: ${streetNumber}`);
           }
-          
+
           // Obtener la calle, asegurándose de considerar diferentes tipos de vías
           const street = address.road || address.pedestrian || address.street || '';
-          
+
           // Crear una dirección simplificada y clara
           // Formato: Calle Número, Comuna, Ciudad (si es diferente a la comuna)
           const parts = [];
-          
+
           // Calle y número
           if (street) {
             parts.push(streetNumber ? `${street} ${streetNumber}` : street);
           }
-          
+
           // Comuna/distrito
           if (district) {
             parts.push(district);
           }
-          
+
           // Ciudad (solo si es diferente a la comuna)
           if (city && city !== district) {
             parts.push(city);
           }
-          
+
           // Crear versión simplificada de la dirección
           const simplifiedAddress = parts.join(', ');
           // Añadir ", Chile" solo para la dirección completa
           const fullAddress = `${simplifiedAddress}, Chile`;
-          
+
           // Texto principal: no más de 60 caracteres para mejorar legibilidad
-          const mainText = simplifiedAddress.length > 60 
-            ? simplifiedAddress.substring(0, 57) + '...' 
+          const mainText = simplifiedAddress.length > 60
+            ? simplifiedAddress.substring(0, 57) + '...'
             : simplifiedAddress;
-          
+
           return {
             id: index,
             fullAddress: fullAddress,
@@ -1056,12 +1057,12 @@ export const getAddressSuggestions = async (inputText, limit = 5) => {
         return [];
       }
     };
-    
+
     // Implementación para web
     if (isWeb) {
       console.log('Utilizando Nominatim API para web');
       return await getNominatimSuggestions(searchText);
-    } 
+    }
     // Implementación para dispositivos móviles
     else {
       // En dispositivos móviles intentamos usar la API de Expo Location primero
@@ -1070,39 +1071,39 @@ export const getAddressSuggestions = async (inputText, limit = 5) => {
           // Intentar geocodificar el texto parcial
           console.log('Intentando usar geocodeAsync de Expo Location');
           const results = await Location.geocodeAsync(searchText);
-          
+
           if (!results || results.length === 0) {
             console.log('geocodeAsync no retornó resultados, usando Nominatim');
             return await getNominatimSuggestions(searchText);
           }
-          
+
           // Procesar los resultados y obtener detalles para cada uno
           const suggestions = [];
-          
+
           // Limitar el número de resultados a procesar
           const resultsToProcess = results.slice(0, Math.min(limit, results.length));
-          
+
           for (const result of resultsToProcess) {
             // Verificar que esté en Chile
             if (!isLocationInChile(result.latitude, result.longitude)) {
               continue;
             }
-            
+
             try {
               // Obtener detalles completos de la dirección
               const details = await reverseGeocode(result.latitude, result.longitude);
-              
+
               // Verificar que sea una dirección en Chile
               if (details.country !== 'Chile' && details.isoCountryCode !== 'CL') {
                 continue;
               }
-              
+
               // Formatear la dirección para mostrar
               const formattedAddress = formatAddress(details);
-              
+
               // Extraer la comuna/distrito para mostrarlo destacado
               const district = details.district || details.subregion || '';
-              
+
               suggestions.push({
                 id: suggestions.length,
                 fullAddress: formattedAddress,
@@ -1126,12 +1127,12 @@ export const getAddressSuggestions = async (inputText, limit = 5) => {
               // Continuar con el siguiente resultado
             }
           }
-          
+
           // Si se obtuvieron sugerencias, devolverlas
           if (suggestions.length > 0) {
             return suggestions;
           }
-          
+
           // Si no hay sugerencias tras la búsqueda, probar con Nominatim
           console.log('No se obtuvieron sugerencias válidas con geocodeAsync, usando Nominatim');
           return await getNominatimSuggestions(searchText);
@@ -1158,7 +1159,7 @@ export const getAddressSuggestions = async (inputText, limit = 5) => {
  */
 const formatAddress = (addressDetails) => {
   const parts = [];
-  
+
   // Calle y número (formato chileno)
   if (addressDetails.street && addressDetails.streetNumber) {
     parts.push(`${addressDetails.street} ${addressDetails.streetNumber}`);
@@ -1167,27 +1168,27 @@ const formatAddress = (addressDetails) => {
   } else if (addressDetails.name) {
     parts.push(addressDetails.name);
   }
-  
+
   // Comuna/distrito
   if (addressDetails.district) {
     parts.push(addressDetails.district);
   } else if (addressDetails.subregion) {
     parts.push(addressDetails.subregion);
   }
-  
+
   // Ciudad
   if (addressDetails.city && !parts.some(p => p.includes(addressDetails.city))) {
     parts.push(addressDetails.city);
   }
-  
+
   // Región (opcional en el formato chileno)
   if (addressDetails.region && !parts.some(p => p.includes(addressDetails.region))) {
     parts.push(addressDetails.region);
   }
-  
+
   // País
   parts.push('Chile');
-  
+
   return parts.filter(Boolean).join(', ');
 };
 
@@ -1199,19 +1200,19 @@ const formatAddress = (addressDetails) => {
 export const ensureValidAddress = async () => {
   try {
     console.log('🔄 ensureValidAddress: Validando y limpiando direcciones...');
-    
+
     // Limpiar direcciones obsoletas primero
     await cleanObsoleteAddresses();
-    
+
     // Obtener dirección válida
     const validAddress = await getMainAddress();
-    
+
     if (validAddress) {
       console.log('✅ ensureValidAddress: Dirección válida encontrada:', validAddress.direccion);
     } else {
       console.log('⚠️ ensureValidAddress: No hay direcciones válidas disponibles');
     }
-    
+
     return validAddress;
   } catch (error) {
     console.error('❌ ensureValidAddress: Error validando direcciones:', error);
