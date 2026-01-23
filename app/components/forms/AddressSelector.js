@@ -164,7 +164,8 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
           // Si la dirección eliminada era la actual, actualizar a la nueva principal
           if (currentAddress && currentAddress.id === addressId) {
             const mainAddress = await locationService.getMainAddress();
-            if (mainAddress && onAddressChange) {
+            // Call onAddressChange even if null, to clear the selection
+            if (onAddressChange) {
               onAddressChange(mainAddress);
             }
           }
@@ -195,7 +196,8 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
                 // Si la dirección eliminada era la actual, actualizar a la nueva principal
                 if (currentAddress && currentAddress.id === addressId) {
                   const mainAddress = await locationService.getMainAddress();
-                  if (mainAddress && onAddressChange) {
+                  // Call onAddressChange even if null, to clear the selection
+                  if (onAddressChange) {
                     onAddressChange(mainAddress);
                   }
                 }
