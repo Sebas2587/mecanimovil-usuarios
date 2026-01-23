@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
   Modal,
   TouchableWithoutFeedback,
   FlatList,
   ActivityIndicator,
   Alert,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  Platform
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,7 +32,7 @@ import * as locationService from '../../services/location';
 const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, modalVisible, onModalVisibleChange, glassStyle = false }) => {
   const navigation = useNavigation();
   const [internalModalVisible, setInternalModalVisible] = useState(false);
-  
+
   // Usar modalVisible externo si se proporciona, sino usar el interno
   const isModalVisible = modalVisible !== undefined ? modalVisible : internalModalVisible;
   const setModalVisibleState = onModalVisibleChange || setInternalModalVisible;
@@ -99,7 +100,7 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
     console.log('Agregando nueva direcci?n...');
     // Cerrar el modal primero
     setModalVisibleState(false);
-    
+
     // Usar setTimeout para asegurar que el modal se cierre antes de navegar
     setTimeout(() => {
       if (onAddNewAddress) {
@@ -148,39 +149,65 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
   };
 
   const handleDeleteAddress = async (addressId) => {
-    Alert.alert(
-      'Eliminar direcci?n',
-      '?Est?s seguro de que quieres eliminar esta direcci?n?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Eliminar', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              try {
-                setLoading(true);
-                await locationService.deleteAddress(addressId);
-                await fetchAddresses();
-              } finally {
-                setLoading(false);
-              }
-              
-              // Si la direcci?n eliminada era la actual, actualizar a la nueva principal
-              if (currentAddress && currentAddress.id === addressId) {
-                const mainAddress = await locationService.getMainAddress();
-                if (mainAddress && onAddressChange) {
-                  onAddressChange(mainAddress);
-                }
-              }
-            } catch (error) {
-              console.error('Error al eliminar la direcci?n:', error);
-              Alert.alert('Error', 'No se pudo eliminar la direcci?n');
+    if (Platform.OS === 'web') {
+      const confirm = window.confirm('¿Estás seguro de que quieres eliminar esta dirección?');
+      if (confirm) {
+        try {
+          try {
+            setLoading(true);
+            await locationService.deleteAddress(addressId);
+            await fetchAddresses();
+          } finally {
+            setLoading(false);
+          }
+
+          // Si la dirección eliminada era la actual, actualizar a la nueva principal
+          if (currentAddress && currentAddress.id === addressId) {
+            const mainAddress = await locationService.getMainAddress();
+            if (mainAddress && onAddressChange) {
+              onAddressChange(mainAddress);
             }
           }
+        } catch (error) {
+          console.error('Error al eliminar la dirección:', error);
+          alert('Error: No se pudo eliminar la dirección');
         }
-      ]
-    );
+      }
+    } else {
+      Alert.alert(
+        'Eliminar dirección',
+        '¿Estás seguro de que quieres eliminar esta dirección?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                try {
+                  setLoading(true);
+                  await locationService.deleteAddress(addressId);
+                  await fetchAddresses();
+                } finally {
+                  setLoading(false);
+                }
+
+                // Si la dirección eliminada era la actual, actualizar a la nueva principal
+                if (currentAddress && currentAddress.id === addressId) {
+                  const mainAddress = await locationService.getMainAddress();
+                  if (mainAddress && onAddressChange) {
+                    onAddressChange(mainAddress);
+                  }
+                }
+              } catch (error) {
+                console.error('Error al eliminar la dirección:', error);
+                Alert.alert('Error', 'No se pudo eliminar la dirección');
+              }
+            }
+          }
+        ]
+      );
+    }
   };
 
   const getIconName = (etiqueta) => {
@@ -216,7 +243,7 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
           <View style={styles.textContainer}>
             <Text style={[styles.locationLabel, dynamicStyles.locationLabel]}>Ubicación</Text>
             <Text style={[styles.addressText, dynamicStyles.addressText]} numberOfLines={1} ellipsizeMode="tail">
-              {currentAddress 
+              {currentAddress
                 ? currentAddress.direccion
                 : 'Seleccionar ubicación'}
             </Text>
@@ -256,7 +283,7 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
               <Ionicons name="add" size={24} color={COLORS.primary} />
             </TouchableOpacity>
           </View>
-          
+
           {/* Contenido del Modal */}
           <View style={styles.modalContent}>
             {loading ? (
@@ -290,10 +317,10 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
                       activeOpacity={0.7}
                     >
                       <View style={styles.addressIconContainer}>
-                        <Ionicons 
-                          name={item.es_principal ? "star" : "location"} 
-                          size={20} 
-                          color={item.es_principal ? COLORS.primary : COLORS.textLight} 
+                        <Ionicons
+                          name={item.es_principal ? "star" : "location"}
+                          size={20}
+                          color={item.es_principal ? COLORS.primary : COLORS.textLight}
                         />
                       </View>
                       <View style={styles.addressTextContainer}>
