@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Platform, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  ScrollView,
   Alert,
   Image,
   Dimensions,
@@ -109,7 +109,7 @@ const RegisterScreen = () => {
     } else {
       const emailTrimmed = email.trim().toLowerCase();
       const emailRegex = /^[a-zA-Z][a-zA-Z0-9._-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      
+
       // Validar que no empiece con número o carácter especial antes del @
       const localPart = emailTrimmed.split('@')[0];
       if (!localPart || localPart.length === 0) {
@@ -134,8 +134,8 @@ const RegisterScreen = () => {
     if (!password || password.length === 0) {
       newErrors.password = 'La contraseña es requerida';
       valid = false;
-    } else if (password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+    } else if (password.length < 8) {
+      newErrors.password = 'La contraseña debe tener al menos 8 caracteres';
       valid = false;
     } else if (password.length > 128) {
       newErrors.password = 'La contraseña no puede tener más de 128 caracteres';
@@ -164,7 +164,7 @@ const RegisterScreen = () => {
   const handleRegister = async () => {
     // Limpiar errores previos
     setErrors({});
-    
+
     if (!validate()) {
       // La validación ya estableció los errores
       return;
@@ -172,7 +172,7 @@ const RegisterScreen = () => {
 
     setLoading(true);
     setErrors({});
-    
+
     try {
       // Formatear datos según lo que espera el servicio auth.js
       // El servicio espera firstName y lastName (camelCase), no first_name y last_name
@@ -190,7 +190,7 @@ const RegisterScreen = () => {
       });
 
       const result = await register(userData);
-      
+
       if (result && result.success === true) {
         // Limpiar el formulario
         setFirstName('');
@@ -200,12 +200,12 @@ const RegisterScreen = () => {
         setConfirmPassword('');
         setAcceptTerms(false);
         setErrors({});
-        
+
         Alert.alert(
           'Registro Exitoso',
           'Tu cuenta ha sido creada correctamente. Por favor inicia sesión.',
-          [{ 
-            text: 'OK', 
+          [{
+            text: 'OK',
             onPress: () => {
               navigation.navigate(ROUTES.LOGIN);
             }
@@ -216,10 +216,10 @@ const RegisterScreen = () => {
         const errorMessage = result?.error || authError || 'Error al registrar usuario';
         const errorDetails = result?.errorDetails || {};
         const statusCode = result?.statusCode || 500;
-        
+
         // Construir objeto de errores para mostrar en los campos
         const newErrors = { ...errorDetails };
-        
+
         // Si hay errores específicos por campo, usarlos
         if (errorDetails.email) {
           newErrors.email = errorDetails.email;
@@ -236,11 +236,11 @@ const RegisterScreen = () => {
         if (errorDetails.lastName) {
           newErrors.lastName = errorDetails.lastName;
         }
-        
+
         // Si hay errores de campo, mostrarlos en el formulario
         if (Object.keys(newErrors).length > 0) {
           setErrors(newErrors);
-          
+
           // Mostrar alerta solo si no hay errores específicos por campo o si es un error crítico
           if (statusCode === 500 || statusCode === 503 || statusCode === 0) {
             Alert.alert(
@@ -267,15 +267,15 @@ const RegisterScreen = () => {
       }
     } catch (error) {
       console.error('Error inesperado en registro:', error);
-      
+
       // Manejar diferentes tipos de errores inesperados
       let errorMessage = 'Ocurrió un error inesperado al registrar. Por favor, intenta nuevamente.';
       let errorTitle = 'Error en el Registro';
-      
+
       if (error.message) {
         errorMessage = error.message;
       }
-      
+
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network')) {
         errorTitle = 'Sin Conexión';
         errorMessage = 'No se pudo conectar al servidor. Verifica tu conexión a internet e intenta nuevamente.';
@@ -283,18 +283,18 @@ const RegisterScreen = () => {
         errorTitle = 'Error del Servidor';
         errorMessage = 'El servidor está experimentando problemas. Por favor, intenta nuevamente más tarde.';
       }
-      
+
       Alert.alert(
         errorTitle,
         errorMessage,
         [{ text: 'Entendido' }]
       );
-      
+
       // También intentar establecer errores en campos si es posible
       if (error.response?.data) {
         const apiError = error.response.data;
         const newErrors = {};
-        
+
         if (apiError.email) {
           newErrors.email = Array.isArray(apiError.email) ? apiError.email[0] : apiError.email;
         }
@@ -307,7 +307,7 @@ const RegisterScreen = () => {
         if (apiError.last_name) {
           newErrors.lastName = Array.isArray(apiError.last_name) ? apiError.last_name[0] : apiError.last_name;
         }
-        
+
         if (Object.keys(newErrors).length > 0) {
           setErrors(newErrors);
         }
@@ -337,7 +337,7 @@ const RegisterScreen = () => {
       />
 
       <SafeAreaView style={styles.safeAreaView} edges={['top']}>
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -349,8 +349,8 @@ const RegisterScreen = () => {
         >
           {/* Header con Logo */}
           <View style={styles.headerContainer}>
-            <Image 
-              source={LOGO} 
+            <Image
+              source={LOGO}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -364,7 +364,7 @@ const RegisterScreen = () => {
 
           {/* Tabs Login/Register */}
           <View style={styles.tabContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.tab}
               onPress={() => navigation.navigate(ROUTES.LOGIN)}
             >
@@ -488,7 +488,7 @@ const RegisterScreen = () => {
             </View>
 
             {/* Términos y condiciones */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.termsContainer}
               onPress={() => setAcceptTerms(!acceptTerms)}
             >
