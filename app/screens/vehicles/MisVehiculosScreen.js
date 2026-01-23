@@ -74,9 +74,10 @@ const MisVehiculosScreen = () => {
   const { data: carBrands } = useCarBrands();
   const marcas = carBrands || [];
 
-  // const [modelos, setModelos] = useState([]); // Replaced by hook below
+  const [marcaSeleccionada, setMarcaSeleccionada] = useState(null);
   const { data: modelosData } = useCarModels(marcaSeleccionada?.id);
   const modelos = modelosData || [];
+
   const [formData, setFormData] = useState({
     marca: '',
     modelo: '',
@@ -89,7 +90,7 @@ const MisVehiculosScreen = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [marcaSeleccionada, setMarcaSeleccionada] = useState(null);
+
   const [showMarcasDropdown, setShowMarcasDropdown] = useState(false);
   const [showModelosDropdown, setShowModelosDropdown] = useState(false);
   const [showTiposMotorDropdown, setShowTiposMotorDropdown] = useState(false);
