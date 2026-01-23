@@ -9,7 +9,8 @@ import {
   Alert,
   StatusBar,
   RefreshControl,
-  Image
+  Image,
+  Platform
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
