@@ -1355,10 +1355,10 @@ const DetalleSolicitudScreen = () => {
           styles.scrollContent,
           {
             // Calcular paddingBottom: altura del actionsContainer + insets.bottom + padding adicional
-            // En web siempre dar un padding base para evitar cortes visuales
+            // En web siempre dar un padding generoso (120px base) para evitar cortes visuales en secciones inferiores
             paddingBottom: (tabActivo === 'principal' && tieneBotonesAccion
-              ? (Platform.OS === 'web' ? 160 : 90)
-              : (Platform.OS === 'web' ? 100 : 0)) + Math.max(insets.bottom, spacing.md || 16) + (spacing.md || 16),
+              ? (Platform.OS === 'web' ? 180 : 90)
+              : (Platform.OS === 'web' ? 120 : 0)) + Math.max(insets.bottom, spacing.md || 16) + (spacing.md || 16),
             // Respetar safe areas laterales usando el máximo entre insets y spacing
             paddingLeft: Math.max(insets.left, spacing.md || 16),
             paddingRight: Math.max(insets.right, spacing.md || 16),
@@ -2619,9 +2619,10 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     textAlign: 'center',
   },
   ofertasSection: {
-    paddingBottom: spacing.lg || 24,
+    paddingBottom: Platform.OS === 'web' ? (spacing.xl || 32) : (spacing.lg || 24),
     paddingHorizontal: 0, // Se maneja con paddingLeft/paddingRight del ScrollView
     marginTop: spacing.md || 16,
+    marginBottom: Platform.OS === 'web' ? (spacing.xl || 32) : 0, // Margen extra al final para web
   },
   ofertasHeader: {
     backgroundColor: colors.background?.paper || '#FFFFFF',
