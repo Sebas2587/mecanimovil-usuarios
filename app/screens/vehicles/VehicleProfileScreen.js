@@ -385,14 +385,14 @@ const VehicleProfileScreen = () => {
                         setIsDeleting(true);
                         await vehicleService.deleteVehicle(currentVehicle.id);
                         window.alert('Vehículo eliminado correctamente');
-                        navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
+                        navigation.navigate(ROUTES.MIS_VEHICULOS, { refresh: true });
                     } catch (error) {
                         setIsDeleting(false);
                         console.error('Error eliminando vehículo:', error);
 
                         if (error?.message?.includes('404') || error?.response?.status === 404) {
                             window.alert('Aviso: El vehículo ya no existe.');
-                            navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
+                            navigation.navigate(ROUTES.MIS_VEHICULOS, { refresh: true });
                             return;
                         }
 
@@ -420,7 +420,7 @@ const VehicleProfileScreen = () => {
                                 await vehicleService.deleteVehicle(currentVehicle.id);
                                 // Invalidación manejada por hook
                                 Alert.alert('Éxito', 'Vehículo eliminado correctamente');
-                                navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
+                                navigation.navigate(ROUTES.MIS_VEHICULOS, { refresh: true });
                             } catch (error) {
                                 setIsDeleting(false);
                                 console.error('Error eliminando vehículo:', error);
@@ -428,7 +428,7 @@ const VehicleProfileScreen = () => {
                                 // Manejo de 404 (ya borrado)
                                 if (error?.message?.includes('404') || error?.response?.status === 404) {
                                     Alert.alert('Aviso', 'El vehículo ya no existe.');
-                                    navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
+                                    navigation.navigate(ROUTES.MIS_VEHICULOS, { refresh: true });
                                     return;
                                 }
 
