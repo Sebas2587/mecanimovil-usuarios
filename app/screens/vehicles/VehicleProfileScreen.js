@@ -373,44 +373,77 @@ const VehicleProfileScreen = () => {
     };
 
     const handleDeleteVehicle = () => {
-        Alert.alert(
-            '⚠️ Eliminar Vehículo',
-            `¿Estás seguro que deseas eliminar permanentemente ${currentVehicle.marca_nombre} ${currentVehicle.modelo_nombre}?\n\n❗ ESTA ACCIÓN NO SE PUEDE DESHACER.\n\nSe borrará todo el historial de servicios y datos asociados.`,
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Sí, Eliminar',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            setIsDeleting(true);
-                            await deleteVehicleAsync(currentVehicle.id);
-                            // Invalidación manejada por hook
-                            Alert.alert('Éxito', 'Vehículo eliminado correctamente');
+        if (Platform.OS === 'web') {
+            const confirm = window.confirm(
+                `⚠️ Eliminar Vehículo\n\n¿Estás seguro que deseas eliminar permanentemente ${currentVehicle.marca_nombre} ${currentVehicle.modelo_nombre}?\n\n❗ ESTA ACCIÓN NO SE PUEDE DESHACER.\n\nSe borrará todo el historial de servicios y datos asociados. No habrá respaldo.`
+            );
+
+            if (confirm) {
+                (async () => {
+                    try {
+                        setIsDeleting(true);
+                        await deleteVehicleAsync(currentVehicle.id);
+                        window.alert('Vehículo eliminado correctamente');
+                        navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
+                    } catch (error) {
+                        setIsDeleting(false);
+                        console.error('Error eliminando vehículo:', error);
+
+                        if (error?.message?.includes('404') || error?.response?.status === 404) {
+                            window.alert('Aviso: El vehículo ya no existe.');
                             navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
-                        } catch (error) {
-                            setIsDeleting(false);
-                            console.error('Error eliminando vehículo:', error);
+                            return;
+                        }
 
-                            // Manejo de 404 (ya borrado)
-                            if (error?.message?.includes('404') || error?.response?.status === 404) {
-                                Alert.alert('Aviso', 'El vehículo ya no existe.');
+                        if (error?.response?.status === 400 && error?.response?.data?.error) {
+                            window.alert(`🚫 Acción Bloqueada: ${error.response.data.error}`);
+                            return;
+                        }
+
+                        window.alert('Error: No se pudo eliminar el vehículo.');
+                    }
+                })();
+            }
+        } else {
+            Alert.alert(
+                '⚠️ Eliminar Vehículo',
+                `¿Estás seguro que deseas eliminar permanentemente ${currentVehicle.marca_nombre} ${currentVehicle.modelo_nombre}?\n\n❗ ESTA ACCIÓN NO SE PUEDE DESHACER.\n\nSe borrará todo el historial de servicios y datos asociados.`,
+                [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                        text: 'Sí, Eliminar',
+                        style: 'destructive',
+                        onPress: async () => {
+                            try {
+                                setIsDeleting(true);
+                                await deleteVehicleAsync(currentVehicle.id);
+                                // Invalidación manejada por hook
+                                Alert.alert('Éxito', 'Vehículo eliminado correctamente');
                                 navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
-                                return;
-                            }
+                            } catch (error) {
+                                setIsDeleting(false);
+                                console.error('Error eliminando vehículo:', error);
 
-                            // MANEJO DE BLOQUEO DE SEGURIDAD (400)
-                            if (error?.response?.status === 400 && error?.response?.data?.error) {
-                                Alert.alert('🚫 Acción Bloqueada', error.response.data.error);
-                                return;
-                            }
+                                // Manejo de 404 (ya borrado)
+                                if (error?.message?.includes('404') || error?.response?.status === 404) {
+                                    Alert.alert('Aviso', 'El vehículo ya no existe.');
+                                    navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
+                                    return;
+                                }
 
-                            Alert.alert('Error', 'No se pudo eliminar el vehículo.');
+                                // MANEJO DE BLOQUEO DE SEGURIDAD (400)
+                                if (error?.response?.status === 400 && error?.response?.data?.error) {
+                                    Alert.alert('🚫 Acción Bloqueada', error.response.data.error);
+                                    return;
+                                }
+
+                                Alert.alert('Error', 'No se pudo eliminar el vehículo.');
+                            }
                         }
                     }
-                }
-            ]
-        );
+                ]
+            );
+        }
     };
 
     // Configurar Header con botones de acción
