@@ -98,6 +98,7 @@ const VehicleProfileScreen = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [loadingMarcas, setLoadingMarcas] = useState(false);
     const [loadingModelos, setLoadingModelos] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Image Picker Options
     const imagePickerOptions = {
@@ -382,7 +383,7 @@ const VehicleProfileScreen = () => {
                 (async () => {
                     try {
                         setIsDeleting(true);
-                        await deleteVehicleAsync(currentVehicle.id);
+                        await vehicleService.deleteVehicle(currentVehicle.id);
                         window.alert('Vehículo eliminado correctamente');
                         navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
                     } catch (error) {
@@ -416,7 +417,7 @@ const VehicleProfileScreen = () => {
                         onPress: async () => {
                             try {
                                 setIsDeleting(true);
-                                await deleteVehicleAsync(currentVehicle.id);
+                                await vehicleService.deleteVehicle(currentVehicle.id);
                                 // Invalidación manejada por hook
                                 Alert.alert('Éxito', 'Vehículo eliminado correctamente');
                                 navigation.navigate(ROUTES.MY_VEHICLES, { refresh: true });
