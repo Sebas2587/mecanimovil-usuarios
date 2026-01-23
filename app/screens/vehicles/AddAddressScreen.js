@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
   ScrollView,
   StatusBar,
-  Modal
+  Modal,
+  Platform
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -24,7 +25,7 @@ const AddAddressScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  
+
   const onAddressAddedCallback = route.params?.onAddressAdded;
   const onGoBackCallback = route.params?.onGoBack;
 
@@ -50,7 +51,7 @@ const AddAddressScreen = () => {
 
   // Opciones para etiquetas de dirección
   const etiquetaOptions = ['Casa', 'Trabajo', 'Otro'];
-  
+
   // Flag para evitar múltiples navegaciones (usando useRef para no causar re-renders)
   const isNavigatingRef = useRef(false);
 
@@ -61,9 +62,9 @@ const AddAddressScreen = () => {
       console.log('⚠️ Navegación ya en curso, ignorando...');
       return;
     }
-    
+
     isNavigatingRef.current = true;
-    
+
     try {
       if (onGoBackCallback) {
         // Si hay callback personalizado, usarlo
@@ -130,7 +131,7 @@ const AddAddressScreen = () => {
   const handleAddressChange = (text) => {
     setDireccion(text);
     setError(null);
-    
+
     if (text.length >= 3) {
       setLoadingSuggestions(true);
       fetchSuggestions(text);
@@ -150,21 +151,21 @@ const AddAddressScreen = () => {
     if (street && streetNumber && !mainText.includes(streetNumber)) {
       const partes = [];
       partes.push(`${street} ${streetNumber}`);
-      
+
       if (details.district) partes.push(details.district);
       if (details.city && details.city !== details.district) partes.push(details.city);
-      
+
       direccionMostrada = partes.join(', ');
     }
-    
+
     if (direccionMostrada.endsWith(', Chile')) {
       direccionMostrada = direccionMostrada.replace(', Chile', '');
     }
-    
+
     setDireccion(direccionMostrada);
     setSuggestions([]);
     setShowSuggestions(false);
-    
+
     if (suggestion.coordinates) {
       setCoords({
         latitude: suggestion.coordinates.latitude,
@@ -192,7 +193,7 @@ const AddAddressScreen = () => {
       }
 
       let latitude, longitude;
-      
+
       if (coords && isPreciseLocation) {
         latitude = coords.latitude;
         longitude = coords.longitude;
@@ -219,24 +220,31 @@ const AddAddressScreen = () => {
       };
 
       const savedAddress = await locationService.saveAddress(addressData);
-      
+
       if (onAddressAddedCallback) {
         onAddressAddedCallback(savedAddress);
       }
-      
-      Alert.alert(
-        'Dirección guardada',
-        'Tu dirección ha sido guardada correctamente',
-        [{ 
-          text: 'OK', 
-          onPress: () => {
-            // Pequeño delay para asegurar que la dirección se guardó
-            setTimeout(() => {
-              handleGoBack();
-            }, 100);
-          }
-        }]
-      );
+
+      if (Platform.OS === 'web') {
+        alert('Tu dirección ha sido guardada correctamente');
+        setTimeout(() => {
+          handleGoBack();
+        }, 100);
+      } else {
+        Alert.alert(
+          'Dirección guardada',
+          'Tu dirección ha sido guardada correctamente',
+          [{
+            text: 'OK',
+            onPress: () => {
+              // Pequeño delay para asegurar que la dirección se guardó
+              setTimeout(() => {
+                handleGoBack();
+              }, 100);
+            }
+          }]
+        );
+      }
     } catch (error) {
       console.error('Error al guardar dirección:', error);
       setError('No se pudo guardar la dirección. Intenta de nuevo más tarde.');
@@ -261,7 +269,7 @@ const AddAddressScreen = () => {
 
       const location = await locationService.getCurrentLocation(true);
       const { latitude, longitude, accuracy } = location.coords;
-      
+
       setCoords({ latitude, longitude, accuracy });
 
       if (accuracy > 200) {
@@ -284,30 +292,30 @@ const AddAddressScreen = () => {
       setLoading(false);
     }
   };
-  
+
   const obtenerDireccionDesdeCoords = async (latitude, longitude) => {
     try {
       const addressInfo = await locationService.reverseGeocode(latitude, longitude);
-      
+
       if (addressInfo.country !== 'Chile' && addressInfo.isoCountryCode !== 'CL') {
         setDireccion('Av. Libertador Bernardo O\'Higgins 1100, Santiago');
       } else {
         const parts = [];
-        
+
         // PRIORIDAD: Construir la dirección con número si está disponible
         // Formato: "Calle Número" o al menos "Calle"
         let streetPart = '';
-        
+
         if (addressInfo.street) {
           // Si tenemos nombre de calle, agregarlo
           streetPart = addressInfo.street;
-          
+
           // Intentar obtener el número de diferentes campos
-          const streetNumber = addressInfo.streetNumber || 
-                              addressInfo.number || 
-                              addressInfo.houseNumber ||
-                              null;
-          
+          const streetNumber = addressInfo.streetNumber ||
+            addressInfo.number ||
+            addressInfo.houseNumber ||
+            null;
+
           // Si tenemos número, agregarlo
           if (streetNumber) {
             streetPart = `${streetPart} ${streetNumber}`;
@@ -321,7 +329,7 @@ const AddAddressScreen = () => {
                 streetPart = `${streetPart} ${nameMatch[0]}`;
               }
             }
-            
+
             // Si aún no hay número y tenemos coordenadas precisas, mostrar un placeholder
             // pero mejor intentar obtenerlo de Nominatim como fallback
             console.log('⚠️ No se detectó número de dirección en reverseGeocode, intentando fallback...');
@@ -330,7 +338,7 @@ const AddAddressScreen = () => {
           // Si no hay street pero sí name, usar name (puede incluir número)
           streetPart = addressInfo.name;
         }
-        
+
         // Agregar la parte de la calle al array de partes
         if (streetPart) {
           parts.push(streetPart);
@@ -350,7 +358,7 @@ const AddAddressScreen = () => {
             }
           }
         }
-        
+
         // Agregar comuna/distrito
         if (addressInfo.district) {
           parts.push(addressInfo.district);
@@ -360,18 +368,18 @@ const AddAddressScreen = () => {
           // Si no hay district/subregion, usar city como comuna
           parts.push(addressInfo.city);
         }
-        
+
         // Agregar región si está disponible y no está ya incluida
         if (addressInfo.region && !parts.some(part => part.toLowerCase().includes(addressInfo.region.toLowerCase()))) {
           parts.push(addressInfo.region);
         }
-        
+
         // Agregar "Chile" al final si no está presente
         const formattedAddress = parts.filter(Boolean).join(', ');
-        const finalAddress = formattedAddress.toLowerCase().includes('chile') 
-          ? formattedAddress 
+        const finalAddress = formattedAddress.toLowerCase().includes('chile')
+          ? formattedAddress
           : `${formattedAddress}, Chile`;
-        
+
         // Verificar si la dirección final tiene número
         const hasNumberInFinalAddress = /\b\d+\b/.test(finalAddress.split(',')[0]);
         if (!hasNumberInFinalAddress) {
@@ -379,7 +387,7 @@ const AddAddressScreen = () => {
           console.warn('   Dirección generada:', finalAddress);
           console.warn('   Se recomienda editar manualmente la dirección para agregar el número si es posible.');
         }
-        
+
         console.log('📍 Dirección formateada desde coordenadas:', finalAddress);
         console.log('   Detalles de addressInfo:', {
           street: addressInfo.street,
@@ -391,7 +399,7 @@ const AddAddressScreen = () => {
           city: addressInfo.city,
           hasNumber: hasNumberInFinalAddress
         });
-        
+
         setDireccion(finalAddress);
       }
     } catch (geocodeError) {
@@ -414,7 +422,7 @@ const AddAddressScreen = () => {
   const handleRefinedLocation = () => {
     const lat = parseFloat(tempLatitude);
     const lng = parseFloat(tempLongitude);
-    
+
     if (isNaN(lat) || isNaN(lng)) {
       Alert.alert('Error', 'Por favor introduce coordenadas válidas');
       return;
@@ -447,10 +455,10 @@ const AddAddressScreen = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.primary} />
-      
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
           onPress={handleGoBack}
         >
@@ -459,8 +467,8 @@ const AddAddressScreen = () => {
         <Text style={styles.headerTitle}>Agregar dirección</Text>
         <View style={styles.headerSpacer} />
       </View>
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.content}
         contentContainerStyle={[
           styles.contentContainer,
@@ -469,163 +477,163 @@ const AddAddressScreen = () => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-          {/* Mensaje de error */}
-          {error && (
-            <View style={styles.errorCard}>
-              <Ionicons name="alert-circle" size={20} color="#FF4444" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          {/* Advertencia de ubicación imprecisa */}
-          {!isPreciseLocation && (
-            <View style={styles.warningCard}>
-              <Ionicons name="warning-outline" size={20} color="#FF9500" />
-              <View style={styles.warningContent}>
-                <Text style={styles.warningText}>
-                  La ubicación obtenida podría ser imprecisa. Para mayor exactitud, ajusta las coordenadas manualmente.
-                </Text>
-                <TouchableOpacity 
-                  style={styles.refineButton}
-                  onPress={() => openLocationModal(coords?.latitude || -33.46779, coords?.longitude || -70.67367)}
-                >
-                  <Text style={styles.refineButtonText}>Refinar ubicación</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* Sección de ubicación actual */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ubicación</Text>
-            <TouchableOpacity 
-              style={[styles.locationButton, loading && styles.locationButtonDisabled]}
-              onPress={handleUseCurrentLocation}
-              disabled={loading}
-            >
-              <View style={styles.locationButtonContent}>
-                <Ionicons name="location" size={20} color={COLORS.primary} />
-                <Text style={styles.locationButtonText}>Usar mi ubicación actual</Text>
-              </View>
-              {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
-            </TouchableOpacity>
+        {/* Mensaje de error */}
+        {error && (
+          <View style={styles.errorCard}>
+            <Ionicons name="alert-circle" size={20} color="#FF4444" />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
+        )}
 
-          {/* Campo de dirección */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Dirección *</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Ingresa tu dirección completa"
-                placeholderTextColor="#999999"
-                value={direccion}
-                onChangeText={handleAddressChange}
-                multiline={true}
-                numberOfLines={2}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              />
-              {loadingSuggestions && (
-                <ActivityIndicator size="small" color={COLORS.primary} style={styles.inputLoader} />
-              )}
+        {/* Advertencia de ubicación imprecisa */}
+        {!isPreciseLocation && (
+          <View style={styles.warningCard}>
+            <Ionicons name="warning-outline" size={20} color="#FF9500" />
+            <View style={styles.warningContent}>
+              <Text style={styles.warningText}>
+                La ubicación obtenida podría ser imprecisa. Para mayor exactitud, ajusta las coordenadas manualmente.
+              </Text>
+              <TouchableOpacity
+                style={styles.refineButton}
+                onPress={() => openLocationModal(coords?.latitude || -33.46779, coords?.longitude || -70.67367)}
+              >
+                <Text style={styles.refineButtonText}>Refinar ubicación</Text>
+              </TouchableOpacity>
             </View>
-            
-            {/* Sugerencias */}
-            {showSuggestions && suggestions.length > 0 && (
-              <View style={styles.suggestionsContainer}>
-                {suggestions.slice(0, 5).map(renderSuggestion)}
-              </View>
+          </View>
+        )}
+
+        {/* Sección de ubicación actual */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Ubicación</Text>
+          <TouchableOpacity
+            style={[styles.locationButton, loading && styles.locationButtonDisabled]}
+            onPress={handleUseCurrentLocation}
+            disabled={loading}
+          >
+            <View style={styles.locationButtonContent}>
+              <Ionicons name="location" size={20} color={COLORS.primary} />
+              <Text style={styles.locationButtonText}>Usar mi ubicación actual</Text>
+            </View>
+            {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
+          </TouchableOpacity>
+        </View>
+
+        {/* Campo de dirección */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Dirección *</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Ingresa tu dirección completa"
+              placeholderTextColor="#999999"
+              value={direccion}
+              onChangeText={handleAddressChange}
+              multiline={true}
+              numberOfLines={2}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            />
+            {loadingSuggestions && (
+              <ActivityIndicator size="small" color={COLORS.primary} style={styles.inputLoader} />
             )}
           </View>
 
-          {/* Selector de etiqueta */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Etiqueta</Text>
-            <View style={styles.tagContainer}>
-              {etiquetaOptions.map((option) => (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.tagButton,
-                    etiqueta === option && styles.tagButtonActive
-                  ]}
-                  onPress={() => setEtiqueta(option)}
-                >
-                  <Ionicons 
-                    name={
-                      option === 'Casa' ? 'home' : 
-                      option === 'Trabajo' ? 'briefcase' : 
-                      'location'
-                    }
-                    size={16} 
-                    color={etiqueta === option ? '#FFFFFF' : COLORS.primary}
-                  />
-                  <Text style={[
-                    styles.tagButtonText,
-                    etiqueta === option && styles.tagButtonTextActive
-                  ]}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          {/* Sugerencias */}
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsContainer}>
+              {suggestions.slice(0, 5).map(renderSuggestion)}
             </View>
-          </View>
+          )}
+        </View>
 
-          {/* Campo de detalles */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Detalles adicionales</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.input}
-                placeholder="Ej: Depto 4B, portón azul, casa esquina..."
-                placeholderTextColor="#999999"
-                value={detalles}
-                onChangeText={setDetalles}
-                multiline={true}
-                numberOfLines={2}
-              />
-            </View>
-          </View>
-
-          {/* Dirección principal */}
-          <View style={styles.section}>
-            <TouchableOpacity 
-              style={styles.checkboxContainer}
-              onPress={() => setEsPrincipal(!esPrincipal)}
-            >
-              <Ionicons 
-                name={esPrincipal ? "checkbox" : "checkbox-outline"} 
-                size={24} 
-                color={COLORS.primary} 
-              />
-              <View style={styles.checkboxContent}>
-                <Text style={styles.checkboxLabel}>Establecer como dirección principal</Text>
-                <Text style={styles.checkboxDescription}>
-                  Esta será tu dirección predeterminada para los servicios
+        {/* Selector de etiqueta */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Etiqueta</Text>
+          <View style={styles.tagContainer}>
+            {etiquetaOptions.map((option) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.tagButton,
+                  etiqueta === option && styles.tagButtonActive
+                ]}
+                onPress={() => setEtiqueta(option)}
+              >
+                <Ionicons
+                  name={
+                    option === 'Casa' ? 'home' :
+                      option === 'Trabajo' ? 'briefcase' :
+                        'location'
+                  }
+                  size={16}
+                  color={etiqueta === option ? '#FFFFFF' : COLORS.primary}
+                />
+                <Text style={[
+                  styles.tagButtonText,
+                  etiqueta === option && styles.tagButtonTextActive
+                ]}>
+                  {option}
                 </Text>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
           </View>
+        </View>
 
-          {/* Botón guardar */}
-          <View style={styles.section}>
-            <TouchableOpacity 
-              style={[styles.saveButton, (loading || !direccion.trim()) && styles.saveButtonDisabled]}
-              onPress={handleSaveAddress}
-              disabled={loading || !direccion.trim()}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="save" size={20} color="#FFFFFF" />
-                  <Text style={styles.saveButtonText}>Guardar dirección</Text>
-                </>
-              )}
-            </TouchableOpacity>
+        {/* Campo de detalles */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Detalles adicionales</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Ej: Depto 4B, portón azul, casa esquina..."
+              placeholderTextColor="#999999"
+              value={detalles}
+              onChangeText={setDetalles}
+              multiline={true}
+              numberOfLines={2}
+            />
           </View>
-        </ScrollView>
+        </View>
+
+        {/* Dirección principal */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.checkboxContainer}
+            onPress={() => setEsPrincipal(!esPrincipal)}
+          >
+            <Ionicons
+              name={esPrincipal ? "checkbox" : "checkbox-outline"}
+              size={24}
+              color={COLORS.primary}
+            />
+            <View style={styles.checkboxContent}>
+              <Text style={styles.checkboxLabel}>Establecer como dirección principal</Text>
+              <Text style={styles.checkboxDescription}>
+                Esta será tu dirección predeterminada para los servicios
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Botón guardar */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[styles.saveButton, (loading || !direccion.trim()) && styles.saveButtonDisabled]}
+            onPress={handleSaveAddress}
+            disabled={loading || !direccion.trim()}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="save" size={20} color="#FFFFFF" />
+                <Text style={styles.saveButtonText}>Guardar dirección</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
 
       {/* Modal para refinar ubicación */}
       <Modal
@@ -636,64 +644,64 @@ const AddAddressScreen = () => {
       >
         <SafeAreaView style={styles.modalOverlay} edges={['top', 'bottom']}>
           <View style={styles.modalContainer}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Refinar ubicación</Text>
-                <TouchableOpacity 
-                  style={styles.modalCloseButton}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Refinar ubicación</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowLocationModal(false)}
+              >
+                <Ionicons name="close" size={24} color="#666666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalContent}>
+              <Text style={styles.modalDescription}>
+                Ajusta manualmente las coordenadas de tu ubicación:
+              </Text>
+
+              <View style={styles.coordInputContainer}>
+                <Text style={styles.coordLabel}>Latitud:</Text>
+                <TextInput
+                  style={styles.coordInput}
+                  placeholder="-33.46779"
+                  value={tempLatitude}
+                  onChangeText={setTempLatitude}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.coordInputContainer}>
+                <Text style={styles.coordLabel}>Longitud:</Text>
+                <TextInput
+                  style={styles.coordInput}
+                  placeholder="-70.67367"
+                  value={tempLongitude}
+                  onChangeText={setTempLongitude}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <Text style={styles.coordHelpText}>
+                Puedes obtener coordenadas exactas desde Google Maps haciendo clic derecho en el mapa y seleccionando "¿Qué hay aquí?"
+              </Text>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
                   onPress={() => setShowLocationModal(false)}
                 >
-                  <Ionicons name="close" size={24} color="#666666" />
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.confirmButton]}
+                  onPress={handleRefinedLocation}
+                >
+                  <Text style={styles.confirmButtonText}>Usar ubicación</Text>
                 </TouchableOpacity>
               </View>
-              
-              <View style={styles.modalContent}>
-                <Text style={styles.modalDescription}>
-                  Ajusta manualmente las coordenadas de tu ubicación:
-                </Text>
-                
-                <View style={styles.coordInputContainer}>
-                  <Text style={styles.coordLabel}>Latitud:</Text>
-                  <TextInput
-                    style={styles.coordInput}
-                    placeholder="-33.46779"
-                    value={tempLatitude}
-                    onChangeText={setTempLatitude}
-                    keyboardType="numeric"
-                  />
-                </View>
-                
-                <View style={styles.coordInputContainer}>
-                  <Text style={styles.coordLabel}>Longitud:</Text>
-                  <TextInput
-                    style={styles.coordInput}
-                    placeholder="-70.67367"
-                    value={tempLongitude}
-                    onChangeText={setTempLongitude}
-                    keyboardType="numeric"
-                  />
-                </View>
-                
-                <Text style={styles.coordHelpText}>
-                  Puedes obtener coordenadas exactas desde Google Maps haciendo clic derecho en el mapa y seleccionando "¿Qué hay aquí?"
-                </Text>
-                
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.cancelButton]}
-                    onPress={() => setShowLocationModal(false)}
-                  >
-                    <Text style={styles.cancelButtonText}>Cancelar</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.confirmButton]}
-                    onPress={handleRefinedLocation}
-                  >
-                    <Text style={styles.confirmButtonText}>Usar ubicación</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
             </View>
+          </View>
         </SafeAreaView>
       </Modal>
     </SafeAreaView>
