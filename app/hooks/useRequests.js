@@ -25,7 +25,37 @@ export const useCreateRequest = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: solicitudesService.crearSolicitud,
-        onSuccess: () => {
+        onMutate: async (newRequest) => {
+            // Cancelar refetches salientes (para que no sobrescriban nuestra actualización optimista)
+            await queryClient.cancelQueries({ queryKey: ['activeRequests'] });
+
+            // Snapshot del valor anterior
+            const previousRequests = queryClient.getQueryData(['activeRequests']);
+
+            // Crear un objeto temporal para la UI
+            const optimisticRequest = {
+                id: 'temp-' + Date.now(),
+                ...newRequest,
+                estado: 'pendiente', // Estado inicial
+                fecha_creacion: new Date().toISOString(),
+                isOptimistic: true
+            };
+
+            // Actualizar optimísticamente la cache
+            queryClient.setQueryData(['activeRequests'], (old) => {
+                const current = Array.isArray(old) ? old : [];
+                return [optimisticRequest, ...current];
+            });
+
+            // Retornar contexto para rollback en caso de error
+            return { previousRequests };
+        },
+        onError: (err, newRequest, context) => {
+            // Rollback a los datos anteriores si falla
+            queryClient.setQueryData(['activeRequests'], context.previousRequests);
+        },
+        onSettled: () => {
+            // Invalidar queries para obtener datos reales del servidor
             queryClient.invalidateQueries({ queryKey: ['requests'] });
             queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
         }
