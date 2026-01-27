@@ -3,13 +3,14 @@ import * as vehicleService from '../services/vehicle';
 import VehicleHealthService from '../services/vehicleHealthService';
 import logger from '../utils/logger';
 
-export const useVehicles = () => {
+export const useVehicles = (userId) => {
     return useQuery({
-        queryKey: ['vehicles'],
+        queryKey: ['vehicles', userId],
         queryFn: vehicleService.getUserVehicles,
         staleTime: 1000 * 60 * 5, // 5 min
         gcTime: 1000 * 60 * 60 * 24, // 24h
         select: (data) => data || [],
+        enabled: !!userId, // Solo ejecutar si hay userId
     });
 };
 

@@ -13,9 +13,10 @@ export const useRequests = () => {
 
 export const useActiveRequests = () => {
     return useQuery({
-        queryKey: ['requests', 'active'],
+        queryKey: ['activeRequests'],
         queryFn: () => solicitudesService.obtenerSolicitudesActivas(),
         staleTime: 1000 * 60 * 2, // 2 min
+        refetchOnWindowFocus: true, // Actualizar al volver a la app
         select: (data) => Array.isArray(data) ? data : [],
     });
 };
@@ -26,7 +27,7 @@ export const useCreateRequest = () => {
         mutationFn: solicitudesService.crearSolicitud,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['requests', 'active'] });
+            queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
         }
     });
 };
@@ -37,7 +38,7 @@ export const usePublishRequest = () => {
         mutationFn: solicitudesService.publicarSolicitud,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['requests', 'active'] });
+            queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
         }
     });
 };
@@ -48,7 +49,7 @@ export const useCancelRequest = () => {
         mutationFn: solicitudesService.cancelarSolicitud,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['requests', 'active'] });
+            queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
         }
     });
 };
@@ -59,7 +60,7 @@ export const useSelectOffer = () => {
         mutationFn: ({ solicitudId, ofertaId }) => solicitudesService.seleccionarOferta(solicitudId, ofertaId),
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['requests', 'active'] });
+            queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
             queryClient.invalidateQueries({ queryKey: ['request', variables.solicitudId] });
         }
     });

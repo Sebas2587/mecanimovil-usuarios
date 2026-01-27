@@ -21,10 +21,9 @@ import { COLORS } from './app/utils/constants';
 import { ROUTES } from './app/utils/constants';
 import SplashScreen from './app/components/utils/SplashScreen';
 import logger from './app/utils/logger';
-import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { queryClient, asyncStoragePersister } from './app/config/queryClient';
 
 // CRÍTICO: Deshabilitar LogBox COMPLETAMENTE después de importar React Native
 // Esto debe ejecutarse INMEDIATAMENTE después de importar para que funcione correctamente
@@ -111,21 +110,7 @@ if (typeof global !== 'undefined' && global.ErrorUtils) {
 // - Los errores NUNCA aparecerán visualmente en la interfaz (ni RedBox, ni LogBox, ni YellowBox)
 // - El usuario solo verá Alert.alert con mensajes amigables cuando sea necesario
 
-// Configuración de TanStack Query
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutos
-      gcTime: 1000 * 60 * 60 * 24, // 24 horas (antes cacheTime)
-      retry: 2,
-    },
-  },
-});
-
-const persister = createAsyncStoragePersister({
-  storage: AsyncStorage,
-  key: 'REACT_QUERY_OFFLINE_CACHE',
-});
+// Configuración de TanStack Query importada de app/config/queryClient.js
 
 // Configuración de Deep Linking para Mercado Pago y otras integraciones
 const linking = {
@@ -1079,8 +1064,8 @@ export default function App() {
         <ThemeProvider>
           <PersistQueryClientProvider
             client={queryClient}
-            persistOptions={{ persister }}
-            onSuccess={() => logger.debug('✅ Query Cache restaurado desde AsyncStorage')}
+            persistOptions={{ persister: asyncStoragePersister }}
+            onSuccess={() => logger.debug('✅ Query Cache restaurado desde MMKV/AsyncStorage')}
           >
             <AuthProvider>
               <ChatsProvider>

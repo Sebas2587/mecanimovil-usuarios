@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
 // Using linear gradient or just solid colors based on design? User said dynamic background for icon.
@@ -107,12 +108,14 @@ const RequestCard = ({ request, onPress }) => {
                             source={{ uri: serviceDetail.foto }}
                             style={styles.serviceImage}
                             contentFit="cover"
+                            cachePolicy="memory-disk"
                         />
                     ) : categoryImage ? (
                         <Image
                             source={categoryImage}
                             style={styles.serviceImage}
                             contentFit="cover"
+                            cachePolicy="memory-disk"
                         // contentFit="contain" // Maybe better for icons? No, cover fills the box.
                         />
                     ) : (
@@ -157,6 +160,7 @@ const RequestCard = ({ request, onPress }) => {
                                         <Image
                                             source={{ uri: offer.proveedor_foto }}
                                             style={styles.miniAvatar}
+                                            cachePolicy="memory-disk"
                                         />
                                     ) : (
                                         <View style={[styles.miniAvatar, { backgroundColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' }]}>
