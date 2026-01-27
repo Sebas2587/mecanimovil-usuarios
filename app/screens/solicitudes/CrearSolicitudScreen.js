@@ -32,13 +32,13 @@ const CrearSolicitudScreen = () => {
   const insets = useSafeAreaInsets();
   const { crearSolicitud } = useSolicitudes();
   const theme = useTheme();
-  
+
   // Extraer valores del tema de forma segura
   const colors = theme?.colors || {};
   const typography = theme?.typography || {};
   const spacing = theme?.spacing || {};
   const borders = theme?.borders || {};
-  
+
   // Asegurar que typography tenga todas las propiedades necesarias
   const safeTypography = typography?.fontSize && typography?.fontWeight
     ? typography
@@ -46,10 +46,10 @@ const CrearSolicitudScreen = () => {
       fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
       fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
     };
-  
+
   // Validar que borders esté completamente inicializado
-  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined') 
-    ? borders 
+  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined')
+    ? borders
     : {
       radius: {
         none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
@@ -63,23 +63,23 @@ const CrearSolicitudScreen = () => {
       },
       width: { none: 0, thin: 1, medium: 2, thick: 4 }
     };
-  
+
   // Crear estilos dinámicos con los tokens del tema
   const styles = createStyles(colors, safeTypography, spacing, safeBorders);
-  
+
   // Extraer parámetros de la ruta (servicio y proveedor preseleccionados)
-  const { 
-    servicioPreseleccionado, 
+  const {
+    servicioPreseleccionado,
     serviciosPreSeleccionados, // Array de IDs de servicios (desde alertas)
     proveedorPreseleccionado,
     tipoProveedorPreseleccionado,
     fromProviderDetail,
-    categoriaId, 
+    categoriaId,
     categoriaNombre,
     vehicle, // Vehículo preseleccionado (desde alertas)
     descripcionPrellenada // Descripción pre-rellenada (desde alertas)
   } = route.params || {};
-  
+
   const [loading, setLoading] = useState(true);
   const [vehiculos, setVehiculos] = useState([]);
   const [direcciones, setDirecciones] = useState([]);
@@ -106,8 +106,8 @@ const CrearSolicitudScreen = () => {
               'No puedes crear una solicitud',
               puedeCrear.razon || puedeCrear.mensaje || 'Tienes solicitudes o servicios adicionales pendientes de pago. Completa los pagos antes de continuar.',
               [
-                { 
-                  text: 'Ver mis solicitudes', 
+                {
+                  text: 'Ver mis solicitudes',
                   onPress: () => {
                     navigation.goBack();
                     setTimeout(() => {
@@ -115,8 +115,8 @@ const CrearSolicitudScreen = () => {
                     }, 100);
                   }
                 },
-                { 
-                  text: 'Volver', 
+                {
+                  text: 'Volver',
                   onPress: () => navigation.goBack(),
                   style: 'cancel'
                 }
@@ -131,8 +131,8 @@ const CrearSolicitudScreen = () => {
               'No puedes crear una solicitud',
               puedeCrear.razon || 'Tienes solicitudes o servicios adicionales pendientes de pago. Completa los pagos antes de continuar.',
               [
-                { 
-                  text: 'Ver mis solicitudes', 
+                {
+                  text: 'Ver mis solicitudes',
                   onPress: () => {
                     navigation.goBack();
                     setTimeout(() => {
@@ -140,8 +140,8 @@ const CrearSolicitudScreen = () => {
                     }, 100);
                   }
                 },
-                { 
-                  text: 'Volver', 
+                {
+                  text: 'Volver',
                   onPress: () => navigation.goBack(),
                   style: 'cancel'
                 }
@@ -155,7 +155,7 @@ const CrearSolicitudScreen = () => {
             Alert.alert(
               'Advertencia',
               puedeCrear.mensaje,
-              [{ text: 'Continuar', onPress: () => {} }]
+              [{ text: 'Continuar', onPress: () => { } }]
             );
           }
 
@@ -165,7 +165,7 @@ const CrearSolicitudScreen = () => {
           const tieneServiciosArray = !!(params.serviciosPreSeleccionados && Array.isArray(params.serviciosPreSeleccionados) && params.serviciosPreSeleccionados.length > 0);
           const tieneProveedor = !!params.proveedorPreseleccionado;
           const tieneVehicle = !!params.vehicle;
-          
+
           // Si NO hay parámetros preseleccionados, limpiar initialData
           if (!tieneServicio && !tieneServiciosArray && !tieneProveedor && !tieneVehicle) {
             console.log('🔍 useFocusEffect: No hay parámetros preseleccionados - limpiando initialData');
@@ -176,7 +176,7 @@ const CrearSolicitudScreen = () => {
           Alert.alert(
             'Error',
             'No se pudo verificar si puedes crear una solicitud. Por favor, verifica manualmente que no tengas solicitudes pendientes de pago.',
-            [{ text: 'Continuar', onPress: () => {} }]
+            [{ text: 'Continuar', onPress: () => { } }]
           );
         }
       };
@@ -192,7 +192,7 @@ const CrearSolicitudScreen = () => {
     const tieneServiciosArray = !!(serviciosPreSeleccionados && Array.isArray(serviciosPreSeleccionados) && serviciosPreSeleccionados.length > 0);
     const tieneProveedor = !!proveedorPreseleccionado;
     const tieneVehicle = !!vehicle;
-    
+
     if (tieneServicioObjeto || tieneServiciosArray || tieneProveedor || tieneVehicle) {
       console.log('✅ CrearSolicitudScreen: Datos preseleccionados recibidos:', {
         tieneServicioObjeto,
@@ -202,12 +202,12 @@ const CrearSolicitudScreen = () => {
         tipoProveedor: tipoProveedorPreseleccionado,
         fromProviderDetail: fromProviderDetail
       });
-      
+
       const prepararInitialData = async () => {
         try {
           let proveedorFormato = null;
           let serviciosParaInitialData = [];
-          
+
           // Si hay servicio como objeto (desde categorías o proveedor)
           if (tieneServicioObjeto) {
             serviciosParaInitialData = [servicioPreseleccionado];
@@ -236,7 +236,7 @@ const CrearSolicitudScreen = () => {
                   return null;
                 }
               });
-              
+
               const serviciosCargados = await Promise.all(serviciosPromises);
               serviciosParaInitialData = serviciosCargados.filter(s => s !== null);
               console.log('✅ Servicios cargados desde IDs:', serviciosParaInitialData.length);
@@ -244,31 +244,31 @@ const CrearSolicitudScreen = () => {
               console.error('❌ Error cargando servicios desde IDs:', error);
             }
           }
-          
+
           // Si hay proveedor preseleccionado desde ProviderDetailScreen
           if (proveedorPreseleccionado && fromProviderDetail) {
             // Extraer usuario.id del proveedor (necesario para el backend)
-            const usuarioId = proveedorPreseleccionado.usuario?.id || 
-                             proveedorPreseleccionado.usuario || 
-                             proveedorPreseleccionado.usuario_id ||
-                             proveedorPreseleccionado.id;
-            
+            const usuarioId = proveedorPreseleccionado.usuario?.id ||
+              proveedorPreseleccionado.usuario ||
+              proveedorPreseleccionado.usuario_id ||
+              proveedorPreseleccionado.id;
+
             console.log('📋 Preparando proveedor preseleccionado:', {
               nombre: proveedorPreseleccionado.nombre,
               usuarioId: usuarioId,
               tipo: tipoProveedorPreseleccionado
             });
-            
+
             // Preparar proveedor en formato esperado por FormularioSolicitud
             proveedorFormato = {
               ...proveedorPreseleccionado,
               tipo: tipoProveedorPreseleccionado, // 'taller' o 'mecanico'
               usuario_id: usuarioId // Necesario para el backend
             };
-            
+
             console.log('✅ Proveedor formateado:', proveedorFormato);
           }
-          
+
           setInitialData({
             servicios_seleccionados: serviciosParaInitialData,
             // Si hay proveedor preseleccionado, configurar tipo_solicitud como 'dirigida'
@@ -286,7 +286,7 @@ const CrearSolicitudScreen = () => {
             hora_preferida: '',
             ubicacion_servicio: null
           });
-          
+
           console.log('✅ InitialData preparado:', {
             tieneServicio: serviciosParaInitialData.length > 0,
             tieneProveedor: proveedorFormato ? true : false,
@@ -300,7 +300,7 @@ const CrearSolicitudScreen = () => {
           setInitialData({});
         }
       };
-      
+
       prepararInitialData();
     } else {
       // CRÍTICO: Si NO hay parámetros preseleccionados, limpiar initialData
@@ -319,7 +319,7 @@ const CrearSolicitudScreen = () => {
         locationService.getUserAddresses(),
         userService.getClienteDetails().catch(() => null) // Si falla, intentar obtener desde vehículo
       ]);
-      
+
       // Manejar diferentes formatos de respuesta
       let vehiculosArray = [];
       if (Array.isArray(vehiculosData)) {
@@ -329,12 +329,12 @@ const CrearSolicitudScreen = () => {
       } else if (vehiculosData && Array.isArray(vehiculosData.data)) {
         vehiculosArray = vehiculosData.data;
       }
-      
+
       console.log('CrearSolicitudScreen: Vehículos cargados:', vehiculosArray.length);
-      
+
       setVehiculos(vehiculosArray);
       setDirecciones(Array.isArray(direccionesData) ? direccionesData : []);
-      
+
       // Obtener ID del cliente
       let clienteIdValue = null;
       if (clienteData && clienteData.id) {
@@ -345,7 +345,7 @@ const CrearSolicitudScreen = () => {
       }
       setClienteId(clienteIdValue);
       console.log('CrearSolicitudScreen: Cliente ID:', clienteIdValue);
-      
+
       if (vehiculosArray.length === 0) {
         Alert.alert(
           'Sin vehículos',
@@ -363,7 +363,7 @@ const CrearSolicitudScreen = () => {
           ]
         );
       }
-      
+
       if (!clienteIdValue) {
         console.warn('CrearSolicitudScreen: No se pudo obtener el ID del cliente');
       }
@@ -381,11 +381,11 @@ const CrearSolicitudScreen = () => {
 
   const handleSubmit = async (formData) => {
     if (creando) return;
-    
+
     setCreando(true);
     try {
       console.log('CrearSolicitudScreen: Enviando datos del formulario:', formData);
-      
+
       // Validar que tenemos el ID del cliente
       if (!clienteId) {
         Alert.alert(
@@ -395,13 +395,13 @@ const CrearSolicitudScreen = () => {
         setCreando(false);
         return;
       }
-      
+
       // Preparar ubicación de servicio en formato GeoJSON
       // GeoFeatureModelSerializer espera formato: {"type": "Point", "coordinates": [lng, lat]}
       let ubicacionServicio = null;
       let lng = null;
       let lat = null;
-      
+
       // Intentar obtener coordenadas desde ubicacion_servicio
       if (formData.ubicacion_servicio) {
         console.log('CrearSolicitudScreen: ubicacion_servicio encontrada:', formData.ubicacion_servicio);
@@ -415,7 +415,7 @@ const CrearSolicitudScreen = () => {
           lat = parseFloat(formData.ubicacion_servicio.latitude);
         }
       }
-      
+
       // Si no hay coordenadas en ubicacion_servicio, intentar desde direccion_usuario
       if ((!lng || !lat) && formData.direccion_usuario?.ubicacion) {
         console.log('CrearSolicitudScreen: Buscando coordenadas en direccion_usuario.ubicacion:', formData.direccion_usuario.ubicacion);
@@ -429,7 +429,7 @@ const CrearSolicitudScreen = () => {
           lat = parseFloat(formData.direccion_usuario.ubicacion.latitude);
         }
       }
-      
+
       // Validar coordenadas
       if (!lng || !lat || isNaN(lng) || isNaN(lat)) {
         console.error('CrearSolicitudScreen: Coordenadas inválidas:', {
@@ -445,7 +445,7 @@ const CrearSolicitudScreen = () => {
         setCreando(false);
         return;
       }
-      
+
       // Formatear en GeoJSON estándar para GeoFeatureModelSerializer
       // Nota: GeoJSON usa [longitude, latitude] en ese orden
       ubicacionServicio = {
@@ -453,11 +453,11 @@ const CrearSolicitudScreen = () => {
         coordinates: [lng, lat]
       };
       console.log('CrearSolicitudScreen: Ubicación en formato GeoJSON:', ubicacionServicio);
-      
+
       // Función auxiliar para formatear fecha a YYYY-MM-DD
       const formatearFechaYYYYMMDD = (fecha) => {
         if (!fecha) return null;
-        
+
         // Si ya está en formato YYYY-MM-DD, validar y retornar
         const regexYYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
         if (regexYYYYMMDD.test(fecha)) {
@@ -467,7 +467,7 @@ const CrearSolicitudScreen = () => {
             return fecha;
           }
         }
-        
+
         // Intentar convertir desde Date object o string
         try {
           const date = new Date(fecha);
@@ -488,7 +488,7 @@ const CrearSolicitudScreen = () => {
       // Preparar datos para el backend
       // Nota: fecha_expiracion se calcula automáticamente en el modelo, no es necesario enviarla
       const fechaFormateada = formatearFechaYYYYMMDD(formData.fecha_preferida);
-      
+
       if (!fechaFormateada) {
         Alert.alert(
           'Error',
@@ -498,12 +498,12 @@ const CrearSolicitudScreen = () => {
         setCreando(false);
         return;
       }
-      
+
       console.log('✅ CrearSolicitudScreen: Fecha formateada correctamente:', {
         original: formData.fecha_preferida,
         formateada: fechaFormateada
       });
-      
+
       const solicitudData = {
         cliente: clienteId, // ID del cliente
         vehiculo: formData.vehiculo.id,
@@ -540,7 +540,7 @@ const CrearSolicitudScreen = () => {
             return null;
           })
           .filter(id => id != null && typeof id === 'number'); // Solo IDs numéricos válidos
-        
+
         console.log('CrearSolicitudScreen: Servicios agregados a solicitudData:', {
           cantidad: solicitudData.servicios_solicitados.length,
           ids: solicitudData.servicios_solicitados,
@@ -565,19 +565,19 @@ const CrearSolicitudScreen = () => {
             return p.usuario_id || p.usuario?.id || (typeof p.usuario === 'number' ? p.usuario : null) || p.id;
           })
           .filter(id => id != null && typeof id === 'number'); // Solo IDs numéricos válidos
-        
+
         console.log('CrearSolicitudScreen: IDs de usuarios de proveedores:', solicitudData.proveedores_dirigidos);
       }
 
       console.log('CrearSolicitudScreen: Datos preparados:', solicitudData);
-      
+
       // VERIFICACIÓN CRÍTICA: ¿Hay servicios seleccionados en el paso 2?
       // Esta verificación debe hacerse ANTES de crear la solicitud para evitar navegar a SELECCIONAR_SERVICIOS
       // Verificar explícitamente si hay servicios en formData O en solicitudData
       const hayServiciosEnFormData = formData.servicios_seleccionados && Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0;
       const hayServiciosEnSolicitudData = solicitudData.servicios_solicitados && Array.isArray(solicitudData.servicios_solicitados) && solicitudData.servicios_solicitados.length > 0;
       const serviciosYaSeleccionados = hayServiciosEnFormData || hayServiciosEnSolicitudData;
-      
+
       console.log('CrearSolicitudScreen: Verificación de servicios (ANTES de crear):', {
         serviciosYaSeleccionados,
         hayServiciosEnFormData,
@@ -601,7 +601,7 @@ const CrearSolicitudScreen = () => {
       // { id: "...", type: "Feature", geometry: {...}, properties: {...} }
       let solicitudId = null;
       let serviciosEnSolicitud = [];
-      
+
       console.log('CrearSolicitudScreen: Estructura de solicitudCreada:', {
         tieneId: !!solicitudCreada?.id,
         tieneProperties: !!solicitudCreada?.properties,
@@ -609,7 +609,7 @@ const CrearSolicitudScreen = () => {
         propertiesKeys: solicitudCreada?.properties ? Object.keys(solicitudCreada.properties) : [],
         type: solicitudCreada?.type
       });
-      
+
       if (solicitudCreada) {
         // El ID está en el nivel raíz del objeto GeoJSON Feature
         if (solicitudCreada.id) {
@@ -618,11 +618,11 @@ const CrearSolicitudScreen = () => {
           // Fallback: buscar en properties si no está en el nivel raíz
           solicitudId = solicitudCreada.properties.id;
         }
-        
+
         // Los servicios están en properties.servicios_solicitados
         if (solicitudCreada.properties && solicitudCreada.properties.servicios_solicitados) {
-          serviciosEnSolicitud = Array.isArray(solicitudCreada.properties.servicios_solicitados) 
-            ? solicitudCreada.properties.servicios_solicitados 
+          serviciosEnSolicitud = Array.isArray(solicitudCreada.properties.servicios_solicitados)
+            ? solicitudCreada.properties.servicios_solicitados
             : [];
         } else if (solicitudCreada.servicios_solicitados) {
           // Fallback: buscar en el nivel raíz
@@ -634,7 +634,7 @@ const CrearSolicitudScreen = () => {
         // Solo ID (caso poco probable pero manejado)
         solicitudId = solicitudCreada;
       }
-      
+
       console.log('CrearSolicitudScreen: ID y servicios extraídos:', {
         solicitudId,
         serviciosEnSolicitud,
@@ -662,12 +662,12 @@ const CrearSolicitudScreen = () => {
       // Por lo tanto, SIEMPRE debemos publicar directamente y NO navegar a SELECCIONAR_SERVICIOS.
       // Verificar también en la respuesta del backend (serviciosEnSolicitud) como confirmación
       const hayServiciosEnRespuestaBackend = serviciosEnSolicitud && Array.isArray(serviciosEnSolicitud) && serviciosEnSolicitud.length > 0;
-      
+
       // DECISIÓN FINAL: Si llegamos hasta aquí (el usuario completó el paso 6), SIEMPRE publicar directamente.
       // El paso 6 es el último paso, así que si llegamos aquí significa que todo está completo.
       // Verificamos las fuentes de servicios como validación adicional para logs, pero no como condición de navegación.
       const debePublicarDirectamente = true; // Siempre true cuando se completa el paso 6
-      
+
       console.log('CrearSolicitudScreen: Decisión de navegación (DESPUÉS de crear):', {
         serviciosYaSeleccionados, // Verificación ANTES de crear (debe ser true si hay servicios en paso 2)
         hayServiciosEnFormData, // Servicios en formData (ANTES de crear)
@@ -678,7 +678,7 @@ const CrearSolicitudScreen = () => {
         serviciosEnSolicitudData: solicitudData.servicios_solicitados,
         serviciosEnRespuesta: serviciosEnSolicitud
       });
-      
+
       // Si hay servicios seleccionados, significa que fueron seleccionados en el paso 2
       // Por lo tanto, NO navegar a SELECCIONAR_SERVICIOS, sino publicar directamente
       if (debePublicarDirectamente) {
@@ -687,11 +687,12 @@ const CrearSolicitudScreen = () => {
           // Publicar la solicitud automáticamente si tiene servicios seleccionados
           await solicitudesService.publicarSolicitud(solicitudId);
           console.log('CrearSolicitudScreen: ✅ Solicitud publicada automáticamente');
-          
+
           // Navegar directamente a mis solicitudes
           // Como ambas pantallas están en el TabNavigator, usar navigate directamente
           // El TabNavigator manejará la navegación correctamente
-          navigation.navigate(ROUTES.MIS_SOLICITUDES);
+          // Navigate to home which will show the active request
+          navigation.navigate(ROUTES.HOME);
         } catch (error) {
           console.error('CrearSolicitudScreen: ❌ Error publicando solicitud:', error);
           // Si hay error al publicar, navegar al detalle para que el usuario pueda publicarla manualmente
@@ -721,13 +722,13 @@ const CrearSolicitudScreen = () => {
         console.error('CrearSolicitudScreen: ❌ Debug - hayServiciosEnSolicitudData:', hayServiciosEnSolicitudData);
         console.error('CrearSolicitudScreen: ❌ Debug - hayServiciosEnRespuestaBackend:', hayServiciosEnRespuestaBackend);
         console.error('CrearSolicitudScreen: ❌ Debug - solicitudData.servicios_solicitados:', solicitudData.servicios_solicitados);
-        
+
         // Aún así, intentar publicar directamente en lugar de navegar a SELECCIONAR_SERVICIOS
         // porque si llegamos al paso 6, significa que el usuario completó todos los pasos necesarios
         try {
           await solicitudesService.publicarSolicitud(solicitudId);
           console.log('CrearSolicitudScreen: ✅ Solicitud publicada automáticamente (fallback)');
-          navigation.navigate(ROUTES.MIS_SOLICITUDES);
+          navigation.navigate(ROUTES.HOME);
         } catch (error) {
           console.error('CrearSolicitudScreen: ❌ Error publicando solicitud (fallback):', error);
           Alert.alert(
@@ -748,11 +749,11 @@ const CrearSolicitudScreen = () => {
       }
     } catch (error) {
       console.error('Error creando solicitud:', error);
-      const mensajeError = error.response?.data?.detail 
-        || error.response?.data?.message 
-        || error.message 
+      const mensajeError = error.response?.data?.detail
+        || error.response?.data?.message
+        || error.message
         || 'No se pudo crear la solicitud. Inténtalo de nuevo.';
-      
+
       Alert.alert('Error', mensajeError);
     } finally {
       setCreando(false);

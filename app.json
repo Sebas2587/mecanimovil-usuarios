@@ -70,6 +70,13 @@
           "defaultChannel": "default"
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permitir acceso a tu galería para enviar fotos en el chat.",
+          "cameraPermission": "Permitir acceso a tu cámara para enviar fotos en el chat."
+        }
+      ],
       "./plugins/withAndroidSingleTask.js"
     ],
     "extra": {

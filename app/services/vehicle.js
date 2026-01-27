@@ -217,4 +217,116 @@ export const deleteVehicle = async (vehicleId) => {
     console.error('Error eliminando vehículo:', error);
     throw error;
   }
-}; 
+};
+
+/**
+ * Consulta información de un vehículo por su patente
+ * @param {string} patente - Patente del vehículo
+ * @returns {Promise<Object>} Datos del vehículo encontrado o null
+ */
+export const getVehicleByPatente = async (patente) => {
+  try {
+    console.log(`🔍 Consultando patente: ${patente}`);
+    // Nota: Asegúrate de que este endpoint exista en tu backend o ajusta la ruta
+    const data = await get(`/vehiculos/consultar-patente/`, { patente });
+
+    // Normalización básica si es necesaria
+    return data;
+  } catch (error) {
+    console.error('Error consultando patente:', error);
+
+    // Retorna null explícitamente si no se encuentra o hay error,
+    // para que la UI pueda manejar el caso "no encontrado"
+    throw error;
+  }
+};
+
+/**
+ * Obtiene la configuración de venta en marketplace para un vehículo
+ * @param {number} vehicleId
+ * @returns {Promise<Object>}
+ */
+export const getMarketplaceData = async (vehicleId) => {
+  try {
+    const data = await get(`/vehiculos/${vehicleId}/marketplace/`);
+    return data;
+  } catch (error) {
+    console.error(`Error obteniendo datos marketplace ${vehicleId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Actualiza la configuración de venta en marketplace
+ * @param {number} vehicleId
+ * @param {Object} marketplaceData - { is_published, precio_venta }
+ * @returns {Promise<Object>}
+ */
+export const updateMarketplaceData = async (vehicleId, marketplaceData) => {
+  try {
+    const data = await patch(`/vehiculos/${vehicleId}/marketplace/`, marketplaceData);
+    return data;
+  } catch (error) {
+    console.error(`Error actualizando marketplace ${vehicleId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene métricas de rendimiento del vehículo en marketplace
+ * @param {number} vehicleId
+ * @returns {Promise<Object>} { views, favorites, leads }
+ */
+export const getMarketplaceStats = async (vehicleId) => {
+  try {
+    const data = await get(`/vehiculos/${vehicleId}/marketplace-stats/`);
+    return data;
+  } catch (error) {
+    console.error(`Error obteniendo stats marketplace ${vehicleId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene el listado público de vehículos en marketplace
+ * @returns {Promise<Array>}
+ */
+export const getMarketplaceListings = async () => {
+  try {
+    const data = await get('/vehiculos/marketplace-listings/');
+    return data;
+  } catch (error) {
+    console.error("Error obteniendo listado marketplace:", error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene el detalle público de un vehículo en marketplace (incluye historial)
+ * @param {number} vehicleId
+ * @returns {Promise<Object>}
+ */
+export const getMarketplaceVehicleDetail = async (vehicleId) => {
+  try {
+    const data = await get(`/vehiculos/${vehicleId}/marketplace-public-detail/`);
+    return data;
+  } catch (error) {
+    console.error(`Error obteniendo detalle marketplace ${vehicleId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene la tasación del vehículo (Fiscal + Mercado + Bonus Salud)
+ * @param {number} vehicleId
+ * @returns {Promise<Object>}
+ */
+export const getVehicleAppraisal = async (vehicleId) => {
+  try {
+    const data = await get(`/vehiculos/${vehicleId}/tasacion/`);
+    return data;
+  } catch (error) {
+    console.error(`Error obteniendo tasación ${vehicleId}:`, error);
+    throw error;
+  }
+};

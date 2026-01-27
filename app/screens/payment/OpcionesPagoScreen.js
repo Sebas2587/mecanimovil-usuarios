@@ -39,7 +39,9 @@ const OpcionesPagoScreen = () => {
   const { colors, typography, spacing, borders } = useTheme();
   const { carritos, carrito, cargarTodosLosCarritos, loading: carritoLoading } = useAgendamiento();
 
-  // Safe borders for header
+  // Generate styles with theme values
+  const styles = getStyles(colors, typography, spacing, borders, insets);
+
   // Safe borders for header
   const safeWidth = borders?.width || TOKENS.borders?.width || { thin: 1 };
 
@@ -178,33 +180,45 @@ const OpcionesPagoScreen = () => {
         oferta_id: datosSolicitud.oferta_id
       });
 
-      const serviciosDetalle = datosSolicitud.servicios.map(servicio => ({
-        servicio: servicio.nombre,
-        proveedor: datosSolicitud.proveedor.nombre,
-        tipoProveedor: datosSolicitud.proveedor.tipo === 'taller' ? 'Taller' : 'Mecánico',
-        fecha: datosSolicitud.fecha_servicio || 'Por confirmar',
-        hora: datosSolicitud.hora_servicio || 'Por confirmar',
-        precio: servicio.precio / 1.19, // Sin IVA
-        precioOriginal: servicio.precio,
-        fotoServicio: null // Por ahora, podríamos agregar esto después
-      }));
-
-      const totalGeneral = datosSolicitud.monto_total / 1.19; // Sin IVA
       const montoTotal = parseFloat(datosSolicitud.monto_total || 0);
-
-      // IMPORTANTE: Los costos de la oferta
-      // - Repuestos: Es el costo directo de los repuestos (NO lleva IVA adicional, es el precio de compra)
-      // - Mano de obra: Es un servicio, lleva IVA
-      // - Gestión de compra: Es un servicio, lleva IVA
       const costoRepuestos = parseFloat(datosSolicitud.costo_repuestos || 0);
-      const costoManoObraSinIva = parseFloat(datosSolicitud.costo_mano_obra || 0);
+      let costoManoObraSinIva = parseFloat(datosSolicitud.costo_mano_obra || 0);
       const costoGestionCompraSinIva = parseFloat(datosSolicitud.costo_gestion_compra || 0);
 
-      // Calcular montos CON IVA para servicios (mano de obra y gestión)
-      // NOTA: Los repuestos NO llevan IVA adicional - es el costo directo de compra
+      // Inferir mano de obra si es 0 pero hay total
+      if (costoManoObraSinIva === 0 && montoTotal > 0) {
+        const totalServiciosConIva = Math.max(0, montoTotal - costoRepuestos);
+        const totalServiciosSinIva = totalServiciosConIva / 1.19;
+        costoManoObraSinIva = Math.max(0, totalServiciosSinIva - costoGestionCompraSinIva);
+      }
+
       const costoManoObraConIva = Math.round(costoManoObraSinIva * 1.19);
       const costoGestionCompraConIva = Math.round(costoGestionCompraSinIva * 1.19);
 
+      const serviciosDetalle = datosSolicitud.servicios.map((servicio, index) => {
+        let precioServicioSinIva = servicio.precio / 1.19;
+        let precioServicioOriginal = servicio.precio;
+
+        if ((!precioServicioOriginal || precioServicioOriginal === 0) && costoManoObraSinIva > 0) {
+          if (datosSolicitud.servicios.length === 1 || index === 0) {
+            precioServicioSinIva = costoManoObraSinIva;
+            precioServicioOriginal = costoManoObraConIva;
+          }
+        }
+
+        return {
+          servicio: servicio.nombre,
+          proveedor: datosSolicitud.proveedor.nombre,
+          tipoProveedor: datosSolicitud.proveedor.tipo === 'taller' ? 'Taller' : 'Mecánico',
+          fecha: datosSolicitud.fecha_servicio || 'Por confirmar',
+          hora: datosSolicitud.hora_servicio || 'Por confirmar',
+          precio: precioServicioSinIva, // Sin IVA
+          precioOriginal: precioServicioOriginal,
+          fotoServicio: null
+        };
+      });
+
+      const totalGeneral = datosSolicitud.monto_total / 1.19; // Sin IVA
       // Verificar si tiene desglose de repuestos
       // Condición: si incluye_repuestos es true Y tenemos al menos uno de los costos > 0
       const tieneDesgloseRepuestos = datosSolicitud.incluye_repuestos &&
@@ -1105,56 +1119,40 @@ const OpcionesPagoScreen = () => {
         <View style={styles.seccion}>
           <Text style={styles.seccionTitulo}>Resumen del Pedido</Text>
 
-          {resumenGlobal.serviciosDetalle.map((servicio, index) => (
-            <View key={index} style={styles.servicioResumenCard}>
-              <View style={styles.proveedorFotoContainer}>
-                {fotosProveedores[index] ? (
-                  <Image
-                    source={{ uri: fotosProveedores[index] }}
-                    style={styles.proveedorFoto}
-                  />
-                ) : (
-                  <View style={styles.proveedorFotoPlaceholder}>
+          <View style={styles.resumenPedidoCard}>
+            {resumenGlobal.serviciosDetalle.map((servicio, index) => (
+              <View key={index} style={styles.servicioResumenCard}>
+                <View style={styles.servicioResumenInfo}>
+                  <Text style={styles.servicioResumenNombre}>{servicio.servicio}</Text>
+                  <View style={styles.proveedorResumenRow}>
                     <Ionicons
                       name={servicio.tipoProveedor === 'Taller' ? 'business' : 'person'}
-                      size={24}
-                      color="#007AFF"
+                      size={14}
+                      color="#666666"
                     />
+                    <Text style={styles.proveedorResumenNombre}>{servicio.proveedor}</Text>
                   </View>
-                )}
-              </View>
-
-              <View style={styles.servicioResumenInfo}>
-                <Text style={styles.servicioResumenNombre}>{servicio.servicio}</Text>
-                <View style={styles.proveedorResumenRow}>
-                  <Ionicons
-                    name={servicio.tipoProveedor === 'Taller' ? 'business' : 'person'}
-                    size={14}
-                    color="#666666"
-                  />
-                  <Text style={styles.proveedorResumenNombre}>{servicio.proveedor}</Text>
-                </View>
-                <View style={styles.fechaHoraRow}>
-                  <View style={styles.fechaHoraItem}>
-                    <Ionicons name="calendar-outline" size={14} color="#666666" />
-                    <Text style={styles.fechaHoraTexto}>{servicio.fecha}</Text>
+                  <View style={styles.fechaHoraRow}>
+                    <View style={styles.fechaHoraItem}>
+                      <Ionicons name="calendar-outline" size={14} color="#666666" />
+                      <Text style={styles.fechaHoraTexto}>{servicio.fecha}</Text>
+                    </View>
+                    <View style={styles.fechaHoraItem}>
+                      <Ionicons name="time-outline" size={14} color="#666666" />
+                      <Text style={styles.fechaHoraTexto}>{servicio.hora}</Text>
+                    </View>
                   </View>
-                  <View style={styles.fechaHoraItem}>
-                    <Ionicons name="time-outline" size={14} color="#666666" />
-                    <Text style={styles.fechaHoraTexto}>{servicio.hora}</Text>
-                  </View>
+                  {servicio.ubicacion && (
+                    <View style={styles.fechaHoraRow}>
+                      <View style={styles.fechaHoraItem}>
+                        <Ionicons name="location-outline" size={14} color="#666666" />
+                        <Text style={styles.fechaHoraTexto} numberOfLines={1}>{servicio.ubicacion}</Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               </View>
-            </View>
-          ))}
-
-          <View style={styles.totalResumenCard}>
-            <Text style={styles.totalResumenLabel}>
-              {resumenGlobal?.soloServicioPendiente ? 'Saldo a pagar' : 'Total a pagar'}
-            </Text>
-            <Text style={styles.totalResumenValue}>
-              ${Math.round(resumenGlobal.totalConIva || resumenGlobal.totalGeneral * 1.19).toLocaleString('es-CL')}
-            </Text>
+            ))}
           </View>
         </View>
 
@@ -1234,8 +1232,7 @@ const OpcionesPagoScreen = () => {
                   {resumenGlobal.costoManoObraSinIva > 0 && (
                     <View style={styles.desgloseRow}>
                       <View style={styles.desgloseItem}>
-                        <Ionicons name="construct-outline" size={20} color={COLORS.primary} />
-                        <Text style={styles.desgloseLabel}>🔧 Mano de obra (sin IVA)</Text>
+                        <Text style={styles.desgloseLabel}>Mano de obra (sin IVA)</Text>
                       </View>
                       <Text style={styles.desgloseValue}>
                         ${Math.round(resumenGlobal.costoManoObraSinIva).toLocaleString('es-CL')}
@@ -1642,14 +1639,14 @@ const OpcionesPagoScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: TOKENS.colors.background.default,
+    backgroundColor: colors?.background?.default || '#F8F9FA',
   },
   container: {
     flex: 1,
-    backgroundColor: TOKENS.colors.background.default,
+    backgroundColor: colors?.background?.default || '#F8F9FA',
   },
   loadingContainer: {
     flex: 1,
@@ -1689,7 +1686,7 @@ const styles = StyleSheet.create({
     backgroundColor: TOKENS.colors.primary[500],
     paddingVertical: TOKENS.spacing.md,
     paddingHorizontal: TOKENS.spacing.xl,
-    borderRadius: TOKENS.borders.radius.md,
+    borderRadius: 16,
     gap: TOKENS.spacing.sm,
     marginBottom: TOKENS.spacing.md,
     ...TOKENS.shadows.md,
@@ -1756,13 +1753,11 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.text.primary,
     marginBottom: TOKENS.spacing.md,
   },
-  servicioResumenCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  metodoPagoCard: {
     backgroundColor: TOKENS.colors.background.paper,
-    borderRadius: TOKENS.borders.radius.md,
-    padding: TOKENS.spacing.md,
-    marginBottom: TOKENS.spacing.sm,
+    borderRadius: 24,
+    padding: TOKENS.spacing.lg,
+    marginBottom: TOKENS.spacing.md,
     borderWidth: TOKENS.borders.width.thin,
     borderColor: TOKENS.colors.border.main,
     ...TOKENS.shadows.sm,
@@ -1819,6 +1814,15 @@ const styles = StyleSheet.create({
     fontSize: TOKENS.typography.fontSize.xs,
     color: TOKENS.colors.text.tertiary,
     marginLeft: 4,
+  },
+  // Card wrapper for order summary
+  resumenPedidoCard: {
+    backgroundColor: TOKENS.colors.background.paper,
+    borderRadius: 24,
+    padding: TOKENS.spacing.md,
+    borderWidth: TOKENS.borders.width.thin,
+    borderColor: TOKENS.colors.border.main,
+    ...TOKENS.shadows.md,
   },
   totalResumenCard: {
     backgroundColor: TOKENS.colors.neutral.inkBlack,
@@ -1953,6 +1957,12 @@ const styles = StyleSheet.create({
     color: TOKENS.colors.text.secondary,
     lineHeight: 18,
   },
+  servicioCard: {
+    backgroundColor: TOKENS.colors.background.paper,
+    padding: TOKENS.spacing.md,
+    marginBottom: TOKENS.spacing.sm,
+    borderRadius: 24,
+  },
   footer: {
     backgroundColor: TOKENS.colors.background.paper,
     paddingHorizontal: TOKENS.spacing.lg,
@@ -1962,10 +1972,10 @@ const styles = StyleSheet.create({
     ...TOKENS.shadows.lg, // Use reversed shadow logic if possible, or just large shadow
   },
   primaryButton: {
-    backgroundColor: TOKENS.colors.neutral.inkBlack,
+    backgroundColor: '#2563EB',
     paddingVertical: TOKENS.spacing.md,
     paddingHorizontal: TOKENS.spacing.lg,
-    borderRadius: TOKENS.borders.radius.md,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -2120,11 +2130,12 @@ const styles = StyleSheet.create({
   // Estilos para desglose de repuestos
   desgloseCard: {
     backgroundColor: TOKENS.colors.background.paper,
-    borderRadius: TOKENS.borders.radius.md,
-    padding: TOKENS.spacing.md,
-    borderWidth: TOKENS.borders.width.thin,
-    borderColor: TOKENS.colors.border.main,
+    borderRadius: 24,
+    padding: TOKENS.spacing.lg,
+    borderWidth: 2,
+    borderColor: TOKENS.colors.primary[100],
     marginBottom: TOKENS.spacing.sm,
+    ...TOKENS.shadows.lg,
   },
   desgloseRow: {
     flexDirection: 'row',
@@ -2138,14 +2149,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   desgloseLabel: {
-    fontSize: TOKENS.typography.fontSize.lg,
-    color: TOKENS.colors.text.primary,
+    fontSize: 14,
     fontWeight: TOKENS.typography.fontWeight.medium,
+    color: TOKENS.colors.text.secondary,
   },
   desgloseValue: {
-    fontSize: TOKENS.typography.fontSize.lg,
+    fontSize: 14,
+    fontWeight: TOKENS.typography.fontWeight.semibold,
     color: TOKENS.colors.text.primary,
-    fontWeight: TOKENS.typography.fontWeight.bold,
   },
   desgloseDivider: {
     height: 1,
@@ -2153,22 +2164,24 @@ const styles = StyleSheet.create({
     marginVertical: 4,
   },
   desgloseTotalRow: {
-    backgroundColor: TOKENS.colors.primary[50], // Light blue bg for total
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginTop: 8,
-    borderRadius: TOKENS.borders.radius.md,
+    backgroundColor: '#1F2937',
+    marginHorizontal: -TOKENS.spacing.lg,
+    paddingHorizontal: TOKENS.spacing.lg,
+    paddingVertical: 16,
+    marginTop: 12,
+    marginBottom: -TOKENS.spacing.lg,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   desgloseTotalLabel: {
-    fontSize: TOKENS.typography.fontSize.md,
+    fontSize: 16,
     fontWeight: TOKENS.typography.fontWeight.bold,
-    color: TOKENS.colors.text.primary,
+    color: '#FFFFFF',
   },
   desgloseTotalValue: {
-    fontSize: TOKENS.typography.fontSize['3xl'],
-    fontWeight: TOKENS.typography.fontWeight.extrabold,
-    color: TOKENS.colors.primary[600],
+    fontSize: 24,
+    fontWeight: TOKENS.typography.fontWeight.bold,
+    color: '#FFFFFF',
   },
   fotoCotizacionContainer: {
     flexDirection: 'row',

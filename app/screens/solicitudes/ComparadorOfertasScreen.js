@@ -13,62 +13,14 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { TOKENS } from '../../design-system/tokens';
+import { useTheme } from '../../design-system/theme/useTheme';
 import { ROUTES } from '../../utils/constants';
 import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
-import Button from '../../components/base/Button/Button';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { useAgendamiento } from '../../context/AgendamientoContext';
 import ofertasService from '../../services/ofertasService';
 import solicitudesService from '../../services/solicitudesService';
-
-// Extraer tokens con valores por defecto
-const colors = TOKENS?.colors || {};
-const typography = TOKENS?.typography || {};
-const spacing = TOKENS?.spacing || {};
-const borders = TOKENS?.borders || {};
-const shadows = TOKENS?.shadows || {};
-
-// Colores seguros
-const primaryColor = colors?.primary?.['500'] || '#003459';
-const primaryLight = colors?.primary?.['100'] || '#CCE5EF';
-const secondaryColor = colors?.secondary?.['500'] || '#007EA7';
-const accentColor = colors?.accent?.['500'] || '#00A8E8';
-const successColor = colors?.success?.['500'] || '#10B981';
-const errorColor = colors?.error?.['500'] || '#EF4444';
-const warningColor = colors?.warning?.['500'] || '#F59E0B';
-const bgDefault = colors?.background?.default || '#F5F7F8';
-const bgPaper = colors?.background?.paper || '#FFFFFF';
-const textPrimary = colors?.text?.primary || '#00171F';
-const textSecondary = colors?.text?.secondary || '#4B5563';
-const textTertiary = colors?.text?.tertiary || '#6B7280';
-const borderLight = colors?.border?.light || '#E5E7EB';
-
-// Espaciado seguro
-const spacingXs = spacing?.xs || 4;
-const spacingSm = spacing?.sm || 8;
-const spacingMd = spacing?.md || 16;
-const spacingLg = spacing?.lg || 24;
-const spacingXl = spacing?.xl || 32;
-
-// Tipografía segura
-const fontSizeXs = typography?.fontSize?.xs || 10;
-const fontSizeSm = typography?.fontSize?.sm || 12;
-const fontSizeBase = typography?.fontSize?.base || 14;
-const fontSizeMd = typography?.fontSize?.md || 16;
-const fontSizeLg = typography?.fontSize?.lg || 18;
-const fontSizeXl = typography?.fontSize?.xl || 20;
-const fontSize2xl = typography?.fontSize?.['2xl'] || 24;
-const fontWeightMedium = typography?.fontWeight?.medium || '500';
-const fontWeightSemibold = typography?.fontWeight?.semibold || '600';
-const fontWeightBold = typography?.fontWeight?.bold || '700';
-
-// Bordes seguros
-const radiusSm = borders?.radius?.sm || 4;
-const radiusMd = borders?.radius?.md || 8;
-const radiusLg = borders?.radius?.lg || 12;
-const radiusXl = borders?.radius?.xl || 16;
-const radiusFull = borders?.radius?.full || 9999;
+import chatService from '../../services/chatService';
 
 /**
  * Pantalla para comparar múltiples ofertas lado a lado
@@ -78,11 +30,16 @@ const ComparadorOfertasScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const colors = theme?.colors || {};
+  const spacing = theme?.spacing || {};
+  const typography = theme?.typography || {};
+
   const { solicitudId, ofertas: ofertasIds } = route.params || {};
-  
+
   const { seleccionarOferta } = useSolicitudes();
   const { cargarTodosLosCarritos } = useAgendamiento();
-  
+
   const [ofertas, setOfertas] = useState([]);
   const [solicitud, setSolicitud] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +54,7 @@ const ComparadorOfertasScreen = () => {
     try {
       setLoading(true);
       setErrorValidacion(null);
-      
+
       // Cargar solicitud si tenemos solicitudId
       if (solicitudId) {
         try {
@@ -111,21 +68,21 @@ const ComparadorOfertasScreen = () => {
           console.error('Error cargando solicitud:', error);
         }
       }
-      
+
       let ofertasData = [];
       if (ofertasIds && ofertasIds.length > 0) {
-        const promesas = ofertasIds.map(id => 
+        const promesas = ofertasIds.map(id =>
           ofertasService.obtenerDetalleOferta(id)
         );
         ofertasData = await Promise.all(promesas);
-        
+
         // Validación: Verificar que todas las ofertas pertenezcan a la misma solicitud
         if (solicitudId) {
           const ofertasInvalidas = ofertasData.filter(o => {
             const ofertaSolicitudId = o.solicitud || (typeof o.solicitud === 'object' ? o.solicitud.id : null);
             return ofertaSolicitudId !== solicitudId && String(ofertaSolicitudId) !== String(solicitudId);
           });
-          
+
           if (ofertasInvalidas.length > 0) {
             setErrorValidacion('Las ofertas deben pertenecer a la misma solicitud.');
             setOfertas([]);
@@ -137,7 +94,7 @@ const ComparadorOfertasScreen = () => {
             const sid = o.solicitud || (typeof o.solicitud === 'object' ? o.solicitud.id : null);
             return String(sid);
           }).filter(id => id && id !== 'null' && id !== 'undefined');
-          
+
           const solicitudesUnicas = [...new Set(solicitudesIds)];
           if (solicitudesUnicas.length > 1) {
             setErrorValidacion('Las ofertas deben pertenecer a la misma solicitud.');
@@ -149,7 +106,7 @@ const ComparadorOfertasScreen = () => {
       } else if (solicitudId) {
         ofertasData = await ofertasService.obtenerOfertasDeSolicitud(solicitudId);
       }
-      
+
       setOfertas(ofertasData);
     } catch (error) {
       console.error('Error cargando ofertas:', error);
@@ -187,21 +144,21 @@ const ComparadorOfertasScreen = () => {
             setProcesando(true);
             try {
               const resultado = await seleccionarOferta(solicitudId, oferta.id);
-              
+
               if (resultado && resultado.carrito) {
                 try {
                   await cargarTodosLosCarritos();
                 } catch (error) {
                   console.error('Error recargando carritos:', error);
                 }
-                
-                const tieneDesgloseRepuestos = oferta.incluye_repuestos && 
-                  parseFloat(oferta.costo_repuestos || 0) > 0 && 
+
+                const tieneDesgloseRepuestos = oferta.incluye_repuestos &&
+                  parseFloat(oferta.costo_repuestos || 0) > 0 &&
                   parseFloat(oferta.costo_mano_obra || 0) > 0;
 
                 Alert.alert(
                   '¡Oferta Aceptada!',
-                  tieneDesgloseRepuestos 
+                  tieneDesgloseRepuestos
                     ? 'La oferta incluye repuestos. ¿Cómo deseas realizar el pago?'
                     : '¿Deseas proceder con el pago ahora?',
                   [
@@ -254,21 +211,38 @@ const ComparadorOfertasScreen = () => {
     );
   };
 
+  const handleChat = async (oferta) => {
+    try {
+      const conversationId = await chatService.getOrCreateConversation({
+        ofertaId: oferta.id,
+        solicitudId: solicitudId,
+        type: 'service'
+      });
+
+      navigation.navigate(ROUTES.CHAT_DETAIL, {
+        conversationId
+      });
+    } catch (error) {
+      console.error('Error opening chat:', error);
+      Alert.alert('Error', 'No se pudo abrir el chat. Intenta nuevamente.');
+    }
+  };
+
   // Renderizar header consistente
   const renderHeader = (title) => (
-    <View style={styles.header}>
+    <View style={[styles.header, { borderBottomColor: colors.border?.light || '#E5E7EB', backgroundColor: colors.background?.paper || '#FFFFFF' }]}>
       <TouchableOpacity
-        style={styles.backButton}
+        style={[styles.backButton, { backgroundColor: colors.background?.default || '#F8F9FA' }]}
         onPress={() => navigation.goBack()}
         activeOpacity={0.7}
       >
-        <Ionicons name="arrow-back" size={24} color={textPrimary} />
+        <Ionicons name="arrow-back" size={24} color={colors.text?.primary || '#0F172A'} />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>{title}</Text>
+      <Text style={[styles.headerTitle, { color: colors.text?.primary || '#0F172A' }]}>{title}</Text>
       <View style={styles.headerRight}>
-        <View style={styles.ofertasCount}>
-          <MaterialIcons name="compare-arrows" size={18} color={primaryColor} />
-          <Text style={styles.ofertasCountText}>{ofertas.length}</Text>
+        <View style={[styles.ofertasCount, { backgroundColor: colors.primary?.['50'] || '#EFF6FF' }]}>
+          <MaterialIcons name="compare-arrows" size={18} color={colors.primary?.['600'] || '#2563EB'} />
+          <Text style={[styles.ofertasCountText, { color: colors.primary?.['600'] || '#2563EB' }]}>{ofertas.length}</Text>
         </View>
       </View>
     </View>
@@ -276,14 +250,14 @@ const ComparadorOfertasScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={bgPaper} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
         {renderHeader('Comparar Ofertas')}
         <View style={styles.loadingContainer}>
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color={primaryColor} />
-            <Text style={styles.loadingTitle}>Cargando ofertas</Text>
-            <Text style={styles.loadingSubtitle}>Preparando la comparación...</Text>
+          <View style={[styles.loadingCard, { backgroundColor: colors.background?.paper || '#FFFFFF' }]}>
+            <ActivityIndicator size="large" color={colors.primary?.['600'] || '#2563EB'} />
+            <Text style={[styles.loadingTitle, { color: colors.text?.primary || '#0F172A' }]}>Cargando ofertas</Text>
+            <Text style={[styles.loadingSubtitle, { color: colors.text?.secondary || '#64748B' }]}>Preparando la comparación...</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -292,17 +266,17 @@ const ComparadorOfertasScreen = () => {
 
   if (errorValidacion) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={bgPaper} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
         {renderHeader('Comparar Ofertas')}
         <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconContainer}>
-            <Ionicons name="alert-circle" size={48} color={errorColor} />
+          <View style={[styles.emptyIconContainer, { backgroundColor: (colors.error?.['500'] || '#EF4444') + '15' }]}>
+            <Ionicons name="alert-circle" size={48} color={colors.error?.['500'] || '#EF4444'} />
           </View>
-          <Text style={styles.emptyTitle}>Error de Validación</Text>
-          <Text style={styles.emptyText}>{errorValidacion}</Text>
-          <TouchableOpacity 
-            style={styles.emptyButton}
+          <Text style={[styles.emptyTitle, { color: colors.text?.primary || '#0F172A' }]}>Error de Validación</Text>
+          <Text style={[styles.emptyText, { color: colors.text?.secondary || '#64748B' }]}>{errorValidacion}</Text>
+          <TouchableOpacity
+            style={[styles.emptyButton, { backgroundColor: colors.primary?.['600'] || '#2563EB' }]}
             onPress={() => navigation.goBack()}
             activeOpacity={0.8}
           >
@@ -315,19 +289,19 @@ const ComparadorOfertasScreen = () => {
 
   if (ofertas.length < 2) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={bgPaper} />
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]} edges={['top']}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
         {renderHeader('Comparar Ofertas')}
         <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIconContainer, { backgroundColor: warningColor + '15' }]}>
-            <MaterialIcons name="compare-arrows" size={48} color={warningColor} />
+          <View style={[styles.emptyIconContainer, { backgroundColor: (colors.warning?.['500'] || '#F59E0B') + '15' }]}>
+            <MaterialIcons name="compare-arrows" size={48} color={colors.warning?.['500'] || '#F59E0B'} />
           </View>
-          <Text style={styles.emptyTitle}>Ofertas Insuficientes</Text>
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyTitle, { color: colors.text?.primary || '#0F172A' }]}>Ofertas Insuficientes</Text>
+          <Text style={[styles.emptyText, { color: colors.text?.secondary || '#64748B' }]}>
             Necesitas al menos 2 ofertas para poder compararlas
           </Text>
-          <TouchableOpacity 
-            style={styles.emptyButton}
+          <TouchableOpacity
+            style={[styles.emptyButton, { backgroundColor: colors.primary?.['600'] || '#2563EB' }]}
             onPress={() => navigation.goBack()}
             activeOpacity={0.8}
           >
@@ -339,36 +313,32 @@ const ComparadorOfertasScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={bgPaper} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
       {renderHeader('Comparar Ofertas')}
-
-      {/* Subtítulo informativo */}
-      <View style={styles.subtitleContainer}>
-        <MaterialIcons name="info-outline" size={16} color={textTertiary} />
-        <Text style={styles.subtitleText}>
-          Desliza horizontalmente para ver todas las ofertas
-        </Text>
-      </View>
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + spacingLg }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 24 }
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <ComparadorOfertas 
+        <ComparadorOfertas
           ofertas={ofertas}
           onAceptarOferta={solicitud && solicitud.estado === 'adjudicada' ? undefined : handleAceptarOferta}
           solicitudAdjudicada={solicitud && solicitud.estado === 'adjudicada'}
           solicitudId={solicitudId}
+          onChatPress={handleChat}
         />
       </ScrollView>
 
       {procesando && (
         <View style={styles.processingOverlay}>
-          <View style={styles.processingCard}>
-            <ActivityIndicator size="large" color={bgPaper} />
-            <Text style={styles.processingText}>Procesando oferta...</Text>
+          <View style={[styles.processingCard, { backgroundColor: colors.background?.paper || '#FFFFFF' }]}>
+            <ActivityIndicator size="large" color={colors.primary?.['600'] || '#2563EB'} />
+            <Text style={[styles.processingText, { color: colors.text?.primary || '#0F172A' }]}>Procesando oferta...</Text>
           </View>
         </View>
       )}
@@ -379,18 +349,15 @@ const ComparadorOfertasScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: bgDefault
   },
-  // Header styles - Alineado con otros headers de la app
+  // Header styles
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacingMd,
-    paddingVertical: spacingSm + 4,
-    backgroundColor: bgPaper,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: borderLight,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -406,18 +373,16 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: radiusMd,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: bgDefault,
   },
   headerTitle: {
     flex: 1,
-    fontSize: fontSizeLg,
-    fontWeight: fontWeightBold,
-    color: textPrimary,
+    fontSize: 18,
+    fontWeight: '700',
     textAlign: 'center',
-    marginHorizontal: spacingSm,
+    marginHorizontal: 8,
   },
   headerRight: {
     width: 40,
@@ -426,51 +391,32 @@ const styles = StyleSheet.create({
   ofertasCount: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: primaryLight,
-    paddingHorizontal: spacingSm,
-    paddingVertical: spacingXs,
-    borderRadius: radiusFull,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
     gap: 4,
   },
   ofertasCountText: {
-    fontSize: fontSizeSm,
-    fontWeight: fontWeightBold,
-    color: primaryColor,
-  },
-  // Subtítulo
-  subtitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacingSm,
-    paddingHorizontal: spacingMd,
-    backgroundColor: bgPaper,
-    borderBottomWidth: 1,
-    borderBottomColor: borderLight,
-    gap: spacingXs,
-  },
-  subtitleText: {
-    fontSize: fontSizeSm,
-    color: textTertiary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   // Scroll
   scrollView: {
     flex: 1
   },
   scrollContent: {
-    padding: spacingMd
+    padding: 16
   },
   // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacingXl,
+    padding: 32,
   },
   loadingCard: {
-    backgroundColor: bgPaper,
-    borderRadius: radiusXl,
-    padding: spacingXl,
+    borderRadius: 24,
+    padding: 32,
     alignItems: 'center',
     ...Platform.select({
       ios: {
@@ -485,57 +431,51 @@ const styles = StyleSheet.create({
     }),
   },
   loadingTitle: {
-    marginTop: spacingMd,
-    fontSize: fontSizeMd,
-    fontWeight: fontWeightSemibold,
-    color: textPrimary,
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
   },
   loadingSubtitle: {
-    marginTop: spacingXs,
-    fontSize: fontSizeSm,
-    color: textTertiary,
+    marginTop: 4,
+    fontSize: 12,
   },
   // Empty states
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacingXl,
+    padding: 32,
   },
   emptyIconContainer: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: errorColor + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacingMd,
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: fontSizeXl,
-    fontWeight: fontWeightBold,
-    color: textPrimary,
-    marginBottom: spacingSm,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
-    fontSize: fontSizeBase,
-    color: textSecondary,
+    fontSize: 14,
     textAlign: 'center',
-    marginBottom: spacingLg,
+    marginBottom: 24,
     lineHeight: 22,
-    paddingHorizontal: spacingMd,
+    paddingHorizontal: 16,
   },
   emptyButton: {
-    backgroundColor: primaryColor,
-    paddingVertical: spacingSm + 4,
-    paddingHorizontal: spacingXl,
-    borderRadius: radiusMd,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 12,
   },
   emptyButtonText: {
-    color: bgPaper,
-    fontSize: fontSizeBase,
-    fontWeight: fontWeightSemibold,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Processing overlay
   processingOverlay: {
@@ -550,17 +490,15 @@ const styles = StyleSheet.create({
     zIndex: 1000
   },
   processingCard: {
-    backgroundColor: primaryColor,
-    borderRadius: radiusLg,
-    padding: spacingLg,
+    borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
     minWidth: 180,
   },
   processingText: {
-    marginTop: spacingMd,
-    fontSize: fontSizeBase,
-    color: bgPaper,
-    fontWeight: fontWeightMedium
+    marginTop: 16,
+    fontSize: 14,
+    fontWeight: '500'
   }
 });
 

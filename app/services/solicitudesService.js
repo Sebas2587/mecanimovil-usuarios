@@ -15,7 +15,7 @@ class SolicitudesService {
       console.log('SolicitudesService: Creando nueva solicitud:', solicitudData);
       const data = await post('/ordenes/solicitudes-publicas/', solicitudData);
       console.log('SolicitudesService: Solicitud creada:', data);
-      
+
       // Normalizar: extraer properties de GeoJSON Feature si aplica
       if (data && data.type === 'Feature' && data.properties) {
         return {
@@ -78,7 +78,7 @@ class SolicitudesService {
       console.log('SolicitudesService: Publicando solicitud:', solicitudId);
       const data = await post(`/ordenes/solicitudes-publicas/${solicitudId}/publicar/`);
       console.log('SolicitudesService: Solicitud publicada:', data);
-      
+
       // Normalizar: extraer properties de GeoJSON Feature si aplica
       if (data && data.type === 'Feature' && data.properties) {
         return {
@@ -114,7 +114,7 @@ class SolicitudesService {
       const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
       const data = await get(url);
       console.log('SolicitudesService: Solicitudes obtenidas:', data);
-      
+
       // Normalizar solicitudes: extraer properties de GeoJSON Features
       const normalizarSolicitud = (solicitud) => {
         // Si es un GeoJSON Feature, extraer properties y combinar con id
@@ -141,7 +141,7 @@ class SolicitudesService {
         // Si ya es un objeto normal, devolverlo tal cual
         return solicitud;
       };
-      
+
       // Manejar diferentes estructuras de respuesta
       let solicitudesArray = [];
       if (Array.isArray(data)) {
@@ -158,7 +158,7 @@ class SolicitudesService {
       } else if (data.data) {
         solicitudesArray = Array.isArray(data.data) ? data.data : [];
       }
-      
+
       // Normalizar todas las solicitudes para extraer properties de GeoJSON Features
       const solicitudesNormalizadas = solicitudesArray.map(normalizarSolicitud);
       console.log('SolicitudesService: Solicitudes normalizadas (primeras 2):', solicitudesNormalizadas.slice(0, 2).map(s => ({ id: s?.id, tieneId: !!s?.id })));
@@ -180,7 +180,7 @@ class SolicitudesService {
     try {
       // Verificar autenticación antes de hacer la llamada
       const token = await AsyncStorage.getItem('auth_token');
-      
+
       // Si no hay token o es un token temporal, permitir crear (usuario no autenticado puede necesitar crear cuenta primero)
       if (!token || token === "usuario_registrado_exitosamente") {
         return {
@@ -191,7 +191,7 @@ class SolicitudesService {
           error: false
         };
       }
-      
+
       console.log('SolicitudesService: Verificando si puede crear solicitud');
       const data = await get('/ordenes/solicitudes-publicas/puede-crear-solicitud/');
       console.log('SolicitudesService: Resultado verificación:', data);
@@ -210,19 +210,19 @@ class SolicitudesService {
           error: false
         };
       }
-      
+
       // Si es un error 404, intentar validación alternativa usando solicitudes activas
       if (error.status === 404) {
         console.log('ℹ️ SolicitudesService: Endpoint puede-crear-solicitud no disponible (404). Usando validación alternativa.');
         try {
           // Validación alternativa: obtener solicitudes activas y verificar manualmente
           const solicitudesActivas = await this.obtenerSolicitudesActivas();
-          
+
           // Filtrar solicitudes adjudicadas o pendientes de pago
           const solicitudesPendientes = solicitudesActivas.filter(s => {
             const estado = s.estado || s.properties?.estado;
             const tieneOfertaSeleccionada = s.oferta_seleccionada || s.properties?.oferta_seleccionada;
-            
+
             return (estado === 'adjudicada' || estado === 'pendiente_pago') && tieneOfertaSeleccionada;
           });
 
@@ -280,7 +280,7 @@ class SolicitudesService {
           };
         }
       }
-      
+
       // En caso de otros errores (no 404), mostrar como error real
       console.error('❌ SolicitudesService: Error verificando si puede crear solicitud:', error);
       return {
@@ -302,16 +302,16 @@ class SolicitudesService {
     try {
       // Verificar autenticación antes de hacer la llamada
       const token = await AsyncStorage.getItem('auth_token');
-      
+
       // Si no hay token o es un token temporal, retornar array vacío silenciosamente
       if (!token || token === "usuario_registrado_exitosamente") {
         return [];
       }
-      
+
       console.log('SolicitudesService: Obteniendo solicitudes activas');
       const data = await get('/ordenes/solicitudes-publicas/activas/');
       console.log('SolicitudesService: Solicitudes activas obtenidas:', data);
-      
+
       // Normalizar solicitudes: extraer properties de GeoJSON Features
       const normalizarSolicitud = (solicitud) => {
         // Si es un GeoJSON Feature, extraer properties y combinar con id
@@ -338,7 +338,7 @@ class SolicitudesService {
         // Si ya es un objeto normal, devolverlo tal cual
         return solicitud;
       };
-      
+
       // Manejar diferentes estructuras de respuesta
       let solicitudesArray = [];
       if (Array.isArray(data)) {
@@ -363,7 +363,7 @@ class SolicitudesService {
           solicitudesArray = data.data;
         }
       }
-      
+
       // Normalizar todas las solicitudes para extraer properties de GeoJSON Features
       const solicitudesNormalizadas = solicitudesArray.map(normalizarSolicitud);
       console.log('SolicitudesService: Solicitudes activas normalizadas (primeras 2):', solicitudesNormalizadas.slice(0, 2).map(s => ({ id: s?.id, tieneId: !!s?.id })));
@@ -393,7 +393,7 @@ class SolicitudesService {
       console.log('SolicitudesService: Obteniendo detalle de solicitud:', solicitudId);
       const data = await get(`/ordenes/solicitudes-publicas/${solicitudId}/`);
       console.log('SolicitudesService: Detalle obtenido:', data);
-      
+
       // Normalizar: extraer properties de GeoJSON Feature si aplica
       if (data && data.type === 'Feature' && data.properties) {
         return {
@@ -466,7 +466,7 @@ class SolicitudesService {
       // Usar PATCH para actualizaciones parciales (no requiere todos los campos)
       const data = await patch(`/ordenes/solicitudes-publicas/${solicitudId}/`, updates);
       console.log('SolicitudesService: Solicitud actualizada:', data);
-      
+
       // Normalizar: extraer properties de GeoJSON Feature si aplica
       if (data && data.type === 'Feature' && data.properties) {
         return {
@@ -493,12 +493,12 @@ class SolicitudesService {
     try {
       console.log('SolicitudesService: Procesando pago directo para solicitud:', solicitudId);
       console.log('  - Método de pago:', metodoPago);
-      
+
       const data = await post(`/ordenes/solicitudes-publicas/${solicitudId}/pagar_solicitud_adjudicada/`, {
         metodo_pago: metodoPago,
         notas_cliente: notasCliente
       });
-      
+
       console.log('SolicitudesService: Pago procesado exitosamente:', data);
       return data;
     } catch (error) {
@@ -515,20 +515,20 @@ class SolicitudesService {
   async obtenerDatosPago(solicitudId) {
     try {
       console.log('SolicitudesService: Obteniendo datos de pago para solicitud:', solicitudId);
-      
+
       // Obtener la solicitud completa con oferta seleccionada
       const solicitud = await this.obtenerDetalleSolicitud(solicitudId);
-      
-      if (solicitud.estado !== 'adjudicada' && solicitud.estado !== 'pagada') {
-        throw new Error('La solicitud debe estar adjudicada para obtener datos de pago');
+
+      if (solicitud.estado !== 'adjudicada' && solicitud.estado !== 'pagada' && solicitud.estado !== 'pendiente_pago') {
+        throw new Error('La solicitud debe estar adjudicada o pendiente de pago para obtener datos');
       }
-      
+
       if (!solicitud.oferta_seleccionada_detail) {
         throw new Error('No hay oferta seleccionada');
       }
-      
+
       const oferta = solicitud.oferta_seleccionada_detail;
-      
+
       // Log de campos de desglose para verificación
       console.log('🔍 SolicitudesService: Campos de desglose:', {
         costo_repuestos: oferta.costo_repuestos,
@@ -537,7 +537,7 @@ class SolicitudesService {
         precio_total_ofrecido: oferta.precio_total_ofrecido,
         proveedor_puede_recibir_pagos: oferta.proveedor_puede_recibir_pagos
       });
-      
+
       // Estructurar datos para el pago
       const datosPago = {
         solicitud_id: solicitud.id,
@@ -569,7 +569,7 @@ class SolicitudesService {
         estado_pago_servicio: oferta.estado_pago_servicio || 'pendiente',
         proveedor_puede_recibir_pagos: oferta.proveedor_puede_recibir_pagos || false,
       };
-      
+
       console.log('SolicitudesService: Datos de pago estructurados:', datosPago);
       return datosPago;
     } catch (error) {
@@ -588,7 +588,7 @@ class SolicitudesService {
       console.log('SolicitudesService: Reenviando solicitud:', solicitudId);
       const data = await post(`/ordenes/solicitudes-publicas/${solicitudId}/reenviar/`, {});
       console.log('SolicitudesService: Solicitud reenviada:', data);
-      
+
       // Normalizar solicitud reenviada
       if (data && data.solicitud) {
         const solicitud = data.solicitud;

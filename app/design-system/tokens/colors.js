@@ -48,7 +48,7 @@ export const COLORS = {
   // ============================================
   // COLORES BASE DE LA PALETA
   // ============================================
-  
+
   base: {
     white: '#FFFFFF',
     inkBlack: '#00171F',      // Ultra-dark con hint de azul
@@ -124,6 +124,7 @@ export const COLORS = {
       600: '#7C8F97',
       700: '#5D6F75',
       800: '#3E4F53',
+      850: '#2A3B40',  // Added for patrimony gradient (dark slate)
       900: '#1F2F31',
       950: '#00171F',  // Ink Black
     },
@@ -133,7 +134,7 @@ export const COLORS = {
   // COLORES SEMÁNTICOS
   // Diseñados para armonizar con la paleta base
   // ============================================
-  
+
   // SUCCESS - Verde esmeralda/turquesa que complementa los azules
   success: {
     light: '#E6F7F4',      // Fondo muy claro
@@ -141,6 +142,8 @@ export const COLORS = {
     dark: '#00997A',       // Verde más oscuro
     darker: '#006B57',     // Verde muy oscuro
     text: '#003D32',       // Texto sobre success
+    badge: '#D1FAE5',      // Badge background (light green)
+    badgeText: '#065F46',  // Badge text (dark green)
     // Variaciones completas
     50: '#E6F7F4',
     100: '#CCEFE9',
@@ -201,6 +204,8 @@ export const COLORS = {
     dark: '#006586',       // Cerulean oscuro
     darker: '#004C65',     // Cerulean muy oscuro
     text: '#003344',       // Texto sobre info
+    badge: '#DBEAFE',      // Badge background (light blue)
+    badgeText: '#1E40AF',  // Badge text (dark blue)
     // Variaciones completas (igual que secondary)
     50: '#E6F5F9',
     100: '#CCEBF3',

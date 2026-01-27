@@ -232,7 +232,10 @@ export const getWorkshopsForUserVehicles = async (userVehicles, signal = null) =
       if (vehicle.id) {
         try {
           const params = { vehiculo_id: vehicle.id };
-          const response = await get('/usuarios/talleres/proveedores_filtrados/', params, signal);
+          // api.get signature is (url, params, options)
+          // We need to pass signal inside options if it exists
+          const options = signal ? { signal, forceRefresh: true } : { forceRefresh: true };
+          const response = await get('/usuarios/talleres/proveedores_filtrados/', params, options);
           const workshops = response.talleres || [];
 
           if (Array.isArray(workshops)) {
@@ -483,7 +486,9 @@ export const getMechanicsForUserVehicles = async (userVehicles, signal = null) =
       if (vehicle.id) {
         try {
           const params = { vehiculo_id: vehicle.id };
-          const response = await get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params, signal);
+          // api.get signature is (url, params, options)
+          const options = signal ? { signal, forceRefresh: true } : { forceRefresh: true };
+          const response = await get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params, options);
           const mechanics = response.mecanicos || [];
 
           if (Array.isArray(mechanics)) {
@@ -966,6 +971,26 @@ export const buscarProveedores = async (termino, tipo = 'todos') => {
   }
 };
 
+/**
+ * Obtiene las reseñas detalladas de un proveedor
+ * @param {number} providerId - ID del proveedor
+ * @param {string} providerType - Tipo ('taller' o 'mecanico')
+ * @returns {Promise<Object>} Resumen de reseñas y lista
+ */
+export const getProviderReviews = async (providerId, providerType) => {
+  try {
+    const endpoint = providerType === 'taller'
+      ? `/usuarios/talleres/${providerId}/reviews/`
+      : `/usuarios/mecanicos-domicilio/${providerId}/reviews/`;
+
+    const response = await get(endpoint);
+    return response;
+  } catch (error) {
+    console.error('Error fetching provider reviews:', error);
+    throw error;
+  }
+};
+
 export default {
   getProvidersByVehiculo,
   getProvidersByVehiculoAndService,
@@ -981,5 +1006,6 @@ export default {
   getMecanicos,
   getTallerDetalle,
   getMecanicoDetalle,
-  buscarProveedores
+  buscarProveedores,
+  getProviderReviews
 }; 

@@ -57,7 +57,7 @@ const fontWeightBold = typography?.fontWeight?.bold || '700';
 const radiusSm = borders?.radius?.sm || 4;
 const radiusMd = borders?.radius?.md || 8;
 const radiusLg = borders?.radius?.lg || 12;
-const radiusXl = borders?.radius?.xl || 16;
+const radiusXl = borders?.radius?.['3xl'] || 24;
 const radiusFull = borders?.radius?.full || 9999;
 
 /**

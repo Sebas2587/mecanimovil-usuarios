@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { InteractionManager } from 'react-native';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
   TouchableOpacity,
   TextInput,
   Alert,
@@ -31,8 +31,8 @@ import { getMediaURL } from '../../services/api';
 /**
  * Formulario multi-paso para crear una solicitud de servicio
  */
-const FormularioSolicitud = ({ 
-  onSubmit, 
+const FormularioSolicitud = ({
+  onSubmit,
   initialData = {},
   vehiculos = [],
   direcciones = [],
@@ -63,7 +63,7 @@ const FormularioSolicitud = ({
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
   const [cargandoServicios, setCargandoServicios] = useState(false);
   const [vistaServicios, setVistaServicios] = useState('categorias'); // 'categorias' o 'lista'
-  
+
   const [proveedoresDisponibles, setProveedoresDisponibles] = useState({ talleres: [], mecanicos: [] });
   const [cargandoProveedores, setCargandoProveedores] = useState(false);
 
@@ -73,14 +73,14 @@ const FormularioSolicitud = ({
   const [mesCalendario, setMesCalendario] = useState(new Date());
 
   // Detectar si hay servicio preseleccionado ANTES de los effects
-  const tieneServicioPreseleccionado = initialData?.servicios_seleccionados && 
-                                       initialData.servicios_seleccionados.length > 0;
+  const tieneServicioPreseleccionado = initialData?.servicios_seleccionados &&
+    initialData.servicios_seleccionados.length > 0;
 
   // Detectar si hay proveedor preseleccionado (desde ProviderDetailScreen)
-  const tieneProveedorPreseleccionado = initialData?.fromProviderDetail && 
-                                        initialData?.proveedores_dirigidos && 
-                                        initialData.proveedores_dirigidos.length > 0 &&
-                                        initialData?.tipo_solicitud === 'dirigida';
+  const tieneProveedorPreseleccionado = initialData?.fromProviderDetail &&
+    initialData?.proveedores_dirigidos &&
+    initialData.proveedores_dirigidos.length > 0 &&
+    initialData?.tipo_solicitud === 'dirigida';
 
   // Ref para trackear si es la primera vez que se monta el componente
   // Esto evita limpiar servicios seleccionados manualmente cuando useFocusEffect
@@ -99,16 +99,16 @@ const FormularioSolicitud = ({
   useEffect(() => {
     // Verificar si initialData está vacío o tiene servicios
     const initialDataVacio = !initialData || Object.keys(initialData).length === 0;
-    const tieneServiciosEnInitialData = !initialDataVacio && 
-                                       initialData?.servicios_seleccionados && 
-                                       Array.isArray(initialData.servicios_seleccionados) &&
-                                       initialData.servicios_seleccionados.length > 0;
-    
+    const tieneServiciosEnInitialData = !initialDataVacio &&
+      initialData?.servicios_seleccionados &&
+      Array.isArray(initialData.servicios_seleccionados) &&
+      initialData.servicios_seleccionados.length > 0;
+
     // Verificar si el initialData anterior tenía servicios preseleccionados
-    const previousHadPreselection = previousInitialDataRef.current?.servicios_seleccionados && 
-                                   Array.isArray(previousInitialDataRef.current.servicios_seleccionados) &&
-                                   previousInitialDataRef.current.servicios_seleccionados.length > 0;
-    
+    const previousHadPreselection = previousInitialDataRef.current?.servicios_seleccionados &&
+      Array.isArray(previousInitialDataRef.current.servicios_seleccionados) &&
+      previousInitialDataRef.current.servicios_seleccionados.length > 0;
+
     console.log('🔄 FormularioSolicitud: Sincronizando con initialData', {
       initialDataVacio,
       tieneServiciosEnInitialData,
@@ -116,7 +116,7 @@ const FormularioSolicitud = ({
       isInitialMount: isInitialMount.current,
       previousHadPreselection
     });
-    
+
     // Sincronizar formData con initialData
     setFormData(prev => {
       const cambios = {};
@@ -130,7 +130,7 @@ const FormularioSolicitud = ({
         // Solo limpiar en el mount inicial si es realmente necesario
         // O si antes había preselección y ahora no (navegación diferente)
         const shouldClear = isInitialMount.current || previousHadPreselection;
-        
+
         if (shouldClear && prev.servicios_seleccionados.length > 0) {
           // Verificar si los servicios actuales vienen de preselección o selección manual
           // Si el usuario los seleccionó manualmente (no hay previousHadPreselection), NO limpiar
@@ -182,7 +182,7 @@ const FormularioSolicitud = ({
 
       return hayCambios ? { ...prev, ...cambios } : prev;
     });
-    
+
     // Después del primer mount, marcar como no inicial
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -196,7 +196,7 @@ const FormularioSolicitud = ({
     if (formData.vehiculo && formData.vehiculo.id) {
       // Limpiar servicios anteriores al cambiar de vehículo
       setServiciosDisponibles([]);
-      
+
       // IMPORTANTE: NO limpiar servicios si hay un servicio preseleccionado
       if (!tieneServicioPreseleccionado) {
         setFormData(prev => ({
@@ -204,7 +204,7 @@ const FormularioSolicitud = ({
           servicios_seleccionados: [] // Limpiar servicios seleccionados al cambiar vehículo
         }));
       }
-      
+
       // Solo cargar servicios si NO hay servicio preseleccionado
       if (!tieneServicioPreseleccionado) {
         cargarServiciosPorVehiculo();
@@ -230,10 +230,10 @@ const FormularioSolicitud = ({
 
   // Recargar proveedores cuando cambien los servicios seleccionados (solo para solicitudes dirigidas)
   useEffect(() => {
-    if (formData.tipo_solicitud === 'dirigida' && 
-        formData.vehiculo && 
-        formData.vehiculo.id &&
-        Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0) {
+    if (formData.tipo_solicitud === 'dirigida' &&
+      formData.vehiculo &&
+      formData.vehiculo.id &&
+      Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0) {
       cargarProveedoresPorVehiculo();
     }
   }, [formData.servicios_seleccionados]);
@@ -243,7 +243,7 @@ const FormularioSolicitud = ({
       setServiciosDisponibles([]);
       return;
     }
-    
+
     setCargandoServicios(true);
     try {
       const servicios = await serviceService.getServicesByVehiculo(formData.vehiculo.id);
@@ -253,7 +253,7 @@ const FormularioSolicitud = ({
       if (serviciosArray.length > 0) {
         console.log('📋 Estructura del primer servicio:', serviciosArray[0]);
       }
-      
+
       // Si no hay servicios disponibles, mostrar mensaje informativo
       if (serviciosArray.length === 0) {
         console.warn(`⚠️ No se encontraron servicios disponibles para el vehículo ${formData.vehiculo.id}`);
@@ -284,25 +284,25 @@ const FormularioSolicitud = ({
       setProveedoresDisponibles({ talleres: [], mecanicos: [] });
       return;
     }
-    
+
     setCargandoProveedores(true);
     try {
       // Extraer IDs de servicios seleccionados
-      const servicioIds = formData.servicios_seleccionados?.map(s => 
+      const servicioIds = formData.servicios_seleccionados?.map(s =>
         typeof s === 'object' ? s.id : s
       ).filter(id => id != null) || [];
-      
+
       // Usar el nuevo endpoint que filtra por marca y servicios
       const proveedores = await providerService.getProvidersByVehiculoAndService(
         formData.vehiculo.id,
         servicioIds
       );
-      
+
       setProveedoresDisponibles({
         talleres: Array.isArray(proveedores.talleres) ? proveedores.talleres : [],
         mecanicos: Array.isArray(proveedores.mecanicos) ? proveedores.mecanicos : []
       });
-      
+
       console.log('✅ Proveedores filtrados cargados:', {
         vehiculo_id: formData.vehiculo.id,
         servicio_ids: servicioIds,
@@ -310,7 +310,7 @@ const FormularioSolicitud = ({
         mecanicos: proveedores.mecanicos?.length || 0,
         filtros: proveedores.filtros_aplicados
       });
-      
+
       // Si no hay proveedores disponibles, mostrar mensaje informativo
       const totalProveedores = (proveedores.talleres?.length || 0) + (proveedores.mecanicos?.length || 0);
       if (totalProveedores === 0) {
@@ -327,7 +327,7 @@ const FormularioSolicitud = ({
   const toggleServicioSeleccionado = (servicio) => {
     const servicios = Array.isArray(formData.servicios_seleccionados) ? formData.servicios_seleccionados : [];
     const existe = servicios.find(s => s && s.id === servicio.id);
-    
+
     if (existe) {
       // Deseleccionar servicio: solo actualizar el estado
       setFormData({
@@ -338,13 +338,13 @@ const FormularioSolicitud = ({
       // Seleccionar servicio: asegurar que tenga información de categoría
       // Si hay categoría seleccionada actualmente, agregarla al servicio
       let servicioConCategoria = { ...servicio };
-      
+
       // Si el servicio no tiene categoria_nombre pero hay categoriaSeleccionada, agregarla
       if (!servicioConCategoria.categoria_nombre && categoriaSeleccionada) {
         servicioConCategoria.categoria_nombre = categoriaSeleccionada.nombre;
         servicioConCategoria.categoria_id = categoriaSeleccionada.id;
       }
-      
+
       // Si el servicio tiene categorias_ids pero no categoria_nombre, buscar en categorías
       if (!servicioConCategoria.categoria_nombre && servicioConCategoria.categorias_ids && servicioConCategoria.categorias_ids.length > 0) {
         const primeraCategoriaId = servicioConCategoria.categorias_ids[0];
@@ -353,13 +353,13 @@ const FormularioSolicitud = ({
           servicioConCategoria.categoria_nombre = categoriaEncontrada.nombre;
         }
       }
-      
+
       // Seleccionar servicio: actualizar el estado con el servicio que incluye categoría
       setFormData({
         ...formData,
         servicios_seleccionados: [...servicios, servicioConCategoria]
       });
-      
+
       // Si estamos en el paso 2, hacer scroll automático a la sección de descripción del problema
       if (pasoActual === 2) {
         // Esperar a que todas las interacciones y animaciones terminen
@@ -389,12 +389,12 @@ const FormularioSolicitud = ({
     const proveedores = formData.proveedores_dirigidos || [];
     // Obtener ID de usuario del proveedor (necesario para el backend)
     const usuarioId = proveedor.usuario?.id || proveedor.usuario || proveedor.id;
-    
+
     const existe = proveedores.find(p => {
       const pUsuarioId = p.usuario?.id || p.usuario || p.id;
       return pUsuarioId === usuarioId && p.tipo === tipo;
     });
-    
+
     if (existe) {
       setFormData({
         ...formData,
@@ -421,10 +421,10 @@ const FormularioSolicitud = ({
   // Si hay servicio + proveedor preseleccionados: 4 pasos (saltamos pasos 2 y 4)
   // Si hay solo servicio preseleccionado: 5 pasos (saltamos el paso 2)
   // Si NO hay preselecciones: 6 pasos (flujo normal)
-  const totalPasos = tieneProveedorPreseleccionado && tieneServicioPreseleccionado 
-    ? 4 
-    : tieneServicioPreseleccionado 
-      ? 5 
+  const totalPasos = tieneProveedorPreseleccionado && tieneServicioPreseleccionado
+    ? 4
+    : tieneServicioPreseleccionado
+      ? 5
       : 6;
 
   // Sincronizar initialData cuando llegue (se ejecuta una sola vez al montar o cuando initialData cambia)
@@ -468,23 +468,23 @@ const FormularioSolicitud = ({
           tipo_solicitud: 'dirigida'
         }));
       }
-      
+
       // Asegurar que los proveedores preseleccionados no cambien
       const proveedoresPreseleccionados = initialData?.proveedores_dirigidos || [];
       const proveedoresActuales = formData.proveedores_dirigidos || [];
-      
+
       // Comparar si los proveedores han cambiado (comparando por usuario_id)
       const proveedoresCambiaron = proveedoresPreseleccionados.length !== proveedoresActuales.length ||
         proveedoresPreseleccionados.some((pPreseleccionado, index) => {
           const pActual = proveedoresActuales[index];
           if (!pActual) return true;
-          
+
           const idPreseleccionado = pPreseleccionado.usuario?.id || pPreseleccionado.usuario || pPreseleccionado.usuario_id || pPreseleccionado.id;
           const idActual = pActual.usuario?.id || pActual.usuario || pActual.usuario_id || pActual.id;
-          
+
           return idPreseleccionado !== idActual || pPreseleccionado.tipo !== pActual.tipo;
         });
-      
+
       if (proveedoresCambiaron && proveedoresPreseleccionados.length > 0) {
         console.log('🔒 Restaurando proveedores preseleccionados (proveedor preseleccionado)');
         setFormData(prev => ({
@@ -518,7 +518,7 @@ const FormularioSolicitud = ({
     if (!validarPaso(pasoActual)) {
       return;
     }
-    
+
     // Si hay proveedor + servicio preseleccionados (flujo de 4 pasos: 1→3→5→6)
     if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
       // Del paso 1 saltar al paso 3 (salta paso 2)
@@ -697,29 +697,29 @@ const FormularioSolicitud = ({
       console.error('❌ Error: Validación del paso actual falló:', pasoActual);
       return;
     }
-    
+
     // Validación específica de fecha antes de enviar
     if (!formData.fecha_preferida || formData.fecha_preferida.trim() === '') {
       Alert.alert('Error', 'Debes seleccionar una fecha preferida para el servicio');
       return;
     }
-    
+
     if (!validarFecha(formData.fecha_preferida)) {
       console.error('❌ Error: Fecha no válida en submit:', formData.fecha_preferida);
       Alert.alert('Error', 'La fecha seleccionada no es válida. Por favor, selecciona una fecha nuevamente.');
       return;
     }
-    
+
     // Si hay servicio preseleccionado y no hay descripción, usar descripción por defecto
-    const datosFinales = formData && typeof formData === 'object' && !Array.isArray(formData) 
-      ? { ...formData } 
+    const datosFinales = formData && typeof formData === 'object' && !Array.isArray(formData)
+      ? { ...formData }
       : {};
     if (tieneServicioPreseleccionado && !datosFinales.descripcion_problema.trim()) {
       const nombreServicio = formData.servicios_seleccionados[0]?.nombre || 'servicio seleccionado';
       datosFinales.descripcion_problema = `Solicitud de ${nombreServicio}`;
       console.log('📝 Descripción generada automáticamente:', datosFinales.descripcion_problema);
     }
-    
+
     // Asegurar que fecha_preferida esté en formato YYYY-MM-DD
     if (datosFinales.fecha_preferida) {
       // Si ya está en formato correcto, validar
@@ -745,7 +745,7 @@ const FormularioSolicitud = ({
         }
       }
     }
-    
+
     if (onSubmit) {
       onSubmit(datosFinales);
     }
@@ -753,12 +753,12 @@ const FormularioSolicitud = ({
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Seleccionar fecha';
-    
+
     // Si la fecha está en formato YYYY-MM-DD, parsearla manualmente
     // para evitar problemas de zona horaria
     const regexYYYYMMDD = /^(\d{4})-(\d{2})-(\d{2})$/;
     const match = dateString.match(regexYYYYMMDD);
-    
+
     if (match) {
       const [, year, month, day] = match;
       // Crear fecha usando UTC para evitar problemas de zona horaria
@@ -771,7 +771,7 @@ const FormularioSolicitud = ({
         timeZone: 'UTC' // Forzar UTC para mantener la fecha correcta
       });
     }
-    
+
     // Fallback para otros formatos
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return 'Seleccionar fecha';
@@ -822,14 +822,14 @@ const FormularioSolicitud = ({
   const renderPaso1 = () => {
     // Si no hay vehículos pasados como prop, usar VehicleSelector que los carga automáticamente
     const vehiculosDisponibles = vehiculos && vehiculos.length > 0 ? vehiculos : [];
-    
+
     return (
       <View style={styles.pasoContainer}>
         <Text style={styles.pasoTitle}>Selecciona tu vehículo</Text>
         <Text style={styles.pasoDescripcion}>
           Elige el vehículo para el cual necesitas el servicio
         </Text>
-        
+
         {vehiculosDisponibles.length > 0 ? (
           <View style={styles.vehiculosList}>
             {vehiculosDisponibles.map((vehiculo) => (
@@ -842,10 +842,10 @@ const FormularioSolicitud = ({
                 onPress={() => handleVehiculoToggle(vehiculo)}
               >
                 <View style={styles.vehiculoCardContent}>
-                  <Ionicons 
-                    name="car" 
-                    size={24} 
-                    color={formData.vehiculo?.id === vehiculo.id ? COLORS.primary : COLORS.textLight} 
+                  <Ionicons
+                    name="car"
+                    size={24}
+                    color={formData.vehiculo?.id === vehiculo.id ? COLORS.primary : COLORS.textLight}
                   />
                   <View style={styles.vehiculoCardInfo}>
                     <Text style={[
@@ -878,7 +878,7 @@ const FormularioSolicitud = ({
             currentVehicle={formData.vehiculo}
           />
         )}
-        
+
         {formData.vehiculo && (
           <Card style={styles.vehiculoSeleccionado}>
             <View style={styles.vehiculoSeleccionadoContent}>
@@ -912,9 +912,9 @@ const FormularioSolicitud = ({
     }
 
     // Verificar si hay servicios preseleccionados desde la navegación
-    const tieneServiciosPreseleccionados = initialData?.servicios_seleccionados && 
-                                          Array.isArray(initialData.servicios_seleccionados) &&
-                                          initialData.servicios_seleccionados.length > 0;
+    const tieneServiciosPreseleccionados = initialData?.servicios_seleccionados &&
+      Array.isArray(initialData.servicios_seleccionados) &&
+      initialData.servicios_seleccionados.length > 0;
 
     // Si hay servicios preseleccionados, mostrar solo confirmación
     if (tieneServiciosPreseleccionados && Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0) {
@@ -983,17 +983,17 @@ const FormularioSolicitud = ({
     // Filtrar servicios por categoría si hay una seleccionada
     const serviciosFiltrados = categoriaSeleccionada
       ? serviciosDisponibles.filter(s => {
-          // Verificar si el servicio tiene categorias_ids (array de IDs)
-          if (s.categorias_ids && Array.isArray(s.categorias_ids)) {
-            return s.categorias_ids.includes(categoriaSeleccionada.id);
-          }
-          // Fallback: verificar si tiene el campo categoria (ID único)
-          return s.categoria === categoriaSeleccionada.id;
-        })
+        // Verificar si el servicio tiene categorias_ids (array de IDs)
+        if (s.categorias_ids && Array.isArray(s.categorias_ids)) {
+          return s.categorias_ids.includes(categoriaSeleccionada.id);
+        }
+        // Fallback: verificar si tiene el campo categoria (ID único)
+        return s.categoria === categoriaSeleccionada.id;
+      })
       : serviciosDisponibles;
 
     return (
-      <ScrollView 
+      <ScrollView
         ref={paso2ScrollViewRef}
         style={styles.pasoContainer}
         contentContainerStyle={{ paddingBottom: 20 }}
@@ -1017,10 +1017,10 @@ const FormularioSolicitud = ({
               setCategoriaSeleccionada(null);
             }}
           >
-            <Ionicons 
-              name="grid-outline" 
-              size={20} 
-              color={vistaServicios === 'categorias' ? COLORS.primary : COLORS.textLight} 
+            <Ionicons
+              name="grid-outline"
+              size={20}
+              color={vistaServicios === 'categorias' ? COLORS.primary : COLORS.textLight}
             />
             <Text style={[
               styles.vistaButtonText,
@@ -1029,7 +1029,7 @@ const FormularioSolicitud = ({
               Por Categoría
             </Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.vistaButton,
@@ -1040,10 +1040,10 @@ const FormularioSolicitud = ({
               setCategoriaSeleccionada(null);
             }}
           >
-            <Ionicons 
-              name="list-outline" 
-              size={20} 
-              color={vistaServicios === 'lista' ? COLORS.primary : COLORS.textLight} 
+            <Ionicons
+              name="list-outline"
+              size={20}
+              color={vistaServicios === 'lista' ? COLORS.primary : COLORS.textLight}
             />
             <Text style={[
               styles.vistaButtonText,
@@ -1207,8 +1207,8 @@ const FormularioSolicitud = ({
         )}
 
         {/* Descripción del problema */}
-        <View 
-          ref={descripcionProblemaRef} 
+        <View
+          ref={descripcionProblemaRef}
           style={styles.descripcionContainer}
           onLayout={(event) => {
             // Guardar la posición Y de la descripción para hacer scroll
@@ -1233,10 +1233,10 @@ const FormularioSolicitud = ({
 
   const renderPaso3 = () => {
     // Si hay servicio y proveedor preseleccionados pero no hay vehículo, mostrar selector de vehículo primero
-    const necesitaSeleccionarVehiculo = tieneProveedorPreseleccionado && 
-                                        tieneServicioPreseleccionado && 
-                                        !formData.vehiculo;
-    
+    const necesitaSeleccionarVehiculo = tieneProveedorPreseleccionado &&
+      tieneServicioPreseleccionado &&
+      !formData.vehiculo;
+
     if (necesitaSeleccionarVehiculo) {
       return (
         <View style={styles.pasoContainer}>
@@ -1244,7 +1244,7 @@ const FormularioSolicitud = ({
           <Text style={styles.pasoDescripcion}>
             Elige el vehículo para el cual necesitas el servicio
           </Text>
-          
+
           {/* Mensaje informativo cuando hay proveedor preseleccionado */}
           {formData.proveedores_dirigidos.length > 0 && (
             <View style={[styles.infoBox, { backgroundColor: COLORS.info + '15', borderLeftColor: COLORS.info, marginBottom: SPACING.md }]}>
@@ -1259,7 +1259,7 @@ const FormularioSolicitud = ({
               </View>
             </View>
           )}
-          
+
           {/* Mostrar servicio preseleccionado */}
           {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0 && (
             <View style={[styles.infoBox, { backgroundColor: COLORS.success + '15', borderLeftColor: COLORS.success, marginBottom: SPACING.md }]}>
@@ -1271,7 +1271,7 @@ const FormularioSolicitud = ({
               </View>
             </View>
           )}
-          
+
           {/* Selector de vehículos */}
           {vehiculos.length > 0 ? (
             <View style={styles.vehiculosList}>
@@ -1285,10 +1285,10 @@ const FormularioSolicitud = ({
                   onPress={() => handleVehiculoToggle(vehiculo)}
                 >
                   <View style={styles.vehiculoCardContent}>
-                    <Ionicons 
-                      name="car" 
-                      size={24} 
-                      color={formData.vehiculo?.id === vehiculo.id ? COLORS.primary : COLORS.textLight} 
+                    <Ionicons
+                      name="car"
+                      size={24}
+                      color={formData.vehiculo?.id === vehiculo.id ? COLORS.primary : COLORS.textLight}
                     />
                     <View style={styles.vehiculoCardInfo}>
                       <Text style={[
@@ -1320,7 +1320,7 @@ const FormularioSolicitud = ({
         </View>
       );
     }
-    
+
     // Si ya hay vehículo seleccionado, mostrar el paso 3 normal (urgencia y repuestos)
     return (
       <View style={styles.pasoContainer}>
@@ -1328,7 +1328,7 @@ const FormularioSolicitud = ({
         <Text style={styles.pasoDescripcion}>
           Selecciona el nivel de urgencia del servicio
         </Text>
-        
+
         {/* Mensaje informativo cuando hay proveedor preseleccionado */}
         {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
           <View style={[styles.infoBox, { backgroundColor: COLORS.info + '15', borderLeftColor: COLORS.info, marginBottom: SPACING.md }]}>
@@ -1343,174 +1343,174 @@ const FormularioSolicitud = ({
             </View>
           </View>
         )}
-      
-      <TouchableOpacity
-        style={[
-          styles.opcionCard,
-          formData.urgencia === 'normal' && styles.opcionSeleccionada
-        ]}
-        onPress={() => setFormData(prev => ({ ...prev, urgencia: 'normal' }))}
-      >
-        <Ionicons 
-          name={formData.urgencia === 'normal' ? 'radio-button-on' : 'radio-button-off'} 
-          size={24} 
-          color={formData.urgencia === 'normal' ? COLORS.primary : COLORS.textLight} 
-        />
-        <View style={styles.opcionContent}>
-          <Text style={styles.opcionTitle}>Normal</Text>
-          <Text style={styles.opcionDescripcion}>
-            Puede esperar unos días
-          </Text>
-        </View>
-      </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[
-          styles.opcionCard,
-          formData.urgencia === 'urgente' && styles.opcionSeleccionada
-        ]}
-        onPress={() => setFormData(prev => ({ ...prev, urgencia: 'urgente' }))}
-      >
-        <Ionicons 
-          name={formData.urgencia === 'urgente' ? 'radio-button-on' : 'radio-button-off'} 
-          size={24} 
-          color={formData.urgencia === 'urgente' ? COLORS.warning : COLORS.textLight} 
-        />
-        <View style={styles.opcionContent}>
-          <Text style={styles.opcionTitle}>Urgente</Text>
-          <Text style={styles.opcionDescripcion}>
-            Necesito el servicio lo antes posible
-          </Text>
-        </View>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.opcionCard,
+            formData.urgencia === 'normal' && styles.opcionSeleccionada
+          ]}
+          onPress={() => setFormData(prev => ({ ...prev, urgencia: 'normal' }))}
+        >
+          <Ionicons
+            name={formData.urgencia === 'normal' ? 'radio-button-on' : 'radio-button-off'}
+            size={24}
+            color={formData.urgencia === 'normal' ? COLORS.primary : COLORS.textLight}
+          />
+          <View style={styles.opcionContent}>
+            <Text style={styles.opcionTitle}>Normal</Text>
+            <Text style={styles.opcionDescripcion}>
+              Puede esperar unos días
+            </Text>
+          </View>
+        </TouchableOpacity>
 
-      {/* Separador visual */}
-      <View style={{ marginVertical: SPACING.md }} />
+        <TouchableOpacity
+          style={[
+            styles.opcionCard,
+            formData.urgencia === 'urgente' && styles.opcionSeleccionada
+          ]}
+          onPress={() => setFormData(prev => ({ ...prev, urgencia: 'urgente' }))}
+        >
+          <Ionicons
+            name={formData.urgencia === 'urgente' ? 'radio-button-on' : 'radio-button-off'}
+            size={24}
+            color={formData.urgencia === 'urgente' ? COLORS.warning : COLORS.textLight}
+          />
+          <View style={styles.opcionContent}>
+            <Text style={styles.opcionTitle}>Urgente</Text>
+            <Text style={styles.opcionDescripcion}>
+              Necesito el servicio lo antes posible
+            </Text>
+          </View>
+        </TouchableOpacity>
 
-      {/* Selección de repuestos - Solo mostrar si NO todos los servicios son de "diagnóstico e inspección" */}
-      {(() => {
-        // Verificar si todos los servicios seleccionados son SOLO de "diagnóstico e inspección"
-        const serviciosSeleccionados = Array.isArray(formData.servicios_seleccionados) ? formData.servicios_seleccionados : [];
-        
-        // Si no hay servicios seleccionados, mostrar la sección de repuestos
-        if (serviciosSeleccionados.length === 0) {
-          // Mostrar siempre si no hay servicios (caso por defecto)
-        } else {
-          // Buscar información de categoría en cada servicio seleccionado
-          // Primero intentar desde el servicio seleccionado, luego buscar en serviciosDisponibles
-          const todosSonDiagnosticoInspeccion = serviciosSeleccionados.every(servicioSeleccionado => {
-            if (!servicioSeleccionado) return false;
-            
-            // Intentar obtener el nombre de la categoría desde diferentes fuentes
-            let categoriaNombre = '';
-            
-            // 1. Desde el servicio seleccionado directamente
-            categoriaNombre = servicioSeleccionado.categoria_nombre || '';
-            
-            // 2. Si no está en el servicio seleccionado, buscar en serviciosDisponibles
-            if (!categoriaNombre && servicioSeleccionado.id) {
-              const servicioCompleto = serviciosDisponibles.find(s => s.id === servicioSeleccionado.id);
-              if (servicioCompleto) {
-                categoriaNombre = servicioCompleto.categoria_nombre || '';
-                
-                // También buscar en categorías de las categorías cargadas
-                if (!categoriaNombre && servicioCompleto.categorias_ids && servicioCompleto.categorias_ids.length > 0) {
-                  const categoriaId = servicioCompleto.categorias_ids[0];
-                  const categoriaEncontrada = categorias.find(c => c.id === categoriaId);
-                  if (categoriaEncontrada) {
-                    categoriaNombre = categoriaEncontrada.nombre || '';
+        {/* Separador visual */}
+        <View style={{ marginVertical: SPACING.md }} />
+
+        {/* Selección de repuestos - Solo mostrar si NO todos los servicios son de "diagnóstico e inspección" */}
+        {(() => {
+          // Verificar si todos los servicios seleccionados son SOLO de "diagnóstico e inspección"
+          const serviciosSeleccionados = Array.isArray(formData.servicios_seleccionados) ? formData.servicios_seleccionados : [];
+
+          // Si no hay servicios seleccionados, mostrar la sección de repuestos
+          if (serviciosSeleccionados.length === 0) {
+            // Mostrar siempre si no hay servicios (caso por defecto)
+          } else {
+            // Buscar información de categoría en cada servicio seleccionado
+            // Primero intentar desde el servicio seleccionado, luego buscar en serviciosDisponibles
+            const todosSonDiagnosticoInspeccion = serviciosSeleccionados.every(servicioSeleccionado => {
+              if (!servicioSeleccionado) return false;
+
+              // Intentar obtener el nombre de la categoría desde diferentes fuentes
+              let categoriaNombre = '';
+
+              // 1. Desde el servicio seleccionado directamente
+              categoriaNombre = servicioSeleccionado.categoria_nombre || '';
+
+              // 2. Si no está en el servicio seleccionado, buscar en serviciosDisponibles
+              if (!categoriaNombre && servicioSeleccionado.id) {
+                const servicioCompleto = serviciosDisponibles.find(s => s.id === servicioSeleccionado.id);
+                if (servicioCompleto) {
+                  categoriaNombre = servicioCompleto.categoria_nombre || '';
+
+                  // También buscar en categorías de las categorías cargadas
+                  if (!categoriaNombre && servicioCompleto.categorias_ids && servicioCompleto.categorias_ids.length > 0) {
+                    const categoriaId = servicioCompleto.categorias_ids[0];
+                    const categoriaEncontrada = categorias.find(c => c.id === categoriaId);
+                    if (categoriaEncontrada) {
+                      categoriaNombre = categoriaEncontrada.nombre || '';
+                    }
                   }
                 }
               }
-            }
-            
-            // Normalizar el nombre de la categoría
-            categoriaNombre = (categoriaNombre || '').toLowerCase().trim();
-            
-            // Debug log
-            console.log('🔍 Verificando categoría de servicio:', {
-              servicioId: servicioSeleccionado.id,
-              servicioNombre: servicioSeleccionado.nombre,
-              categoriaNombre: categoriaNombre,
-              esDiagnostico: categoriaNombre.includes('diagnóstico') || categoriaNombre.includes('diagnostico') || categoriaNombre.includes('inspección') || categoriaNombre.includes('inspeccion')
+
+              // Normalizar el nombre de la categoría
+              categoriaNombre = (categoriaNombre || '').toLowerCase().trim();
+
+              // Debug log
+              console.log('🔍 Verificando categoría de servicio:', {
+                servicioId: servicioSeleccionado.id,
+                servicioNombre: servicioSeleccionado.nombre,
+                categoriaNombre: categoriaNombre,
+                esDiagnostico: categoriaNombre.includes('diagnóstico') || categoriaNombre.includes('diagnostico') || categoriaNombre.includes('inspección') || categoriaNombre.includes('inspeccion')
+              });
+
+              // Verificar si contiene palabras clave de diagnóstico e inspección
+              const esDiagnosticoInspeccion =
+                categoriaNombre.includes('diagnóstico') ||
+                categoriaNombre.includes('diagnostico') ||
+                categoriaNombre.includes('inspección') ||
+                categoriaNombre.includes('inspeccion') ||
+                categoriaNombre === 'diagnóstico e inspección' ||
+                categoriaNombre === 'diagnostico e inspeccion' ||
+                categoriaNombre.startsWith('diagnóstico') ||
+                categoriaNombre.startsWith('diagnostico');
+
+              return esDiagnosticoInspeccion;
             });
-            
-            // Verificar si contiene palabras clave de diagnóstico e inspección
-            const esDiagnosticoInspeccion = 
-              categoriaNombre.includes('diagnóstico') || 
-              categoriaNombre.includes('diagnostico') ||
-              categoriaNombre.includes('inspección') ||
-              categoriaNombre.includes('inspeccion') ||
-              categoriaNombre === 'diagnóstico e inspección' ||
-              categoriaNombre === 'diagnostico e inspeccion' ||
-              categoriaNombre.startsWith('diagnóstico') ||
-              categoriaNombre.startsWith('diagnostico');
-            
-            return esDiagnosticoInspeccion;
-          });
 
-          console.log('✅ Resultado verificación diagnóstico:', {
-            totalServicios: serviciosSeleccionados.length,
-            todosSonDiagnostico: todosSonDiagnosticoInspeccion
-          });
+            console.log('✅ Resultado verificación diagnóstico:', {
+              totalServicios: serviciosSeleccionados.length,
+              todosSonDiagnostico: todosSonDiagnosticoInspeccion
+            });
 
-          // Si TODOS los servicios son SOLO de diagnóstico e inspección, NO mostrar la sección
-          if (todosSonDiagnosticoInspeccion) {
-            return null; // No mostrar la sección de repuestos
+            // Si TODOS los servicios son SOLO de diagnóstico e inspección, NO mostrar la sección
+            if (todosSonDiagnosticoInspeccion) {
+              return null; // No mostrar la sección de repuestos
+            }
           }
-        }
 
-        // Mostrar la sección de repuestos
-        return (
-          <>
-            <Text style={styles.pasoTitle}>¿Necesitas repuestos?</Text>
-            <Text style={styles.pasoDescripcion}>
-              Selecciona si el servicio requiere repuestos o solo mano de obra
-            </Text>
+          // Mostrar la sección de repuestos
+          return (
+            <>
+              <Text style={styles.pasoTitle}>¿Necesitas repuestos?</Text>
+              <Text style={styles.pasoDescripcion}>
+                Selecciona si el servicio requiere repuestos o solo mano de obra
+              </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.opcionCard,
-                formData.requiere_repuestos === true && styles.opcionSeleccionada
-              ]}
-              onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: true }))}
-            >
-              <Ionicons 
-                name={formData.requiere_repuestos === true ? 'radio-button-on' : 'radio-button-off'} 
-                size={24} 
-                color={formData.requiere_repuestos === true ? COLORS.primary : COLORS.textLight} 
-              />
-              <View style={styles.opcionContent}>
-                <Text style={styles.opcionTitle}>Con Repuestos</Text>
-                <Text style={styles.opcionDescripcion}>
-                  El servicio incluye repuestos y mano de obra
-                </Text>
-              </View>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.opcionCard,
+                  formData.requiere_repuestos === true && styles.opcionSeleccionada
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: true }))}
+              >
+                <Ionicons
+                  name={formData.requiere_repuestos === true ? 'radio-button-on' : 'radio-button-off'}
+                  size={24}
+                  color={formData.requiere_repuestos === true ? COLORS.primary : COLORS.textLight}
+                />
+                <View style={styles.opcionContent}>
+                  <Text style={styles.opcionTitle}>Con Repuestos</Text>
+                  <Text style={styles.opcionDescripcion}>
+                    El servicio incluye repuestos y mano de obra
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.opcionCard,
-                formData.requiere_repuestos === false && styles.opcionSeleccionada
-              ]}
-              onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: false }))}
-            >
-              <Ionicons 
-                name={formData.requiere_repuestos === false ? 'radio-button-on' : 'radio-button-off'} 
-                size={24} 
-                color={formData.requiere_repuestos === false ? COLORS.primary : COLORS.textLight} 
-              />
-              <View style={styles.opcionContent}>
-                <Text style={styles.opcionTitle}>Sin Repuestos</Text>
-                <Text style={styles.opcionDescripcion}>
-                  Solo necesito mano de obra (ya tengo los repuestos)
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </>
-        );
-      })()}
-    </View>
+              <TouchableOpacity
+                style={[
+                  styles.opcionCard,
+                  formData.requiere_repuestos === false && styles.opcionSeleccionada
+                ]}
+                onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: false }))}
+              >
+                <Ionicons
+                  name={formData.requiere_repuestos === false ? 'radio-button-on' : 'radio-button-off'}
+                  size={24}
+                  color={formData.requiere_repuestos === false ? COLORS.primary : COLORS.textLight}
+                />
+                <View style={styles.opcionContent}>
+                  <Text style={styles.opcionTitle}>Sin Repuestos</Text>
+                  <Text style={styles.opcionDescripcion}>
+                    Solo necesito mano de obra (ya tengo los repuestos)
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          );
+        })()}
+      </View>
     );
   };
 
@@ -1520,7 +1520,7 @@ const FormularioSolicitud = ({
     const [imageUrl, setImageUrl] = useState(null);
 
     const iconName = tipo === 'taller' ? 'business' : 'person';
-    const iconColor = estaSeleccionado 
+    const iconColor = estaSeleccionado
       ? (tipo === 'taller' ? COLORS.primary : COLORS.secondary)
       : COLORS.textLight;
 
@@ -1557,7 +1557,7 @@ const FormularioSolicitud = ({
     }, [proveedor?.usuario?.foto_perfil, proveedor?.foto_perfil]);
 
     const showPlaceholder = !imageUrl || imageError;
-    const borderColor = estaSeleccionado 
+    const borderColor = estaSeleccionado
       ? (tipo === 'taller' ? COLORS.primary : COLORS.secondary)
       : COLORS.borderLight;
 
@@ -1567,10 +1567,10 @@ const FormularioSolicitud = ({
           <Image
             source={{ uri: imageUrl }}
             style={[
-              styles.avatarImage, 
-              { 
-                width: size, 
-                height: size, 
+              styles.avatarImage,
+              {
+                width: size,
+                height: size,
                 borderRadius: size / 2,
                 borderWidth: 2,
                 borderColor: borderColor
@@ -1583,10 +1583,10 @@ const FormularioSolicitud = ({
           />
         ) : (
           <View style={[
-            styles.avatarPlaceholder, 
-            { 
-              width: size, 
-              height: size, 
+            styles.avatarPlaceholder,
+            {
+              width: size,
+              height: size,
               borderRadius: size / 2,
               borderWidth: 2,
               borderColor: borderColor
@@ -1623,7 +1623,7 @@ const FormularioSolicitud = ({
         <Text style={styles.pasoDescripcion}>
           ¿Quieres que todos los proveedores vean tu solicitud o solo algunos específicos?
         </Text>
-        
+
         <TouchableOpacity
           style={[
             styles.opcionCard,
@@ -1632,10 +1632,10 @@ const FormularioSolicitud = ({
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'global', proveedores_dirigidos: [] }))}
           disabled={tieneProveedorPreseleccionado}
         >
-          <Ionicons 
-            name={formData.tipo_solicitud === 'global' ? 'radio-button-on' : 'radio-button-off'} 
-            size={24} 
-            color={formData.tipo_solicitud === 'global' ? COLORS.primary : COLORS.textLight} 
+          <Ionicons
+            name={formData.tipo_solicitud === 'global' ? 'radio-button-on' : 'radio-button-off'}
+            size={24}
+            color={formData.tipo_solicitud === 'global' ? COLORS.primary : COLORS.textLight}
           />
           <View style={styles.opcionContent}>
             <Text style={styles.opcionTitle}>Abierta a Todos</Text>
@@ -1653,10 +1653,10 @@ const FormularioSolicitud = ({
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'dirigida' }))}
           disabled={tieneProveedorPreseleccionado}
         >
-          <Ionicons 
-            name={formData.tipo_solicitud === 'dirigida' ? 'radio-button-on' : 'radio-button-off'} 
-            size={24} 
-            color={formData.tipo_solicitud === 'dirigida' ? COLORS.primary : COLORS.textLight} 
+          <Ionicons
+            name={formData.tipo_solicitud === 'dirigida' ? 'radio-button-on' : 'radio-button-off'}
+            size={24}
+            color={formData.tipo_solicitud === 'dirigida' ? COLORS.primary : COLORS.textLight}
           />
           <View style={styles.opcionContent}>
             <Text style={styles.opcionTitle}>Solo Proveedores Específicos</Text>
@@ -1699,7 +1699,7 @@ const FormularioSolicitud = ({
                 )}
               </View>
             ) : (
-              <ScrollView 
+              <ScrollView
                 style={styles.proveedoresList}
                 nestedScrollEnabled={true}
                 contentContainerStyle={styles.proveedoresListContent}
@@ -1727,9 +1727,9 @@ const FormularioSolicitud = ({
                           onPress={() => toggleProveedorSeleccionado(taller, 'taller')}
                         >
                           <View style={styles.proveedorCardContent}>
-                            <ProviderAvatar 
-                              proveedor={taller} 
-                              tipo="taller" 
+                            <ProviderAvatar
+                              proveedor={taller}
+                              tipo="taller"
                               estaSeleccionado={estaSeleccionado}
                               size={40}
                             />
@@ -1788,9 +1788,9 @@ const FormularioSolicitud = ({
                           onPress={() => toggleProveedorSeleccionado(mecanico, 'mecanico')}
                         >
                           <View style={styles.proveedorCardContent}>
-                            <ProviderAvatar 
-                              proveedor={mecanico} 
-                              tipo="mecanico" 
+                            <ProviderAvatar
+                              proveedor={mecanico}
+                              tipo="mecanico"
                               estaSeleccionado={estaSeleccionado}
                               size={40}
                             />
@@ -1850,7 +1850,7 @@ const FormularioSolicitud = ({
       <Text style={styles.pasoDescripcion}>
         Selecciona una dirección registrada o ingresa una nueva
       </Text>
-      
+
       {/* Mensaje informativo cuando hay proveedor preseleccionado */}
       {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
         <View style={[styles.infoBox, { backgroundColor: COLORS.info + '15', borderLeftColor: COLORS.info, marginBottom: SPACING.md }]}>
@@ -1865,7 +1865,7 @@ const FormularioSolicitud = ({
           </View>
         </View>
       )}
-      
+
       <AddressSelector
         currentAddress={formData.direccion_usuario}
         onAddressChange={(direccion) => {
@@ -1937,11 +1937,11 @@ const FormularioSolicitud = ({
     const lastDay = new Date(year, month + 1, 0);
     const firstDayWeek = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
-    
+
     const calendario = [];
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    
+
     // Días del mes anterior
     for (let i = firstDayWeek - 1; i >= 0; i--) {
       const prevMonthDate = new Date(year, month, -i); // -i nos da los días del mes anterior
@@ -1954,7 +1954,7 @@ const FormularioSolicitud = ({
         disponible: false
       });
     }
-    
+
     // Días del mes actual
     for (let day = 1; day <= daysInMonth; day++) {
       const fecha = new Date(year, month, day);
@@ -1967,7 +1967,7 @@ const FormularioSolicitud = ({
         disponible: fecha >= hoy
       });
     }
-    
+
     // Completar con días del siguiente mes
     const remainingDays = 42 - calendario.length;
     for (let day = 1; day <= remainingDays; day++) {
@@ -1981,7 +1981,7 @@ const FormularioSolicitud = ({
         disponible: false
       });
     }
-    
+
     return calendario;
   };
 
@@ -2040,7 +2040,7 @@ const FormularioSolicitud = ({
         <Text style={styles.pasoDescripcion}>
           ¿Cuándo te gustaría recibir el servicio?
         </Text>
-        
+
         {/* Selector de Fecha */}
         <TouchableOpacity
           style={styles.dateTimeButton}
@@ -2053,7 +2053,7 @@ const FormularioSolicitud = ({
           <View style={styles.dateTimeButtonContent}>
             <Text style={styles.dateTimeButtonLabel}>Fecha</Text>
             <Text style={styles.dateTimeButtonValue}>
-              {formData.fecha_preferida 
+              {formData.fecha_preferida
                 ? formatDate(formData.fecha_preferida)
                 : 'Seleccionar fecha'}
             </Text>
@@ -2073,10 +2073,10 @@ const FormularioSolicitud = ({
           }}
           disabled={!formData.fecha_preferida}
         >
-          <Ionicons 
-            name="time-outline" 
-            size={24} 
-            color={formData.fecha_preferida ? COLORS.primary : COLORS.textLight} 
+          <Ionicons
+            name="time-outline"
+            size={24}
+            color={formData.fecha_preferida ? COLORS.primary : COLORS.textLight}
           />
           <View style={styles.dateTimeButtonContent}>
             <Text style={styles.dateTimeButtonLabel}>Hora (Opcional)</Text>
@@ -2084,15 +2084,15 @@ const FormularioSolicitud = ({
               styles.dateTimeButtonValue,
               !formData.hora_preferida && styles.dateTimeButtonValuePlaceholder
             ]}>
-              {formData.hora_preferida 
+              {formData.hora_preferida
                 ? formatTime(formData.hora_preferida)
                 : 'Seleccionar hora'}
             </Text>
           </View>
-          <Ionicons 
-            name="chevron-forward" 
-            size={20} 
-            color={formData.fecha_preferida ? COLORS.textLight : COLORS.borderLight} 
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={formData.fecha_preferida ? COLORS.textLight : COLORS.borderLight}
           />
         </TouchableOpacity>
 
@@ -2102,7 +2102,7 @@ const FormularioSolicitud = ({
             <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
             <Text style={styles.fechaPreviewText}>
               {formatDate(formData.fecha_preferida)}
-              {formData.hora_preferida && validarHora(formData.hora_preferida) && 
+              {formData.hora_preferida && validarHora(formData.hora_preferida) &&
                 ` a las ${formatTime(formData.hora_preferida)}`}
             </Text>
           </View>
@@ -2280,7 +2280,7 @@ const FormularioSolicitud = ({
     if (!tieneServicioPreseleccionado && !tieneProveedorPreseleccionado) {
       return pasoActual;
     }
-    
+
     // Flujo con servicio + proveedor preseleccionados: mapear pasos (4 pasos visuales: 1→3→5→6)
     if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
       const mapaPasos = {
@@ -2291,7 +2291,7 @@ const FormularioSolicitud = ({
       };
       return mapaPasos[pasoActual] || pasoActual;
     }
-    
+
     // Flujo con solo servicio preseleccionado: mapear pasos (5 pasos visuales: 1→3→4→5→6)
     if (tieneServicioPreseleccionado) {
       const mapaPasos = {
@@ -2303,12 +2303,12 @@ const FormularioSolicitud = ({
       };
       return mapaPasos[pasoActual] || pasoActual;
     }
-    
+
     return pasoActual;
   };
 
   const pasoVisual = getPasoVisual();
-  
+
   // Determinar si estamos en el último paso real
   const esUltimoPaso = () => {
     if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
@@ -2329,7 +2329,7 @@ const FormularioSolicitud = ({
   const typography = theme?.typography || {};
   const spacing = theme?.spacing || {};
   const borders = theme?.borders || {};
-  
+
   // Asegurar que typography tenga todas las propiedades necesarias
   const safeTypography = typography?.fontSize && typography?.fontWeight
     ? typography
@@ -2337,10 +2337,10 @@ const FormularioSolicitud = ({
       fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
       fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
     };
-  
+
   // Validar que borders esté completamente inicializado
-  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined') 
-    ? borders 
+  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined')
+    ? borders
     : {
       radius: {
         none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
@@ -2354,14 +2354,14 @@ const FormularioSolicitud = ({
       },
       width: { none: 0, thin: 1, medium: 2, thick: 4 }
     };
-  
+
   // Crear estilos dinámicos para los botones de navegación
   const navStyles = createNavStyles(colors, safeTypography, spacing, safeBorders);
-  
+
   // Colores para el gradiente del botón siguiente
   const gradientColors = [
-    colors.accent?.[400] || colors.primary?.[400] || '#33BFE7',
-    colors.primary?.[500] || colors.accent?.[500] || '#0061FF'
+    '#2563EB', // Blue-600
+    '#2563EB'  // Solid color effect
   ];
 
   return (
@@ -2372,20 +2372,20 @@ const FormularioSolicitud = ({
           Paso {pasoVisual} de {totalPasos}
         </Text>
         <View style={styles.progressBar}>
-          <View 
+          <View
             style={[
-              styles.progressFill, 
+              styles.progressFill,
               { width: `${(pasoVisual / totalPasos) * 100}%` }
-            ]} 
+            ]}
           />
         </View>
       </View>
 
       {/* Contenido del paso */}
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={{ 
-          paddingBottom: contentPaddingBottom + (spacing.md || 16) + 
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={{
+          paddingBottom: contentPaddingBottom + (spacing.md || 16) +
             (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? (spacing.lg || 24) : 0)
         }}
         showsVerticalScrollIndicator={false}

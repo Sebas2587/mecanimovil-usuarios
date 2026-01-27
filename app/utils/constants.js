@@ -257,6 +257,7 @@ export const ROUTES = {
   SELECCIONAR_PROVEEDORES: 'SeleccionarProveedores',
   COMPARADOR_OFERTAS: 'ComparadorOfertas',
   CHAT_OFERTA: 'ChatOferta',
+  CHAT_DETAIL: 'ChatDetail', // New Generic Chat
   CHATS_LIST: 'ChatsList',
 
   // Rutas de salud vehicular
@@ -266,4 +267,11 @@ export const ROUTES = {
 
   // Notificaciones
   NOTIFICATION_CENTER: 'NotificationCenter',
+
+  // Nuevas funcionalidades Core
+  SERVICES_HUB: 'ServicesHub',
+  MARKETPLACE: 'Marketplace',
+  MARKETPLACE_VEHICLE_DETAIL: 'MarketplaceVehicleDetail',
+  SELL_VEHICLE: 'SellVehicle',
+  OFFERS_LIST: 'OffersList',
 }; 

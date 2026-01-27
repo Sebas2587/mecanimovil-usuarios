@@ -15,7 +15,8 @@ import UserPanelScreen from '../screens/main/UserPanelScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import MisVehiculosScreen from '../screens/vehicles/MisVehiculosScreen';
-import MisVehiculosListScreen from '../screens/vehicles/MisVehiculosListScreen';
+import VehicleRegistrationScreen from '../screens/vehicles/VehicleRegistrationScreen';
+// MisVehiculosListScreen removed - using MisVehiculosScreen
 import AddAddressScreen from '../screens/vehicles/AddAddressScreen';
 import VehicleProvidersScreen from '../screens/vehicles/VehicleProvidersScreen';
 import VehicleHistoryScreen from '../screens/vehicles/VehicleHistoryScreen';
@@ -64,9 +65,19 @@ import DetalleSolicitudScreen from '../screens/solicitudes/DetalleSolicitudScree
 import SeleccionarServiciosScreen from '../screens/solicitudes/SeleccionarServiciosScreen';
 import SeleccionarProveedoresScreen from '../screens/solicitudes/SeleccionarProveedoresScreen';
 import ComparadorOfertasScreen from '../screens/solicitudes/ComparadorOfertasScreen';
-import ChatOfertaScreen from '../screens/solicitudes/ChatOfertaScreen';
+// ChatOfertaScreen removed - consolidated into ChatDetailScreen
+import ChatDetailScreen from '../screens/solicitudes/ChatDetailScreen';
 import ChatsListScreen from '../screens/solicitudes/ChatsListScreen';
+// Duplicate import removed
 import NotificationCenterScreen from '../screens/notifications/NotificationCenterScreen';
+
+// Nuevas Pantallas Core
+import ServicesScreen from '../screens/services/ServicesScreen';
+// Duplicate import removed
+import MarketplaceScreen from '../screens/marketplace/MarketplaceScreen';
+import MarketplaceVehicleDetailScreen from '../screens/marketplace/MarketplaceVehicleDetailScreen';
+import SellVehicleScreen from '../screens/marketplace/SellVehicleScreen';
+import OffersListScreen from '../screens/solicitudes/OffersListScreen';
 
 // Pantallas temporales para completar la navegación
 // Estas pantallas deberán implementarse posteriormente
@@ -399,6 +410,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               iconName = isFocused ? 'chatbubbles' : 'chatbubbles-outline';
             } else if (route.name === ROUTES.MIS_SOLICITUDES) {
               iconName = isFocused ? 'document-text' : 'document-text-outline';
+            } else if (route.name === ROUTES.MARKETPLACE) {
+              iconName = isFocused ? 'pricetags' : 'pricetags-outline';
             }
 
             const onPress = () => {
@@ -496,7 +509,7 @@ const TabNavigator = () => {
       />
       <Tab.Screen
         name={ROUTES.MIS_VEHICULOS}
-        component={MisVehiculosListScreen}
+        component={MisVehiculosScreen}
         options={{ tabBarLabel: 'Vehículos' }}
       />
       <Tab.Screen
@@ -508,14 +521,14 @@ const TabNavigator = () => {
         }}
       />
       <Tab.Screen
+        name={ROUTES.MARKETPLACE}
+        component={MarketplaceScreen}
+        options={{ tabBarLabel: 'Marketplace' }}
+      />
+      <Tab.Screen
         name={ROUTES.CHATS_LIST}
         component={ChatsListScreen}
         options={{ tabBarLabel: 'Chat' }}
-      />
-      <Tab.Screen
-        name={ROUTES.MIS_SOLICITUDES}
-        component={MisSolicitudesScreen}
-        options={{ tabBarLabel: 'Solicitudes' }}
       />
     </Tab.Navigator>
   );
@@ -571,6 +584,12 @@ const AppNavigator = () => {
         name={ROUTES.MY_VEHICLES}
         component={MisVehiculosScreen}
         options={getHeaderOptions("Mis Vehículos", { showProfile: true })}
+      />
+
+      <Stack.Screen
+        name="VehicleRegistration"
+        component={VehicleRegistrationScreen}
+        options={{ headerShown: false }}
       />
 
       {/* Pantallas de perfil - Ahora accesibles desde el header en lugar del tab */}
@@ -683,9 +702,37 @@ const AppNavigator = () => {
         component={ComparadorOfertasScreen}
         options={{ headerShown: false }}
       />
+      {/* ChatOfertaScreen removed */}
       <Stack.Screen
-        name={ROUTES.CHAT_OFERTA}
-        component={ChatOfertaScreen}
+        name={ROUTES.CHAT_DETAIL}
+        component={ChatDetailScreen}
+        options={{ headerShown: false }}
+      />
+
+      {/* Nuevas Pantallas Core */}
+      <Stack.Screen
+        name={ROUTES.SERVICES_HUB}
+        component={ServicesScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.MARKETPLACE}
+        component={MarketplaceScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.MARKETPLACE_VEHICLE_DETAIL}
+        component={MarketplaceVehicleDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.SELL_VEHICLE}
+        component={SellVehicleScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.OFFERS_LIST}
+        component={OffersListScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
