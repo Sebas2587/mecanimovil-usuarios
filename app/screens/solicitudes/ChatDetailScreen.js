@@ -67,6 +67,10 @@ const ChatDetailScreen = () => {
 
     // Update ref when conversation changes
     useEffect(() => {
+        console.log('📦 [CHAT SCREEN] Actualizando conversationRef:', conversation);
+        console.log('📦 [CHAT SCREEN] Campos de conversation:', Object.keys(conversation || {}));
+        console.log('📦 [CHAT SCREEN] conversation.oferta:', conversation?.oferta);
+        console.log('📦 [CHAT SCREEN] conversation.context_object:', conversation?.context_object);
         conversationRef.current = conversation;
     }, [conversation]);
 
@@ -88,16 +92,16 @@ const ChatDetailScreen = () => {
                 return;
             }
 
-            // Comparar oferta_id del mensaje con la oferta de la conversación
-            const conversationOfertaId = typeof currentConv.oferta === 'object' ? currentConv.oferta?.id : currentConv.oferta;
+            // Comparar oferta_id del mensaje con el context_id de la conversación
+            const conversationContextId = currentConv.context_id;
 
             console.log('🔍 [CHAT SCREEN] Comparando IDs:', {
                 msgOfertaId: data.oferta_id,
-                convOfertaId: conversationOfertaId
+                convContextId: conversationContextId
             });
 
             // Convertir a string para asegurar comparación
-            if (String(data.oferta_id) === String(conversationOfertaId)) {
+            if (String(data.oferta_id) === String(conversationContextId)) {
                 console.log('💬 [CHAT SCREEN] Nuevo mensaje recibido para esta conversación');
                 const newMessage = {
                     id: data.mensaje_id || data.id,
@@ -135,8 +139,16 @@ const ChatDetailScreen = () => {
 
     const loadData = async () => {
         try {
+            console.log('🔄 [CHAT SCREEN] Cargando datos para conversationId:', conversationId);
             // Load specific conversation details
             const conv = await chatService.getConversation(conversationId);
+            console.log('✅ [CHAT SCREEN] Conversación cargada:', conv);
+            console.log('✅ [CHAT SCREEN] Estructura conversación:', {
+                id: conv?.id,
+                oferta: conv?.oferta,
+                context_object: conv?.context_object,
+                keys: Object.keys(conv || {})
+            });
 
             setConversation(conv);
 
