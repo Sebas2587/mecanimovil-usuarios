@@ -478,7 +478,7 @@ const MisVehiculosScreen = () => {
                   </Text>
                 ) : (
                   <Text style={[styles.healthStatus, { color: '#EF4444' }]}>
-                    <Ionicons name="warning" size={12} /> Requiere Atención ({item.pending_alerts_count || 0} alertas)
+                    <Ionicons name="warning" size={12} /> Requiere Atención ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
                   </Text>
                 )}
               </>
