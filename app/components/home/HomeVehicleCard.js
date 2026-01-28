@@ -52,10 +52,31 @@ const HomeVehicleCard = ({ vehicle, onPress }) => {
                     {/* Badges Row */}
                     <View style={styles.badgesRow}>
                         {/* Health Badge */}
-                        <View style={[styles.badge, styles.badgeSuccess]}>
-                            <Ionicons name="heart" size={10} color={colors.success?.badgeText || '#065F46'} />
-                            <Text style={[styles.badgeText, styles.badgeTextSuccess]}>{vehicle.health >= 90 ? 'Excelente' : vehicle.health >= 70 ? 'Bueno' : 'Atención'}</Text>
-                        </View>
+                        {vehicle.health > 0 ? (
+                            <View style={[
+                                styles.badge,
+                                (vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? styles.badgeSuccess : styles.badgeWarning
+                            ]}>
+                                <Ionicons
+                                    name={(vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? "shield-checkmark" : "warning"}
+                                    size={10}
+                                    color={(vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? (colors.success?.badgeText || '#065F46') : (colors.warning?.badgeText || '#92400E')}
+                                />
+                                <Text style={[
+                                    styles.badgeText,
+                                    (vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? styles.badgeTextSuccess : styles.badgeTextWarning
+                                ]}>
+                                    {(vehicle.health >= 80 && vehicle.pendingAlerts === 0)
+                                        ? 'Excelente'
+                                        : `Atención (${vehicle.pendingAlerts || 1})`}
+                                </Text>
+                            </View>
+                        ) : (
+                            <View style={[styles.badge, { backgroundColor: colors.neutral?.gray?.[200] }]}>
+                                <Ionicons name="sync" size={10} color={colors.text?.secondary} />
+                                <Text style={[styles.badgeText, { color: colors.text?.secondary, marginLeft: 3 }]}>Calculando...</Text>
+                            </View>
+                        )}
 
                         {/* Value Badge (Optional) */}
                         {vehicle.estimatedPrice > 0 && (
@@ -144,6 +165,9 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     badgeSuccess: {
         backgroundColor: colors.success?.badge || '#D1FAE5',
     },
+    badgeWarning: {
+        backgroundColor: colors.warning?.badge || '#FEF3C7',
+    },
     badgeInfo: {
         backgroundColor: colors.info?.badge || '#DBEAFE',
     },
@@ -154,6 +178,10 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     },
     badgeTextSuccess: {
         color: colors.success?.badgeText || '#065F46',
+    },
+    badgeTextWarning: {
+        color: colors.warning?.badgeText || '#92400E',
+        marginLeft: 3,
     },
     badgeTextInfo: {
         color: colors.info?.badgeText || '#1E40AF',

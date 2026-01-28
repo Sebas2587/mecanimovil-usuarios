@@ -242,8 +242,9 @@ const UserPanelScreen = () => {
                     year: vehicle.year,
                     kilometraje: vehicle.kilometraje,
                     foto: vehicle.foto, // Serializer returns full URL
-                    health: vehicle.health_score || 100,
-                    estimatedPrice: vehicle.precio_sugerido_final || vehicle.precio_mercado_promedio || 0
+                    health: vehicle.health_score || 0, // Using 0 for uncalculated
+                    estimatedPrice: vehicle.precio_sugerido_final || vehicle.precio_mercado_promedio || 0,
+                    pendingAlerts: vehicle.pending_alerts_count || 0
                   }}
                   onPress={() => navigation.navigate(ROUTES.VEHICLE_PROFILE, { vehicleId: vehicle.id, vehicle: vehicle })}
                 />
