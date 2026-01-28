@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.neutral.gray[100],
   },
   headerTitle: {
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontSize: 28, // XL was too small, moving to 3XL equivalent
+    fontWeight: '700',
     color: COLORS.text.primary,
     marginBottom: SPACING.md,
   },
