@@ -77,6 +77,7 @@ export const ChatsProvider = ({ children }) => {
         decrementarNoLeidos,
         resetearNoLeidos,
         actualizarTotal,
+        refetchChats,
       }}
     >
       {children}

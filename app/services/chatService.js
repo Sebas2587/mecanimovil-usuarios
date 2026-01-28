@@ -38,6 +38,35 @@ class ChatService {
     async sendMessageHTTP(conversationId, content, isMultipart = false) {
         // HTTP fallback for sending messages (works without WebSocket)
         // content can be JSON object or FormData
+
+        if (isMultipart) {
+            // Use native fetch for FormData to avoid Axios issues in React Native
+            // FIX: Use 'auth_token' which is the correct key used in api.js, not 'userToken'
+            const token = await AsyncStorage.getItem('auth_token');
+            let baseURL = serverConfig.getBaseURL();
+            if (!baseURL) {
+                await serverConfig.initialize();
+                baseURL = serverConfig.getBaseURL();
+            }
+
+            const response = await fetch(`${baseURL}/chat/conversations/${conversationId}/send_message/`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Token ${token}`,
+                    // Content-Type is set automatically by fetch for FormData
+                },
+                body: content
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Fetch error:', response.status, errorText);
+                throw new Error(`Error ${response.status}: ${errorText}`);
+            }
+
+            return await response.json();
+        }
+
         return await post(`/chat/conversations/${conversationId}/send_message/`, content, isMultipart);
     }
 
@@ -59,7 +88,7 @@ class ChatService {
         this.messageCallback = onMessageCallback;
 
         try {
-            const token = await AsyncStorage.getItem('userToken');
+            const token = await AsyncStorage.getItem('auth_token');
             if (!token) {
                 console.error('No token found for chat connection');
                 return;
@@ -78,8 +107,8 @@ class ChatService {
                 return;
             }
 
-            const wsBase = baseURL.replace('http', 'ws');
-            const wsUrl = `${wsBase}/chat/${conversationId}/?token=${token}`;
+            const wsBase = baseURL.replace('http', 'ws').replace('/api', '');
+            const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}`;
 
             console.log('Connecting to WS:', wsUrl);
 

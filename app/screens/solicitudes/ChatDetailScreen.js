@@ -16,6 +16,7 @@ import websocketService from '../../services/websocketService'; // Global WS for
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../../config/serverConfig';
 import { ROUTES } from '../../utils/constants';
+import { useChats } from '../../context/ChatsContext';
 
 const ChatDetailScreen = () => {
     const route = useRoute();
@@ -28,7 +29,7 @@ const ChatDetailScreen = () => {
     const spacing = theme?.spacing || {};
     const borders = theme?.borders || {};
 
-    const styles = getStyles(colors, typography, spacing, borders, insets);
+    const { refetchChats } = useChats();
     const { conversationId } = route.params;
 
     const [conversation, setConversation] = useState(null);
@@ -40,27 +41,8 @@ const ChatDetailScreen = () => {
     const [attachment, setAttachment] = useState(null); // { uri, type, name, mimeType }
     const [selectedImage, setSelectedImage] = useState(null);
     const flatListRef = useRef(null);
+    const sentMessagesRef = useRef(new Set());
 
-    // ... existing code ...
-
-
-    // Load current user ID
-    useEffect(() => {
-        const loadUser = async () => {
-            try {
-                const userJson = await AsyncStorage.getItem('user');
-                if (userJson) {
-                    const user = JSON.parse(userJson);
-                    setCurrentUserId(user.id);
-                }
-            } catch (error) {
-                console.error('Error loading user:', error);
-            }
-        };
-        loadUser();
-    }, []);
-
-    // Initial Load
     useEffect(() => {
         loadData();
 
@@ -90,6 +72,12 @@ const ChatDetailScreen = () => {
                     const exists = prevMessages.find(m => String(m.id) === String(data.mensaje_id));
                     if (exists) {
                         console.log('💬 [USER APP] Message already exists, ignoring:', data.mensaje_id);
+                        return prevMessages;
+                    }
+
+                    // Check if we sent this message (optimistic UI)
+                    if (sentMessagesRef.current.has(data.mensaje_id)) {
+                        console.log('💬 [USER APP] Message sent by us (optimistic), ignoring WS broadcast:', data.mensaje_id);
                         return prevMessages;
                     }
 
@@ -140,6 +128,12 @@ const ChatDetailScreen = () => {
 
             // Mark as read
             await chatService.markRead(conversationId);
+
+            // Sync global unread count
+            if (refetchChats) {
+                console.log('🔄 [CHAT DETAIL] Refreshing global chat list to update unread count...');
+                refetchChats();
+            }
         } catch (error) {
             console.error('Error loading chat:', error);
         } finally {
@@ -268,6 +262,15 @@ const ChatDetailScreen = () => {
             }
 
             const realMsg = await chatService.sendMessageHTTP(conversationId, formData, true); // true = isMultipart
+
+            // Add to sent messages set to avoid duplicate from WebSocket
+            if (realMsg && realMsg.id) {
+                sentMessagesRef.current.add(String(realMsg.id));
+                // Clear after 30 seconds
+                setTimeout(() => {
+                    sentMessagesRef.current.delete(String(realMsg.id));
+                }, 30000);
+            }
 
             // Replace temp message with real one
             setMessages(prev => prev.map(m => m.id === tempMsg.id ? realMsg : m));
