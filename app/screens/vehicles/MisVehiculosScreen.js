@@ -399,7 +399,6 @@ const MisVehiculosScreen = () => {
   const renderVehicleItem = ({ item }) => {
     // Mock Data for Visuals (replace with real data if available)
     const estimatedValue = item.precio_sugerido_final || item.precio_mercado_promedio || 0;
-    const healthScore = 92; // Mock
 
     return (
       <TouchableOpacity
@@ -456,12 +455,30 @@ const MisVehiculosScreen = () => {
           <View style={styles.healthContainer}>
             <View style={styles.healthHeader}>
               <Text style={styles.healthLabel}>Salud General</Text>
-              <Text style={styles.healthPercent}>{healthScore}%</Text>
+              <Text style={[
+                styles.healthPercent,
+                { color: item.health_score >= 80 ? COLORS.success : '#EF4444' }
+              ]}>{item.health_score || 100}%</Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${healthScore}%` }]} />
+              <View style={[
+                styles.progressBarFill,
+                {
+                  width: `${item.health_score || 100}%`,
+                  backgroundColor: item.health_score >= 80 ? COLORS.success : '#EF4444'
+                }
+              ]} />
             </View>
-            <Text style={styles.healthStatus}>Excelente estado</Text>
+
+            {(item.health_score || 100) >= 80 ? (
+              <Text style={[styles.healthStatus, { color: COLORS.success }]}>
+                <Ionicons name="checkmark-circle" size={12} /> En Buen Estado
+              </Text>
+            ) : (
+              <Text style={[styles.healthStatus, { color: '#EF4444' }]}>
+                <Ionicons name="warning" size={12} /> Requiere Atención ({item.pending_alerts_count || 0} alertas)
+              </Text>
+            )}
           </View>
         </View>
       </TouchableOpacity>
