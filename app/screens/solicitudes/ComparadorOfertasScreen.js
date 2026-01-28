@@ -166,26 +166,12 @@ const ComparadorOfertasScreen = () => {
                     {
                       text: 'Pagar Ahora',
                       onPress: async () => {
-                        if (tieneDesgloseRepuestos) {
-                          try {
-                            const datosPago = await solicitudesService.obtenerDatosPago(solicitudId);
-                            navigation.navigate('SeleccionMetodoPago', {
-                              solicitudId: solicitudId,
-                              ofertaId: oferta.id,
-                              datosPago: datosPago
-                            });
-                          } catch (error) {
-                            navigation.navigate('OpcionesPago', {
-                              solicitudId: solicitudId,
-                              origen: 'solicitud_publica'
-                            });
-                          }
-                        } else {
-                          navigation.navigate('OpcionesPago', {
-                            solicitudId: solicitudId,
-                            origen: 'solicitud_publica'
-                          });
-                        }
+                        // Siempre navegar a OpcionesPago, que maneja ambos casos (con o sin desglose)
+                        navigation.navigate('OpcionesPago', {
+                          solicitudId: solicitudId,
+                          origen: 'solicitud_publica',
+                          ofertaId: oferta.id // Pasar oferta explícita si es necesario
+                        });
                       }
                     }
                   ]

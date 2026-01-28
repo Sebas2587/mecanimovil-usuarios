@@ -1492,7 +1492,29 @@ const OpcionesPagoScreen = () => {
           <View style={styles.seccion}>
             <Text style={styles.seccionTitulo}>Resumen de Costos</Text>
             <View style={styles.desgloseCard}>
-              <View style={[styles.desgloseRow, styles.desgloseTotalRow, { borderTopWidth: 0, paddingTop: 0 }]}>
+              <View style={[styles.desgloseRow, { marginBottom: 8 }]}>
+                <View style={styles.desgloseItem}>
+                  <Ionicons name="receipt-outline" size={20} color={TOKENS.colors.text.secondary} />
+                  <Text style={styles.desgloseLabel}>Total Servicios</Text>
+                </View>
+                <Text style={styles.desgloseValue}>
+                  ${Math.round(resumenGlobal.totalGeneral).toLocaleString('es-CL')}
+                </Text>
+              </View>
+
+              <View style={styles.desgloseRow}>
+                <View style={styles.desgloseItem}>
+                  <Ionicons name="documents-outline" size={20} color={TOKENS.colors.text.secondary} />
+                  <Text style={styles.desgloseLabel}>IVA (19%)</Text>
+                </View>
+                <Text style={styles.desgloseValue}>
+                  ${Math.round(resumenGlobal.totalGeneral * 0.19).toLocaleString('es-CL')}
+                </Text>
+              </View>
+
+              <View style={styles.desgloseDivider} />
+
+              <View style={[styles.desgloseRow, styles.desgloseTotalRow]}>
                 <View style={styles.desgloseItem}>
                   <Text style={styles.desgloseTotalLabel}>Total a pagar</Text>
                 </View>
@@ -1500,9 +1522,6 @@ const OpcionesPagoScreen = () => {
                   ${Math.round(resumenGlobal.totalGeneral * 1.19).toLocaleString('es-CL')}
                 </Text>
               </View>
-              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 8, textAlign: 'right' }}>
-                (IVA incluido)
-              </Text>
             </View>
           </View>
         )}
