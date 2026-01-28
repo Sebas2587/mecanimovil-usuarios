@@ -172,7 +172,7 @@ const UserPanelScreen = () => {
       reviews: provider.numero_de_calificaciones || 0,
       distance: provider.distancia_km ? `${provider.distancia_km.toFixed(1)} km` : null,
       verified: provider.verificado,
-      image: provider.foto_perfil
+      image: provider.foto_perfil_url || provider.foto_perfil
     };
   };
 
