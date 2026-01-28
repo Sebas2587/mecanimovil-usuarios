@@ -62,11 +62,20 @@ const PatrimonyCard = ({
                 <View style={styles.statsRow}>
                     {/* Capital Gain */}
                     <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Plusvalía</Text>
+                        <Text style={styles.statLabel}>Plusvalía Gestionada</Text>
                         <View style={styles.statValueContainer}>
-                            <Ionicons name="trending-up" size={14} color={colors.success?.[400] || '#33BFA7'} />
-                            <Text style={styles.statValueSuccess}>+{formatCurrency(capitalGain)}</Text>
+                            <Ionicons
+                                name={capitalGain >= 0 ? "trending-up" : "trending-down"}
+                                size={14}
+                                color={capitalGain >= 0 ? (colors.success?.[400] || '#33BFA7') : (colors.error?.[400] || '#EF4444')}
+                            />
+                            <Text style={capitalGain >= 0 ? styles.statValueSuccess : styles.statValueDanger}>
+                                {capitalGain >= 0 ? '+' : ''}{formatCurrency(capitalGain)}
+                            </Text>
                         </View>
+                        <Text style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>
+                            vs Mercado
+                        </Text>
                     </View>
 
                     {/* Vertical Divider */}
@@ -76,9 +85,16 @@ const PatrimonyCard = ({
                     <View style={styles.statItem}>
                         <Text style={styles.statLabel}>Salud de Flota</Text>
                         <View style={styles.statValueContainer}>
-                            <Ionicons name="heart-outline" size={14} color={colors.primary?.[400] || '#3397C1'} />
-                            <Text style={styles.statValueBrand}>{fleetHealth}%</Text>
+                            <Ionicons
+                                name={fleetHealth >= 80 ? "arrow-up" : "arrow-down"}
+                                size={14}
+                                color={fleetHealth >= 80 ? (colors.success?.[400] || '#33BFA7') : (colors.warning?.[400] || '#F59E0B')}
+                            />
+                            <Text style={styles.statValueBrand}>{fleetHealth > 0 ? `${fleetHealth}%` : '--'}</Text>
                         </View>
+                        <Text style={{ fontSize: 10, color: fleetHealth >= 80 ? (colors.success?.[400]) : (colors.warning?.[400]), marginTop: 2 }}>
+                            {fleetHealth >= 80 ? 'Valorizada' : 'Requiere Atención'}
+                        </Text>
                     </View>
                 </View>
             </LinearGradient>
@@ -178,6 +194,12 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         fontSize: typography.fontSize?.base || 14,
         fontWeight: typography.fontWeight?.semibold || '600',
         color: colors.success?.[400] || '#33BFA7',
+    },
+    statValueDanger: {
+        marginLeft: 6,
+        fontSize: typography.fontSize?.base || 14,
+        fontWeight: typography.fontWeight?.semibold || '600',
+        color: colors.error?.[400] || '#EF4444',
     },
     statValueBrand: {
         marginLeft: 6,

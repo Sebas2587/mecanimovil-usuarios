@@ -87,18 +87,34 @@ const UserPanelScreen = () => {
         // Calculate Stats
         let totalVal = 0;
         let totalHealth = 0;
+        let totalCapitalGain = 0;
 
         vehicleList.forEach(v => {
-          // Use suggested final price or average market price
-          const price = v.precio_sugerido_final || v.precio_mercado_promedio || 0;
-          totalVal += price;
-          totalHealth += (v.health_score || 100);
+          // Suggested Price (Our val)
+          const suggested = v.precio_sugerido_final || 0;
+          // Market Average (Base val)
+          const market = v.precio_mercado_promedio || 0;
+
+          // Total Value for Patrimony is the Suggested Price (what they can sell for)
+          // If suggested is 0 (uncalculated), fallback to market
+          const finalPrice = suggested > 0 ? suggested : market;
+          totalVal += finalPrice;
+
+          // Capital Gain = Value added by certification/health
+          // Only calculate if we have both values
+          if (suggested > 0 && market > 0) {
+            totalCapitalGain += (suggested - market);
+          }
+
+          totalHealth += (v.health_score || 0);
         });
+
+        const avgHealth = vehicleList.length > 0 ? Math.round(totalHealth / vehicleList.length) : 0;
 
         setStats({
           totalValue: totalVal,
-          capitalGain: 0,
-          fleetHealth: Math.round(totalHealth / vehicleList.length)
+          capitalGain: totalCapitalGain,
+          fleetHealth: avgHealth
         });
       } else {
         setStats({ totalValue: 0, capitalGain: 0, fleetHealth: 100 });
