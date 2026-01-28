@@ -24,6 +24,8 @@ import { COLORS } from '../../design-system/tokens/colors';
 import * as vehicleService from '../../services/vehicle';
 import Button from '../../components/base/Button/Button';
 import Input from '../../components/base/Input/Input'; // Reused for kilometraje
+import * as ImagePicker from 'expo-image-picker'; // New import
+import { useQueryClient } from '@tanstack/react-query'; // For invalidation
 
 // Utility
 const formatPatente = (text) => {
@@ -41,7 +43,9 @@ const VehicleRegistrationScreen = () => {
     const [loading, setLoading] = useState(false);
     const [vehicleData, setVehicleData] = useState(null);
     const [kilometraje, setKilometraje] = useState('');
+    const [image, setImage] = useState(null); // New state for image
     const [saving, setSaving] = useState(false);
+    const queryClient = useQueryClient();
 
     // Initial focus
     const patenteInputRef = useRef(null);
@@ -92,6 +96,27 @@ const VehicleRegistrationScreen = () => {
         navigation.navigate('MisVehiculos', { promptManual: true, prefillPatente: patente });
     };
 
+    const pickImage = async () => {
+        // Request permissions
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+        if (permissionResult.granted === false) {
+            Alert.alert("Permiso Denegado", "Se requiere acceso a la galería para subir una foto.");
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            setImage(result.assets[0].uri);
+        }
+    };
+
     const handleSave = async () => {
         if (!kilometraje.trim()) {
             Alert.alert('Falta Kilometraje', 'Por favor ingresa el kilometraje actual del vehículo.');
@@ -100,30 +125,63 @@ const VehicleRegistrationScreen = () => {
 
         setSaving(true);
         try {
-            // Prepare data for creation
-            // We assume vehicleData has keys compatible with createVehicle or we need to map them
+            // Prepare FormData for creation with image
             // Normalize fuel type
             let tipoMotor = vehicleData.tipo_motor || 'Gasolina';
             if (tipoMotor.toUpperCase() === 'BENCINA') tipoMotor = 'GASOLINA';
             if (tipoMotor.toUpperCase() === 'DIESEL' || tipoMotor.toUpperCase() === 'DIÉSEL') tipoMotor = 'DIESEL';
 
-            const payload = {
-                patente: patente,
-                marca: vehicleData.marca_id || vehicleData.marca,
-                modelo: vehicleData.modelo_id || vehicleData.modelo,
-                marca_nombre: vehicleData.marca_nombre || vehicleData.marca,
-                modelo_nombre: vehicleData.modelo_nombre || vehicleData.modelo,
-                year: parseInt(vehicleData.year || vehicleData.anio),
-                kilometraje: parseInt(kilometraje),
-                tipo_motor: tipoMotor,
-                cilindraje: vehicleData.cilindraje || null,
-                color: vehicleData.color || null,
-                vin: vehicleData.vin || null,
-                motor: vehicleData.motor || null,
-                foto: null
-            };
+            const formData = new FormData();
 
-            await vehicleService.createVehicle(payload);
+            // Append explicit fields
+            formData.append('patente', patente);
+
+            // Handle MARCA logic safely
+            const marcaVal = vehicleData.marca_id || vehicleData.marca;
+            if (marcaVal !== undefined && marcaVal !== null) {
+                formData.append('marca', marcaVal);
+            }
+
+            // Handle MODELO logic safely
+            const modeloVal = vehicleData.modelo_id || vehicleData.modelo;
+            // Only append modelo if it is defined and looks like an ID, otherwise backend might fail if it tries to filter(id=string) without check
+            // However, backend code (line 225) gets 'modelo' and likely tries to filter if present.
+            // If it's a name, we should probably SKIP sending it as 'modelo' ID and rely on 'modelo_nombre'.
+            // But if previously it worked, maybe 'modelo' key was ignored if not ID?
+            // Safer: append if defined.
+            if (modeloVal !== undefined && modeloVal !== null) {
+                formData.append('modelo', modeloVal);
+            }
+
+            // Handle Names
+            const marcaNombre = vehicleData.marca_nombre || vehicleData.marca;
+            if (marcaNombre) formData.append('marca_nombre', marcaNombre);
+
+            const modeloNombre = vehicleData.modelo_nombre || vehicleData.modelo;
+            if (modeloNombre) formData.append('modelo_nombre', modeloNombre);
+
+            formData.append('year', String(parseInt(vehicleData.year || vehicleData.anio)));
+            formData.append('kilometraje', String(parseInt(kilometraje)));
+            formData.append('tipo_motor', tipoMotor);
+
+            // Optional fields - Strict checks
+            if (vehicleData.cilindraje) formData.append('cilindraje', vehicleData.cilindraje);
+            if (vehicleData.color) formData.append('color', vehicleData.color);
+            if (vehicleData.vin) formData.append('vin', vehicleData.vin);
+            if (vehicleData.motor) formData.append('motor', vehicleData.motor);
+
+            // Append Image if exists
+            if (image) {
+                const filename = image.split('/').pop();
+                const match = /\.(\w+)$/.exec(filename);
+                const type = match ? `image/${match[1]}` : `image`;
+                formData.append('foto', { uri: image, name: filename, type });
+            }
+
+            await vehicleService.createVehicle(formData);
+
+            // Invalidate queries to refresh lists
+            queryClient.invalidateQueries({ queryKey: ['vehicles'] });
 
             Alert.alert('Éxito', 'Vehículo agregado a tu garaje.', [
                 {
@@ -156,30 +214,31 @@ const VehicleRegistrationScreen = () => {
         setVehicleData(null);
         setPatente('');
         setKilometraje('');
+        setImage(null);
     };
 
     return (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.container}>
-                <StatusBar barStyle="dark-content" />
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" />
 
-                {/* Header */}
-                <View style={[styles.header, { marginTop: insets.top }]}>
-                    <Text style={styles.headerTitle}>Nuevo Vehículo</Text>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-                        <Ionicons name="close" size={24} color={COLORS.base.inkBlack} />
-                    </TouchableOpacity>
-                </View>
+            {/* Header */}
+            <View style={[styles.header, { marginTop: insets.top }]}>
+                <Text style={styles.headerTitle}>Nuevo Vehículo</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
+                    <Ionicons name="close" size={24} color={COLORS.base.inkBlack} />
+                </TouchableOpacity>
+            </View>
 
-                {/* Main Content */}
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.keyboardContainer}
-                >
-                    <View style={styles.contentContainer}>
+            {/* Main Content */}
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                style={styles.keyboardContainer}
+            >
+                <View style={styles.contentContainer}>
 
-                        {/* SEARCH STATE */}
-                        {step === 'search' && (
+                    {/* SEARCH STATE */}
+                    {step === 'search' && (
+                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                             <View style={styles.centerWrapper}>
                                 <Text style={styles.instructionText}>Ingresa la patente de tu vehículo para buscar sus datos automáticamente.</Text>
 
@@ -217,86 +276,111 @@ const VehicleRegistrationScreen = () => {
                                     <Text style={styles.manualLinkText}>¿No tienes la patente? Ingreso Manual</Text>
                                 </TouchableOpacity>
                             </View>
-                        )}
+                        </TouchableWithoutFeedback>
+                    )}
 
-                        {/* SUCCESS STATE */}
-                        {step === 'success' && vehicleData && (
-                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.successScroll}>
-                                <View style={styles.successHeader}>
-                                    <View style={styles.successBadge}>
-                                        <Ionicons name="checkmark-circle" size={16} color="white" />
-                                        <Text style={styles.successBadgeText}>Vehículo Identificado</Text>
+                    {/* SUCCESS STATE */}
+                    {step === 'success' && vehicleData && (
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.successScroll}
+                            keyboardShouldPersistTaps="handled"
+                            keyboardDismissMode="on-drag"
+                        >
+                            <View style={styles.successHeader}>
+                                <View style={styles.successBadge}>
+                                    <Ionicons name="checkmark-circle" size={16} color="white" />
+                                    <Text style={styles.successBadgeText}>Vehículo Identificado</Text>
+                                </View>
+                            </View>
+
+                            {/* Data Card */}
+                            <View style={styles.vehicleCard}>
+                                <View style={styles.cardHeader}>
+                                    <View>
+                                        <Text style={styles.brandText}>{vehicleData.marca_nombre || 'Marca'}</Text>
+                                        <Text style={styles.modelText}>{vehicleData.modelo_nombre || 'Modelo'}</Text>
+                                        <Text style={styles.yearText}>{vehicleData.year || vehicleData.anio || '----'}</Text>
+                                    </View>
+                                    <View style={styles.carIconContainer}>
+                                        <Ionicons name="car-sport" size={48} color={COLORS.primary[100]} />
                                     </View>
                                 </View>
 
-                                {/* Data Card */}
-                                <View style={styles.vehicleCard}>
-                                    <View style={styles.cardHeader}>
-                                        <View>
-                                            <Text style={styles.brandText}>{vehicleData.marca_nombre || 'Marca'}</Text>
-                                            <Text style={styles.modelText}>{vehicleData.modelo_nombre || 'Modelo'}</Text>
-                                            <Text style={styles.yearText}>{vehicleData.year || vehicleData.anio || '----'}</Text>
-                                        </View>
-                                        <View style={styles.carIconContainer}>
-                                            <Ionicons name="car-sport" size={48} color={COLORS.primary[100]} />
-                                        </View>
+                                <View style={styles.grid}>
+                                    <View style={styles.gridItem}>
+                                        <Text style={styles.gridLabel}>Motor</Text>
+                                        <Text style={styles.gridValue}>{vehicleData.motor || 'N/A'}</Text>
                                     </View>
-
-                                    <View style={styles.grid}>
-                                        <View style={styles.gridItem}>
-                                            <Text style={styles.gridLabel}>Motor</Text>
-                                            <Text style={styles.gridValue}>{vehicleData.motor || 'N/A'}</Text>
-                                        </View>
-                                        <View style={styles.gridItem}>
-                                            <Text style={styles.gridLabel}>Combustible</Text>
-                                            <Text style={styles.gridValue}>{vehicleData.tipo_motor || 'N/A'}</Text>
-                                        </View>
-                                        <View style={styles.gridItem}>
-                                            <Text style={styles.gridLabel}>Color</Text>
-                                            <Text style={styles.gridValue}>{vehicleData.color || 'N/A'}</Text>
-                                        </View>
-                                        <View style={styles.gridItem}>
-                                            <Text style={styles.gridLabel}>VIN</Text>
-                                            <Text style={[styles.gridValue, styles.monospace]}>{vehicleData.vin || 'N/A'}</Text>
-                                        </View>
+                                    <View style={styles.gridItem}>
+                                        <Text style={styles.gridLabel}>Combustible</Text>
+                                        <Text style={styles.gridValue}>{vehicleData.tipo_motor || 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.gridItem}>
+                                        <Text style={styles.gridLabel}>Color</Text>
+                                        <Text style={styles.gridValue}>{vehicleData.color || 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.gridItem}>
+                                        <Text style={styles.gridLabel}>VIN</Text>
+                                        <Text style={[styles.gridValue, styles.monospace]}>{vehicleData.vin || 'N/A'}</Text>
                                     </View>
                                 </View>
+                            </View>
 
-                                {/* Kilometraje Input */}
-                                <View style={styles.kilometerSection}>
-                                    <Text style={styles.sectionLabel}>Kilometraje Actual</Text>
-                                    <View style={styles.kmInputWrapper}>
-                                        <TextInput
-                                            style={styles.kmInput}
-                                            value={kilometraje}
-                                            onChangeText={text => setKilometraje(text.replace(/[^0-9]/g, ''))}
-                                            placeholder="0"
-                                            keyboardType="numeric"
-                                            placeholderTextColor="#94A3B8"
-                                        />
-                                        <Text style={styles.kmSuffix}>km</Text>
-                                    </View>
+                            {/* Kilometraje Input */}
+                            <View style={styles.kilometerSection}>
+                                <Text style={styles.sectionLabel}>Kilometraje Actual</Text>
+                                <View style={styles.kmInputWrapper}>
+                                    <TextInput
+                                        style={styles.kmInput}
+                                        value={kilometraje}
+                                        onChangeText={text => setKilometraje(text.replace(/[^0-9]/g, ''))}
+                                        placeholder="0"
+                                        keyboardType="numeric"
+                                        placeholderTextColor="#94A3B8"
+                                    />
+                                    <Text style={styles.kmSuffix}>km</Text>
                                 </View>
+                            </View>
 
-                                <Button
-                                    title="Guardar en mi Garaje"
-                                    icon="add"
-                                    onPress={handleSave}
-                                    isLoading={saving}
-                                    style={styles.saveButton}
-                                />
-
-                                <TouchableOpacity onPress={handleReset} style={styles.retryLink} disabled={saving}>
-                                    <Text style={styles.retryText}>Buscar otra patente</Text>
+                            {/* Photo Upload Section */}
+                            <View style={styles.photoSection}>
+                                <Text style={styles.sectionLabel}>Foto del Vehículo (Opcional)</Text>
+                                <TouchableOpacity style={styles.photoUpload} onPress={pickImage}>
+                                    {image ? (
+                                        <Image source={{ uri: image }} style={styles.vehicleImage} />
+                                    ) : (
+                                        <View style={styles.photoPlaceholder}>
+                                            <Ionicons name="camera" size={32} color={COLORS.primary[500]} />
+                                            <Text style={styles.photoText}>Subir una foto</Text>
+                                        </View>
+                                    )}
+                                    {image && (
+                                        <View style={styles.editPhotoBadge}>
+                                            <Ionicons name="pencil" size={16} color="white" />
+                                        </View>
+                                    )}
                                 </TouchableOpacity>
+                            </View>
 
-                            </ScrollView>
-                        )}
+                            <Button
+                                title="Guardar en mi Garaje"
+                                icon="add"
+                                onPress={handleSave}
+                                isLoading={saving}
+                                style={styles.saveButton}
+                            />
 
-                    </View>
-                </KeyboardAvoidingView>
-            </View>
-        </TouchableWithoutFeedback>
+                            <TouchableOpacity onPress={handleReset} style={styles.retryLink} disabled={saving}>
+                                <Text style={styles.retryText}>Buscar otra patente</Text>
+                            </TouchableOpacity>
+
+                        </ScrollView>
+                    )}
+
+                </View>
+            </KeyboardAvoidingView>
+        </View>
     );
 };
 
@@ -537,6 +621,52 @@ const styles = StyleSheet.create({
         color: '#64748B',
         fontWeight: '600',
     },
+    // PHOTO STYLES
+    photoSection: {
+        marginBottom: 32,
+    },
+    photoUpload: {
+        width: '100%',
+        height: 200,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderStyle: 'dashed',
+        overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+    },
+    vehicleImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    photoPlaceholder: {
+        alignItems: 'center',
+        gap: 12,
+    },
+    photoText: {
+        color: COLORS.primary[500],
+        fontWeight: '600',
+        fontSize: 16,
+    },
+    editPhotoBadge: {
+        position: 'absolute',
+        bottom: 16,
+        right: 16,
+        backgroundColor: COLORS.base.inkBlack,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+    }
 });
 
 export default VehicleRegistrationScreen;

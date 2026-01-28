@@ -149,59 +149,69 @@ async function testConnection(url, timeout = 5000) {
 async function discoverServerURL() {
   console.log('🔍 Iniciando auto-discovery del servidor...');
 
-  // 1. Si hay URL de ngrok configurada y activada, probarla PRIMERO
-  if (ENV_CONFIG.USE_NGROK && ENV_CONFIG.NGROK_URL) {
-    const ngrokAPIUrl = `${ENV_CONFIG.NGROK_URL}/api`;
-    console.log('🌐 Probando URL de ngrok:', ngrokAPIUrl);
-    if (await testConnection(ngrokAPIUrl)) {
-      console.log(`✅ Servidor encontrado en ngrok: ${ngrokAPIUrl}`);
-      return ngrokAPIUrl;
-    }
-    console.log('⚠️ ngrok no disponible, probando alternativas locales...');
-  }
-
-  // 2. PRIORIDAD: Detectar IPs locales primero (desarrollo local)
-  const possibleIPs = detectServerIPs();
-  const port = ENV_CONFIG.SERVER_PORT || DEFAULT_CONFIG.port;
-
-  console.log('🔍 Probando IPs locales candidatas:', possibleIPs);
-
-  // Probar cada IP local secuencialmente
-  for (const ip of possibleIPs) {
-    const url = `${DEFAULT_CONFIG.protocol}://${ip}:${port}${DEFAULT_CONFIG.apiPath}`;
-
-    if (await testConnection(url)) {
-      console.log(`✅ Servidor LOCAL encontrado en: ${url}`);
-      return url;
-    }
-  }
-
-  console.log('⚠️ No se encontró servidor local, probando producción...');
-
-  // 3. FALLBACK: Si hay configuración manual (API_URL de producción), probarla
+  // 1. PRIORIDAD MÁXIMA: URL de Producción (Configurada manualmente)
   if (ENV_CONFIG.API_URL) {
-    console.log('🌐 Probando URL de producción:', ENV_CONFIG.API_URL);
-    if (await testConnection(ENV_CONFIG.API_URL)) {
+    console.log('🌐 Probando URL de producción (Prioridad 1):', ENV_CONFIG.API_URL);
+    // Timeout corto para producción (2s) para fallar rápido si no hay internet o está caído
+    if (await testConnection(ENV_CONFIG.API_URL, 2000)) {
       console.log(`✅ Conectado a producción: ${ENV_CONFIG.API_URL}`);
       return ENV_CONFIG.API_URL;
     }
   }
 
-  // 4. Si hay IP forzada, probarla como último recurso
-  if (DEFAULT_CONFIG.forcedServerIP) {
-    const forcedURL = `${DEFAULT_CONFIG.protocol}://${DEFAULT_CONFIG.forcedServerIP}:${port}${DEFAULT_CONFIG.apiPath}`;
-    console.log('🔧 Probando IP forzada:', forcedURL);
-
-    if (await testConnection(forcedURL)) {
-      console.log(`✅ Servidor encontrado en IP forzada: ${forcedURL}`);
-      return forcedURL;
+  // 2. Si producción falla, probar Ngrok (si está configurado)
+  if (ENV_CONFIG.USE_NGROK && ENV_CONFIG.NGROK_URL) {
+    const ngrokAPIUrl = `${ENV_CONFIG.NGROK_URL}/api`;
+    console.log('🌐 Producción falló, probando Ngrok:', ngrokAPIUrl);
+    if (await testConnection(ngrokAPIUrl, 2000)) {
+      return ngrokAPIUrl;
     }
   }
 
-  // 5. Fallback final a localhost
-  const fallbackURL = `${DEFAULT_CONFIG.protocol}://localhost:${port}${DEFAULT_CONFIG.apiPath}`;
-  console.log(`⚠️ No se pudo conectar a ningún servidor, usando fallback: ${fallbackURL}`);
-  return fallbackURL;
+  // 3. FALLBACK: Entorno de Desarrollo (Local)
+  // Solo buscar localmente si estamos en DEV o si no hay URL de producción
+  if (__DEV__) {
+    const possibleIPs = detectServerIPs();
+    const port = ENV_CONFIG.SERVER_PORT || DEFAULT_CONFIG.port;
+
+    console.log('⚠️ Producción no disponible. Buscando servidor LOCAL...', possibleIPs);
+
+    // Optimización: Probar la primera IP candidata (host de Expo) rápidamente
+    if (possibleIPs.length > 0) {
+      const firstIp = possibleIPs[0]; // La más probable (Host URI)
+      const fastUrl = `${DEFAULT_CONFIG.protocol}://${firstIp}:${port}${DEFAULT_CONFIG.apiPath}`;
+      if (await testConnection(fastUrl, 1000)) {
+        console.log(`✅ Servidor LOCAL (Rápido) encontrado en: ${fastUrl}`);
+        return fastUrl;
+      }
+    }
+
+    // Si la rápida falla, probar todas en paralelo (race) para encontrar cualquiera que responda
+    const checkPromises = possibleIPs.map(async (ip) => {
+      const url = `${DEFAULT_CONFIG.protocol}://${ip}:${port}${DEFAULT_CONFIG.apiPath}`;
+      if (await testConnection(url, 1500)) return url;
+      return null;
+    });
+
+    try {
+      // Esperar a que alguna responda (Promise.any no está en JS Core antiguo de RN, usamos loop o all)
+      // Usaremos un enfoque secuencial rápido o Promise.all y find
+      const results = await Promise.all(checkPromises);
+      const validUrl = results.find(url => url !== null);
+
+      if (validUrl) {
+        console.log(`✅ Servidor LOCAL encontrado en: ${validUrl}`);
+        return validUrl;
+      }
+    } catch (e) {
+      console.log("Error buscando localmente", e);
+    }
+  }
+
+  // 4. Fallback final
+  console.log('⚠️ No se pudo conectar a ningún servidor (Prod/Local). Usando fallback localhost.');
+  const fallbackPort = ENV_CONFIG.SERVER_PORT || DEFAULT_CONFIG.port;
+  return `${DEFAULT_CONFIG.protocol}://localhost:${fallbackPort}${DEFAULT_CONFIG.apiPath}`;
 }
 
 /**
