@@ -132,11 +132,10 @@ const OfferCardDetailed = ({
             <View style={styles.actionsRow}>
                 {/* Botón Chat */}
                 <TouchableOpacity
-                    style={[styles.chatButton, (!isAccepted || disabled) && styles.disabledChatButton]}
+                    style={styles.chatButton}
                     onPress={() => onChatPress(oferta)}
-                    disabled={!isAccepted || disabled}
                 >
-                    <Ionicons name="chatbubble-ellipses-outline" size={24} color={!isAccepted || disabled ? "#9CA3AF" : "#0F172A"} />
+                    <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0F172A" />
                 </TouchableOpacity>
 
                 {/* Botón Aceptar o Badge Aceptado */}

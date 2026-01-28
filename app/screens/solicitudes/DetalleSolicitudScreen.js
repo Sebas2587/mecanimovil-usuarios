@@ -244,15 +244,21 @@ const DetalleSolicitudScreen = () => {
               )}
 
               {ofertas.map((oferta) => {
-                const isAdjudicatedState = ['adjudicada', 'pendiente_pago'].includes(solicitud.estado);
-                const isWinner = isAdjudicatedState && solicitud.oferta_seleccionada === oferta.id;
+                // Definir estados donde la oferta ya está asignada/pagada
+                const postDecisionStates = ['adjudicada', 'pendiente_pago', 'en_proceso', 'checklist_en_progreso', 'checklist_completado', 'completada', 'finalizada', 'calificada', 'cancelada'];
 
-                // Estados donde ya se tomó una decisión
-                const adjudicatedStates = ['adjudicada', 'pendiente_pago', 'en_proceso', 'checklist_en_progreso', 'checklist_completado', 'completada', 'cancelada'];
-                const isFinalState = adjudicatedStates.includes(solicitud.estado);
+                // Determinar si esta oferta es la ganadora (independiente del estado exacto, siempre que haya sido seleccionada)
+                const isWinner = solicitud.oferta_seleccionada === oferta.id;
 
-                // Habilitar si NO estamos en un estado final, O si es la oferta ganadora
-                const isDisabled = procesando || (isFinalState && !isWinner);
+                // Estado final (locked)
+                const isFinalState = postDecisionStates.includes(solicitud.estado);
+
+                // Deshabilitar "Aceptar":
+                // 1. Si está procesando
+                // 2. Si estamos en un estado final y esta oferta NO es la ganadora (perdedoras bloqueadas)
+                // 3. Si estamos en un estado final y es la ganadora (ya ganó, no se puede aceptar de nuevo)
+                //    Nota: OfferCardDetailed muestra badge "Aceptada" si isAccepted=true, así que el disable aquí es preventivo.
+                const isDisabled = procesando || isFinalState;
 
                 return (
                   <OfferCardDetailed
