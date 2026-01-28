@@ -277,16 +277,25 @@ const SellVehicleScreen = () => {
                         <Text style={styles.suggestedPrice}>Sugerido Certificado: ${formatPrice(suggestedPrice)}</Text>
 
                         {/* Insight Box */}
+                        {/* Insight Box */}
                         <View style={styles.insightBox}>
                             <View style={styles.insightHeader}>
                                 <Text style={styles.insightTitle}>Potencial de Ganancia</Text>
-                                <Text style={styles.insightValue}>+{healthBonus}%</Text>
+                                <Text style={styles.insightValue}>{healthBonus > 0 ? '+' : ''}${formatPrice(healthBonus)}</Text>
                             </View>
+
+                            {/* Visual Bar: Scale relative to Suggested Price (max 20% gain visualization) */}
                             <View style={styles.progressBarBackground}>
-                                <View style={[styles.progressBarFill, { width: `${Math.min(healthBonus * 10, 100)}%` }]} />
+                                <View style={[
+                                    styles.progressBarFill,
+                                    { width: `${Math.min((healthBonus / (suggestedPrice || 1)) * 500, 100)}%` }
+                                ]} />
                             </View>
+
                             <Text style={styles.insightDescription}>
-                                Tu auto tiene una bonificación por buen estado de salud.
+                                {healthBonus > 0
+                                    ? "Repara tus alertas de salud para desbloquear este valor adicional."
+                                    : "Tu vehículo está en excelente estado. ¡Estás obteniendo el máximo valor!"}
                             </Text>
                         </View>
                     </View>
