@@ -29,6 +29,8 @@ const ChatDetailScreen = () => {
     const spacing = theme?.spacing || {};
     const borders = theme?.borders || {};
 
+    const styles = getStyles(colors, typography, spacing, borders, insets);
+
     const { refetchChats } = useChats();
     const { conversationId } = route.params;
 
