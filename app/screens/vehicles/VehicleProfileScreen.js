@@ -247,6 +247,17 @@ const VehicleProfileScreen = () => {
                     {/* 4. Technical Specs */}
                     <TechSpecsCard vehicle={vehicle} />
 
+                    {/* 5. Valuation Explanation */}
+                    <View style={styles.infoCard}>
+                        <View style={styles.infoHeader}>
+                            <Ionicons name="information-circle-outline" size={20} color={colors.primary?.[500] || '#2563EB'} />
+                            <Text style={styles.infoTitle}>¿Cómo calculamos tu valor?</Text>
+                        </View>
+                        <Text style={styles.infoText}>
+                            Usamos el <Text style={{ fontWeight: '700' }}>Precio de Mercado</Text> real como base y sumamos valor adicional por tu <Text style={{ fontWeight: '700' }}>Salud Certificada</Text> y <Text style={{ fontWeight: '700' }}>Kilometraje</Text>. ¡Sin castigos injustos!
+                        </Text>
+                    </View>
+
                     <View style={{ height: 40 }} />
                 </View>
             </ScrollView>
@@ -452,6 +463,31 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     saveButtonText: {
         fontWeight: '600',
         color: 'white',
+    },
+    infoCard: {
+        backgroundColor: 'rgba(37, 99, 235, 0.05)', // Light blue tint
+        marginHorizontal: 16,
+        marginTop: 16,
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(37, 99, 235, 0.1)',
+    },
+    infoHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+        gap: 8,
+    },
+    infoTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#1F2937',
+    },
+    infoText: {
+        fontSize: 13,
+        color: '#4B5563',
+        lineHeight: 20,
     }
 });
 
