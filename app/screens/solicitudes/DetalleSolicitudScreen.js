@@ -247,9 +247,12 @@ const DetalleSolicitudScreen = () => {
                 const isAdjudicatedState = ['adjudicada', 'pendiente_pago'].includes(solicitud.estado);
                 const isWinner = isAdjudicatedState && solicitud.oferta_seleccionada === oferta.id;
 
-                // Habilitar solo si está publicada O si es la oferta ganadora en estado adjudicado
-                // Si está adjudicada, las perdedoras quedan deshabilitadas
-                const isDisabled = procesando || (solicitud.estado !== 'publicada' && !isWinner);
+                // Estados donde ya se tomó una decisión
+                const adjudicatedStates = ['adjudicada', 'pendiente_pago', 'en_proceso', 'checklist_en_progreso', 'checklist_completado', 'completada', 'cancelada'];
+                const isFinalState = adjudicatedStates.includes(solicitud.estado);
+
+                // Habilitar si NO estamos en un estado final, O si es la oferta ganadora
+                const isDisabled = procesando || (isFinalState && !isWinner);
 
                 return (
                   <OfferCardDetailed
