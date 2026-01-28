@@ -453,31 +453,40 @@ const MisVehiculosScreen = () => {
 
           {/* Health Bar */}
           <View style={styles.healthContainer}>
-            <View style={styles.healthHeader}>
-              <Text style={styles.healthLabel}>Salud General</Text>
-              <Text style={[
-                styles.healthPercent,
-                { color: item.health_score >= 80 ? COLORS.success : '#EF4444' }
-              ]}>{item.health_score || 100}%</Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[
-                styles.progressBarFill,
-                {
-                  width: `${item.health_score || 100}%`,
-                  backgroundColor: item.health_score >= 80 ? COLORS.success : '#EF4444'
-                }
-              ]} />
-            </View>
+            {item.health_score > 0 ? (
+              <>
+                <View style={styles.healthHeader}>
+                  <Text style={styles.healthLabel}>Salud General</Text>
+                  <Text style={[
+                    styles.healthPercent,
+                    { color: item.health_score >= 80 ? COLORS.success : '#EF4444' }
+                  ]}>{item.health_score}%</Text>
+                </View>
+                <View style={styles.progressBarBg}>
+                  <View style={[
+                    styles.progressBarFill,
+                    {
+                      width: `${item.health_score}%`,
+                      backgroundColor: item.health_score >= 80 ? COLORS.success : '#EF4444'
+                    }
+                  ]} />
+                </View>
 
-            {(item.health_score || 100) >= 80 ? (
-              <Text style={[styles.healthStatus, { color: COLORS.success }]}>
-                <Ionicons name="checkmark-circle" size={12} /> En Buen Estado
-              </Text>
+                {item.health_score >= 80 ? (
+                  <Text style={[styles.healthStatus, { color: COLORS.success }]}>
+                    <Ionicons name="checkmark-circle" size={12} /> En Buen Estado
+                  </Text>
+                ) : (
+                  <Text style={[styles.healthStatus, { color: '#EF4444' }]}>
+                    <Ionicons name="warning" size={12} /> Requiere Atención ({item.pending_alerts_count || 0} alertas)
+                  </Text>
+                )}
+              </>
             ) : (
-              <Text style={[styles.healthStatus, { color: '#EF4444' }]}>
-                <Ionicons name="warning" size={12} /> Requiere Atención ({item.pending_alerts_count || 0} alertas)
-              </Text>
+              <View style={styles.healthHeader}>
+                <Text style={styles.healthLabel}>Calculando Salud...</Text>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              </View>
             )}
           </View>
         </View>
