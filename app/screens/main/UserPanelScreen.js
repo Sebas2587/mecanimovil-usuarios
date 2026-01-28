@@ -211,8 +211,9 @@ const UserPanelScreen = () => {
             {/* Avatar + Notification */}
             <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate(ROUTES.PROFILE)}>
               <Image
-                source={{ uri: user?.foto_perfil_url || 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop' }}
+                source={{ uri: user?.foto_perfil_url || user?.foto_perfil || 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop' }}
                 style={styles.avatarImage}
+                contentFit="cover"
               />
               <View style={styles.notificationBadge} />
             </TouchableOpacity>
