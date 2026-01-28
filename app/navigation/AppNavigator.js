@@ -35,7 +35,6 @@ import TermsScreen from '../screens/support/TermsScreen';
 // Nuevas pantallas del flujo de carrito independiente
 import CarritoScreen from '../screens/cart/CarritoScreen';
 import OpcionesPagoScreen from '../screens/payment/OpcionesPagoScreen';
-import SeleccionMetodoPagoScreen from '../screens/payment/SeleccionMetodoPagoScreen';
 import ConfirmacionScreen from '../screens/confirmation/ConfirmacionScreen';
 import PaymentCallbackScreen from '../screens/payment/PaymentCallbackScreen';
 import MercadoPagoWebViewScreen from '../screens/payment/MercadoPagoWebViewScreen';
@@ -640,11 +639,6 @@ const AppNavigator = () => {
       <Stack.Screen
         name="OpcionesPago"
         component={OpcionesPagoScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="SeleccionMetodoPago"
-        component={SeleccionMetodoPagoScreen}
         options={{ headerShown: false }}
       />
       {/* CardInput eliminada temporalmente - se reimplementará con Mercado Pago */}
