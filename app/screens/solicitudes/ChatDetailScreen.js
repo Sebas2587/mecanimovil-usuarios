@@ -11,6 +11,8 @@ import { useTheme } from '../../design-system/theme/useTheme';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 
+import WebSocketService from '../../services/websocketService';
+
 import chatService from '../../services/chatService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../../config/serverConfig';
@@ -40,9 +42,6 @@ const ChatDetailScreen = () => {
     const [selectedImage, setSelectedImage] = useState(null);
     const flatListRef = useRef(null);
 
-    // ... existing code ...
-
-
     // Load current user ID
     useEffect(() => {
         const loadUser = async () => {
@@ -51,27 +50,88 @@ const ChatDetailScreen = () => {
                 if (userJson) {
                     const user = JSON.parse(userJson);
                     setCurrentUserId(user.id);
+                    console.log('👤 [CHAT SCREEN] Usuario cargado:', user.id);
+                } else {
+                    console.log('⚠️ [CHAT SCREEN] No se encontró usuario en storage');
                 }
             } catch (error) {
-                console.error('Error loading user:', error);
+                console.error('❌ [CHAT SCREEN] Error cargando usuario:', error);
             }
         };
         loadUser();
     }, []);
 
     // Initial Load
+    // Ref per conversation para evitar stale closures en el listener
+    const conversationRef = useRef(null);
+
+    // Update ref when conversation changes
+    useEffect(() => {
+        conversationRef.current = conversation;
+    }, [conversation]);
+
+    // Initial Load - WebSocket Listener
     useEffect(() => {
         loadData();
 
-        // Connect WS
-        chatService.connect(conversationId, (newMessage) => {
-            setMessages((prev) => [newMessage, ...prev]);
-        });
+        // Suscribirse a nuevos mensajes (WebSocket Global)
+        const handleNewMessage = (data) => {
+            console.log('📨 [CHAT SCREEN] Mensaje recibido en socket global:', data);
+
+            const currentConv = conversationRef.current;
+
+            // Verificar si el mensaje pertenece a esta conversación (usando Ref)
+            if (!currentConv) {
+                // Intentar machear por ID si la conversación aún no carga pero el ID es correcto?
+                // Por seguridad, mejor esperar que cargue.
+                console.log('❌ [CHAT SCREEN] Conversación no cargada aún (Ref null), ignorando mensaje. Esperando...');
+                return;
+            }
+
+            // Comparar oferta_id del mensaje con la oferta de la conversación
+            const conversationOfertaId = typeof currentConv.oferta === 'object' ? currentConv.oferta?.id : currentConv.oferta;
+
+            console.log('🔍 [CHAT SCREEN] Comparando IDs:', {
+                msgOfertaId: data.oferta_id,
+                convOfertaId: conversationOfertaId
+            });
+
+            // Convertir a string para asegurar comparación
+            if (String(data.oferta_id) === String(conversationOfertaId)) {
+                console.log('💬 [CHAT SCREEN] Nuevo mensaje recibido para esta conversación');
+                const newMessage = {
+                    id: data.mensaje_id || data.id,
+                    content: data.mensaje || data.content || data.message,
+                    sender_id: data.enviado_por, // Backend envía nombre en 'enviado_por'
+                    sender_name: data.enviado_por,
+                    timestamp: data.timestamp,
+                    attachment: data.archivo_adjunto,
+                    is_read: false,
+                    es_proveedor: data.es_proveedor
+                };
+
+                // Evitar duplicados
+                setMessages((prev) => {
+                    if (prev.some(m => m.id === newMessage.id)) return prev;
+                    return [newMessage, ...prev];
+                });
+
+                // Marcar como leído si es mensaje del otro
+                if (data.es_proveedor) { // Asumiendo que el usuario es cliente
+                    // TODO: Llamar al servicio para marcar leídoc
+                    // chatService.markAsRead(conversationId); 
+                }
+            } else {
+                console.log('⚠️ [CHAT SCREEN] Mensaje es de otra oferta, ignorando.');
+            }
+        };
+
+        WebSocketService.onMessage('nuevo_mensaje_chat', handleNewMessage);
 
         return () => {
-            chatService.disconnect();
+            WebSocketService.offMessage('nuevo_mensaje_chat', handleNewMessage);
         };
-    }, [conversationId]);
+    }, [conversationId]); // Dependencia estable
 
     const loadData = async () => {
         try {
@@ -180,9 +240,16 @@ const ChatDetailScreen = () => {
     };
 
     const sendMessage = async () => {
+        console.log('📤 [CHAT SCREEN] Intentando enviar mensaje...');
         const text = inputText.trim();
+
+        console.log('📤 [CHAT SCREEN] Datos:', { text, hasAttachment: !!attachment, currentUserId });
+
         // Allow sending if there is an attachment OR text
-        if ((!text && !attachment) || !currentUserId) return;
+        if ((!text && !attachment) || !currentUserId) {
+            console.log('❌ [CHAT SCREEN] No se puede enviar: falta texto/adjunto o userId');
+            return;
+        }
 
         setSending(true);
 
