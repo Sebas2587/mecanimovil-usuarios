@@ -45,6 +45,25 @@ const ChatDetailScreen = () => {
     const flatListRef = useRef(null);
     const sentMessagesRef = useRef(new Set());
 
+    // Load current user ID
+    useEffect(() => {
+        const loadUser = async () => {
+            try {
+                const userJson = await AsyncStorage.getItem('user');
+                if (userJson) {
+                    const user = JSON.parse(userJson);
+                    console.log('👤 [CHAT DETAIL] Loaded user ID:', user.id);
+                    setCurrentUserId(user.id);
+                } else {
+                    console.warn('⚠️ [CHAT DETAIL] No user found in storage');
+                }
+            } catch (error) {
+                console.error('Error loading user:', error);
+            }
+        };
+        loadUser();
+    }, []);
+
     useEffect(() => {
         loadData();
 
@@ -231,8 +250,13 @@ const ChatDetailScreen = () => {
 
     const sendMessage = async () => {
         const text = inputText.trim();
+        console.log('📤 [CHAT DETAIL] Attempting to send message:', { text, hasAttachment: !!attachment, currentUserId });
+
         // Allow sending if there is an attachment OR text
-        if ((!text && !attachment) || !currentUserId) return;
+        if ((!text && !attachment) || !currentUserId) {
+            console.warn('❌ [CHAT DETAIL] Cannot send: missing text/attachment or user ID', { text, hasAttachment: !!attachment, currentUserId });
+            return;
+        }
 
         setSending(true);
 
