@@ -1123,7 +1123,12 @@ const OpcionesPagoScreen = () => {
             {resumenGlobal.serviciosDetalle.map((servicio, index) => (
               <View key={index} style={styles.servicioResumenCard}>
                 <View style={styles.servicioResumenInfo}>
-                  <Text style={styles.servicioResumenNombre}>{servicio.servicio}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={[styles.servicioResumenNombre, { flex: 1, marginRight: 8 }]}>{servicio.servicio}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#003459' }}>
+                      ${Math.round(servicio.precioOriginal || servicio.precio).toLocaleString('es-CL')}
+                    </Text>
+                  </View>
                   <View style={styles.proveedorResumenRow}>
                     <Ionicons
                       name={servicio.tipoProveedor === 'Taller' ? 'business' : 'person'}
@@ -1477,6 +1482,26 @@ const OpcionesPagoScreen = () => {
               <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
               <Text style={styles.infoSeguroTexto}>
                 El pago va directamente a la cuenta de Mercado Pago del proveedor. Mecanimovil no interviene en la transacción.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Resumen de Total General (Siempre visible si no hay desglose detallado) */}
+        {!resumenGlobal?.tieneDesgloseRepuestos && (
+          <View style={styles.seccion}>
+            <Text style={styles.seccionTitulo}>Resumen de Costos</Text>
+            <View style={styles.desgloseCard}>
+              <View style={[styles.desgloseRow, styles.desgloseTotalRow, { borderTopWidth: 0, paddingTop: 0 }]}>
+                <View style={styles.desgloseItem}>
+                  <Text style={styles.desgloseTotalLabel}>Total a pagar</Text>
+                </View>
+                <Text style={styles.desgloseTotalValue}>
+                  ${Math.round(resumenGlobal.totalGeneral * 1.19).toLocaleString('es-CL')}
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 8, textAlign: 'right' }}>
+                (IVA incluido)
               </Text>
             </View>
           </View>
