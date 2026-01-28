@@ -73,9 +73,9 @@ const ChatDetailScreen = () => {
         // 🔔 ALSO subscribe to global WebSocket for Provider→User broadcasts
         console.log('🔗 [USER APP] Subscribing to global WebSocket for Provider messages...');
         const handleGlobalMessage = (data) => {
-            console.log('📨 [USER APP] Global WS message received:', data);
+            console.log('📨 [USER APP] Global WS message received:', JSON.stringify(data, null, 2));
 
-            // Only process chat messages for this conversation
+            // Only process chat messages
             if (data.type === 'nuevo_mensaje_chat') {
                 console.log('💬 [USER APP] New chat message broadcast:', {
                     mensaje_id: data.mensaje_id,
@@ -84,8 +84,31 @@ const ChatDetailScreen = () => {
                     es_proveedor: data.es_proveedor
                 });
 
-                // Reload messages to get the new one (Provider sent via old API)
-                loadData();
+                // Add message directly to state (like Provider App does)
+                setMessages((prevMessages) => {
+                    // Check if message already exists
+                    const exists = prevMessages.find(m => String(m.id) === String(data.mensaje_id));
+                    if (exists) {
+                        console.log('💬 [USER APP] Message already exists, ignoring:', data.mensaje_id);
+                        return prevMessages;
+                    }
+
+                    console.log('✅ [USER APP] Adding new message from broadcast');
+                    // Create message object
+                    const newMessage = {
+                        id: data.mensaje_id,
+                        content: data.mensaje || data.message || data.content,
+                        sender: {
+                            id: data.sender_id,
+                            username: data.enviado_por
+                        },
+                        created_at: data.timestamp,
+                        is_read: false
+                    };
+
+                    // Add to beginning of array (newest first)
+                    return [newMessage, ...prevMessages];
+                });
             }
         };
 
