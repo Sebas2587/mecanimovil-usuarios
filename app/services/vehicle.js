@@ -239,22 +239,25 @@ export const getVehicleByPatente = async (patente) => {
     if (!vehicleData) return null;
 
     // Normalizar datos para la app (Mapping keys)
+    // La respuesta puede venir con datos nestados en raw_data
+    const source = vehicleData.raw_data || vehicleData;
+
     return {
-      marca: vehicleData.model?.brand?.name || vehicleData.brand?.name || vehicleData.marca,
-      marca_nombre: vehicleData.model?.brand?.name || vehicleData.brand?.name || vehicleData.marca || vehicleData.marca_nombre,
-      modelo: vehicleData.model?.id || vehicleData.model?.name || vehicleData.modelo,
-      modelo_nombre: vehicleData.model?.name || vehicleData.modelName || vehicleData.modelo || vehicleData.modelo_nombre,
-      year: vehicleData.year || vehicleData.anio,
-      color: vehicleData.color,
-      vin: vehicleData.vinNumber || vehicleData.vin,
-      motor: vehicleData.engine || vehicleData.cilindraje || vehicleData.motor, // 1.4 or 1600cc
-      numero_motor: vehicleData.engineNumber || vehicleData.numero_motor, // Serial number
-      tipo_motor: vehicleData.fuel || vehicleData.combustible || vehicleData.tipo_motor, // BENCINA, DIESEL
-      cilindraje: vehicleData.engine || vehicleData.cilindraje, // 1.4
-      transmision: vehicleData.transmission || vehicleData.transmision, // MECANICA
-      puertas: vehicleData.doors || vehicleData.puertas,
-      version: vehicleData.version,
-      mes_revision_tecnica: vehicleData.monthRT
+      marca: source.model?.brand?.name || vehicleData.brand?.name || vehicleData.marca,
+      marca_nombre: source.model?.brand?.name || vehicleData.brand?.name || vehicleData.marca || vehicleData.marca_nombre,
+      modelo: source.model?.id || source.model?.name || vehicleData.modelo,
+      modelo_nombre: source.model?.name || vehicleData.modelName || vehicleData.modelo || vehicleData.modelo_nombre,
+      year: source.year || vehicleData.year || vehicleData.anio,
+      color: source.color || vehicleData.color,
+      vin: source.vinNumber || source.vin || vehicleData.vin,
+      motor: source.engine || source.cilindraje || vehicleData.motor, // 1.4 or 1600cc
+      numero_motor: source.engineNumber || vehicleData.numero_motor, // Serial number
+      tipo_motor: source.fuel || source.combustible || vehicleData.tipo_motor, // BENCINA, DIESEL
+      cilindraje: source.engine || source.cilindraje || vehicleData.cilindraje, // 1.4
+      transmision: source.transmission || source.transmision || vehicleData.transmision, // MECANICA
+      puertas: source.doors || source.puertas || vehicleData.puertas,
+      version: source.version || vehicleData.version,
+      mes_revision_tecnica: source.monthRT || vehicleData.mes_revision_tecnica
     };
   } catch (error) {
     console.error('Error consultando patente:', error);

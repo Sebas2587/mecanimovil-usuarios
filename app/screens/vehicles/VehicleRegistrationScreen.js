@@ -118,8 +118,12 @@ const VehicleRegistrationScreen = () => {
     };
 
     const handleSave = async () => {
-        if (!kilometraje.trim()) {
-            Alert.alert('Falta Kilometraje', 'Por favor ingresa el kilometraje actual del vehículo.');
+        if (!vehicleData) return;
+
+        console.log("🔍 [DEBUG] handleSave - vehicleData:", JSON.stringify(vehicleData, null, 2));
+
+        if (!kilometraje) {
+            Alert.alert('Falta información', 'Por favor ingresa el kilometraje actual.');
             return;
         }
 
@@ -181,6 +185,14 @@ const VehicleRegistrationScreen = () => {
                 const type = match ? `image/${match[1]}` : `image`;
                 formData.append('foto', { uri: image, name: filename, type });
             }
+
+            console.log("📤 [DEBUG] FormData contents:");
+            // FormData inspection for debugging (not iterable in all RN versions but logging keys helps)
+            // Note: In RN, we can't iterate formData easily, but we can verify our appends above.
+            console.log("   - Vin:", vehicleData.vin);
+            console.log("   - Motor (Serial):", vehicleData.numero_motor);
+            console.log("   - Transmision:", vehicleData.transmision);
+            console.log("   - Version:", vehicleData.version);
 
             await vehicleService.createVehicle(formData);
 
