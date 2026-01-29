@@ -369,6 +369,10 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     <View style={styles.specsCard}>
                         <View style={styles.specsGrid}>
                             <View style={styles.specItem}>
+                                <Text style={styles.specLabel}>Versión</Text>
+                                <Text style={styles.specValue}>{fullVehicleData.version || 'N/A'}</Text>
+                            </View>
+                            <View style={styles.specItem}>
                                 <Text style={styles.specLabel}>Cilindraje</Text>
                                 <Text style={styles.specValue}>{fullVehicleData.cilindraje || 'N/A'}</Text>
                             </View>
@@ -381,9 +385,34 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                 <Text style={styles.specValue}>{(fullVehicleData.kilometraje || 0).toLocaleString()} km</Text>
                             </View>
                             <View style={styles.specItem}>
-                                <Text style={styles.specLabel}>Tipo de Combustible</Text>
+                                <Text style={styles.specLabel}>Combustible</Text>
                                 <Text style={styles.specValue}>{fullVehicleData.tipo_motor || 'Gasolina'}</Text>
                             </View>
+                            <View style={styles.specItem}>
+                                <Text style={styles.specLabel}>Puertas</Text>
+                                <Text style={styles.specValue}>{fullVehicleData.puertas || 'N/A'}</Text>
+                            </View>
+                            <View style={styles.specItem}>
+                                <Text style={styles.specLabel}>Color</Text>
+                                <Text style={styles.specValue}>{fullVehicleData.color || 'N/A'}</Text>
+                            </View>
+                            <View style={styles.specItem}>
+                                <Text style={styles.specLabel}>Rev. Técnica</Text>
+                                <Text style={styles.specValue}>{fullVehicleData.mes_revision_tecnica || 'N/A'}</Text>
+                            </View>
+                            {/* Detailed Sensitive Info - Only for Owner */}
+                            {isOwner && (
+                                <>
+                                    <View style={styles.specItem}>
+                                        <Text style={styles.specLabel}>VIN</Text>
+                                        <Text style={styles.specValue} numberOfLines={1} adjustsFontSizeToFit>{fullVehicleData.vin || 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.specItem}>
+                                        <Text style={styles.specLabel}>Nº Motor</Text>
+                                        <Text style={styles.specValue} numberOfLines={1} adjustsFontSizeToFit>{fullVehicleData.numero_motor || 'N/A'}</Text>
+                                    </View>
+                                </>
+                            )}
                         </View>
                     </View>
 

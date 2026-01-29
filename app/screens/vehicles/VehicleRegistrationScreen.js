@@ -166,6 +166,13 @@ const VehicleRegistrationScreen = () => {
 
             formData.append('year', String(parseInt(vehicleData.year || vehicleData.anio)));
             formData.append('kilometraje', String(parseInt(kilometraje)));
+
+            // Send API Mileage for comparison
+            const apiMileage = vehicleData.raw_data?.mileage || vehicleData.mileage || vehicleData.kilometraje;
+            if (apiMileage) {
+                formData.append('kilometraje_api', String(apiMileage));
+            }
+
             formData.append('tipo_motor', tipoMotor);
 
             // Optional fields - Strict checks

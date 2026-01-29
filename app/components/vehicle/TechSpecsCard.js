@@ -26,11 +26,24 @@ const TechSpecsCard = ({ vehicle }) => {
 
     const specs = [
         { label: 'Año', value: vehicle.year, icon: 'calendar-outline' },
-        { label: 'Kilometraje', value: `${vehicle.kilometraje?.toLocaleString() || 0} km`, icon: 'speedometer-outline' },
-        { label: 'Motor', value: vehicle.tipo_motor, icon: 'flash-outline' },
+        { label: 'Versión', value: vehicle.version, icon: 'layers-outline' },
+        {
+            label: 'Kilometraje',
+            value: vehicle.kilometraje_api && vehicle.kilometraje_api !== vehicle.kilometraje
+                ? `${vehicle.kilometraje?.toLocaleString()} km (Manual)\n${vehicle.kilometraje_api?.toLocaleString()} km (API)`
+                : `${vehicle.kilometraje?.toLocaleString() || 0} km`,
+            icon: 'speedometer-outline'
+        },
+        { label: 'Transmisión', value: vehicle.transmision, icon: 'hardware-chip-outline' },
+        { label: 'Cilindraje', value: vehicle.cilindraje || vehicle.motor, icon: 'flash-outline' },
+        { label: 'Combustible', value: vehicle.tipo_motor, icon: 'water-outline' },
+        { label: 'Puertas', value: vehicle.puertas, icon: 'car-outline' },
+        { label: 'Color', value: vehicle.color, icon: 'color-palette-outline' },
+        { label: 'Rev. Técnica', value: vehicle.mes_revision_tecnica, icon: 'checkmark-circle-outline' },
+        { label: 'VIN', value: vehicle.vin, icon: 'finger-print-outline' },
+        { label: 'Nº Motor', value: vehicle.numero_motor, icon: 'settings-outline' },
         { label: 'Patente', value: vehicle.patente, icon: 'barcode-outline' },
-        // Add more specs if available
-    ];
+    ].filter(spec => spec.value); // Optional: filter out undefined/null if desired, or keep to show missing info
 
     return (
         <View style={styles.container}>
