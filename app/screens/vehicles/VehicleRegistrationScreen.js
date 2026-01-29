@@ -61,7 +61,7 @@ const VehicleRegistrationScreen = () => {
         try {
             const data = await vehicleService.getVehicleByPatente(patente);
 
-            if (data && (data.marca || data.marca_nombre)) {
+            if (data && (data.marca || data.marca_nombre || data.modelo || data.year || data.vin || data.numero_motor)) {
                 setVehicleData(data);
                 setStep('success');
             } else {
@@ -168,7 +168,7 @@ const VehicleRegistrationScreen = () => {
             if (vehicleData.cilindraje) formData.append('cilindraje', vehicleData.cilindraje);
             if (vehicleData.color) formData.append('color', vehicleData.color);
             if (vehicleData.vin) formData.append('vin', vehicleData.vin);
-            if (vehicleData.motor) formData.append('numero_motor', vehicleData.motor); // Mapping backend field 'numero_motor'
+            if (vehicleData.numero_motor) formData.append('numero_motor', vehicleData.numero_motor);
             if (vehicleData.transmision) formData.append('transmision', vehicleData.transmision);
             if (vehicleData.version) formData.append('version', vehicleData.version);
             if (vehicleData.puertas) formData.append('puertas', String(vehicleData.puertas));

@@ -240,14 +240,15 @@ export const getVehicleByPatente = async (patente) => {
 
     // Normalizar datos para la app (Mapping keys)
     return {
-      marca: vehicleData.model?.brand?.name || vehicleData.marca,
-      marca_nombre: vehicleData.model?.brand?.name || vehicleData.marca,
+      marca: vehicleData.model?.brand?.name || vehicleData.brand?.name || vehicleData.marca,
+      marca_nombre: vehicleData.model?.brand?.name || vehicleData.brand?.name || vehicleData.marca || vehicleData.marca_nombre,
       modelo: vehicleData.model?.id || vehicleData.model?.name || vehicleData.modelo,
-      modelo_nombre: vehicleData.model?.name || vehicleData.modelo,
+      modelo_nombre: vehicleData.model?.name || vehicleData.modelName || vehicleData.modelo || vehicleData.modelo_nombre,
       year: vehicleData.year || vehicleData.anio,
       color: vehicleData.color,
       vin: vehicleData.vinNumber || vehicleData.vin,
-      motor: vehicleData.engineNumber || vehicleData.numero_motor,
+      motor: vehicleData.engine || vehicleData.cilindraje || vehicleData.motor, // 1.4 or 1600cc
+      numero_motor: vehicleData.engineNumber || vehicleData.numero_motor, // Serial number
       tipo_motor: vehicleData.fuel || vehicleData.combustible || vehicleData.tipo_motor, // BENCINA, DIESEL
       cilindraje: vehicleData.engine || vehicleData.cilindraje, // 1.4
       transmision: vehicleData.transmission || vehicleData.transmision, // MECANICA
