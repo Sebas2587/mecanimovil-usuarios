@@ -4,7 +4,7 @@ import {
   RefreshControl, ActivityIndicator
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import { MaterialCommunityIcons, Ionicons, Feather } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
@@ -17,44 +17,45 @@ import { ROUTES } from '../../utils/constants';
 
 import chatService from '../../services/chatService';
 
+import { useQuery } from '@tanstack/react-query';
+
 const ChatsListScreen = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
 
   const [activeTab, setActiveTab] = useState('service'); // 'service' | 'marketplace'
-  const [conversations, setConversations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchConversations = async () => {
-    try {
+  // Use TanStack Query for conversations
+  const {
+    data: conversations = [],
+    isLoading: loading,
+    refetch,
+    isRefetching
+  } = useQuery({
+    queryKey: ['conversations', activeTab],
+    queryFn: async () => {
       const data = await chatService.getConversations(activeTab);
-      setConversations(data.results || data);
-    } catch (error) {
-      console.error('Error fetching chats:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+      // Determine array to return, handling pagination wrapper or direct array
+      if (!data) return [];
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data.results)) return data.results;
+      return [];
+    },
+    staleTime: 1000 * 30, // 30 seconds stale time (chats update reasonably often)
+    gcTime: 1000 * 60 * 5, // Keep in cache for 5 minutes
+    refetchOnMount: true, // Refetch on mount to get latest messages
+    refetchOnWindowFocus: true, // Good for chats to see new messages when coming back
+  });
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchConversations();
-      return () => { };
-    }, [activeTab])
-  );
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchConversations();
-  };
+  const onRefresh = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const handleTabChange = (tab) => {
     if (activeTab !== tab) {
-      setLoading(true);
       setActiveTab(tab);
+      // TanStack Query handles the loading state automatically when key changes
     }
   };
 
@@ -166,7 +167,7 @@ const ChatsListScreen = () => {
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />
+            <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>

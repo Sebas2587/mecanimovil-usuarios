@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
 import VehicleHealthService from '../../services/vehicleHealthService'; // Import Health Service
 import { ROUTES } from '../../utils/constants';
+import { useAuth } from '../../context/AuthContext';
 
 // Updates for Marketplace Negotiation
 import OfferCreationModal from '../../components/marketplace/OfferCreationModal';
@@ -20,6 +21,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const navigation = useNavigation();
     const theme = useTheme();
     const insets = useSafeAreaInsets();
+    const { user } = useAuth();
 
     // Get basic vehicle data from params
     const { vehicle } = route?.params || {};
@@ -228,6 +230,10 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
     const formattedPrice = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
 
+    // Check ownership
+    const sellerId = fullVehicleData.user_id || fullVehicleData.seller?.id || fullVehicleData.cliente_id;
+    const isOwner = user?.id && sellerId && (String(user.id) === String(sellerId));
+
     const renderHealthDetailItem = (item) => {
         // Metric Logic matching VehicleHealthScreen
         const score = item.salud_porcentaje || item.score || 0;
@@ -354,6 +360,33 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     </View>
 
                     {/* Service Timeline - REDESIGNED */}
+                    {/* Vehicle Specs Section */}
+                    <View style={styles.sectionHeader}>
+                        <Ionicons name="car-sport-outline" size={20} color={colors.text?.secondary} />
+                        <Text style={styles.sectionTitle}>Detalles del Vehículo</Text>
+                    </View>
+
+                    <View style={styles.specsCard}>
+                        <View style={styles.specsGrid}>
+                            <View style={styles.specItem}>
+                                <Text style={styles.specLabel}>Cilindraje</Text>
+                                <Text style={styles.specValue}>{fullVehicleData.cilindraje || 'N/A'}</Text>
+                            </View>
+                            <View style={styles.specItem}>
+                                <Text style={styles.specLabel}>Transmisión</Text>
+                                <Text style={styles.specValue}>{fullVehicleData.transmision || 'Automática'}</Text>
+                            </View>
+                            <View style={styles.specItem}>
+                                <Text style={styles.specLabel}>Kilometraje</Text>
+                                <Text style={styles.specValue}>{(fullVehicleData.kilometraje || 0).toLocaleString()} km</Text>
+                            </View>
+                            <View style={styles.specItem}>
+                                <Text style={styles.specLabel}>Tipo de Combustible</Text>
+                                <Text style={styles.specValue}>{fullVehicleData.tipo_motor || 'Gasolina'}</Text>
+                            </View>
+                        </View>
+                    </View>
+
                     <View style={styles.sectionHeader}>
                         <Feather name="clock" size={20} color={colors.text?.secondary} />
                         <Text style={styles.sectionTitle}>Historial de Servicios</Text>
@@ -399,12 +432,16 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 </View>
 
                 <TouchableOpacity
-                    style={[styles.makeOfferButton, { backgroundColor: colors.primary?.main || '#003459' }]}
-                    onPress={() => setOfferModalVisible(true)}
-                    activeOpacity={0.8}
+                    style={[
+                        styles.makeOfferButton,
+                        { backgroundColor: isOwner ? '#9CA3AF' : (colors.primary?.main || '#003459') }
+                    ]}
+                    onPress={() => !isOwner && setOfferModalVisible(true)}
+                    activeOpacity={isOwner ? 1 : 0.8}
+                    disabled={isOwner}
                 >
-                    <Ionicons name="pricetag-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.makeOfferText}>Hacer Oferta</Text>
+                    <Ionicons name={isOwner ? "person" : "pricetag-outline"} size={20} color="#FFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.makeOfferText}>{isOwner ? "Tu Publicación" : "Hacer Oferta"}</Text>
                 </TouchableOpacity>
             </View>
 
@@ -605,6 +642,41 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         fontSize: 12,
         fontWeight: '600',
     },
+
+    // Specs Section
+    specsCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 32,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    specsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginHorizontal: -8,
+        marginTop: 12,
+    },
+    specItem: {
+        width: '50%',
+        paddingHorizontal: 8,
+        marginBottom: 16,
+    },
+    specLabel: {
+        fontSize: 12,
+        color: '#6B7280',
+        marginBottom: 4,
+    },
+    specValue: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#111827',
+    },
+
     // Timeline
     sectionHeader: {
         flexDirection: 'row',

@@ -87,6 +87,18 @@ const ProviderDetailScreen = () => {
     });
   };
 
+  const handleServiceSelect = (service) => {
+    navigation.navigate('TabNavigator', {
+      screen: ROUTES.CREAR_SOLICITUD,
+      params: {
+        proveedorPreseleccionado: provider,
+        tipoProveedorPreseleccionado: providerType,
+        servicioPreseleccionado: service,
+        fromProviderDetail: true
+      }
+    });
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
@@ -147,7 +159,7 @@ const ProviderDetailScreen = () => {
 
         <TrustSection documents={documents || []} />
 
-        <ServicesList services={provider.servicios} />
+        <ServicesList services={provider.servicios} onServicePress={handleServiceSelect} />
 
         <PortfolioCarousel portfolio={provider.portafolio || []} />
 

@@ -4,13 +4,50 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 
 const TrustSection = ({ documents }) => {
-    // Mock data if empty
-    const docs = documents && documents.length > 0 ? documents : [
-        { id: 1, label: 'Identidad Verificada' },
-        { id: 2, label: 'Certificación Profesional' },
-        { id: 3, label: 'Antecedentes Limpios' },
-        { id: 4, label: 'Garantía MecaniMóvil' }
-    ];
+    if (!documents || documents.length === 0) return null;
+
+    // Map document types to visual badges
+    const getVerificationBadges = (docs) => {
+        const badges = [];
+
+        docs.forEach(doc => {
+            const docName = doc.nombre || doc.tipo_documento || 'Documento Verificado';
+            const docType = docName.toLowerCase();
+
+            // Determine icon based on document type while keeping the REAL document name
+            let icon = 'checkmark-circle';
+            let color = COLORS.success[500];
+
+            if (docType.includes('identidad') || docType.includes('cedula') || docType.includes('rut')) {
+                icon = 'person-circle';
+                color = COLORS.success[500];
+            } else if (docType.includes('certificacion') || docType.includes('certificado') || docType.includes('titulo')) {
+                icon = 'ribbon';
+                color = COLORS.primary[500];
+            } else if (docType.includes('antecedente') || docType.includes('penal')) {
+                icon = 'shield-checkmark';
+                color = COLORS.success[500];
+            } else if (docType.includes('garantia') || docType.includes('seguro')) {
+                icon = 'checkmark-done-circle';
+                color = COLORS.primary[500];
+            } else if (docType.includes('licencia') || docType.includes('permiso')) {
+                icon = 'card';
+                color = COLORS.primary[500];
+            }
+
+            // Always use the real document name from backend
+            badges.push({
+                icon,
+                label: docName,
+                color
+            });
+        });
+
+        return badges;
+    };
+
+    const badges = getVerificationBadges(documents);
+    if (badges.length === 0) return null;
 
     return (
         <View style={styles.container}>
@@ -18,17 +55,16 @@ const TrustSection = ({ documents }) => {
                 <View style={styles.iconContainer}>
                     <Ionicons name="shield-checkmark" size={18} color={COLORS.primary[500]} />
                 </View>
-                <Text style={styles.title}>Documentación y Garantías</Text>
+                <Text style={styles.title}>Verificaciones</Text>
             </View>
 
-            <View style={styles.card}>
-                {docs.map((doc, index) => (
-                    <View key={doc.id || index} style={[
-                        styles.itemRow,
-                        index === docs.length - 1 && styles.lastItemRow
-                    ]}>
-                        <Text style={styles.itemText}>{doc.nombre || doc.label}</Text>
-                        <Ionicons name="checkmark-circle" size={20} color={COLORS.success[500]} />
+            <View style={styles.badgesGrid}>
+                {badges.map((badge, index) => (
+                    <View key={index} style={styles.badgeCard}>
+                        <View style={[styles.badgeIconContainer, { backgroundColor: `${badge.color}15` }]}>
+                            <Ionicons name={badge.icon} size={24} color={badge.color} />
+                        </View>
+                        <Text style={styles.badgeLabel}>{badge.label}</Text>
                     </View>
                 ))}
             </View>
@@ -44,13 +80,13 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 16,
     },
     iconContainer: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: COLORS.primary[50], // Light Blue
+        backgroundColor: COLORS.primary[50],
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
@@ -60,29 +96,39 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: COLORS.base.inkBlack,
     },
-    card: {
+    badgesGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+    },
+    badgeCard: {
+        width: '48%',
         backgroundColor: COLORS.base.white,
         borderRadius: 12,
-        borderWidth: 1,
-        borderColor: COLORS.neutral.gray[200],
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-    },
-    itemRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        padding: 16,
         alignItems: 'center',
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.neutral.gray[100],
+        borderWidth: 1,
+        borderColor: COLORS.neutral.gray[100],
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 1,
     },
-    lastItemRow: {
-        borderBottomWidth: 0,
+    badgeIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
     },
-    itemText: {
-        fontSize: 14,
-        color: COLORS.text.secondary,
-        fontWeight: '500',
+    badgeLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.text.primary,
+        textAlign: 'center',
+        lineHeight: 16,
     },
 });
 

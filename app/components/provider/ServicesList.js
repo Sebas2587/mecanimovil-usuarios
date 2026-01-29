@@ -1,15 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 
-const ServicesList = ({ services }) => {
-    // Mock data if empty
-    const servicesList = services && services.length > 0 ? services : [
-        { id: 1, nombre: 'Diagnóstico General', precio_desde: 15000 },
-        { id: 2, nombre: 'Cambio de Aceite', precio_desde: 35000 },
-        { id: 3, nombre: 'Revisión de Frenos', precio_desde: 25000 }
-    ];
+const ServicesList = ({ services, onServicePress }) => {
+    if (!services || services.length === 0) return null;
 
     const formatPrice = (price) => {
         if (!price) return 'Consultar';
@@ -26,8 +21,8 @@ const ServicesList = ({ services }) => {
             </View>
 
             <View style={styles.listContainer}>
-                {servicesList.map((service, index) => (
-                    <View key={service.id || index} style={styles.serviceCard}>
+                {services.map((service, index) => (
+                    <TouchableOpacity key={service.id || index} style={styles.serviceCard} onPress={() => onServicePress?.(service)} activeOpacity={0.7}>
                         <View style={styles.cardHeader}>
                             <View style={styles.iconBox}>
                                 <Ionicons name="construct-outline" size={20} color={COLORS.primary[500]} />
@@ -44,7 +39,7 @@ const ServicesList = ({ services }) => {
                                 {formatPrice(service.precio_desde || service.price)}
                             </Text>
                         </View>
-                    </View>
+                    </TouchableOpacity>
                 ))}
             </View>
         </View>

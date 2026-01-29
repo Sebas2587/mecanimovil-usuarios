@@ -228,10 +228,33 @@ export const getVehicleByPatente = async (patente) => {
   try {
     console.log(`🔍 Consultando patente: ${patente}`);
     // Nota: Asegúrate de que este endpoint exista en tu backend o ajusta la ruta
-    const data = await get(`/vehiculos/consultar-patente/`, { patente });
+    const response = await get(`/vehiculos/consultar-patente/`, { patente });
 
-    // Normalización básica si es necesaria
-    return data;
+    // Handle the structure described by the user: { success: true, data: { ... } }
+    // Or if backend unwraps it, handle direct object.
+    const vehicleData = response.data || response;
+
+    console.log('🚗 [VehicleService] Patente Data:', JSON.stringify(vehicleData));
+
+    if (!vehicleData) return null;
+
+    // Normalizar datos para la app (Mapping keys)
+    return {
+      marca: vehicleData.model?.brand?.name || vehicleData.marca,
+      marca_nombre: vehicleData.model?.brand?.name || vehicleData.marca,
+      modelo: vehicleData.model?.id || vehicleData.model?.name || vehicleData.modelo,
+      modelo_nombre: vehicleData.model?.name || vehicleData.modelo,
+      year: vehicleData.year || vehicleData.anio,
+      color: vehicleData.color,
+      vin: vehicleData.vinNumber || vehicleData.vin,
+      motor: vehicleData.engineNumber || vehicleData.numero_motor,
+      tipo_motor: vehicleData.fuel || vehicleData.combustible || vehicleData.tipo_motor, // BENCINA, DIESEL
+      cilindraje: vehicleData.engine || vehicleData.cilindraje, // 1.4
+      transmision: vehicleData.transmission || vehicleData.transmision, // MECANICA
+      puertas: vehicleData.doors || vehicleData.puertas,
+      version: vehicleData.version,
+      mes_revision_tecnica: vehicleData.monthRT
+    };
   } catch (error) {
     console.error('Error consultando patente:', error);
 
