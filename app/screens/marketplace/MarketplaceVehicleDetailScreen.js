@@ -4,10 +4,17 @@ import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle } from 'react-native-svg';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
+import VehicleHealthService from '../../services/vehicleHealthService'; // Import Health Service
+import { ROUTES } from '../../utils/constants';
+
+// Updates for Marketplace Negotiation
+import OfferCreationModal from '../../components/marketplace/OfferCreationModal';
+import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal'; // Import Checklist Modal
+import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
 
 const MarketplaceVehicleDetailScreen = ({ route }) => {
     const navigation = useNavigation();
@@ -18,8 +25,17 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const { vehicle } = route?.params || {};
 
     const [fullVehicleData, setFullVehicleData] = useState(vehicle || {});
+    const [healthData, setHealthData] = useState(null); // State for real health data
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Modal state for making offer
+    const [offerModalVisible, setOfferModalVisible] = useState(false);
+
+    // Checklist Modal State
+    const [checklistModalVisible, setChecklistModalVisible] = useState(false);
+    const [selectedChecklistId, setSelectedChecklistId] = useState(null);
+    const [selectedServiceName, setSelectedServiceName] = useState('');
 
     const colors = theme?.colors || {};
     const typography = theme?.typography || {};
@@ -28,15 +44,75 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
     const styles = getStyles(colors, typography, spacing, borders, insets);
 
-    useEffect(() => {
-        if (vehicle?.id) fetchVehicleDetails();
-    }, [vehicle?.id]);
+    // Reload when screen gains focus - critical for real-time updates
+    useFocusEffect(
+        React.useCallback(() => {
+            if (vehicle?.id) fetchVehicleDetails(true);
+        }, [vehicle?.id])
+    );
 
-    const fetchVehicleDetails = async () => {
+    const fetchVehicleDetails = async (isFocusRefresh = false) => {
+        if (!isFocusRefresh) setLoading(true);
         try {
-            const data = await vehicleService.getMarketplaceVehicleDetail(vehicle.id);
+            // Parallel fetching for better performance
+            const [detailData] = await Promise.all([
+                vehicleService.getMarketplaceVehicleDetail(vehicle.id),
+            ]);
+
             // Merge basic info with detailed info (history, etc)
-            setFullVehicleData(prev => ({ ...prev, ...data }));
+            // ENRICHMENT: Fetch detailed request info for history items if they are Solicitudes
+            // The history items from `getMarketplaceVehicleDetail` are simplified.
+            // We need to fetch the full `Solicitud` for each to get provider details (avatar, name, type) from the offer.
+            const rawHistory = detailData.history || detailData.historial || detailData.services || [];
+
+            // Enrich history items by fetching user's completed requests
+            let enrichedHistory = [];
+
+            try {
+                const SolicitudesService = (await import('../../services/solicitudesService')).default;
+                const myCompletedRequests = await SolicitudesService.obtenerMisSolicitudes({ estado: 'completada' });
+
+                console.log('📋 [Enrichment] Fetched completed requests:', myCompletedRequests.length);
+
+                // Filter for this vehicle
+                const vehicleRequests = myCompletedRequests.filter(req => {
+                    const reqVehicleId = req.vehiculo_id || req.vehiculo?.id || req.vehiculo;
+                    return reqVehicleId == vehicle.id;
+                });
+
+                console.log(`🚗 [Enrichment] Found ${vehicleRequests.length} requests for vehicle ${vehicle.id}`);
+
+                if (vehicleRequests.length > 0) {
+                    enrichedHistory = vehicleRequests.map(req => ({
+                        ...req,
+                        date: req.fecha_servicio || req.fecha_creacion,
+                        service: req.nombre_servicio || req.servicio_nombre || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.servicio_nombre) || 'Servicio',
+                        provider: req.nombre_proveedor || req.oferta_seleccionada_detail?.nombre_proveedor,
+                        verified: true,
+                        kilometraje: req.kilometraje || req.vehiculo_info?.kilometraje,
+                        id: req.id
+                    }));
+                } else {
+                    enrichedHistory = rawHistory;
+                }
+            } catch (err) {
+                console.warn('⚠️ [Enrichment] Failed:', err);
+                enrichedHistory = rawHistory;
+            }
+
+            // Update the detailData with the new enriched history
+            detailData.history = enrichedHistory;
+
+            setFullVehicleData(prev => ({ ...prev, ...detailData }));
+
+            console.log('🚗 [DEBUG] Vehicle Detail Data (Enriched):', JSON.stringify(detailData, null, 2));
+            console.log('📜 [DEBUG] Enriched History Items (first 2):', JSON.stringify(enrichedHistory.slice(0, 2), null, 2));
+
+            // Set real health data from public endpoint
+            // The public endpoint should include health info in 'health_data' or 'health'
+            const publicHealth = detailData.health_data || detailData.health || {};
+            setHealthData(publicHealth);
+
         } catch (error) {
             console.error("Error fetching vehicle details:", error);
             // Alert.alert("Error", "No se pudo cargar el detalle completo del vehículo.");
@@ -51,11 +127,42 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         fetchVehicleDetails();
     }, []);
 
+    // Handle Offer Submission
+    const handleMakeOffer = (amount) => {
+        // Pre-construct message for chat
+        const formattedAmount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
+        const initialMessage = `Hola, he enviado una oferta de ${formattedAmount} por tu ${brand} ${model}`;
+
+        // Navigate to Chat
+        // Must ensure we have route params for chat: e.g., recipientId (seller), context (vehicleId)
+        // Assuming fullVehicleData has owner/seller info. If not, we might need to mock or ensure backend sends it.
+        const sellerId = fullVehicleData.user_id || fullVehicleData.seller?.id;
+
+        if (!sellerId) {
+            Alert.alert("Error", "No se pudo identificar al vendedor.");
+            return;
+        }
+
+        navigation.navigate(ROUTES.CHAT_DETAIL, {
+            recipientId: sellerId,
+            recipientName: fullVehicleData.seller?.name || "Vendedor",
+            recipientImage: fullVehicleData.seller?.photo || null,
+            initialMessage: initialMessage,
+            context: {
+                type: 'vehicle_offer',
+                vehicleId: fullVehicleData.id,
+                vehicleName: `${brand} ${model}`,
+                amount: amount
+            }
+        });
+    };
+
     // Render Health Chart (Simple Circle)
     const renderHealthChart = (score) => {
         const radius = 30;
         const circumference = 2 * Math.PI * radius;
-        const strokeDashoffset = circumference - (score / 100) * circumference;
+        const validScore = isNaN(score) ? 100 : score;
+        const strokeDashoffset = circumference - (validScore / 100) * circumference;
 
         return (
             <View style={styles.chartContainer}>
@@ -83,52 +190,101 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     />
                 </Svg>
                 <View style={styles.chartTextContainer}>
-                    <Text style={styles.chartScore}>{score}%</Text>
+                    <Text style={styles.chartScore}>{Math.round(validScore)}%</Text>
                 </View>
             </View>
         );
     };
 
-    const [modalVisible, setModalVisible] = useState(false);
+    const [healthModalVisible, setHealthModalVisible] = useState(false);
 
     // Derived Data
-    const healthScore = fullVehicleData.health_score || 100;
-    const history = fullVehicleData.history || [];
-    const healthDetails = fullVehicleData.health_details || [];
+    // Use real health data if available, fallback to vehicle data, default to 100
+    // Be robust with 0 checks. If healthData exists but is 0, it might be real 0? 
+    // Or if undefined, fallback.
+    const healthScore = (healthData && typeof healthData.salud_general_porcentaje === 'number')
+        ? healthData.salud_general_porcentaje
+        : (fullVehicleData.health_score || 0);
+
+    // Robust history check - check multiple potential keys
+    const history = fullVehicleData.historial || fullVehicleData.history || fullVehicleData.services || [];
+
+    // Components/Details
+    const healthDetails = healthData?.componentes || healthData?.components || fullVehicleData.health_details || [];
+
     const imageUrl = fullVehicleData.foto_url || fullVehicleData.image; // Fallback to list param image
     const brand = fullVehicleData.marca_nombre || fullVehicleData.brand;
     const model = fullVehicleData.modelo_nombre || fullVehicleData.model;
     const year = fullVehicleData.year;
 
-    const renderHealthDetailItem = (item) => {
-        let iconName = 'checkmark-circle';
-        let iconColor = colors.success?.main || '#10B981';
+    // Price logic - prioritize precio_venta (published/real price)
+    // Check multiple potential keys from backend
+    const price = fullVehicleData.precio_venta ||
+        fullVehicleData.price ||
+        fullVehicleData.selling_price ||
+        fullVehicleData.precio_publicado ||
+        fullVehicleData.precio_sugerido_final ||
+        fullVehicleData.suggested_price || 0;
 
-        if (item.status === 'warning') {
-            iconName = 'alert-circle';
-            iconColor = colors.warning?.main || '#F59E0B';
-        } else if (item.status === 'critical') {
-            iconName = 'close-circle';
-            iconColor = colors.error?.main || '#EF4444';
-        }
+    const formattedPrice = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(price);
+
+    const renderHealthDetailItem = (item) => {
+        // Metric Logic matching VehicleHealthScreen
+        const score = item.salud_porcentaje || item.score || 0;
+
+        let color = colors.error?.main || '#EF4444'; // default red
+        if (score >= 70) color = colors.success?.main || '#10B981';
+        else if (score >= 40) color = colors.warning?.main || '#F59E0B';
+
+        const name = item.nombre || item.name || 'Componente';
+        const lastServiceKm = item.km_ultimo_servicio ? `${item.km_ultimo_servicio.toLocaleString()} km` : '0 km';
+        const remainingKm = item.km_estimados_restantes ? `${item.km_estimados_restantes.toLocaleString()} km restantes` : '';
+        const statusText = item.nivel_alerta_display || item.nivel_alerta || (score >= 70 ? 'Óptimo' : (score >= 40 ? 'Atención' : 'Crítico'));
 
         return (
-            <View key={item.id} style={styles.detailItem}>
-                <View style={[styles.detailIcon, { backgroundColor: iconColor + '20' }]}>
-                    <Ionicons name={iconName} size={20} color={iconColor} />
+            <View key={item.id || Math.random()} style={styles.detailItem}>
+                <View style={[styles.detailIcon, { backgroundColor: color + '20' }]}>
+                    <Ionicons name={item.icono || "construct"} size={20} color={color} />
                 </View>
                 <View style={styles.detailContent}>
-                    <Text style={styles.detailName}>{item.name}</Text>
+                    <Text style={styles.detailName}>{name}</Text>
+                    <Text style={styles.detailStatusText}>Último: {lastServiceKm}</Text>
+
+                    {/* Progress Bar */}
+                    <View style={{ height: 4, backgroundColor: '#E5E7EB', borderRadius: 2, marginTop: 6, marginBottom: 4 }}>
+                        <View style={{ width: `${score}%`, height: '100%', backgroundColor: color, borderRadius: 2 }} />
+                    </View>
+
                     <View style={styles.detailStatusRow}>
-                        <View style={[styles.statusDot, { backgroundColor: iconColor }]} />
-                        <Text style={[styles.detailStatusText, { color: iconColor }]}>
-                            {item.status === 'normal' ? 'Buen estado' : item.status === 'warning' ? 'Atención' : 'Crítico'}
-                        </Text>
+                        <Text style={[styles.statusBadge, { color: color }]}>{statusText}</Text>
+                        <Text style={styles.detailRemaining}>{remainingKm}</Text>
                     </View>
                 </View>
-                <Text style={styles.detailScore}>{item.score}%</Text>
+                <Text style={[styles.detailScore, { color: color }]}>{Math.round(score)}%</Text>
             </View>
         );
+    };
+
+    // Helper for viewing checklist from history row
+    const handleViewChecklist = (item) => {
+        // The backend expects an integer ID (Orden ID / SolicitudServicio ID), not the UUID of the public request.
+        // We prioritize finding the integer ID from the offer details.
+        const checklistId = item.oferta_seleccionada_detail?.solicitud_servicio_id ||
+            item.solicitud_servicio_id ||
+            item.orden_id ||
+            item.checklist_id;
+
+        console.log('🔍 handleViewChecklist - Item:', item.id);
+        console.log('🔍 handleViewChecklist - Resolved ID:', checklistId);
+
+        if (checklistId) {
+            const serviceName = item.servicio_nombre || item.service || 'Servicio';
+            setSelectedChecklistId(checklistId);
+            setSelectedServiceName(serviceName);
+            setChecklistModalVisible(true);
+        } else {
+            Alert.alert("Aviso", "No hay checklist asociado a este servicio o no se encontró el ID válido.");
+        }
     };
 
     return (
@@ -189,7 +345,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                 <Text style={styles.healthSubtitle}>Basado en historial verificado</Text>
                                 <TouchableOpacity
                                     style={styles.detailButton}
-                                    onPress={() => setModalVisible(true)}
+                                    onPress={() => setHealthModalVisible(true)}
                                 >
                                     <Text style={styles.detailButtonText}>Ver Detalle</Text>
                                 </TouchableOpacity>
@@ -197,37 +353,24 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         </View>
                     </View>
 
-                    {/* Service Timeline */}
+                    {/* Service Timeline - REDESIGNED */}
                     <View style={styles.sectionHeader}>
                         <Feather name="clock" size={20} color={colors.text?.secondary} />
                         <Text style={styles.sectionTitle}>Historial de Servicios</Text>
                     </View>
 
                     <View style={styles.timelineContainer}>
-                        <View style={styles.timelineLine} />
+                        {/* No timeline line for the new card style, or we can keep it if we want 'connected' cards. 
+                            The requirement implies cards "show much more info", likely standalone. 
+                            Moving to standalone list for cleaner UI with complex cards. */}
 
                         {history.length > 0 ? (
                             history.map((item) => (
-                                <View key={item.id} style={styles.timelineItem}>
-                                    <View style={styles.timelineDot} />
-                                    <View style={styles.timelineContent}>
-                                        <View style={styles.timelineHeader}>
-                                            <Text style={styles.timelineDate}>{item.date}</Text>
-                                            {item.verified && (
-                                                <View style={styles.verifiedTag}>
-                                                    <Ionicons name="checkmark-sharp" size={10} color="#FFFFFF" />
-                                                    <Text style={styles.verifiedTagText}>Verificado</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                        <Text style={styles.serviceName}>{item.service}</Text>
-                                        <View style={styles.providerBox}>
-                                            <Ionicons name="build-outline" size={14} color={colors.text?.tertiary} />
-                                            <Text style={styles.providerText}>{item.provider}</Text>
-                                        </View>
-                                        <Text style={styles.mileageText}>{item.mileage}</Text>
-                                    </View>
-                                </View>
+                                <VehicleServiceHistoryRow
+                                    key={item.id}
+                                    item={item}
+                                    onViewChecklist={handleViewChecklist}
+                                />
                             ))
                         ) : (
                             <View style={styles.emptyHistory}>
@@ -236,29 +379,42 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         )}
                     </View>
 
-                    {/* Padding for Footer */}
-                    <View style={{ height: 100 }} />
+                    {/* Padding for Bottom Sticky Bar */}
+                    <View style={{ height: 120 }} />
                 </View>
             </ScrollView>
 
-            {/* 3. Fixed Footer */}
-            <View style={styles.footerContainer}>
-                <TouchableOpacity style={styles.contactButton} activeOpacity={0.8} onPress={() => Alert.alert("Contactar", "Funcionalidad próximamente")}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.contactButtonText}>Contactar al Dueño</Text>
+            {/* 3. Sticky Bottom Bar (Replaces old Contact Button) */}
+            <View style={[
+                styles.stickyBottomBar,
+                {
+                    paddingBottom: insets.bottom > 0 ? insets.bottom : 20,
+                    backgroundColor: colors.background?.paper || '#FFF',
+                    borderTopColor: colors.border?.light || '#E5E7EB'
+                }
+            ]}>
+                <View style={styles.priceContainer}>
+                    <Text style={{ color: colors.text?.secondary, fontSize: 12, fontWeight: '500' }}>Precio</Text>
+                    <Text style={{ color: colors.text?.primary, fontSize: 24, fontWeight: '800' }}>{formattedPrice}</Text>
+                </View>
+
+                <TouchableOpacity
+                    style={[styles.makeOfferButton, { backgroundColor: colors.primary?.main || '#003459' }]}
+                    onPress={() => setOfferModalVisible(true)}
+                    activeOpacity={0.8}
+                >
+                    <Ionicons name="pricetag-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.makeOfferText}>Hacer Oferta</Text>
                 </TouchableOpacity>
-                <Text style={styles.legalText}>
-                    Tu compra está protegida por nuestra garantía de satisfacción de 7 días.
-                </Text>
             </View>
 
             {/* 4. Health Details Modal */}
-            {modalVisible && (
+            {healthModalVisible && (
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Detalle de Salud</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+                            <TouchableOpacity onPress={() => setHealthModalVisible(false)} style={styles.closeButton}>
                                 <Ionicons name="close" size={24} color={colors.text?.primary} />
                             </TouchableOpacity>
                         </View>
@@ -275,6 +431,23 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     </View>
                 </View>
             )}
+
+            {/* 5. Offer Creation Modal */}
+            <OfferCreationModal
+                visible={offerModalVisible}
+                onClose={() => setOfferModalVisible(false)}
+                onSubmit={handleMakeOffer}
+                vehiclePrice={price}
+                vehicleName={`${brand} ${model}`}
+            />
+
+            {/* 6. Checklist Viewer Modal */}
+            <ChecklistViewerModal
+                visible={checklistModalVisible}
+                onClose={() => setChecklistModalVisible(false)}
+                ordenId={selectedChecklistId}
+                servicioNombre={selectedServiceName}
+            />
         </View>
     );
 };
@@ -445,129 +618,57 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         marginLeft: 10,
     },
     timelineContainer: {
-        paddingLeft: 10,
+        paddingLeft: 0,
     },
-    timelineLine: {
+    emptyHistory: {
+        alignItems: 'center',
+        paddingVertical: 20
+    },
+    emptyHistoryText: {
+        color: '#9CA3AF',
+        fontStyle: 'italic'
+    },
+
+    // Sticky Bottom Bar
+    stickyBottomBar: {
         position: 'absolute',
-        top: 10,
         bottom: 0,
-        left: 14, // Center of dot
-        width: 2,
-        backgroundColor: colors.border?.light || '#E5E7EB',
-    },
-    timelineItem: {
-        flexDirection: 'row',
-        marginBottom: 24,
-        position: 'relative',
-    },
-    timelineDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: colors.primary?.main || '#003459',
-        borderWidth: 2,
-        borderColor: '#FFFFFF',
-        marginTop: 6,
-        zIndex: 1,
-        marginRight: 16,
-        shadowColor: '#000',
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    timelineContent: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: colors.border?.light || '#F3F4F6',
-    },
-    timelineHeader: {
+        left: 0,
+        right: 0,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
-    },
-    timelineDate: {
-        fontSize: 12,
-        color: colors.text?.tertiary || '#9CA3AF',
-        fontWeight: '500',
-    },
-    verifiedTag: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.success?.main || '#10B981',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-    },
-    verifiedTagText: {
-        color: '#FFFFFF',
-        fontSize: 9,
-        fontWeight: '700',
-        marginLeft: 2,
-        textTransform: 'uppercase',
-    },
-    serviceName: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: colors.text?.primary || '#111827',
-        marginBottom: 8,
-    },
-    providerBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: colors.background?.default || '#F9FAFB',
-        padding: 8,
-        borderRadius: 8,
-        marginBottom: 8,
-    },
-    providerText: {
-        fontSize: 12,
-        color: colors.text?.secondary || '#4B5563',
-        marginLeft: 6,
-        fontWeight: '500',
-    },
-    mileageText: {
-        fontSize: 12,
-        color: colors.text?.tertiary || '#9CA3AF',
-        alignSelf: 'flex-end',
-    },
-    // Footer
-    footerContainer: {
-        padding: 20,
-        backgroundColor: '#FFFFFF',
+        paddingTop: 16,
+        paddingHorizontal: 20,
         borderTopWidth: 1,
-        borderTopColor: colors.border?.light || '#E5E7EB',
-        paddingBottom: insets.bottom + 10,
-    },
-    contactButton: {
-        backgroundColor: '#111827', // Ink Black
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 16,
-        borderRadius: 12,
-        marginBottom: 12,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 5,
+        elevation: 10,
     },
-    contactButtonText: {
+    priceContainer: {
+        justifyContent: 'center',
+    },
+    makeOfferButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 14,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    makeOfferText: {
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '700',
     },
-    legalText: {
-        fontSize: 11,
-        color: colors.text?.tertiary || '#9CA3AF',
-        textAlign: 'center',
-        lineHeight: 16,
-    },
-    // Modal
+
+    // Modals
     modalOverlay: {
         position: 'absolute',
         top: 0,
@@ -641,7 +742,18 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     },
     detailStatusText: {
         fontSize: 12,
-        fontWeight: '500',
+        color: '#6B7280',
+        marginBottom: 2
+    },
+    detailRemaining: {
+        fontSize: 11,
+        color: '#9CA3AF',
+        marginLeft: 8
+    },
+    statusBadge: {
+        fontSize: 11,
+        fontWeight: '600',
+        textTransform: 'uppercase'
     },
     detailScore: {
         fontSize: 16,

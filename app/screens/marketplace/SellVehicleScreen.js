@@ -9,6 +9,9 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+// React Query Imports
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
 // Services
 import * as vehicleService from '../../services/vehicle';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
@@ -18,110 +21,106 @@ const SellVehicleScreen = () => {
     const route = useRoute();
     const theme = useTheme();
     const insets = useSafeAreaInsets();
+    const queryClient = useQueryClient();
 
     // Get vehicle data from params
     const { vehicle } = route.params || {};
 
-    // States
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-
-    // Marketplace Data
-    const [isPublished, setIsPublished] = useState(false);
-    const [sellingPrice, setSellingPrice] = useState(0);
-    const [suggestedPrice, setSuggestedPrice] = useState(0);
-    const [healthBonus, setHealthBonus] = useState(0);
-    const [appraisalData, setAppraisalData] = useState(null);
-
-    // Stats
-    const [stats, setStats] = useState({
-        views: 0,
-        favorites: 0,
-        leads: 0
-    });
-
-    // UI States
+    // UI States (Modal & Input)
     const [priceModalVisible, setPriceModalVisible] = useState(false);
     const [newPriceInput, setNewPriceInput] = useState('');
 
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
-
-    const styles = getStyles(colors, typography, spacing, borders, insets);
-
-    // Initial Load
-    useEffect(() => {
-        if (vehicle?.id) fetchMarketplaceData();
-    }, [vehicle?.id]);
-
-    const fetchMarketplaceData = async () => {
-        try {
-            // Parallel Fetch: Settings + Stats + Appraisal
+    // 1. QUERY: Fetch all Marketplace Data
+    const {
+        data: marketplaceData,
+        isLoading,
+        refetch,
+        isRefetching
+    } = useQuery({
+        queryKey: ['marketplaceData', vehicle?.id],
+        queryFn: async () => {
             const [settings, statsData, appraisal] = await Promise.all([
                 vehicleService.getMarketplaceData(vehicle.id),
                 vehicleService.getMarketplaceStats(vehicle.id),
                 vehicleService.getVehicleAppraisal(vehicle.id)
             ]);
+            return { settings, statsData, appraisal };
+        },
+        enabled: !!vehicle?.id,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
-            setIsPublished(settings.is_published);
-            setAppraisalData(appraisal);
+    // Derive state from data (safe access with defaults)
+    const settings = marketplaceData?.settings || {};
+    const stats = marketplaceData?.statsData || { views: 0, favorites: 0, leads: 0 };
+    const appraisal = marketplaceData?.appraisal || {};
 
-            // Prefer appraisal data for suggested price and bonus if available
-            // settings.suggested_price might be stale if it was saved long ago
-            const finalSuggestedPrice = appraisal?.suggested_price || settings.suggested_price || 0;
-            const finalHealthBonus = appraisal?.bonus_percentage || settings.health_bonus_percentage || 0;
+    const isPublished = settings.is_published || false;
 
-            setSuggestedPrice(finalSuggestedPrice);
-            setHealthBonus(finalHealthBonus);
+    // Smart fallback logic for prices
+    // prefer appraisal if available, else settings, else 0
+    const suggestedPrice = appraisal.suggested_price || settings.suggested_price || 0;
+    const healthBonus = appraisal.bonus_percentage || settings.health_bonus_percentage || 0;
 
-            // If selling price is null (never set), default to suggested or 0
-            setSellingPrice(settings.precio_venta || finalSuggestedPrice || 0);
+    // Selling price: settings.precio_venta (user set) -> fallback to suggested -> 0
+    const sellingPrice = settings.precio_venta || suggestedPrice || 0;
 
-            setStats({
-                views: statsData.views || 0,
-                favorites: statsData.favorites || 0,
-                leads: statsData.leads || 0
-            });
-        } catch (error) {
-            Alert.alert("Error", "No se pudo cargar la información del marketplace.");
-            console.error(error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+    // 2. MUTATION: Toggle Publish
+    const togglePublishMutation = useMutation({
+        mutationFn: (newStatus) => vehicleService.updateMarketplaceData(vehicle.id, { is_published: newStatus }),
+        onMutate: async (newStatus) => {
+            // Cancel outgoing refetches
+            await queryClient.cancelQueries({ queryKey: ['marketplaceData', vehicle.id] });
+
+            // Snapshot previous value
+            const previousData = queryClient.getQueryData(['marketplaceData', vehicle.id]);
+
+            // Optimistically update
+            queryClient.setQueryData(['marketplaceData', vehicle.id], (old) => ({
+                ...old,
+                settings: { ...old.settings, is_published: newStatus }
+            }));
+
+            return { previousData };
+        },
+        onError: (err, newStatus, context) => {
+            // Rollback
+            if (context?.previousData) {
+                queryClient.setQueryData(['marketplaceData', vehicle.id], context.previousData);
+            }
+            Alert.alert("Error", "No se pudo actualizar el estado de publicación.");
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ['marketplaceData', vehicle.id] });
         }
-    };
+    });
+
+    // 3. MUTATION: Update Price
+    const updatePriceMutation = useMutation({
+        mutationFn: (newPrice) => vehicleService.updateMarketplaceData(vehicle.id, { precio_venta: newPrice }),
+        onSuccess: () => {
+            setPriceModalVisible(false);
+            Alert.alert("Éxito", "Precio de venta actualizado.");
+            queryClient.invalidateQueries({ queryKey: ['marketplaceData', vehicle.id] });
+        },
+        onError: () => {
+            Alert.alert("Error", "No se pudo actualizar el precio.");
+        }
+    });
 
     const onRefresh = useCallback(() => {
-        setRefreshing(true);
-        fetchMarketplaceData();
-    }, []);
+        refetch();
+    }, [refetch]);
 
-    const togglePublish = async (newValue) => {
-        // Optimistic Update
-        const previousState = isPublished;
-        setIsPublished(newValue);
-
-        try {
-            // Check if price is set before publishing
-            if (newValue === true && (!sellingPrice || sellingPrice <= 0)) {
-                Alert.alert("Requerido", "Debes establecer un precio de venta antes de publicar.");
-                setIsPublished(previousState);
-                return;
-            }
-
-            await vehicleService.updateMarketplaceData(vehicle.id, {
-                is_published: newValue
-            });
-        } catch (error) {
-            // Rollback
-            setIsPublished(previousState);
-            Alert.alert("Error", "No se pudo actualizar el estado de publicación.");
+    const togglePublish = (newValue) => {
+        if (newValue === true && (!sellingPrice || sellingPrice <= 0)) {
+            Alert.alert("Requerido", "Debes establecer un precio de venta antes de publicar.");
+            return;
         }
+        togglePublishMutation.mutate(newValue);
     };
 
-    const handleSavePrice = async () => {
+    const handleSavePrice = () => {
         const priceValue = parseInt(newPriceInput.replace(/[^0-9]/g, ''));
 
         if (isNaN(priceValue) || priceValue <= 0) {
@@ -129,16 +128,7 @@ const SellVehicleScreen = () => {
             return;
         }
 
-        try {
-            await vehicleService.updateMarketplaceData(vehicle.id, {
-                precio_venta: priceValue
-            });
-            setSellingPrice(priceValue);
-            setPriceModalVisible(false);
-            Alert.alert("Éxito", "Precio de venta actualizado.");
-        } catch (error) {
-            Alert.alert("Error", "No se pudo actualizar el precio.");
-        }
+        updatePriceMutation.mutate(priceValue);
     };
 
     const openPriceModal = () => {
@@ -153,7 +143,14 @@ const SellVehicleScreen = () => {
         }).format(value || 0);
     };
 
-    if (loading) {
+    const colors = theme?.colors || {};
+    const typography = theme?.typography || {};
+    const spacing = theme?.spacing || {};
+    const borders = theme?.borders || {};
+
+    const styles = getStyles(colors, typography, spacing, borders, insets);
+
+    if (isLoading) {
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -206,7 +203,7 @@ const SellVehicleScreen = () => {
                 style={styles.scrollView}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />}
+                refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#FFF" />}
             >
                 {/* 1. Immersive Header */}
                 <View style={styles.headerContainer}>

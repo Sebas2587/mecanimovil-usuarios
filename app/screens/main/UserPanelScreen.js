@@ -27,36 +27,27 @@ import AddressSelectionModal from '../../components/location/AddressSelectionMod
 import { useMainAddress, useSetMainAddress } from '../../hooks/useAddress';
 import { useAuth } from '../../context/AuthContext';
 import { useSolicitudes } from '../../context/SolicitudesContext';
+import { useNearbyMecanicos, useNearbyTalleres } from '../../hooks/useProviders';
+import { useQuery } from '@tanstack/react-query';
 
 // Services
 import { getUserVehicles } from '../../services/vehicle';
-import { getMechanicsForUserVehicles, getWorkshopsForUserVehicles } from '../../services/providers';
 
 const UserPanelScreen = () => {
   const navigation = useNavigation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { solicitudesActivas, cargarSolicitudesActivas } = useSolicitudes();
+  const { data: mainAddress } = useMainAddress(user?.id);
+  const { mutateAsync: setMainAddressMutation } = useSetMainAddress();
 
-  const [refreshing, setRefreshing] = useState(false);
-  const [vehicles, setVehicles] = useState([]);
-  const [mechanics, setMechanics] = useState([]);
-  const [workshops, setWorkshops] = useState([]);
-
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
   const [stats, setStats] = useState({
     totalValue: 0,
     capitalGain: 0,
     fleetHealth: 100
   });
-
-  const [isAddressModalVisible, setAddressModalVisible] = useState(false);
-
-  // Address Hooks
-  const { data: mainAddress } = useMainAddress(user?.id);
-  const { mutateAsync: setMainAddressMutation } = useSetMainAddress();
-
-  // Active Requests Context
-  const { solicitudesActivas, cargarSolicitudesActivas } = useSolicitudes();
 
   // Design Tokens
   const colors = theme?.colors || {};
@@ -66,85 +57,81 @@ const UserPanelScreen = () => {
 
   const styles = getStyles(colors, typography, spacing, borders, insets);
 
-  const fetchUserData = useCallback(async () => {
-    try {
-      // 1. Fetch User Vehicles
-      const vehicleList = await getUserVehicles();
-      setVehicles(vehicleList || []);
+  // Use TanStack Query for vehicles with proper caching
+  const {
+    data: vehicles = [],
+    isLoading: vehiclesLoading,
+    refetch: refetchVehicles,
+    isRefetching: vehiclesRefetching
+  } = useQuery({
+    queryKey: ['userVehicles'],
+    queryFn: getUserVehicles,
+    staleTime: 1000 * 60 * 5, // Data considered fresh for 5 minutes
+    gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes (was cacheTime in v4)
+    refetchOnMount: true, // Will only refetch if data is stale (older than 5 min)
+    refetchOnWindowFocus: false,
+    select: (data) => Array.isArray(data) ? data : (data?.results || [])
+  });
 
-      // 2. Fetch Providers (Filtered by User Vehicles)
-      if (vehicleList && vehicleList.length > 0) {
-        // Parallel fetch for mechanics and workshops
-        const [mechanicsData, workshopsData] = await Promise.all([
-          getMechanicsForUserVehicles(vehicleList),
-          getWorkshopsForUserVehicles(vehicleList),
-          cargarSolicitudesActivas()
-        ]);
+  // Use optimized hooks for providers (they already have caching)
+  const {
+    data: mechanics = [],
+    isLoading: mechanicsLoading,
+    refetch: refetchMechanics
+  } = useNearbyMecanicos(vehicles, mainAddress);
 
-        setMechanics(mechanicsData || []);
-        setWorkshops(workshopsData || []);
+  const {
+    data: workshops = [],
+    isLoading: workshopsLoading,
+    refetch: refetchWorkshops
+  } = useNearbyTalleres(vehicles, mainAddress);
 
-        // Calculate Stats
-        let totalVal = 0;
-        let totalHealth = 0;
-        let totalCapitalGain = 0;
 
-        vehicleList.forEach(v => {
-          // Suggested Price (Our val)
-          const suggested = v.precio_sugerido_final || 0;
-          // Market Average (Base val)
-          const market = v.precio_mercado_promedio || 0;
 
-          // Total Value for Patrimony is the Suggested Price (what they can sell for)
-          // If suggested is 0 (uncalculated), fallback to market
-          const finalPrice = suggested > 0 ? suggested : market;
-          totalVal += finalPrice;
-
-          // Capital Gain = Value added by certification/health
-          // Only calculate if we have both values
-          if (suggested > 0 && market > 0) {
-            totalCapitalGain += (suggested - market);
-          }
-
-          totalHealth += (v.health_score || 0);
-        });
-
-        const avgHealth = vehicleList.length > 0 ? Math.round(totalHealth / vehicleList.length) : 0;
-
-        setStats({
-          totalValue: totalVal,
-          capitalGain: totalCapitalGain,
-          fleetHealth: avgHealth
-        });
-      } else {
-        setStats({ totalValue: 0, capitalGain: 0, fleetHealth: 100 });
-        setMechanics([]);
-        setWorkshops([]);
-      }
-
-    } catch (error) {
-      console.error("Error fetching user dashboard data:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
-
-  // Initial Fetch
+  // Calculate stats when vehicles change
   React.useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+    if (vehicles.length > 0) {
+      let totalVal = 0;
+      let totalHealth = 0;
+      let totalCapitalGain = 0;
 
-  // Refetch when address changes
-  React.useEffect(() => {
-    if (mainAddress) {
-      fetchUserData();
+      vehicles.forEach(v => {
+        const suggested = v.precio_sugerido_final || 0;
+        const market = v.precio_mercado_promedio || 0;
+        const finalPrice = suggested > 0 ? suggested : market;
+        totalVal += finalPrice;
+
+        if (suggested > 0 && market > 0) {
+          totalCapitalGain += (suggested - market);
+        }
+
+        totalHealth += (v.health_score || 0);
+      });
+
+      const avgHealth = vehicles.length > 0 ? Math.round(totalHealth / vehicles.length) : 0;
+
+      setStats({
+        totalValue: totalVal,
+        capitalGain: totalCapitalGain,
+        fleetHealth: avgHealth
+      });
+    } else {
+      setStats({ totalValue: 0, capitalGain: 0, fleetHealth: 0 }); // Fix: 0% health if no vehicles
     }
-  }, [mainAddress, fetchUserData]);
+  }, [vehicles]);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchUserData();
-  }, [fetchUserData]);
+  // Manual refresh handler
+  const onRefresh = useCallback(async () => {
+    await Promise.all([
+      refetchVehicles(),
+      refetchMechanics(),
+      refetchWorkshops(),
+      cargarSolicitudesActivas()
+    ]);
+  }, [refetchVehicles, refetchMechanics, refetchWorkshops, cargarSolicitudesActivas]);
+
+  const isRefreshing = vehiclesRefetching;
+  const isLoading = vehiclesLoading || mechanicsLoading || workshopsLoading;
 
   // Handle Address Selection
   const handleSelectAddress = async (address) => {
@@ -172,7 +159,7 @@ const UserPanelScreen = () => {
       reviews: provider.numero_de_calificaciones || 0,
       distance: provider.distancia_km ? `${provider.distancia_km.toFixed(1)} km` : null,
       verified: provider.verificado,
-      image: provider.foto_perfil_url || provider.foto_perfil
+      image: provider.usuario?.foto_perfil || provider.usuario?.foto_perfil_url || provider.foto_perfil_url || provider.foto_perfil
     };
   };
 
@@ -185,7 +172,7 @@ const UserPanelScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary?.[500]} />
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} tintColor={colors.primary?.[500]} />
         }
       >
         {/* Custom Header */}
@@ -210,11 +197,17 @@ const UserPanelScreen = () => {
 
             {/* Avatar + Notification */}
             <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate(ROUTES.PROFILE)}>
-              <Image
-                source={{ uri: user?.foto_perfil_url || user?.foto_perfil || 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop' }}
-                style={styles.avatarImage}
-                contentFit="cover"
-              />
+              {user?.foto_perfil_url || user?.foto_perfil ? (
+                <Image
+                  source={{ uri: user.foto_perfil_url || user.foto_perfil }}
+                  style={styles.avatarImage}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={[styles.avatarImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primary?.light || '#E0F2FE' }]}>
+                  <Ionicons name="person" size={20} color={colors.primary?.main || '#003459'} />
+                </View>
+              )}
               <View style={styles.notificationBadge} />
             </TouchableOpacity>
           </View>
@@ -338,7 +331,7 @@ const UserPanelScreen = () => {
       </ScrollView>
 
       <AddressSelectionModal
-        visible={isAddressModalVisible}
+        visible={addressModalVisible}
         onClose={() => setAddressModalVisible(false)}
         onSelectAddress={handleSelectAddress}
         currentAddress={mainAddress}
