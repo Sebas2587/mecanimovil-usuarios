@@ -254,6 +254,7 @@ const VehicleRegistrationScreen = () => {
                 .map(([componente_id, km]) => ({ componente_id: Number(componente_id), km_ultimo_cambio: Number(km) }));
             if (historialEntries.length > 0) {
                 formData.append('componentes_historial', JSON.stringify(historialEntries));
+                console.log('📤 [DEBUG] componentes_historial enviado:', historialEntries);
             }
 
             // Append Image if exists
