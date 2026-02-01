@@ -7,7 +7,8 @@ import {
   Dimensions,
   FlatList,
   Modal,
-  Alert
+  Alert,
+  ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
@@ -37,6 +38,7 @@ const VehicleHealthScreen = ({ route }) => {
   const [loading, setLoading] = useState(!vehicle?.health_report);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null); // For Modal
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   const pollingIntervalRef = useRef(null);
   const wsHandlerRef = useRef(null);
@@ -165,18 +167,24 @@ const VehicleHealthScreen = ({ route }) => {
 
     return (
       <View style={styles.summaryContainer}>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: COLORS.success[500] }]} />
-          <Text style={styles.legendText}>{componentes_optimos} Óptimos</Text>
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: COLORS.success[500] }]} />
+            <Text style={styles.legendText}>{componentes_optimos} Óptimos</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: COLORS.warning[500] }]} />
+            <Text style={styles.legendText}>{componentes_atencion} Atención</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
+            <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
+          </View>
         </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: COLORS.warning[500] }]} />
-          <Text style={styles.legendText}>{componentes_atencion} Atención</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
-          <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
-        </View>
+        <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
+          <Ionicons name="help-circle-outline" size={18} color={COLORS.primary[500]} />
+          <Text style={styles.helpLinkText}>Ayuda</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -238,6 +246,68 @@ const VehicleHealthScreen = ({ route }) => {
           )
         }
       />
+
+      {/* Help Modal */}
+      <Modal
+        visible={showHelpModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowHelpModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Animatable.View animation="zoomIn" duration={300} style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>¿Cómo calculamos la salud de tu vehículo?</Text>
+              <TouchableOpacity onPress={() => setShowHelpModal(false)}>
+                <Ionicons name="close" size={24} color={COLORS.base.inkBlack} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.helpScrollView}
+              contentContainerStyle={styles.helpScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.helpSectionText}>
+                Evaluamos cada componente (aceite, filtros, frenos, etc.) según los kilómetros desde su último cambio o servicio.
+              </Text>
+              <Text style={styles.helpSectionText}>
+                Usamos un modelo de confiabilidad que relaciona el kilometraje con la vida útil recomendada de cada pieza.
+              </Text>
+              <Text style={styles.helpSectionText}>
+                La salud es un porcentaje: a más km desde el último mantenimiento, menor porcentaje.
+              </Text>
+
+              <Text style={styles.helpSubtitle}>Niveles de estado</Text>
+              <View style={styles.helpLevelRow}>
+                <View style={[styles.dot, { backgroundColor: COLORS.success[500] }]} />
+                <Text style={styles.helpLevelText}>Óptimo (≥70%): en buen estado.</Text>
+              </View>
+              <View style={styles.helpLevelRow}>
+                <View style={[styles.dot, { backgroundColor: COLORS.warning[500] }]} />
+                <Text style={styles.helpLevelText}>Atención (40–70%): planificar revisión pronto.</Text>
+              </View>
+              <View style={styles.helpLevelRow}>
+                <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
+                <Text style={styles.helpLevelText}>Urgente (10–40%): revisar a la brevedad.</Text>
+              </View>
+              <View style={styles.helpLevelRow}>
+                <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
+                <Text style={styles.helpLevelText}>Crítico ({'<'}10%): atención inmediata.</Text>
+              </View>
+
+              <Text style={styles.helpSubtitle}>Ejemplo</Text>
+              <Text style={styles.helpSectionText}>
+                Si un componente tiene vida útil de 50.000 km y han pasado 25.000 km desde el último cambio, la salud se calcula en aproximadamente 78% (Óptimo). Si han pasado 45.000 km, sería ~45% (Atención). Si supera los 50.000 km, baja más y puede pasar a Urgente o Crítico.
+              </Text>
+            </ScrollView>
+
+            <TouchableOpacity style={styles.modalButton} onPress={() => setShowHelpModal(false)}>
+              <Text style={styles.modalButtonText}>Entendido</Text>
+            </TouchableOpacity>
+          </Animatable.View>
+        </View>
+      </Modal>
 
       {/* Detail Modal */}
       <Modal
@@ -357,10 +427,14 @@ const createStyles = (theme) => StyleSheet.create({
   },
   summaryContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
     paddingHorizontal: 4,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   legendItem: {
     flexDirection: 'row',
@@ -376,6 +450,46 @@ const createStyles = (theme) => StyleSheet.create({
     fontSize: 12,
     color: COLORS.text.secondary,
     fontWeight: '500',
+  },
+  helpLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  helpLinkText: {
+    fontSize: 14,
+    color: COLORS.primary[500],
+    fontWeight: '600',
+  },
+  helpScrollView: {
+    maxHeight: 320,
+  },
+  helpScrollContent: {
+    paddingBottom: 8,
+  },
+  helpSectionText: {
+    fontSize: 14,
+    color: COLORS.text.primary,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  helpSubtitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.base.inkBlack,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  helpLevelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  helpLevelText: {
+    fontSize: 14,
+    color: COLORS.text.primary,
+    lineHeight: 20,
   },
   ctaContainer: {
     backgroundColor: '#FEF2F2', // Red 50

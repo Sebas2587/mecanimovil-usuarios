@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -22,6 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { COLORS } from '../../design-system/tokens/colors';
 import * as vehicleService from '../../services/vehicle';
+import { useQuery } from '@tanstack/react-query';
 import Button from '../../components/base/Button/Button';
 import Input from '../../components/base/Input/Input'; // Reused for kilometraje
 import * as ImagePicker from 'expo-image-picker'; // New import
@@ -46,7 +47,36 @@ const VehicleRegistrationScreen = () => {
     const [image, setImage] = useState(null); // New state for image
     const [saving, setSaving] = useState(false);
     const [selectedEngineType, setSelectedEngineType] = useState(null);
+    const [maintenanceSelections, setMaintenanceSelections] = useState({});
+    const [maintenanceExpanded, setMaintenanceExpanded] = useState(true);
     const queryClient = useQueryClient();
+
+    // Fetch checklist for maintenance section
+    const engineForChecklist = selectedEngineType || 'GASOLINA';
+    const { data: checklistItems = [] } = useQuery({
+        queryKey: ['checklist-inicial', engineForChecklist],
+        queryFn: () => vehicleService.getInitialChecklist(engineForChecklist),
+        enabled: step === 'success' && !!selectedEngineType,
+    });
+
+    const setMaintenanceKm = useCallback((compId, kmStr) => {
+        const parsed = kmStr.replace(/[^0-9]/g, '');
+        const km = parsed === '' ? '' : parseInt(parsed, 10);
+        setMaintenanceSelections(prev => ({ ...prev, [compId]: km }));
+    }, []);
+
+    const toggleMaintenanceCheck = useCallback((compId) => {
+        const isChecked = maintenanceSelections[compId] !== undefined;
+        if (isChecked) {
+            setMaintenanceSelections(prev => {
+                const next = { ...prev };
+                delete next[compId];
+                return next;
+            });
+        } else {
+            setMaintenanceSelections(prev => ({ ...prev, [compId]: '' }));
+        }
+    }, [maintenanceSelections]);
 
     // Initial focus
     const patenteInputRef = useRef(null);
@@ -146,6 +176,24 @@ const VehicleRegistrationScreen = () => {
             return;
         }
 
+        const kmActual = parseInt(kilometraje, 10) || 0;
+        for (const [compId, kmVal] of Object.entries(maintenanceSelections)) {
+            if (kmVal === '' || kmVal === undefined) {
+                const item = checklistItems.find(c => c.id === Number(compId));
+                Alert.alert('Falta información', `Ingresa el kilometraje aproximado en que cambiaste "${item?.nombre || 'el componente'}".`);
+                return;
+            }
+            const km = typeof kmVal === 'number' ? kmVal : parseInt(String(kmVal), 10);
+            if (isNaN(km) || km < 0) {
+                Alert.alert('Dato inválido', 'El kilometraje del mantenimiento debe ser un número mayor o igual a 0.');
+                return;
+            }
+            if (km > kmActual) {
+                Alert.alert('Dato inválido', `El kilometraje del mantenimiento no puede ser mayor al kilometraje actual (${kmActual.toLocaleString()} km).`);
+                return;
+            }
+        }
+
         setSaving(true);
         try {
             // Prepare FormData for creation with image
@@ -200,6 +248,14 @@ const VehicleRegistrationScreen = () => {
             if (vehicleData.puertas) formData.append('puertas', String(vehicleData.puertas));
             if (vehicleData.mes_revision_tecnica) formData.append('mes_revision_tecnica', vehicleData.mes_revision_tecnica);
 
+            // Componentes historial (mantenimientos recientes)
+            const historialEntries = Object.entries(maintenanceSelections)
+                .filter(([, km]) => km !== '' && km !== undefined && !isNaN(Number(km)))
+                .map(([componente_id, km]) => ({ componente_id: Number(componente_id), km_ultimo_cambio: Number(km) }));
+            if (historialEntries.length > 0) {
+                formData.append('componentes_historial', JSON.stringify(historialEntries));
+            }
+
             // Append Image if exists
             if (image) {
                 const filename = image.split('/').pop();
@@ -253,6 +309,7 @@ const VehicleRegistrationScreen = () => {
         setPatente('');
         setKilometraje('');
         setImage(null);
+        setMaintenanceSelections({});
     };
 
     return (
@@ -400,6 +457,58 @@ const VehicleRegistrationScreen = () => {
                                     />
                                     <Text style={styles.kmSuffix}>km</Text>
                                 </View>
+                            </View>
+
+                            {/* Mantenimientos Recientes (Opcional) */}
+                            <View style={styles.maintenanceSection}>
+                                <TouchableOpacity
+                                    style={styles.maintenanceHeader}
+                                    onPress={() => setMaintenanceExpanded(!maintenanceExpanded)}
+                                    activeOpacity={0.7}
+                                >
+                                    <View>
+                                        <Text style={styles.sectionLabel}>Mantenimientos Recientes (Opcional)</Text>
+                                        <Text style={styles.maintenanceSubtitle}>Esto nos ayuda a calcular mejor la salud de tu vehículo.</Text>
+                                    </View>
+                                    <Ionicons name={maintenanceExpanded ? 'chevron-up' : 'chevron-down'} size={24} color="#64748B" />
+                                </TouchableOpacity>
+                                {maintenanceExpanded && checklistItems.length > 0 && (
+                                    <View style={styles.maintenanceList}>
+                                        <Text style={styles.maintenanceQuestion}>¿Has cambiado o mantenido alguno de estos componentes?</Text>
+                                        {checklistItems.map((item) => {
+                                            const isChecked = maintenanceSelections[item.id] !== undefined;
+                                            const kmVal = maintenanceSelections[item.id];
+                                            const kmNum = typeof kmVal === 'number' ? kmVal : (kmVal === '' ? '' : parseInt(String(kmVal), 10));
+                                            return (
+                                                <View key={item.id} style={styles.maintenanceRow}>
+                                                    <TouchableOpacity
+                                                        style={[styles.checkbox, isChecked && styles.checkboxChecked]}
+                                                        onPress={() => toggleMaintenanceCheck(item.id)}
+                                                    >
+                                                        {isChecked && <Ionicons name="checkmark" size={16} color="white" />}
+                                                    </TouchableOpacity>
+                                                    <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
+                                                    {isChecked && (
+                                                        <View style={styles.kmInputInline}>
+                                                            <TextInput
+                                                                style={styles.kmInputSmall}
+                                                                value={kmVal === '' ? '' : String(kmVal)}
+                                                                onChangeText={t => setMaintenanceKm(item.id, t)}
+                                                                placeholder="Km"
+                                                                keyboardType="numeric"
+                                                                placeholderTextColor="#94A3B8"
+                                                            />
+                                                            <Text style={styles.kmSuffixSmall}>km</Text>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                            );
+                                        })}
+                                        <TouchableOpacity onPress={() => setMaintenanceSelections({})} style={styles.skipLink}>
+                                            <Text style={styles.skipLinkText}>Continuar sin especificar</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
                             </View>
 
                             {/* Photo Upload Section */}
@@ -653,6 +762,89 @@ const styles = StyleSheet.create({
     },
     kilometerSection: {
         marginBottom: 32,
+    },
+    maintenanceSection: {
+        marginBottom: 32,
+        backgroundColor: 'white',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    maintenanceHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    maintenanceSubtitle: {
+        fontSize: 13,
+        color: '#64748B',
+        marginTop: 4,
+    },
+    maintenanceList: {
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+    maintenanceQuestion: {
+        fontSize: 14,
+        color: '#475569',
+        marginBottom: 12,
+    },
+    maintenanceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: '#CBD5E1',
+        marginRight: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: COLORS.primary[500],
+        borderColor: COLORS.primary[500],
+    },
+    maintenanceLabel: {
+        flex: 1,
+        fontSize: 15,
+        color: '#334155',
+    },
+    kmInputInline: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        width: 100,
+    },
+    kmInputSmall: {
+        flex: 1,
+        fontSize: 14,
+        color: '#0F172A',
+        paddingVertical: 6,
+    },
+    kmSuffixSmall: {
+        fontSize: 12,
+        color: '#64748B',
+        marginLeft: 4,
+    },
+    skipLink: {
+        marginTop: 8,
+        paddingVertical: 8,
+    },
+    skipLinkText: {
+        fontSize: 14,
+        color: COLORS.primary[500],
+        fontWeight: '600',
     },
     sectionLabel: {
         fontSize: 16,

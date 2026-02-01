@@ -33,12 +33,12 @@ const getServiceName = (job) => {
 };
 
 const getVehicleLabel = (job) => {
-    const v = job.vehiculo_detail || job.vehiculo;
+    const v = job.vehiculo_detail || job.vehiculo_info || job.vehiculo;
     if (!v) return null;
     const marca = v.marca_nombre || v.marca?.nombre || v.marca || '';
     const modelo = v.modelo_nombre || v.modelo?.nombre || v.modelo || '';
     const parts = [marca, modelo].filter(Boolean);
-    return parts.length > 0 ? parts.join(' ') : null;
+    return parts.length > 0 ? parts.join(' ') : v.full_name || null;
 };
 
 const CompletedJobCard = ({ job }) => {

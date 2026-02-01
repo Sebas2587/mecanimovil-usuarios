@@ -73,19 +73,12 @@ const UserProfileScreen = () => {
               onPress={() => navigation.navigate(ROUTES.PENDING_REVIEWS)}
             />
             <ProfileMenuItem
-              icon="map-outline"
-              label="Mis Direcciones"
-              iconBgColor="#FFF7ED" // Orange Light
-              iconColor="#EA580C" // Orange 600
-              onPress={() => navigation.navigate(ROUTES.ADDRESS_LIST || 'AddAddress')} // Fallback if route name varies
-            />
-            <ProfileMenuItem
               icon="heart-outline"
               label="Favoritos"
               iconBgColor="#FEE2E2" // Red Light
               iconColor="#DC2626" // Red 600
               isLast
-              onPress={() => { }} // Placeholder
+              onPress={() => navigation.navigate(ROUTES.FAVORITE_PROVIDERS)}
             />
           </ProfileMenuSection>
 

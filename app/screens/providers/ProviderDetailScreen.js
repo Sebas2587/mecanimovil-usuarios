@@ -19,10 +19,10 @@ import TrustSection from '../../components/provider/TrustSection';
 import ServicesList from '../../components/provider/ServicesList';
 import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
-import StickyFooter from '../../components/provider/StickyFooter';
 
 // Hooks & Services
 import { useProviderDetails, useProviderServices, useProviderDocuments, useProviderReviews, useProviderCompletedJobs } from '../../hooks/useProviders';
+import { useFavorites } from '../../context/FavoritesContext';
 import ReviewCard from '../../components/reviews/ReviewCard';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
@@ -46,6 +46,10 @@ const ProviderDetailScreen = () => {
   // Merge data
   const provider = { ...initialProvider, ...details, servicios: services || initialProvider?.servicios || [] };
 
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const favorite = isFavorite(idToLoad, providerType);
+  const handleToggleFavorite = () => toggleFavorite(provider, providerType);
+
   // Handlers
   const handleShare = async () => {
     try {
@@ -55,20 +59,6 @@ const ProviderDetailScreen = () => {
     } catch (error) {
       console.error(error);
     }
-  };
-
-  const handleChat = () => {
-    // Navigate to chat (placeholder)
-    navigation.navigate(ROUTES.CHATS_LIST);
-  };
-
-  const handleQuote = () => {
-    // Navigate to booking flow
-    navigation.navigate(ROUTES.CREAR_SOLICITUD, {
-      proveedorPreseleccionado: provider,
-      tipoProveedorPreseleccionado: providerType,
-      fromProviderDetail: true
-    });
   };
 
   const handleSeeAllReviews = () => {
@@ -98,7 +88,7 @@ const ProviderDetailScreen = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <ProviderHeader provider={provider} onShare={handleShare} />
+        <ProviderHeader provider={provider} onShare={handleShare} onToggleFavorite={handleToggleFavorite} isFavorite={favorite} />
 
         {/* Bio Section */}
         <View style={styles.bioContainer}>
@@ -157,8 +147,6 @@ const ProviderDetailScreen = () => {
         <PortfolioCarousel portfolio={provider.portafolio || []} />
 
       </ScrollView>
-
-      <StickyFooter onChatPress={handleChat} onQuotePress={handleQuote} />
     </View>
   );
 };
@@ -169,7 +157,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   scrollContent: {
-    paddingBottom: 100, // Space for footer
+    paddingBottom: 24,
   },
   bioContainer: {
     paddingHorizontal: 16,

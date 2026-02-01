@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import * as providerService from '../services/providers';
 import { get } from '../services/api';
 import * as userService from '../services/user';
+import solicitudesService from '../services/solicitudesService';
 
 // Cache for concurrent request deduplication
 const requestCache = new Map();
@@ -267,36 +268,68 @@ export const useProviderReviews = (providerId, providerType) => {
     });
 };
 
+/**
+ * Obtiene los trabajos completados por el cliente con un proveedor específico.
+ * Usa obtenerMisSolicitudes (SolicitudServicioPublica, estado 'completada') - misma fuente que
+ * MarketplaceVehicleDetailScreen y VehicleHistoryScreen - en lugar de getServicesHistory (historial).
+ */
 export const useProviderCompletedJobs = (id, type) => {
     return useQuery({
         queryKey: ['providerJobs', type, id],
         queryFn: async () => {
-            const historyResponse = await userService.getServicesHistory({ estado: 'completado' });
-            const allCompleted = Array.isArray(historyResponse?.results)
-                ? historyResponse.results
-                : Array.isArray(historyResponse)
-                    ? historyResponse
-                    : [];
+            const allCompleted = await solicitudesService.obtenerMisSolicitudes({ estado: 'completada' });
+            const list = Array.isArray(allCompleted) ? allCompleted : (allCompleted?.results || []);
 
-            // Filter jobs for this provider
-            // Prefer taller_id/mecanico_id; fallback to taller_detail/mecanico_detail (API may omit IDs)
-            return allCompleted.filter(solicitud => {
-                const providerIdStr = id.toString();
-                if (type === 'taller') {
-                    const tallerId = solicitud.taller_id ?? solicitud.taller_detail?.id ?? solicitud.taller?.id ?? solicitud.taller;
-                    return tallerId != null && tallerId.toString() === providerIdStr;
-                } else if (type === 'mecanico') {
-                    const mecanicoId = solicitud.mecanico_id ?? solicitud.mecanico_detail?.id ?? solicitud.mecanico?.id ?? solicitud.mecanico;
-                    return mecanicoId != null && mecanicoId.toString() === providerIdStr;
-                }
-                return false;
-            }).sort((a, b) => {
-                const dateA = new Date(a.fecha_servicio || a.fecha_hora_solicitud || 0);
-                const dateB = new Date(b.fecha_servicio || b.fecha_hora_solicitud || 0);
-                return dateB - dateA;
-            });
+            // Filtrar por proveedor: oferta_seleccionada_detail tiene proveedor_id_detail (taller/mecanico id) y tipo_proveedor
+            const providerIdStr = id.toString();
+            const filtered = list
+                .filter(s => s.estado === 'completada' && (s.oferta_seleccionada || s.oferta_seleccionada_detail))
+                .filter(solicitud => {
+                    const offer = solicitud.oferta_seleccionada_detail || solicitud.oferta_seleccionada;
+                    if (!offer) return false;
+                    const offerTipo = (offer.tipo_proveedor || '').toLowerCase();
+                    if (offerTipo !== type) return false;
+                    const providerId = offer.proveedor_id_detail ?? offer.proveedor_id ?? offer.proveedor_info?.id;
+                    return providerId != null && providerId.toString() === providerIdStr;
+                })
+                .map(s => normalizarJobParaProviderDetail(s))
+                .sort((a, b) => {
+                    const dateA = new Date(a.fecha_servicio || a.fecha_hora_solicitud || 0);
+                    const dateB = new Date(b.fecha_servicio || b.fecha_hora_solicitud || 0);
+                    return dateB - dateA;
+                });
+
+            return filtered;
         },
         enabled: !!id && !!type,
         staleTime: 1000 * 60 * 5,
     });
 };
+
+/** Normaliza SolicitudServicioPublica a formato esperado por ProviderCompletedJobsSection */
+function normalizarJobParaProviderDetail(s) {
+    const offer = s.oferta_seleccionada_detail || s.oferta_seleccionada || {};
+    const detalles = offer.detalles_servicios || [];
+    let lineas_detail = detalles.map(d => ({
+        servicio_nombre: d.servicio_nombre || d.servicio?.nombre || d.nombre || 'Servicio',
+        nombre: d.servicio_nombre || d.servicio?.nombre || d.nombre || 'Servicio',
+    }));
+    if (lineas_detail.length === 0 && (s.servicio_nombre || s.nombre_servicio)) {
+        lineas_detail = [{ servicio_nombre: s.servicio_nombre || s.nombre_servicio, nombre: s.servicio_nombre || s.nombre_servicio }];
+    }
+    if (lineas_detail.length === 0 && s.servicios_solicitados_detail?.length > 0) {
+        lineas_detail = s.servicios_solicitados_detail.map(svc => ({ servicio_nombre: svc.nombre, nombre: svc.nombre }));
+    }
+    if (lineas_detail.length === 0) {
+        lineas_detail = [{ servicio_nombre: 'Servicio general', nombre: 'Servicio general' }];
+    }
+    const vehiculoDetail = s.vehiculo_detail || s.vehiculo_info || s.vehiculo;
+    return {
+        ...s,
+        lineas_detail,
+        lineas: lineas_detail,
+        vehiculo_detail: vehiculoDetail,
+        vehiculo: vehiculoDetail,
+        fecha_servicio: s.fecha_servicio || s.fecha_creacion || s.fecha_hora_solicitud,
+    };
+}

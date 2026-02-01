@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 import { useNavigation } from '@react-navigation/native';
 
-const ProviderHeader = ({ provider, onShare }) => {
+const ProviderHeader = ({ provider, onShare, onToggleFavorite, isFavorite = false }) => {
     const navigation = useNavigation();
 
     const name = provider?.nombre || 'Proveedor Profesional';
@@ -34,9 +34,15 @@ const ProviderHeader = ({ provider, onShare }) => {
                         <TouchableOpacity style={styles.iconButton} onPress={onShare}>
                             <Ionicons name="share-outline" size={24} color="white" />
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.iconButton} onPress={() => { }}>
-                            <Ionicons name="heart-outline" size={24} color="white" />
-                        </TouchableOpacity>
+                        {onToggleFavorite && (
+                            <TouchableOpacity style={styles.iconButton} onPress={onToggleFavorite}>
+                                <Ionicons
+                                    name={isFavorite ? 'heart' : 'heart-outline'}
+                                    size={24}
+                                    color={isFavorite ? COLORS.error.main : 'white'}
+                                />
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
             </View>

@@ -67,5 +67,8 @@
     "@expo/config-plugins": "^54.0.4",
     "@react-native-community/cli": "latest"
   },
+  "overrides": {
+    "@urql/core": "5.0.6"
+  },
   "private": true
 }

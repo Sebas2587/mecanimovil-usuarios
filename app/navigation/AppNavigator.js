@@ -39,6 +39,7 @@ import ConfirmacionScreen from '../screens/confirmation/ConfirmacionScreen';
 import PaymentCallbackScreen from '../screens/payment/PaymentCallbackScreen';
 import MercadoPagoWebViewScreen from '../screens/payment/MercadoPagoWebViewScreen';
 import HistorialPagosScreen from '../screens/payment/HistorialPagosScreen';
+import FavoriteProvidersScreen from '../screens/profile/FavoriteProvidersScreen';
 // CardInputScreen eliminada temporalmente - se reimplementará con Mercado Pago
 
 // Pantallas de proveedores
@@ -199,6 +200,11 @@ const ProfileStackNavigator = () => {
         name={ROUTES.HISTORIAL_PAGOS}
         component={HistorialPagosScreen}
         options={{ headerShown: false }}
+      />
+      <ProfileStack.Screen
+        name={ROUTES.FAVORITE_PROVIDERS}
+        component={FavoriteProvidersScreen}
+        options={getHeaderOptions("Proveedores Favoritos")}
       />
     </ProfileStack.Navigator>
   );

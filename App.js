@@ -16,6 +16,7 @@ import { AgendamientoProvider } from './app/context/AgendamientoContext';
 import { BookingCartProvider } from './app/context/BookingCartContext';
 import { SolicitudesProvider } from './app/context/SolicitudesContext';
 import { ChatsProvider } from './app/context/ChatsContext';
+import { FavoritesProvider } from './app/context/FavoritesContext';
 import { ThemeProvider } from './app/design-system/theme/ThemeProvider';
 import { COLORS } from './app/utils/constants';
 import { ROUTES } from './app/utils/constants';
@@ -1068,6 +1069,7 @@ export default function App() {
             onSuccess={() => logger.debug('✅ Query Cache restaurado desde MMKV/AsyncStorage')}
           >
             <AuthProvider>
+              <FavoritesProvider>
               <ChatsProvider>
                 <AgendamientoProvider>
                   <BookingCartProvider>
@@ -1078,6 +1080,7 @@ export default function App() {
                   </BookingCartProvider>
                 </AgendamientoProvider>
               </ChatsProvider>
+              </FavoritesProvider>
             </AuthProvider>
           </PersistQueryClientProvider>
         </ThemeProvider>

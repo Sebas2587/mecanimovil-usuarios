@@ -241,6 +241,7 @@ export const ROUTES = {
 
   // Rutas para reviews de proveedores
   PROVIDER_REVIEWS: 'ProviderReviewsScreen',
+  FAVORITE_PROVIDERS: 'FavoriteProviders',
   PENDING_REVIEWS: 'PendingReviews',
   CREATE_REVIEW: 'CreateReview',
 

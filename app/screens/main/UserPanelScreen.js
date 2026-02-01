@@ -26,6 +26,7 @@ import AddressSelectionModal from '../../components/location/AddressSelectionMod
 // Hooks
 import { useMainAddress, useSetMainAddress } from '../../hooks/useAddress';
 import { useAuth } from '../../context/AuthContext';
+import { useFavorites } from '../../context/FavoritesContext';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { useNearbyMecanicos, useNearbyTalleres } from '../../hooks/useProviders';
 import { useQuery } from '@tanstack/react-query';
@@ -38,6 +39,7 @@ const UserPanelScreen = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { favorites } = useFavorites();
   const { solicitudesActivas, cargarSolicitudesActivas } = useSolicitudes();
   const { data: mainAddress } = useMainAddress(user?.id);
   const { mutateAsync: setMainAddressMutation } = useSetMainAddress();
@@ -141,6 +143,25 @@ const UserPanelScreen = () => {
     } catch (error) {
       console.error("Error setting main address", error);
     }
+  };
+
+  // Helper to format favorite for PreviewCard (favorites have marcas_atendidas_nombres, especialidades_nombres)
+  const formatFavoriteForPreviewCard = (favorite) => {
+    const specialty =
+      favorite.marcas_atendidas_nombres?.length > 0
+        ? favorite.marcas_atendidas_nombres.join(', ')
+        : favorite.especialidades_nombres?.length > 0
+          ? favorite.especialidades_nombres.join(', ')
+          : 'Especialidad general';
+    return {
+      image: favorite.foto_perfil || favorite.usuario?.foto_perfil || favorite.foto_perfil_url,
+      name: favorite.nombre,
+      specialty,
+      rating: favorite.calificacion_promedio != null ? parseFloat(favorite.calificacion_promedio).toFixed(1) : '0.0',
+      reviews: favorite.numero_de_calificaciones ?? 0,
+      distance: null,
+      verified: favorite.verificado ?? false,
+    };
   };
 
   // Helper to format provider data for PreviewCard
@@ -281,6 +302,31 @@ const UserPanelScreen = () => {
             </TouchableOpacity> */}
           </ScrollView>
         </View>
+
+        {/* 2.5 Proveedores Favoritos */}
+        {favorites.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Proveedores Favoritos</Text>
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.PROFILE, { screen: ROUTES.FAVORITE_PROVIDERS })}>
+                <Text style={styles.seeAllText}>Ver todos</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
+              {favorites.map((item) => {
+                const formatted = formatFavoriteForPreviewCard(item);
+                return (
+                  <ProviderPreviewCard
+                    key={`${item.id}-${item.type}`}
+                    {...formatted}
+                    onPress={() => navigation.navigate(ROUTES.PROVIDER_DETAIL, { providerId: item.id, providerType: item.type, provider: item })}
+                  />
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* 3. Mechanics Section */}
         {mechanics.length > 0 && (
