@@ -256,6 +256,17 @@ export const useProviderDocuments = (id, type) => {
     });
 };
 
+export const useProviderReviews = (providerId, providerType) => {
+    return useQuery({
+        queryKey: ['providerReviews', providerType, providerId],
+        queryFn: () => providerService.getProviderReviews(providerId, providerType),
+        enabled: !!providerId && !!providerType,
+        staleTime: 1000 * 60 * 5, // 5 min - no refetch if visited recently
+        gcTime: 1000 * 60 * 30, // 30 min - keep in cache when navigating away
+        refetchOnMount: true, // refetch only when data is stale
+    });
+};
+
 export const useProviderCompletedJobs = (id, type) => {
     return useQuery({
         queryKey: ['providerJobs', type, id],
@@ -268,14 +279,15 @@ export const useProviderCompletedJobs = (id, type) => {
                     : [];
 
             // Filter jobs for this provider
+            // Prefer taller_id/mecanico_id; fallback to taller_detail/mecanico_detail (API may omit IDs)
             return allCompleted.filter(solicitud => {
                 const providerIdStr = id.toString();
                 if (type === 'taller') {
-                    const tallerId = solicitud.taller?.id || solicitud.taller;
-                    return tallerId?.toString() === providerIdStr;
+                    const tallerId = solicitud.taller_id ?? solicitud.taller_detail?.id ?? solicitud.taller?.id ?? solicitud.taller;
+                    return tallerId != null && tallerId.toString() === providerIdStr;
                 } else if (type === 'mecanico') {
-                    const mecanicoId = solicitud.mecanico?.id || solicitud.mecanico;
-                    return mecanicoId?.toString() === providerIdStr;
+                    const mecanicoId = solicitud.mecanico_id ?? solicitud.mecanico_detail?.id ?? solicitud.mecanico?.id ?? solicitud.mecanico;
+                    return mecanicoId != null && mecanicoId.toString() === providerIdStr;
                 }
                 return false;
             }).sort((a, b) => {

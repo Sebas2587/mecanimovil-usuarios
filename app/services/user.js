@@ -305,8 +305,9 @@ export const getServicesHistory = async (filtros = {}) => {
   } catch (error) {
     // Solo loguear en desarrollo (__DEV__), nunca en producción (APK)
     logger.error('Error al obtener historial de servicios:', error);
-    // Si no hay historial, devolver array vacío en lugar de error
-    if (error.status === 404) {
+    // Si no hay historial (404) o error del servidor (500), devolver array vacío
+    const status = error.status ?? error.response?.status;
+    if (status === 404 || status === 500) {
       return [];
     }
     throw error;

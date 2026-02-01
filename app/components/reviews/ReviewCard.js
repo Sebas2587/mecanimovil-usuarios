@@ -10,15 +10,18 @@ const ReviewCard = ({ review }) => {
         cliente_avatar,
         calificacion,
         comentario,
+        created_at,
         fecha_hora_resena,
         service_context,
         photos = []
     } = review;
 
-    // Relative Time Logic (Simple approximation)
-    const getRelativeTime = (isoString) => {
-        if (!isoString) return '';
-        const date = new Date(isoString);
+    // Relative Time Logic: prefers created_at (ISO), fallback to fecha_hora_resena (may be formatted string)
+    const getRelativeTime = (dateInput, fallbackDisplay) => {
+        if (!dateInput) return fallbackDisplay || 'Fecha no disponible';
+        const date = new Date(dateInput);
+        if (isNaN(date.getTime())) return fallbackDisplay || dateInput || 'Fecha no disponible';
+
         const now = new Date();
         const diffInSeconds = Math.floor((now - date) / 1000);
 
@@ -59,7 +62,7 @@ const ReviewCard = ({ review }) => {
                         </View>
                     </View>
                 </View>
-                <Text style={styles.relativeDate}>{getRelativeTime(fecha_hora_resena)}</Text>
+                <Text style={styles.relativeDate}>{getRelativeTime(created_at || fecha_hora_resena, fecha_hora_resena)}</Text>
             </View>
 
             {/* Context Badge */}

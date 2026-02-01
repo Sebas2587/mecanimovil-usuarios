@@ -4,14 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 
 const PortfolioCarousel = ({ portfolio }) => {
-    // Mock data if empty
-    const items = portfolio && portfolio.length > 0 ? portfolio : [
-        { id: 1, title: 'Reparación Motor Toyota', image: 'https://images.unsplash.com/photo-1599256630425-62bb564d6333?q=80&w=800&auto=format&fit=crop' },
-        { id: 2, title: 'Mantención Frenos', image: 'https://images.unsplash.com/photo-1486053424116-43aabd030c69?q=80&w=800&auto=format&fit=crop' },
-        { id: 3, title: 'Cambio Suspensión', image: 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=800&auto=format&fit=crop' }
-    ];
+    if (!portfolio || portfolio.length === 0) return null;
 
-    if (!items || items.length === 0) return null;
+    const items = portfolio;
 
     return (
         <View style={styles.container}>

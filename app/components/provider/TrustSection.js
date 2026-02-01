@@ -2,52 +2,23 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+
+const DOCUMENT_LABELS = {
+    curriculum: 'Curriculum Vitae',
+    certificado_antecedentes: 'Antecedentes Penales',
+    rut_fiscal: 'RUT del Negocio',
+    licencia_conducir: 'Licencia de Conducir',
+};
+
+const getDocumentLabel = (doc) => {
+    if (doc.tipo_documento_display) return doc.tipo_documento_display;
+    const key = (doc.tipo_documento || '').toLowerCase();
+    return DOCUMENT_LABELS[key] || doc.tipo_documento || 'Documento Verificado';
+};
 
 const TrustSection = ({ documents }) => {
     if (!documents || documents.length === 0) return null;
-
-    // Map document types to visual badges
-    const getVerificationBadges = (docs) => {
-        const badges = [];
-
-        docs.forEach(doc => {
-            const docName = doc.nombre || doc.tipo_documento || 'Documento Verificado';
-            const docType = docName.toLowerCase();
-
-            // Determine icon based on document type while keeping the REAL document name
-            let icon = 'checkmark-circle';
-            let color = COLORS.success[500];
-
-            if (docType.includes('identidad') || docType.includes('cedula') || docType.includes('rut')) {
-                icon = 'person-circle';
-                color = COLORS.success[500];
-            } else if (docType.includes('certificacion') || docType.includes('certificado') || docType.includes('titulo')) {
-                icon = 'ribbon';
-                color = COLORS.primary[500];
-            } else if (docType.includes('antecedente') || docType.includes('penal')) {
-                icon = 'shield-checkmark';
-                color = COLORS.success[500];
-            } else if (docType.includes('garantia') || docType.includes('seguro')) {
-                icon = 'checkmark-done-circle';
-                color = COLORS.primary[500];
-            } else if (docType.includes('licencia') || docType.includes('permiso')) {
-                icon = 'card';
-                color = COLORS.primary[500];
-            }
-
-            // Always use the real document name from backend
-            badges.push({
-                icon,
-                label: docName,
-                color
-            });
-        });
-
-        return badges;
-    };
-
-    const badges = getVerificationBadges(documents);
-    if (badges.length === 0) return null;
 
     return (
         <View style={styles.container}>
@@ -59,18 +30,23 @@ const TrustSection = ({ documents }) => {
             </View>
 
             <View style={styles.badgesGrid}>
-                {badges.map((badge, index) => (
-                    <View key={index} style={styles.badgeCard}>
-                        <View style={[styles.badgeIconContainer, { backgroundColor: `${badge.color}15` }]}>
-                            <Ionicons name={badge.icon} size={24} color={badge.color} />
-                        </View>
-                        <Text style={styles.badgeLabel}>{badge.label}</Text>
+                {documents.map((doc, index) => (
+                    <View key={doc.id || index} style={styles.badgeCard}>
+                        <Ionicons
+                            name="checkmark-circle"
+                            size={22}
+                            color={COLORS.success[500]}
+                            style={styles.checkIcon}
+                        />
+                        <Text style={styles.badgeLabel}>{getDocumentLabel(doc)}</Text>
                     </View>
                 ))}
             </View>
         </View>
     );
 };
+
+const CARD_RADIUS = BORDERS.radius.card?.md ?? 12;
 
 const styles = StyleSheet.create({
     container: {
@@ -99,14 +75,16 @@ const styles = StyleSheet.create({
     badgesGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
+        gap: 10,
     },
     badgeCard: {
         width: '48%',
-        backgroundColor: COLORS.base.white,
-        borderRadius: 12,
-        padding: 16,
+        flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: COLORS.base.white,
+        borderRadius: CARD_RADIUS,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
         borderWidth: 1,
         borderColor: COLORS.neutral.gray[100],
         shadowColor: '#000',
@@ -115,19 +93,14 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 1,
     },
-    badgeIconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 8,
+    checkIcon: {
+        marginRight: 8,
     },
     badgeLabel: {
+        flex: 1,
         fontSize: 12,
         fontWeight: '600',
         color: COLORS.text.primary,
-        textAlign: 'center',
         lineHeight: 16,
     },
 });

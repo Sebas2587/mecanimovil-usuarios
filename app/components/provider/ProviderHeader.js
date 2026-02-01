@@ -7,13 +7,12 @@ import { useNavigation } from '@react-navigation/native';
 const ProviderHeader = ({ provider, onShare }) => {
     const navigation = useNavigation();
 
-    // Mock data fallbacks
     const name = provider?.nombre || 'Proveedor Profesional';
     const type = provider?.tipo === 'taller' ? 'Taller Certificado' : 'Mecánico Experto';
-    const location = provider?.direccion_fisica?.comuna || provider?.comuna || 'Santiago';
-    const rating = provider?.calificacion_promedio || 4.8;
-    const jobs = provider?.servicios_completados || provider?.trabajos_realizados || 0;
-    const experience = provider?.experiencia_anios || 5;
+    const location = provider?.direccion_fisica?.comuna || provider?.comuna || '';
+    const rating = provider?.calificacion_promedio ?? '';
+    const jobs = provider?.servicios_completados ?? provider?.trabajos_realizados ?? '';
+    const experience = provider?.experiencia_anios ?? '';
 
     // Cover & Avatar fallbacks
     const coverImage = provider?.foto_portada || 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=1000&auto=format&fit=crop';
@@ -58,25 +57,25 @@ const ProviderHeader = ({ provider, onShare }) => {
                 </View>
 
                 <Text style={styles.name}>{name}</Text>
-                <Text style={styles.type}>{type} • {location}</Text>
+                <Text style={styles.type}>{[type, location].filter(Boolean).join(' • ') || type}</Text>
 
                 {/* Stats Row */}
                 <View style={styles.statsRow}>
                     <View style={styles.statItem}>
                         <View style={styles.ratingContainer}>
                             <Ionicons name="star" size={16} color="#FFB84D" />
-                            <Text style={styles.statValue}>{rating}</Text>
+                            <Text style={styles.statValue}>{rating !== '' ? rating : '—'}</Text>
                         </View>
                         <Text style={styles.statLabel}>Rating</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{jobs}+</Text>
+                        <Text style={styles.statValue}>{jobs !== '' ? `${jobs}+` : '—'}</Text>
                         <Text style={styles.statLabel}>Trabajos</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{experience} años</Text>
+                        <Text style={styles.statValue}>{experience !== '' ? `${experience} años` : '—'}</Text>
                         <Text style={styles.statLabel}>Experiencia</Text>
                     </View>
                 </View>

@@ -2,13 +2,15 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import SPACING from '../../design-system/tokens/spacing';
 
 const ServicesList = ({ services, onServicePress }) => {
     if (!services || services.length === 0) return null;
 
     const formatPrice = (price) => {
-        if (!price) return 'Consultar';
-        return `$${price.toLocaleString('es-CL')}`;
+        if (price == null || price === '' || isNaN(Number(price))) return null;
+        return `$${Number(price).toLocaleString('es-CL')}`;
     };
 
     return (
@@ -21,26 +23,39 @@ const ServicesList = ({ services, onServicePress }) => {
             </View>
 
             <View style={styles.listContainer}>
-                {services.map((service, index) => (
-                    <TouchableOpacity key={service.id || index} style={styles.serviceCard} onPress={() => onServicePress?.(service)} activeOpacity={0.7}>
-                        <View style={styles.cardHeader}>
-                            <View style={styles.iconBox}>
-                                <Ionicons name="construct-outline" size={20} color={COLORS.primary[500]} />
+                {services.map((service, index) => {
+                    const price = service.precio_desde ?? service.precio_publicado_cliente ?? service.price;
+                    const formattedPrice = formatPrice(price);
+                    return (
+                        <View key={service.id || index} style={styles.serviceCard}>
+                            <View style={styles.cardHeader}>
+                                <View style={styles.iconBox}>
+                                    <Ionicons name="construct-outline" size={20} color={COLORS.primary[500]} />
+                                </View>
+                                <View style={styles.headerTextContainer}>
+                                    <Text style={styles.serviceName}>{service.nombre || service.name}</Text>
+                                </View>
                             </View>
-                            <View style={styles.headerTextContainer}>
-                                <Text style={styles.serviceName}>{service.nombre || service.name}</Text>
-                                {/* Description could go here if available */}
-                            </View>
-                        </View>
 
-                        <View style={styles.cardFooter}>
-                            <Text style={styles.startLabel}>Desde</Text>
-                            <Text style={styles.priceText}>
-                                {formatPrice(service.precio_desde || service.price)}
-                            </Text>
+                            <View style={styles.cardFooter}>
+                                {formattedPrice ? (
+                                    <View style={styles.priceRow}>
+                                        <Text style={styles.startLabel}>Desde</Text>
+                                        <Text style={styles.priceText}>{formattedPrice}</Text>
+                                    </View>
+                                ) : null}
+                                <TouchableOpacity
+                                    style={styles.agendarButton}
+                                    onPress={() => onServicePress?.(service)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons name="calendar-outline" size={16} color={COLORS.base.white} style={styles.agendarIcon} />
+                                    <Text style={styles.agendarButtonText}>Agendar</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </TouchableOpacity>
-                ))}
+                    );
+                })}
             </View>
         </View>
     );
@@ -114,11 +129,14 @@ const styles = StyleSheet.create({
         lineHeight: 18,
     },
     cardFooter: {
-        flexDirection: 'column', // Stack "Desde" and price for better readability in narrow cards
-        alignItems: 'flex-start',
-        paddingTop: 8,
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        paddingTop: 10,
         borderTopWidth: 1,
         borderTopColor: COLORS.neutral.gray[100],
+    },
+    priceRow: {
+        marginBottom: 10,
     },
     startLabel: {
         fontSize: 11,
@@ -129,6 +147,23 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
         color: COLORS.primary[500],
+    },
+    agendarButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.primary[500],
+        borderRadius: BORDERS.radius.button?.md ?? 12,
+        paddingHorizontal: SPACING.buttonPadding?.horizontal ?? 20,
+        paddingVertical: SPACING.buttonPadding?.vertical ?? 14,
+    },
+    agendarIcon: {
+        marginRight: 6,
+    },
+    agendarButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.base.white,
     },
 });
 

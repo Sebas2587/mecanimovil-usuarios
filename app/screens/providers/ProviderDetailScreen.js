@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -17,12 +17,12 @@ import { ROUTES } from '../../utils/constants';
 import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
 import ServicesList from '../../components/provider/ServicesList';
+import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
 import StickyFooter from '../../components/provider/StickyFooter';
 
 // Hooks & Services
-import { useProviderDetails, useProviderServices, useProviderDocuments } from '../../hooks/useProviders';
-import { getProviderReviews } from '../../services/providers';
+import { useProviderDetails, useProviderServices, useProviderDocuments, useProviderReviews, useProviderCompletedJobs } from '../../hooks/useProviders';
 import ReviewCard from '../../components/reviews/ReviewCard';
 import { Ionicons } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
@@ -40,20 +40,11 @@ const ProviderDetailScreen = () => {
   const { data: details, isLoading: loadingDetails } = useProviderDetails(idToLoad, providerType);
   const { data: services } = useProviderServices(idToLoad, providerType);
   const { data: documents } = useProviderDocuments(idToLoad, providerType);
+  const { data: reviewsData } = useProviderReviews(idToLoad, providerType);
+  const { data: completedJobs = [] } = useProviderCompletedJobs(idToLoad, providerType);
 
   // Merge data
   const provider = { ...initialProvider, ...details, servicios: services || initialProvider?.servicios || [] };
-
-  // Fetch Reviews Summary
-  const [reviewsData, setReviewsData] = useState(null);
-
-  useEffect(() => {
-    if (idToLoad && providerType) {
-      getProviderReviews(idToLoad, providerType)
-        .then(data => setReviewsData(data))
-        .catch(err => console.log("Error loading reviews preview:", err));
-    }
-  }, [idToLoad, providerType]);
 
   // Handlers
   const handleShare = async () => {
@@ -160,6 +151,8 @@ const ProviderDetailScreen = () => {
         <TrustSection documents={documents || []} />
 
         <ServicesList services={provider.servicios} onServicePress={handleServiceSelect} />
+
+        <ProviderCompletedJobsSection jobs={completedJobs} />
 
         <PortfolioCarousel portfolio={provider.portafolio || []} />
 
