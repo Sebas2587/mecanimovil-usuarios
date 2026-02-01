@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { COLORS } from '../../utils/constants';
 import Card from '../base/Card/Card';
 import Avatar from '../base/Avatar/Avatar';
@@ -299,25 +299,37 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist }) => {
 
       {/* Body: Service & Mileage */}
       <View style={historyStyles.body}>
-        <View style={historyStyles.infoRow}>
-          <View style={historyStyles.iconBox}>
-            <Ionicons name="construct" size={16} color={COLORS.primary} />
-          </View>
-          <View>
-            <Text style={historyStyles.label}>Servicio Realizado</Text>
-            <Text style={historyStyles.value}>{serviceName}</Text>
+        <View style={historyStyles.serviceInfo}>
+          <Text style={historyStyles.serviceTitle}>{serviceName}</Text>
+          <View style={historyStyles.specsRow}>
+            <View style={historyStyles.specItem}>
+              <Feather name="activity" size={12} color="#6B7280" />
+              <Text style={historyStyles.specText}>{mileage}</Text>
+            </View>
+            <View style={historyStyles.specItem}>
+              <Ionicons name="checkmark-circle" size={12} color="#10B981" />
+              <Text style={historyStyles.specText}>Verificado</Text>
+            </View>
           </View>
         </View>
 
-        <View style={[historyStyles.infoRow, { marginTop: 12 }]}>
-          <View style={[historyStyles.iconBox, { backgroundColor: '#FEF3C7' }]}>
-            <Ionicons name="speedometer" size={16} color="#D97706" />
+        {/* Cost Display - Enhanced */}
+        {item.cost > 0 && (
+          <View style={historyStyles.costBadge}>
+            <Text style={historyStyles.costLabel}>Valor Servicio</Text>
+            <Text style={historyStyles.costValue}>
+              ${item.cost.toLocaleString('es-CL')}
+            </Text>
           </View>
-          <View>
-            <Text style={historyStyles.label}>Kilometraje Checklist</Text>
-            <Text style={historyStyles.value}>{mileage}</Text>
-          </View>
-        </View>
+        )}
+
+        <TouchableOpacity
+          style={historyStyles.viewButton}
+          onPress={() => onViewChecklist(item)}
+        >
+          {/* Arrow removed as per user request */}
+          <View style={{ width: 4 }} />
+        </TouchableOpacity>
       </View>
 
       {/* Footer: Checklist Button */}
@@ -386,31 +398,42 @@ const historyStyles = StyleSheet.create({
   },
   body: {
     marginBottom: 16,
-  },
-  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  iconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 52, 89, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+  serviceInfo: {
+    flex: 1,
+    marginRight: 8,
   },
-  label: {
-    fontSize: 11,
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  value: {
+  serviceTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: '#111827',
+    marginBottom: 4,
+  },
+  specsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  specItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  specText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 4,
+  },
+  viewButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checklistButton: {
     flexDirection: 'row',
@@ -428,5 +451,27 @@ const historyStyles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
     marginRight: 4,
+  },
+  costBadge: {
+    backgroundColor: 'rgba(52, 211, 153, 0.1)', // Light Emerald Green
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'flex-end',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.2)',
+  },
+  costLabel: {
+    fontSize: 10,
+    color: '#059669', // Dark Emerald
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  costValue: {
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '800',
   }
 }); 

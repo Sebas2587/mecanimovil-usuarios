@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { post } from '../../services/api';
@@ -25,6 +26,19 @@ const CreateReviewScreen = () => {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: 'Dejar Reseña',
+      headerShown: true,
+      headerBackTitleVisible: false,
+      headerTintColor: COLORS.primary,
+      headerTitleStyle: {
+        fontWeight: 'bold',
+        color: COLORS.text,
+      },
+    });
+  }, [navigation]);
+
   const handleRatingPress = (selectedRating) => {
     setRating(selectedRating);
   };
@@ -37,7 +51,7 @@ const CreateReviewScreen = () => {
 
     try {
       setSubmitting(true);
-      
+
       const reviewData = {
         service_order_id: service.service_order_id,
         rating: rating,
@@ -46,9 +60,9 @@ const CreateReviewScreen = () => {
 
       // Determinar el provider_id basado en el tipo de proveedor
       const providerId = service.provider.provider_id;
-      
+
       await post(`/usuarios/providers/${providerId}/reviews/`, reviewData);
-      
+
       Alert.alert(
         '¡Reseña enviada!',
         'Gracias por compartir tu experiencia. Tu reseña ayudará a otros usuarios.',
@@ -104,43 +118,63 @@ const CreateReviewScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Dejar Reseña</Text>
-        <View style={styles.placeholder} />
-      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Información del servicio */}
-        <View style={styles.serviceCard}>
-          <Text style={styles.serviceTitle}>Servicio Completado</Text>
-          <Text style={styles.providerName}>{service.provider.provider_name}</Text>
-          <Text style={styles.serviceName}>{service.service_name}</Text>
-          <Text style={styles.vehicleInfo}>
-            Vehículo: {service.vehicle.full_name}
-          </Text>
-          <Text style={styles.completionDate}>
-            Completado: {new Date(service.completion_date).toLocaleDateString()}
-          </Text>
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Ionicons name="receipt-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+            <Text style={styles.cardTitle}>Detalles del Servicio</Text>
+          </View>
+
+          <View style={styles.serviceInfoContainer}>
+            <View style={styles.providerRow}>
+              {service.provider.provider_photo ? (
+                <Image
+                  source={{ uri: service.provider.provider_photo }}
+                  style={styles.providerAvatar}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.providerPlaceholder}>
+                  <Ionicons name="person" size={20} color={COLORS.textLight} />
+                </View>
+              )}
+              <View>
+                <Text style={styles.providerName}>{service.provider.provider_name}</Text>
+                <Text style={styles.serviceName}>{service.service_name}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.detailRow}>
+              <Ionicons name="car-outline" size={16} color={COLORS.textLight} />
+              <Text style={styles.detailText}>{service.vehicle.full_name}</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Ionicons name="calendar-outline" size={16} color={COLORS.textLight} />
+              <Text style={styles.detailText}>Completado el {new Date(service.completion_date).toLocaleDateString()}</Text>
+            </View>
+          </View>
         </View>
 
         {/* Calificación */}
-        <View style={styles.ratingSection}>
-          <Text style={styles.sectionTitle}>¿Cómo calificarías el servicio?</Text>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitleCenter}>¿Cómo calificarías el servicio?</Text>
           {renderStars()}
-          <Text style={styles.ratingText}>{getRatingText()}</Text>
+          <Text style={[styles.ratingText, { color: rating > 0 ? COLORS.warning : COLORS.textLight }]}>
+            {getRatingText()}
+          </Text>
         </View>
 
         {/* Comentario */}
-        <View style={styles.commentSection}>
-          <Text style={styles.sectionTitle}>Comentario (opcional)</Text>
+        <View style={styles.card}>
+          <Text style={styles.inputLabel}>Cuéntanos tu experiencia (opcional)</Text>
           <TextInput
             style={styles.commentInput}
-            placeholder="Comparte tu experiencia con este proveedor..."
+            placeholder="¿Qué te pareció el servicio? ¿El tiempo de espera fue adecuado?"
+            placeholderTextColor={COLORS.textLight}
             value={comment}
             onChangeText={setComment}
             multiline
@@ -183,79 +217,75 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
+  card: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 20,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    marginBottom: 16,
   },
-  backButton: {
-    padding: 5,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
     color: COLORS.text,
   },
-  placeholder: {
-    width: 34,
+  serviceInfoContainer: {
+    gap: 12,
   },
-  content: {
-    flex: 1,
-    padding: 16,
+  providerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  serviceCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  providerAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
   },
-  serviceTitle: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    marginBottom: 8,
+  providerPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   providerName: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 4,
   },
   serviceName: {
-    fontSize: 16,
-    color: COLORS.text,
-    marginBottom: 8,
-  },
-  vehicleInfo: {
     fontSize: 14,
     color: COLORS.textLight,
-    marginBottom: 4,
   },
-  completionDate: {
-    fontSize: 12,
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 4,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
     color: COLORS.textLight,
   },
-  ratingSection: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionTitle: {
+  sectionTitleCenter: {
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
@@ -274,29 +304,23 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.primary,
     textAlign: 'center',
   },
-  commentSection: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 12,
   },
   commentInput: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 14,
     color: COLORS.text,
-    minHeight: 100,
+    minHeight: 120,
     marginBottom: 8,
+    textAlignVertical: 'top',
   },
   characterCount: {
     fontSize: 12,

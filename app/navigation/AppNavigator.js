@@ -77,6 +77,9 @@ import MarketplaceScreen from '../screens/marketplace/MarketplaceScreen';
 import MarketplaceVehicleDetailScreen from '../screens/marketplace/MarketplaceVehicleDetailScreen';
 import SellVehicleScreen from '../screens/marketplace/SellVehicleScreen';
 import OffersListScreen from '../screens/solicitudes/OffersListScreen';
+import TransferenciaVendedorScreen from '../screens/marketplace/TransferenciaVendedorScreen';
+import TransferenciaCompradorScreen from '../screens/marketplace/TransferenciaCompradorScreen';
+import TransferenciaExitoScreen from '../screens/marketplace/TransferenciaExitoScreen';
 
 // Pantallas temporales para completar la navegación
 // Estas pantallas deberán implementarse posteriormente
@@ -201,296 +204,166 @@ const ProfileStackNavigator = () => {
   );
 };
 
-// Componente personalizado para el Tab Bar con forma curva y botón flotante
+// Componente personalizado para el Tab Bar estilo Flat (Airbnb-like)
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
   const { totalMensajesNoLeidos } = useChats();
-  const { width } = Dimensions.get('window');
   const theme = useTheme();
 
-  // Extraer valores del tema de forma segura
+  // Color Palette extraction
   const colors = theme?.colors || {};
-  const typography = theme?.typography || {};
-  const spacing = theme?.spacing || {};
-  const borders = theme?.borders || {};
+  const primaryColor = colors.primary?.[500] || '#003459'; // Deep Space Blue
+  const inactiveColor = colors.text?.hint || '#7C8F97';    // Neutral Gray
+  const backgroundColor = colors.background?.paper || '#FFFFFF';
+  const borderColor = colors.neutral?.gray?.[200] || '#D7DFE3';
 
-  // Asegurar que typography tenga todas las propiedades necesarias
-  const safeTypography = typography?.fontSize && typography?.fontWeight
-    ? typography
-    : {
-      fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
-      fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
-    };
-
-  const safeBottomInset = Platform.OS === 'ios' ? Math.max(insets.bottom, 0) : Math.max(insets.bottom, 5);
-  const tabBarHeight = Platform.OS === 'ios' ? 60 + safeBottomInset : 65 + Math.max(insets.bottom - 5, 0);
-
-  // Color del gradiente para etiquetas activos usando el sistema de diseño
-  const gradientTextColor = colors.primary?.[500] || colors.accent?.[500] || '#0061FF';
-  const primaryColor = colors.primary?.[500] || '#003459';
-  const textLightColor = colors.text?.secondary || colors.neutral?.gray?.[600] || '#7C8F97';
-
-  // IMPORTANTE: El tab bar debe estar visible para las pantallas principales
-  // EXCEPCIÓN: CREAR_SOLICITUD puede ocultar el tab bar para mejorar la UX
+  // Determine visibility
   const currentRoute = state.routes[state.index];
   const currentRouteOptions = descriptors[currentRoute.key]?.options;
-
-  // Lista de rutas principales que normalmente muestran el tab bar
-  const mainRoutes = [ROUTES.HOME, ROUTES.MIS_VEHICULOS, ROUTES.CHATS_LIST, ROUTES.MIS_SOLICITUDES];
-  const isMainRoute = mainRoutes.includes(currentRoute.name);
-
-  // CREAR_SOLICITUD puede ocultar el tab bar si está configurado explícitamente
   const isCrearSolicitud = currentRoute.name === ROUTES.CREAR_SOLICITUD;
   const shouldHideTabBar = currentRouteOptions?.tabBarStyle?.display === 'none' ||
     (isCrearSolicitud && currentRouteOptions?.tabBarStyle?.display === 'none');
 
-  // Si el tab bar debe estar oculto, no renderizar nada
-  if (shouldHideTabBar) {
-    return null;
-  }
-
-  // Crear estilos dinámicos
-  const styles = createTabBarStyles(colors, safeTypography, spacing, borders, primaryColor, textLightColor);
-
-  // Índice del botón central (CREAR_SOLICITUD)
-  const centerIndex = 2;
-
-  // Calcular posición del botón central
-  const centerButtonLeft = width / 2 - 30;
+  if (shouldHideTabBar) return null;
 
   return (
-    <View style={styles.tabBarContainer}>
-      {/* Forma curva superior usando SVG path o View con border radius */}
-      <View style={[styles.tabBarCurve, { paddingBottom: Math.max(safeBottomInset, 8) }]}>
-        <View style={styles.tabBarContent}>
-          {/* Tabs izquierdos (antes del botón central) */}
-          {state.routes.slice(0, centerIndex).map((route, index) => {
-            const { options } = descriptors[route.key];
-            const label = options.tabBarLabel !== undefined
-              ? options.tabBarLabel
-              : options.title !== undefined
-                ? options.title
-                : route.name;
+    <View style={[
+      styles.tabBarContainer,
+      {
+        backgroundColor: backgroundColor,
+        borderTopColor: borderColor,
+        // Use safe area insets for both platforms. 
+        // If insets.bottom is 0 (old androids with physical buttons or some states), add minimal padding.
+        paddingBottom: Math.max(insets.bottom, 10),
+        height: 60 + Math.max(insets.bottom, 0),
+      }
+    ]}>
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const label = options.tabBarLabel !== undefined
+          ? options.tabBarLabel
+          : options.title !== undefined
+            ? options.title
+            : route.name;
 
-            const isFocused = state.index === index;
-            const isLastLeftTab = index === centerIndex - 1;
-            let iconName;
-            if (route.name === ROUTES.HOME) {
-              iconName = isFocused ? 'home' : 'home-outline';
-            } else if (route.name === ROUTES.MIS_VEHICULOS) {
-              iconName = isFocused ? 'car-sport' : 'car-sport-outline';
-            }
+        const isFocused = state.index === index;
 
-            const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
 
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
-            };
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
 
-            const onLongPress = () => {
-              navigation.emit({
-                type: 'tabLongPress',
-                target: route.key,
-              });
-            };
+        const onLongPress = () => {
+          navigation.emit({
+            type: 'tabLongPress',
+            target: route.key,
+          });
+        };
 
-            return (
-              <TouchableOpacity
-                key={route.key}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={options.tabBarAccessibilityLabel}
-                testID={options.tabBarTestID}
-                onPress={onPress}
-                onLongPress={onLongPress}
-                style={[
-                  styles.tabButton,
-                  isLastLeftTab && styles.tabButtonBeforeCenter
-                ]}
-                activeOpacity={0.7}
-              >
-                <View style={styles.tabIconContainer}>
-                  <Ionicons
-                    name={iconName}
-                    size={24}
-                    color={isFocused ? primaryColor : textLightColor}
-                  />
+        // Icon Mapping
+        let iconName;
+        if (route.name === ROUTES.HOME) {
+          iconName = isFocused ? 'home' : 'home-outline';
+        } else if (route.name === ROUTES.MIS_VEHICULOS) {
+          iconName = isFocused ? 'car-sport' : 'car-sport-outline';
+        } else if (route.name === ROUTES.CREAR_SOLICITUD) {
+          iconName = isFocused ? 'add-circle' : 'add-circle-outline';
+        } else if (route.name === ROUTES.MARKETPLACE) {
+          iconName = isFocused ? 'pricetags' : 'pricetags-outline';
+        } else if (route.name === ROUTES.CHATS_LIST) {
+          iconName = isFocused ? 'chatbubbles' : 'chatbubbles-outline';
+        }
+
+        const color = isFocused ? primaryColor : inactiveColor;
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            testID={options.tabBarTestID}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            style={styles.tabButton}
+            activeOpacity={0.7}
+          >
+            <View style={styles.iconContainer}>
+              {route.name === ROUTES.CHATS_LIST && totalMensajesNoLeidos > 0 ? (
+                <View>
+                  <Ionicons name={iconName} size={24} color={color} />
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>
+                      {totalMensajesNoLeidos > 99 ? '99+' : totalMensajesNoLeidos}
+                    </Text>
+                  </View>
                 </View>
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    {
-                      color: isFocused ? gradientTextColor : textLightColor,
-                      fontSize: safeTypography.fontSize?.xs || 11,
-                      fontWeight: safeTypography.fontWeight?.semibold || '600',
-                    }
-                  ]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-
-          {/* Botón central flotante */}
-          {(() => {
-            const centerRoute = state.routes[centerIndex];
-            const { options } = descriptors[centerRoute.key];
-            const isFocused = state.index === centerIndex;
-
-            const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: centerRoute.key,
-                canPreventDefault: true,
-              });
-
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(centerRoute.name);
-              }
-            };
-
-            const onLongPress = () => {
-              navigation.emit({
-                type: 'tabLongPress',
-                target: centerRoute.key,
-              });
-            };
-
-            return (
-              <TouchableOpacity
-                key={centerRoute.key}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={options.tabBarAccessibilityLabel}
-                testID={options.tabBarTestID}
-                onPress={onPress}
-                onLongPress={onLongPress}
-                style={[styles.centerButtonContainer, { left: centerButtonLeft }]}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={[
-                    colors.accent?.[400] || colors.primary?.[400] || '#33BFE7',
-                    colors.primary?.[500] || colors.accent?.[500] || '#0061FF'
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.centerButton}
-                >
-                  <Ionicons name="add" size={32} color="#FFFFFF" style={{ fontWeight: 'bold' }} />
-                </LinearGradient>
-              </TouchableOpacity>
-            );
-          })()}
-
-          {/* Tabs derechos (después del botón central) */}
-          {state.routes.slice(centerIndex + 1).map((route, index) => {
-            const actualIndex = centerIndex + 1 + index;
-            const { options } = descriptors[route.key];
-            const label = options.tabBarLabel !== undefined
-              ? options.tabBarLabel
-              : options.title !== undefined
-                ? options.title
-                : route.name;
-
-            const isFocused = state.index === actualIndex;
-            const isFirstRightTab = index === 0;
-            let iconName;
-            if (route.name === ROUTES.CHATS_LIST) {
-              iconName = isFocused ? 'chatbubbles' : 'chatbubbles-outline';
-            } else if (route.name === ROUTES.MIS_SOLICITUDES) {
-              iconName = isFocused ? 'document-text' : 'document-text-outline';
-            } else if (route.name === ROUTES.MARKETPLACE) {
-              iconName = isFocused ? 'pricetags' : 'pricetags-outline';
-            }
-
-            const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
-            };
-
-            const onLongPress = () => {
-              navigation.emit({
-                type: 'tabLongPress',
-                target: route.key,
-              });
-            };
-
-            return (
-              <TouchableOpacity
-                key={route.key}
-                accessibilityRole="button"
-                accessibilityState={isFocused ? { selected: true } : {}}
-                accessibilityLabel={options.tabBarAccessibilityLabel}
-                testID={options.tabBarTestID}
-                onPress={onPress}
-                onLongPress={onLongPress}
-                style={[
-                  styles.tabButton,
-                  isFirstRightTab && styles.tabButtonAfterCenter
-                ]}
-                activeOpacity={0.7}
-              >
-                <View style={styles.tabIconContainer}>
-                  {route.name === ROUTES.CHATS_LIST && totalMensajesNoLeidos > 0 ? (
-                    <View style={styles.iconWithBadge}>
-                      <Ionicons
-                        name={iconName}
-                        size={24}
-                        color={isFocused ? primaryColor : textLightColor}
-                      />
-                      <View style={[styles.tabBadge, { backgroundColor: colors.error?.[500] || '#FF6B6B' }]}>
-                        <Text style={styles.tabBadgeText}>
-                          {totalMensajesNoLeidos > 99 ? '99+' : totalMensajesNoLeidos}
-                        </Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <Ionicons
-                      name={iconName}
-                      size={24}
-                      color={isFocused ? primaryColor : textLightColor}
-                    />
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    {
-                      color: isFocused ? gradientTextColor : textLightColor,
-                      fontSize: safeTypography.fontSize?.xs || 11,
-                      fontWeight: safeTypography.fontWeight?.semibold || '600',
-                    }
-                  ]}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
+              ) : (
+                <Ionicons name={iconName} size={24} color={color} />
+              )}
+            </View>
+            <Text style={[
+              styles.tabLabel,
+              { color: color, fontWeight: isFocused ? '600' : '500' }
+            ]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  tabBarContainer: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    elevation: 0,
+    shadowOpacity: 0,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+  },
+  iconContainer: {
+    marginBottom: 4,
+  },
+  tabLabel: {
+    fontSize: 10,
+    letterSpacing: 0.2,
+  },
+  badge: {
+    position: 'absolute',
+    right: -6,
+    top: -3,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+});
 
 // Navegador de pestañas inferior
 const TabNavigator = () => {
@@ -516,7 +389,8 @@ const TabNavigator = () => {
         component={CrearSolicitudScreen}
         options={{
           tabBarLabel: 'Crear',
-          tabBarStyle: { display: 'none' }, // Ocultar tab bar en CREAR_SOLICITUD para mejorar UX
+          // Removed tabBarStyle restriction since it's now handled by the custom component logic if needed,
+          // but we generally want it visible now as a regular tab unless specifically hidden.
         }}
       />
       <Tab.Screen
@@ -729,6 +603,21 @@ const AppNavigator = () => {
         component={OffersListScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name={ROUTES.TRANSFERENCIA_VENDEDOR}
+        component={TransferenciaVendedorScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.TRANSFERENCIA_COMPRADOR}
+        component={TransferenciaCompradorScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name={ROUTES.TRANSFERENCIA_EXITO}
+        component={TransferenciaExitoScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 };
@@ -751,120 +640,4 @@ const placeholderStyles = StyleSheet.create({
   },
 });
 
-// Función para crear estilos dinámicos del Tab Bar
-const createTabBarStyles = (colors, typography, spacing, borders, primaryColor, textLightColor) => StyleSheet.create({
-  tabBarContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'transparent',
-    overflow: 'visible',
-    width: '100%',
-  },
-  tabBarCurve: {
-    backgroundColor: colors.background?.paper || '#FFFFFF',
-    borderTopLeftRadius: borders.radius?.card?.xl || 20,
-    borderTopRightRadius: borders.radius?.card?.xl || 20,
-    paddingTop: spacing.sm || 10,
-    overflow: 'visible',
-    minHeight: 60,
-    borderTopWidth: borders.width?.thin || 1,
-    borderTopColor: colors.neutral?.gray?.[200] || '#D7DFE3',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  tabBarContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-start',
-    paddingHorizontal: spacing.xs || 4,
-    paddingBottom: spacing.xs || 8,
-    minHeight: 60,
-    position: 'relative',
-    overflow: 'visible',
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: spacing.xs || 8,
-    paddingBottom: spacing.xs || 4,
-    minWidth: 60,
-    paddingHorizontal: spacing.xs || 4,
-  },
-  tabIconContainer: {
-    marginBottom: spacing.xs || 4,
-  },
-  iconWithBadge: {
-    position: 'relative',
-  },
-  tabLabel: {
-    marginTop: 2,
-    textAlign: 'center',
-    // fontSize y fontWeight se aplican dinámicamente
-  },
-  centerButtonContainer: {
-    position: 'absolute',
-    top: -32,
-    width: 60,
-    height: 60,
-    zIndex: 1000,
-  },
-  tabButtonBeforeCenter: {
-    paddingRight: spacing.lg || 30,
-    marginRight: spacing.sm || 10,
-  },
-  tabButtonAfterCenter: {
-    paddingLeft: spacing.lg || 30,
-    marginLeft: spacing.sm || 10,
-  },
-  centerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: borders.radius?.avatar?.full || 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 0,
-    ...Platform.select({
-      ios: {
-        shadowColor: primaryColor,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 10,
-      },
-      android: {
-        elevation: 10,
-      },
-    }),
-  },
-  tabBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    borderRadius: borders.radius?.badge?.md || 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: spacing.xs || 4,
-    borderWidth: 2,
-    borderColor: colors.background?.paper || '#FFFFFF',
-  },
-  tabBadgeText: {
-    color: '#FFFFFF',
-    fontSize: typography.fontSize?.xs || 10,
-    fontWeight: typography.fontWeight?.bold || '700',
-  },
-});
-
-export default AppNavigator; 
+export default AppNavigator;

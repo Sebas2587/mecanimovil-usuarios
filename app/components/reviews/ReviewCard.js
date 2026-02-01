@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 
@@ -41,6 +42,8 @@ const ReviewCard = ({ review }) => {
                     <Image
                         source={{ uri: cliente_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(cliente_nombre || 'User')}&background=random` }}
                         style={styles.avatar}
+                        contentFit="cover"
+                        transition={200}
                     />
                     <View style={styles.nameColumn}>
                         <Text style={styles.userName}>{cliente_nombre}</Text>
@@ -76,7 +79,12 @@ const ReviewCard = ({ review }) => {
             {photos && photos.length > 0 && (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photosContainer}>
                     {photos.map((photoUrl, index) => (
-                        <Image key={index} source={{ uri: photoUrl }} style={styles.photoThumbnail} />
+                        <Image
+                            key={index}
+                            source={{ uri: photoUrl }}
+                            style={styles.photoThumbnail}
+                            contentFit="cover"
+                        />
                     ))}
                 </ScrollView>
             )}

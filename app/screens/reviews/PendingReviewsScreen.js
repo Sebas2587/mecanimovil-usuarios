@@ -10,8 +10,8 @@ import {
   StatusBar,
   RefreshControl,
   Alert,
-  Image
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { get, post } from '../../services/api';
@@ -57,9 +57,10 @@ const PendingReviewsScreen = () => {
       <View style={styles.serviceHeader}>
         <View style={styles.providerInfo}>
           {item.provider.provider_photo ? (
-            <Image 
-              source={{ uri: item.provider.provider_photo }} 
+            <Image
+              source={{ uri: item.provider.provider_photo }}
               style={styles.providerPhoto}
+              contentFit="cover"
             />
           ) : (
             <View style={styles.providerPhotoPlaceholder}>
@@ -78,7 +79,7 @@ const PendingReviewsScreen = () => {
           </Text>
         </View>
       </View>
-      
+
       <View style={styles.serviceFooter}>
         <Text style={styles.completionDate}>
           Completado: {new Date(item.completion_date).toLocaleDateString()}
@@ -116,7 +117,7 @@ const PendingReviewsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      
+
       <FlatList
         data={services}
         keyExtractor={(item) => `service-${item.service_order_id}`}
@@ -148,7 +149,7 @@ const PendingReviewsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#F5F7F8', // Slightly bluish light gray for modern look
   },
   header: {
     flexDirection: 'row',
@@ -181,14 +182,16 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   serviceHeader: {
     marginBottom: 12,
@@ -199,10 +202,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   providerPhoto: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    marginRight: 14,
+    backgroundColor: '#F1F5F9',
   },
   providerPhotoPlaceholder: {
     width: 48,
@@ -247,10 +251,10 @@ const styles = StyleSheet.create({
   reviewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: '#0F172A', // Darker slate for premium feel
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
   },
   reviewButtonText: {
     color: 'white',

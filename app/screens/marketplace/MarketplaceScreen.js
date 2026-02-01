@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, TextInput, StatusBar, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, TextInput, StatusBar, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -8,14 +8,9 @@ import { useTheme } from '../../design-system/theme/useTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
 import OfferNegotiationCard from '../../components/marketplace/OfferNegotiationCard';
+import MarketplaceFilterModal from '../../components/marketplace/MarketplaceFilterModal';
 
-const CATEGORY_FILTERS = [
-    { id: 'all', label: 'Todos' },
-    { id: 'suv', label: 'SUV' },
-    { id: 'sedan', label: 'Sedán' },
-    { id: 'hatch', label: 'Hatchback' },
-    { id: 'truck', label: 'Camioneta' },
-];
+
 
 // Mock Data for Offers
 const MOCK_OFFERS = [
@@ -84,18 +79,98 @@ const MarketplaceScreen = () => {
 
     // State
     const [activeTab, setActiveTab] = useState('explore'); // 'explore' | 'deals'
-    const [selectedFilter, setSelectedFilter] = useState('all');
+
     const [activeSegment, setActiveSegment] = useState('all'); // 'all' | 'sales' | 'purchases'
     const [searchQuery, setSearchQuery] = useState('');
     const [listings, setListings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [offers, setOffers] = useState(MOCK_OFFERS);
+    const [offers, setOffers] = useState([]);
+
+    // Filter State
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
+    const [activeFilters, setActiveFilters] = useState({});
+
+    const fetchOffers = async () => {
+        try {
+            const [sent, received] = await Promise.all([
+                vehicleService.getSentOffers().catch(() => []),
+                vehicleService.getReceivedOffers().catch(() => [])
+            ]);
+
+            const mapStatus = (estado) => {
+                switch (estado) {
+                    case 'pendiente': return 'pending';
+                    case 'aceptada': return 'accepted';
+                    case 'rechazada': return 'rejected';
+                    case 'contraoferta': return 'active'; // Or pending
+                    case 'completada': return 'completed';
+                    case 'vendida': return 'completed';
+                    default: return estado;
+                }
+            };
+
+            const mapOffer = (o, type) => ({
+                id: o.id.toString(),
+                type: type, // 'sent' or 'received'
+                status: mapStatus(o.estado),
+                amount: o.monto,
+                vehicle: {
+                    name: `${o.vehiculo_marca} ${o.vehiculo_modelo}`,
+                    brand: o.vehiculo_marca,
+                    model: o.vehiculo_modelo,
+                    year: o.vehiculo_year,
+                    image: o.vehiculo_imagen,
+                    price: o.vehiculo_precio
+                },
+                counterpart: {
+                    id: type === 'sent' ? o.vendedor_id : o.comprador,
+                    name: type === 'sent'
+                        ? `${o.vendedor_nombre || ''} ${o.vendedor_apellido || ''}`.trim() || 'Vendedor'
+                        : `${o.comprador_nombre || ''} ${o.comprador_apellido || ''}`.trim() || 'Comprador',
+                    avatar: type === 'sent' ? o.vendedor_foto : o.comprador_foto
+                },
+                conversationId: o.conversacion_id
+            });
+
+            const mappedSent = (sent || []).map(o => mapOffer(o, 'sent'));
+            const mappedReceived = (received || []).map(o => mapOffer(o, 'received'));
+
+            // Merge and deduplicate by ID
+            // If an offer is in both lists (e.g. I bought it, so I was buyer and now I am owner),
+            // prefer the one that makes sense for the context. 
+            // - If status is 'completed' and I am buyer => It's a purchase history.
+            // - If status is 'completed' and I was seller => It's a sales history.
+            // distinctive logic: 
+            // mappedSent -> type='sent' (Buying)
+            // mappedReceived -> type='received' (Selling)
+            // We prioritize 'sent' because if I am the buyer AND the new owner, 
+            // the historical context of "I bought this" is more important than "I own this" for this specific card.
+
+            const allOffers = [...mappedReceived, ...mappedSent];
+            const uniqueOffers = Array.from(new Map(allOffers.map(item => [item.id, item])).values());
+
+            // Sort by ID desc (or date if available)
+            uniqueOffers.sort((a, b) => Number(b.id) - Number(a.id));
+
+            setOffers(uniqueOffers);
+        } catch (error) {
+            console.error("Error fetching offers:", error);
+        }
+    };
+
+    // Refresh offers when tab changes to 'deals' (Negocios)
+    useEffect(() => {
+        if (activeTab === 'deals') {
+            fetchOffers();
+        }
+    }, [activeTab]);
 
     const fetchListings = async () => {
         try {
             const data = await vehicleService.getMarketplaceListings();
             setListings(data);
+            await fetchOffers();
         } catch (error) {
             console.error("Error fetching marketplace listings:", error);
         } finally {
@@ -113,62 +188,164 @@ const MarketplaceScreen = () => {
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         fetchListings();
-        // Here you would also refresh offers
     }, []);
+
+    const handleRespondOffer = async (offerId, status) => {
+        try {
+            await vehicleService.respondToOffer(offerId, status);
+            Alert.alert(
+                status === 'aceptada' ? "Oferta Aceptada" : "Oferta Rechazada",
+                status === 'aceptada' ? "Ahora puedes chatear con la contraparte." : ""
+            );
+            fetchOffers(); // Refresh to get conversation ID
+        } catch (error) {
+            Alert.alert("Error", "No se pudo actualizar la oferta.");
+            console.error(error);
+        }
+    };
 
     const formatPrice = (price) => {
         if (!price) return '$0';
         return '$' + price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
+    // --- Search & Filter Logic ---
+    const getFilteredListings = () => {
+        let result = listings;
+
+        // 1. Search Query (Brand, Model, Year)
+        if (searchQuery && searchQuery.trim().length > 0) {
+            const query = searchQuery.toLowerCase().trim();
+            result = result.filter(item => {
+                const brand = (item.marca_nombre || '').toLowerCase();
+                const model = (item.modelo_nombre || '').toLowerCase();
+                const year = (item.year || '').toString();
+
+                return brand.includes(query) || model.includes(query) || year.includes(query);
+            });
+        }
+
+        // 2. Advanced Filters (Modal)
+        if (activeFilters) {
+            const { priceMin, priceMax, yearMin, yearMax, kmMin, kmMax } = activeFilters;
+
+            if (priceMin) result = result.filter(item => {
+                const rawPrice = item.precio_venta || item.settings?.precio_venta || item.marketplace_data?.precio_venta || item.price || item.selling_price || item.precio_publicado || item.precio_sugerido_final || item.suggested_price || 0;
+                // Ensure we handle formatted strings like '4.000.000'
+                const priceValue = typeof rawPrice === 'string'
+                    ? Number(rawPrice.replace(/\D/g, ''))
+                    : Number(rawPrice);
+                return priceValue >= Number(priceMin);
+            });
+            if (priceMax) result = result.filter(item => {
+                const rawPrice = item.precio_venta || item.settings?.precio_venta || item.marketplace_data?.precio_venta || item.price || item.selling_price || item.precio_publicado || item.precio_sugerido_final || item.suggested_price || 0;
+                const priceValue = typeof rawPrice === 'string'
+                    ? Number(rawPrice.replace(/\D/g, ''))
+                    : Number(rawPrice);
+                return priceValue <= Number(priceMax);
+            });
+
+            if (yearMin) result = result.filter(item => (item.year || 0) >= Number(yearMin));
+            if (yearMax) result = result.filter(item => (item.year || 0) <= Number(yearMax));
+
+            if (kmMin) result = result.filter(item => (item.kilometraje || 0) >= Number(kmMin));
+            if (kmMax) result = result.filter(item => (item.kilometraje || 0) <= Number(kmMax));
+        }
+
+        // 3. Category Filter (Optional/Future)
+        // Currently ignored as backend data doesn't support 'segment' or 'body_type' reliably yet.
+
+        return result;
+    };
+
     // --- Render Items ---
 
     const renderListingItem = ({ item }) => (
         <TouchableOpacity
-            style={styles.card}
+            style={[styles.card, item.is_reserved && { opacity: 0.8 }]}
             activeOpacity={0.9}
             onPress={() => navigation.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicle: item })}
         >
             {/* Image Header */}
             <View style={styles.imageContainer}>
                 {item.foto_url ? (
-                    <Image source={{ uri: item.foto_url }} style={styles.image} contentFit="cover" />
+                    <Image source={{ uri: item.foto_url }} style={[styles.image, item.is_reserved && { opacity: 0.6 }]} contentFit="cover" />
                 ) : (
                     <View style={[styles.image, { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
                         <Ionicons name="car-outline" size={48} color="#9CA3AF" />
                     </View>
                 )}
 
-                {/* Overlay Badges */}
-                <View style={styles.topBadges}>
-                    {item.health_score > 90 && (
-                        <View style={styles.certifiedBadge}>
-                            <Ionicons name="shield-checkmark" size={14} color="#FFFFFF" />
-                            <Text style={styles.certifiedText}>Certificado</Text>
+                {/* Reserved Badge Overlay */}
+                {item.is_reserved && (
+                    <View style={{
+                        position: 'absolute',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 10
+                    }}>
+                        <View style={{
+                            backgroundColor: '#374151',
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 6,
+                            borderWidth: 1,
+                            borderColor: '#FFFFFF'
+                        }}>
+                            <Text style={{ color: '#FFFFFF', fontWeight: 'bold', fontSize: 14 }}>RESERVADO</Text>
                         </View>
-                    )}
-                </View>
-
-                <View style={styles.bottomBadges}>
-                    <View style={styles.healthBadge}>
-                        <Ionicons name="heart" size={12} color={colors.success?.main || '#10B981'} />
-                        <Text style={styles.healthText}>{item.health_score || 100}% Salud</Text>
                     </View>
-                </View>
+                )}
+
+                {/* Overlay Badges */}
+                {!item.is_reserved && (
+                    <View style={styles.topBadges}>
+                        {item.health_score > 90 && (
+                            <View style={styles.certifiedBadge}>
+                                <Ionicons name="shield-checkmark" size={14} color="#FFFFFF" />
+                                <Text style={styles.certifiedText}>Certificado</Text>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {!item.is_reserved && (
+                    <View style={styles.bottomBadges}>
+                        {(() => {
+                            const score = item.health_score || 100;
+                            let badgeColor = colors.success?.main || '#10B981';
+                            if (score < 40) badgeColor = colors.error?.main || '#EF4444';
+                            else if (score < 70) badgeColor = colors.warning?.main || '#F59E0B';
+
+                            return (
+                                <View style={styles.healthBadge}>
+                                    <Ionicons name="heart" size={12} color={badgeColor} />
+                                    <Text style={[styles.healthText, { color: badgeColor }]}>{score}% Salud</Text>
+                                </View>
+                            );
+                        })()}
+                    </View>
+                )}
             </View>
 
             {/* Content Body */}
             <View style={styles.cardBody}>
                 <View style={styles.cardHeader}>
-                    <View>
+                    <View style={{ flex: 1, marginRight: 12 }}>
                         <Text style={styles.title}>{item.marca_nombre} {item.modelo_nombre}</Text>
-                        <Text style={styles.subtitle}>{item.year} • {item.transmision || 'Automática'}</Text>
+                        <Text style={[styles.subtitle, item.is_reserved && { color: '#6B7280' }]}>
+                            {item.year} • {item.transmision || 'Automática'}
+                        </Text>
                     </View>
-                    <Text style={styles.price}>{formatPrice(item.precio_venta || item.settings?.precio_venta || item.marketplace_data?.precio_venta || item.price || item.selling_price || item.precio_publicado || item.precio_sugerido_final || item.suggested_price)}</Text>
+                    <Text style={[styles.price, item.is_reserved && { color: '#9CA3AF', textDecorationLine: 'line-through' }]}>
+                        {formatPrice(item.precio_venta || item.settings?.precio_venta || item.marketplace_data?.precio_venta || item.price || item.selling_price || item.precio_publicado || item.precio_sugerido_final || item.suggested_price)}
+                    </Text>
                 </View>
 
                 {/* Seller Info */}
-                <View style={styles.sellerContainer}>
+                <View style={[styles.sellerContainer, item.is_reserved && { opacity: 0.5 }]}>
                     {item.seller?.foto_url || item.usuario?.foto_perfil || item.seller?.photo ? (
                         <Image
                             source={{ uri: item.seller?.foto_url || item.usuario?.foto_perfil || item.seller?.photo }}
@@ -203,13 +380,33 @@ const MarketplaceScreen = () => {
     const renderOfferItem = ({ item }) => (
         <OfferNegotiationCard
             offer={item}
-            onAccept={() => console.log('Accept Offer', item.id)}
-            onReject={() => console.log('Reject Offer', item.id)}
-            onChat={() => navigation.navigate(ROUTES.CHAT_DETAIL, {
-                recipientId: 'mock_seller_id', // In real app, get from item.counterpart.id
-                recipientName: item.counterpart.name,
-                initialMessage: "Hola, hablemos sobre la oferta."
-            })}
+            onAccept={() => handleRespondOffer(item.id, 'aceptada')}
+            onReject={() => handleRespondOffer(item.id, 'rechazada')}
+            onChat={() => {
+                if (!item.conversationId) {
+                    Alert.alert("Error", "La conversación aún no está lista. Intenta recargar.");
+                    return;
+                }
+                navigation.navigate(ROUTES.CHAT_DETAIL, {
+                    conversationId: item.conversationId,
+                    recipientId: item.counterpart.id,
+                    recipientName: item.counterpart.name,
+                    recipientImage: item.counterpart.avatar,
+                    context: {
+                        type: 'vehicle_offer',
+                        vehicleName: item.vehicle.name,
+                        price: item.amount
+                    }
+                });
+            }}
+            onTransfer={() => {
+                // Navigate to Seller Transfer Screen
+                navigation.navigate(ROUTES.TRANSFERENCIA_VENDEDOR, { offerId: item.id });
+            }}
+            onReceive={() => {
+                // Navigate to Buyer Transfer Screen (Camera)
+                navigation.navigate(ROUTES.TRANSFERENCIA_COMPRADOR);
+            }}
         />
     );
 
@@ -258,21 +455,21 @@ const MarketplaceScreen = () => {
                                     onChangeText={setSearchQuery}
                                 />
                             </View>
-                            <TouchableOpacity style={styles.filterButton}>
-                                <Ionicons name="options-outline" size={20} color={colors.primary?.main} />
+                            <TouchableOpacity
+                                style={[
+                                    styles.filterButton,
+                                    (Object.values(activeFilters).some(v => v !== '')) && { borderColor: colors.primary?.main, borderWidth: 2 }
+                                ]}
+                                onPress={() => setFilterModalVisible(true)}
+                            >
+                                <Ionicons
+                                    name="options-outline"
+                                    size={20}
+                                    color={(Object.values(activeFilters).some(v => v !== '')) ? colors.primary?.main : colors.text?.secondary}
+                                />
                             </TouchableOpacity>
                         </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterList}>
-                            {CATEGORY_FILTERS.map(f => (
-                                <TouchableOpacity
-                                    key={f.id}
-                                    style={[styles.filterPill, selectedFilter === f.id && styles.filterPillActive]}
-                                    onPress={() => setSelectedFilter(f.id)}
-                                >
-                                    <Text style={[styles.filterText, selectedFilter === f.id && styles.filterTextActive]}>{f.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
+
                     </View>
                 ) : (
                     // Deals Segment Control
@@ -289,10 +486,6 @@ const MarketplaceScreen = () => {
                         >
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                 <Text style={[styles.segmentText, activeSegment === 'sales' && styles.activeSegmentText]}>Ventas</Text>
-                                {/* Badge for Sales */}
-                                <View style={styles.segmentBadge}>
-                                    <Text style={styles.segmentBadgeText}>2</Text>
-                                </View>
                             </View>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -313,7 +506,7 @@ const MarketplaceScreen = () => {
                     </View>
                 ) : (
                     <FlatList
-                        data={listings}
+                        data={getFilteredListings()}
                         renderItem={renderListingItem}
                         keyExtractor={item => item.id.toString()}
                         contentContainerStyle={styles.listContent}
@@ -329,7 +522,7 @@ const MarketplaceScreen = () => {
                     />
                 )
             ) : (
-                // Deals Tab Content
+
                 <FlatList
                     data={getFilteredOffers()}
                     renderItem={renderOfferItem}
@@ -345,18 +538,16 @@ const MarketplaceScreen = () => {
                 />
             )}
 
-            {/* Floating Action Button (FAB) - Only in Explore Tab */}
-            {activeTab === 'explore' && (
-                <TouchableOpacity
-                    style={styles.fab}
-                    onPress={() => navigation.navigate(ROUTES.SELL_VEHICLE_FLOW)}
-                    activeOpacity={0.8}
-                >
-                    <Ionicons name="add" size={24} color="#FFFFFF" />
-                    <Text style={styles.fabText}>Vender</Text>
-                </TouchableOpacity>
-            )}
-        </View>
+
+
+
+            <MarketplaceFilterModal
+                visible={filterModalVisible}
+                onClose={() => setFilterModalVisible(false)}
+                onApply={setActiveFilters}
+                currentFilters={activeFilters}
+            />
+        </View >
     );
 };
 

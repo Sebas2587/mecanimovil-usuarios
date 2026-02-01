@@ -241,6 +241,8 @@ export const ROUTES = {
 
   // Rutas para reviews de proveedores
   PROVIDER_REVIEWS: 'ProviderReviewsScreen',
+  PENDING_REVIEWS: 'PendingReviews',
+  CREATE_REVIEW: 'CreateReview',
 
   // Ruta para detalle de servicio
   SERVICE_DETAIL: 'ServiceDetail',
@@ -274,4 +276,9 @@ export const ROUTES = {
   MARKETPLACE_VEHICLE_DETAIL: 'MarketplaceVehicleDetail',
   SELL_VEHICLE: 'SellVehicle',
   OFFERS_LIST: 'OffersList',
+
+  // Rutas de Transferencia Digital
+  TRANSFERENCIA_VENDEDOR: 'TransferenciaVendedor',
+  TRANSFERENCIA_COMPRADOR: 'TransferenciaComprador',
+  TRANSFERENCIA_EXITO: 'TransferenciaExito',
 }; 

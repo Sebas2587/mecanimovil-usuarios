@@ -23,8 +23,11 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const insets = useSafeAreaInsets();
     const { user } = useAuth();
 
-    // Get basic vehicle data from params
-    const { vehicle } = route?.params || {};
+    // Get basic vehicle data from params - Support both full object and ID only
+    const { vehicle, vehicleId } = route?.params || {};
+
+    // Resolve effective ID
+    const effectiveVehicleId = vehicle?.id || vehicleId;
 
     const [fullVehicleData, setFullVehicleData] = useState(vehicle || {});
     const [healthData, setHealthData] = useState(null); // State for real health data
@@ -49,16 +52,18 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     // Reload when screen gains focus - critical for real-time updates
     useFocusEffect(
         React.useCallback(() => {
-            if (vehicle?.id) fetchVehicleDetails(true);
-        }, [vehicle?.id])
+            if (effectiveVehicleId) fetchVehicleDetails(true);
+        }, [effectiveVehicleId])
     );
 
     const fetchVehicleDetails = async (isFocusRefresh = false) => {
-        if (!isFocusRefresh) setLoading(true);
+        // Only show full loading spinner if we have NO data at all
+        if (!fullVehicleData.id && !isFocusRefresh) setLoading(true);
+
         try {
             // Parallel fetching for better performance
             const [detailData] = await Promise.all([
-                vehicleService.getMarketplaceVehicleDetail(vehicle.id),
+                vehicleService.getMarketplaceVehicleDetail(effectiveVehicleId),
             ]);
 
             // Merge basic info with detailed info (history, etc)
@@ -79,10 +84,10 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 // Filter for this vehicle
                 const vehicleRequests = myCompletedRequests.filter(req => {
                     const reqVehicleId = req.vehiculo_id || req.vehiculo?.id || req.vehiculo;
-                    return reqVehicleId == vehicle.id;
+                    return reqVehicleId == effectiveVehicleId;
                 });
 
-                console.log(`🚗 [Enrichment] Found ${vehicleRequests.length} requests for vehicle ${vehicle.id}`);
+                console.log(`🚗 [Enrichment] Found ${vehicleRequests.length} requests for vehicle ${effectiveVehicleId}`);
 
                 if (vehicleRequests.length > 0) {
                     enrichedHistory = vehicleRequests.map(req => ({
@@ -92,7 +97,8 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         provider: req.nombre_proveedor || req.oferta_seleccionada_detail?.nombre_proveedor,
                         verified: true,
                         kilometraje: req.kilometraje || req.vehiculo_info?.kilometraje,
-                        id: req.id
+                        id: req.id,
+                        cost: req.total // Ensure cost is mapped for owner view
                     }));
                 } else {
                     enrichedHistory = rawHistory;
@@ -130,33 +136,28 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     }, []);
 
     // Handle Offer Submission
-    const handleMakeOffer = (amount) => {
-        // Pre-construct message for chat
-        const formattedAmount = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount);
-        const initialMessage = `Hola, he enviado una oferta de ${formattedAmount} por tu ${brand} ${model}`;
+    // Handle Offer Submission
+    const handleMakeOffer = async (amount) => {
+        try {
+            // Construct payload
+            const offerData = {
+                vehiculo_id: fullVehicleData.id,
+                monto: amount,
+                mensaje: `Hola, ofrezco ${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(amount)} por tu ${brand} ${model}`
+            };
 
-        // Navigate to Chat
-        // Must ensure we have route params for chat: e.g., recipientId (seller), context (vehicleId)
-        // Assuming fullVehicleData has owner/seller info. If not, we might need to mock or ensure backend sends it.
-        const sellerId = fullVehicleData.user_id || fullVehicleData.seller?.id;
+            await vehicleService.createOffer(offerData);
 
-        if (!sellerId) {
-            Alert.alert("Error", "No se pudo identificar al vendedor.");
-            return;
+            Alert.alert(
+                "Oferta Enviada",
+                "Tu oferta ha sido enviada al vendedor. Podrás ver el estado y responder en la pestaña 'Negocios' del Marketplace.",
+                [{ text: "OK", onPress: () => setOfferModalVisible(false) }]
+            );
+
+        } catch (error) {
+            console.error("Error creating offer:", error);
+            Alert.alert("Error", "No se pudo enviar la oferta. Verifica tu conexión o intenta más tarde.");
         }
-
-        navigation.navigate(ROUTES.CHAT_DETAIL, {
-            recipientId: sellerId,
-            recipientName: fullVehicleData.seller?.name || "Vendedor",
-            recipientImage: fullVehicleData.seller?.photo || null,
-            initialMessage: initialMessage,
-            context: {
-                type: 'vehicle_offer',
-                vehicleId: fullVehicleData.id,
-                vehicleName: `${brand} ${model}`,
-                amount: amount
-            }
-        });
     };
 
     // Render Health Chart (Simple Circle)
@@ -165,6 +166,11 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         const circumference = 2 * Math.PI * radius;
         const validScore = isNaN(score) ? 100 : score;
         const strokeDashoffset = circumference - (validScore / 100) * circumference;
+
+        // Dynamic Color Logic
+        let wheelColor = colors.success?.main || '#10B981';
+        if (validScore < 40) wheelColor = colors.error?.main || '#EF4444';
+        else if (validScore < 70) wheelColor = colors.warning?.main || '#F59E0B';
 
         return (
             <View style={styles.chartContainer}>
@@ -181,7 +187,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         cx="40"
                         cy="40"
                         r={radius}
-                        stroke={colors.success?.main || '#10B981'}
+                        stroke={wheelColor}
                         strokeWidth="6"
                         fill="transparent"
                         strokeDasharray={circumference}
@@ -192,7 +198,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     />
                 </Svg>
                 <View style={styles.chartTextContainer}>
-                    <Text style={styles.chartScore}>{Math.round(validScore)}%</Text>
+                    <Text style={[styles.chartScore, { color: wheelColor }]}>{Math.round(validScore)}%</Text>
                 </View>
             </View>
         );
@@ -275,7 +281,8 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const handleViewChecklist = (item) => {
         // The backend expects an integer ID (Orden ID / SolicitudServicio ID), not the UUID of the public request.
         // We prioritize finding the integer ID from the offer details.
-        const checklistId = item.oferta_seleccionada_detail?.solicitud_servicio_id ||
+        const checklistId = item.id ||
+            item.oferta_seleccionada_detail?.solicitud_servicio_id ||
             item.solicitud_servicio_id ||
             item.orden_id ||
             item.checklist_id;
@@ -460,18 +467,55 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     <Text style={{ color: colors.text?.primary, fontSize: 24, fontWeight: '800' }}>{formattedPrice}</Text>
                 </View>
 
-                <TouchableOpacity
-                    style={[
-                        styles.makeOfferButton,
-                        { backgroundColor: isOwner ? '#9CA3AF' : (colors.primary?.main || '#003459') }
-                    ]}
-                    onPress={() => !isOwner && setOfferModalVisible(true)}
-                    activeOpacity={isOwner ? 1 : 0.8}
-                    disabled={isOwner}
-                >
-                    <Ionicons name={isOwner ? "person" : "pricetag-outline"} size={20} color="#FFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.makeOfferText}>{isOwner ? "Tu Publicación" : "Hacer Oferta"}</Text>
-                </TouchableOpacity>
+                {(() => {
+                    const isReserved = fullVehicleData?.is_reserved || vehicle?.is_reserved;
+                    const isOwnerView = isOwner;
+
+                    let buttonText = "Hacer Oferta";
+                    let buttonColor = colors.primary?.main || '#003459';
+                    let disabled = false;
+                    let icon = "pricetag-outline";
+
+                    if (isOwnerView) {
+                        buttonText = "Tu Publicación";
+                        buttonColor = '#9CA3AF'; // Gray
+                        disabled = true;
+                        icon = "person";
+                    }
+
+                    if (isReserved) {
+                        buttonText = "Reservado";
+                        buttonColor = '#4B5563'; // Dark Gray
+                        disabled = true;
+                        icon = "lock-closed";
+
+                        // If owner, maybe show "Gestionar Oferta" instead? 
+                        // But requirement says "vehicle is reserved", implying deal is done/in progress.
+                        // Owner can go to "Negocios" tab to chat.
+                        if (isOwnerView) {
+                            buttonText = "Ofertado (Ver Negocios)";
+                            // Allow owner to click? Maybe. Logic requested is "no se debe permitir envio de nuevas ofertas"
+                        }
+                    }
+
+                    return (
+                        <TouchableOpacity
+                            style={[
+                                styles.makeOfferButton,
+                                { backgroundColor: buttonColor }
+                            ]}
+                            onPress={() => {
+                                if (!disabled && !isOwnerView) setOfferModalVisible(true);
+                            }}
+                            activeOpacity={disabled ? 1 : 0.8}
+                            disabled={disabled}
+                        >
+                            <Ionicons name={icon} size={20} color="#FFF" style={{ marginRight: 8 }} />
+                            <Text style={styles.makeOfferText}>{buttonText}</Text>
+                        </TouchableOpacity>
+                    );
+                })()}
+
             </View>
 
             {/* 4. Health Details Modal */}

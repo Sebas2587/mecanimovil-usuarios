@@ -195,7 +195,7 @@ const UserPanelScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Avatar + Notification */}
+            {/* Avatar */}
             <TouchableOpacity style={styles.avatarButton} onPress={() => navigation.navigate(ROUTES.PROFILE)}>
               {user?.foto_perfil_url || user?.foto_perfil ? (
                 <Image
@@ -208,7 +208,6 @@ const UserPanelScreen = () => {
                   <Ionicons name="person" size={20} color={colors.primary?.main || '#003459'} />
                 </View>
               )}
-              <View style={styles.notificationBadge} />
             </TouchableOpacity>
           </View>
         </View>
@@ -221,8 +220,16 @@ const UserPanelScreen = () => {
         />
 
         {/* 1.5 Active Requests Carousel */}
-        <View style={{ marginTop: 24 }}>
-          <ActiveRequestsCarousel requests={solicitudesActivas} />
+        <View style={styles.sectionContainer}>
+          {solicitudesActivas && solicitudesActivas.length > 0 ? (
+            <ActiveRequestsCarousel requests={solicitudesActivas} />
+          ) : (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 20 }}>
+              <Text style={{ color: colors.text?.secondary || '#6B7280', textAlign: 'center', fontStyle: 'italic' }}>
+                No tienes solicitudes de servicio activas.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* 2. My Vehicles Section */}
@@ -265,13 +272,13 @@ const UserPanelScreen = () => {
               </View>
             )}
 
-            {/* Add New Vehicle Action Card */}
-            <TouchableOpacity style={styles.addVehicleCard} onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}>
+            {/* Add New Vehicle Action Card - REMOVE PER REQUEST */}
+            {/* <TouchableOpacity style={styles.addVehicleCard} onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}>
               <View style={styles.addIconContainer}>
                 <Ionicons name="add" size={24} color={colors.primary?.[500]} />
               </View>
               <Text style={styles.addVehicleText}>Agregar</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </ScrollView>
         </View>
 

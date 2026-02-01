@@ -20,7 +20,9 @@ const OfferNegotiationCard = ({
     offer,
     onAccept,
     onReject,
-    onChat
+    onChat,
+    onTransfer,
+    onReceive
 }) => {
     const theme = useTheme();
     const colors = theme.colors || {};
@@ -42,6 +44,7 @@ const OfferNegotiationCard = ({
     const isPending = status === 'pending';
     const isAccepted = status === 'accepted';
     const isRejected = status === 'rejected';
+    const isCompleted = status === 'completed';
 
     // formatting currency
     const formatCurrency = (value) => {
@@ -64,6 +67,13 @@ const OfferNegotiationCard = ({
                     bgColor: colors.error?.light || '#FEE2E2',
                     textColor: colors.error?.main || '#DC2626',
                     icon: 'close-circle'
+                };
+            case 'completed':
+                return {
+                    label: isReceived ? 'VENDIDO' : 'COMPRADO',
+                    bgColor: colors.primary?.light || '#E0F2FE',
+                    textColor: colors.primary?.main || '#003459',
+                    icon: isReceived ? 'pricetag' : 'car'
                 };
             default:
                 return {
@@ -243,17 +253,47 @@ const OfferNegotiationCard = ({
                     )}
 
                     {isAccepted && (
-                        <TouchableOpacity
-                            style={[
-                                styles.button,
-                                styles.chatButton,
-                                { backgroundColor: colors.primary?.main || '#003459' }
-                            ]}
-                            onPress={onChat}
-                        >
-                            <Ionicons name="chatbubbles-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                            <Text style={[styles.buttonText, { color: '#FFF' }]}>Ir al Chat de Negocios</Text>
-                        </TouchableOpacity>
+                        <View style={{ gap: 8 }}>
+                            {/* Chat Button - Always visible */}
+                            <TouchableOpacity
+                                style={[
+                                    styles.button,
+                                    styles.chatButton,
+                                    { backgroundColor: colors.primary?.main || '#003459' }
+                                ]}
+                                onPress={onChat}
+                            >
+                                <Ionicons name="chatbubbles-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                <Text style={[styles.buttonText, { color: '#FFF' }]}>Ir al Chat de Negocios</Text>
+                            </TouchableOpacity>
+
+                            {/* Transfer Actions */}
+                            {isReceived ? (
+                                // Seller View -> Show "Entregar Vehículo"
+                                <TouchableOpacity
+                                    style={[
+                                        styles.button,
+                                        { backgroundColor: colors.secondary?.main || '#007EA7', marginTop: 8 }
+                                    ]}
+                                    onPress={onTransfer}
+                                >
+                                    <Ionicons name="qr-code-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                    <Text style={[styles.buttonText, { color: '#FFF' }]}>Entregar Vehículo (QR)</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                // Buyer View -> Show "Recibir Vehículo"
+                                <TouchableOpacity
+                                    style={[
+                                        styles.button,
+                                        { backgroundColor: colors.secondary?.main || '#007EA7', marginTop: 8 }
+                                    ]}
+                                    onPress={onReceive}
+                                >
+                                    <Ionicons name="scan-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                    <Text style={[styles.buttonText, { color: '#FFF' }]}>Recibir Vehículo (Escanear)</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
                     )}
 
                     {/* Pending && User is Sender (Buying) -> Cancel option could be here, but not in requirements */}

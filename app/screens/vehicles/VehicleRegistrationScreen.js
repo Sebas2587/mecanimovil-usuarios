@@ -45,6 +45,7 @@ const VehicleRegistrationScreen = () => {
     const [kilometraje, setKilometraje] = useState('');
     const [image, setImage] = useState(null); // New state for image
     const [saving, setSaving] = useState(false);
+    const [selectedEngineType, setSelectedEngineType] = useState(null);
     const queryClient = useQueryClient();
 
     // Initial focus
@@ -63,6 +64,19 @@ const VehicleRegistrationScreen = () => {
 
             if (data && (data.marca || data.marca_nombre || data.modelo || data.year || data.vin || data.numero_motor)) {
                 setVehicleData(data);
+
+                // Initialize Engine Type
+                if (data) {
+                    let type = data.tipo_motor || 'GASOLINA';
+                    const upper = type.toUpperCase();
+                    if (upper.includes('BENCINA') || upper.includes('GASOLINA')) type = 'GASOLINA';
+                    else if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) type = 'DIESEL';
+                    else if (upper.includes('HIBRIDO') || upper.includes('HÍBRIDO')) type = 'HIBRIDO';
+                    else if (upper.includes('ELECTRICO') || upper.includes('ELÉCTRICO')) type = 'ELECTRICO';
+                    else type = null; // Force manual selection
+                    setSelectedEngineType(type);
+                }
+
                 setStep('success');
             } else {
                 Alert.alert(
@@ -127,18 +141,19 @@ const VehicleRegistrationScreen = () => {
             return;
         }
 
+        if (!selectedEngineType) {
+            Alert.alert('Falta información', 'Por favor selecciona el tipo de combustible.');
+            return;
+        }
+
         setSaving(true);
         try {
             // Prepare FormData for creation with image
-            // Normalize fuel type
-            let tipoMotor = vehicleData.tipo_motor || 'Gasolina';
-            if (tipoMotor.toUpperCase() === 'BENCINA') tipoMotor = 'GASOLINA';
-            if (tipoMotor.toUpperCase() === 'DIESEL' || tipoMotor.toUpperCase() === 'DIÉSEL') tipoMotor = 'DIESEL';
-
             const formData = new FormData();
 
             // Append explicit fields
             formData.append('patente', patente);
+            formData.append('tipo_motor', selectedEngineType);
 
             // Handle MARCA logic safely
             const marcaVal = vehicleData.marca_id || vehicleData.marca;
@@ -173,7 +188,7 @@ const VehicleRegistrationScreen = () => {
                 formData.append('kilometraje_api', String(apiMileage));
             }
 
-            formData.append('tipo_motor', tipoMotor);
+
 
             // Optional fields - Strict checks
             if (vehicleData.cilindraje) formData.append('cilindraje', vehicleData.cilindraje);
@@ -337,7 +352,28 @@ const VehicleRegistrationScreen = () => {
                                     </View>
                                     <View style={styles.gridItem}>
                                         <Text style={styles.gridLabel}>Combustible</Text>
-                                        <Text style={styles.gridValue}>{vehicleData.tipo_motor || 'N/A'}</Text>
+                                        <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
+                                            {['GASOLINA', 'DIESEL', 'HIBRIDO', 'ELECTRICO'].map((type) => (
+                                                <TouchableOpacity
+                                                    key={type}
+                                                    onPress={() => setSelectedEngineType(type)}
+                                                    style={{
+                                                        paddingHorizontal: 8,
+                                                        paddingVertical: 6,
+                                                        borderRadius: 8,
+                                                        backgroundColor: selectedEngineType === type ? COLORS.primary[600] : '#F1F5F9',
+                                                        borderWidth: 1,
+                                                        borderColor: selectedEngineType === type ? COLORS.primary[600] : '#E2E8F0'
+                                                    }}
+                                                >
+                                                    <Text style={{
+                                                        color: selectedEngineType === type ? 'white' : '#64748B',
+                                                        fontWeight: '600',
+                                                        fontSize: 10
+                                                    }}>{type}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
                                     </View>
                                     <View style={styles.gridItem}>
                                         <Text style={styles.gridLabel}>Color</Text>
@@ -384,6 +420,22 @@ const VehicleRegistrationScreen = () => {
                                         </View>
                                     )}
                                 </TouchableOpacity>
+                            </View>
+
+                            {/* Warning Message */}
+                            <View style={{
+                                flexDirection: 'row',
+                                backgroundColor: '#FFF7ED', // Orange 50
+                                padding: 12,
+                                borderRadius: 12,
+                                marginBottom: 24,
+                                borderLeftWidth: 4,
+                                borderLeftColor: '#F97316' // Orange 500
+                            }}>
+                                <Ionicons name="alert-circle-outline" size={24} color="#F97316" style={{ marginRight: 8 }} />
+                                <Text style={{ flex: 1, color: '#C2410C', fontSize: 13, lineHeight: 18 }}>
+                                    <Text style={{ fontWeight: '700' }}>Importante:</Text> Para garantizar la veracidad de la información, los datos del vehículo no podrán ser editados después del registro.
+                                </Text>
                             </View>
 
                             <Button

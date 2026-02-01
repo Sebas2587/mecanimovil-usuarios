@@ -979,9 +979,8 @@ export const buscarProveedores = async (termino, tipo = 'todos') => {
  */
 export const getProviderReviews = async (providerId, providerType) => {
   try {
-    const endpoint = providerType === 'taller'
-      ? `/usuarios/talleres/${providerId}/reviews/`
-      : `/usuarios/mecanicos-domicilio/${providerId}/reviews/`;
+    // Usar el endpoint unificado que maneja ambos tipos de proveedores y retorna el resumen
+    const endpoint = `/usuarios/providers/${providerId}/reviews/`;
 
     const response = await get(endpoint);
     return response;

@@ -357,3 +357,82 @@ export const getVehicleAppraisal = async (vehicleId) => {
     throw error;
   }
 };
+
+/**
+ * Crea una oferta para un vehículo
+ * @param {Object} offerData - { vehiculo_id, monto, mensaje }
+ * @returns {Promise<Object>}
+ */
+export const createOffer = async (offerData) => {
+  try {
+    const payload = {
+      vehiculo: offerData.vehiculo_id,
+      monto: offerData.monto,
+      mensaje: offerData.mensaje
+    };
+    const data = await post('/vehiculos/ofertas/', payload);
+    return data;
+  } catch (error) {
+    console.error('Error creando oferta:', error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene las ofertas enviadas por el usuario actual (Compras)
+ * @returns {Promise<Array>}
+ */
+export const getSentOffers = async () => {
+  try {
+    const data = await get('/vehiculos/ofertas/mis_ofertas_enviadas/');
+    return data;
+  } catch (error) {
+    console.error('Error obteniendo ofertas enviadas:', error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene las ofertas recibidas para mis vehículos (Ventas)
+ * @returns {Promise<Array>}
+ */
+export const getReceivedOffers = async () => {
+  try {
+    const data = await get('/vehiculos/ofertas/mis_ofertas_recibidas/');
+    return data;
+  } catch (error) {
+    console.error('Error obteniendo ofertas recibidas:', error);
+    throw error;
+  }
+};
+
+/**
+ * Responde a una oferta (aceptar/rechazar/contraoferta)
+ * @param {number} offerId
+ * @param {string} status - 'aceptada', 'rechazada', 'contraoferta'
+ * @returns {Promise<Object>}
+ */
+export const respondToOffer = async (offerId, status) => {
+  try {
+    const data = await post(`/vehiculos/ofertas/${offerId}/responder/`, { estado: status });
+    return data;
+  } catch (error) {
+    console.error(`Error respondiendo oferta ${offerId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Obtiene el detalle de una oferta de vehículo por su ID
+ * @param {number} offerId
+ * @returns {Promise<Object>}
+ */
+export const getOfferById = async (offerId) => {
+  try {
+    const data = await get(`/vehiculos/ofertas/${offerId}/`);
+    return data;
+  } catch (error) {
+    console.error(`Error obteniendo oferta ${offerId}:`, error);
+    throw error;
+  }
+};

@@ -66,6 +66,13 @@ const UserProfileScreen = () => {
               onPress={() => navigation.navigate(ROUTES.HISTORIAL_PAGOS)}
             />
             <ProfileMenuItem
+              icon="star-outline"
+              label="Calificaciones Pendientes"
+              iconBgColor="#FFFBEB" // Amber Light
+              iconColor="#F59E0B" // Amber 500
+              onPress={() => navigation.navigate(ROUTES.PENDING_REVIEWS)}
+            />
+            <ProfileMenuItem
               icon="map-outline"
               label="Mis Direcciones"
               iconBgColor="#FFF7ED" // Orange Light

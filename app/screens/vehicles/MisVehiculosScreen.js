@@ -453,7 +453,7 @@ const MisVehiculosScreen = () => {
 
           {/* Health Bar */}
           <View style={styles.healthContainer}>
-            {item.health_score > 0 ? (
+            {(item.health_score !== null && item.health_score !== undefined) ? (
               <>
                 <View style={styles.healthHeader}>
                   <Text style={styles.healthLabel}>Salud General</Text>
@@ -520,7 +520,7 @@ const MisVehiculosScreen = () => {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mis Vehículos</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleAddVehicle}>
-          <Ionicons name="add" size={24} color="#FFFFFF" />
+          <Text style={styles.addButtonText}>Agregar auto</Text>
         </TouchableOpacity>
       </View>
 
@@ -663,17 +663,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   addButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+  },
+  addButtonText: {
+    color: COLORS.primary,
+    fontWeight: '600',
+    fontSize: 16,
   },
   listContent: {
     padding: 20,

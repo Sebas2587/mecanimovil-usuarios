@@ -184,9 +184,6 @@ const VehicleProfileScreen = () => {
                     {/* Header Controls (Inside Scroll) */}
                     <View style={[styles.scrollableHeaderControls, { top: insets.top }]}>
                         <View style={styles.rightButtons}>
-                            <TouchableOpacity style={styles.iconButton} onPress={handleEdit}>
-                                <Ionicons name="create-outline" size={24} color="#FFF" />
-                            </TouchableOpacity>
                             <TouchableOpacity style={styles.iconButton} onPress={handleDelete}>
                                 <Ionicons name="trash-outline" size={24} color="#FFF" />
                             </TouchableOpacity>

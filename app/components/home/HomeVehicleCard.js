@@ -52,7 +52,7 @@ const HomeVehicleCard = ({ vehicle, onPress }) => {
                     {/* Badges Row */}
                     <View style={styles.badgesRow}>
                         {/* Health Badge */}
-                        {vehicle.health > 0 ? (
+                        {(vehicle.health !== null && vehicle.health !== undefined) ? (
                             <View style={[
                                 styles.badge,
                                 (vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? styles.badgeSuccess : styles.badgeWarning
