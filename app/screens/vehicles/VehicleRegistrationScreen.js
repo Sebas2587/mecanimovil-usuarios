@@ -180,16 +180,16 @@ const VehicleRegistrationScreen = () => {
         for (const [compId, kmVal] of Object.entries(maintenanceSelections)) {
             if (kmVal === '' || kmVal === undefined) {
                 const item = checklistItems.find(c => c.id === Number(compId));
-                Alert.alert('Falta información', `Ingresa el kilometraje aproximado en que cambiaste "${item?.nombre || 'el componente'}".`);
+                Alert.alert('Falta información', `Ingresa los km del odómetro cuando cambiaste "${item?.nombre || 'el componente'}".`);
                 return;
             }
             const km = typeof kmVal === 'number' ? kmVal : parseInt(String(kmVal), 10);
             if (isNaN(km) || km < 0) {
-                Alert.alert('Dato inválido', 'El kilometraje del mantenimiento debe ser un número mayor o igual a 0.');
+                Alert.alert('Dato inválido', 'Los km deben ser un número mayor o igual a 0.');
                 return;
             }
             if (km > kmActual) {
-                Alert.alert('Dato inválido', `El kilometraje del mantenimiento no puede ser mayor al kilometraje actual (${kmActual.toLocaleString()} km).`);
+                Alert.alert('Dato inválido', `Los km del cambio no pueden ser mayores al kilometraje actual del auto (${kmActual.toLocaleString()} km).`);
                 return;
             }
         }
@@ -468,13 +468,14 @@ const VehicleRegistrationScreen = () => {
                                 >
                                     <View>
                                         <Text style={styles.sectionLabel}>Mantenimientos Recientes (Opcional)</Text>
-                                        <Text style={styles.maintenanceSubtitle}>Esto nos ayuda a calcular mejor la salud de tu vehículo.</Text>
+                                        <Text style={styles.maintenanceSubtitle}>Indica los km que tenía el auto cuando cambiaste cada pieza.</Text>
                                     </View>
                                     <Ionicons name={maintenanceExpanded ? 'chevron-up' : 'chevron-down'} size={24} color="#64748B" />
                                 </TouchableOpacity>
                                 {maintenanceExpanded && checklistItems.length > 0 && (
                                     <View style={styles.maintenanceList}>
                                         <Text style={styles.maintenanceQuestion}>¿Has cambiado o mantenido alguno de estos componentes?</Text>
+                                        <Text style={styles.maintenanceHint}>Ingresa los km del odómetro que marcaba el auto cuando hiciste el cambio (ej: si tienes 145.000 km ahora y lo cambiaste a los 125.000, escribe 125000).</Text>
                                         {checklistItems.map((item) => {
                                             const isChecked = maintenanceSelections[item.id] !== undefined;
                                             const kmVal = maintenanceSelections[item.id];
@@ -494,7 +495,7 @@ const VehicleRegistrationScreen = () => {
                                                                 style={styles.kmInputSmall}
                                                                 value={kmVal === '' ? '' : String(kmVal)}
                                                                 onChangeText={t => setMaintenanceKm(item.id, t)}
-                                                                placeholder="Km"
+                                                                placeholder="Ej: 125000"
                                                                 keyboardType="numeric"
                                                                 placeholderTextColor="#94A3B8"
                                                             />
@@ -790,7 +791,14 @@ const styles = StyleSheet.create({
     maintenanceQuestion: {
         fontSize: 14,
         color: '#475569',
+        marginBottom: 8,
+    },
+    maintenanceHint: {
+        fontSize: 12,
+        color: '#64748B',
+        lineHeight: 18,
         marginBottom: 12,
+        fontStyle: 'italic',
     },
     maintenanceRow: {
         flexDirection: 'row',
