@@ -39,12 +39,13 @@ const SellVehicleScreen = () => {
     } = useQuery({
         queryKey: ['marketplaceData', vehicle?.id],
         queryFn: async () => {
-            const [settings, statsData, appraisal] = await Promise.all([
+            const [settings, statsData, appraisal, receivedOffers] = await Promise.all([
                 vehicleService.getMarketplaceData(vehicle.id),
                 vehicleService.getMarketplaceStats(vehicle.id),
-                vehicleService.getVehicleAppraisal(vehicle.id)
+                vehicleService.getVehicleAppraisal(vehicle.id),
+                vehicleService.getReceivedOffers().catch(() => [])
             ]);
-            return { settings, statsData, appraisal };
+            return { settings, statsData, appraisal, receivedOffers };
         },
         enabled: !!vehicle?.id,
         staleTime: 1000 * 60 * 5, // 5 minutes
@@ -54,6 +55,12 @@ const SellVehicleScreen = () => {
     const settings = marketplaceData?.settings || {};
     const stats = marketplaceData?.statsData || { views: 0, favorites: 0, leads: 0 };
     const appraisal = marketplaceData?.appraisal || {};
+
+    // Calculate offers count for this vehicle
+    const vehicleOffers = (marketplaceData?.receivedOffers || []).filter(o =>
+        o.vehiculo === vehicle.id || o.vehiculo_id === vehicle.id || o.vehiculo?.id === vehicle.id
+    );
+    const offersCount = vehicleOffers.length;
 
     const isPublished = settings.is_published || false;
 
@@ -274,7 +281,6 @@ const SellVehicleScreen = () => {
                         <Text style={styles.suggestedPrice}>Sugerido Certificado: ${formatPrice(suggestedPrice)}</Text>
 
                         {/* Insight Box */}
-                        {/* Insight Box */}
                         <View style={styles.insightBox}>
                             <View style={styles.insightHeader}>
                                 <Text style={styles.insightTitle}>Potencial de Ganancia</Text>
@@ -329,7 +335,7 @@ const SellVehicleScreen = () => {
                     </View>
 
                     {/* Performance Card (Dark) - Only show if published or has stats */}
-                    {(isPublished || stats.views > 0) && (
+                    {(isPublished || stats.views > 0 || offersCount > 0) && (
                         <View style={styles.darkCard}>
                             {/* Decorative Circle */}
                             <View style={styles.decorativeCircle} />
@@ -342,27 +348,27 @@ const SellVehicleScreen = () => {
                             <View style={styles.statsGrid}>
                                 <View style={styles.statItem}>
                                     <Text style={styles.statValue}>{stats.views}</Text>
-                                    <Text style={styles.statLabel}>VISTAS</Text>
+                                    <Text style={styles.statLabel}>VISITAS</Text>
                                 </View>
                                 <View style={styles.statItem}>
                                     <Text style={styles.statValue}>{stats.favorites}</Text>
                                     <Text style={styles.statLabel}>FAVORITOS</Text>
                                 </View>
                                 <View style={styles.statItem}>
-                                    <Text style={styles.statValue}>{stats.leads}</Text>
-                                    <Text style={styles.statLabel}>INTERESADOS</Text>
+                                    <Text style={styles.statValue}>{offersCount}</Text>
+                                    <Text style={styles.statLabel}>OFERTAS</Text>
                                 </View>
                             </View>
                         </View>
                     )}
 
-                    {/* Padding before footer */}
-                    <View style={{ height: 100 }} />
+                    {/* Padding before footer - Increased per request */}
+                    <View style={{ height: 140 }} />
                 </View>
             </ScrollView>
 
             {/* 3. Footer Actions */}
-            <View style={styles.footerContainer}>
+            < View style={styles.footerContainer} >
                 <TouchableOpacity style={styles.outlineButton} onPress={() => Alert.alert("Compartir", "Funcionalidad próximamente")}>
                     <Ionicons name="share-outline" size={20} color={colors.text?.primary || '#374151'} />
                     <Text style={styles.outlineButtonText}>Compartir Ficha</Text>
@@ -370,10 +376,10 @@ const SellVehicleScreen = () => {
                 <TouchableOpacity style={styles.textButton}>
                     <Text style={styles.textButtonText}>Eliminar Publicación</Text>
                 </TouchableOpacity>
-            </View>
+            </View >
 
             {/* Price Edit Modal */}
-            <Modal
+            < Modal
                 visible={priceModalVisible}
                 transparent={true}
                 animationType="fade"
@@ -415,8 +421,8 @@ const SellVehicleScreen = () => {
                         </View>
                     </View>
                 </TouchableOpacity>
-            </Modal>
-        </View>
+            </Modal >
+        </View >
     );
 };
 
@@ -540,7 +546,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         paddingHorizontal: 20,
-        paddingTop: 24,
+        paddingTop: 32, // Increased top padding per request
     },
     card: {
         backgroundColor: '#FFFFFF',

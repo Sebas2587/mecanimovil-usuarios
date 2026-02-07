@@ -378,6 +378,74 @@ const UserPanelScreen = () => {
           </View>
         )}
 
+        {/* No Vehicles Warning Card */}
+        {vehicles.length === 0 && !isLoading && (
+          <View style={[styles.sectionContainer, { marginTop: 8, paddingHorizontal: 16 }]}>
+            <View style={{
+              backgroundColor: colors.background?.paper || '#FFFFFF',
+              borderRadius: 16,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: colors.warning?.main ? `${colors.warning.main}40` : '#FCD34D', // Yellow/Gold border
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <View style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: colors.warning?.light || '#FEF3C7', // Light yellow
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 16
+                }}>
+                  <Ionicons name="car-sport" size={24} color={colors.warning?.main || '#D97706'} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '700',
+                    color: colors.text?.primary || '#111827',
+                    marginBottom: 4
+                  }}>
+                    Comienza en MecaniMóvil
+                  </Text>
+                  <Text style={{
+                    fontSize: 14,
+                    color: colors.text?.secondary || '#4B5563',
+                    marginBottom: 16,
+                    lineHeight: 20
+                  }}>
+                    Para solicitar servicios, gestionar mantenimientos y usar todas las funciones, necesitas registrar un vehículo.
+                  </Text>
+
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: colors.primary?.main || '#003459',
+                      paddingVertical: 10,
+                      paddingHorizontal: 16,
+                      borderRadius: 10,
+                      alignSelf: 'flex-start',
+                      flexDirection: 'row',
+                      alignItems: 'center'
+                    }}
+                    onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>
+                      Agregar mi vehículo
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Bottom Spacer */}
         <View style={{ height: 100 }} />
 

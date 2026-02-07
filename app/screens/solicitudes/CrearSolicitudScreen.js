@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import { useTheme } from '../../design-system/theme/useTheme';
@@ -80,20 +81,54 @@ const CrearSolicitudScreen = () => {
     descripcionPrellenada // Descripción pre-rellenada (desde alertas)
   } = route.params || {};
 
+  // State
   const [loading, setLoading] = useState(true);
-  const [vehiculos, setVehiculos] = useState([]);
-  const [direcciones, setDirecciones] = useState([]);
   const [creando, setCreando] = useState(false);
-  const [clienteId, setClienteId] = useState(null);
   const [initialData, setInitialData] = useState({});
+  const [direcciones, setDirecciones] = useState([]);
+  const [clienteId, setClienteId] = useState(null);
+
+  // TanStack Query for Vehicles - Auto refresh when focused or cache updates
+  const {
+    data: allVehicles = [],
+    isLoading: isLoadingVehicles,
+    refetch: refetchVehicles
+  } = useQuery({
+    queryKey: ['userVehicles'], // Shared key with UserPanelScreen
+    queryFn: vehicleService.getUserVehicles,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    cacheTime: 1000 * 60 * 30, // 30 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: true, // Auto-refresh when coming back to app
+  });
+
+  // Filter active vehicles from query data
+  const vehiculos = React.useMemo(() => {
+    if (!allVehicles || !Array.isArray(allVehicles)) return [];
+
+    // Filter deleted/inactive
+    return allVehicles.filter(v => {
+      const isActive = v.is_active !== false;
+      const isNotDeleted = v.status !== 'deleted' && v.estado !== 'eliminado';
+      return isActive && isNotDeleted;
+    });
+  }, [allVehicles]);
 
   useEffect(() => {
-    cargarDatos();
-  }, []);
+    // Sync client ID if not set
+    if (!clienteId && vehiculos.length > 0 && vehiculos[0].cliente_detail?.id) {
+      console.log('✅ CrearSolicitudScreen: Sincronizando Cliente ID desde vehículos:', vehiculos[0].cliente_detail.id);
+      setClienteId(vehiculos[0].cliente_detail.id);
+    }
+  }, [vehiculos, clienteId]);
 
+  // UseFocusEffect to refetch when screen is focused (e.g. after adding vehicle)
   // Verificar si puede crear solicitud y cargar parámetros cuando la pantalla recibe foco
   useFocusEffect(
     useCallback(() => {
+      // Force vehicle refresh
+      refetchVehicles();
+
       const verificarYCargarDatos = async () => {
         try {
           // 1. Verificar si el usuario puede crear una solicitud
@@ -182,202 +217,187 @@ const CrearSolicitudScreen = () => {
       };
 
       verificarYCargarDatos();
-    }, [route.params, navigation])
-  );
 
-  // Preparar datos iniciales si hay servicio o proveedor preseleccionado
-  // IMPORTANTE: Este efecto se ejecuta cada vez que cambian los parámetros de la ruta
-  useEffect(() => {
-    const tieneServicioObjeto = !!servicioPreseleccionado;
-    const tieneServiciosArray = !!(serviciosPreSeleccionados && Array.isArray(serviciosPreSeleccionados) && serviciosPreSeleccionados.length > 0);
-    const tieneProveedor = !!proveedorPreseleccionado;
-    const tieneVehicle = !!vehicle;
+      // Preparar datos iniciales si hay servicio o proveedor preseleccionado
+      const prepararDatosIniciales = async () => {
+        const tieneServicioObjeto = !!servicioPreseleccionado;
+        const tieneServiciosArray = !!(serviciosPreSeleccionados && Array.isArray(serviciosPreSeleccionados) && serviciosPreSeleccionados.length > 0);
+        const tieneProveedor = !!proveedorPreseleccionado;
+        const tieneVehicleParam = !!vehicle;
 
-    if (tieneServicioObjeto || tieneServiciosArray || tieneProveedor || tieneVehicle) {
-      console.log('✅ CrearSolicitudScreen: Datos preseleccionados recibidos:', {
-        tieneServicioObjeto,
-        tieneServiciosArray,
-        tieneProveedor,
-        tieneVehicle,
-        tipoProveedor: tipoProveedorPreseleccionado,
-        fromProviderDetail: fromProviderDetail
-      });
+        if (tieneServicioObjeto || tieneServiciosArray || tieneProveedor || tieneVehicleParam) {
+          console.log('✅ CrearSolicitudScreen: Datos preseleccionados recibidos:', {
+            tieneServicioObjeto,
+            tieneServiciosArray,
+            tieneProveedor,
+            tieneVehicleParam
+          });
 
-      const prepararInitialData = async () => {
-        try {
-          let proveedorFormato = null;
-          let serviciosParaInitialData = [];
+          try {
+            let proveedorFormato = null;
+            let serviciosParaInitialData = [];
 
-          // Si hay servicio como objeto (desde categorías o proveedor)
-          if (tieneServicioObjeto) {
-            serviciosParaInitialData = [servicioPreseleccionado];
-          }
-          // Si hay servicios como array de IDs (desde alertas)
-          else if (tieneServiciosArray) {
-            console.log('📋 Cargando servicios desde IDs:', serviciosPreSeleccionados);
-            try {
-              // Cargar detalles de cada servicio por su ID
-              const serviciosPromises = serviciosPreSeleccionados.map(async (servicioId) => {
-                try {
-                  const servicioDetalle = await serviceService.getServicioDetalle(servicioId);
-                  if (servicioDetalle) {
-                    return {
-                      id: servicioDetalle.id,
-                      nombre: servicioDetalle.nombre,
-                      descripcion: servicioDetalle.descripcion,
-                      categoria_id: servicioDetalle.categoria,
-                      tipo_servicio: servicioDetalle.tipo_servicio,
-                      precio_referencia: servicioDetalle.precio_referencia
-                    };
+            // Si hay servicio como objeto (desde categorías o proveedor)
+            if (tieneServicioObjeto) {
+              serviciosParaInitialData = [servicioPreseleccionado];
+            }
+            // Si hay servicios como array de IDs (desde alertas)
+            else if (tieneServiciosArray) {
+              console.log('📋 Cargando servicios desde IDs:', serviciosPreSeleccionados);
+              try {
+                const serviciosPromises = serviciosPreSeleccionados.map(async (servicioId) => {
+                  try {
+                    const servicioDetalle = await serviceService.getServicioDetalle(servicioId);
+                    if (servicioDetalle) {
+                      return {
+                        id: servicioDetalle.id,
+                        nombre: servicioDetalle.nombre,
+                        descripcion: servicioDetalle.descripcion,
+                        categoria_id: servicioDetalle.categoria,
+                        tipo_servicio: servicioDetalle.tipo_servicio,
+                        precio_referencia: servicioDetalle.precio_referencia
+                      };
+                    }
+                    return null;
+                  } catch (error) {
+                    console.error(`❌ Error cargando servicio ${servicioId}:`, error);
+                    return null;
                   }
-                  return null;
-                } catch (error) {
-                  console.error(`❌ Error cargando servicio ${servicioId}:`, error);
-                  return null;
-                }
+                });
+
+                const serviciosCargados = await Promise.all(serviciosPromises);
+                serviciosParaInitialData = serviciosCargados.filter(s => s !== null);
+                console.log('✅ Servicios cargados desde IDs:', serviciosParaInitialData.length);
+              } catch (error) {
+                console.error('❌ Error cargando servicios desde IDs:', error);
+              }
+            }
+
+            // Si hay proveedor preseleccionado desde ProviderDetailScreen
+            if (proveedorPreseleccionado && fromProviderDetail) {
+              // Extraer usuario.id del proveedor (necesario para el backend)
+              const usuarioId = proveedorPreseleccionado.usuario?.id ||
+                proveedorPreseleccionado.usuario ||
+                proveedorPreseleccionado.usuario_id ||
+                proveedorPreseleccionado.id;
+
+              console.log('📋 Preparando proveedor preseleccionado:', {
+                nombre: proveedorPreseleccionado.nombre,
+                usuarioId: usuarioId,
+                tipo: tipoProveedorPreseleccionado
               });
 
-              const serviciosCargados = await Promise.all(serviciosPromises);
-              serviciosParaInitialData = serviciosCargados.filter(s => s !== null);
-              console.log('✅ Servicios cargados desde IDs:', serviciosParaInitialData.length);
-            } catch (error) {
-              console.error('❌ Error cargando servicios desde IDs:', error);
+              // Preparar proveedor en formato esperado por FormularioSolicitud
+              proveedorFormato = {
+                ...proveedorPreseleccionado,
+                tipo: tipoProveedorPreseleccionado, // 'taller' o 'mecanico'
+                usuario_id: usuarioId // Necesario para el backend
+              };
+
+              console.log('✅ Proveedor formateado:', proveedorFormato);
             }
-          }
 
-          // Si hay proveedor preseleccionado desde ProviderDetailScreen
-          if (proveedorPreseleccionado && fromProviderDetail) {
-            // Extraer usuario.id del proveedor (necesario para el backend)
-            const usuarioId = proveedorPreseleccionado.usuario?.id ||
-              proveedorPreseleccionado.usuario ||
-              proveedorPreseleccionado.usuario_id ||
-              proveedorPreseleccionado.id;
-
-            console.log('📋 Preparando proveedor preseleccionado:', {
-              nombre: proveedorPreseleccionado.nombre,
-              usuarioId: usuarioId,
-              tipo: tipoProveedorPreseleccionado
+            setInitialData({
+              servicios_seleccionados: serviciosParaInitialData,
+              // Si hay proveedor preseleccionado, configurar tipo_solicitud como 'dirigida'
+              tipo_solicitud: proveedorFormato ? 'dirigida' : 'global',
+              proveedores_dirigidos: proveedorFormato ? [proveedorFormato] : [],
+              fromProviderDetail: fromProviderDetail || false, // Flag para FormularioSolicitud
+              // Si hay vehículo preseleccionado (desde alertas), usarlo
+              vehiculo: tieneVehicleParam ? vehicle : null,
+              descripcion_problema: descripcionPrellenada || '',
+              urgencia: 'normal',
+              direccion_usuario: null,
+              direccion_servicio_texto: '',
+              detalles_ubicacion: '',
+              fecha_preferida: '',
+              hora_preferida: '',
+              ubicacion_servicio: null
             });
 
-            // Preparar proveedor en formato esperado por FormularioSolicitud
-            proveedorFormato = {
-              ...proveedorPreseleccionado,
-              tipo: tipoProveedorPreseleccionado, // 'taller' o 'mecanico'
-              usuario_id: usuarioId // Necesario para el backend
-            };
-
-            console.log('✅ Proveedor formateado:', proveedorFormato);
+            console.log('✅ InitialData preparado:', {
+              tieneServicio: serviciosParaInitialData.length > 0,
+              tieneProveedor: proveedorFormato ? true : false,
+              tieneVehicle: tieneVehicleParam,
+              tipo_solicitud: proveedorFormato ? 'dirigida' : 'global',
+              servicios_seleccionados_count: serviciosParaInitialData.length
+            });
+          } catch (error) {
+            console.error('❌ Error preparando datos iniciales:', error);
+            setInitialData({});
           }
-
-          setInitialData({
-            servicios_seleccionados: serviciosParaInitialData,
-            // Si hay proveedor preseleccionado, configurar tipo_solicitud como 'dirigida'
-            tipo_solicitud: proveedorFormato ? 'dirigida' : 'global',
-            proveedores_dirigidos: proveedorFormato ? [proveedorFormato] : [],
-            fromProviderDetail: fromProviderDetail || false, // Flag para FormularioSolicitud
-            // Si hay vehículo preseleccionado (desde alertas), usarlo
-            vehiculo: tieneVehicle ? vehicle : null,
-            descripcion_problema: descripcionPrellenada || '',
-            urgencia: 'normal',
-            direccion_usuario: null,
-            direccion_servicio_texto: '',
-            detalles_ubicacion: '',
-            fecha_preferida: '',
-            hora_preferida: '',
-            ubicacion_servicio: null
-          });
-
-          console.log('✅ InitialData preparado:', {
-            tieneServicio: serviciosParaInitialData.length > 0,
-            tieneProveedor: proveedorFormato ? true : false,
-            tieneVehicle: tieneVehicle,
-            tipo_solicitud: proveedorFormato ? 'dirigida' : 'global',
-            servicios_seleccionados_count: serviciosParaInitialData.length
-          });
-        } catch (error) {
-          console.error('❌ Error preparando datos iniciales:', error);
-          // Si hay error, simplemente no prellenar datos
+        } else {
+          // Limpiar si no hay parámetros (ya manejado en verificarYCargarDatos pero se refuerza aquí)
+          console.log('🧹 CrearSolicitudScreen: No hay parámetros preseleccionados - limpiando initialData');
           setInitialData({});
         }
       };
 
-      prepararInitialData();
-    } else {
-      // CRÍTICO: Si NO hay parámetros preseleccionados, limpiar initialData
-      // Esto asegura que cuando el usuario navega normalmente (sin parámetros),
-      // el formulario se reinicia correctamente
-      console.log('🧹 CrearSolicitudScreen: No hay parámetros preseleccionados - limpiando initialData');
-      setInitialData({});
-    }
-  }, [servicioPreseleccionado, serviciosPreSeleccionados, proveedorPreseleccionado, tipoProveedorPreseleccionado, fromProviderDetail, vehicle, descripcionPrellenada]);
+      prepararDatosIniciales();
+
+    }, [
+      navigation,
+      route.params,
+      refetchVehicles,
+      servicioPreseleccionado,
+      serviciosPreSeleccionados,
+      proveedorPreseleccionado,
+      tipoProveedorPreseleccionado,
+      fromProviderDetail,
+      vehicle,
+      descripcionPrellenada
+    ])
+  );
 
   const cargarDatos = async () => {
-    setLoading(true);
+    // Only load non-vehicle data (addresses, client details)
+    // Vehicles are now handled by useQuery
+    // But we still set generic loading state for initial render
+
+    // If vehicles are already loaded from cache, we don't need to block UI
+    if (isLoadingVehicles && vehicles.length === 0) {
+      setLoading(true);
+    }
+
     try {
-      const [vehiculosData, direccionesData, clienteData] = await Promise.all([
-        vehicleService.getUserVehicles(),
+      const [direccionesData, clienteData] = await Promise.all([
         locationService.getUserAddresses(),
-        userService.getClienteDetails().catch(() => null) // Si falla, intentar obtener desde vehículo
+        userService.getClienteDetails().catch(() => null)
       ]);
 
-      // Manejar diferentes formatos de respuesta
-      let vehiculosArray = [];
-      if (Array.isArray(vehiculosData)) {
-        vehiculosArray = vehiculosData;
-      } else if (vehiculosData && Array.isArray(vehiculosData.results)) {
-        vehiculosArray = vehiculosData.results;
-      } else if (vehiculosData && Array.isArray(vehiculosData.data)) {
-        vehiculosArray = vehiculosData.data;
-      }
-
-      console.log('CrearSolicitudScreen: Vehículos cargados:', vehiculosArray.length);
-
-      setVehiculos(vehiculosArray);
       setDirecciones(Array.isArray(direccionesData) ? direccionesData : []);
 
       // Obtener ID del cliente
       let clienteIdValue = null;
       if (clienteData && clienteData.id) {
         clienteIdValue = clienteData.id;
-      } else if (vehiculosArray.length > 0 && vehiculosArray[0].cliente_detail?.id) {
-        // Fallback: obtener desde el primer vehículo
-        clienteIdValue = vehiculosArray[0].cliente_detail.id;
-      }
-      setClienteId(clienteIdValue);
-      console.log('CrearSolicitudScreen: Cliente ID:', clienteIdValue);
-
-      if (vehiculosArray.length === 0) {
-        Alert.alert(
-          'Sin vehículos',
-          'Necesitas tener al menos un vehículo registrado para crear una solicitud.',
-          [
-            {
-              text: 'Registrar vehículo',
-              onPress: () => navigation.navigate(ROUTES.MIS_VEHICULOS || 'MisVehiculos')
-            },
-            {
-              text: 'Cancelar',
-              style: 'cancel',
-              onPress: () => navigation.goBack()
-            }
-          ]
-        );
       }
 
-      if (!clienteIdValue) {
-        console.warn('CrearSolicitudScreen: No se pudo obtener el ID del cliente');
+      if (clienteIdValue) {
+        setClienteId(clienteIdValue);
+        console.log('CrearSolicitudScreen: Cliente ID cargado:', clienteIdValue);
       }
+
     } catch (error) {
-      console.error('Error cargando datos:', error);
-      Alert.alert(
-        'Error',
-        'No se pudieron cargar los datos necesarios. Inténtalo de nuevo.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
+      console.error('Error cargando direcciones/cliente:', error);
+      // Non-blocking error for addresses
     } finally {
-      setLoading(false);
+      if (!isLoadingVehicles) {
+        setLoading(false);
+      }
     }
   };
+
+  // Sync loading state with query
+  useEffect(() => {
+    if (!isLoadingVehicles) {
+      setLoading(false);
+    }
+  }, [isLoadingVehicles]);
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
 
   const handleSubmit = async (formData) => {
     if (creando) return;

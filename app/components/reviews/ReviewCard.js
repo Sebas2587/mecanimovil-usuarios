@@ -70,7 +70,8 @@ const ReviewCard = ({ review }) => {
                 <View style={styles.contextBadge}>
                     <Ionicons name="construct" size={12} color={COLORS.neutral.gray[500]} style={styles.contextIcon} />
                     <Text style={styles.contextText}>
-                        {service_context.service_name} • {service_context.vehicle_model}
+                        {service_context.service_name || 'Servicio'}
+                        {service_context.vehicle_model ? ` • ${service_context.vehicle_model}` : ''}
                     </Text>
                 </View>
             )}

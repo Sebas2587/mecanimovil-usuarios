@@ -168,6 +168,11 @@ class SolicitudesService {
       if (error.status === 404) {
         return [];
       }
+      // Handle 500 specifically to avoid crashing UI when backend fails due to data integrity issues (e.g. deleted vehicles)
+      if (error.status === 500) {
+        console.warn('SolicitudesService: 500 error al obtener solicitudes. Posible problema de integridad de datos (vehículos eliminados). Retornando array vacío.');
+        return [];
+      }
       throw error;
     }
   }

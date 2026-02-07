@@ -125,31 +125,42 @@ const ProviderDetailScreen = () => {
           </View>
         </View>
 
-        {/* Reviews Section */}
-        {reviewsData && reviewsData.total_reviews > 0 && (
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <Ionicons name="star" size={18} color={COLORS.warning.main} style={{ marginRight: 6 }} />
-                <Text style={styles.sectionTitle}>Reseñas Recientes</Text>
-              </View>
+        {/* Reviews Section - Always Render */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="star" size={18} color={COLORS.warning.main} style={{ marginRight: 6 }} />
+              <Text style={styles.sectionTitle}>Opiniones de Usuarios</Text>
+            </View>
+            {reviewsData && reviewsData.reviews && reviewsData.reviews.length > 0 && (
               <TouchableOpacity onPress={handleSeeAllReviews}>
                 <Text style={styles.seeAllText}>Ver todas</Text>
               </TouchableOpacity>
-            </View>
-
-            {/* Latest Review Preview */}
-            {reviewsData.reviews && reviewsData.reviews.length > 0 && (
-              <TouchableOpacity
-                onPress={handleSeeAllReviews}
-                activeOpacity={0.9}
-                style={{ paddingHorizontal: 16 }} // Add Horizontal Padding
-              >
-                <ReviewCard review={reviewsData.reviews[0]} />
-              </TouchableOpacity>
             )}
           </View>
-        )}
+
+          {/* Latest Review Preview */}
+          {reviewsData && reviewsData.reviews && reviewsData.reviews.length > 0 ? (
+            <TouchableOpacity
+              onPress={handleSeeAllReviews}
+              activeOpacity={0.9}
+              style={{ paddingHorizontal: 16 }}
+            >
+              <ReviewCard review={reviewsData.reviews[0]} />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ paddingHorizontal: 16 }}>
+              <Text style={{
+                fontSize: 14,
+                color: COLORS.neutral.gray[500],
+                fontStyle: 'italic',
+                textAlign: 'left'
+              }}>
+                Este proveedor aún no ha recibido opiniones.
+              </Text>
+            </View>
+          )}
+        </View>
 
         <TrustSection documents={documents || []} />
 

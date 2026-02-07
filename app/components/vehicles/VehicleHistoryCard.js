@@ -272,6 +272,9 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist }) => {
     year: 'numeric'
   });
 
+  // Cost Display Logic
+  const displayCost = item.cost || item.total || item.price || item.monto || item.valor || 0;
+
   return (
     <View style={historyStyles.rowContainer}>
       {/* Header: Provider Avatar + Name + Date */}
@@ -314,11 +317,11 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist }) => {
         </View>
 
         {/* Cost Display - Enhanced */}
-        {item.cost > 0 && (
+        {parseFloat(displayCost) > 0 && (
           <View style={historyStyles.costBadge}>
             <Text style={historyStyles.costLabel}>Valor Servicio</Text>
             <Text style={historyStyles.costValue}>
-              ${item.cost.toLocaleString('es-CL')}
+              ${parseFloat(displayCost).toLocaleString('es-CL')}
             </Text>
           </View>
         )}

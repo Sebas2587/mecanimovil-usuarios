@@ -62,10 +62,19 @@ const FavoriteProvidersScreen = () => {
   const { favorites } = useFavorites();
 
   const handlePress = (item) => {
-    navigation.navigate(ROUTES.PROVIDER_DETAIL, {
-      providerId: item.id,
-      providerType: item.type,
-      provider: item,
+    // Navigate to Home tab first, then to provider detail
+    // This is necessary because FavoriteProvidersScreen is in ProfileStack
+    // and ProviderDetailScreen is in HomeStack
+    navigation.navigate('TabNavigator', {
+      screen: ROUTES.HOME,
+      params: {
+        screen: ROUTES.PROVIDER_DETAIL,
+        params: {
+          providerId: item.id,
+          providerType: item.type,
+          provider: item,
+        },
+      },
     });
   };
 

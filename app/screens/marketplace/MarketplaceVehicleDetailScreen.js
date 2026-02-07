@@ -82,26 +82,58 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 console.log('📋 [Enrichment] Fetched completed requests:', myCompletedRequests.length);
 
                 // Filter for this vehicle
+                // Robust comparison: Ensure both IDs are strings for comparison
+                const targetIdStr = String(effectiveVehicleId);
+
                 const vehicleRequests = myCompletedRequests.filter(req => {
                     const reqVehicleId = req.vehiculo_id || req.vehiculo?.id || req.vehiculo;
-                    return reqVehicleId == effectiveVehicleId;
+                    return reqVehicleId && String(reqVehicleId) === targetIdStr;
                 });
 
                 console.log(`🚗 [Enrichment] Found ${vehicleRequests.length} requests for vehicle ${effectiveVehicleId}`);
 
-                if (vehicleRequests.length > 0) {
-                    enrichedHistory = vehicleRequests.map(req => ({
-                        ...req,
-                        date: req.fecha_servicio || req.fecha_creacion,
-                        service: req.nombre_servicio || req.servicio_nombre || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.servicio_nombre) || 'Servicio',
-                        provider: req.nombre_proveedor || req.oferta_seleccionada_detail?.nombre_proveedor,
-                        verified: true,
-                        kilometraje: req.kilometraje || req.vehiculo_info?.kilometraje,
-                        id: req.id,
-                        cost: req.total // Ensure cost is mapped for owner view
-                    }));
+                // Check ownership to decide source of truth
+                // If I am the owner, the Solicitudes DB (vehicleRequests) is the absolute truth.
+                // If it's empty, it means I have no history. Do NOT fallback to rawHistory (which might be mock/stale).
+                // If I am NOT the owner, I must rely on rawHistory (public view).
+
+                const sellerId = detailData.user_id || detailData.seller?.id || detailData.cliente_id;
+                const isViewerOwner = user?.id && sellerId && (String(user.id) === String(sellerId));
+
+                if (isViewerOwner) {
+                    // As owner, trusted history comes from my execution requests
+                    if (vehicleRequests.length > 0) {
+                        enrichedHistory = vehicleRequests.map(req => ({
+                            ...req,
+                            date: req.fecha_servicio || req.fecha_creacion,
+                            service: req.nombre_servicio || req.servicio_nombre || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.servicio_nombre) || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.nombre) || 'Servicio',
+                            provider: req.nombre_proveedor || req.oferta_seleccionada_detail?.nombre_proveedor || req.oferta_seleccionada_detail?.proveedor_nombre,
+                            verified: true,
+                            kilometraje: req.kilometraje || req.vehiculo_info?.kilometraje,
+                            id: req.id,
+                            cost: req.total || req.monto || req.oferta_seleccionada_detail?.monto // Ensure cost is mapped for owner view
+                        }));
+                    } else {
+                        // OWNER with 0 requests -> Show Empty History (ignore generic rawHistory)
+                        enrichedHistory = [];
+                    }
                 } else {
-                    enrichedHistory = rawHistory;
+                    // NOT OWNER (Buyer) -> Fallback to public endpoint history or use enriched if available
+                    if (vehicleRequests.length > 0) {
+                        // This case is rare (buyer managed to service the car?) but valid
+                        enrichedHistory = vehicleRequests.map(req => ({
+                            ...req,
+                            date: req.fecha_servicio || req.fecha_creacion,
+                            service: req.nombre_servicio || req.servicio_nombre || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.servicio_nombre) || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.nombre) || 'Servicio',
+                            provider: req.nombre_proveedor || req.oferta_seleccionada_detail?.nombre_proveedor || req.oferta_seleccionada_detail?.proveedor_nombre,
+                            verified: true,
+                            kilometraje: req.kilometraje || req.vehiculo_info?.kilometraje,
+                            id: req.id,
+                            cost: req.total || req.monto || req.oferta_seleccionada_detail?.monto
+                        }));
+                    } else {
+                        enrichedHistory = rawHistory;
+                    }
                 }
             } catch (err) {
                 console.warn('⚠️ [Enrichment] Failed:', err);
@@ -425,30 +457,24 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         </View>
                     </View>
 
-                    <View style={styles.sectionHeader}>
-                        <Feather name="clock" size={20} color={colors.text?.secondary} />
-                        <Text style={styles.sectionTitle}>Historial de Servicios</Text>
-                    </View>
-
-                    <View style={styles.timelineContainer}>
-                        {/* No timeline line for the new card style, or we can keep it if we want 'connected' cards. 
-                            The requirement implies cards "show much more info", likely standalone. 
-                            Moving to standalone list for cleaner UI with complex cards. */}
-
-                        {history.length > 0 ? (
-                            history.map((item) => (
-                                <VehicleServiceHistoryRow
-                                    key={item.id}
-                                    item={item}
-                                    onViewChecklist={handleViewChecklist}
-                                />
-                            ))
-                        ) : (
-                            <View style={styles.emptyHistory}>
-                                <Text style={styles.emptyHistoryText}>No hay servicios registrados en MecaniMóvil.</Text>
+                    {history.length > 0 && (
+                        <>
+                            <View style={styles.sectionHeader}>
+                                <Feather name="clock" size={20} color={colors.text?.secondary} />
+                                <Text style={styles.sectionTitle}>Historial de Servicios</Text>
                             </View>
-                        )}
-                    </View>
+
+                            <View style={styles.timelineContainer}>
+                                {history.map((item) => (
+                                    <VehicleServiceHistoryRow
+                                        key={item.id}
+                                        item={item}
+                                        onViewChecklist={handleViewChecklist}
+                                    />
+                                ))}
+                            </View>
+                        </>
+                    )}
 
                     {/* Padding for Bottom Sticky Bar */}
                     <View style={{ height: 120 }} />
