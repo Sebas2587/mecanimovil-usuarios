@@ -44,9 +44,10 @@ const HealthMetricCard = ({ item, onPress }) => {
     const remainingKm = item.km_estimados_restantes ?? item.vida_util_restante_km ?? item.remaining_km;
 
     const getHealthColor = (p) => {
-        if (p >= 70) return COLORS.success[500];
-        if (p >= 40) return COLORS.warning[500];
-        return COLORS.error[500];
+        if (p >= 80) return COLORS.success[500]; // Green (80-100%)
+        if (p >= 60) return '#F59E0B'; // Yellow (60-79%)
+        if (p >= 40) return '#F97316'; // Orange (40-59%)
+        return COLORS.error[500]; // Red (0-39%)
     };
 
     const color = getHealthColor(percentage);

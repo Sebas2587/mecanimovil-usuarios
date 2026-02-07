@@ -32,6 +32,14 @@ const QuickActionGrid = ({
 
     const styles = getStyles(colors, typography, spacing, borders);
 
+    // Get health color based on score
+    const getHealthColor = (score) => {
+        if (score >= 80) return '#10B981'; // Green - Excellent
+        if (score >= 60) return '#F59E0B'; // Yellow/Amber - Good
+        if (score >= 40) return '#F97316'; // Orange - Fair
+        return '#EF4444'; // Red - Poor
+    };
+
     return (
         <View style={styles.container}>
             {/* Health Card */}
@@ -39,7 +47,7 @@ const QuickActionGrid = ({
                 title="Salud del Motor"
                 subtitle={`${healthScore || 0}% de condición óptima`}
                 icon="pulse"
-                color={colors.error?.[500] || '#EF4444'}
+                color={getHealthColor(healthScore || 0)}
                 onPress={onHealthPress}
                 styles={styles}
                 colors={colors}

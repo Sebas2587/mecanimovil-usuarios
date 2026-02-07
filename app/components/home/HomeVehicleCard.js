@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Image } from 'expo-image';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
 
@@ -16,7 +15,10 @@ const HomeVehicleCard = ({ vehicle, onPress }) => {
     // Fallback if vehicle is null (skeleton could be handled outside)
     if (!vehicle) return null;
 
-    const imageUrl = vehicle.foto || null; // Simplified logic, real app resolves URLs
+    // Use same image logic as MisVehiculosScreen - fallback to Unsplash if no foto
+    const imageUrl = vehicle.foto
+        ? { uri: vehicle.foto }
+        : { uri: 'https://images.unsplash.com/photo-1550355291-bbee04a92027?q=80&w=800&auto=format&fit=crop' };
 
     return (
         <TouchableOpacity
@@ -27,17 +29,11 @@ const HomeVehicleCard = ({ vehicle, onPress }) => {
             <View style={styles.content}>
                 {/* Left: Image */}
                 <View style={styles.imageContainer}>
-                    {imageUrl ? (
-                        <Image
-                            source={{ uri: imageUrl }}
-                            style={styles.image}
-                            contentFit="cover"
-                        />
-                    ) : (
-                        <View style={styles.placeholderImage}>
-                            <Ionicons name="car-sport" size={24} color={colors.neutral?.gray?.[400] || '#9CA3AF'} />
-                        </View>
-                    )}
+                    <Image
+                        source={imageUrl}
+                        style={styles.image}
+                        resizeMode="cover"
+                    />
                 </View>
 
                 {/* Center: Info */}

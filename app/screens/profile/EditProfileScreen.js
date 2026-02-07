@@ -23,7 +23,7 @@ const EditProfileScreen = () => {
 
   // State
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  // initialLoading removed, replaced by isProfileLoading from hook
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -33,53 +33,41 @@ const EditProfileScreen = () => {
   const [profileImage, setProfileImage] = useState(null);
   const [formErrors, setFormErrors] = useState({});
 
-  // Profile hook for image updates
-  const { updateProfilePicture: updateProfilePictureMutation, isUpdatingPicture } = useUserProfile(user?.id);
+  // Profile hook for image updates and data fetching
+  const {
+    data: userProfile,
+    isLoading: isProfileLoading,
+    updateProfile: updateProfileMutation,
+    updateProfilePicture: updateProfilePictureMutation,
+    isUpdatingPicture
+  } = useUserProfile(user?.id);
 
-  // Initial Data Load
+  // Sync Form Data when profile loads
   useEffect(() => {
-    loadProfileData();
-  }, []);
+    // Si tenemos datos del perfil (ya sea de caché o recién cargados), actualizar el formulario
+    // Prioridad: datos del hook > usuario del contexto
+    const dataSource = userProfile || user;
 
-  const loadProfileData = async () => {
-    try {
-      setInitialLoading(true);
-      const userId = user?.id;
-      // Try fetch fresh data
-      let profileData = null;
-      try {
-        profileData = await userService.getUserProfile(userId);
-      } catch (err) {
-        console.warn('Using context fallback for edit profile');
+    if (dataSource) {
+      setFormData({
+        first_name: (dataSource.first_name || dataSource.firstName || '').trim(),
+        last_name: (dataSource.last_name || dataSource.lastName || '').trim(),
+        email: dataSource.email || '',
+        telefono: dataSource.telefono || '',
+      });
+
+      // Load Image
+      const picUrl = dataSource.foto_perfil_url || dataSource.foto_perfil;
+      if (picUrl && !picUrl.startsWith('http')) {
+        // If it's a relative path, resolve it (simplified logic)
+        getMediaURL(picUrl).then(fullUrl => {
+          setProfileImage(fullUrl);
+        }).catch(() => setProfileImage(null));
+      } else {
+        setProfileImage(picUrl);
       }
-
-      const dataSource = profileData || user;
-      if (dataSource) {
-        setFormData({
-          first_name: (dataSource.first_name || dataSource.firstName || '').trim(),
-          last_name: (dataSource.last_name || dataSource.lastName || '').trim(),
-          email: dataSource.email || '',
-          telefono: dataSource.telefono || '',
-        });
-
-        // Load Image
-        const picUrl = dataSource.foto_perfil_url || dataSource.foto_perfil;
-        if (picUrl && !picUrl.startsWith('http')) {
-          // If it's a relative path, resolve it (simplified logic)
-          try {
-            const fullUrl = await getMediaURL(picUrl);
-            setProfileImage(fullUrl);
-          } catch (e) { setProfileImage(null); }
-        } else {
-          setProfileImage(picUrl);
-        }
-      }
-    } catch (error) {
-      Alert.alert('Error', 'No se pudieron cargar los datos.');
-    } finally {
-      setInitialLoading(false);
     }
-  };
+  }, [userProfile, user]); // Re-run when profile data changes
 
   // Handlers
   const handleChange = (field, value) => {
@@ -113,7 +101,29 @@ const EditProfileScreen = () => {
         type: 'image/jpeg',
         name: 'profile_edit.jpg',
       });
-      await updateProfilePictureMutation(formData);
+
+      const result = await updateProfilePictureMutation(formData);
+
+      // Update AuthContext to propagate changes to all components
+      if (result && result.foto_perfil_url) {
+        await updateProfile({
+          ...user,
+          foto_perfil: result.foto_perfil_url,
+          foto_perfil_url: result.foto_perfil_url,
+          _skipBackendUpdate: true
+        });
+      } else {
+        // If result doesn't include URL, fetch fresh profile data
+        const freshProfile = await userService.getUserProfile(user?.id);
+        if (freshProfile) {
+          await updateProfile({
+            ...user,
+            foto_perfil: freshProfile.foto_perfil_url || freshProfile.foto_perfil,
+            foto_perfil_url: freshProfile.foto_perfil_url || freshProfile.foto_perfil,
+            _skipBackendUpdate: true
+          });
+        }
+      }
     } catch (error) {
       Alert.alert('Error', 'Falló la subida de imagen');
     }
@@ -150,7 +160,9 @@ const EditProfileScreen = () => {
     }
   };
 
-  if (initialLoading) {
+  if (isProfileLoading && !user) {
+    // Solo mostrar loading si no tenemos datos de usuario previos (contexto)
+    // para evitar flickering si ya tenemos datos básicos
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator color={COLORS.primary[500]} />
@@ -160,22 +172,7 @@ const EditProfileScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.headerGradientContainer, { paddingTop: insets.top }]}>
-        <LinearGradient
-          colors={['#0F172A', '#1E293B']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Editar Perfil</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        {/* Profile Pic Container centered over the gradient bottom edge */}
+      <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.profilePicWrapper}>
           <TouchableOpacity onPress={handleImagePick} activeOpacity={0.8} style={styles.avatarContainer}>
             {profileImage ? (
@@ -190,9 +187,6 @@ const EditProfileScreen = () => {
             </View>
           </TouchableOpacity>
         </View>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.spacer} />
 
         <Text style={styles.sectionLabel}>INFORMACIÓN BÁSICA</Text>
@@ -266,37 +260,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerGradientContainer: {
-    height: 180,
-    position: 'relative',
-    zIndex: 1,
-    marginBottom: 50, // Space for avatar overlap
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 60,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: 'white',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
   profilePicWrapper: {
-    position: 'absolute',
-    bottom: -40,
-    left: 0,
-    right: 0,
     alignItems: 'center',
-    zIndex: 10,
+    marginTop: 24,
+    marginBottom: 24,
   },
   avatarContainer: {
     position: 'relative',
@@ -310,8 +277,6 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 4,
-    borderColor: 'white',
     backgroundColor: COLORS.neutral.gray[100],
   },
   avatarPlaceholder: {

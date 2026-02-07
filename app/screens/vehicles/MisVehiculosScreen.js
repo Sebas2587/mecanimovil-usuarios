@@ -396,6 +396,14 @@ const MisVehiculosScreen = () => {
   // --- RENDER HELPERS ---
   const formatCurrency = (value) => `$${(Number(value) || 0).toLocaleString('es-CL')}`;
 
+  // Get health color based on score
+  const getHealthColor = (score) => {
+    if (score >= 80) return '#10B981'; // Green - Excellent
+    if (score >= 60) return '#F59E0B'; // Yellow/Amber - Good
+    if (score >= 40) return '#F97316'; // Orange - Fair
+    return '#EF4444'; // Red - Poor
+  };
+
   const renderVehicleItem = ({ item }) => {
     // Mock Data for Visuals (replace with real data if available)
     const estimatedValue = item.precio_sugerido_final || item.precio_mercado_promedio || 0;
@@ -459,25 +467,33 @@ const MisVehiculosScreen = () => {
                   <Text style={styles.healthLabel}>Salud General</Text>
                   <Text style={[
                     styles.healthPercent,
-                    { color: item.health_score >= 80 ? COLORS.success : '#EF4444' }
-                  ]}>{item.health_score}%</Text>
+                    { color: getHealthColor(item.health_score) }
+                  ]}>{Math.round(item.health_score)}%</Text>
                 </View>
                 <View style={styles.progressBarBg}>
                   <View style={[
                     styles.progressBarFill,
                     {
                       width: `${item.health_score}%`,
-                      backgroundColor: item.health_score >= 80 ? COLORS.success : '#EF4444'
+                      backgroundColor: getHealthColor(item.health_score)
                     }
                   ]} />
                 </View>
 
                 {item.health_score >= 80 ? (
-                  <Text style={[styles.healthStatus, { color: COLORS.success }]}>
+                  <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
                     <Ionicons name="checkmark-circle" size={12} /> En Buen Estado
                   </Text>
+                ) : item.health_score >= 60 ? (
+                  <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                    <Ionicons name="information-circle" size={12} /> Buen Estado
+                  </Text>
+                ) : item.health_score >= 40 ? (
+                  <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                    <Ionicons name="alert-circle" size={12} /> Mantenimiento Recomendado ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
+                  </Text>
                 ) : (
-                  <Text style={[styles.healthStatus, { color: '#EF4444' }]}>
+                  <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
                     <Ionicons name="warning" size={12} /> Requiere Atención ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
                   </Text>
                 )}

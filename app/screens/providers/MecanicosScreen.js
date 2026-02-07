@@ -26,7 +26,7 @@ import * as providerService from '../../services/providers';
 import websocketService from '../../services/websocketService';
 
 // Componentes
-import AddressSelector from '../../components/forms/AddressSelector';
+import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 import FiltersModal from '../../components/modals/FiltersModal';
 import VehicleValidationMessage from '../../components/vehicles/VehicleValidationMessage';
 import NearbyMecanicoCard from '../../components/cards/NearbyMecanicoCard';
@@ -37,6 +37,7 @@ import Badge from '../../components/base/Badge/Badge';
 
 // Utilidades
 import { ROUTES } from '../../utils/constants';
+import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
 import { useTheme } from '../../design-system/theme/useTheme';
 
 const MecanicosScreen = () => {
@@ -72,6 +73,7 @@ const MecanicosScreen = () => {
   const [selectedComuna, setSelectedComuna] = useState(null);
   const [validationError, setValidationError] = useState(null);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
 
   // Estados de ubicación
   const [currentAddress, setCurrentAddress] = useState(null);
@@ -360,12 +362,16 @@ const MecanicosScreen = () => {
     }
   };
 
-  // Función para manejar cambio de dirección
   const handleAddressChange = async (address) => {
-    try { await locationService.setActiveAddress(address); } catch { }
+    try {
+      // No need to set active address globally if we just want to filter this screen, 
+      // but for consistency with Home, let's do it.
+      await locationService.setActiveAddress(address);
+    } catch { }
     setCurrentAddress(address);
-    setLoading(true);
+    setAddressModalVisible(false); // Close modal
 
+    setLoading(true);
     try {
       const coords = await locationService.geocodeAddress(address.direccion);
       if (coords) {
@@ -375,9 +381,9 @@ const MecanicosScreen = () => {
 
       // Obtener vehículos del usuario para filtrar por marcas
       const userVehicles = await vehicleService.getUserVehicles();
-      // Recargar mecánicos con nueva ubicación - el backend calculará las distancias
+      // Recargar mecánicos con nueva ubicación
       await loadInitialData(address, userVehicles);
-      console.log('📍 Mecánicos recargados con distancias precisas del backend (PostGIS)');
+      console.log('📍 Mecánicos recargados con nueva ubicación');
     } catch (error) {
       console.error('❌ Error cambiando dirección:', error);
       setLocationError('Error al cambiar la ubicación');
@@ -399,11 +405,10 @@ const MecanicosScreen = () => {
   // Función para manejar selección de mecánico
   const handleMecanicoPress = useCallback((mecanico) => {
     console.log('🔧 Mecánico seleccionado:', mecanico.nombre);
-
-    // Navegar a los detalles del mecánico
     navigation.navigate(ROUTES.PROVIDER_DETAIL, {
       provider: mecanico,
-      type: 'mecanico',
+      providerId: mecanico.id,
+      providerType: 'mecanico',
       isNearby: true,
       distance: mecanico.distance ? `${mecanico.distance}km` : 'Distancia no disponible'
     });
@@ -433,300 +438,148 @@ const MecanicosScreen = () => {
 
   // Función para renderizar items
   const renderItem = ({ item }) => (
-  <TouchableOpacity
-    onPress={() => navigation.navigate(ROUTES.PROVIDER_DETAIL, { providerId: item.id, type: 'mecanico' })}
-    activeOpacity={0.9}
-  >
-    <Card style={styles.card}>
-      <View style={styles.cardContent}>
-        {item.imagen ? (
-          <Image
-            source={{ uri: item.imagen }}
-            style={[styles.image, { borderRadius: borders.radius?.card?.md || 12 }]}
-          />
-        ) : (
-          <View style={[styles.image, styles.imagePlaceholder, { borderRadius: borders.radius?.card?.md || 12 }]}>
-            <Ionicons name="person" size={32} color={colors.text?.secondary || '#9CA3AF'} />
-          </View>
-        )}
-        <View style={styles.infoContainer}>
-          <View style={styles.headerRow}>
-            <Text style={[styles.name, {
-              color: colors.text?.primary || '#111827',
-              fontSize: typography.fontSize?.lg || 18
-            }]}>
-              {item.nombre}
-            </Text>
-            <Badge
-              content={item.rating?.toFixed(1) || '0.0'}
-              type="warning"
-              size="sm"
-              icon="star"
-            />
-          </View>
-
-          <Text style={[styles.specialty, {
-            color: colors.primary?.['600'] || '#2563EB',
-            fontSize: typography.fontSize?.sm || 14,
-            fontWeight: typography.fontWeight?.medium || '500'
-          }]}>
-            {item.especialidad || 'Mecánica General'}
-          </Text>
-
-          <View style={styles.detailsRow}>
-            <Text style={[styles.distance, {
-              color: colors.text?.secondary || '#4B5563',
-              fontSize: typography.fontSize?.xs || 12
-            }]}>
-              <Ionicons name="location-outline" size={12} color={colors.text?.secondary || '#4B5563'} /> {item.distancia || item.distance || 'N/A'}
-            </Text>
-            <Text style={[styles.reviews, {
-              color: colors.text?.secondary || '#4B5563',
-              fontSize: typography.fontSize?.xs || 12
-            }]}>
-              {item.reviews || 0} reseñas
-            </Text>
-          </View>
-
-          <View style={styles.footerRow}>
-            <Badge
-              content={item.disponible ? 'Disponible' : 'Ocupado'}
-              type={item.disponible ? 'success' : 'neutral'}
-              size="sm"
-              variant="soft"
-            />
-          </View>
-        </View>
-      </View>
-    </Card>
-  </TouchableOpacity>
+    <View style={styles.createdCardContainer}>
+      <ProviderPreviewCard
+        {...formatForPreviewCard(item)}
+        width="100%"
+        onPress={() => handleMecanicoPress(item)}
+      />
+    </View>
   );
 
+  // Format mechanics for ProviderPreviewCard
+  const formatForPreviewCard = (item) => {
+    // Show car brands first, then specialties
+    let specialty = "General";
+    if (item.marcas_atendidas_nombres && item.marcas_atendidas_nombres.length > 0) {
+      specialty = item.marcas_atendidas_nombres.join(', ');
+    } else if (item.especialidades && Array.isArray(item.especialidades) && item.especialidades.length > 0) {
+      specialty = item.especialidades[0].nombre || item.especialidades.map(s => s.nombre).join(', ');
+    }
+
+    return {
+      id: item.id,
+      name: item.nombre,
+      specialty: specialty,
+      rating: item.calificacion_promedio ? parseFloat(item.calificacion_promedio).toFixed(1) : "0.0",
+      reviews: item.numero_de_calificaciones || 0,
+      distance: item.distance ? `${parseFloat(item.distance).toFixed(1)} km` : null,
+      verified: item.verificado,
+      image: item.usuario?.foto_perfil || item.usuario?.foto_perfil_url || item.foto_perfil_url || item.foto_perfil || item.imagen
+    };
+  };
+
   return (
-  <View style={[styles.container, { backgroundColor: colors.background?.default || '#F3F4F6' }]}>
-    <Header title="Mecánicos" showBack />
+    <View style={styles.container}>
 
-    <View style={[styles.searchContainer, {
-      backgroundColor: colors.background?.paper || '#FFF',
-      padding: spacing.md || 16
-    }]}>
-      <View style={[styles.searchBar, {
-        backgroundColor: colors.background?.default || '#F3F4F6',
-        borderRadius: borders.radius?.full || 9999
-      }]}>
-        <Ionicons name="search" size={20} color={colors.text?.secondary || '#9CA3AF'} style={styles.searchIcon} />
-        <TextInput
-          style={[styles.searchInput, {
-            color: colors.text?.primary || '#111827',
-            fontSize: typography.fontSize?.md || 16
-          }]}
-          placeholder="Buscar mecánicos..."
-          placeholderTextColor={colors.text?.secondary || '#9CA3AF'}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+      {/* Location Filter Section (UserPanel Style) */}
+      <View style={styles.filterSection}>
+        <TouchableOpacity
+          style={styles.locationSelector}
+          onPress={() => setAddressModalVisible(true)}
+        >
+          <Ionicons name="location-outline" size={14} color={colors.primary?.[500]} />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {currentAddress ? `${currentAddress.etiqueta}` : 'Seleccionar ubicación'}
+            {currentAddress && <Text style={{ fontWeight: '400', color: colors.text?.tertiary }}> ({currentAddress.direccion})</Text>}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color={colors.neutral?.gray?.[400]} />
+        </TouchableOpacity>
+      </View>
+
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary?.[500] || '#3B82F6'} />
+        </View>
+      ) : (
+        <FlatList
+          data={mecanicos}
+          numColumns={2}
+          key={2}
+          columnWrapperStyle={styles.columnWrapper}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={64} color={colors.neutral?.gray?.[300] || '#D1D5DB'} />
+              <Text style={styles.emptyText}>
+                No se encontraron mecánicos
+              </Text>
+            </View>
+          }
         />
-      </View>
-    </View>
-
-    {loading ? (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary?.[500] || '#3B82F6'} />
-      </View>
-    ) : (
-      <FlatList
-        data={mecanicos}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={[styles.listContent, { padding: spacing.md || 16 }]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={64} color={colors.neutral?.gray?.[300] || '#D1D5DB'} />
-            <Text style={[styles.emptyText, {
-              color: colors.text?.secondary || '#4B5563',
-              fontSize: typography.fontSize?.md || 16,
-              marginTop: spacing.md || 16
-            }]}>
-              No se encontraron mecánicos
-            </Text>
-          </View>
-        }
+      )}
+      <AddressSelectionModal
+        visible={addressModalVisible}
+        onClose={() => setAddressModalVisible(false)}
+        onSelectAddress={handleAddressChange}
+        currentAddress={currentAddress}
       />
-    )}
-  </View>
+    </View>
   );
 };
 
 // Función para crear estilos dinámicos
 const createStyles = (colors, typography, spacing, borders) => {
-  // Valores fallback seguros
-  const safeColors = colors || {
-    background: { default: '#F3F4F6', paper: '#FFFFFF' },
-    text: { primary: '#111827', secondary: '#4B5563', inverse: '#FFFFFF' },
-    primary: { 500: '#3B82F6' },
-    border: { light: '#E5E7EB' }
-  };
-  const safeTypography = typography || {
-    fontSize: { xs: 10, sm: 12, md: 16, lg: 18, xl: 20, '2xl': 24 },
-    fontWeight: { medium: '500', bold: '700' }
-  };
-  const safeSpacing = spacing || { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, '2xl': 48 };
-  const safeBorders = borders || {
-    radius: { full: 9999, card: { md: 12 } },
-    width: { thin: 1 }
-  };
+  const safeColors = colors || {};
+  const safeTypography = typography || {};
+  const safeSpacing = spacing || {};
 
   return StyleSheet.create({
     container: {
       flex: 1,
-      shadowRadius: 2,
-      elevation: 1,
-      borderWidth: safeBorders.width?.thin || 1,
-      borderColor: safeColors.border?.light || '#E5E7EB',
+      backgroundColor: safeColors.background?.default || '#F3F4F6',
     },
-    searchContainer: {
+    filterSection: {
+      backgroundColor: safeColors.background?.paper || '#FFFFFF',
       paddingHorizontal: safeSpacing.md || 16,
       paddingVertical: safeSpacing.sm || 8,
-      backgroundColor: safeColors.background?.paper || '#FFFFFF',
+      borderBottomWidth: 1,
+      borderBottomColor: safeColors.border?.light || '#E5E7EB',
     },
-    searchBar: {
+    locationSelector: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: safeSpacing.md || 16,
     },
-    searchIcon: {
-      marginRight: safeSpacing.sm || 8,
-    },
-    searchInput: {
-      flex: 1,
-    },
-    listContent: {
-      // Estilos definidos inline
-    },
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: safeSpacing.xl || 32,
-    },
-    emptyText: {
-      // Estilos definidos inline
+    locationText: {
+      fontSize: safeTypography.fontSize?.sm || 14,
+      color: safeColors.text?.secondary || '#4B5563',
+      marginHorizontal: 4,
+      maxWidth: 200,
     },
     loadingContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      backgroundColor: safeColors.background?.default || '#F3F4F6',
     },
-    loadingText: {
-      marginTop: safeSpacing.sm || 8,
-      fontSize: safeTypography.fontSize?.md || 16,
-      color: safeColors.text?.secondary || '#4B5563',
+    listContent: {
+      padding: safeSpacing.md || 16,
     },
-    errorContainer: {
+    createdCardContainer: {
       flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: safeColors.background?.default || '#F3F4F6',
-      paddingHorizontal: safeSpacing.lg || 24,
+      margin: 6,
+      maxWidth: '47%'
     },
-    errorTitle: {
-      fontSize: safeTypography.fontSize?.xl || 20,
-      color: safeColors.text?.primary || '#111827',
-      marginTop: safeSpacing.md || 16,
-      marginBottom: safeSpacing.sm || 8,
-    },
-    errorMessage: {
-      fontSize: safeTypography.fontSize?.md || 16,
-      color: safeColors.text?.secondary || '#4B5563',
-      textAlign: 'center',
-      marginBottom: safeSpacing.lg || 24,
-    },
-    retryButton: {
-      backgroundColor: safeColors.primary?.[500] || '#3B82F6',
-      paddingHorizontal: safeSpacing['2xl'] || 48,
-      paddingVertical: safeSpacing.sm || 8,
-      borderRadius: safeBorders.radius?.full || 9999,
-    },
-    retryButtonText: {
-      color: safeColors.text?.inverse || '#FFFFFF',
-      fontSize: safeTypography.fontSize?.md || 16,
-    },
-    content: {
-      paddingHorizontal: safeSpacing.md || 16,
-      paddingTop: safeSpacing.md || 16,
-      paddingBottom: safeSpacing.md || 16,
-    },
-    cardsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
+    columnWrapper: {
       justifyContent: 'space-between',
     },
-    cardContainer: {
-      width: '48%',
-      marginBottom: safeSpacing.md || 16,
-    },
-    card: {
-      // Estilos definidos inline
-    },
-    cardContent: {
-      // Estilos definidos inline
-    },
-    image: {
-      width: 80,
-      height: 80,
-    },
-    imagePlaceholder: {
-      backgroundColor: safeColors.background?.default || '#F3F4F6',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    infoContainer: {
-      // Estilos definidos inline
-    },
-    headerRow: {
-      // Estilos definidos inline
-    },
-    name: {
-      // Estilos definidos inline
-    },
-    specialty: {
-      // Estilos definidos inline
-    },
-    detailsRow: {
-      // Estilos definidos inline
-    },
-    distance: {
-      // Estilos definidos inline
-    },
-    reviews: {
-      // Estilos definidos inline
-    },
-    footerRow: {
-      // Estilos definidos inline
-    },
-    noMecanicosContainer: {
+    emptyContainer: {
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: safeSpacing.lg || 24,
-      paddingVertical: safeSpacing['2xl'] || 48,
+      paddingTop: 60,
     },
-    noMecanicosTitle: {
-      fontSize: safeTypography.fontSize?.xl || 20,
-      color: safeColors.text?.primary || '#111827',
-      marginTop: safeSpacing.md || 16,
-      marginBottom: safeSpacing.sm || 8,
-    },
-    noMecanicosMessage: {
-      fontSize: safeTypography.fontSize?.md || 16,
-      color: safeColors.text?.secondary || '#4B5563',
+    emptyText: {
       textAlign: 'center',
-      marginBottom: safeSpacing.lg || 24,
+      color: safeColors.text?.secondary || '#4B5563',
+      fontSize: safeTypography.fontSize?.md || 16,
+      marginTop: safeSpacing.md || 16,
     },
   });
 };
 
-export default MecanicosScreen; 
+export default MecanicosScreen;

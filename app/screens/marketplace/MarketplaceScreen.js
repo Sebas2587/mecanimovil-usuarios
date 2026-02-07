@@ -315,14 +315,16 @@ const MarketplaceScreen = () => {
                     <View style={styles.bottomBadges}>
                         {(() => {
                             const score = item.health_score || 100;
-                            let badgeColor = colors.success?.main || '#10B981';
-                            if (score < 40) badgeColor = colors.error?.main || '#EF4444';
-                            else if (score < 70) badgeColor = colors.warning?.main || '#F59E0B';
+                            // Consistent color logic across all screens
+                            let badgeColor = '#10B981'; // Green
+                            if (score < 40) badgeColor = '#EF4444'; // Red
+                            else if (score < 60) badgeColor = '#F97316'; // Orange
+                            else if (score < 80) badgeColor = '#F59E0B'; // Yellow
 
                             return (
                                 <View style={styles.healthBadge}>
                                     <Ionicons name="heart" size={12} color={badgeColor} />
-                                    <Text style={[styles.healthText, { color: badgeColor }]}>{score}% Salud</Text>
+                                    <Text style={[styles.healthText, { color: badgeColor }]}>{Math.round(score)}% Salud</Text>
                                 </View>
                             );
                         })()}

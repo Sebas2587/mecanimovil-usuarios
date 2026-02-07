@@ -333,7 +333,7 @@ const UserPanelScreen = () => {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Mecánicos a Domicilio</Text>
-              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.SEARCH_PROVIDERS, { type: 'mechanic' })}>
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MECANICOS)}>
                 <Ionicons name="arrow-forward" size={20} color={colors.neutral?.gray?.[400]} />
               </TouchableOpacity>
             </View>
@@ -358,7 +358,7 @@ const UserPanelScreen = () => {
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Talleres Certificados</Text>
-              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.SEARCH_PROVIDERS, { type: 'workshop' })}>
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.TALLERES)}>
                 <Ionicons name="arrow-forward" size={20} color={colors.neutral?.gray?.[400]} />
               </TouchableOpacity>
             </View>

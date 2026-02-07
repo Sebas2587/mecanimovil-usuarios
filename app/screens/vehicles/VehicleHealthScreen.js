@@ -136,11 +136,19 @@ const VehicleHealthScreen = ({ route }) => {
 
   // --- RENDERERS ---
 
+  // Get health color based on score - matches MisVehiculosScreen logic
+  const getHealthColor = (score) => {
+    if (score >= 80) return '#10B981'; // Green - Excellent
+    if (score >= 60) return '#F59E0B'; // Yellow/Amber - Good
+    if (score >= 40) return '#F97316'; // Orange - Fair
+    return '#EF4444'; // Red - Poor
+  };
+
   const renderHeader = () => {
-    // Health Score
-    // Verify source: healthData.salud_general_porcentaje OR vehicleData.health_score
-    const score = healthData?.salud_general_porcentaje ?? vehicleData?.health_score ?? 0;
-    const scoreColor = score >= 70 ? COLORS.success[500] : score >= 40 ? COLORS.warning[500] : COLORS.error[500];
+    // Health Score - Use same source as MisVehiculosScreen for consistency
+    // Priority: vehicleData.health_score (from vehicles list) > healthData.salud_general_porcentaje
+    const score = vehicleData?.health_score ?? healthData?.salud_general_porcentaje ?? 0;
+    const scoreColor = getHealthColor(score);
 
     return (
       <View style={styles.headerContainer}>

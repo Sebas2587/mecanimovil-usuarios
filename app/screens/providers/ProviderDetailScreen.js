@@ -32,9 +32,22 @@ const ProviderDetailScreen = () => {
   const route = useRoute();
 
   // Extract params with robust fallbacks
-  const { provider: initialProvider, providerId, type } = route.params || {};
+  const params = route.params || {};
+  console.log('🔍 [ProviderDetailScreen] Route params received:', JSON.stringify(params, null, 2));
+
+  const { provider: initialProvider, providerId, type, providerType: paramProviderType } = params;
   const idToLoad = providerId || initialProvider?.id;
-  const providerType = type || (initialProvider?.tipo === 'taller' ? 'taller' : 'mecanico');
+
+  // Determine provider type - prioritize explicit type parameter
+  const providerType = type || paramProviderType || (initialProvider?.tipo === 'taller' ? 'taller' : 'mecanico');
+
+  console.log('🔍 [ProviderDetailScreen] Extracted values:', {
+    idToLoad,
+    providerType,
+    type,
+    paramProviderType,
+    initialProviderTipo: initialProvider?.tipo
+  });
 
   // Fetch Data
   const { data: details, isLoading: loadingDetails } = useProviderDetails(idToLoad, providerType);

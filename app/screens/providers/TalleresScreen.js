@@ -24,11 +24,10 @@ import * as providerService from '../../services/providers';
 import websocketService from '../../services/websocketService';
 
 // Componentes
-import AddressSelector from '../../components/forms/AddressSelector';
+import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 import FiltersModal from '../../components/modals/FiltersModal';
 import VehicleValidationMessage from '../../components/vehicles/VehicleValidationMessage';
-import NearbyTallerCard from '../../components/cards/NearbyTallerCard';
-import SearchBar from '../../components/forms/SearchBar';
+import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
 
 // Utilidades
 import { ROUTES } from '../../utils/constants';
@@ -67,6 +66,7 @@ const TalleresScreen = () => {
   const [selectedComuna, setSelectedComuna] = useState(null);
   const [validationError, setValidationError] = useState(null);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
 
   // Estados de ubicación
   const [currentAddress, setCurrentAddress] = useState(null);
@@ -305,6 +305,8 @@ const TalleresScreen = () => {
   const handleAddressChange = async (address) => {
     try { await locationService.setActiveAddress(address); } catch { }
     setCurrentAddress(address);
+    setAddressModalVisible(false);
+
     setLoading(true);
     try {
       const coords = await locationService.geocodeAddress(address.direccion);
@@ -314,9 +316,9 @@ const TalleresScreen = () => {
       }
       // Obtener vehículos del usuario para filtrar por marcas
       const userVehicles = await vehicleService.getUserVehicles();
-      // Recargar talleres con nueva ubicación - el backend calculará las distancias
+      // Recargar talleres con nueva ubicación
       await loadInitialData(address, userVehicles);
-      console.log('📍 Talleres recargados con distancias precisas del backend (PostGIS)');
+      console.log('📍 Talleres recargados con nueva ubicación');
     } catch (error) {
       console.error('❌ Error cambiando dirección:', error);
       setLocationError('Error al cambiar la ubicación');
@@ -331,7 +333,8 @@ const TalleresScreen = () => {
     console.log('🏪 Taller seleccionado:', taller.nombre);
     navigation.navigate(ROUTES.PROVIDER_DETAIL, {
       provider: taller,
-      type: 'taller',
+      providerId: taller.id,
+      providerType: 'taller',
       isNearby: true,
       distance: taller.distance ? `${taller.distance}km` : 'Distancia no disponible'
     });
@@ -344,108 +347,91 @@ const TalleresScreen = () => {
     setShowFiltersModal(false);
   };
 
+  // Format talleres for ProviderPreviewCard
+  const formatForPreviewCard = (item) => {
+    // Show car brands first, then specialties
+    let specialty = "General";
+    if (item.marcas_atendidas_nombres && item.marcas_atendidas_nombres.length > 0) {
+      specialty = item.marcas_atendidas_nombres.join(', ');
+    } else if (item.especialidades && Array.isArray(item.especialidades) && item.especialidades.length > 0) {
+      specialty = item.especialidades[0].nombre || item.especialidades.map(s => s.nombre).join(', ');
+    }
+
+    return {
+      id: item.id,
+      name: item.nombre,
+      specialty: specialty,
+      rating: item.calificacion_promedio ? parseFloat(item.calificacion_promedio).toFixed(1) : "0.0",
+      reviews: item.numero_de_calificaciones || 0,
+      distance: item.distance ? `${parseFloat(item.distance).toFixed(1)} km` : null,
+      verified: item.verificado,
+      image: item.usuario?.foto_perfil || item.usuario?.foto_perfil_url || item.foto_perfil_url || item.foto_perfil || item.imagen
+    };
+  };
+
+  const styles = React.useMemo(() =>
+    createStyles(colors, typography, spacing, borders),
+    [colors, typography, spacing, borders]
+  );
+
+  // Defensive check - prevent rendering if styles aren't ready
+  if (!styles) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' }}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </SafeAreaView>
+    );
+  }
+
+  // Early returns for loading and error states - AFTER styles is defined
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={effectiveColors.primary?.[500] || SAFE_COLORS.primary[500]} />
-        <Text style={styles.loadingText}>Cargando talleres...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary?.[500] || '#3B82F6'} />
+          <Text style={styles.loadingText}>Cargando talleres...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle-outline" size={60} color={effectiveColors.error?.[500] || SAFE_COLORS.error[500]} />
-        <Text style={styles.errorTitle}>Error al cargar talleres</Text>
-        <Text style={styles.errorMessage}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-          <Text style={styles.retryButtonText}>Intentar de nuevo</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={60} color={colors.error?.[500] || '#EF4444'} />
+          <Text style={styles.errorTitle}>Error al cargar talleres</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+            <Text style={styles.retryButtonText}>Intentar de nuevo</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: effectiveColors.background?.default || SAFE_COLORS.background.default },
-    scrollView: { flex: 1 },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: effectiveSpacing.lg || SAFE_SPACING.lg, paddingVertical: effectiveSpacing.md || SAFE_SPACING.md, backgroundColor: effectiveColors.background?.paper || SAFE_COLORS.background.paper, borderBottomWidth: effectiveBorders.width?.thin || SAFE_BORDERS.width.thin, borderBottomColor: effectiveColors.border?.light || SAFE_COLORS.border.light },
-    backButton: { marginRight: effectiveSpacing.md || SAFE_SPACING.md, padding: effectiveSpacing.xs || SAFE_SPACING.xs },
-    headerContent: { flex: 1 },
-    headerTitle: { fontSize: effectiveTypography.fontSize?.['2xl'] || SAFE_TYPOGRAPHY.fontSize['2xl'], color: effectiveColors.text?.primary || SAFE_COLORS.text.primary },
-    headerSubtitle: { fontSize: effectiveTypography.fontSize?.sm || SAFE_TYPOGRAPHY.fontSize.sm, color: effectiveColors.text?.secondary || SAFE_COLORS.text.secondary, marginTop: effectiveSpacing.xxs || SAFE_SPACING.xxs },
-    filterButton: { padding: effectiveSpacing.sm || SAFE_SPACING.sm, borderRadius: effectiveBorders.radius?.md || SAFE_BORDERS.radius.md, backgroundColor: effectiveColors.neutral?.gray?.[300] || SAFE_COLORS.neutral.gray[300] },
-    locationBadgeContainer: {
-      backgroundColor: effectiveColors.background?.paper || SAFE_COLORS.background.paper,
-      marginHorizontal: effectiveSpacing.md || SAFE_SPACING.md,
-      marginTop: effectiveSpacing.sm || SAFE_SPACING.sm,
-      marginBottom: effectiveSpacing.xs || SAFE_SPACING.xs,
-      borderRadius: effectiveBorders.radius?.md || SAFE_BORDERS.radius.md,
-      paddingHorizontal: effectiveSpacing.sm || SAFE_SPACING.sm,
-      paddingVertical: effectiveSpacing.xs || SAFE_SPACING.xs,
-      shadowColor: effectiveColors.base?.inkBlack || SAFE_COLORS.base.inkBlack,
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 2,
-      elevation: 1,
-      borderWidth: effectiveBorders.width?.thin || SAFE_BORDERS.width.thin,
-      borderColor: effectiveColors.border?.light || SAFE_COLORS.border.light,
-    },
-    searchContainer: {
-      paddingHorizontal: effectiveSpacing.md || SAFE_SPACING.md,
-      paddingVertical: effectiveSpacing.sm || SAFE_SPACING.sm,
-      backgroundColor: effectiveColors.background?.paper || SAFE_COLORS.background.paper,
-    },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: effectiveColors.background?.default || SAFE_COLORS.background.default },
-    loadingText: { marginTop: effectiveSpacing.sm || SAFE_SPACING.sm, fontSize: effectiveTypography.fontSize?.md || SAFE_TYPOGRAPHY.fontSize.md, color: effectiveColors.text?.secondary || SAFE_COLORS.text.secondary },
-    errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: effectiveColors.background?.default || SAFE_COLORS.background.default, paddingHorizontal: effectiveSpacing.lg || SAFE_SPACING.lg },
-    errorTitle: { fontSize: effectiveTypography.fontSize?.xl || SAFE_TYPOGRAPHY.fontSize.xl, color: effectiveColors.text?.primary || SAFE_COLORS.text.primary, marginTop: effectiveSpacing.md || SAFE_SPACING.md, marginBottom: effectiveSpacing.sm || SAFE_SPACING.sm },
-    errorMessage: { fontSize: effectiveTypography.fontSize?.md || SAFE_TYPOGRAPHY.fontSize.md, color: effectiveColors.text?.secondary || SAFE_COLORS.text.secondary, textAlign: 'center', marginBottom: effectiveSpacing.lg || SAFE_SPACING.lg },
-    retryButton: { backgroundColor: effectiveColors.primary?.[500] || SAFE_COLORS.primary[500], paddingHorizontal: effectiveSpacing['2xl'] || SAFE_SPACING['2xl'], paddingVertical: effectiveSpacing.sm || SAFE_SPACING.sm, borderRadius: effectiveBorders.radius?.full || SAFE_BORDERS.radius.full },
-    retryButtonText: { color: effectiveColors.text?.inverse || SAFE_COLORS.text.inverse, fontSize: effectiveTypography.fontSize?.md || SAFE_TYPOGRAPHY.fontSize.md },
-    content: {
-      paddingHorizontal: effectiveSpacing.md || SAFE_SPACING.md,
-      paddingTop: effectiveSpacing.md || SAFE_SPACING.md,
-      paddingBottom: effectiveSpacing.md || SAFE_SPACING.md,
-    },
-    cardsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
-    },
-    cardContainer: {
-      width: '48%',
-      marginBottom: effectiveSpacing.md || SAFE_SPACING.md,
-    },
-    noTalleresContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: effectiveSpacing.lg || SAFE_SPACING.lg, paddingVertical: effectiveSpacing['2xl'] || SAFE_SPACING['2xl'] },
-    noTalleresTitle: { fontSize: effectiveTypography.fontSize?.xl || SAFE_TYPOGRAPHY.fontSize.xl, color: effectiveColors.text?.primary || SAFE_COLORS.text.primary, marginTop: effectiveSpacing.md || SAFE_SPACING.md, marginBottom: effectiveSpacing.sm || SAFE_SPACING.sm },
-    noTalleresMessage: { fontSize: effectiveTypography.fontSize?.md || SAFE_TYPOGRAPHY.fontSize.md, color: effectiveColors.text?.secondary || SAFE_COLORS.text.secondary, textAlign: 'center', marginBottom: effectiveSpacing.lg || SAFE_SPACING.lg },
-  });
-
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={effectiveColors.background?.default || SAFE_COLORS.background.default} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background?.default || '#F3F4F6'} />
 
       <ScrollView
         style={styles.scrollView}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[effectiveColors.primary?.[500] || SAFE_COLORS.primary[500]]} tintColor={effectiveColors.primary?.[500] || SAFE_COLORS.primary[500]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary?.[500] || '#3B82F6']} tintColor={colors.primary?.[500] || '#3B82F6'} />}
       >
-        {/* Selector de Dirección - Badge Style (igual que UserPanelScreen) */}
-        <View style={styles.locationBadgeContainer}>
-          <AddressSelector
-            currentAddress={currentAddress}
-            onAddressChange={handleAddressChange}
-            onAddNewAddress={() => navigation.navigate(ROUTES.ADD_ADDRESS)}
-          />
-        </View>
 
-        {/* Buscador mejorado */}
-        <View style={styles.searchContainer}>
-          <SearchBar
-            placeholder="Buscar talleres por nombre, dirección o especialidad..."
-            value={searchQuery}
-            onChangeText={handleSearch}
-          />
+        {/* Location Filter Section (UserPanel Style) */}
+        <View style={styles.filterSection}>
+          <TouchableOpacity
+            style={styles.locationSelector}
+            onPress={() => setAddressModalVisible(true)}
+          >
+            <Ionicons name="location-outline" size={14} color={colors.primary?.[500]} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {currentAddress ? `${currentAddress.etiqueta}` : 'Seleccionar ubicación'}
+              {currentAddress && <Text style={{ fontWeight: '400', color: colors.text?.tertiary }}> ({currentAddress.direccion})</Text>}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={colors.neutral?.gray?.[400]} />
+          </TouchableOpacity>
         </View>
 
         {validationError && (
@@ -457,19 +443,20 @@ const TalleresScreen = () => {
             <View style={styles.cardsGrid}>
               {filteredTalleres.map((taller, index) => (
                 <View key={taller.id} style={styles.cardContainer}>
-                  <NearbyTallerCard taller={taller} onPress={() => handleTallerPress(taller)} />
+                  <ProviderPreviewCard
+                    {...formatForPreviewCard(taller)}
+                    width="100%"
+                    onPress={() => handleTallerPress(taller)}
+                  />
                 </View>
               ))}
             </View>
           ) : (
             <View style={styles.noTalleresContainer}>
-              <Ionicons name="construct-outline" size={60} color={effectiveColors.text?.secondary || SAFE_COLORS.text.secondary} />
+              <Ionicons name="construct-outline" size={60} color={colors.text?.secondary || '#4B5563'} />
               <Text style={styles.noTalleresTitle}>No hay talleres disponibles</Text>
               <Text style={styles.noTalleresMessage}>
-                {searchQuery.trim()
-                  ? `No se encontraron talleres que coincidan con "${searchQuery}"`
-                  : 'No se encontraron talleres en tu área. Intenta cambiar tu ubicación o ampliar el radio de búsqueda.'
-                }
+                No se encontraron talleres en tu área. Intenta cambiar tu ubicación o ampliar el radio de búsqueda.
               </Text>
             </View>
           )}
@@ -483,8 +470,71 @@ const TalleresScreen = () => {
         currentFilters={{ sortBy: 'distancia', selectedMarca, selectedModelo, selectedComuna }}
         type="taller"
       />
+
+      <AddressSelectionModal
+        visible={addressModalVisible}
+        onClose={() => setAddressModalVisible(false)}
+        onSelectAddress={handleAddressChange}
+        currentAddress={currentAddress}
+      />
     </SafeAreaView>
   );
 };
 
-export default TalleresScreen; 
+const createStyles = (colors, typography, spacing, borders) => {
+  const safeColors = colors || {};
+  const safeTypography = typography || {};
+  const safeSpacing = spacing || {};
+  const safeBorders = borders || {};
+
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: safeColors.background?.default || '#F3F4F6' },
+    scrollView: { flex: 1 },
+    // UserPanel location styles
+    filterSection: {
+      backgroundColor: safeColors.background?.paper || '#FFFFFF',
+      paddingHorizontal: safeSpacing.md || 16,
+      paddingVertical: safeSpacing.sm || 8,
+      borderBottomWidth: 1,
+      borderBottomColor: safeColors.border?.light || '#E5E7EB',
+    },
+    locationSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    locationText: {
+      fontSize: safeTypography.fontSize?.sm || 14,
+      color: safeColors.text?.secondary || '#4B5563',
+      marginHorizontal: 4,
+      maxWidth: 200,
+    },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: safeColors.background?.default || '#F3F4F6' },
+    loadingText: { marginTop: safeSpacing.sm || 8, fontSize: safeTypography.fontSize?.md || 16, color: safeColors.text?.secondary || '#6B7280' },
+    errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: safeColors.background?.default || '#F3F4F6', paddingHorizontal: safeSpacing.lg || 24 },
+    errorTitle: { fontSize: safeTypography.fontSize?.xl || 20, color: safeColors.text?.primary || '#111827', marginTop: safeSpacing.md || 16, marginBottom: safeSpacing.sm || 8 },
+    errorMessage: { fontSize: safeTypography.fontSize?.md || 16, color: safeColors.text?.secondary || '#6B7280', textAlign: 'center', marginBottom: safeSpacing.lg || 24 },
+    retryButton: { backgroundColor: safeColors.primary?.[500] || '#3B82F6', paddingHorizontal: safeSpacing['2xl'] || 48, paddingVertical: safeSpacing.sm || 8, borderRadius: safeBorders.radius?.full || 9999 },
+    retryButtonText: { color: safeColors.text?.inverse || '#FFFFFF', fontSize: safeTypography.fontSize?.md || 16 },
+    content: {
+      paddingHorizontal: safeSpacing.md || 16,
+      paddingTop: safeSpacing.md || 16,
+      paddingBottom: safeSpacing.md || 16,
+    },
+    cardsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    cardContainer: {
+      width: '48%',
+      marginBottom: safeSpacing.md || 16,
+    },
+    noTalleresContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: safeSpacing.lg || 24, paddingVertical: safeSpacing['2xl'] || 48 },
+    noTalleresTitle: { fontSize: safeTypography.fontSize?.xl || 20, color: safeColors.text?.primary || '#111827', marginTop: safeSpacing.md || 16, marginBottom: safeSpacing.sm || 8 },
+    noTalleresMessage: { fontSize: safeTypography.fontSize?.md || 16, color: safeColors.text?.secondary || '#6B7280', textAlign: 'center', marginBottom: safeSpacing.lg || 24 },
+  });
+};
+
+export default TalleresScreen;
+
+

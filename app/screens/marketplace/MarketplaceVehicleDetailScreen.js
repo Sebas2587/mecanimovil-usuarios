@@ -167,10 +167,11 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         const validScore = isNaN(score) ? 100 : score;
         const strokeDashoffset = circumference - (validScore / 100) * circumference;
 
-        // Dynamic Color Logic
-        let wheelColor = colors.success?.main || '#10B981';
-        if (validScore < 40) wheelColor = colors.error?.main || '#EF4444';
-        else if (validScore < 70) wheelColor = colors.warning?.main || '#F59E0B';
+        // Dynamic Color Logic - Consistent with other screens
+        let wheelColor = '#10B981'; // Green - Excellent (80-100%)
+        if (validScore < 40) wheelColor = '#EF4444'; // Red - Poor (0-39%)
+        else if (validScore < 60) wheelColor = '#F97316'; // Orange - Fair (40-59%)
+        else if (validScore < 80) wheelColor = '#F59E0B'; // Yellow/Amber - Good (60-79%)
 
         return (
             <View style={styles.chartContainer}>
@@ -241,12 +242,13 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const isOwner = user?.id && sellerId && (String(user.id) === String(sellerId));
 
     const renderHealthDetailItem = (item) => {
-        // Metric Logic matching VehicleHealthScreen
+        // Metric Logic matching VehicleHealthScreen - Consistent colors
         const score = item.salud_porcentaje || item.score || 0;
 
-        let color = colors.error?.main || '#EF4444'; // default red
-        if (score >= 70) color = colors.success?.main || '#10B981';
-        else if (score >= 40) color = colors.warning?.main || '#F59E0B';
+        let color = '#EF4444'; // Red - default poor
+        if (score >= 80) color = '#10B981'; // Green - Excellent
+        else if (score >= 60) color = '#F59E0B'; // Yellow - Good  
+        else if (score >= 40) color = '#F97316'; // Orange - Fair
 
         const name = item.nombre || item.name || 'Componente';
         const lastServiceKm = item.km_ultimo_servicio ? `${item.km_ultimo_servicio.toLocaleString()} km` : '0 km';

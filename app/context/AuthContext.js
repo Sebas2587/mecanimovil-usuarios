@@ -742,7 +742,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Valores y funciones disponibles a través del contexto
-  const value = {
+  const value = React.useMemo(() => ({
     user,
     token,
     loading,
@@ -752,7 +752,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     isAuthenticated: !!token,
-  };
+  }), [user, token, loading, error]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

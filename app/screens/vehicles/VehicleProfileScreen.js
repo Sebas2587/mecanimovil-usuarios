@@ -13,6 +13,7 @@ import {
     TextInput
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
@@ -139,6 +140,94 @@ const VehicleProfileScreen = () => {
         );
     };
 
+    const handleChangePhoto = () => {
+        Alert.alert(
+            'Cambiar Foto',
+            '¿Cómo deseas actualizar la foto?',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Galería', onPress: () => openImagePicker('library') },
+                { text: 'Cámara', onPress: () => openImagePicker('camera') },
+            ]
+        );
+    };
+
+    const openImagePicker = async (type) => {
+        try {
+            let result;
+            if (type === 'camera') {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permiso denegado', 'Se necesita acceso a la cámara');
+                    return;
+                }
+                result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [16, 9],
+                    quality: 0.7,
+                });
+            } else {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permiso denegado', 'Se necesita acceso a la galería');
+                    return;
+                }
+                result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [16, 9],
+                    quality: 0.7,
+                });
+            }
+
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                await uploadPhoto(result.assets[0].uri);
+            }
+        } catch (error) {
+            console.error('Error seleccionando imagen:', error);
+            Alert.alert('Error', 'No se pudo seleccionar la imagen');
+        }
+    };
+
+    const uploadPhoto = async (uri) => {
+        try {
+            // Optimistic update - show local image immediately
+            setVehicle(prev => ({
+                ...prev,
+                foto: uri
+            }));
+
+            setLoading(true);
+            const formData = new FormData();
+            formData.append('foto', {
+                uri: uri,
+                type: 'image/jpeg',
+                name: `vehicle_${Date.now()}.jpg`,
+            });
+
+            await vehicleService.updateVehicle(vehicle.id, formData);
+
+            // Refresh vehicle data to get new photo URL from server
+            const freshVehicle = await vehicleService.getVehicleById(vehicle.id);
+            if (freshVehicle) {
+                setVehicle(freshVehicle);
+            }
+
+            Alert.alert('Éxito', 'Foto actualizada correctamente');
+        } catch (error) {
+            console.error('Error updating photo:', error);
+            // Revert optimistic update on error
+            const freshVehicle = await vehicleService.getVehicleById(vehicle.id);
+            if (freshVehicle) {
+                setVehicle(freshVehicle);
+            }
+            Alert.alert('Error', 'No se pudo actualizar la foto');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (!vehicle) return <ActivityIndicator style={{ flex: 1 }} color={colors.primary?.[500]} />;
 
     const imageUrl = vehicle.foto || null;
@@ -183,12 +272,20 @@ const VehicleProfileScreen = () => {
 
                     {/* Header Controls (Inside Scroll) */}
                     <View style={[styles.scrollableHeaderControls, { top: insets.top }]}>
+                        {/* Left side - Camera button */}
+                        <TouchableOpacity style={styles.iconButton} onPress={handleChangePhoto}>
+                            <Ionicons name="camera-outline" size={24} color="#FFF" />
+                        </TouchableOpacity>
+
+                        {/* Right side - Delete button */}
                         <View style={styles.rightButtons}>
                             <TouchableOpacity style={styles.iconButton} onPress={handleDelete}>
                                 <Ionicons name="trash-outline" size={24} color="#FFF" />
                             </TouchableOpacity>
                         </View>
                     </View>
+
+                    {/* Image without overlay button */}
                     {imageUrl ? (
                         <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
                     ) : (
@@ -224,7 +321,7 @@ const VehicleProfileScreen = () => {
 
                     {/* 2. Quick Actions */}
                     <QuickActionGrid
-                        healthScore={healthData?.salud_general_porcentaje ? Math.round(healthData.salud_general_porcentaje) : 0}
+                        healthScore={vehicle?.health_score ?? (healthData?.salud_general_porcentaje ? Math.round(healthData.salud_general_porcentaje) : 0)}
                         serviceCount={servicesCount}
                         onHealthPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: vehicle.id, vehicle })}
                         onHistoryPress={() => navigation.navigate(ROUTES.VEHICLE_HISTORY, { vehicleId: vehicle.id, vehicle })}
@@ -374,7 +471,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         right: 0,
         zIndex: 10,
         flexDirection: 'row',
-        justifyContent: 'flex-end', // Align to right
+        justifyContent: 'space-between', // Space between left and right controls
         paddingHorizontal: 16,
         paddingTop: 16, // Add some padding from the very top edge of the container
     },

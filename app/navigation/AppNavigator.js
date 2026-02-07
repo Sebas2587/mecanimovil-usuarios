@@ -147,6 +147,11 @@ const ProfileStackNavigator = () => {
         options={getProfileMainHeaderOptions("Mi Perfil")}
       />
       <ProfileStack.Screen
+        name={ROUTES.EDIT_PROFILE}
+        component={EditProfileScreen}
+        options={getHeaderOptions("Editar Perfil")}
+      />
+      <ProfileStack.Screen
         name={ROUTES.VEHICLES_LIST}
         component={MisVehiculosScreen}
         options={getHeaderOptions("Vehículos")}
@@ -192,11 +197,6 @@ const ProfileStackNavigator = () => {
         options={getHeaderOptions("Términos y Condiciones")}
       />
       <ProfileStack.Screen
-        name={ROUTES.EDIT_PROFILE}
-        component={EditProfileScreen}
-        options={getHeaderOptions("Editar Perfil")}
-      />
-      <ProfileStack.Screen
         name={ROUTES.HISTORIAL_PAGOS}
         component={HistorialPagosScreen}
         options={{ headerShown: false }}
@@ -207,6 +207,45 @@ const ProfileStackNavigator = () => {
         options={getHeaderOptions("Proveedores Favoritos")}
       />
     </ProfileStack.Navigator>
+  );
+};
+
+// Home Stack Navigator - wraps UserPanelScreen and provider screens
+const HomeStack = createStackNavigator();
+
+const HomeNavigator = () => {
+  return (
+    <HomeStack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <HomeStack.Screen
+        name="UserPanel"
+        component={UserPanelScreen}
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen
+        name={ROUTES.TALLERES}
+        component={TalleresScreen}
+        options={getHeaderOptions("Talleres")}
+      />
+      <HomeStack.Screen
+        name={ROUTES.MECANICOS}
+        component={MecanicosScreen}
+        options={getHeaderOptions("Mecánicos a Domicilio")}
+      />
+      <HomeStack.Screen
+        name={ROUTES.PROVIDER_DETAIL}
+        component={ProviderDetailScreen}
+        options={{ headerShown: false }}
+      />
+      <HomeStack.Screen
+        name={ROUTES.PROVIDER_REVIEWS}
+        component={ProviderReviewsScreen}
+        options={getHeaderOptions("Comentarios del Proveedor")}
+      />
+    </HomeStack.Navigator>
   );
 };
 
@@ -382,7 +421,7 @@ const TabNavigator = () => {
     >
       <Tab.Screen
         name={ROUTES.HOME}
-        component={UserPanelScreen}
+        component={HomeNavigator}
         options={{ tabBarLabel: 'Inicio' }}
       />
       <Tab.Screen
@@ -424,27 +463,6 @@ const AppNavigator = () => {
       <Stack.Screen name="TabNavigator" component={TabNavigator} />
       <Stack.Screen name={ROUTES.ADD_ADDRESS} component={AddAddressScreen} />
 
-      {/* Nuevas pantallas de categorías */}
-      <Stack.Screen
-        name={ROUTES.TALLERES}
-        component={TalleresScreen}
-        options={getHeaderOptions("Talleres", { showProfile: true })}
-      />
-      <Stack.Screen
-        name={ROUTES.MECANICOS}
-        component={MecanicosScreen}
-        options={getHeaderOptions("Mecánicos a Domicilio", { showProfile: true })}
-      />
-      <Stack.Screen
-        name={ROUTES.PROVIDER_DETAIL}
-        component={ProviderDetailScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name={ROUTES.PROVIDER_REVIEWS}
-        component={ProviderReviewsScreen}
-        options={getHeaderOptions("Comentarios del Proveedor")}
-      />
       {/* Rutas OBSOLETAS - Comentadas para futuro cleanup */}
       {/* <Stack.Screen 
         name={ROUTES.SERVICE_DETAIL} 
