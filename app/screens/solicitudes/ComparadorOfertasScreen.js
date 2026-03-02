@@ -313,6 +313,7 @@ const ComparadorOfertasScreen = () => {
       >
         <ComparadorOfertas
           ofertas={ofertas}
+          solicitud={solicitud}
           onAceptarOferta={solicitud && solicitud.estado === 'adjudicada' ? undefined : handleAceptarOferta}
           solicitudAdjudicada={solicitud && solicitud.estado === 'adjudicada'}
           solicitudId={solicitudId}

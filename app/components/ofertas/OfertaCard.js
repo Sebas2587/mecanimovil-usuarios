@@ -20,6 +20,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
  */
 const OfertaCard = ({
   oferta,
+  solicitud = null, // Opcional: para mostrar "fecha que solicitaste" vs "fecha propuesta"
   destacada = false,
   esOfertaSecundaria = false,
   onChatPress,
@@ -492,16 +493,57 @@ const OfertaCard = ({
           {/* Información de la oferta */}
           <View style={styles.ofertaInfo}>
             {/* Fecha y hora */}
-            <View style={styles.infoRow}>
-              <View style={styles.infoLabelContainer}>
-                <Ionicons name="calendar-outline" size={14} color={COLORS.textLight} />
-                <Text style={styles.infoLabel}>Fecha:</Text>
-              </View>
-              <Text style={styles.infoText}>
-                {formatDate(oferta.fecha_disponible)}
-                {oferta.hora_disponible && ` a las ${formatTime(oferta.hora_disponible)}`}
-              </Text>
-            </View>
+            {(() => {
+              const esFechaAlternativa = oferta?.es_fecha_alternativa === true;
+              const fechaSolicitada = solicitud?.fecha_preferida;
+              const horaSolicitada = solicitud?.hora_preferida;
+              const fechaOferta = oferta?.fecha_disponible;
+              const horaOferta = oferta?.hora_disponible;
+              const motivoAlt = (oferta?.motivo_fecha_alternativa || '').trim();
+              const mostrarBloqueAlternativa = esFechaAlternativa ||
+                (solicitud && fechaSolicitada && fechaOferta && (
+                  (fechaSolicitada !== fechaOferta) ||
+                  (horaSolicitada && horaOferta && horaSolicitada.substring(0, 5) !== horaOferta.substring(0, 5))
+                ));
+
+              if (mostrarBloqueAlternativa && solicitud) {
+                return (
+                  <View style={styles.infoRow}>
+                    <View style={styles.infoLabelContainer}>
+                      <Ionicons name="calendar-outline" size={14} color={COLORS.textLight} />
+                      <Text style={styles.infoLabel}>Fecha:</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.infoText}>
+                        Fecha que solicitaste: {fechaSolicitada ? formatDate(fechaSolicitada) : 'No especificada'}
+                        {horaSolicitada ? ` ${formatTime(horaSolicitada)}` : ''}
+                      </Text>
+                      <Text style={[styles.infoText, { marginTop: 4 }]}>
+                        El proveedor propone: {fechaOferta ? formatDate(fechaOferta) : 'No especificada'}
+                        {horaOferta ? ` ${formatTime(horaOferta)}` : ''}
+                      </Text>
+                      {motivoAlt ? (
+                        <Text style={[styles.infoText, { marginTop: 4, fontStyle: 'italic' }]}>
+                          Motivo: {motivoAlt}
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              }
+              return (
+                <View style={styles.infoRow}>
+                  <View style={styles.infoLabelContainer}>
+                    <Ionicons name="calendar-outline" size={14} color={COLORS.textLight} />
+                    <Text style={styles.infoLabel}>Fecha:</Text>
+                  </View>
+                  <Text style={styles.infoText}>
+                    {oferta?.fecha_disponible ? formatDate(oferta.fecha_disponible) : 'No especificada'}
+                    {oferta?.hora_disponible ? ` a las ${formatTime(oferta.hora_disponible)}` : ''}
+                  </Text>
+                </View>
+              );
+            })()}
 
             {/* Tiempo estimado */}
             <View style={styles.infoRow}>

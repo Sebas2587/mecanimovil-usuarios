@@ -264,6 +264,7 @@ const DetalleSolicitudScreen = () => {
                   <OfferCardDetailed
                     key={oferta.id}
                     oferta={oferta}
+                    solicitud={solicitud}
                     onChatPress={handleChat}
                     onAceptarPress={handleAceptarOferta}
                     onProfilePress={handleProfilePress}

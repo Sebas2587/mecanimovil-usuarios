@@ -127,7 +127,7 @@ const CRITERIOS_PUNTUACION = {
  * Componente para comparar múltiples ofertas lado a lado
  * Con sistema de diseño MecaniMóvil y algoritmo de puntuación inteligente
  */
-const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = false, solicitudId = null }) => {
+const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = false, solicitudId = null, solicitud = null }) => {
   if (!ofertas || ofertas.length === 0) {
     return (
       <View style={styles.emptyContainer}>
@@ -663,8 +663,46 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
               <View style={styles.detallesAdicionales}>
                 <View style={styles.detalleAdicionalItem}>
                   <Text style={styles.detalleAdicionalLabel}>Disponible:</Text>
-                  <Text style={styles.detalleAdicionalValor}>{formatDate(oferta.fecha_disponible)}</Text>
+                  <Text style={styles.detalleAdicionalValor}>
+                    {oferta?.fecha_disponible ? formatDate(oferta.fecha_disponible) : 'No especificada'}
+                    {oferta?.hora_disponible ? ` ${String(oferta.hora_disponible).substring(0, 5)}` : ''}
+                  </Text>
                 </View>
+                {(() => {
+                  const esFechaAlt = oferta?.es_fecha_alternativa === true;
+                  const fechaPref = solicitud?.fecha_preferida;
+                  const horaPref = solicitud?.hora_preferida;
+                  const fechaOferta = oferta?.fecha_disponible;
+                  const horaOferta = oferta?.hora_disponible;
+                  const motivoAlt = (oferta?.motivo_fecha_alternativa || '').trim();
+                  const fechasDiferentes = solicitud && fechaPref && fechaOferta && (
+                    fechaPref !== fechaOferta ||
+                    (horaPref && horaOferta && String(horaPref).substring(0, 5) !== String(horaOferta).substring(0, 5))
+                  );
+                  if (!(esFechaAlt || fechasDiferentes) || !solicitud) return null;
+                  return (
+                    <View style={styles.detalleAdicionalItem}>
+                      <Text style={styles.detalleAdicionalLabel}>Fecha alternativa:</Text>
+                      <View>
+                        {fechaPref && (
+                          <Text style={styles.detalleAdicionalValor}>
+                            Solicitaste: {formatDate(fechaPref)}
+                            {horaPref ? ` ${String(horaPref).substring(0, 5)}` : ''}
+                          </Text>
+                        )}
+                        <Text style={styles.detalleAdicionalValor}>
+                          Propone: {fechaOferta ? formatDate(fechaOferta) : '—'}
+                          {horaOferta ? ` ${String(horaOferta).substring(0, 5)}` : ''}
+                        </Text>
+                        {motivoAlt ? (
+                          <Text style={[styles.detalleAdicionalValor, { fontStyle: 'italic', marginTop: 2 }]}>
+                            Motivo: {motivoAlt}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                })()}
                 <View style={styles.detalleAdicionalItem}>
                   <Text style={styles.detalleAdicionalLabel}>Tiempo est.:</Text>
                   <Text style={styles.detalleAdicionalValor}>{formatDuration(oferta.tiempo_estimado_total)}</Text>

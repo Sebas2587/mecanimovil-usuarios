@@ -5,8 +5,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { getMediaURL } from '../../services/api';
 
+const formatDate = (dateString) => {
+    if (!dateString) return null;
+    try {
+        const d = typeof dateString === 'string' ? new Date(dateString) : dateString;
+        return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
+    } catch (_) {
+        return null;
+    }
+};
+const formatTime = (timeString) => {
+    if (!timeString) return '';
+    const s = String(timeString);
+    return s.length >= 5 ? s.substring(0, 5) : s;
+};
+
 const OfferCardDetailed = ({
     oferta,
+    solicitud = null,
     onChatPress,
     onAceptarPress,
     onProfilePress,
@@ -127,6 +143,63 @@ const OfferCardDetailed = ({
                     <Text style={styles.totalValue}>${Math.round(precioTotal).toLocaleString()}</Text>
                 </View>
             </View>
+
+            {/* Fecha de la oferta y bloque fecha alternativa */}
+            {(() => {
+                const fechaOferta = oferta?.fecha_disponible;
+                const horaOferta = oferta?.hora_disponible;
+                const esFechaAlt = oferta?.es_fecha_alternativa === true;
+                const fechaPref = solicitud?.fecha_preferida;
+                const horaPref = solicitud?.hora_preferida;
+                const motivoAlt = (oferta?.motivo_fecha_alternativa || '').trim();
+                const fechasDiferentes = solicitud && fechaPref && fechaOferta && (
+                    fechaPref !== fechaOferta ||
+                    (horaPref && horaOferta && String(horaPref).substring(0, 5) !== String(horaOferta).substring(0, 5))
+                );
+                const mostrarFechaAlternativa = esFechaAlt || fechasDiferentes;
+
+                return (
+                    <View style={styles.fechaSection}>
+                        {fechaOferta && (
+                            <View style={styles.fechaRow}>
+                                <Text style={styles.fechaLabel}>Fecha de la oferta:</Text>
+                                <Text style={styles.fechaValue}>
+                                    {formatDate(fechaOferta) || 'No especificada'}
+                                    {horaOferta ? ` ${formatTime(horaOferta)}` : ''}
+                                </Text>
+                            </View>
+                        )}
+                        {mostrarFechaAlternativa && solicitud && (
+                            <View style={styles.fechaAlternativaBlock}>
+                                <Text style={styles.fechaAlternativaTitle}>
+                                    El proveedor propone una fecha diferente a la que solicitaste.
+                                </Text>
+                                {fechaPref && (
+                                    <Text style={styles.fechaAlternativaRow}>
+                                        Tu fecha solicitada: {formatDate(fechaPref) || fechaPref}
+                                        {horaPref ? ` ${formatTime(horaPref)}` : ''}
+                                    </Text>
+                                )}
+                                <Text style={styles.fechaAlternativaRow}>
+                                    Fecha propuesta: {fechaOferta ? (formatDate(fechaOferta) || fechaOferta) : 'No especificada'}
+                                    {horaOferta ? ` ${formatTime(horaOferta)}` : ''}
+                                </Text>
+                                {motivoAlt ? (
+                                    <Text style={styles.fechaAlternativaMotivo}>Motivo: {motivoAlt}</Text>
+                                ) : null}
+                            </View>
+                        )}
+                    </View>
+                );
+            })()}
+
+            {/* Descripción de la oferta (texto que escribe el proveedor) */}
+            {(oferta?.descripcion_oferta || '').trim() ? (
+                <View style={styles.descripcionSection}>
+                    <Text style={styles.descripcionLabel}>Descripción de la oferta</Text>
+                    <Text style={styles.descripcionText}>{(oferta.descripcion_oferta || '').trim()}</Text>
+                </View>
+            ) : null}
 
             {/* 4. Acciones */}
             <View style={styles.actionsRow}>
@@ -295,6 +368,65 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '900',
         color: '#0F172A',
+    },
+    fechaSection: {
+        marginBottom: 16,
+    },
+    fechaRow: {
+        marginBottom: 6,
+    },
+    fechaLabel: {
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+    fechaValue: {
+        fontSize: 14,
+        color: '#0F172A',
+        fontWeight: '500',
+    },
+    fechaAlternativaBlock: {
+        marginTop: 10,
+        padding: 12,
+        backgroundColor: '#FFFBEB',
+        borderRadius: 12,
+        borderLeftWidth: 3,
+        borderLeftColor: '#F59E0B',
+    },
+    fechaAlternativaTitle: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#B45309',
+        marginBottom: 6,
+    },
+    fechaAlternativaRow: {
+        fontSize: 13,
+        color: '#334155',
+        marginBottom: 4,
+    },
+    fechaAlternativaMotivo: {
+        fontSize: 13,
+        color: '#64748B',
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    descripcionSection: {
+        marginBottom: 16,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+    descripcionLabel: {
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '600',
+        marginBottom: 6,
+    },
+    descripcionText: {
+        fontSize: 14,
+        color: '#334155',
+        lineHeight: 20,
     },
     actionsRow: {
         flexDirection: 'row',
