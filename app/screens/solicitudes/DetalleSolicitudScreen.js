@@ -27,6 +27,7 @@ import { ROUTES } from '../../utils/constants';
 import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard';
 import CertifiedVehicleCard from '../../components/solicitudes/CertifiedVehicleCard';
 import OfferCardDetailed from '../../components/solicitudes/OfferCardDetailed';
+import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 
 const DetalleSolicitudScreen = () => {
   const navigation = useNavigation();
@@ -38,8 +39,10 @@ const DetalleSolicitudScreen = () => {
 
   const [solicitud, setSolicitud] = useState(null);
   const [ofertas, setOfertas] = useState([]);
+  const [ofertasSecundarias, setOfertasSecundarias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(false);
+  const [showChecklistModal, setShowChecklistModal] = useState(false);
 
   // Cargar datos
   const cargarDatos = useCallback(async () => {
@@ -58,13 +61,17 @@ const DetalleSolicitudScreen = () => {
 
       setSolicitud(solicitudNormalizada);
 
-      // Filtrar y ordenar ofertas (solo originales, las secundarias se manejan aparte si es necesario)
-      // En este diseño, nos enfocamos en las ofertas principales para comparar
-      const ofertasOriginales = (ofertasData || [])
+      // Ofertas principales (para comparar entre sí) y secundarias (nuevas opciones del proveedor para esta misma solicitud)
+      const todas = ofertasData || [];
+      const principales = todas
         .filter(o => !o.es_oferta_secundaria)
         .sort((a, b) => parseFloat(a.precio_total_ofrecido) - parseFloat(b.precio_total_ofrecido));
+      const secundarias = todas
+        .filter(o => o.es_oferta_secundaria)
+        .sort((a, b) => parseFloat(a.precio_total_ofrecido) - parseFloat(b.precio_total_ofrecido));
 
-      setOfertas(ofertasOriginales);
+      setOfertas(principales);
+      setOfertasSecundarias(secundarias);
 
     } catch (error) {
       console.error('Error loading request details:', error);
@@ -283,6 +290,54 @@ const DetalleSolicitudScreen = () => {
           )}
         </View>
 
+        {/* Ofertas adicionales del proveedor (secundarias) — misma solicitud, referencia clara */}
+        {ofertasSecundarias && ofertasSecundarias.length > 0 && (
+          <View style={[styles.offersSection, styles.ofertasAdicionalesSection]}>
+            <View style={styles.offersHeader}>
+              <View>
+                <Text style={styles.offersTitle}>Ofertas adicionales del proveedor</Text>
+                <Text style={styles.offersSubtitle}>
+                  Para esta misma solicitud, el proveedor te envió nuevas opciones (alternativas a su oferta anterior).
+                </Text>
+              </View>
+            </View>
+            {ofertasSecundarias.map((oferta) => {
+              const postDecisionStates = ['adjudicada', 'pendiente_pago', 'en_proceso', 'checklist_en_progreso', 'checklist_completado', 'completada', 'finalizada', 'calificada', 'cancelada'];
+              const isWinner = solicitud.oferta_seleccionada === oferta.id;
+              const isFinalState = postDecisionStates.includes(solicitud.estado);
+              const isDisabled = procesando || isFinalState;
+              const fechaOriginal = oferta.oferta_original_info?.fecha_envio
+                ? new Date(oferta.oferta_original_info.fecha_envio).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
+                : null;
+              const nombreServicio = solicitud?.servicio_nombre
+                || (solicitud?.servicios_solicitados_detail && solicitud.servicios_solicitados_detail[0]?.nombre)
+                || (solicitud?.servicios_solicitados && solicitud.servicios_solicitados[0]?.nombre)
+                || 'Servicio';
+              return (
+                <View key={oferta.id} style={styles.ofertaSecundariaWrapper}>
+                  <View style={styles.referenciaSolicitudBar}>
+                    <Ionicons name="link-outline" size={14} color="#64748B" />
+                    <Text style={styles.referenciaSolicitudText}>
+                      Oferta adicional para esta solicitud ({nombreServicio})
+                      {fechaOriginal ? ` · Alternativa a la oferta del ${fechaOriginal}` : ''}
+                    </Text>
+                  </View>
+                  <OfferCardDetailed
+                    oferta={oferta}
+                    solicitud={solicitud}
+                    onChatPress={handleChat}
+                    onAceptarPress={handleAceptarOferta}
+                    onProfilePress={handleProfilePress}
+                    disabled={isDisabled}
+                    isAccepted={isWinner}
+                    esOfertaSecundaria={true}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        )}
+
       </ScrollView>
 
       {/* Footer de Acciones (Fixed) */}
@@ -336,19 +391,27 @@ const DetalleSolicitudScreen = () => {
             </TouchableOpacity>
           )}
 
-          {/* Botón Checklist (Si aplica) */}
-          {['checklist_en_progreso', 'en_proceso', 'checklist_completado'].includes(solicitud.estado) && (
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => navigation.navigate('ChecklistScreen', { solicitudId })}
-            >
-              <Text style={styles.primaryButtonText}>Ver Checklist</Text>
-              <Ionicons name="clipboard-outline" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
+          {/* Botón Checklist: en progreso y también en completada para ver el checklist del proveedor */}
+          {(() => {
+            const estadosConChecklist = ['checklist_en_progreso', 'en_proceso', 'checklist_completado', 'completada', 'finalizada', 'calificada'];
+            const ordenId = solicitud?.oferta_seleccionada_detail?.solicitud_servicio_id ?? solicitud?.orden_id ?? solicitud?.solicitud_servicio_id;
+            const puedeVerChecklist = estadosConChecklist.includes(solicitud.estado) && ordenId != null;
+            if (!puedeVerChecklist) return null;
+            return (
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => {
+                  setShowChecklistModal(true);
+                }}
+              >
+                <Text style={styles.primaryButtonText}>Ver Checklist</Text>
+                <Ionicons name="clipboard-outline" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            );
+          })()}
 
           {/* Mensaje informativo si no hay acciones */}
-          {!['publicada', 'pendiente_pago', 'adjudicada', 'checklist_en_progreso', 'en_proceso', 'checklist_completado'].includes(solicitud.estado) && (
+          {!['publicada', 'pendiente_pago', 'adjudicada', 'checklist_en_progreso', 'en_proceso', 'checklist_completado', 'completada', 'finalizada', 'calificada'].includes(solicitud.estado) && (
             <View style={styles.statusFooter}>
               <Ionicons name="information-circle-outline" size={20} color="#64748B" />
               <Text style={styles.statusFooterText}>
@@ -368,6 +431,16 @@ const DetalleSolicitudScreen = () => {
           </View>
         )
       }
+
+      {/* Modal checklist del proveedor (orden = solicitud_servicio_id de la oferta seleccionada) */}
+      {solicitud && (
+        <ChecklistViewerModal
+          visible={showChecklistModal}
+          onClose={() => setShowChecklistModal(false)}
+          ordenId={solicitud?.oferta_seleccionada_detail?.solicitud_servicio_id ?? solicitud?.orden_id ?? solicitud?.solicitud_servicio_id}
+          servicioNombre={solicitud?.servicios_solicitados?.[0]?.nombre || solicitud?.servicios_solicitados?.[0]?.nombre_servicio || 'Servicio'}
+        />
+      )}
     </View >
   );
 };
@@ -431,6 +504,12 @@ const styles = StyleSheet.create({
   offersSection: {
     marginTop: 8,
   },
+  ofertasAdicionalesSection: {
+    marginTop: 24,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
   offersHeader: {
     marginBottom: 16,
   },
@@ -464,6 +543,26 @@ const styles = StyleSheet.create({
   offersSubtitle: {
     fontSize: 14,
     color: '#64748B',
+  },
+  ofertaSecundariaWrapper: {
+    marginBottom: 20,
+  },
+  referenciaSolicitudBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#94A3B8',
+  },
+  referenciaSolicitudText: {
+    fontSize: 13,
+    color: '#64748B',
+    flex: 1,
   },
   emptyState: {
     alignItems: 'center',

@@ -27,7 +27,8 @@ const OfferCardDetailed = ({
     onAceptarPress,
     onProfilePress,
     disabled = false,
-    isAccepted = false
+    isAccepted = false,
+    esOfertaSecundaria = false
 }) => {
     const theme = useTheme();
     const [proveedorFotoUrl, setProveedorFotoUrl] = useState(null);
@@ -67,8 +68,19 @@ const OfferCardDetailed = ({
     const rating = oferta.rating_proveedor || 0;
     const reviewsCount = oferta.total_reviews || 0;
 
+    const nombreServicio = solicitud?.servicio_nombre
+        || (solicitud?.servicios_solicitados_detail && solicitud.servicios_solicitados_detail[0]?.nombre)
+        || (solicitud?.servicios_solicitados && solicitud.servicios_solicitados[0]?.nombre)
+        || null;
+
     return (
         <View style={styles.card}>
+            {nombreServicio ? (
+                <View style={styles.servicioLabelRow}>
+                    <Ionicons name="construct-outline" size={14} color="#64748B" />
+                    <Text style={styles.servicioLabelText}>{nombreServicio}</Text>
+                </View>
+            ) : null}
             {/* 1. Perfil del Ofertante */}
             <View style={styles.header}>
                 <TouchableOpacity
@@ -144,7 +156,7 @@ const OfferCardDetailed = ({
                 </View>
             </View>
 
-            {/* Fecha de la oferta y bloque fecha alternativa */}
+            {/* Fecha de la oferta. Bloque "fecha alternativa" solo para ofertas principales (no secundarias) */}
             {(() => {
                 const fechaOferta = oferta?.fecha_disponible;
                 const horaOferta = oferta?.hora_disponible;
@@ -156,7 +168,8 @@ const OfferCardDetailed = ({
                     fechaPref !== fechaOferta ||
                     (horaPref && horaOferta && String(horaPref).substring(0, 5) !== String(horaOferta).substring(0, 5))
                 );
-                const mostrarFechaAlternativa = esFechaAlt || fechasDiferentes;
+                // En ofertas secundarias no mostramos "propone fecha diferente": es una nueva opción del proveedor para la misma solicitud, no una contrapropuesta de fecha
+                const mostrarFechaAlternativa = !esOfertaSecundaria && (esFechaAlt || fechasDiferentes) && solicitud;
 
                 return (
                     <View style={styles.fechaSection}>
@@ -169,7 +182,7 @@ const OfferCardDetailed = ({
                                 </Text>
                             </View>
                         )}
-                        {mostrarFechaAlternativa && solicitud && (
+                        {mostrarFechaAlternativa && (
                             <View style={styles.fechaAlternativaBlock}>
                                 <Text style={styles.fechaAlternativaTitle}>
                                     El proveedor propone una fecha diferente a la que solicitaste.
@@ -246,6 +259,20 @@ const styles = StyleSheet.create({
         elevation: 4,
         borderWidth: 1,
         borderColor: '#F1F5F9', // Slate-100
+    },
+    servicioLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 12,
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    servicioLabelText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#64748B',
     },
     header: {
         flexDirection: 'row',
