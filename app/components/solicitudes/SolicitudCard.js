@@ -78,15 +78,15 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
   }, [solicitud.hora_preferida]);
 
   const getEstadoConfig = () => {
-    // Verificar si tiene pago parcial basándose en la oferta seleccionada
+    // Prioridad: estado efectivo (ofertas secundarias pendientes) > pago parcial > estado real
     const oferta = solicitud.oferta_seleccionada_detail || solicitud.oferta_seleccionada;
     const tienePagoParcial = oferta?.estado_pago_repuestos === 'pagado' &&
       oferta?.estado_pago_servicio === 'pendiente';
 
-    // Si el estado es 'pagada' pero tiene pago parcial, tratarlo como 'pagada_parcialmente'
-    const estadoEfectivo = (solicitud.estado === 'pagada' && tienePagoParcial)
-      ? 'pagada_parcialmente'
-      : solicitud.estado;
+    let estadoEfectivo = solicitud.estado_efectivo ?? solicitud.estado;
+    if (estadoEfectivo === 'pagada' && tienePagoParcial) {
+      estadoEfectivo = 'pagada_parcialmente';
+    }
 
     const configs = {
       creada: {
@@ -142,6 +142,24 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         bgColor: colors.error?.[50] || '#FEF2F2',
         borderColor: colors.error?.[300] || '#FCA5A5',
         texto: 'Cancelada'
+      },
+      ofertas_adicionales_pendientes: {
+        color: colors.warning?.[700] || '#D97706',
+        bgColor: colors.warning?.[50] || '#FFFBEB',
+        borderColor: colors.warning?.[300] || '#FCD34D',
+        texto: solicitud.estado_display_efectivo || 'Ofertas adicionales por revisar'
+      },
+      en_ejecucion: {
+        color: colors.primary?.[700] || '#1E40AF',
+        bgColor: colors.primary?.[50] || '#EFF6FF',
+        borderColor: colors.primary?.[300] || '#93C5FD',
+        texto: 'En Progreso'
+      },
+      completada: {
+        color: colors.success?.[700] || '#047857',
+        bgColor: colors.success?.[50] || '#ECFDF5',
+        borderColor: colors.success?.[300] || '#6EE7B7',
+        texto: 'Completada'
       }
     };
     return configs[estadoEfectivo] || {
@@ -160,7 +178,8 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
     }
   };
 
-  // Obtener icono según estado
+  // Obtener icono según estado (usar estado efectivo para icono también)
+  const estadoParaIcono = solicitud.estado_efectivo ?? solicitud.estado;
   const getEstadoIcon = () => {
     const iconMap = {
       creada: 'document-text',
@@ -168,10 +187,13 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       publicada: 'megaphone',
       con_ofertas: 'pricetags',
       adjudicada: 'checkmark-circle',
+      ofertas_adicionales_pendientes: 'mail-unread',
+      en_ejecucion: 'construct',
+      completada: 'checkmark-done-circle',
       expirada: 'time',
       cancelada: 'close-circle',
     };
-    return iconMap[solicitud.estado] || 'document-text';
+    return iconMap[estadoParaIcono] || 'document-text';
   };
 
   // Crear estilos dinámicos con el tema (usar safeBorders para consistencia)

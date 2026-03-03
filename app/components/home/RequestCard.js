@@ -31,29 +31,26 @@ const RequestCard = ({ request, onPress }) => {
 
     // 1. Status Configuration
     const getStatusConfig = (status, offersCount) => {
-        // Map backend status to UI colors
-        // Green for active/offers, Gray for pending/public
+        // Ofertas adicionales pendientes: priorizar sobre completada/finalizada
+        if (status === 'ofertas_adicionales_pendientes') {
+            return { bg: '#FEF3C7', color: '#B45309' }; // Amber: por revisar
+        }
+        // Green for active/offers
         if (status === 'con_ofertas' || (offersCount && offersCount > 0)) {
-            return {
-                bg: '#DCFCE7', // Green 100
-                color: '#15803D' // Green 700
-            };
+            return { bg: '#DCFCE7', color: '#15803D' };
         }
-        // Blue/Info for other active states
-        if (['aceptada_por_proveedor', 'en_proceso', 'checklist_en_progreso'].includes(status)) {
-            return {
-                bg: '#DBEAFE', // Blue 100
-                color: '#1E40AF' // Blue 800
-            };
+        // Blue for other active states
+        if (['aceptada_por_proveedor', 'en_proceso', 'checklist_en_progreso', 'en_ejecucion'].includes(status)) {
+            return { bg: '#DBEAFE', color: '#1E40AF' };
         }
-
-        return {
-            bg: '#F3F4F6', // Gray 100
-            color: '#4B5563' // Gray 600
-        };
+        if (status === 'completada') {
+            return { bg: '#D1FAE5', color: '#047857' }; // Green completed
+        }
+        return { bg: '#F3F4F6', color: '#4B5563' };
     };
 
-    const statusConfig = getStatusConfig(request.estado, request.total_ofertas);
+    const statusEfectivo = request.estado_efectivo ?? request.estado;
+    const statusConfig = getStatusConfig(statusEfectivo, request.total_ofertas);
 
     // 2. Service Image/Icon
     // Priority: Service Photo -> Category Image -> Category Icon -> Default Icon
@@ -124,7 +121,7 @@ const RequestCard = ({ request, onPress }) => {
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
                     <Text style={[styles.statusText, { color: statusConfig.color }]}>
-                        {request.estado_display || request.estado || 'PENDIENTE'}
+                        {request.estado_display_efectivo || request.estado_display || request.estado || 'PENDIENTE'}
                     </Text>
                 </View>
             </View>

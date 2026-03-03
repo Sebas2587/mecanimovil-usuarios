@@ -67,6 +67,11 @@ const EstadoSolicitudBadge = ({ estado }) => {
         color: COLORS.danger,
         backgroundColor: '#FFEBEE',
         texto: 'Cancelada'
+      },
+      ofertas_adicionales_pendientes: {
+        color: COLORS.warning || '#D97706',
+        backgroundColor: '#FEF3C7',
+        texto: 'Ofertas adicionales por revisar'
       }
     };
 

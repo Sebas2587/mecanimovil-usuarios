@@ -157,13 +157,18 @@ const MisSolicitudesScreen = () => {
   // Asegurar que solicitudes sea siempre un array
   const solicitudesArray = Array.isArray(solicitudes) ? solicitudes : [];
   
-  // Filtrar según el tab seleccionado (puede ser un grupo de estados)
+  // Filtrar según el tab seleccionado. Ofertas secundarias pendientes se muestran en Activas, no en Completadas.
   const solicitudesFiltradas = filtroEstado === 'todos'
     ? solicitudesArray
     : solicitudesArray.filter(s => {
         if (!s || !s.estado) return false;
         const estadosPermitidos = filtroAEstados[filtroEstado];
-        return estadosPermitidos && estadosPermitidos.includes(s.estado);
+        if (!estadosPermitidos) return false;
+        const efectivo = s.estado_efectivo ?? s.estado;
+        if (efectivo === 'ofertas_adicionales_pendientes') {
+          return filtroEstado === 'activas';
+        }
+        return estadosPermitidos.includes(s.estado);
       });
 
   const handleSolicitudPress = (solicitud) => {

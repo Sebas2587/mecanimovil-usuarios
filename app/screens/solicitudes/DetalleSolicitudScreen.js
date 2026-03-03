@@ -415,7 +415,7 @@ const DetalleSolicitudScreen = () => {
             <View style={styles.statusFooter}>
               <Ionicons name="information-circle-outline" size={20} color="#64748B" />
               <Text style={styles.statusFooterText}>
-                Estado: {solicitud.estado_display || solicitud.estado}
+                Estado: {solicitud.estado_display_efectivo || solicitud.estado_display || solicitud.estado}
               </Text>
             </View>
           )}
