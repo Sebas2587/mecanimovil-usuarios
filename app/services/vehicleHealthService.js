@@ -1,7 +1,8 @@
 import { get, post } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const CACHE_KEY_PREFIX = 'vehicle_health_';
+// v2: backend incluye servicios_asociados en componentes (modal salud)
+const CACHE_KEY_PREFIX = 'vehicle_health_v2_';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 
 /**
