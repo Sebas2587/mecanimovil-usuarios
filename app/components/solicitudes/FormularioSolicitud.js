@@ -513,6 +513,19 @@ const FormularioSolicitud = ({
     }
   }, [tieneServicioPreseleccionado, tieneProveedorPreseleccionado]);
 
+  // Si los servicios por ID llegaron async y el usuario ya quedó en paso 2, saltar a paso 3
+  useEffect(() => {
+    if (pasoActual !== 2) return;
+    if (!formData.servicios_seleccionados?.length) return;
+    if (!initialData?.servicios_seleccionados?.length) return;
+    console.log('🚀 Servicios preseleccionados listos: saliendo del paso 2 → paso 3');
+    setPasoActual(3);
+  }, [
+    pasoActual,
+    formData.servicios_seleccionados,
+    initialData?.servicios_seleccionados,
+  ]);
+
   const handleNext = () => {
     // Validar paso actual antes de avanzar
     if (!validarPaso(pasoActual)) {

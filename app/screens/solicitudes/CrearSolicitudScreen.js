@@ -85,6 +85,10 @@ const CrearSolicitudScreen = () => {
   const [loading, setLoading] = useState(true);
   const [creando, setCreando] = useState(false);
   const [initialData, setInitialData] = useState({});
+  // Evita montar el formulario antes de resolver servicios por ID (salud/modal → sin paso 2)
+  const needsPreloadServicios =
+    Array.isArray(serviciosPreSeleccionados) && serviciosPreSeleccionados.length > 0;
+  const [initialDataReady, setInitialDataReady] = useState(!needsPreloadServicios);
   const [direcciones, setDirecciones] = useState([]);
   const [clienteId, setClienteId] = useState(null);
 
@@ -315,6 +319,8 @@ const CrearSolicitudScreen = () => {
               ubicacion_servicio: null
             });
 
+            setInitialDataReady(true);
+
             console.log('✅ InitialData preparado:', {
               tieneServicio: serviciosParaInitialData.length > 0,
               tieneProveedor: proveedorFormato ? true : false,
@@ -325,11 +331,13 @@ const CrearSolicitudScreen = () => {
           } catch (error) {
             console.error('❌ Error preparando datos iniciales:', error);
             setInitialData({});
+            setInitialDataReady(true);
           }
         } else {
           // Limpiar si no hay parámetros (ya manejado en verificarYCargarDatos pero se refuerza aquí)
           console.log('🧹 CrearSolicitudScreen: No hay parámetros preseleccionados - limpiando initialData');
           setInitialData({});
+          setInitialDataReady(true);
         }
       };
 
@@ -780,12 +788,16 @@ const CrearSolicitudScreen = () => {
     }
   };
 
-  if (loading) {
+  if (loading || (needsPreloadServicios && !initialDataReady)) {
     return (
       <SafeAreaView style={styles.container} edges={[]}>
         <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
           <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
-          <Text style={styles.loadingText}>Cargando datos...</Text>
+          <Text style={styles.loadingText}>
+            {needsPreloadServicios && !initialDataReady
+              ? 'Preparando servicio seleccionado...'
+              : 'Cargando datos...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
