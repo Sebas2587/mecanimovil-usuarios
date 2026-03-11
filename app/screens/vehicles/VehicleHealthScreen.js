@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -151,17 +151,49 @@ const VehicleHealthScreen = ({ route }) => {
     });
   };
 
-  const handleNavToService = () => {
-    // Navigate to Create Request
+  const handleNavToService = (extraParams = {}) => {
+    const params = {
+      vehicle: vehicleData,
+      alertas: healthData?.alertas,
+      ...extraParams,
+    };
     try {
       navigation.navigate('TabNavigator', {
         screen: ROUTES.CREAR_SOLICITUD,
-        params: { vehicle: vehicleData, alertas: healthData?.alertas },
+        params,
       });
     } catch (e) {
-      navigation.navigate(ROUTES.CREAR_SOLICITUD, { vehicle: vehicleData, alertas: healthData?.alertas });
+      navigation.navigate(ROUTES.CREAR_SOLICITUD, params);
     }
   };
+
+  /**
+   * Servicios para el modal: primero los asociados al componente maestro (Admin),
+   * luego los de alertas del mismo componente. Así Bujías puede mostrar "Cambio de bujías"
+   * sin depender de alertas manuales.
+   */
+  const serviciosDelComponente = useMemo(() => {
+    if (!selectedMetric) return [];
+    const byId = new Map();
+    const add = (s) => {
+      if (s?.id != null && !byId.has(s.id)) byId.set(s.id, s);
+    };
+    // 1) Backend: ComponenteSalud.servicios_asociados → cada ítem de lista trae servicios_asociados
+    const desdeComponente = selectedMetric.servicios_asociados;
+    if (Array.isArray(desdeComponente)) desdeComponente.forEach(add);
+    // 2) Fallback: alertas con servicios_recomendados para este ComponenteSaludVehiculo
+    const compSaludVehiculoId = selectedMetric.id;
+    if (compSaludVehiculoId && healthData?.alertas?.length) {
+      for (const alerta of healthData.alertas) {
+        const match =
+          alerta.componente_salud === compSaludVehiculoId ||
+          alerta.componente_salud_detail?.id === compSaludVehiculoId;
+        if (!match || !alerta.servicios_recomendados_detail?.length) continue;
+        alerta.servicios_recomendados_detail.forEach(add);
+      }
+    }
+    return Array.from(byId.values());
+  }, [selectedMetric, healthData?.alertas]);
 
   // --- RENDERERS ---
 
@@ -366,7 +398,7 @@ const VehicleHealthScreen = ({ route }) => {
         </View>
       </Modal>
 
-      {/* Detail Modal */}
+      {/* Detail Modal: métricas + servicios sugeridos (saltan paso 2 en nueva solicitud) */}
       <Modal
         visible={!!selectedMetric}
         transparent
@@ -374,33 +406,105 @@ const VehicleHealthScreen = ({ route }) => {
         onRequestClose={() => setSelectedMetric(null)}
       >
         <View style={styles.modalOverlay}>
-          <Animatable.View animation="zoomIn" duration={300} style={styles.modalCard}>
+          <Animatable.View animation="zoomIn" duration={300} style={styles.modalCardLarge}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedMetric?.name}</Text>
-              <TouchableOpacity onPress={() => setSelectedMetric(null)}>
+              <Text style={styles.modalTitle} numberOfLines={2}>
+                {selectedMetric?.name}
+              </Text>
+              <TouchableOpacity onPress={() => setSelectedMetric(null)} hitSlop={12}>
                 <Ionicons name="close" size={24} color={COLORS.base.inkBlack} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               <View style={styles.infoRow}>
                 <Ionicons name="speedometer-outline" size={20} color={COLORS.text.secondary} />
-                <Text style={styles.infoText}>Próx. revisión en: <Text style={styles.bold}>{selectedMetric?.vida_util}</Text></Text>
+                <Text style={styles.infoText}>
+                  Próx. revisión en:{' '}
+                  <Text style={styles.bold}>{selectedMetric?.vida_util}</Text>
+                </Text>
               </View>
+              {selectedMetric?.salud_porcentaje != null && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="heart-outline" size={20} color={COLORS.text.secondary} />
+                  <Text style={styles.infoText}>
+                    Salud del componente:{' '}
+                    <Text style={styles.bold}>{Math.round(selectedMetric.salud_porcentaje)}%</Text>
+                  </Text>
+                </View>
+              )}
 
               <View style={styles.infoBox}>
+                <Text style={styles.infoBoxLabel}>Observaciones</Text>
                 <Text style={styles.infoBoxText}>{selectedMetric?.mensaje}</Text>
               </View>
-            </View>
+
+              {serviciosDelComponente.length > 0 ? (
+                <>
+                  <Text style={styles.modalSectionTitle}>Servicios sugeridos</Text>
+                  <Text style={styles.modalSectionHint}>
+                    Elige uno para agendar y continuar sin elegir de nuevo el tipo de servicio.
+                  </Text>
+                  {serviciosDelComponente.map((srv) => (
+                    <TouchableOpacity
+                      key={srv.id}
+                      style={styles.serviceCard}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        const descripcion =
+                          selectedMetric?.mensaje &&
+                          selectedMetric.mensaje !== 'Sin observaciones.'
+                            ? `[${selectedMetric.name}] ${selectedMetric.mensaje}`
+                            : '';
+                        setSelectedMetric(null);
+                        handleNavToService({
+                          serviciosPreSeleccionados: [srv.id],
+                          descripcionPrellenada: descripcion,
+                        });
+                      }}
+                    >
+                      <View style={styles.serviceCardIcon}>
+                        <Ionicons name="construct-outline" size={22} color={COLORS.primary[600]} />
+                      </View>
+                      <View style={styles.serviceCardBody}>
+                        <Text style={styles.serviceCardTitle} numberOfLines={2}>
+                          {srv.nombre}
+                        </Text>
+                        {srv.descripcion ? (
+                          <Text style={styles.serviceCardDesc} numberOfLines={2}>
+                            {srv.descripcion}
+                          </Text>
+                        ) : null}
+                        {srv.precio_referencia != null ? (
+                          <Text style={styles.serviceCardMeta}>
+                            Desde ${Number(srv.precio_referencia).toLocaleString()}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Ionicons name="chevron-forward" size={20} color={COLORS.neutral.gray[400]} />
+                    </TouchableOpacity>
+                  ))}
+                </>
+              ) : null}
+            </ScrollView>
 
             <TouchableOpacity
-              style={styles.modalButton}
+              style={styles.modalButtonSecondary}
               onPress={() => {
                 setSelectedMetric(null);
                 handleNavToService();
               }}
             >
-              <Text style={styles.modalButtonText}>Cotizar Reparación</Text>
+              <Text style={styles.modalButtonSecondaryText}>
+                {serviciosDelComponente.length > 0
+                  ? 'Ver todos los servicios'
+                  : 'Cotizar / Nueva solicitud'}
+              </Text>
             </TouchableOpacity>
           </Animatable.View>
         </View>
@@ -650,6 +754,90 @@ const createStyles = (theme) => StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 24,
     padding: 24,
+  },
+  modalCardLarge: {
+    backgroundColor: 'white',
+    borderRadius: 24,
+    padding: 20,
+    maxHeight: '85%',
+  },
+  modalScroll: {
+    maxHeight: 340,
+  },
+  modalScrollContent: {
+    paddingBottom: 8,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.base.inkBlack,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  modalSectionHint: {
+    fontSize: 13,
+    color: COLORS.text.secondary,
+    marginBottom: 12,
+    lineHeight: 18,
+  },
+  infoBoxLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text.tertiary,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  serviceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background.default,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: COLORS.neutral.gray[100],
+  },
+  serviceCardIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  serviceCardBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  serviceCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: COLORS.base.inkBlack,
+  },
+  serviceCardDesc: {
+    fontSize: 13,
+    color: COLORS.text.secondary,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  serviceCardMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary[600],
+    marginTop: 6,
+  },
+  modalButtonSecondary: {
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 16,
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral.gray[100],
+  },
+  modalButtonSecondaryText: {
+    color: COLORS.text.primary,
+    fontSize: 15,
+    fontWeight: '700',
   },
   modalHeader: {
     flexDirection: 'row',
