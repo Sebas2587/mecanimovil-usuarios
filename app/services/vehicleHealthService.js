@@ -93,13 +93,13 @@ class VehicleHealthService {
   }
   
   /**
-   * Solicita al backend recalcular salud (Celery) e invalida cache servidor.
-   * Tras 202, esperar unos segundos y llamar getVehicleHealth(vehicleId, true).
+   * Recalcula salud en el servidor (síncrono en backend) e invalida cache local.
+   * Devuelve el cuerpo del POST si el backend envía resumen/componentes (200).
    */
   static async syncVehicleHealth(vehicleId) {
-    await post(`/vehiculos/health/vehicle/${vehicleId}/sync/`, {});
+    const data = await post(`/vehiculos/health/vehicle/${vehicleId}/sync/`, {});
     await this.invalidateCache(vehicleId);
-    return true;
+    return data;
   }
 
   /**

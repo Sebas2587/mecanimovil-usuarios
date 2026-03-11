@@ -107,22 +107,22 @@ const VehicleHealthScreen = ({ route }) => {
     loadData(true);
   };
 
-  /** Sincronizar con backend (recálculo Celery); luego recarga datos */
+  /** Sincronizar con backend (recálculo inmediato); luego recarga datos */
   const handleSync = async () => {
     if (!vehicleId || syncing) return;
     setSyncing(true);
     try {
-      await VehicleHealthService.syncVehicleHealth(vehicleId);
-      // Backend recalcula en Celery; esperar y forzar solo endpoint salud (no mezclar health_report viejo)
-      await new Promise((r) => setTimeout(r, 4000));
-      const hData = await VehicleHealthService.getVehicleHealth(vehicleId, true);
-      setHealthData(hData);
+      const syncPayload = await VehicleHealthService.syncVehicleHealth(vehicleId);
+      // Backend recalcula en el mismo request; GET fuerza misma forma que siempre usa la pantalla
+      const hData =
+        (await VehicleHealthService.getVehicleHealth(vehicleId, true)) || syncPayload;
+      if (hData) setHealthData(hData);
       const v = await getVehicleById(vehicleId);
       setVehicleData(v);
       // Si porcentajes no cambian: el motor usa km del vehículo y km último servicio; sin cambios en checklist/km, el número es el mismo (es correcto).
       Alert.alert(
         'Sincronización lista',
-        'Datos recargados desde el servidor. Si los porcentajes no varían, el cálculo ya estaba al día (depende del kilometraje y del último servicio registrado por checklist).'
+        'Datos recargados desde el servidor. Con intervalo por tiempo en las reglas, el % puede bajar aunque el km no haya subido.'
       );
     } catch (e) {
       console.error('Sync salud error:', e);
