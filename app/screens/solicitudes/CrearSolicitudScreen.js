@@ -81,13 +81,46 @@ const CrearSolicitudScreen = () => {
     descripcionPrellenada // Descripción pre-rellenada (desde alertas)
   } = route.params || {};
 
+  // Estado inicial síncrono si ya viene servicio como objeto (modal salud) → Formulario ve paso 1→3 al instante
+  const buildInitialFromParams = () => {
+    if (servicioPreseleccionado && servicioPreseleccionado.id) {
+      const s = servicioPreseleccionado;
+      return {
+        servicios_seleccionados: [
+          {
+            id: s.id,
+            nombre: s.nombre || 'Servicio',
+            descripcion: s.descripcion || '',
+            precio_referencia: s.precio_referencia,
+            categoria_id: s.categoria_id ?? s.categoria,
+            tipo_servicio: s.tipo_servicio,
+          },
+        ],
+        tipo_solicitud: 'global',
+        proveedores_dirigidos: [],
+        vehiculo: vehicle || null,
+        descripcion_problema: descripcionPrellenada || '',
+        urgencia: 'normal',
+        direccion_usuario: null,
+        direccion_servicio_texto: '',
+        detalles_ubicacion: '',
+        fecha_preferida: '',
+        hora_preferida: '',
+        ubicacion_servicio: null,
+      };
+    }
+    return {};
+  };
+
   // State
   const [loading, setLoading] = useState(true);
   const [creando, setCreando] = useState(false);
-  const [initialData, setInitialData] = useState({});
-  // Evita montar el formulario antes de resolver servicios por ID (salud/modal → sin paso 2)
+  const [initialData, setInitialData] = useState(buildInitialFromParams);
+  // Evita montar el formulario antes de resolver servicios por ID (solo cuando vienen IDs sin objeto)
   const needsPreloadServicios =
-    Array.isArray(serviciosPreSeleccionados) && serviciosPreSeleccionados.length > 0;
+    Array.isArray(serviciosPreSeleccionados) &&
+    serviciosPreSeleccionados.length > 0 &&
+    !(servicioPreseleccionado && servicioPreseleccionado.id);
   const [initialDataReady, setInitialDataReady] = useState(!needsPreloadServicios);
   const [direcciones, setDirecciones] = useState([]);
   const [clienteId, setClienteId] = useState(null);
@@ -839,6 +872,11 @@ const CrearSolicitudScreen = () => {
       )}
 
       <FormularioSolicitud
+        key={
+          servicioPreseleccionado?.id ||
+          (serviciosPreSeleccionados && serviciosPreSeleccionados.join(',')) ||
+          'default'
+        }
         onSubmit={handleSubmit}
         initialData={initialData || {}}
         vehiculos={vehiculos}

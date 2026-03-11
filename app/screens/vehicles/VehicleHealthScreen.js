@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
 import { ROUTES } from '../../utils/constants';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { getVehicleById } from '../../services/vehicle';
 import { useTheme } from '../../design-system/theme/useTheme';
@@ -152,18 +152,24 @@ const VehicleHealthScreen = ({ route }) => {
   };
 
   const handleNavToService = (extraParams = {}) => {
-    const params = {
+    // Params del tab CrearSolicitud: deben ir en params.params para navegación anidada
+    const screenParams = {
       vehicle: vehicleData,
       alertas: healthData?.alertas,
       ...extraParams,
     };
     try {
-      navigation.navigate('TabNavigator', {
-        screen: ROUTES.CREAR_SOLICITUD,
-        params,
-      });
+      navigation.dispatch(
+        CommonActions.navigate({
+          name: 'TabNavigator',
+          params: {
+            screen: ROUTES.CREAR_SOLICITUD,
+            params: screenParams,
+          },
+        })
+      );
     } catch (e) {
-      navigation.navigate(ROUTES.CREAR_SOLICITUD, params);
+      navigation.navigate(ROUTES.CREAR_SOLICITUD, screenParams);
     }
   };
 
@@ -462,8 +468,18 @@ const VehicleHealthScreen = ({ route }) => {
                             ? `[${selectedMetric.name}] ${selectedMetric.mensaje}`
                             : '';
                         setSelectedMetric(null);
+                        // Objeto completo evita async getServicioDetalle y asegura salto paso 2
+                        const servicioPreseleccionado = {
+                          id: Number(srv.id) || srv.id,
+                          nombre: srv.nombre || 'Servicio',
+                          descripcion: srv.descripcion || '',
+                          precio_referencia:
+                            srv.precio_referencia != null
+                              ? Number(srv.precio_referencia)
+                              : undefined,
+                        };
                         handleNavToService({
-                          serviciosPreSeleccionados: [srv.id],
+                          servicioPreseleccionado,
                           descripcionPrellenada: descripcion,
                         });
                       }}
