@@ -113,10 +113,17 @@ const VehicleHealthScreen = ({ route }) => {
     setSyncing(true);
     try {
       await VehicleHealthService.syncVehicleHealth(vehicleId);
-      // Backend 202: recálculo async; dar tiempo antes de GET
-      await new Promise((r) => setTimeout(r, 3500));
-      await loadData(true);
-      Alert.alert('Listo', 'Métricas actualizadas.');
+      // Backend recalcula en Celery; esperar y forzar solo endpoint salud (no mezclar health_report viejo)
+      await new Promise((r) => setTimeout(r, 4000));
+      const hData = await VehicleHealthService.getVehicleHealth(vehicleId, true);
+      setHealthData(hData);
+      const v = await getVehicleById(vehicleId);
+      setVehicleData(v);
+      // Si porcentajes no cambian: el motor usa km del vehículo y km último servicio; sin cambios en checklist/km, el número es el mismo (es correcto).
+      Alert.alert(
+        'Sincronización lista',
+        'Datos recargados desde el servidor. Si los porcentajes no varían, el cálculo ya estaba al día (depende del kilometraje y del último servicio registrado por checklist).'
+      );
     } catch (e) {
       console.error('Sync salud error:', e);
       Alert.alert(
@@ -211,27 +218,10 @@ const VehicleHealthScreen = ({ route }) => {
             <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
           </View>
         </View>
-        <View style={styles.summaryActionsRow}>
-          <TouchableOpacity
-            style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
-            onPress={handleSync}
-            disabled={syncing}
-            accessibilityLabel="Sincronizar métricas de salud"
-          >
-            <Ionicons
-              name={syncing ? 'hourglass-outline' : 'sync-outline'}
-              size={18}
-              color={syncing ? COLORS.neutral.gray[400] : COLORS.primary[600]}
-            />
-            <Text style={[styles.syncButtonText, syncing && styles.syncButtonTextDisabled]}>
-              {syncing ? 'Sincronizando…' : 'Sincronizar'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
-            <Ionicons name="help-circle-outline" size={18} color={COLORS.primary[500]} />
-            <Text style={styles.helpLinkText}>Ayuda</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
+          <Ionicons name="help-circle-outline" size={18} color={COLORS.primary[500]} />
+          <Text style={styles.helpLinkText}>Ayuda</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -254,9 +244,12 @@ const VehicleHealthScreen = ({ route }) => {
     return null;
   };
 
-  // Determine list data source
-  // healthData.componentes might come from endpoint, OR vehicleData.health_report
-  const listData = healthData?.componentes || vehicleData?.health_report || [];
+  // Fuente de la lista: priorizar siempre componentes del endpoint de salud tras cargar
+  // (evita health_report embebido en vehículo quedarse obsoleto tras sync)
+  const listData =
+    healthData && Array.isArray(healthData.componentes)
+      ? healthData.componentes
+      : vehicleData?.health_report || [];
 
   return (
     <View style={styles.screen}>
@@ -271,7 +264,24 @@ const VehicleHealthScreen = ({ route }) => {
             {renderHeader()}
             {renderSummary()}
             {renderCTA()}
-            <Text style={styles.sectionTitle}>Estado de Componentes</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>Estado de Componentes</Text>
+              <TouchableOpacity
+                style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
+                onPress={handleSync}
+                disabled={syncing}
+                accessibilityLabel="Sincronizar métricas de salud"
+              >
+                <Ionicons
+                  name={syncing ? 'hourglass-outline' : 'sync-outline'}
+                  size={18}
+                  color={syncing ? COLORS.neutral.gray[400] : COLORS.primary[600]}
+                />
+                <Text style={[styles.syncButtonText, syncing && styles.syncButtonTextDisabled]}>
+                  {syncing ? '…' : 'Sincronizar'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </>
         }
         renderItem={({ item }) => (
@@ -473,17 +483,13 @@ const createStyles = (theme) => StyleSheet.create({
     fontWeight: '600',
   },
   summaryContainer: {
-    flexDirection: 'column',
-    gap: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 24,
     paddingHorizontal: 4,
-  },
-  summaryActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 20,
     flexWrap: 'wrap',
+    gap: 12,
   },
   syncButton: {
     flexDirection: 'row',
@@ -495,6 +501,7 @@ const createStyles = (theme) => StyleSheet.create({
     backgroundColor: COLORS.primary[50] || '#EEF2FF',
     borderWidth: 1,
     borderColor: COLORS.primary[200] || '#C7D2FE',
+    flexShrink: 0,
   },
   syncButtonDisabled: {
     opacity: 0.7,
@@ -602,11 +609,18 @@ const createStyles = (theme) => StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    gap: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: COLORS.base.inkBlack,
-    marginBottom: 16,
+    flex: 1,
   },
   emptyState: {
     alignItems: 'center',
