@@ -1,4 +1,4 @@
-import { get } from './api';
+import { get, post } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const CACHE_KEY_PREFIX = 'vehicle_health_';
@@ -92,6 +92,16 @@ class VehicleHealthService {
     }
   }
   
+  /**
+   * Solicita al backend recalcular salud (Celery) e invalida cache servidor.
+   * Tras 202, esperar unos segundos y llamar getVehicleHealth(vehicleId, true).
+   */
+  static async syncVehicleHealth(vehicleId) {
+    await post(`/vehiculos/health/vehicle/${vehicleId}/sync/`, {});
+    await this.invalidateCache(vehicleId);
+    return true;
+  }
+
   /**
    * Invalida el cache de un vehículo
    * @param {number} vehicleId - ID del vehículo

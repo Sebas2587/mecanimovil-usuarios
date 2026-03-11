@@ -39,6 +39,7 @@ const VehicleHealthScreen = ({ route }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null); // For Modal
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const pollingIntervalRef = useRef(null);
   const wsHandlerRef = useRef(null);
@@ -104,6 +105,27 @@ const VehicleHealthScreen = ({ route }) => {
   const handleRefresh = () => {
     setRefreshing(true);
     loadData(true);
+  };
+
+  /** Sincronizar con backend (recálculo Celery); luego recarga datos */
+  const handleSync = async () => {
+    if (!vehicleId || syncing) return;
+    setSyncing(true);
+    try {
+      await VehicleHealthService.syncVehicleHealth(vehicleId);
+      // Backend 202: recálculo async; dar tiempo antes de GET
+      await new Promise((r) => setTimeout(r, 3500));
+      await loadData(true);
+      Alert.alert('Listo', 'Métricas actualizadas.');
+    } catch (e) {
+      console.error('Sync salud error:', e);
+      Alert.alert(
+        'No se pudo sincronizar',
+        e?.response?.data?.error || e?.message || 'Intenta de nuevo en unos segundos.'
+      );
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const handleMetricPress = (item) => {
@@ -189,10 +211,27 @@ const VehicleHealthScreen = ({ route }) => {
             <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
-          <Ionicons name="help-circle-outline" size={18} color={COLORS.primary[500]} />
-          <Text style={styles.helpLinkText}>Ayuda</Text>
-        </TouchableOpacity>
+        <View style={styles.summaryActionsRow}>
+          <TouchableOpacity
+            style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
+            onPress={handleSync}
+            disabled={syncing}
+            accessibilityLabel="Sincronizar métricas de salud"
+          >
+            <Ionicons
+              name={syncing ? 'hourglass-outline' : 'sync-outline'}
+              size={18}
+              color={syncing ? COLORS.neutral.gray[400] : COLORS.primary[600]}
+            />
+            <Text style={[styles.syncButtonText, syncing && styles.syncButtonTextDisabled]}>
+              {syncing ? 'Sincronizando…' : 'Sincronizar'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
+            <Ionicons name="help-circle-outline" size={18} color={COLORS.primary[500]} />
+            <Text style={styles.helpLinkText}>Ayuda</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -434,11 +473,41 @@ const createStyles = (theme) => StyleSheet.create({
     fontWeight: '600',
   },
   summaryContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: 14,
     marginBottom: 24,
     paddingHorizontal: 4,
+  },
+  summaryActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 20,
+    flexWrap: 'wrap',
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: COLORS.primary[50] || '#EEF2FF',
+    borderWidth: 1,
+    borderColor: COLORS.primary[200] || '#C7D2FE',
+  },
+  syncButtonDisabled: {
+    opacity: 0.7,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderColor: COLORS.neutral.gray[200],
+  },
+  syncButtonText: {
+    fontSize: 14,
+    color: COLORS.primary[700] || COLORS.primary[600],
+    fontWeight: '600',
+  },
+  syncButtonTextDisabled: {
+    color: COLORS.neutral.gray[500],
   },
   legendRow: {
     flexDirection: 'row',
