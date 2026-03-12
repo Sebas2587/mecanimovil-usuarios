@@ -84,6 +84,9 @@ const FormularioSolicitud = ({
     initialData.proveedores_dirigidos.length > 0 &&
     initialData?.tipo_solicitud === 'dirigida';
 
+  // Sin vehículo (precompra): no saltar paso 4 — el usuario debe ver talleres/mecánicos del servicio
+  const flujoCuatroPasos = tieneProveedorPreseleccionado && tieneServicioPreseleccionado && !formData.sin_vehiculo_registrado;
+
   // Ref para trackear si es la primera vez que se monta el componente
   // Esto evita limpiar servicios seleccionados manualmente cuando useFocusEffect
   // resetea initialData a {}
@@ -222,20 +225,29 @@ const FormularioSolicitud = ({
 
   // Cargar proveedores cuando se selecciona "solo proveedores específicos"
   useEffect(() => {
-    if (formData.tipo_solicitud === 'dirigida' && formData.vehiculo && formData.vehiculo.id) {
+    if (formData.tipo_solicitud !== 'dirigida') {
+      setProveedoresDisponibles({ talleres: [], mecanicos: [] });
+      return;
+    }
+    if (formData.sin_vehiculo_registrado && formData.servicios_seleccionados?.length > 0) {
+      cargarProveedoresPorServicioSinVehiculo();
+      return;
+    }
+    if (formData.vehiculo && formData.vehiculo.id) {
       cargarProveedoresPorVehiculo();
     } else {
-      // Si no es solicitud dirigida, limpiar proveedores
       setProveedoresDisponibles({ talleres: [], mecanicos: [] });
     }
-  }, [formData.tipo_solicitud, formData.vehiculo]);
+  }, [formData.tipo_solicitud, formData.vehiculo, formData.sin_vehiculo_registrado, formData.servicios_seleccionados]);
 
   // Recargar proveedores cuando cambien los servicios seleccionados (solo para solicitudes dirigidas)
   useEffect(() => {
-    if (formData.tipo_solicitud === 'dirigida' &&
-      formData.vehiculo &&
-      formData.vehiculo.id &&
-      Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0) {
+    if (formData.tipo_solicitud !== 'dirigida' || !Array.isArray(formData.servicios_seleccionados) || formData.servicios_seleccionados.length === 0) {
+      return;
+    }
+    if (formData.sin_vehiculo_registrado) {
+      cargarProveedoresPorServicioSinVehiculo();
+    } else if (formData.vehiculo && formData.vehiculo.id) {
       cargarProveedoresPorVehiculo();
     }
   }, [formData.servicios_seleccionados]);
@@ -278,6 +290,29 @@ const FormularioSolicitud = ({
     } catch (error) {
       console.error('❌ Error cargando categorías:', error);
       setCategorias([]);
+    }
+  };
+
+  /** Cargar talleres/mecánicos que ofrecen los servicios seleccionados sin vehículo (precompra) */
+  const cargarProveedoresPorServicioSinVehiculo = async () => {
+    const servicioIds = formData.servicios_seleccionados?.map(s => (typeof s === 'object' ? s.id : s)).filter(Boolean) || [];
+    if (servicioIds.length === 0) {
+      setProveedoresDisponibles({ talleres: [], mecanicos: [] });
+      return;
+    }
+    setCargandoProveedores(true);
+    try {
+      const proveedores = await providerService.getProvidersByServicioOnly(servicioIds);
+      setProveedoresDisponibles({
+        talleres: Array.isArray(proveedores.talleres) ? proveedores.talleres : [],
+        mecanicos: Array.isArray(proveedores.mecanicos) ? proveedores.mecanicos : [],
+      });
+      console.log('✅ Proveedores (sin vehículo) por servicio:', servicioIds, proveedores);
+    } catch (e) {
+      console.error('❌ Error cargando proveedores sin vehículo:', e);
+      setProveedoresDisponibles({ talleres: [], mecanicos: [] });
+    } finally {
+      setCargandoProveedores(false);
     }
   };
 
@@ -378,8 +413,8 @@ const FormularioSolicitud = ({
   };
 
   const toggleProveedorSeleccionado = (proveedor, tipo) => {
-    // Prevenir cambios si hay proveedor preseleccionado (desde ProviderDetailScreen)
-    if (tieneProveedorPreseleccionado) {
+    // Prevenir cambios si hay proveedor preseleccionado (desde ProviderDetailScreen), salvo precompra sin vehículo
+    if (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado) {
       Alert.alert(
         'Proveedor preseleccionado',
         'El proveedor ya está preseleccionado desde el perfil del proveedor. No puedes modificarlo.',
@@ -423,7 +458,7 @@ const FormularioSolicitud = ({
   // Si hay servicio + proveedor preseleccionados: 4 pasos (saltamos pasos 2 y 4)
   // Si hay solo servicio preseleccionado: 5 pasos (saltamos el paso 2)
   // Si NO hay preselecciones: 6 pasos (flujo normal)
-  const totalPasos = tieneProveedorPreseleccionado && tieneServicioPreseleccionado
+  const totalPasos = flujoCuatroPasos
     ? 4
     : tieneServicioPreseleccionado
       ? 5
@@ -461,7 +496,7 @@ const FormularioSolicitud = ({
   // Asegurar que cuando hay proveedor preseleccionado, tipo_solicitud permanezca como 'dirigida'
   // y los proveedores no cambien
   useEffect(() => {
-    if (tieneProveedorPreseleccionado) {
+    if (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado) {
       // Forzar tipo_solicitud a 'dirigida' si está preseleccionado
       if (formData.tipo_solicitud !== 'dirigida') {
         console.log('🔒 Asegurando tipo_solicitud como "dirigida" (proveedor preseleccionado)');
@@ -495,11 +530,11 @@ const FormularioSolicitud = ({
         }));
       }
     }
-  }, [tieneProveedorPreseleccionado, formData.tipo_solicitud, formData.proveedores_dirigidos]);
+  }, [tieneProveedorPreseleccionado, formData.sin_vehiculo_registrado, formData.tipo_solicitud, formData.proveedores_dirigidos]);
 
   // Log informativo sobre el flujo detectado
   useEffect(() => {
-    if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
+    if (flujoCuatroPasos) {
       console.log('✅ FormularioSolicitud: Servicio y proveedor preseleccionados detectados');
       console.log('📊 Flujo optimizado: 4 pasos (saltando pasos 2 y 4 - selección de servicios y proveedores)');
       console.log('🎯 Servicio:', initialData.servicios_seleccionados[0]?.nombre);
@@ -535,7 +570,7 @@ const FormularioSolicitud = ({
     }
 
     // Si hay proveedor + servicio preseleccionados (flujo de 4 pasos: 1→3→5→6)
-    if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
+    if (flujoCuatroPasos) {
       // Del paso 1 saltar al paso 3 (salta paso 2)
       if (pasoActual === 1) {
         console.log('🚀 Saltando del paso 1 al paso 3 (servicio y proveedor preseleccionados)');
@@ -566,6 +601,16 @@ const FormularioSolicitud = ({
     // El flujo debe ser: Paso 1 (vehículo) → Paso 3 (urgencia/descripción) → Paso 4 (proveedores) → Paso 5 (dirección) → Paso 6 (fecha/hora)
     else if (tieneServicioPreseleccionado) {
       if (pasoActual === 1) {
+        // Sin vehículo (precompra): avanzar solo con servicio ya seleccionado
+        if (formData.sin_vehiculo_registrado) {
+          if (!formData.servicios_seleccionados?.length) {
+            Alert.alert('Error', 'Debes tener el servicio de precompra seleccionado');
+            return;
+          }
+          console.log('🚀 Precompra sin vehículo: paso 1 → 3');
+          setPasoActual(3);
+          return;
+        }
         // Validar que haya vehículo seleccionado antes de saltar
         if (!formData.vehiculo) {
           console.warn('⚠️ No se puede avanzar: falta seleccionar vehículo');
@@ -574,7 +619,7 @@ const FormularioSolicitud = ({
         }
         console.log('🚀 Saltando del paso 1 al paso 3 (servicio preseleccionado desde categoría)');
         console.log('📋 Servicio preseleccionado:', formData.servicios_seleccionados[0]?.nombre);
-        console.log('🚗 Vehículo seleccionado:', formData.vehiculo.marca_nombre, formData.vehiculo.modelo_nombre);
+        console.log('🚗 Vehículo seleccionado:', formData.vehiculo?.marca_nombre, formData.vehiculo?.modelo_nombre);
         setPasoActual(3); // Saltar directamente al paso de urgencia (saltando paso 2)
       } else if (pasoActual === 6) {
         // En el paso 6 (último paso), hacer submit
@@ -603,7 +648,7 @@ const FormularioSolicitud = ({
   const handleBack = () => {
     if (pasoActual > 1) {
       // Si hay proveedor + servicio preseleccionados
-      if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
+      if (flujoCuatroPasos) {
         // Del paso 3 retroceder al paso 1 (si proveedor preseleccionado)
         if (pasoActual === 3) {
           console.log('🔙 Retrocediendo del paso 3 al paso 1 (servicio y proveedor preseleccionados)');
@@ -665,9 +710,13 @@ const FormularioSolicitud = ({
         }
         return true;
       case 3:
+        // Precompra sin vehículo: no exigir vehículo
+        if (formData.sin_vehiculo_registrado) {
+          return true;
+        }
         // Si hay servicio y proveedor preseleccionados, validar que haya vehículo seleccionado
         // (porque el paso 1 se saltó)
-        if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
+        if (flujoCuatroPasos) {
           if (!formData.vehiculo) {
             Alert.alert('Error', 'Debes seleccionar un vehículo para continuar');
             return false;
@@ -881,6 +930,9 @@ const FormularioSolicitud = ({
         ...prev,
         vehiculo: null,
         sin_vehiculo_registrado: true,
+        // Dirigida para cargar listado de talleres/mecánicos que ofrecen el servicio (sin vehiculo_id)
+        tipo_solicitud: 'dirigida',
+        proveedores_dirigidos: [],
         servicios_seleccionados: [
           {
             id: precompra.id,
@@ -1750,8 +1802,8 @@ const FormularioSolicitud = ({
   };
 
   const renderPaso4 = () => {
-    // Si hay proveedor preseleccionado, no mostrar este paso (se salta)
-    if (tieneProveedorPreseleccionado) {
+    // Si hay proveedor preseleccionado, no mostrar este paso (se salta) — salvo precompra sin vehículo
+    if (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado) {
       return null;
     }
 
@@ -1765,18 +1817,7 @@ const FormularioSolicitud = ({
       );
     }
 
-    // Sin vehículo: solo solicitud global (no hay filtro por marca)
-    if (formData.sin_vehiculo_registrado && !formData.vehiculo) {
-      return (
-        <View style={styles.pasoContainer}>
-          <Text style={styles.pasoTitle}>Tipo de solicitud</Text>
-          <Text style={styles.pasoDescripcion}>
-            Tu solicitud se publicará abierta a todos los proveedores que ofrezcan el servicio seleccionado.
-          </Text>
-        </View>
-      );
-    }
-
+    // Sin vehículo: mismo paso 4 pero proveedores cargados por servicio (sin marca)
     const todosProveedores = [...proveedoresDisponibles.talleres, ...proveedoresDisponibles.mecanicos];
 
     return (
@@ -1792,7 +1833,7 @@ const FormularioSolicitud = ({
             formData.tipo_solicitud === 'global' && styles.opcionSeleccionada
           ]}
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'global', proveedores_dirigidos: [] }))}
-          disabled={tieneProveedorPreseleccionado}
+          disabled={tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado}
         >
           <Ionicons
             name={formData.tipo_solicitud === 'global' ? 'radio-button-on' : 'radio-button-off'}
@@ -1802,7 +1843,9 @@ const FormularioSolicitud = ({
           <View style={styles.opcionContent}>
             <Text style={styles.opcionTitle}>Abierta a Todos</Text>
             <Text style={styles.opcionDescripcion}>
-              Todos los proveedores que atienden tu {formData.vehiculo.marca_nombre} podrán ofertar
+              {formData.sin_vehiculo_registrado || !formData.vehiculo
+                ? 'Todos los proveedores que ofrezcan el servicio podrán ofertar'
+                : `Todos los proveedores que atienden tu ${formData.vehiculo.marca_nombre} podrán ofertar`}
             </Text>
           </View>
         </TouchableOpacity>
@@ -1813,7 +1856,7 @@ const FormularioSolicitud = ({
             formData.tipo_solicitud === 'dirigida' && styles.opcionSeleccionada
           ]}
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'dirigida' }))}
-          disabled={tieneProveedorPreseleccionado}
+          disabled={tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado}
         >
           <Ionicons
             name={formData.tipo_solicitud === 'dirigida' ? 'radio-button-on' : 'radio-button-off'}
@@ -1835,8 +1878,12 @@ const FormularioSolicitud = ({
             </Text>
             <Text style={styles.proveedoresSubtitle}>
               {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0
-                ? `Proveedores que atienden tu ${formData.vehiculo.marca_nombre} y ofrecen los servicios seleccionados`
-                : `Proveedores que atienden tu ${formData.vehiculo.marca_nombre} ${formData.vehiculo.modelo_nombre}`
+                ? (formData.sin_vehiculo_registrado || !formData.vehiculo
+                    ? 'Proveedores que ofrecen el servicio seleccionado'
+                    : `Proveedores que atienden tu ${formData.vehiculo.marca_nombre} y ofrecen los servicios seleccionados`)
+                : (formData.sin_vehiculo_registrado || !formData.vehiculo
+                    ? 'Proveedores disponibles para el servicio'
+                    : `Proveedores que atienden tu ${formData.vehiculo.marca_nombre} ${formData.vehiculo.modelo_nombre}`)
               }
             </Text>
 
@@ -1849,9 +1896,11 @@ const FormularioSolicitud = ({
               <View style={styles.emptyContainer}>
                 <Ionicons name="business-outline" size={48} color={COLORS.textLight} />
                 <Text style={styles.emptyText}>
-                  {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0
-                    ? `No hay proveedores que atiendan tu ${formData.vehiculo.marca_nombre} y ofrezcan los servicios seleccionados`
-                    : `No hay proveedores disponibles que atiendan tu ${formData.vehiculo.marca_nombre}`
+                  {formData.sin_vehiculo_registrado || !formData.vehiculo
+                    ? 'No hay proveedores con oferta activa para este servicio. Prueba solicitud abierta a todos o más tarde.'
+                    : (Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0
+                        ? `No hay proveedores que atiendan tu ${formData.vehiculo.marca_nombre} y ofrezcan los servicios seleccionados`
+                        : `No hay proveedores disponibles que atiendan tu ${formData.vehiculo.marca_nombre}`)
                   }
                 </Text>
                 {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0 && (
@@ -2444,7 +2493,7 @@ const FormularioSolicitud = ({
     }
 
     // Flujo con servicio + proveedor preseleccionados: mapear pasos (4 pasos visuales: 1→3→5→6)
-    if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
+    if (flujoCuatroPasos) {
       const mapaPasos = {
         1: 1, // Vehículo (paso visual 1)
         3: 2, // Urgencia (paso visual 2, saltamos el paso 2 real)
@@ -2473,7 +2522,7 @@ const FormularioSolicitud = ({
 
   // Determinar si estamos en el último paso real
   const esUltimoPaso = () => {
-    if (tieneProveedorPreseleccionado && tieneServicioPreseleccionado) {
+    if (flujoCuatroPasos) {
       // Flujo de 4 pasos: 1→3→5→6 (paso 6 es el último)
       return pasoActual === 6;
     } else if (tieneServicioPreseleccionado) {

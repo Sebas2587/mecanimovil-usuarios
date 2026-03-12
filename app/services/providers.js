@@ -127,6 +127,32 @@ export const getProvidersByVehiculoAndService = async (vehiculoId, servicioIds =
 };
 
 /**
+ * Proveedores que ofrecen los servicios indicados sin filtrar por vehículo/marca
+ * (precompra u otros flujos sin auto registrado). Backend: proveedores_filtrados sin vehiculo_id + servicio_ids.
+ */
+export const getProvidersByServicioOnly = async (servicioIds = []) => {
+  try {
+    if (!servicioIds || servicioIds.length === 0) {
+      return { talleres: [], mecanicos: [] };
+    }
+    const params = {};
+    servicioIds.forEach((id, index) => {
+      params[`servicio_ids[${index}]`] = id;
+    });
+    const talleresResponse = await get(`/usuarios/talleres/proveedores_filtrados/`, params);
+    const mecanicosResponse = await get(`/usuarios/mecanicos-domicilio/proveedores_filtrados/`, params);
+    return {
+      talleres: talleresResponse.talleres || [],
+      mecanicos: mecanicosResponse.mecanicos || [],
+      filtros_aplicados: { sin_vehiculo: true, servicios: servicioIds },
+    };
+  } catch (error) {
+    console.error('Error obteniendo proveedores por servicio (sin vehículo):', error);
+    return { talleres: [], mecanicos: [] };
+  }
+};
+
+/**
  * Calcula la distancia entre dos coordenadas usando la fórmula de Haversine
  * @param {number} lat1 - Latitud del primer punto
  * @param {number} lon1 - Longitud del primer punto
@@ -993,6 +1019,7 @@ export const getProviderReviews = async (providerId, providerType) => {
 export default {
   getProvidersByVehiculo,
   getProvidersByVehiculoAndService,
+  getProvidersByServicioOnly,
   getWorkshopsForUserVehicles,
   getMechanicsForUserVehicles,
   getTalleresRealmenteCercanos,
