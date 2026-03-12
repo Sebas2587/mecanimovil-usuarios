@@ -53,7 +53,8 @@ const FormularioSolicitud = ({
     detalles_ubicacion: (initialData?.detalles_ubicacion && typeof initialData.detalles_ubicacion === 'string') ? initialData.detalles_ubicacion : '',
     fecha_preferida: (initialData?.fecha_preferida && typeof initialData.fecha_preferida === 'string') ? initialData.fecha_preferida : '',
     hora_preferida: (initialData?.hora_preferida && typeof initialData.hora_preferida === 'string') ? initialData.hora_preferida : '',
-    ubicacion_servicio: initialData?.ubicacion_servicio || null
+    ubicacion_servicio: initialData?.ubicacion_servicio || null,
+    sin_vehiculo_registrado: initialData?.sin_vehiculo_registrado === true
   });
 
 
@@ -630,6 +631,14 @@ const FormularioSolicitud = ({
   const validarPaso = (paso) => {
     switch (paso) {
       case 1:
+        // Precompra / sin vehículo: solo si ya hay servicios seleccionados (viene preseleccionado)
+        if (formData.sin_vehiculo_registrado) {
+          if (!Array.isArray(formData.servicios_seleccionados) || formData.servicios_seleccionados.length === 0) {
+            Alert.alert('Error', 'Para continuar sin vehículo debes tener un servicio seleccionado (ej. revisión precompra).');
+            return false;
+          }
+          return true;
+        }
         if (!formData.vehiculo) {
           Alert.alert('Error', 'Debes seleccionar un vehículo');
           return false;
@@ -833,6 +842,20 @@ const FormularioSolicitud = ({
   };
 
   const renderPaso1 = () => {
+    // Flujo sin vehículo (precompra): no pedir auto registrado
+    if (formData.sin_vehiculo_registrado) {
+      const nombreServicio = formData.servicios_seleccionados?.[0]?.nombre || 'servicio';
+      return (
+        <View style={styles.pasoContainer}>
+          <Text style={styles.pasoTitle}>Servicio sin vehículo registrado</Text>
+          <Text style={styles.pasoDescripcion}>
+            Solicitas {nombreServicio} sin asociar un auto a tu cuenta (por ejemplo, antes de comprar).
+            Completa ubicación y fecha en los siguientes pasos.
+          </Text>
+        </View>
+      );
+    }
+
     // Si no hay vehículos pasados como prop, usar VehicleSelector que los carga automáticamente
     const vehiculosDisponibles = vehiculos && vehiculos.length > 0 ? vehiculos : [];
 
@@ -914,7 +937,7 @@ const FormularioSolicitud = ({
   };
 
   const renderPaso2 = () => {
-    if (!formData.vehiculo) {
+    if (!formData.vehiculo && !formData.sin_vehiculo_registrado) {
       return (
         <View style={styles.pasoContainer}>
           <Text style={styles.errorText}>
@@ -935,7 +958,9 @@ const FormularioSolicitud = ({
         <View style={styles.pasoContainer}>
           <Text style={styles.pasoTitle}>Servicio seleccionado</Text>
           <Text style={styles.pasoDescripcion}>
-            Has seleccionado el siguiente servicio para tu {formData.vehiculo.marca_nombre} {formData.vehiculo.modelo_nombre}
+            {formData.sin_vehiculo_registrado
+              ? 'Has seleccionado el siguiente servicio (sin vehículo registrado en la app).'
+              : `Has seleccionado el siguiente servicio para tu ${formData.vehiculo.marca_nombre} ${formData.vehiculo.modelo_nombre}`}
           </Text>
 
           {/* Mostrar servicios preseleccionados */}
@@ -1270,7 +1295,8 @@ const FormularioSolicitud = ({
     // Si hay servicio y proveedor preseleccionados pero no hay vehículo, mostrar selector de vehículo primero
     const necesitaSeleccionarVehiculo = tieneProveedorPreseleccionado &&
       tieneServicioPreseleccionado &&
-      !formData.vehiculo;
+      !formData.vehiculo &&
+      !formData.sin_vehiculo_registrado;
 
     if (necesitaSeleccionarVehiculo) {
       return (
@@ -1640,11 +1666,23 @@ const FormularioSolicitud = ({
       return null;
     }
 
-    if (!formData.vehiculo) {
+    if (!formData.vehiculo && !formData.sin_vehiculo_registrado) {
       return (
         <View style={styles.pasoContainer}>
           <Text style={styles.errorText}>
             Primero debes seleccionar un vehículo
+          </Text>
+        </View>
+      );
+    }
+
+    // Sin vehículo: solo solicitud global (no hay filtro por marca)
+    if (formData.sin_vehiculo_registrado && !formData.vehiculo) {
+      return (
+        <View style={styles.pasoContainer}>
+          <Text style={styles.pasoTitle}>Tipo de solicitud</Text>
+          <Text style={styles.pasoDescripcion}>
+            Tu solicitud se publicará abierta a todos los proveedores que ofrezcan el servicio seleccionado.
           </Text>
         </View>
       );

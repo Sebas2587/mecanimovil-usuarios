@@ -81,6 +81,13 @@ const CrearSolicitudScreen = () => {
     descripcionPrellenada // Descripción pre-rellenada (desde alertas)
   } = route.params || {};
 
+  /** Servicios que pueden contratarse sin vehículo en la plataforma (ej. revisión precompra) */
+  const esServicioSinVehiculo = (servicio) => {
+    if (!servicio || !servicio.nombre) return false;
+    const n = String(servicio.nombre).toLowerCase();
+    return n.includes('precompra') || n.includes('pre-compra') || n.includes('pre compra');
+  };
+
   // Estado inicial síncrono si ya viene servicio como objeto (modal salud) → Formulario ve paso 1→3 al instante
   const buildInitialFromParams = () => {
     if (servicioPreseleccionado && servicioPreseleccionado.id) {
@@ -107,6 +114,8 @@ const CrearSolicitudScreen = () => {
         fecha_preferida: '',
         hora_preferida: '',
         ubicacion_servicio: null,
+        // Inspección precompra u otros servicios sin vehículo registrado
+        sin_vehiculo_registrado: esServicioSinVehiculo(s),
       };
     }
     return {};
@@ -565,9 +574,11 @@ const CrearSolicitudScreen = () => {
         formateada: fechaFormateada
       });
 
+      // Sin vehículo solo cuando el formulario lo indica explícitamente (evita afectar flujos con vehículo)
+      const sinVehiculo = formData.sin_vehiculo_registrado === true;
+
       const solicitudData = {
         cliente: clienteId, // ID del cliente
-        vehiculo: formData.vehiculo.id,
         descripcion_problema: formData.descripcion_problema,
         urgencia: formData.urgencia,
         requiere_repuestos: formData.requiere_repuestos !== undefined ? formData.requiere_repuestos : true,
@@ -580,6 +591,18 @@ const CrearSolicitudScreen = () => {
         ubicacion_servicio: ubicacionServicio // Enviar en formato GeoJSON: {"type": "Point", "coordinates": [lng, lat]}
         // fecha_expiracion se calcula automáticamente en el modelo (48 horas desde ahora)
       };
+
+      if (sinVehiculo) {
+        solicitudData.sin_vehiculo_registrado = true;
+        // No incluir vehiculo — el serializer lo deja en null
+      } else {
+        if (!formData.vehiculo || !formData.vehiculo.id) {
+          Alert.alert('Error', 'Debes seleccionar un vehículo o usar el flujo de servicio sin vehículo registrado.');
+          setCreando(false);
+          return;
+        }
+        solicitudData.vehiculo = formData.vehiculo.id;
+      }
 
       // Agregar servicios seleccionados (el campo correcto es servicios_solicitados)
       // IMPORTANTE: Los servicios deben estar seleccionados en el paso 2 del formulario

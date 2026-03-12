@@ -145,7 +145,7 @@ const ComparadorOfertasScreen = () => {
             try {
               const resultado = await seleccionarOferta(solicitudId, oferta.id);
 
-              if (resultado && resultado.carrito) {
+              if (resultado && (resultado.carrito || resultado.sin_carrito)) {
                 try {
                   await cargarTodosLosCarritos();
                 } catch (error) {
