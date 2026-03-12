@@ -67,6 +67,7 @@ const FormularioSolicitud = ({
 
   const [proveedoresDisponibles, setProveedoresDisponibles] = useState({ talleres: [], mecanicos: [] });
   const [cargandoProveedores, setCargandoProveedores] = useState(false);
+  const [cargandoPrecompra, setCargandoPrecompra] = useState(false);
 
   // Estados para selector de fecha y hora
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
@@ -841,6 +842,49 @@ const FormularioSolicitud = ({
     setCategoriaSeleccionada(null);
   };
 
+  const esNombreServicioPrecompra = (nombre) => {
+    if (!nombre) return false;
+    const n = String(nombre).toLowerCase();
+    return n.includes('precompra') || n.includes('pre-compra') || n.includes('pre compra');
+  };
+
+  const activarPrecompraSinVehiculo = async () => {
+    try {
+      setCargandoPrecompra(true);
+      const lista = await serviceService.getServices();
+      const arr = Array.isArray(lista) ? lista : lista?.results || [];
+      const precompra = arr.find(s => s && esNombreServicioPrecompra(s.nombre));
+      if (!precompra) {
+        Alert.alert(
+          'Servicio no encontrado',
+          'No se encontró el servicio de revisión precompra en el catálogo. Entra desde el detalle del proveedor que lo ofrezca o contacta soporte.'
+        );
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        vehiculo: null,
+        sin_vehiculo_registrado: true,
+        servicios_seleccionados: [
+          {
+            id: precompra.id,
+            nombre: precompra.nombre,
+            descripcion: precompra.descripcion || '',
+            precio_referencia: precompra.precio_referencia,
+          },
+        ],
+      }));
+      setServiciosDisponibles([]);
+      setCategorias([]);
+      setCategoriaSeleccionada(null);
+    } catch (e) {
+      console.error('activarPrecompraSinVehiculo', e);
+      Alert.alert('Error', 'No se pudo cargar el servicio de precompra. Intenta de nuevo.');
+    } finally {
+      setCargandoPrecompra(false);
+    }
+  };
+
   const renderPaso1 = () => {
     // Flujo sin vehículo (precompra): no pedir auto registrado
     if (formData.sin_vehiculo_registrado) {
@@ -913,6 +957,35 @@ const FormularioSolicitud = ({
             }}
             currentVehicle={formData.vehiculo}
           />
+        )}
+
+        {/* Quien ya tiene autos registrados pero quiere precompra de OTRO auto no registrado */}
+        {vehiculosDisponibles.length > 0 && !formData.sin_vehiculo_registrado && (
+          <View style={{ marginTop: SPACING.lg, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.borderLight || '#E5E7EB' }}>
+            <Text style={[styles.pasoDescripcion, { marginBottom: SPACING.sm }]}>
+              ¿Vas a comprar un auto y aún no lo tienes en la app? Puedes pedir inspección precompra sin elegir un vehículo tuyo.
+            </Text>
+            <TouchableOpacity
+              style={[styles.opcionCard, { marginBottom: 0 }]}
+              onPress={activarPrecompraSinVehiculo}
+              disabled={cargandoPrecompra}
+              activeOpacity={0.7}
+            >
+              {cargandoPrecompra ? (
+                <ActivityIndicator color={COLORS.primary} />
+              ) : (
+                <>
+                  <Ionicons name="search-outline" size={24} color={COLORS.primary} />
+                  <View style={styles.opcionContent}>
+                    <Text style={styles.opcionTitle}>Inspección precompra (auto no registrado)</Text>
+                    <Text style={styles.opcionDescripcion}>
+                      La solicitud no quedará ligada a ninguno de tus vehículos actuales
+                    </Text>
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
 
         {formData.vehiculo && (
