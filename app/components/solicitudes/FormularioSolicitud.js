@@ -1168,46 +1168,65 @@ const FormularioSolicitud = ({
             )}
           </ScrollView>
         ) : (
-          <ScrollView style={styles.serviciosListContainer} nestedScrollEnabled={true}>
+          /* Todos los servicios: misma rejilla 2 columnas que "Por categoría" para menos scroll */
+          <View style={styles.serviciosGridContainer}>
             {serviciosDisponibles.length > 0 ? (
-              serviciosDisponibles.map((servicio) => {
-                const estaSeleccionado = Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.some(s => s && s.id === servicio.id);
-                return (
-                  <TouchableOpacity
-                    key={servicio.id}
-                    style={[
-                      styles.servicioListItem,
-                      estaSeleccionado && styles.servicioListItemSeleccionado
-                    ]}
-                    onPress={() => toggleServicioSeleccionado(servicio)}
-                  >
-                    <View style={styles.servicioListItemContent}>
-                      <View style={styles.servicioListItemInfo}>
-                        <Text style={[
-                          styles.servicioListItemNombre,
-                          estaSeleccionado && styles.servicioListItemNombreSeleccionado
-                        ]}>
+              <View style={styles.serviciosGrid}>
+                {serviciosDisponibles.map((servicio) => {
+                  const estaSeleccionado =
+                    Array.isArray(formData.servicios_seleccionados) &&
+                    formData.servicios_seleccionados.some((s) => s && s.id === servicio.id);
+                  return (
+                    <TouchableOpacity
+                      key={servicio.id}
+                      style={[
+                        styles.servicioCard,
+                        estaSeleccionado && styles.servicioCardSeleccionado,
+                      ]}
+                      onPress={() => toggleServicioSeleccionado(servicio)}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.servicioCardHeader}>
+                        <Text
+                          style={[
+                            styles.servicioCardNombre,
+                            estaSeleccionado && styles.servicioCardNombreSeleccionado,
+                          ]}
+                          numberOfLines={2}
+                        >
                           {servicio.nombre}
                         </Text>
-                        {servicio.descripcion && (
-                          <Text style={styles.servicioListItemDescripcion} numberOfLines={2}>
-                            {servicio.descripcion}
-                          </Text>
-                        )}
+                        {estaSeleccionado ? (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={22}
+                            color={colors.primary?.[500] || COLORS.primary}
+                          />
+                        ) : null}
                       </View>
-                      {estaSeleccionado ? (
-                        <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
-                      ) : (
-                        <Ionicons name="ellipse-outline" size={24} color={COLORS.borderLight} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
+                      {servicio.descripcion ? (
+                        <Text
+                          style={styles.servicioCardDescripcion}
+                          numberOfLines={3}
+                        >
+                          {servicio.descripcion}
+                        </Text>
+                      ) : null}
+                      {servicio.precio_referencia != null ? (
+                        <Text style={styles.servicioCardPrecio} numberOfLines={1}>
+                          Desde ${Number(servicio.precio_referencia).toLocaleString('es-CL')}
+                        </Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             ) : (
-              <Text style={styles.emptyText}>No hay servicios disponibles para este vehículo</Text>
+              <Text style={styles.emptyText}>
+                No hay servicios disponibles para este vehículo
+              </Text>
             )}
-          </ScrollView>
+          </View>
         )}
 
         {/* Contador de servicios seleccionados */}
@@ -2774,13 +2793,20 @@ const styles = StyleSheet.create({
   serviciosGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.sm
+    justifyContent: 'space-between',
+  },
+  /* Contenedor del grid en "Todos los servicios" — sin maxHeight para que el scroll sea el del paso */
+  serviciosGridContainer: {
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   servicioCard: {
     width: '48%',
+    maxWidth: '48%',
+    marginBottom: SPACING.sm,
     backgroundColor: COLORS.white,
     borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
+    padding: SPACING.sm,
     borderWidth: 2,
     borderColor: COLORS.borderLight,
     shadowColor: '#000',
@@ -2811,7 +2837,14 @@ const styles = StyleSheet.create({
   servicioCardDescripcion: {
     fontSize: 12,
     color: COLORS.textLight,
-    marginTop: SPACING.xs
+    marginTop: SPACING.xs,
+    lineHeight: 16,
+  },
+  servicioCardPrecio: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.primary,
+    marginTop: SPACING.sm,
   },
   serviciosListContainer: {
     maxHeight: 400,
