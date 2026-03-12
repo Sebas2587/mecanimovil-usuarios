@@ -194,9 +194,12 @@ export const useProviderServices = (id, type, providerName) => {
                         categorias_completas: servicioCompleto.categorias_info,
 
                         modelos_info: servicioCompleto.modelos_info || [],
-                        modelos_compatibles: servicioCompleto.modelos_info?.map(modelo =>
-                            `${modelo.marca_nombre} ${modelo.modelo_nombre}`
-                        ) || [],
+                        // API ModeloSerializer usa 'nombre' (modelo), no 'modelo_nombre' → evitar "Marca undefined"
+                        modelos_compatibles: (servicioCompleto.modelos_info || []).map((modelo) => {
+                            const marca = modelo.marca_nombre || modelo.marca || '';
+                            const nom = modelo.nombre || modelo.modelo_nombre || '';
+                            return `${marca} ${nom}`.trim() || String(modelo.id || '');
+                        }),
 
                         tipo_proveedor: type,
                         [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
