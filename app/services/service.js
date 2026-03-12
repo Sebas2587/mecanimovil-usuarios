@@ -152,6 +152,20 @@ export const getServicioDetalle = async (servicioId) => {
 };
 
 /**
+ * Detalle de servicio por ID (ruta que usa el backend: servicios/servicios/:id/)
+ * Necesario porque GET /servicios/ suele ser paginado y no devuelve todos en una sola respuesta.
+ */
+export const getServicioPorIdNested = async (servicioId) => {
+  try {
+    const response = await get(`/servicios/servicios/${servicioId}/`);
+    return response;
+  } catch (error) {
+    console.error('Error obteniendo servicio por id (nested):', error);
+    return null;
+  }
+};
+
+/**
  * Busca servicios por término
  * @param {string} termino - Término de búsqueda
  * @returns {Promise<Array>} Lista de servicios que coinciden con la búsqueda
@@ -213,6 +227,7 @@ export default {
   getMecanicosDomicilio,
   getCategorias,
   getServicioDetalle,
+  getServicioPorIdNested,
   buscarServicios,
   getPopularServicesByVehicle
 }; 

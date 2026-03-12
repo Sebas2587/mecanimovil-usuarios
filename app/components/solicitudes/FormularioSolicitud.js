@@ -851,13 +851,29 @@ const FormularioSolicitud = ({
   const activarPrecompraSinVehiculo = async () => {
     try {
       setCargandoPrecompra(true);
-      const lista = await serviceService.getServices();
-      const arr = Array.isArray(lista) ? lista : lista?.results || [];
-      const precompra = arr.find(s => s && esNombreServicioPrecompra(s.nombre));
+      let precompra = null;
+
+      // 1) Búsqueda directa (evita depender de GET /servicios/ que en producción es paginado/corto)
+      const busqueda = await serviceService.buscarServicios('precompra');
+      const busArr = Array.isArray(busqueda) ? busqueda : busqueda?.results || [];
+      precompra = busArr.find(s => s && esNombreServicioPrecompra(s.nombre)) || busArr[0];
+
+      // 2) Lista paginada: primera página por si incluye el servicio
       if (!precompra) {
+        const lista = await serviceService.getServices();
+        const arr = Array.isArray(lista) ? lista : lista?.results || [];
+        precompra = arr.find(s => s && esNombreServicioPrecompra(s.nombre));
+      }
+
+      // 3) Fallback por ID conocido en catálogo (Revisión precompra = 4 en logs Render/app)
+      if (!precompra) {
+        precompra = await serviceService.getServicioPorIdNested(4);
+      }
+
+      if (!precompra || !precompra.id) {
         Alert.alert(
           'Servicio no encontrado',
-          'No se encontró el servicio de revisión precompra en el catálogo. Entra desde el detalle del proveedor que lo ofrezca o contacta soporte.'
+          'No se encontró el servicio de revisión precompra. Entra desde el perfil del proveedor que lo ofrece o contacta soporte.'
         );
         return;
       }
