@@ -1101,15 +1101,30 @@ const FormularioSolicitud = ({
                           onPress={() => toggleServicioSeleccionado(servicio)}
                         >
                           <View style={styles.servicioCardHeader}>
-                            <Text style={[
-                              styles.servicioCardNombre,
-                              estaSeleccionado && styles.servicioCardNombreSeleccionado
-                            ]}>
-                              {servicio.nombre}
-                            </Text>
-                            {estaSeleccionado && (
-                              <Ionicons name="checkmark-circle" size={24} color={colors.primary?.[500] || '#003459'} />
-                            )}
+                            <View
+                              style={[
+                                styles.servicioCardTituloBar,
+                                estaSeleccionado && styles.servicioCardTituloBarSeleccionado,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.servicioCardNombre,
+                                  estaSeleccionado && styles.servicioCardNombreSeleccionado,
+                                ]}
+                                numberOfLines={2}
+                              >
+                                {servicio.nombre}
+                              </Text>
+                            </View>
+                            {estaSeleccionado ? (
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={24}
+                                color={colors.primary?.[500] || '#003459'}
+                                style={styles.servicioCardCheckIcon}
+                              />
+                            ) : null}
                           </View>
                           {servicio.descripcion && (
                             <Text style={styles.servicioCardDescripcion} numberOfLines={2}>
@@ -1187,20 +1202,28 @@ const FormularioSolicitud = ({
                       activeOpacity={0.85}
                     >
                       <View style={styles.servicioCardHeader}>
-                        <Text
+                        <View
                           style={[
-                            styles.servicioCardNombre,
-                            estaSeleccionado && styles.servicioCardNombreSeleccionado,
+                            styles.servicioCardTituloBar,
+                            estaSeleccionado && styles.servicioCardTituloBarSeleccionado,
                           ]}
-                          numberOfLines={2}
                         >
-                          {servicio.nombre}
-                        </Text>
+                          <Text
+                            style={[
+                              styles.servicioCardNombre,
+                              estaSeleccionado && styles.servicioCardNombreSeleccionado,
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {servicio.nombre}
+                          </Text>
+                        </View>
                         {estaSeleccionado ? (
                           <Ionicons
                             name="checkmark-circle"
                             size={22}
                             color={colors.primary?.[500] || COLORS.primary}
+                            style={styles.servicioCardCheckIcon}
                           />
                         ) : null}
                       </View>
@@ -2821,18 +2844,39 @@ const styles = StyleSheet.create({
   },
   servicioCardHeader: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs
+    marginBottom: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  /* Banda superior clara para que el nombre del servicio no se confunda con la descripción */
+  servicioCardTituloBar: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: COLORS.background?.default || '#F3F4F6',
+    borderRadius: BORDERS.radius.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primary,
+  },
+  servicioCardTituloBarSeleccionado: {
+    backgroundColor: '#E8F4FC',
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.primary,
+  },
+  servicioCardCheckIcon: {
+    marginTop: 2,
   },
   servicioCardNombre: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '800',
     color: COLORS.text,
-    flex: 1
+    lineHeight: 20,
+    letterSpacing: 0.2,
   },
   servicioCardNombreSeleccionado: {
-    color: COLORS.primary
+    color: COLORS.primary,
   },
   servicioCardDescripcion: {
     fontSize: 12,

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -61,7 +61,7 @@ const UserPanelScreen = () => {
 
   // Use TanStack Query for vehicles with proper caching
   const {
-    data: vehicles = [],
+    data: vehiclesData,
     isLoading: vehiclesLoading,
     refetch: refetchVehicles,
     isRefetching: vehiclesRefetching
@@ -72,8 +72,11 @@ const UserPanelScreen = () => {
     gcTime: 1000 * 60 * 30, // Keep in cache for 30 minutes (was cacheTime in v4)
     refetchOnMount: true, // Will only refetch if data is stale (older than 5 min)
     refetchOnWindowFocus: false,
-    select: (data) => Array.isArray(data) ? data : (data?.results || [])
+    select: useCallback((data) => Array.isArray(data) ? data : (data?.results || []), [])
   });
+
+  // Stabilize vehicles array to prevent useEffect loop
+  const vehicles = useMemo(() => vehiclesData || [], [vehiclesData]);
 
   // Use optimized hooks for providers (they already have caching)
   const {
@@ -240,15 +243,41 @@ const UserPanelScreen = () => {
           fleetHealth={stats.fleetHealth}
         />
 
-        {/* 1.5 Active Requests Carousel */}
+        {/* 1.5 Active Requests — mismo patrón de sección que el resto del panel */}
         <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Solicitudes activas</Text>
+            {solicitudesActivas && solicitudesActivas.length > 0 ? (
+              <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MIS_SOLICITUDES)}>
+                <Text style={styles.seeAllText}>Ver todas</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
           {solicitudesActivas && solicitudesActivas.length > 0 ? (
             <ActiveRequestsCarousel requests={solicitudesActivas} />
           ) : (
-            <View style={{ paddingHorizontal: 16, paddingVertical: 20 }}>
-              <Text style={{ color: colors.text?.secondary || '#6B7280', textAlign: 'center', fontStyle: 'italic' }}>
-                No tienes solicitudes de servicio activas.
+            <View style={styles.emptySolicitudesCard}>
+              <View style={styles.emptySolicitudesIconWrap}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={28}
+                  color={colors.primary?.main || colors.primary?.[500] || '#003459'}
+                />
+              </View>
+              <Text style={styles.emptySolicitudesTitle}>
+                Aún no tienes solicitudes en curso
               </Text>
+              <Text style={styles.emptySolicitudesSubtitle}>
+                Crea una solicitud para recibir ofertas de talleres y mecánicos cercanos.
+              </Text>
+              <TouchableOpacity
+                style={styles.emptySolicitudesCta}
+                onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.emptySolicitudesCtaText}>Nueva solicitud</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -565,7 +594,60 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     fontSize: 12,
     fontWeight: '500',
     color: colors.primary?.[500],
-  }
+  },
+  /* Empty state solicitudes activas — alineado a tarjetas del panel */
+  emptySolicitudesCard: {
+    marginHorizontal: spacing.md || 16,
+    backgroundColor: colors.background?.paper || '#FFFFFF',
+    borderRadius: borders.radius?.lg || 16,
+    padding: spacing.lg || 20,
+    borderWidth: 1,
+    borderColor: colors.neutral?.gray?.[200] || '#E5E7EB',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  emptySolicitudesIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary?.light || 'rgba(0, 52, 89, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.md || 16,
+  },
+  emptySolicitudesTitle: {
+    fontSize: typography.fontSize?.md || 16,
+    fontWeight: typography.fontWeight?.bold || '700',
+    color: colors.text?.primary || '#111827',
+    textAlign: 'center',
+    marginBottom: spacing.xs || 8,
+  },
+  emptySolicitudesSubtitle: {
+    fontSize: typography.fontSize?.sm || 14,
+    color: colors.text?.secondary || '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing.lg || 20,
+    paddingHorizontal: spacing.sm || 8,
+  },
+  emptySolicitudesCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary?.main || colors.primary?.[500] || '#003459',
+    paddingVertical: spacing.sm || 12,
+    paddingHorizontal: spacing.lg || 20,
+    borderRadius: borders.radius?.button?.md || 12,
+  },
+  emptySolicitudesCtaText: {
+    color: '#FFFFFF',
+    fontSize: typography.fontSize?.sm || 15,
+    fontWeight: typography.fontWeight?.semibold || '600',
+  },
 });
 
 export default UserPanelScreen;
