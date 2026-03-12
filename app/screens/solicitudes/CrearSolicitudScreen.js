@@ -850,8 +850,8 @@ const CrearSolicitudScreen = () => {
     );
   }
 
-  // Como el tab bar está oculto en esta pantalla, solo usar el safe area bottom
-  const totalBottomPadding = insets.bottom + (spacing.md || 16);
+  // Solo safe area: el FormularioSolicitud aplica padding interno compacto en la barra (evita doble padding)
+  const totalBottomPadding = insets.bottom;
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>

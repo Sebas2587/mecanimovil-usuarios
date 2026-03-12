@@ -2395,19 +2395,28 @@ const FormularioSolicitud = ({
       </View>
 
       {/* Contenido del paso */}
+      {/* paddingBottom solo para aire al final del scroll; la barra está fuera del ScrollView */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={{
-          paddingBottom: contentPaddingBottom + (spacing.md || 16) +
-            (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? (spacing.lg || 24) : 0)
+          paddingBottom:
+            (spacing.lg || 20) +
+            (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? (spacing.md || 12) : 0),
         }}
         showsVerticalScrollIndicator={false}
       >
         {renderPaso()}
       </ScrollView>
 
-      {/* Botones de navegación */}
-      <View style={[navStyles.navigation, { paddingBottom: contentPaddingBottom + (spacing.md || 16) }]}>
+      {/* Barra inferior compacta: safe area una sola vez + padding moderado */}
+      <View
+        style={[
+          navStyles.navigation,
+          {
+            paddingBottom: (contentPaddingBottom || 0) + (spacing.sm || 10),
+          },
+        ]}
+      >
         {pasoActual === 1 && onExit && (
           <TouchableOpacity
             onPress={onExit}
@@ -2456,8 +2465,9 @@ const styles = StyleSheet.create({
     flex: 1
   },
   progressContainer: {
-    padding: SPACING.md,
-    backgroundColor: COLORS.white
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.white,
   },
   progressText: {
     fontSize: 14,
@@ -3251,30 +3261,33 @@ const styles = StyleSheet.create({
 
 // Función para crear estilos dinámicos de los botones de navegación basados en el tema
 const createNavStyles = (colors, typography, spacing, borders) => StyleSheet.create({
+  // Barra sticky: menos padding vertical para ganar área útil al ScrollView
   navigation: {
     flexDirection: 'row',
-    padding: spacing.md || 16,
-    paddingTop: spacing.md || 16,
+    alignItems: 'center',
+    paddingTop: spacing.sm || 10,
+    paddingHorizontal: spacing.md || 16,
     backgroundColor: colors.background?.paper || '#FFFFFF',
     borderTopWidth: borders.width?.thin || 1,
     borderTopColor: colors.neutral?.gray?.[200] || '#E5E7EB',
-    gap: spacing.sm || 12,
+    gap: spacing.sm || 10,
     shadowColor: colors.base?.inkBlack || '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 6,
   },
   navButton: {
     flex: 1,
+    minHeight: 0,
   },
   backButton: {
     borderRadius: borders.radius?.button?.md || 12,
     overflow: 'hidden',
   },
   backButtonContainer: {
-    paddingVertical: spacing.md || 14,
-    paddingHorizontal: spacing.lg || 20,
+    paddingVertical: spacing.sm || 12,
+    paddingHorizontal: spacing.md || 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borders.radius?.button?.md || 12,
@@ -3298,8 +3311,8 @@ const createNavStyles = (colors, typography, spacing, borders) => StyleSheet.cre
     elevation: 4,
   },
   nextButtonGradient: {
-    paddingVertical: spacing.md || 14,
-    paddingHorizontal: spacing.lg || 20,
+    paddingVertical: spacing.sm || 12,
+    paddingHorizontal: spacing.md || 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: borders.radius?.button?.md || 12,
