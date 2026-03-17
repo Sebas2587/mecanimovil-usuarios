@@ -1,33 +1,44 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  Modal, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  Modal,
+  StyleSheet,
   TouchableOpacity,
   ScrollView,
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS as DS_COLORS } from '../../design-system/tokens';
 import checklistClienteService from '../../services/checklistService';
 
-const COLORS = {
-  primary: '#2563eb',
-  success: '#16a34a',
-  warning: '#f59e0b',
-  error: '#dc2626',
-  background: '#f8fafc',
-  text: '#1e293b',
-  textLight: '#64748b',
-  border: '#e2e8f0'
+// Aliases de colores del design system
+const C = {
+  primary:       DS_COLORS?.primary?.[500]        ?? '#003459',
+  accent:        DS_COLORS?.accent?.[500]          ?? '#00A8E8',
+  success:       DS_COLORS?.success?.main          ?? '#00C9A7',
+  successBg:     DS_COLORS?.success?.light         ?? '#E6F7F4',
+  successDark:   DS_COLORS?.success?.dark          ?? '#00997A',
+  warning:       DS_COLORS?.warning?.main          ?? '#FFB84D',
+  error:         DS_COLORS?.error?.main            ?? '#FF6B6B',
+  bgDefault:     DS_COLORS?.background?.default    ?? '#F5F7F8',
+  bgPaper:       DS_COLORS?.background?.paper      ?? '#FFFFFF',
+  textPrimary:   DS_COLORS?.text?.primary          ?? '#00171F',
+  textSecondary: DS_COLORS?.text?.secondary        ?? '#3E4F53',
+  textLight:     DS_COLORS?.text?.tertiary         ?? '#5D6F75',
+  borderLight:   DS_COLORS?.border?.light          ?? '#D7DFE3',
+  borderMain:    DS_COLORS?.border?.main           ?? '#C3CFD5',
 };
 
 const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => {
   console.log('🔍 Modal Props:', { visible, ordenId, servicioNombre });
 
   // TODOS LOS HOOKS PRIMERO - ANTES DE CUALQUIER RETURN
+  const insets = useSafeAreaInsets();
   const [checklist, setChecklist] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -40,18 +51,18 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
       setLoading(true);
       setError(null);
       console.log('🔍 Cargando checklist para orden:', ordenId);
-      
+
       const checklistData = await checklistClienteService.obtenerChecklistServicio(ordenId);
-      
+
       if (!checklistData) {
         throw new Error('No se recibieron datos del checklist');
       }
-      
+
       const checklistFormateado = checklistClienteService.formatearChecklistParaCliente(checklistData);
-      
+
       console.log('✅ Checklist cargado:', checklistFormateado);
       setChecklist(checklistFormateado);
-      
+
       // Establecer primera categoría como seleccionada por defecto
       if (checklistFormateado?.respuestas && Array.isArray(checklistFormateado.respuestas)) {
         const categorias = checklistClienteService.organizarRespuestasPorCategoria(checklistFormateado.respuestas);
@@ -60,34 +71,83 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
           setCategoriaSeleccionada(primeraCategoria);
         }
       }
-      
-    } catch (error) {
-      console.error('❌ Error cargando checklist:', error);
-      setError(String(error.message || 'No se pudo cargar el checklist del servicio'));
-      
+    } catch (err) {
+      console.error('❌ Error cargando checklist:', err);
+      setError(String(err.message || 'No se pudo cargar el checklist del servicio'));
+
       Alert.alert(
         'Error',
-        String(error.message || 'No se pudo cargar el checklist del servicio'),
+        String(err.message || 'No se pudo cargar el checklist del servicio'),
         [{ text: 'OK', onPress: onClose }]
       );
     } finally {
       setLoading(false);
     }
-  }, [ordenId, onClose]); // Dependencias necesarias
+  }, [ordenId, onClose]);
 
   // useEffect también debe ir antes de cualquier return
   useEffect(() => {
     if (visible && ordenId) {
       cargarChecklist();
     }
-  }, [visible, ordenId, cargarChecklist]); // Ahora incluyo cargarChecklist en dependencias
+  }, [visible, ordenId, cargarChecklist]);
 
   // AHORA SÍ, RETURN CONDICIONAL DESPUÉS DE TODOS LOS HOOKS
   if (!visible) {
     return null;
   }
 
-  // Renderizar navegación de categorías
+  // ─── TARJETA DEL PROVEEDOR ───────────────────────────────────────────────
+  const renderProveedorCard = () => {
+    const pi = checklist?.ordenInfo?.proveedor_info;
+    if (!pi) return null;
+
+    const marcasVisibles = (pi.marcas_atendidas || []).slice(0, 3);
+
+    return (
+      <View style={styles.proveedorCard}>
+        {/* Avatar */}
+        {pi.foto_perfil_url ? (
+          <Image
+            source={{ uri: pi.foto_perfil_url }}
+            style={styles.proveedorAvatar}
+          />
+        ) : (
+          <View style={[styles.proveedorAvatar, styles.proveedorAvatarPlaceholder]}>
+            <Text style={styles.proveedorAvatarInicial}>
+              {(pi.nombre || 'P')[0].toUpperCase()}
+            </Text>
+          </View>
+        )}
+
+        {/* Info */}
+        <View style={styles.proveedorInfoContainer}>
+          <Text style={styles.proveedorNombre} numberOfLines={1}>
+            {pi.nombre || 'Proveedor'}
+          </Text>
+          <Text style={styles.proveedorTipoDisplay}>{pi.tipo_display || ''}</Text>
+
+          {marcasVisibles.length > 0 && (
+            <FlatList
+              horizontal
+              scrollEnabled={false}
+              showsHorizontalScrollIndicator={false}
+              data={marcasVisibles}
+              keyExtractor={(item, idx) => String(idx)}
+              renderItem={({ item }) => (
+                <View style={styles.marcaChip}>
+                  <Text style={styles.marcaChipTexto}>{item}</Text>
+                </View>
+              )}
+              contentContainerStyle={{ gap: 6, marginTop: 6 }}
+            />
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // ─── NAVEGACIÓN DE CATEGORÍAS ────────────────────────────────────────────
   const renderNavegacion = () => {
     if (!checklist?.respuestas || !Array.isArray(checklist.respuestas)) {
       return null;
@@ -103,8 +163,8 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     return (
       <View style={styles.navegacionContainer}>
         <Text style={styles.navegacionTitle}>📋 Categorías de Inspección</Text>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoriasScroll}
           contentContainerStyle={{ paddingHorizontal: 5 }}
@@ -112,36 +172,42 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
           {categoriasArray.map((categoria) => {
             const categoriaData = categorias[categoria] || [];
             const categoriaLength = Array.isArray(categoriaData) ? categoriaData.length : 0;
-            
+
             return (
               <TouchableOpacity
                 key={String(categoria)}
                 style={[
                   styles.categoriaTab,
-                  categoriaSeleccionada === categoria && styles.categoriaTabActiva
+                  categoriaSeleccionada === categoria && styles.categoriaTabActiva,
                 ]}
                 onPress={() => setCategoriaSeleccionada(categoria)}
                 activeOpacity={0.7}
               >
-                <Ionicons 
-                  name={checklistClienteService.obtenerIconoCategoria(categoria)} 
-                  size={18} 
-                  color={categoriaSeleccionada === categoria ? '#fff' : COLORS.primary} 
+                <Ionicons
+                  name={checklistClienteService.obtenerIconoCategoria(categoria)}
+                  size={18}
+                  color={categoriaSeleccionada === categoria ? '#fff' : C.primary}
                 />
-                <Text style={[
-                  styles.categoriaTabTexto,
-                  categoriaSeleccionada === categoria && styles.categoriaTabTextoActivo
-                ]}>
+                <Text
+                  style={[
+                    styles.categoriaTabTexto,
+                    categoriaSeleccionada === categoria && styles.categoriaTabTextoActivo,
+                  ]}
+                >
                   {String(checklistClienteService.obtenerNombreCategoria(categoria))}
                 </Text>
-                <View style={[
-                  styles.categoriaContador,
-                  categoriaSeleccionada === categoria && { backgroundColor: 'rgba(255,255,255,0.2)' }
-                ]}>
-                  <Text style={[
-                    styles.contadorTexto,
-                    categoriaSeleccionada === categoria && { color: '#fff' }
-                  ]}>
+                <View
+                  style={[
+                    styles.categoriaContador,
+                    categoriaSeleccionada === categoria && { backgroundColor: 'rgba(255,255,255,0.2)' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.contadorTexto,
+                      categoriaSeleccionada === categoria && { color: '#fff' },
+                    ]}
+                  >
                     {String(categoriaLength)}
                   </Text>
                 </View>
@@ -153,13 +219,13 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     );
   };
 
-  // Renderizar contenido de categoría seleccionada
+  // ─── CONTENIDO DE CATEGORÍA ──────────────────────────────────────────────
   const renderContenido = () => {
     if (!categoriaSeleccionada || !checklist?.respuestas) {
       return (
         <View style={styles.contenidoContainer}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Ionicons name="information-circle" size={64} color={COLORS.textLight} />
+            <Ionicons name="information-circle" size={64} color={C.textLight} />
             <Text style={styles.instruccionTexto}>
               👆 Selecciona una categoría arriba para ver los detalles de la inspección realizada
             </Text>
@@ -175,7 +241,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
       return (
         <View style={styles.contenidoContainer}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Ionicons name="folder-open" size={64} color={COLORS.textLight} />
+            <Ionicons name="folder-open" size={64} color={C.textLight} />
             <Text style={styles.sinDatosTexto}>
               No hay elementos verificados en esta categoría
             </Text>
@@ -185,7 +251,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     }
 
     return (
-      <ScrollView 
+      <ScrollView
         style={styles.contenidoContainer}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 30 }}
@@ -196,7 +262,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
         <Text style={styles.categoriaSubtitle}>
           ✅ {String(respuestasCategoria.length)} elemento{respuestasCategoria.length !== 1 ? 's' : ''} verificado{respuestasCategoria.length !== 1 ? 's' : ''}
         </Text>
-        
+
         {respuestasCategoria.map((respuesta, index) => {
           try {
             if (!respuesta || typeof respuesta !== 'object') {
@@ -204,91 +270,169 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
             }
 
             const pregunta = String(
-              respuesta.item_template_info?.pregunta_texto || 
-              respuesta.item_info?.pregunta_texto || 
+              respuesta.item_template_info?.pregunta_texto ||
+              respuesta.item_info?.pregunta_texto ||
               'Pregunta sin título'
             );
-            
+            const tipoPregunta = respuesta.item_info?.tipo_pregunta || respuesta.item_template_info?.tipo_pregunta;
+
             return (
               <View key={String(index)} style={styles.respuestaCard}>
                 <View style={styles.preguntaContainer}>
                   <Text style={styles.preguntaTexto}>{pregunta}</Text>
                   {respuesta.completado && (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
+                    <Ionicons name="checkmark-circle" size={24} color={C.success} />
                   )}
                 </View>
 
-                {/* Respuesta de texto */}
-                {respuesta.respuesta_texto && (
-                  <View style={styles.respuestaItem}>
-                    <Text style={styles.respuestaLabel}>💬 Respuesta</Text>
-                    <Text style={styles.respuestaValor}>
-                      {String(respuesta.respuesta_texto)}
-                    </Text>
-                  </View>
-                )}
+                {/* SELECT / MULTISELECT */}
+                {respuesta.respuesta_seleccion != null &&
+                  tipoPregunta !== 'BOOLEAN' && (
+                    <View style={styles.respuestaItem}>
+                      <Text style={styles.respuestaLabel}>Resultado seleccionado</Text>
+                      {(() => {
+                        const sel = respuesta.respuesta_seleccion;
+                        let opciones = [];
+                        if (Array.isArray(sel)) {
+                          opciones = sel;
+                        } else if (typeof sel === 'string') {
+                          try {
+                            const parsed = JSON.parse(sel);
+                            opciones = Array.isArray(parsed) ? parsed : [sel];
+                          } catch {
+                            opciones = [sel];
+                          }
+                        }
+                        return (
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                            {opciones.map((op, oi) => (
+                              <View key={String(oi)} style={styles.seleccionChip}>
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={16}
+                                  color={C.success}
+                                  style={{ marginRight: 4 }}
+                                />
+                                <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        );
+                      })()}
+                    </View>
+                  )}
+
+                {/* Respuesta de texto mejorada */}
+                {respuesta.respuesta_texto && (() => {
+                  let icono = null;
+                  let unidad = '';
+                  let valorStyle = {};
+
+                  if (tipoPregunta === 'KILOMETER_INPUT') {
+                    icono = (
+                      <Ionicons
+                        name="speedometer-outline"
+                        size={16}
+                        color={C.accent}
+                        style={{ marginRight: 6 }}
+                      />
+                    );
+                    unidad = ' km';
+                    valorStyle = { fontSize: 17, fontWeight: '700', color: C.primary };
+                  } else if (tipoPregunta === 'FLUID_LEVEL') {
+                    icono = (
+                      <Ionicons
+                        name="water-outline"
+                        size={16}
+                        color={C.accent}
+                        style={{ marginRight: 6 }}
+                      />
+                    );
+                  } else if (tipoPregunta === 'NUMBER') {
+                    icono = (
+                      <Ionicons
+                        name="calculator-outline"
+                        size={16}
+                        color={C.accent}
+                        style={{ marginRight: 6 }}
+                      />
+                    );
+                  }
+
+                  return (
+                    <View style={styles.respuestaItem}>
+                      <Text style={styles.respuestaLabel}>💬 Respuesta</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        {icono}
+                        <Text style={[styles.respuestaValor, valorStyle]}>
+                          {String(respuesta.respuesta_texto)}{unidad}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })()}
 
                 {/* Respuesta numérica */}
-                {(respuesta.respuesta_numero !== null && respuesta.respuesta_numero !== undefined) && (
-                  <View style={styles.respuestaItem}>
-                    <Text style={styles.respuestaLabel}>🔢 Valor</Text>
-                    <Text style={styles.respuestaValor}>
-                      {String(respuesta.respuesta_numero)}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Respuesta booleana */}
-                {(respuesta.respuesta_booleana !== null && respuesta.respuesta_booleana !== undefined) && (
-                  <View style={styles.respuestaItem}>
-                    <Text style={styles.respuestaLabel}>📊 Estado</Text>
-                    <View style={styles.booleanResponse}>
-                      <Ionicons 
-                        name={respuesta.respuesta_booleana ? "checkmark-circle" : "close-circle"} 
-                        size={18} 
-                        color={respuesta.respuesta_booleana ? COLORS.success : COLORS.error} 
-                      />
-                      <Text style={[
-                        styles.respuestaValor,
-                        { 
-                          color: respuesta.respuesta_booleana ? COLORS.success : COLORS.error,
-                          marginLeft: 8,
-                          fontWeight: '600'
-                        }
-                      ]}>
-                        {String(respuesta.respuesta_booleana ? "✅ Correcto" : "⚠️ Necesita atención")}
+                {respuesta.respuesta_numero !== null &&
+                  respuesta.respuesta_numero !== undefined && (
+                    <View style={styles.respuestaItem}>
+                      <Text style={styles.respuestaLabel}>🔢 Valor</Text>
+                      <Text style={styles.respuestaValor}>
+                        {String(respuesta.respuesta_numero)}
                       </Text>
                     </View>
-                  </View>
-                )}
+                  )}
 
-                {/* Fotos */}
+                {/* Respuesta booleana */}
+                {respuesta.respuesta_booleana !== null &&
+                  respuesta.respuesta_booleana !== undefined && (
+                    <View style={styles.respuestaItem}>
+                      <Text style={styles.respuestaLabel}>📊 Estado</Text>
+                      <View style={styles.booleanResponse}>
+                        <Ionicons
+                          name={respuesta.respuesta_booleana ? 'checkmark-circle' : 'close-circle'}
+                          size={18}
+                          color={respuesta.respuesta_booleana ? C.success : C.error}
+                        />
+                        <Text
+                          style={[
+                            styles.respuestaValor,
+                            {
+                              color: respuesta.respuesta_booleana ? C.success : C.error,
+                              marginLeft: 8,
+                              fontWeight: '600',
+                            },
+                          ]}
+                        >
+                          {String(respuesta.respuesta_booleana ? '✅ Correcto' : '⚠️ Necesita atención')}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                {/* Fotos mejoradas */}
                 {respuesta.fotos && Array.isArray(respuesta.fotos) && respuesta.fotos.length > 0 && (
                   <View style={styles.fotosContainer}>
-                    <Text style={styles.respuestaLabel}>📸 Evidencia fotográfica</Text>
+                    <Text style={styles.respuestaLabel}>
+                      {respuesta.fotos.length} foto{respuesta.fotos.length !== 1 ? 's' : ''} de evidencia
+                    </Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       {respuesta.fotos.map((foto, fotoIndex) => {
                         if (!foto || typeof foto !== 'object') return null;
-                        
+
                         return (
                           <TouchableOpacity
                             key={String(fotoIndex)}
                             style={styles.fotoContainer}
-                            onPress={() => {
-                              const descripcion = String(foto.descripcion || 'Evidencia del servicio');
-                              Alert.alert('📸 Foto', descripcion);
-                            }}
                             activeOpacity={0.8}
                           >
-                            <Image 
-                              source={{ uri: foto.imagen_url || foto.imagen_comprimida_url || '' }} 
+                            <Image
+                              source={{ uri: foto.imagen_url || foto.imagen_comprimida_url || '' }}
                               style={styles.fotoImagen}
                             />
-                            {foto.descripcion && (
-                              <Text style={styles.fotoDescripcion}>
-                                {String(foto.descripcion)}
-                              </Text>
-                            )}
+                            <Text style={styles.fotoDescripcion} numberOfLines={2}>
+                              {String(foto.descripcion || 'Evidencia del servicio')}
+                            </Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -304,8 +448,8 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
                 )}
               </View>
             );
-          } catch (error) {
-            console.error('Error renderizando respuesta:', error);
+          } catch (err) {
+            console.error('Error renderizando respuesta:', err);
             return (
               <View key={String(index)} style={styles.respuestaCard}>
                 <Text style={styles.respuestaLabel}>❌ Error cargando item</Text>
@@ -320,7 +464,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     );
   };
 
-  // Renderizar sección de firmas
+  // ─── FIRMAS ──────────────────────────────────────────────────────────────
   const renderFirmas = () => {
     if (!checklist) return null;
 
@@ -330,24 +474,24 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     if (!tieneFirmaTecnico && !tieneFirmaCliente) {
       return (
         <View style={styles.firmasContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.firmasToggleButton}
             onPress={() => setMostrarFirmas(!mostrarFirmas)}
             activeOpacity={0.7}
           >
-            <Ionicons name="create" size={20} color={COLORS.primary} />
+            <Ionicons name="create" size={20} color={C.primary} />
             <Text style={styles.firmasToggleText}>✍️ Ver Firmas de Conformidad</Text>
-            <Ionicons 
-              name={mostrarFirmas ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color={COLORS.primary} 
+            <Ionicons
+              name={mostrarFirmas ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={C.primary}
             />
           </TouchableOpacity>
-          
+
           {mostrarFirmas && (
             <View style={styles.firmasContent}>
               <View style={styles.sinFirmasContainer}>
-                <Ionicons name="document-outline" size={48} color={COLORS.textLight} />
+                <Ionicons name="document-outline" size={48} color={C.textLight} />
                 <Text style={styles.sinFirmasText}>No hay firmas disponibles para este servicio</Text>
               </View>
             </View>
@@ -358,38 +502,38 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
 
     return (
       <View style={styles.firmasContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.firmasToggleButton}
           onPress={() => setMostrarFirmas(!mostrarFirmas)}
           activeOpacity={0.7}
         >
-          <Ionicons name="create" size={20} color={COLORS.primary} />
+          <Ionicons name="create" size={20} color={C.primary} />
           <Text style={styles.firmasToggleText}>
             ✍️ {mostrarFirmas ? 'Ocultar' : 'Ver'} Firmas de Conformidad
           </Text>
-          <Ionicons 
-            name={mostrarFirmas ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color={COLORS.primary} 
+          <Ionicons
+            name={mostrarFirmas ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={C.primary}
           />
         </TouchableOpacity>
-        
+
         {mostrarFirmas && (
           <View style={styles.firmasContent}>
             <Text style={styles.firmasTitle}>📝 Firmas de Conformidad</Text>
             <Text style={styles.firmasSubtitle}>
               Estas firmas confirman que el servicio fue completado satisfactoriamente
             </Text>
-            
+
             <View style={styles.firmasGrid}>
               {tieneFirmaTecnico && (
                 <View style={styles.firmaCard}>
                   <View style={styles.firmaHeader}>
-                    <Ionicons name="construct" size={20} color={COLORS.primary} />
+                    <Ionicons name="construct" size={20} color={C.primary} />
                     <Text style={styles.firmaLabel}>Firma del Técnico</Text>
                   </View>
                   <View style={styles.firmaImageContainer}>
-                    <Image 
+                    <Image
                       source={{ uri: `data:image/png;base64,${checklist.firmaTecnico}` }}
                       style={styles.firmaImagen}
                       resizeMode="contain"
@@ -400,15 +544,15 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
                   </Text>
                 </View>
               )}
-              
+
               {tieneFirmaCliente && (
                 <View style={styles.firmaCard}>
                   <View style={styles.firmaHeader}>
-                    <Ionicons name="person" size={20} color={COLORS.success} />
+                    <Ionicons name="person" size={20} color={C.success} />
                     <Text style={styles.firmaLabel}>Tu Firma</Text>
                   </View>
                   <View style={styles.firmaImageContainer}>
-                    <Image 
+                    <Image
                       source={{ uri: `data:image/png;base64,${checklist.firmaCliente}` }}
                       style={styles.firmaImagen}
                       resizeMode="contain"
@@ -426,41 +570,48 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     );
   };
 
+  // ─── RENDER PRINCIPAL ────────────────────────────────────────────────────
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="fullScreen"
-    >
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color={COLORS.primary} />
-          </TouchableOpacity>
-          <View style={styles.headerContent}>
-            <Text style={styles.title}>Inspección Realizada</Text>
-            <Text style={styles.subtitle}>
-              {String(servicioNombre || 'Servicio Automotriz')}
-            </Text>
+
+        {/* Header mejorado */}
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+
+            <View style={styles.headerCenter}>
+              <Text style={styles.title}>Informe de Servicio</Text>
+              <Text style={styles.subtitle} numberOfLines={1}>
+                {String(servicioNombre || 'Servicio Automotriz')}
+              </Text>
+            </View>
+
+            <View style={styles.estadoBadge}>
+              <Text style={styles.estadoBadgeTexto}>
+                {checklist?.estado === 'FINALIZADO' ? 'Completado' : (checklist?.estado || 'Completado')}
+              </Text>
+            </View>
           </View>
         </View>
-        
+
         {/* Contenido */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
+            <ActivityIndicator size="large" color={C.primary} />
             <Text style={styles.loadingText}>📋 Cargando inspección...</Text>
-            <Text style={{ fontSize: 14, color: COLORS.textLight, marginTop: 5 }}>
+            <Text style={{ fontSize: 14, color: C.textLight, marginTop: 5 }}>
               Obteniendo detalles del servicio realizado
             </Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
-            <Ionicons name="warning-outline" size={64} color={COLORS.warning} />
+            <Ionicons name="warning-outline" size={64} color={C.warning} />
             <Text style={styles.errorText}>⚠️ Error al cargar inspección</Text>
             <Text style={styles.errorSubtext}>{String(error)}</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.retryButton}
               onPress={cargarChecklist}
               activeOpacity={0.8}
@@ -470,14 +621,15 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
           </View>
         ) : checklist ? (
           <View style={styles.content}>
+            {renderProveedorCard()}
             {renderNavegacion()}
             {renderContenido()}
           </View>
         ) : (
           <View style={styles.noDataContainer}>
-            <Ionicons name="document-outline" size={64} color={COLORS.textLight} />
+            <Ionicons name="document-outline" size={64} color={C.textLight} />
             <Text style={styles.noDataText}>📋 No hay datos de inspección disponibles</Text>
-            <Text style={{ fontSize: 14, color: COLORS.textLight, marginTop: 10 }}>
+            <Text style={{ fontSize: 14, color: C.textLight, marginTop: 10 }}>
               Este servicio no tiene una inspección registrada
             </Text>
           </View>
@@ -490,43 +642,109 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
   },
+
+  // ── Header ──────────────────────────────────────────────────────────────
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    backgroundColor: C.primary,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 4,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   closeButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.background,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
-  headerContent: {
+  headerCenter: {
     flex: 1,
-    marginLeft: 15,
   },
   title: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 4,
+    color: '#fff',
+    marginBottom: 2,
   },
   subtitle: {
-    fontSize: 16,
-    color: COLORS.textLight,
-    fontWeight: '500',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
   },
+  estadoBadge: {
+    backgroundColor: 'rgba(0,201,167,0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginLeft: 10,
+  },
+  estadoBadgeTexto: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.success,
+  },
+
+  // ── Tarjeta del proveedor ────────────────────────────────────────────────
+  proveedorCard: {
+    backgroundColor: C.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 0,
+    paddingBottom: 20,
+  },
+  proveedorAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: C.accent,
+  },
+  proveedorAvatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  proveedorAvatarInicial: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  proveedorInfoContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  proveedorNombre: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  proveedorTipoDisplay: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
+  },
+  marcaChip: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  marcaChipTexto: {
+    fontSize: 11,
+    color: '#fff',
+  },
+
+  // ── Estado / loading ────────────────────────────────────────────────────
   content: {
     flex: 1,
   },
@@ -534,11 +752,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
   },
   loadingText: {
     fontSize: 18,
-    color: COLORS.text,
+    color: C.textPrimary,
     marginTop: 15,
     fontWeight: '500',
   },
@@ -547,27 +765,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 30,
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
   },
   errorText: {
     fontSize: 20,
     fontWeight: '600',
-    color: COLORS.error,
+    color: C.error,
     marginBottom: 10,
     textAlign: 'center',
   },
   errorSubtext: {
     fontSize: 16,
-    color: COLORS.textLight,
+    color: C.textLight,
     textAlign: 'center',
     marginBottom: 25,
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: C.primary,
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 12,
-    shadowColor: COLORS.primary,
+    shadowColor: C.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -583,25 +801,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 30,
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
   },
   noDataText: {
     fontSize: 18,
-    color: COLORS.textLight,
+    color: C.textLight,
     textAlign: 'center',
     marginTop: 15,
   },
+
+  // ── Navegación de categorías ─────────────────────────────────────────────
   navegacionContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: C.bgPaper,
     paddingVertical: 20,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.borderLight,
   },
   navegacionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.text,
+    color: C.textPrimary,
     marginBottom: 15,
   },
   categoriasScroll: {
@@ -610,13 +830,13 @@ const styles = StyleSheet.create({
   categoriaTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 25,
     marginHorizontal: 5,
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: C.borderLight,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -624,15 +844,15 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   categoriaTabActiva: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-    shadowColor: COLORS.primary,
+    backgroundColor: C.primary,
+    borderColor: C.primary,
+    shadowColor: C.primary,
     shadowOpacity: 0.3,
   },
   categoriaTabTexto: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: C.textPrimary,
     marginLeft: 8,
     marginRight: 8,
   },
@@ -650,16 +870,18 @@ const styles = StyleSheet.create({
   contadorTexto: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.text,
+    color: C.textPrimary,
   },
+
+  // ── Contenido ────────────────────────────────────────────────────────────
   contenidoContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
   },
   instruccionTexto: {
     fontSize: 18,
     fontWeight: '500',
-    color: COLORS.textLight,
+    color: C.textLight,
     textAlign: 'center',
     marginTop: 50,
     paddingHorizontal: 30,
@@ -667,7 +889,7 @@ const styles = StyleSheet.create({
   },
   sinDatosTexto: {
     fontSize: 16,
-    color: COLORS.textLight,
+    color: C.textLight,
     textAlign: 'center',
     marginTop: 30,
     paddingHorizontal: 30,
@@ -675,20 +897,22 @@ const styles = StyleSheet.create({
   categoriaTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: COLORS.text,
+    color: C.textPrimary,
     marginBottom: 8,
     paddingHorizontal: 20,
     marginTop: 20,
   },
   categoriaSubtitle: {
     fontSize: 16,
-    color: COLORS.textLight,
+    color: C.textLight,
     paddingHorizontal: 20,
     marginBottom: 20,
     fontWeight: '500',
   },
+
+  // ── Cards de respuesta ───────────────────────────────────────────────────
   respuestaCard: {
-    backgroundColor: '#fff',
+    backgroundColor: C.bgPaper,
     marginHorizontal: 20,
     marginBottom: 16,
     borderRadius: 16,
@@ -707,12 +931,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.borderLight,
   },
   preguntaTexto: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.text,
+    color: C.textPrimary,
     flex: 1,
     lineHeight: 24,
   },
@@ -722,14 +946,14 @@ const styles = StyleSheet.create({
   respuestaLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.textLight,
+    color: C.textLight,
     marginBottom: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   respuestaValor: {
     fontSize: 17,
-    color: COLORS.text,
+    color: C.textPrimary,
     fontWeight: '500',
     lineHeight: 22,
   },
@@ -742,14 +966,35 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
+
+  // ── Selección chips ──────────────────────────────────────────────────────
+  seleccionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.successBg,
+    borderWidth: 1,
+    borderColor: C.success,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  seleccionChipTexto: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: C.successDark,
+  },
+
+  // ── Fotos ────────────────────────────────────────────────────────────────
   fotosContainer: {
     marginTop: 15,
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: C.borderLight,
   },
   fotoContainer: {
-    marginRight: 15,
+    width: 160,
+    alignItems: 'center',
+    marginRight: 12,
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -759,22 +1004,21 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   fotoImagen: {
-    width: 120,
-    height: 120,
+    width: 160,
+    height: 160,
     borderRadius: 12,
-    backgroundColor: COLORS.border,
+    backgroundColor: C.borderLight,
   },
   fotoDescripcion: {
     fontSize: 12,
-    color: COLORS.textLight,
-    marginTop: 8,
+    color: C.textLight,
+    marginTop: 6,
     textAlign: 'center',
-    fontWeight: '500',
     paddingHorizontal: 4,
   },
   fechaRespuesta: {
     fontSize: 13,
-    color: COLORS.textLight,
+    color: C.textLight,
     marginTop: 15,
     fontStyle: 'italic',
     textAlign: 'right',
@@ -782,8 +1026,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.05)',
   },
+
+  // ── Firmas ───────────────────────────────────────────────────────────────
   firmasContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: C.bgPaper,
     marginHorizontal: 20,
     marginTop: 20,
     marginBottom: 10,
@@ -800,7 +1046,7 @@ const styles = StyleSheet.create({
   firmasToggleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
@@ -814,7 +1060,7 @@ const styles = StyleSheet.create({
   firmasToggleText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
+    color: C.textPrimary,
     marginLeft: 8,
     flex: 1,
   },
@@ -827,20 +1073,20 @@ const styles = StyleSheet.create({
   },
   sinFirmasText: {
     fontSize: 16,
-    color: COLORS.textLight,
+    color: C.textLight,
     textAlign: 'center',
     marginTop: 15,
   },
   firmasTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.text,
+    color: C.textPrimary,
     marginBottom: 8,
     textAlign: 'center',
   },
   firmasSubtitle: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: C.textLight,
     fontWeight: '500',
     textAlign: 'center',
     marginBottom: 20,
@@ -853,7 +1099,7 @@ const styles = StyleSheet.create({
   },
   firmaCard: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
     borderRadius: 12,
     padding: 16,
     shadowColor: '#000',
@@ -862,7 +1108,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.borderLight,
   },
   firmaHeader: {
     flexDirection: 'row',
@@ -873,30 +1119,30 @@ const styles = StyleSheet.create({
   firmaLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: C.textPrimary,
     marginLeft: 8,
     textAlign: 'center',
   },
   firmaImageContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: C.bgPaper,
     borderRadius: 8,
     padding: 8,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.borderLight,
   },
   firmaImagen: {
     width: '100%',
     height: 100,
     borderRadius: 6,
-    backgroundColor: COLORS.background,
+    backgroundColor: C.bgDefault,
   },
   firmaDescripcion: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: C.textLight,
     textAlign: 'center',
     lineHeight: 16,
   },
 });
 
-export default ChecklistViewerModal; 
+export default ChecklistViewerModal;

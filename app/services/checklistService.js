@@ -67,6 +67,7 @@ class ChecklistClienteService {
         descripcion: checklist.checklist_template?.descripcion || '',
       },
       ordenInfo: checklist.orden_info,
+      proveedorInfo: checklist.orden_info?.proveedor_info || null,
       estado: checklist.estado,
       progreso: checklist.progreso_porcentaje,
       fechaInicio: checklist.fecha_inicio,
@@ -154,10 +155,24 @@ class ChecklistClienteService {
       'TRABAJO_REALIZADO': 'Trabajo Realizado',
       'FIRMAS_CONFORMIDAD': 'Firmas de Conformidad',
       'INFORMACION_GENERAL': 'Información General',
-      'OTROS': 'Otros'
+      'OTROS': 'Otros',
+      'MOTOR_COMPARTIMIENTO': 'Motor y Compartimiento',
+      'FLUIDOS_NIVELES': 'Fluidos y Niveles',
+      'SISTEMA_FRENOS': 'Sistema de Frenos',
+      'SUSPENSION_DIRECCION': 'Suspensión y Dirección',
+      'SISTEMA_ELECTRICO': 'Sistema Eléctrico',
+      'SERVICIOS_APLICADOS': 'Servicios Realizados',
+      'REPUESTOS_UTILIZADOS': 'Repuestos Utilizados',
+      'NEUMATICOS_LLANTAS': 'Neumáticos y Llantas',
+      'CARROCERIA_EXTERIOR': 'Carrocería Exterior',
+      'INTERIOR_CABINA': 'Interior de Cabina',
+      'LUCES_SENALIZACION': 'Luces y Señalización',
+      'OBSERVACIONES_TECNICO': 'Observaciones del Técnico',
+      'RECOMENDACIONES': 'Recomendaciones',
+      'FOTOS_FINALES': 'Fotos Finales',
     };
     
-    return categorias[categoria] || categoria.replace('_', ' ');
+    return categorias[categoria] || categoria.replace(/_/g, ' ');
   }
 
   /**
@@ -174,7 +189,21 @@ class ChecklistClienteService {
       'TRABAJO_REALIZADO': 'construct',
       'FIRMAS_CONFORMIDAD': 'create',
       'INFORMACION_GENERAL': 'information-circle',
-      'OTROS': 'help-circle'
+      'OTROS': 'help-circle',
+      'MOTOR_COMPARTIMIENTO': 'cog',
+      'FLUIDOS_NIVELES': 'water',
+      'SISTEMA_FRENOS': 'stop-circle',
+      'SUSPENSION_DIRECCION': 'git-branch',
+      'SISTEMA_ELECTRICO': 'flash',
+      'SERVICIOS_APLICADOS': 'construct',
+      'REPUESTOS_UTILIZADOS': 'hardware-chip',
+      'NEUMATICOS_LLANTAS': 'disc',
+      'CARROCERIA_EXTERIOR': 'car-sport',
+      'INTERIOR_CABINA': 'person',
+      'LUCES_SENALIZACION': 'sunny',
+      'OBSERVACIONES_TECNICO': 'document-text',
+      'RECOMENDACIONES': 'bulb',
+      'FOTOS_FINALES': 'camera',
     };
     
     return iconos[categoria] || 'help-circle';
