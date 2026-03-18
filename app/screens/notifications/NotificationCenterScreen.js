@@ -20,6 +20,14 @@ export default function NotificationCenterScreen({ navigation }) {
         [data]
     );
 
+    // Bloquear pull-to-refresh mientras haya un delete en vuelo para evitar
+    // race condition: GET llegaría antes de que el backend confirme el soft-delete.
+    const handleRefresh = () => {
+        if (!deleteNotification.isPending) {
+            refetch();
+        }
+    };
+
     const handleNotificationPress = (notification) => {
         // Marcar como leída si no lo está
         if (!notification.leida) {
@@ -117,7 +125,10 @@ export default function NotificationCenterScreen({ navigation }) {
                 renderItem={renderNotification}
                 keyExtractor={(item) => item.id.toString()}
                 refreshControl={
-                    <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+                    <RefreshControl
+                    refreshing={isFetching && !deleteNotification.isPending}
+                    onRefresh={handleRefresh}
+                />
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>

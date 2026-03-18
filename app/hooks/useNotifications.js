@@ -1,20 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as notificationService from '../services/notifications';
 
-export const useNotifications = () => {
-    return useQuery({
-        queryKey: ['notifications'],
-        queryFn: notificationService.getNotifications,
-        staleTime: 1000 * 60, // 1 min
-    });
-};
+// ─── Helpers para actualizar el cache sin reemplazar toda la lista ───────────
 
-export const useUnreadCount = () => {
-    return useQuery({
-        queryKey: ['unreadCount'],
-        queryFn: notificationService.getUnreadCount,
-        refetchInterval: 30000, // Refetch every 30s to keep badge updated
-    });
+const removeFromList = (old, id) => {
+    if (!old) return old;
+    const filtrar = (arr) => arr.filter((n) => String(n?.id) !== String(id));
+    if (Array.isArray(old)) return filtrar(old);
+    if (Array.isArray(old?.results)) return { ...old, results: filtrar(old.results) };
+    return old;
 };
 
 const setLeida = (old, id, valor) => {
@@ -32,6 +26,33 @@ const setTodasLeidas = (old) => {
     if (Array.isArray(old?.results)) return { ...old, results: old.results.map(marcar) };
     return old;
 };
+
+// ─── Hooks ───────────────────────────────────────────────────────────────────
+
+export const useNotifications = () => {
+    return useQuery({
+        queryKey: ['notifications'],
+        queryFn: notificationService.getNotifications,
+        // Nunca se considera "stale" automáticamente: el único refetch permitido
+        // es el pull-to-refresh explícito del usuario (refetch()). Esto evita que
+        // cualquier refetch automático sobreescriba el estado optimista.
+        staleTime: Infinity,
+        gcTime: 1000 * 60 * 10,         // Cache vive 10 min sin suscriptores
+        refetchOnMount: false,           // No refetch al montar/re-montar la pantalla
+        refetchOnWindowFocus: false,     // No refetch al volver al foco de la app
+        refetchOnReconnect: false,       // No refetch al reconectar red
+    });
+};
+
+export const useUnreadCount = () => {
+    return useQuery({
+        queryKey: ['unreadCount'],
+        queryFn: notificationService.getUnreadCount,
+        refetchInterval: 30000,
+    });
+};
+
+// ─── Mutations ───────────────────────────────────────────────────────────────
 
 export const useMarkAsRead = () => {
     const queryClient = useQueryClient();
@@ -95,39 +116,22 @@ export const useDeleteNotification = () => {
     return useMutation({
         mutationFn: notificationService.deleteNotification,
         onMutate: async (notificationId) => {
+            // Cancelar cualquier refetch en vuelo para que no sobreescriba el estado optimista
             await queryClient.cancelQueries({ queryKey: ['notifications'] });
             const previous = queryClient.getQueryData(['notifications']);
 
-            // Soportar respuesta paginada ({results: []}) o lista directa ([])
-            queryClient.setQueryData(['notifications'], (old) => {
-                if (!old) return old;
-                if (Array.isArray(old)) {
-                    return old.filter((n) => String(n?.id) !== String(notificationId));
-                }
-                if (old?.results && Array.isArray(old.results)) {
-                    return {
-                        ...old,
-                        results: old.results.filter((n) => String(n?.id) !== String(notificationId)),
-                    };
-                }
-                return old;
-            });
+            // Eliminar del cache inmediatamente (actualización optimista)
+            queryClient.setQueryData(['notifications'], (old) => removeFromList(old, notificationId));
 
-            // Best-effort: ajustar badge si la notificación eliminada estaba no leída
-            const deletedWasUnread = (() => {
-                if (!previous) return null;
-                const list = Array.isArray(previous)
-                    ? previous
-                    : (Array.isArray(previous?.results) ? previous.results : []);
-                const found = list.find((n) => String(n?.id) === String(notificationId));
-                if (!found) return null;
-                return !found.leida;
-            })();
+            // Ajustar badge si la notificación eliminada estaba sin leer
+            const list = Array.isArray(previous)
+                ? previous
+                : (Array.isArray(previous?.results) ? previous.results : []);
+            const wasUnread = list.find((n) => String(n?.id) === String(notificationId) && !n?.leida);
 
-            if (deletedWasUnread) {
+            if (wasUnread) {
                 queryClient.setQueryData(['unreadCount'], (old) => {
                     if (!old) return old;
-                    // endpoint suele devolver {count: number} o number
                     if (typeof old === 'number') return Math.max(0, old - 1);
                     if (typeof old?.count === 'number') return { ...old, count: Math.max(0, old.count - 1) };
                     return old;
@@ -137,16 +141,17 @@ export const useDeleteNotification = () => {
             return { previous };
         },
         onError: (_err, _notificationId, context) => {
+            // Si falla el DELETE en el backend, restaurar el estado anterior
             if (context?.previous !== undefined) {
                 queryClient.setQueryData(['notifications'], context.previous);
             }
         },
         onSuccess: () => {
-            // Invalidamos ['notifications'] para sincronizar con el backend.
-            // El backend ahora hace soft-delete (eliminada=True) y el GET filtra eliminada=False,
-            // por lo que un refetch siempre devolverá la lista correcta sin la notificación eliminada.
-            // Esto garantiza consistencia tanto en pull-to-refresh como en re-mount de la pantalla.
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            // NO invalidamos ['notifications']: el cache optimista ya es correcto.
+            // Un refetch inmediato puede traer de vuelta la notificación si hay
+            // cualquier latencia entre el commit del DELETE y la siguiente lectura.
+            // El backend filtra eliminada=False, así que el siguiente pull-to-refresh
+            // explícito del usuario devolverá la lista correcta.
             queryClient.invalidateQueries({ queryKey: ['unreadCount'] });
         },
     });
