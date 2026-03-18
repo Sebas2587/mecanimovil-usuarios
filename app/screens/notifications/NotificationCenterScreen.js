@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead, useDeleteNotification } from '../../hooks/useNotifications';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,14 +8,17 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function NotificationCenterScreen({ navigation }) {
-    const { data, isLoading, refetch } = useNotifications();
+    const { data, isLoading, isFetching, refetch } = useNotifications();
     const markAsRead = useMarkAsRead();
     const markAllAsRead = useMarkAllAsRead();
     const deleteNotification = useDeleteNotification();
     const theme = useTheme();
 
     // Extraer notificaciones de la respuesta (paginada o lista directa)
-    const notifications = data?.results || (Array.isArray(data) ? data : []) || [];
+    const notifications = useMemo(
+        () => data?.results || (Array.isArray(data) ? data : []) || [],
+        [data]
+    );
 
     const handleNotificationPress = (notification) => {
         // Marcar como leída si no lo está
@@ -114,7 +117,7 @@ export default function NotificationCenterScreen({ navigation }) {
                 renderItem={renderNotification}
                 keyExtractor={(item) => item.id.toString()}
                 refreshControl={
-                    <RefreshControl refreshing={isLoading} onRefresh={refetch} />
+                    <RefreshControl refreshing={isFetching} onRefresh={refetch} />
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
