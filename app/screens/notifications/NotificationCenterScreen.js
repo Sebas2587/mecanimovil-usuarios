@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
-import { useNotifications, useMarkAsRead, useMarkAllAsRead, useDeleteNotification } from '../../hooks/useNotifications';
+import { useNotifications, useMarkAsRead, useMarkAllAsRead, useDeleteNotification, useDeleteAllNotifications } from '../../hooks/useNotifications';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { ROUTES, SPACING, COLORS, FONT_SIZES, BORDERS } from '../../utils/constants';
@@ -12,6 +12,7 @@ export default function NotificationCenterScreen({ navigation }) {
     const markAsRead = useMarkAsRead();
     const markAllAsRead = useMarkAllAsRead();
     const deleteNotification = useDeleteNotification();
+    const deleteAllNotifications = useDeleteAllNotifications();
     const theme = useTheme();
 
     // Extraer notificaciones de la respuesta (paginada o lista directa)
@@ -23,8 +24,14 @@ export default function NotificationCenterScreen({ navigation }) {
     // Bloquear pull-to-refresh mientras haya un delete en vuelo para evitar
     // race condition: GET llegaría antes de que el backend confirme el soft-delete.
     const handleRefresh = () => {
-        if (!deleteNotification.isPending) {
+        if (!deleteNotification.isPending && !deleteAllNotifications.isPending) {
             refetch();
+        }
+    };
+
+    const handleDeleteAll = () => {
+        if (notifications.length > 0) {
+            deleteAllNotifications.mutate();
         }
     };
 
@@ -112,12 +119,22 @@ export default function NotificationCenterScreen({ navigation }) {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Notificaciones</Text>
-                <TouchableOpacity
-                    onPress={() => markAllAsRead.mutate()}
-                    disabled={markAllAsRead.isPending || notifications.length === 0}
-                >
-                    <Text style={styles.markAllText}>Marcar todo leído</Text>
-                </TouchableOpacity>
+                <View style={styles.headerActions}>
+                    <TouchableOpacity
+                        onPress={() => markAllAsRead.mutate()}
+                        disabled={markAllAsRead.isPending || notifications.length === 0}
+                        style={styles.headerAction}
+                    >
+                        <Text style={styles.markAllText}>Leído</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={handleDeleteAll}
+                        disabled={deleteAllNotifications.isPending || notifications.length === 0}
+                        style={styles.headerAction}
+                    >
+                        <Text style={[styles.markAllText, styles.deleteAllText]}>Limpiar todo</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <FlatList
@@ -126,7 +143,7 @@ export default function NotificationCenterScreen({ navigation }) {
                 keyExtractor={(item) => item.id.toString()}
                 refreshControl={
                     <RefreshControl
-                    refreshing={isFetching && !deleteNotification.isPending}
+                    refreshing={isFetching && !deleteNotification.isPending && !deleteAllNotifications.isPending}
                     onRefresh={handleRefresh}
                 />
                 }
@@ -161,10 +178,21 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: COLORS.text,
     },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    headerAction: {
+        paddingVertical: 4,
+    },
     markAllText: {
         fontSize: FONT_SIZES.caption,
         color: COLORS.primary,
         fontWeight: '500',
+    },
+    deleteAllText: {
+        color: COLORS.danger,
     },
     listContent: {
         paddingBottom: SPACING.xl,

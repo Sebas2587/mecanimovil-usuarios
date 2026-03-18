@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as notificationService from '../services/notifications';
 
+const EMPTY_LIST = [];
+
 // ─── Helpers para actualizar el cache sin reemplazar toda la lista ───────────
 
 const removeFromList = (old, id) => {
@@ -91,6 +93,40 @@ export const useMarkAllAsRead = () => {
             await queryClient.cancelQueries({ queryKey: ['notifications'] });
             const previous = queryClient.getQueryData(['notifications']);
             queryClient.setQueryData(['notifications'], (old) => setTodasLeidas(old));
+            queryClient.setQueryData(['unreadCount'], (old) => {
+                if (!old) return old;
+                if (typeof old === 'number') return 0;
+                if (typeof old?.count === 'number') return { ...old, count: 0 };
+                return old;
+            });
+            return { previous };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previous !== undefined) {
+                queryClient.setQueryData(['notifications'], context.previous);
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['unreadCount'] });
+        },
+    });
+};
+
+export const useDeleteAllNotifications = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: notificationService.deleteAllNotifications,
+        onMutate: async () => {
+            await queryClient.cancelQueries({ queryKey: ['notifications'] });
+            const previous = queryClient.getQueryData(['notifications']);
+            // Vaciar la lista inmediatamente (optimistic)
+            queryClient.setQueryData(['notifications'], (old) => {
+                if (!old) return old;
+                if (Array.isArray(old)) return EMPTY_LIST;
+                if (Array.isArray(old?.results)) return { ...old, results: EMPTY_LIST, count: 0 };
+                return old;
+            });
             queryClient.setQueryData(['unreadCount'], (old) => {
                 if (!old) return old;
                 if (typeof old === 'number') return 0;
