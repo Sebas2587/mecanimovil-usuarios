@@ -44,6 +44,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
   const [error, setError] = useState(null);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
   const [mostrarFirmas, setMostrarFirmas] = useState(false);
+  const [fotoProveedorError, setFotoProveedorError] = useState(false);
 
   // Función para cargar checklist - MEMOIZADA CON useCallback
   const cargarChecklist = useCallback(async () => {
@@ -103,14 +104,17 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     if (!pi) return null;
 
     const marcasVisibles = (pi.marcas_atendidas || []).slice(0, 3);
+    const mostrarFoto = pi.foto_perfil_url && !fotoProveedorError;
 
     return (
       <View style={styles.proveedorCard}>
-        {/* Avatar */}
-        {pi.foto_perfil_url ? (
+        {/* Avatar compacto */}
+        {mostrarFoto ? (
           <Image
             source={{ uri: pi.foto_perfil_url }}
             style={styles.proveedorAvatar}
+            resizeMode="cover"
+            onError={() => setFotoProveedorError(true)}
           />
         ) : (
           <View style={[styles.proveedorAvatar, styles.proveedorAvatarPlaceholder]}>
@@ -120,27 +124,27 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
           </View>
         )}
 
-        {/* Info */}
+        {/* Info compacta */}
         <View style={styles.proveedorInfoContainer}>
-          <Text style={styles.proveedorNombre} numberOfLines={1}>
-            {pi.nombre || 'Proveedor'}
-          </Text>
-          <Text style={styles.proveedorTipoDisplay}>{pi.tipo_display || ''}</Text>
+          <View style={styles.proveedorRow}>
+            <Text style={styles.proveedorNombre} numberOfLines={1}>
+              {pi.nombre || 'Proveedor'}
+            </Text>
+            <View style={styles.proveedorTipoBadge}>
+              <Text style={styles.proveedorTipoBadgeTexto}>
+                {pi.tipo === 'taller' ? 'Taller' : 'Mecánico'}
+              </Text>
+            </View>
+          </View>
 
           {marcasVisibles.length > 0 && (
-            <FlatList
-              horizontal
-              scrollEnabled={false}
-              showsHorizontalScrollIndicator={false}
-              data={marcasVisibles}
-              keyExtractor={(item, idx) => String(idx)}
-              renderItem={({ item }) => (
-                <View style={styles.marcaChip}>
-                  <Text style={styles.marcaChipTexto}>{item}</Text>
+            <View style={styles.marcasRow}>
+              {marcasVisibles.map((marca, idx) => (
+                <View key={String(idx)} style={styles.marcaChip}>
+                  <Text style={styles.marcaChipTexto}>{marca}</Text>
                 </View>
-              )}
-              contentContainerStyle={{ gap: 6, marginTop: 6 }}
-            />
+              ))}
+            </View>
           )}
         </View>
       </View>
@@ -162,12 +166,11 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
 
     return (
       <View style={styles.navegacionContainer}>
-        <Text style={styles.navegacionTitle}>📋 Categorías de Inspección</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoriasScroll}
-          contentContainerStyle={{ paddingHorizontal: 5 }}
+          contentContainerStyle={{ paddingHorizontal: 8 }}
         >
           {categoriasArray.map((categoria) => {
             const categoriaData = categorias[categoria] || [];
@@ -701,13 +704,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 0,
-    paddingBottom: 20,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   proveedorAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: C.accent,
   },
   proveedorAvatarPlaceholder: {
@@ -715,33 +719,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   proveedorAvatarInicial: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: '700',
     color: '#fff',
   },
   proveedorInfoContainer: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
+  },
+  proveedorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   proveedorNombre: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     color: '#fff',
+    flexShrink: 1,
   },
-  proveedorTipoDisplay: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.75)',
-    marginTop: 2,
+  proveedorTipoBadge: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  proveedorTipoBadgeTexto: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+  },
+  marcasRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
   },
   marcaChip: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   marcaChipTexto: {
-    fontSize: 11,
-    color: '#fff',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.85)',
   },
 
   // ── Estado / loading ────────────────────────────────────────────────────
@@ -813,64 +835,50 @@ const styles = StyleSheet.create({
   // ── Navegación de categorías ─────────────────────────────────────────────
   navegacionContainer: {
     backgroundColor: C.bgPaper,
-    paddingVertical: 20,
-    paddingHorizontal: 20,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: C.borderLight,
   },
-  navegacionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: C.textPrimary,
-    marginBottom: 15,
-  },
   categoriasScroll: {
-    marginHorizontal: -5,
+    flexGrow: 0,
   },
   categoriaTab: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: C.bgDefault,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginHorizontal: 5,
-    borderWidth: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginHorizontal: 4,
+    borderWidth: 1.5,
     borderColor: C.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   categoriaTabActiva: {
     backgroundColor: C.primary,
     borderColor: C.primary,
-    shadowColor: C.primary,
-    shadowOpacity: 0.3,
   },
   categoriaTabTexto: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
-    color: C.textPrimary,
-    marginLeft: 8,
-    marginRight: 8,
+    color: C.textSecondary,
+    marginLeft: 5,
+    marginRight: 5,
   },
   categoriaTabTextoActivo: {
     color: '#fff',
   },
   categoriaContador: {
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-    minWidth: 24,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 10,
+    minWidth: 18,
     alignItems: 'center',
   },
   contadorTexto: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
-    color: C.textPrimary,
+    color: C.textSecondary,
   },
 
   // ── Contenido ────────────────────────────────────────────────────────────
