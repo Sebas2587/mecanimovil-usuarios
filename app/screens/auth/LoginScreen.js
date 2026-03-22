@@ -9,13 +9,13 @@ import {
   Alert,
   Image,
   Dimensions,
-  SafeAreaView,
   Modal
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
@@ -724,17 +724,18 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 40 : 30,
+    paddingTop: Platform.OS === 'ios' ? 28 : 22,
     paddingBottom: 100,
   },
   headerContainer: {
     alignItems: 'center',
     marginBottom: 32,
+    marginTop: 10,
   },
   logo: {
     width: 180,
     height: 60,
-    marginBottom: 20,
+    marginBottom: 22,
   },
   subtitle: {
     fontSize: 15,

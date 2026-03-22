@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const ProviderHeader = ({ provider, onShare, onToggleFavorite, isFavorite = false }) => {
     const navigation = useNavigation();
+    const insets = useSafeAreaInsets();
 
     const name = provider?.nombre || 'Proveedor Profesional';
     const type = provider?.tipo === 'taller' ? 'Taller Certificado' : 'Mecánico Experto';
@@ -26,7 +28,7 @@ const ProviderHeader = ({ provider, onShare, onToggleFavorite, isFavorite = fals
                 <View style={styles.coverOverlay} />
 
                 {/* Top Bar Actions */}
-                <View style={styles.topBar}>
+                <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
                     <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
                         <Ionicons name="arrow-back" size={24} color="white" />
                     </TouchableOpacity>
@@ -111,12 +113,14 @@ const styles = StyleSheet.create({
     },
     topBar: {
         position: 'absolute',
-        top: Platform.OS === 'ios' ? 44 : 20,
+        top: 0,
         left: 0,
         right: 0,
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'flex-start',
         paddingHorizontal: 16,
+        paddingBottom: 8,
         zIndex: 10,
     },
     rightActions: {

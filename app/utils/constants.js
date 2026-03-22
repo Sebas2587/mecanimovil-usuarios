@@ -266,6 +266,8 @@ export const ROUTES = {
   // Rutas de salud vehicular
   VEHICLE_HEALTH: 'VehicleHealth',
   MIS_VEHICULOS: 'MisVehiculos',
+  /** Misma pantalla que el stack raíz `VehicleRegistration` (registro de vehículo) */
+  CREAR_VEHICULO: 'VehicleRegistration',
   VEHICLE_PROFILE: 'VehicleProfile',
 
   // Notificaciones

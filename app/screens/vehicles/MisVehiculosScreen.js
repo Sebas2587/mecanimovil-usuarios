@@ -154,7 +154,7 @@ const MisVehiculosScreen = () => {
 
   const handleAddVehicle = () => {
     // Navigate to new Smart Registration Screen
-    navigation.navigate('VehicleRegistration', {
+    navigation.navigate(ROUTES.CREAR_VEHICULO, {
       onGoBack: () => navigation.goBack()
     });
   };
