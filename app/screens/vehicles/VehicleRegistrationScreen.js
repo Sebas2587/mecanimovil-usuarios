@@ -154,10 +154,9 @@ const VehicleRegistrationScreen = () => {
             } else {
                 Alert.alert(
                     'Vehículo no encontrado',
-                    'No encontramos información para esta patente. ¿Deseas ingresarlo manualmente?',
+                    'No encontramos información para esta patente. Intenta con otra o revisa la patente ingresada.',
                     [
                         { text: 'Intentar de nuevo', style: 'cancel' },
-                        { text: 'Ingreso Manual', onPress: () => handleManualEntry() }
                     ]
                 );
             }
@@ -168,19 +167,11 @@ const VehicleRegistrationScreen = () => {
                 'Hubo un problema consultando la patente. Intenta nuevamente o usa el ingreso manual.',
                 [
                     { text: 'OK', style: 'cancel' },
-                    { text: 'Ingreso Manual', onPress: () => handleManualEntry() }
                 ]
             );
         } finally {
             setLoading(false);
         }
-    };
-
-    const handleManualEntry = () => {
-        // Navigate back to MisVehiculos but maybe with a param to open the OLD modal?
-        // Or implement manual flow here? The requirement says "fallback al formulario antiguo".
-        // Simplest: Go back with a param.
-        navigation.navigate('MisVehiculos', { promptManual: true, prefillPatente: patente });
     };
 
     const pickImage = async () => {
@@ -446,9 +437,6 @@ const VehicleRegistrationScreen = () => {
                                         )}
                                     </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity onPress={handleManualEntry} style={styles.manualLink}>
-                                    <Text style={styles.manualLinkText}>¿No tienes la patente? Ingreso Manual</Text>
-                                </TouchableOpacity>
                             </View>
                         </TouchableWithoutFeedback>
                     )}
@@ -773,15 +761,6 @@ const styles = StyleSheet.create({
     },
     disabledButton: {
         opacity: 0.7,
-    },
-    manualLink: {
-        marginTop: 32,
-        padding: 12,
-    },
-    manualLinkText: {
-        color: '#A5B4FC',
-        fontWeight: '600',
-        fontSize: 14,
     },
 
     // SUCCESS STYLES
