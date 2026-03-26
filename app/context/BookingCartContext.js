@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 
@@ -43,83 +43,83 @@ const calculateTotals = (items) => {
 // Reducer para manejar el estado del carrito
 function bookingCartReducer(state, action) {
   console.log('🔧 BookingCartReducer: Acción recibida:', action.type, 'Estado actual isLoaded:', state.isLoaded);
-  
+
   switch (action.type) {
     case ACTIONS.LOAD_FROM_STORAGE:
       const loadedItems = action.payload || [];
       const loadedTotals = calculateTotals(loadedItems);
-      
+
       const newLoadedState = {
         ...state,
         cartItems: loadedItems,
         ...loadedTotals,
         isLoaded: true
       };
-      
+
       console.log('🔧 BookingCartReducer: LOAD_FROM_STORAGE - Nuevo estado:', {
         cartItems: newLoadedState.cartItems.length,
         totalItems: newLoadedState.totalItems,
         isLoaded: newLoadedState.isLoaded
       });
-      
+
       return newLoadedState;
 
     case ACTIONS.ADD_TO_CART:
       const newItems = [...state.cartItems, action.payload];
       const newTotals = calculateTotals(newItems);
-      
+
       const newAddState = {
         ...state,
         cartItems: newItems,
         ...newTotals
       };
-      
+
       console.log('🔧 BookingCartReducer: ADD_TO_CART - Nuevo estado:', {
         cartItems: newAddState.cartItems.length,
         totalItems: newAddState.totalItems,
         isLoaded: newAddState.isLoaded
       });
-      
+
       return newAddState;
 
     case ACTIONS.REMOVE_FROM_CART:
       const filteredItems = state.cartItems.filter(item => item.cartItemID !== action.payload);
       const filteredTotals = calculateTotals(filteredItems);
-      
+
       const newRemoveState = {
         ...state,
         cartItems: filteredItems,
         ...filteredTotals
       };
-      
+
       console.log('🔧 BookingCartReducer: REMOVE_FROM_CART - Nuevo estado:', {
         cartItems: newRemoveState.cartItems.length,
         totalItems: newRemoveState.totalItems,
         isLoaded: newRemoveState.isLoaded
       });
-      
+
       return newRemoveState;
 
     case ACTIONS.UPDATE_ITEM:
-      const updatedItems = state.cartItems.map(item => 
-        item.cartItemID === action.payload.cartItemID 
+      const updatedItems = state.cartItems.map(item =>
+        item.cartItemID === action.payload.cartItemID
           ? { ...item, ...action.payload.updates }
           : item
       );
       const updatedTotals = calculateTotals(updatedItems);
-      
+
       const newUpdateState = {
         ...state,
         cartItems: updatedItems,
         totalPrice: updatedTotals.totalPrice
       };
-      
+
       console.log('🔧 BookingCartReducer: UPDATE_ITEM - Nuevo estado:', {
         cartItems: newUpdateState.cartItems.length,
         totalPrice: newUpdateState.totalPrice,
         isLoaded: newUpdateState.isLoaded
       });
-      
+
       return newUpdateState;
 
     case ACTIONS.CLEAR_CART:
@@ -127,13 +127,13 @@ function bookingCartReducer(state, action) {
         ...initialState,
         isLoaded: true
       };
-      
+
       console.log('🔧 BookingCartReducer: CLEAR_CART - Nuevo estado:', {
         cartItems: newClearState.cartItems.length,
         totalItems: newClearState.totalItems,
         isLoaded: newClearState.isLoaded
       });
-      
+
       return newClearState;
 
     default:
@@ -176,17 +176,17 @@ const saveCartToStorage = async (cartItems) => {
       timestamp: new Date().toISOString(),
       version: '1.0' // Para futuras migraciones si es necesario
     };
-    
+
     const dataString = JSON.stringify(cartData);
     await AsyncStorage.setItem(BOOKING_CART_STORAGE_KEY, dataString);
     console.log('💾 Carrito guardado en AsyncStorage:', cartItems.length, 'items');
-    
+
     // Verificar que se guardó correctamente
     const verification = await AsyncStorage.getItem(BOOKING_CART_STORAGE_KEY);
     if (!verification) {
       throw new Error('Verificación de guardado falló');
     }
-    
+
   } catch (error) {
     console.error('❌ Error al guardar carrito en AsyncStorage:', error);
     // Intentar limpiar datos corruptos
@@ -211,7 +211,7 @@ const loadCartFromStorage = async () => {
   try {
     console.log('📱 Intentando cargar carrito desde AsyncStorage...');
     const cartDataString = await AsyncStorage.getItem(BOOKING_CART_STORAGE_KEY);
-    
+
     if (!cartDataString) {
       console.log('📱 No hay carrito guardado en AsyncStorage');
       return [];
@@ -219,7 +219,7 @@ const loadCartFromStorage = async () => {
 
     console.log('📱 Datos encontrados en AsyncStorage, parseando...');
     const cartData = JSON.parse(cartDataString);
-    
+
     // Validar estructura de datos
     if (!cartData || typeof cartData !== 'object') {
       console.warn('⚠️ Estructura de datos inválida, limpiando...');
@@ -228,7 +228,7 @@ const loadCartFromStorage = async () => {
     }
 
     const items = cartData.items || [];
-    
+
     // Validar que los items sean un array válido
     if (!Array.isArray(items)) {
       console.warn('⚠️ Items no es un array válido, limpiando...');
@@ -239,14 +239,14 @@ const loadCartFromStorage = async () => {
     // Validar cada item del carrito
     const validItems = items.filter(item => {
       // Validación más flexible - no requerir servicioNombre ya que podemos obtenerlo de ofertaServicioID
-      const isValidBasic = item && 
-                           typeof item === 'object' && 
-                           item.cartItemID && 
-                           item.vehiculoID;
-      
+      const isValidBasic = item &&
+        typeof item === 'object' &&
+        item.cartItemID &&
+        item.vehiculoID;
+
       // Si falta servicioNombre pero tenemos ofertaServicioID, el item sigue siendo válido
       const hasServiceIdentifier = item.servicioNombre || item.ofertaServicioID;
-      
+
       return isValidBasic && hasServiceIdentifier;
     });
 
@@ -258,10 +258,10 @@ const loadCartFromStorage = async () => {
 
     console.log('📱 Carrito cargado exitosamente desde AsyncStorage:', validItems.length, 'items válidos');
     return validItems;
-    
+
   } catch (error) {
     console.error('❌ Error al cargar carrito desde AsyncStorage:', error);
-    
+
     // En caso de error de parsing, limpiar datos corruptos
     try {
       await AsyncStorage.removeItem(BOOKING_CART_STORAGE_KEY);
@@ -269,7 +269,7 @@ const loadCartFromStorage = async () => {
     } catch (cleanupError) {
       console.error('❌ Error al limpiar datos corruptos:', cleanupError);
     }
-    
+
     return [];
   }
 };
@@ -303,7 +303,7 @@ export function BookingCartProvider({ children }) {
       try {
         const savedItems = await loadCartFromStorage();
         console.log('📱 BookingCartProvider: Items cargados:', savedItems.length);
-        
+
         // Solo actualizar si el componente sigue montado
         if (isMounted) {
           dispatch({ type: ACTIONS.LOAD_FROM_STORAGE, payload: savedItems });
@@ -330,7 +330,7 @@ export function BookingCartProvider({ children }) {
   // Guardar carrito en AsyncStorage cada vez que cambie (excepto en la carga inicial)
   useEffect(() => {
     console.log('💾 BookingCartProvider: useEffect save - isLoaded:', state.isLoaded, 'items:', state.cartItems.length);
-    
+
     // Solo guardar si ya se cargó inicialmente y hay cambios reales
     if (state.isLoaded) {
       // Usar un pequeño delay para evitar guardados excesivos durante cambios rápidos
@@ -348,10 +348,10 @@ export function BookingCartProvider({ children }) {
     console.log('🚨 serviceOffer COMPLETO:', JSON.stringify(serviceOffer, null, 2));
     console.log('🚨 serviceOffer keys:', Object.keys(serviceOffer || {}));
     console.log('🚨 additionalData:', JSON.stringify(additionalData, null, 2));
-    
+
     // Mejorar el mapeo de servicioNombre para soportar múltiples estructuras
     let servicioNombre = 'Servicio sin nombre';
-    
+
     // Intentar múltiples fuentes para el nombre del servicio
     if (serviceOffer.nombre) {
       servicioNombre = serviceOffer.nombre;
@@ -385,7 +385,7 @@ export function BookingCartProvider({ children }) {
     // 🔧 CORREGIR CÁLCULO DE PRECIO: Usar conRepuestos para decidir qué precio usar
     const conRepuestos = additionalData.conRepuestos !== false; // default true
     let precioFinal = 0;
-    
+
     if (conRepuestos) {
       precioFinal = parseFloat(serviceOffer.precio_con_repuestos || 0);
       console.log('💰 Usando precio CON repuestos:', precioFinal);
@@ -393,14 +393,14 @@ export function BookingCartProvider({ children }) {
       precioFinal = parseFloat(serviceOffer.precio_sin_repuestos || 0);
       console.log('💰 Usando precio SIN repuestos:', precioFinal);
     }
-    
+
     // Si no se encuentra el precio específico, usar fallbacks
     if (precioFinal === 0) {
       console.warn('⚠️ Precio específico no encontrado, usando fallbacks...');
       precioFinal = parseFloat(serviceOffer.precio_con_repuestos || serviceOffer.precio_sin_repuestos || 0);
       console.log('💰 Precio fallback:', precioFinal);
     }
-    
+
     console.log('💰 PRECIO FINAL CALCULADO:', precioFinal, 'conRepuestos:', conRepuestos);
 
     const cartItem = {
@@ -427,7 +427,7 @@ export function BookingCartProvider({ children }) {
 
     console.log('📦 Agregando item al carrito local:', cartItem);
     dispatch({ type: ACTIONS.ADD_TO_CART, payload: cartItem });
-    
+
     return cartItem;
   }, []);
 
@@ -457,8 +457,8 @@ export function BookingCartProvider({ children }) {
 
   // Función para verificar si un servicio ya está en el carrito
   const isServiceInCart = useCallback((ofertaServicioID, vehiculoID) => {
-    return state.cartItems.some(item => 
-      item.ofertaServicioID === ofertaServicioID && 
+    return state.cartItems.some(item =>
+      item.ofertaServicioID === ofertaServicioID &&
       item.vehiculoID === vehiculoID
     );
   }, [state.cartItems]);
@@ -472,25 +472,25 @@ export function BookingCartProvider({ children }) {
   // Función para reparar items existentes sin servicioNombre
   const repairCartItems = useCallback(async () => {
     console.log('🔧 INICIANDO REPARACIÓN DE ITEMS DEL CARRITO...');
-    
-    const itemsNeedingRepair = state.cartItems.filter(item => 
+
+    const itemsNeedingRepair = state.cartItems.filter(item =>
       !item.servicioNombre || item.servicioNombre === 'Servicio sin nombre'
     );
-    
+
     if (itemsNeedingRepair.length === 0) {
       console.log('✅ No hay items que necesiten reparación');
       return;
     }
-    
+
     console.log(`🔧 Encontrados ${itemsNeedingRepair.length} items que necesitan reparación`);
-    
+
     const repairedItems = state.cartItems.map(item => {
       if (!item.servicioNombre || item.servicioNombre === 'Servicio sin nombre') {
         console.log('🔧 Reparando item:', item.cartItemID, 'ofertaServicioID:', item.ofertaServicioID);
-        
+
         // Aplicar la misma lógica que addToCart para obtener servicioNombre
         let servicioNombre = 'Servicio sin nombre';
-        
+
         // Intentar obtener desde ofertaCompleta
         if (item.ofertaCompleta?.nombre) {
           servicioNombre = item.ofertaCompleta.nombre;
@@ -514,15 +514,15 @@ export function BookingCartProvider({ children }) {
           servicioNombre = cleanName;
           console.log('🔧 Nombre generado desde ofertaServicioID:', servicioNombre);
         }
-        
+
         return { ...item, servicioNombre };
       }
       return item;
     });
-    
+
     // Actualizar el estado con los items reparados
     dispatch({ type: ACTIONS.LOAD_FROM_STORAGE, payload: repairedItems });
-    
+
     console.log(`✅ Reparación completada. ${itemsNeedingRepair.length} items reparados`);
   }, [state.cartItems]);
 
@@ -531,14 +531,14 @@ export function BookingCartProvider({ children }) {
     try {
       console.log('🔍 === DEBUG ASYNC STORAGE ===');
       const cartDataString = await AsyncStorage.getItem(BOOKING_CART_STORAGE_KEY);
-      
+
       if (!cartDataString) {
         console.log('🔍 AsyncStorage: NO HAY DATOS');
         return { hasData: false, data: null };
       }
-      
+
       console.log('🔍 AsyncStorage RAW:', cartDataString.substring(0, 200) + '...');
-      
+
       try {
         const cartData = JSON.parse(cartDataString);
         console.log('🔍 AsyncStorage PARSED:', {
@@ -547,7 +547,7 @@ export function BookingCartProvider({ children }) {
           timestamp: cartData.timestamp,
           version: cartData.version
         });
-        
+
         if (cartData.items && cartData.items.length > 0) {
           console.log('🔍 Primer item:', {
             cartItemID: cartData.items[0].cartItemID,
@@ -556,13 +556,13 @@ export function BookingCartProvider({ children }) {
             precio: cartData.items[0].precio
           });
         }
-        
+
         return { hasData: true, data: cartData };
       } catch (parseError) {
         console.log('🔍 ERROR AL PARSEAR:', parseError.message);
         return { hasData: true, data: null, error: parseError.message };
       }
-      
+
     } catch (error) {
       console.log('🔍 ERROR GENERAL:', error.message);
       return { hasData: false, data: null, error: error.message };
@@ -572,32 +572,47 @@ export function BookingCartProvider({ children }) {
   // Asegurar que isLoaded siempre tenga un valor válido
   const safeIsLoaded = state.isLoaded === true;
 
-  const value = {
+  const value = useMemo(() => ({
     // Estado
     cartItems: state.cartItems,
     totalItems: state.totalItems,
     totalPrice: state.totalPrice,
     cartState: state.state,
     isLoaded: safeIsLoaded, // Garantizar que siempre sea boolean
-    
+
     // Acciones
     addToCart,
     removeFromCart,
     updateCartItem,
     clearCart,
-    
+
     // Utilidades
     getItemsByVehicle,
     isServiceInCart,
     getTotalByVehicle,
-    
+
     // Debugging (solo en desarrollo)
     debugAsyncStorage: __DEV__ ? debugAsyncStorage : undefined,
     repairCartItems: __DEV__ ? repairCartItems : undefined,
-    
+
     // Constantes
     BOOKING_CART_STATES
-  };
+  }), [
+    state.cartItems,
+    state.totalItems,
+    state.totalPrice,
+    state.state,
+    safeIsLoaded,
+    addToCart,
+    removeFromCart,
+    updateCartItem,
+    clearCart,
+    getItemsByVehicle,
+    isServiceInCart,
+    getTotalByVehicle,
+    debugAsyncStorage,
+    repairCartItems
+  ]);
 
   console.log('📤 BookingCartProvider: Valor del contexto:', {
     cartItems: value.cartItems.length,

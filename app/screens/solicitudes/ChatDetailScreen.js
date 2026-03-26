@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
-    KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Keyboard, Alert, Modal
+    KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Keyboard, Alert, Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -18,18 +18,18 @@ import serverConfig from '../../config/serverConfig';
 import { ROUTES } from '../../utils/constants';
 import { useChats } from '../../context/ChatsContext';
 
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
+
 const ChatDetailScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
-    const theme = useTheme();
     const insets = useSafeAreaInsets();
 
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
-
-    const styles = getStyles(colors, typography, spacing, borders, insets);
+    const styles = getStyles();
 
     const { refetchChats } = useChats();
     const { conversationId } = route.params;
@@ -322,7 +322,7 @@ const ChatDetailScreen = () => {
             <View style={[styles.header, { paddingTop: insets.top }]}>
                 <View style={styles.headerTop}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={colors.text?.primary} />
+                        <Ionicons name="arrow-back" size={24} color="#F9FAFB" />
                     </TouchableOpacity>
 
                     <Image
@@ -366,10 +366,10 @@ const ChatDetailScreen = () => {
                     }}
                 >
                     <View style={styles.contextIcon}>
-                        <Ionicons name="car" size={16} color={colors.primary?.main} />
+                        <Ionicons name="car" size={16} color="#6EE7B7" />
                     </View>
                     <Text style={styles.contextText}>{contextText}</Text>
-                    <Feather name="chevron-right" size={16} color={colors.text?.secondary} />
+                    <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.45)" />
                 </TouchableOpacity>
             </View>
         );
@@ -418,8 +418,8 @@ const ChatDetailScreen = () => {
                                 } else {
                                     return (
                                         <View style={styles.documentAttachment}>
-                                            <Ionicons name="document-text" size={24} color={isMe ? '#FFF' : colors.primary?.main} />
-                                            <Text style={[styles.documentText, isMe ? { color: '#FFF' } : { color: colors.text?.primary }]} numberOfLines={1}>
+                                            <Ionicons name="document-text" size={24} color={isMe ? '#FFF' : '#93C5FD'} />
+                                            <Text style={[styles.documentText, isMe ? { color: '#FFF' } : { color: '#F9FAFB' }]} numberOfLines={1}>
                                                 {typeof item.attachment === 'string' ? item.attachment.split('/').pop() : 'Documento'}
                                             </Text>
                                         </View>
@@ -442,7 +442,9 @@ const ChatDetailScreen = () => {
                         isMe ? styles.timeRight : styles.timeLeft,
                         hasAttachment ? { paddingRight: 10, paddingBottom: 6 } : {}
                     ]}>
-                        {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {(item.timestamp || item.created_at)
+                            ? new Date(item.timestamp || item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : ''}
                     </Text>
                 </View>
             </View>
@@ -451,7 +453,12 @@ const ChatDetailScreen = () => {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
+                <View style={styles.blobA} />
+                <View style={styles.blobB} />
+            </View>
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
             {renderHeader()}
 
             <KeyboardAvoidingView
@@ -461,7 +468,7 @@ const ChatDetailScreen = () => {
             >
                 {loading ? (
                     <View style={styles.centerContainer}>
-                        <ActivityIndicator size="large" color={colors.primary?.[500]} />
+                        <ActivityIndicator size="large" color="#6EE7B7" />
                     </View>
                 ) : (
                     <FlatList
@@ -470,7 +477,9 @@ const ChatDetailScreen = () => {
                         renderItem={renderMessage}
                         keyExtractor={item => String(item.id)}
                         contentContainerStyle={styles.listContent}
-                        inverted // Chat usually starts from bottom
+                        inverted
+                        keyboardShouldPersistTaps="handled"
+                        keyboardDismissMode="on-drag"
                     />
                 )}
 
@@ -480,7 +489,7 @@ const ChatDetailScreen = () => {
                         <View style={styles.previewWrapper}>
                             {attachment.type === 'document' ? (
                                 <View style={styles.docPreview}>
-                                    <Ionicons name="document-text" size={24} color={colors.text?.secondary} />
+                                    <Ionicons name="document-text" size={24} color="rgba(255,255,255,0.55)" />
                                     <Text style={styles.previewName} numberOfLines={1}>{attachment.name}</Text>
                                 </View>
                             ) : (
@@ -493,16 +502,16 @@ const ChatDetailScreen = () => {
                     </View>
                 )}
 
-                <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, spacing.md || 16) }]}>
+                <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
                     <TouchableOpacity style={styles.iconButton} onPress={handlePickAttachment}>
-                        <Feather name="paperclip" size={24} color={colors.primary?.main} />
+                        <Feather name="paperclip" size={24} color="#93C5FD" />
                     </TouchableOpacity>
 
                     <View style={styles.inputWrapper}>
                         <TextInput
                             style={styles.input}
                             placeholder="Escribe un mensaje..."
-                            placeholderTextColor={colors.text?.tertiary}
+                            placeholderTextColor="rgba(255,255,255,0.35)"
                             value={inputText}
                             onChangeText={setInputText}
                             multiline
@@ -546,96 +555,107 @@ const ChatDetailScreen = () => {
     );
 };
 
-const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.create({
+const getStyles = () => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background?.default || '#F8F9FA',
+        backgroundColor: '#030712',
+    },
+    blobA: {
+        position: 'absolute',
+        top: 120,
+        right: -40,
+        width: 160,
+        height: 160,
+        borderRadius: 80,
+        backgroundColor: 'rgba(99,102,241,0.08)',
+    },
+    blobB: {
+        position: 'absolute',
+        bottom: 200,
+        left: -30,
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        backgroundColor: 'rgba(16,185,129,0.06)',
     },
     centerContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: colors.background?.default || '#F8F9FA',
+        backgroundColor: 'transparent',
     },
     header: {
-        backgroundColor: colors.background?.paper || '#FFF',
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border?.light || '#E5E7EB',
+        backgroundColor: 'rgba(3,7,18,0.92)',
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: 'rgba(255,255,255,0.08)',
         zIndex: 10,
-        ...Platform.select({
-            ios: {
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.05,
-                shadowRadius: 10,
-            },
-            android: {
-                elevation: 4,
-            },
-        }),
     },
     headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: spacing.md || 16,
-        paddingVertical: spacing.sm || 12,
-        height: 60,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        minHeight: 56,
     },
     backButton: {
-        marginRight: spacing.sm || 8,
+        marginRight: 8,
         width: 40,
         height: 40,
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     headerAvatar: {
         width: 40,
         height: 40,
         borderRadius: 20,
         marginRight: 12,
-        backgroundColor: colors.neutral?.gray?.[200] || '#E5E7EB',
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     headerInfo: {
         flex: 1,
     },
     headerName: {
-        fontSize: typography.fontSize?.md || 16,
-        fontWeight: typography.fontWeight?.bold || '700',
-        color: colors.text?.primary || '#111827',
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#F9FAFB',
         lineHeight: 20,
     },
     headerRole: {
-        fontSize: typography.fontSize?.xs || 12,
-        color: colors.success?.main || '#10B981',
-        fontWeight: typography.fontWeight?.medium || '500',
+        fontSize: 12,
+        color: '#6EE7B7',
+        fontWeight: '500',
     },
     contextBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.primary?.surface || '#E0F2FE',
-        paddingVertical: 8,
-        paddingHorizontal: spacing.md || 16,
-        borderTopWidth: 1,
-        borderTopColor: colors.border?.light || '#E5E7EB',
+        backgroundColor: GLASS_BG,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: 'rgba(255,255,255,0.08)',
     },
     contextIcon: {
         marginRight: 8,
-        opacity: 0.8,
     },
     contextText: {
         flex: 1,
-        fontSize: typography.fontSize?.xs || 12,
-        color: colors.primary?.dark || '#003459',
-        fontWeight: typography.fontWeight?.medium || '500',
+        fontSize: 12,
+        color: '#93C5FD',
+        fontWeight: '600',
     },
     listContent: {
-        paddingHorizontal: spacing.md || 16,
-        paddingVertical: spacing.md || 16,
-        paddingBottom: spacing.xl || 32,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        paddingBottom: 32,
     },
     messageContainer: {
-        marginBottom: spacing.xs || 8,
+        marginBottom: 8,
         maxWidth: '80%',
         flexDirection: 'row',
         alignItems: 'flex-end',
@@ -653,34 +673,28 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         paddingHorizontal: 14,
         borderRadius: 18,
         maxWidth: '100%',
-        shadowColor: "#000",
-        shadowOffset: {
-            width: 0,
-            height: 1,
-        },
-        shadowOpacity: 0.05,
-        shadowRadius: 1,
-        elevation: 1,
     },
     bubbleRight: {
-        backgroundColor: colors.primary?.main || '#003459',
-        borderBottomRightRadius: 2,
+        backgroundColor: '#0d9488',
+        borderBottomRightRadius: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(110,231,183,0.35)',
     },
     bubbleLeft: {
-        backgroundColor: colors.background?.paper || '#FFF',
-        borderBottomLeftRadius: 2,
+        backgroundColor: GLASS_BG,
+        borderBottomLeftRadius: 4,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     messageText: {
-        fontSize: typography.fontSize?.base || 14,
+        fontSize: 14,
         lineHeight: 20,
     },
     textRight: {
         color: '#FFF',
     },
     textLeft: {
-        color: colors.text?.primary || '#111827',
+        color: '#F9FAFB',
     },
     messageTime: {
         fontSize: 10,
@@ -688,10 +702,10 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         alignSelf: 'flex-end',
     },
     timeRight: {
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: 'rgba(255,255,255,0.75)',
     },
     timeLeft: {
-        color: colors.text?.tertiary || '#9CA3AF',
+        color: 'rgba(255,255,255,0.4)',
     },
     messageImage: {
         width: 200,
@@ -712,11 +726,11 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'flex-end',
-        paddingHorizontal: spacing.md || 16,
-        paddingTop: spacing.sm || 12,
-        backgroundColor: colors.background?.paper || '#FFF',
-        borderTopWidth: 1,
-        borderTopColor: colors.border?.light || '#E5E7EB',
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        backgroundColor: 'rgba(3,7,18,0.96)',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: 'rgba(255,255,255,0.1)',
     },
     iconButton: {
         padding: 10,
@@ -728,10 +742,10 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.background?.input || '#F9FAFB',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderRadius: 24,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
         marginHorizontal: 8,
         paddingHorizontal: 12,
         marginBottom: 8,
@@ -741,9 +755,9 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         flex: 1,
         maxHeight: 100,
         paddingVertical: 10,
-        paddingRight: 8, // space for clip
-        fontSize: typography.fontSize?.base || 14,
-        color: colors.text?.primary || '#111827',
+        paddingRight: 8,
+        fontSize: 14,
+        color: '#F9FAFB',
     },
     clipButton: {
         padding: 4,
@@ -752,34 +766,35 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: colors.primary?.main || '#003459',
+        backgroundColor: '#059669',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 8,
         marginLeft: 4,
-        shadowColor: colors.primary?.main || '#003459',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4,
-        elevation: 3,
+        borderWidth: 1,
+        borderColor: 'rgba(110,231,183,0.4)',
     },
     sendButtonDisabled: {
-        backgroundColor: colors.neutral?.gray?.[300] || '#D1D5DB',
-        shadowOpacity: 0,
-        elevation: 0,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     previewContainer: {
         paddingHorizontal: 16,
         paddingBottom: 8,
-        backgroundColor: '#FFF',
+        paddingTop: 4,
+        backgroundColor: 'rgba(3,7,18,0.96)',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: 'rgba(255,255,255,0.06)',
     },
     previewWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F3F4F6',
+        backgroundColor: GLASS_BG,
         borderRadius: 12,
         padding: 8,
         alignSelf: 'flex-start',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     imagePreview: {
         width: 40,
@@ -795,7 +810,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     },
     previewName: {
         fontSize: 12,
-        color: '#4B5563',
+        color: 'rgba(255,255,255,0.65)',
         maxWidth: 150,
     },
     removePreviewButton: {
@@ -812,13 +827,15 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         right: 20,
         zIndex: 20,
         padding: 10,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: 'rgba(255,255,255,0.15)',
         borderRadius: 25,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
     },
     fullImage: {
         width: '100%',
         height: '80%',
-    }
+    },
 });
 
 export default ChatDetailScreen;

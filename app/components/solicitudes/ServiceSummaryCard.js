@@ -3,6 +3,12 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
 
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
+
 const ServiceSummaryCard = ({ solicitud }) => {
     const theme = useTheme();
     const colors = theme?.colors || {};
@@ -18,11 +24,11 @@ const ServiceSummaryCard = ({ solicitud }) => {
     const getUrgencyConfig = (urgencia) => {
         switch (urgencia?.toLowerCase()) {
             case 'alta':
-                return { color: '#EF4444', label: 'Urgencia Alta', bg: '#FEE2E2', icon: 'lightning-bolt' };
+                return { color: '#FCA5A5', label: 'Urgencia Alta', bg: 'rgba(248,113,113,0.18)', icon: 'lightning-bolt' };
             case 'media':
-                return { color: '#F59E0B', label: 'Urgencia Media', bg: '#FEF3C7', icon: 'clock-alert-outline' };
+                return { color: '#FCD34D', label: 'Urgencia Media', bg: 'rgba(245,158,11,0.20)', icon: 'clock-alert-outline' };
             default:
-                return { color: '#10B981', label: 'Urgencia Baja', bg: '#D1FAE5', icon: 'calendar-clock' };
+                return { color: '#6EE7B7', label: 'Urgencia Baja', bg: 'rgba(16,185,129,0.18)', icon: 'calendar-clock' };
         }
     };
 
@@ -108,18 +114,12 @@ const ServiceSummaryCard = ({ solicitud }) => {
 
 const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     card: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: GLASS_BG,
         borderRadius: 24,
         padding: 20,
         marginBottom: 16,
-        // Sombra suave elevation 2
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
         borderWidth: 1,
-        borderColor: colors.neutral?.gray?.[100] || '#F3F4F6',
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     header: {
         flexDirection: 'row',
@@ -143,29 +143,31 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     idText: {
         fontSize: 12,
         fontFamily: Platform.select({ ios: 'Courier New', android: 'monospace' }), // Monospace look
-        color: colors.text?.tertiary || '#9CA3AF',
+        color: 'rgba(255,255,255,0.35)',
         fontWeight: '500',
     },
     title: {
         fontSize: 22, // H1 equivalent for card
         fontWeight: '900', // Black weight
-        color: '#0F172A', // Slate-900
+        color: '#F9FAFB',
         marginBottom: 8,
         letterSpacing: -0.5,
     },
     description: {
         fontSize: 14,
-        color: '#475569', // Slate-600
+        color: 'rgba(255,255,255,0.55)',
         lineHeight: 22,
         marginBottom: 20,
         fontWeight: '400',
     },
     gridContainer: {
         flexDirection: 'column', // Changed from row to column to prevent overlap
-        backgroundColor: '#F8FAFC',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderRadius: 16,
         padding: 16,
         gap: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     gridItem: {
         flexDirection: 'row',
@@ -176,25 +178,22 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 10,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 1,
-        elevation: 1,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.10)',
     },
     gridLabel: {
         fontSize: 10,
-        color: '#64748B', // Slate-500
+        color: 'rgba(255,255,255,0.40)',
         fontWeight: '600',
         textTransform: 'uppercase',
         marginBottom: 2,
     },
     gridValue: {
         fontSize: 13,
-        color: '#334155', // Slate-700
+        color: '#F9FAFB',
         fontWeight: '600',
     },
 });

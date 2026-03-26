@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, StatusBar, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, StatusBar, TouchableOpacity, Platform } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../design-system/tokens/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProviderReviews } from '../../services/providers';
 import ReviewCard from '../../components/reviews/ReviewCard';
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const ProviderReviewsScreen = () => {
   const route = useRoute();
@@ -14,7 +23,7 @@ const ProviderReviewsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
 
-  // Hide default header to prevent duplication
+  // Hide default Stack header (it's light by default)
   React.useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
@@ -40,6 +49,7 @@ const ProviderReviewsScreen = () => {
 
     return (
       <View style={styles.summaryCard}>
+        {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
         {/* Left: Big Rating */}
         <View style={styles.ratingLeft}>
           <Text style={styles.bigRating}>{data.rating_average}</Text>
@@ -65,7 +75,7 @@ const ProviderReviewsScreen = () => {
             return (
               <View key={star} style={styles.barRow}>
                 <Text style={styles.starLabel}>{star}</Text>
-                <Ionicons name="star" size={10} color={COLORS.neutral.gray[400]} style={{ marginRight: 6 }} />
+                <Ionicons name="star" size={10} color="rgba(255,255,255,0.45)" style={{ marginRight: 6 }} />
                 <View style={styles.track}>
                   <View style={[styles.progress, { width: `${percentage}%` }]} />
                 </View>
@@ -80,19 +90,28 @@ const ProviderReviewsScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary[500]} />
+        <StatusBar barStyle="light-content" backgroundColor="#030712" />
+        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <ActivityIndicator size="large" color="#6EE7B7" />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.base.white} />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 340, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
 
       {/* Sticky Custom Header */}
       <View style={styles.stickyHeader}>
+        {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.neutral.gray[900]} />
+          <Ionicons name="arrow-back" size={22} color="#F9FAFB" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Opiniones</Text>
       </View>
@@ -111,69 +130,77 @@ const ProviderReviewsScreen = () => {
           </View>
         }
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background.default, // F5F7F8
+    backgroundColor: '#030712',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.base.white,
+    backgroundColor: '#030712',
   },
   // Sticky Header Styling
   stickyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.base.white,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 12 : 50,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral.gray[100],
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    borderRadius: 16,
+    overflow: 'hidden',
     zIndex: 10,
   },
   backButton: {
-    padding: 4,
-    marginRight: 12,
-    marginLeft: -4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.neutral.gray[900],
+    color: '#F9FAFB',
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 40,
   },
   // Summary Card Styling (Light Yellow)
   summaryCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.warning.light, // #FFF8E6
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#FEF3C7', // Amber-100 equivalent for outline
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   ratingLeft: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingRight: 24,
     borderRightWidth: 1,
-    borderRightColor: 'rgba(0,0,0,0.05)', // Very subtle divider
+    borderRightColor: 'rgba(255,255,255,0.08)',
   },
   bigRating: {
     fontSize: 42,
     fontWeight: '800', // Extra bold
-    color: COLORS.neutral.gray[900],
+    color: '#F9FAFB',
     lineHeight: 48,
   },
   starsRow: {
@@ -183,7 +210,7 @@ const styles = StyleSheet.create({
   },
   totalReviewsText: {
     fontSize: 12,
-    color: COLORS.neutral.gray[500],
+    color: 'rgba(255,255,255,0.55)',
     fontWeight: '500',
   },
   barsRight: {
@@ -198,7 +225,7 @@ const styles = StyleSheet.create({
   },
   starLabel: {
     fontSize: 12,
-    color: COLORS.neutral.gray[500],
+    color: 'rgba(255,255,255,0.55)',
     width: 14,
     textAlign: 'left',
     fontWeight: '600',
@@ -206,7 +233,7 @@ const styles = StyleSheet.create({
   track: {
     flex: 1,
     height: 6,
-    backgroundColor: 'rgba(0,0,0,0.05)', // Darker track on yellow bg
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -220,7 +247,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: COLORS.neutral.gray[500],
+    color: 'rgba(255,255,255,0.55)',
     fontSize: 14,
   },
 });

@@ -147,7 +147,7 @@ export function SolicitudesProvider({ children }) {
     return (ofertasNuevasPorSolicitud[solicitudId] || []).length;
   }, [ofertasNuevasPorSolicitud]);
 
-  const value = {
+  const value = useMemo(() => ({
     solicitudes: solicitudes || [],
     solicitudesActivas: solicitudesActivas || [],
     loading,
@@ -165,7 +165,25 @@ export function SolicitudesProvider({ children }) {
     seleccionarOferta,
     cancelarSolicitud,
     limpiarOfertasNuevas
-  };
+  }), [
+    solicitudes,
+    solicitudesActivas,
+    loading,
+    error,
+    ofertasNuevas,
+    ofertasNuevasPorSolicitud,
+    ultimaOfertaRecibida,
+    ofertaNuevasCount,
+    obtenerOfertasNuevasPorSolicitud,
+    obtenerOfertasNuevasCountPorSolicitud,
+    cargarSolicitudes,
+    cargarSolicitudesActivas,
+    crearSolicitud,
+    publicarSolicitud,
+    seleccionarOferta,
+    cancelarSolicitud,
+    limpiarOfertasNuevas
+  ]);
 
   return (
     <SolicitudesContext.Provider value={value}>

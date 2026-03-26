@@ -1,16 +1,24 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 
-const ProviderHeader = ({ provider, onShare, onToggleFavorite, isFavorite = false }) => {
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
+
+const ProviderHeader = ({ provider, providerType, onShare, onToggleFavorite, isFavorite = false, onBack }) => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
 
     const name = provider?.nombre || 'Proveedor Profesional';
-    const type = provider?.tipo === 'taller' ? 'Taller Certificado' : 'Mecánico Experto';
+    const resolvedType = providerType || (provider?.tipo === 'taller' ? 'taller' : 'mecanico');
+    const type = resolvedType === 'taller' ? 'Taller' : 'Mecánico a Domicilio';
     const location = provider?.direccion_fisica?.comuna || provider?.comuna || '';
     const rating = provider?.calificacion_promedio ?? '';
     const jobs = provider?.servicios_completados ?? provider?.trabajos_realizados ?? '';
@@ -29,7 +37,7 @@ const ProviderHeader = ({ provider, onShare, onToggleFavorite, isFavorite = fals
 
                 {/* Top Bar Actions */}
                 <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-                    <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+                    <TouchableOpacity style={styles.iconButton} onPress={onBack || (() => navigation.goBack())}>
                         <Ionicons name="arrow-back" size={24} color="white" />
                     </TouchableOpacity>
                     <View style={styles.rightActions}>
@@ -51,6 +59,7 @@ const ProviderHeader = ({ provider, onShare, onToggleFavorite, isFavorite = fals
 
             {/* Profile Card Overlay */}
             <View style={styles.profileCard}>
+                {Platform.OS === 'ios' && <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
                 <View style={styles.avatarRow}>
                     <View style={styles.avatarContainer}>
                         <Image source={{ uri: avatarImage }} style={styles.avatar} />
@@ -138,14 +147,12 @@ const styles = StyleSheet.create({
     profileCard: {
         marginTop: -40,
         marginHorizontal: 16,
-        backgroundColor: COLORS.base.white,
-        borderRadius: 16,
+        backgroundColor: GLASS_BG,
+        borderRadius: 18,
         padding: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     avatarRow: {
         flexDirection: 'row',
@@ -161,58 +168,58 @@ const styles = StyleSheet.create({
         height: 64,
         borderRadius: 32,
         borderWidth: 3,
-        borderColor: COLORS.base.white,
+        borderColor: 'rgba(255,255,255,0.25)',
     },
     verifiedBadge: {
         position: 'absolute',
         bottom: 0,
         right: 0,
-        backgroundColor: COLORS.primary[500], // Blue
+        backgroundColor: 'rgba(147,197,253,0.95)',
         width: 20,
         height: 20,
         borderRadius: 10,
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: COLORS.base.white,
+        borderColor: 'rgba(3,7,18,0.9)',
     },
     statusBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.success[50],
+        backgroundColor: 'rgba(16,185,129,0.16)',
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: COLORS.success[100],
+        borderColor: 'rgba(110,231,183,0.25)',
     },
     statusDot: {
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: COLORS.success[500],
+        backgroundColor: '#6EE7B7',
         marginRight: 6,
     },
     statusText: {
         fontSize: 12,
         fontWeight: '600',
-        color: COLORS.success[700],
+        color: '#6EE7B7',
     },
     name: {
         fontSize: 20,
         fontWeight: '700',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
         marginBottom: 4,
     },
     type: {
         fontSize: 14,
-        color: COLORS.text.secondary,
+        color: 'rgba(255,255,255,0.55)',
         marginBottom: 16,
     },
     statsRow: {
         flexDirection: 'row',
         borderTopWidth: 1,
-        borderTopColor: COLORS.neutral.gray[100],
+        borderTopColor: 'rgba(255,255,255,0.08)',
         paddingTop: 16,
     },
     statItem: {
@@ -227,17 +234,17 @@ const styles = StyleSheet.create({
     statValue: {
         fontSize: 16,
         fontWeight: '700',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
         marginLeft: 4,
     },
     statLabel: {
         fontSize: 12,
-        color: COLORS.text.secondary,
+        color: 'rgba(255,255,255,0.45)',
     },
     statDivider: {
         width: 1,
         height: '80%',
-        backgroundColor: COLORS.neutral.gray[200],
+        backgroundColor: 'rgba(255,255,255,0.10)',
         alignSelf: 'center',
     },
 });

@@ -1,8 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
 
 const ReviewCard = ({ review }) => {
     const {
@@ -98,19 +104,12 @@ const ReviewCard = ({ review }) => {
 
 const styles = StyleSheet.create({
     cardContainer: {
-        backgroundColor: COLORS.base.white,
+        backgroundColor: GLASS_BG,
         borderRadius: 16,
         padding: 20,
         marginBottom: 16,
-        // Soft Shadow
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
-        // Subtle Border
         borderWidth: 1,
-        borderColor: COLORS.neutral.gray[100], // #E5E7EB approximation
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     headerRow: {
         flexDirection: 'row',
@@ -127,7 +126,7 @@ const styles = StyleSheet.create({
         height: 40,
         borderRadius: 20,
         marginRight: 12,
-        backgroundColor: COLORS.neutral.gray[100],
+        backgroundColor: 'rgba(255,255,255,0.10)',
     },
     nameColumn: {
         justifyContent: 'center',
@@ -135,7 +134,7 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 14,
         fontWeight: '700',
-        color: COLORS.neutral.gray[900], // Darkest gray
+        color: '#F9FAFB',
         marginBottom: 2,
     },
     starsRow: {
@@ -144,17 +143,19 @@ const styles = StyleSheet.create({
     },
     relativeDate: {
         fontSize: 12,
-        color: COLORS.neutral.gray[400], // Gray-400
+        color: 'rgba(255,255,255,0.35)',
     },
     contextBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.neutral.gray[50], // Very light gray bg
+        backgroundColor: 'rgba(255,255,255,0.05)',
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: 8,
         alignSelf: 'flex-start',
         marginBottom: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.10)',
     },
     contextIcon: {
         marginRight: 6,
@@ -162,11 +163,11 @@ const styles = StyleSheet.create({
     contextText: {
         fontSize: 12,
         fontWeight: '600',
-        color: COLORS.neutral.gray[600], // Medium gray text
+        color: 'rgba(255,255,255,0.55)',
     },
     commentText: {
         fontSize: 14,
-        color: COLORS.neutral.gray[700], // #4B5563
+        color: 'rgba(255,255,255,0.65)',
         lineHeight: 20,
     },
     photosContainer: {
@@ -178,9 +179,9 @@ const styles = StyleSheet.create({
         height: 64, // h-16
         borderRadius: 8,
         marginRight: 8,
-        backgroundColor: COLORS.neutral.gray[100],
+        backgroundColor: 'rgba(255,255,255,0.10)',
         borderWidth: 1,
-        borderColor: COLORS.neutral.gray[200],
+        borderColor: 'rgba(255,255,255,0.12)',
     }
 });
 

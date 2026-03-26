@@ -1,53 +1,40 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
-import { COLORS } from '../../design-system/tokens/colors';
+import { BlurView } from 'expo-blur';
+import { ChevronRight } from 'lucide-react-native';
 
 const ICON_MAP = {
-    // Engine & Fluids
     'aceite-motor': { lib: 'MaterialCommunityIcons', name: 'oil' },
     'filtro-aceite': { lib: 'MaterialCommunityIcons', name: 'filter' },
     'filtro-aire': { lib: 'MaterialCommunityIcons', name: 'air-filter' },
     'filtro-cabina': { lib: 'MaterialCommunityIcons', name: 'air-conditioner' },
     'refrigerante': { lib: 'MaterialCommunityIcons', name: 'car-coolant-level' },
     'adblue': { lib: 'MaterialCommunityIcons', name: 'water-plus' },
-
-    // Brakes & Tires
     'pastillas-freno': { lib: 'MaterialCommunityIcons', name: 'car-brake-pad' },
     'discos-freno': { lib: 'MaterialCommunityIcons', name: 'disc' },
     'liquido-frenos': { lib: 'MaterialCommunityIcons', name: 'car-brake-fluid-level' },
     'neumaticos': { lib: 'MaterialCommunityIcons', name: 'car-tire-alert' },
-
-    // Electrical & Ignition
     'bujias': { lib: 'MaterialCommunityIcons', name: 'spark-plug' },
     'bateria': { lib: 'MaterialCommunityIcons', name: 'car-battery' },
-
-    // Mechanical
-    'correa-distribucion': { lib: 'MaterialCommunityIcons', name: 'link-variant' }, // Symbolizing chain/belt
+    'correa-distribucion': { lib: 'MaterialCommunityIcons', name: 'link-variant' },
     'amortiguadores': { lib: 'MaterialCommunityIcons', name: 'car-shocks' },
     'dpf': { lib: 'MaterialCommunityIcons', name: 'exhaust' },
-
-    // Default
     'default': { lib: 'Ionicons', name: 'construct-outline' }
 };
 
 const HealthMetricCard = ({ item, onPress }) => {
-    const theme = useTheme();
-
-    // Fallback safe values for Hybrid Data Sources (ViewSet vs Serializer)
     const name = item.nombre || (typeof item.componente === 'string' ? item.componente : item.name) || 'Componente';
-    // Prioritize salud_porcentaje (ViewSet) -> salud (Serializer) -> percentage (Generic)
     const percentage = item.salud_porcentaje ?? item.salud ?? item.percentage ?? 0;
     const slug = item.slug || item.componente_detail?.slug || item.icon_slug || '';
     const status = item.nivel_alerta_display || item.status || 'NORMAL';
     const remainingKm = item.km_estimados_restantes ?? item.vida_util_restante_km ?? item.remaining_km;
 
     const getHealthColor = (p) => {
-        if (p >= 80) return COLORS.success[500]; // Green (80-100%)
-        if (p >= 60) return '#F59E0B'; // Yellow (60-79%)
-        if (p >= 40) return '#F97316'; // Orange (40-59%)
-        return COLORS.error[500]; // Red (0-39%)
+        if (p >= 80) return '#10B981';
+        if (p >= 60) return '#F59E0B';
+        if (p >= 40) return '#F97316';
+        return '#EF4444';
     };
 
     const color = getHealthColor(percentage);
@@ -55,7 +42,6 @@ const HealthMetricCard = ({ item, onPress }) => {
     const getIcon = () => {
         const iconConfig = ICON_MAP[slug] || ICON_MAP['default'];
         const size = 24;
-
         switch (iconConfig.lib) {
             case 'MaterialCommunityIcons':
                 return <MaterialCommunityIcons name={iconConfig.name} size={size} color={color} />;
@@ -67,12 +53,9 @@ const HealthMetricCard = ({ item, onPress }) => {
     };
 
     return (
-        <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.7}
-            onPress={onPress}
-        >
-            <View style={[styles.iconContainer, { backgroundColor: `${color}15` }]}>
+        <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={onPress}>
+            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
+            <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
                 {getIcon()}
             </View>
 
@@ -94,7 +77,7 @@ const HealthMetricCard = ({ item, onPress }) => {
                 </View>
             </View>
 
-            <Ionicons name="chevron-forward" size={16} color={COLORS.text.tertiary} style={{ marginLeft: 8 }} />
+            <ChevronRight size={16} color="rgba(255,255,255,0.25)" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
     );
 };
@@ -103,17 +86,13 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
         padding: 16,
         borderRadius: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#F1F5F9', // Gray 100
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 8,
-        elevation: 2,
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     iconContainer: {
         width: 48,
@@ -133,17 +112,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     title: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
-        color: COLORS.base.inkBlack, // Dark Slate
+        color: '#FFFFFF',
+        flex: 1,
+        marginRight: 8,
     },
     percentage: {
         fontSize: 14,
         fontWeight: '700',
     },
     progressContainer: {
-        height: 6,
-        backgroundColor: '#E2E8F0', // Slate 200
+        height: 5,
+        backgroundColor: 'rgba(255,255,255,0.10)',
         borderRadius: 3,
         marginBottom: 8,
         overflow: 'hidden',
@@ -157,14 +138,14 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     statusText: {
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '600',
-        color: '#64748B', // Slate 500
+        color: 'rgba(255,255,255,0.4)',
         textTransform: 'uppercase',
     },
     remainingText: {
-        fontSize: 12,
-        color: '#94A3B8', // Slate 400
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.35)',
     }
 });
 

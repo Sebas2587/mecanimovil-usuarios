@@ -12,10 +12,6 @@ const ActiveRequestsCarousel = ({ requests = [] }) => {
         navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: request.id });
     };
 
-    const handleNewRequest = () => {
-        navigation.navigate(ROUTES.CREAR_SOLICITUD);
-    };
-
     if (!requests || requests.length === 0) {
         // Option: Don't show anything, or show a call to action if no requests?
         // Per spec, we just render the carousel if we have data or maybe just the "New" card if empty?
@@ -25,13 +21,6 @@ const ActiveRequestsCarousel = ({ requests = [] }) => {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Solicitudes Activas</Text>
-                <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MIS_SOLICITUDES)}>
-                    <Text style={styles.seeAll}>Ver todas</Text>
-                </TouchableOpacity>
-            </View>
-
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -55,23 +44,6 @@ const ActiveRequestsCarousel = ({ requests = [] }) => {
 const styles = StyleSheet.create({
     container: {
         marginBottom: 24,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 12,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#111827',
-    },
-    seeAll: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#003459',
     },
     scrollContent: {
         paddingHorizontal: 20,

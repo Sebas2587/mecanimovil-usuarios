@@ -3,11 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MemberCard = ({ user, onEditPress }) => {
-    const insets = useSafeAreaInsets();
-
     // Safe data extraction
     const firstName = user?.firstName || user?.first_name || '';
     const lastName = user?.lastName || user?.last_name || '';
@@ -20,16 +17,11 @@ const MemberCard = ({ user, onEditPress }) => {
 
     return (
         <LinearGradient
-            colors={['#0F172A', '#1E293B']} // Slate 900 -> 800
-            style={[styles.container, { paddingTop: insets.top + 20 }]}
+            colors={['rgba(15,23,42,0.95)', 'rgba(30,41,59,0.9)']}
+            style={styles.container}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
         >
-            {/* Header Row */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Mi Perfil</Text>
-            </View>
-
             {/* User Info Row */}
             <View style={styles.userInfoRow}>
                 <View style={styles.avatarContainer}>
@@ -71,17 +63,14 @@ const MemberCard = ({ user, onEditPress }) => {
 const styles = StyleSheet.create({
     container: {
         paddingHorizontal: 24,
-        paddingBottom: 32,
-        borderBottomLeftRadius: 32,
-        borderBottomRightRadius: 32,
-    },
-    header: {
-        marginBottom: 24,
-    },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: COLORS.base.white,
+        paddingTop: 8,
+        paddingBottom: 28,
+        marginHorizontal: 16,
+        marginTop: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     userInfoRow: {
         flexDirection: 'row',
@@ -100,7 +89,7 @@ const styles = StyleSheet.create({
         borderColor: COLORS.base.white,
     },
     avatarPlaceholder: {
-        backgroundColor: COLORS.neutral.gray[100],
+        backgroundColor: 'rgba(255,255,255,0.12)',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
@@ -117,7 +106,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
-        borderColor: '#1E293B', // Matches gradient end
+        borderColor: 'rgba(15,23,42,0.9)',
     },
     textContainer: {
         flex: 1,

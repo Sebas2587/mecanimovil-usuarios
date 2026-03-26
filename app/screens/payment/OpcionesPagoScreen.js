@@ -21,6 +21,7 @@ import { getMediaURL } from '../../services/api';
 import MercadoPagoService from '../../services/mercadopago';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { TOKENS } from '../../design-system/tokens';
+import AcuerdoServicioModal from '../../components/modals/AcuerdoServicioModal';
 
 const METODOS_PAGO = {
   MERCADOPAGO: 'mercadopago'
@@ -29,7 +30,8 @@ const METODOS_PAGO = {
 // Tipos de pago para ofertas con repuestos
 const TIPO_PAGO_REPUESTOS = {
   REPUESTOS_ADELANTADO: 'repuestos',
-  TODO_ADELANTADO: 'total'
+  TODO_ADELANTADO: 'total',
+  CLIENTE_COMPRA: 'servicio' // Utilizo 'servicio' para que el backend reconozca que solo se cobra mano de obra (igual a si fuera un pago parcial del saldo restante)
 };
 
 const OpcionesPagoScreen = () => {
@@ -48,9 +50,11 @@ const OpcionesPagoScreen = () => {
   // Detectar si viene de una solicitud pública, oferta secundaria o del flujo tradicional de carrito
   const origen = route.params?.origen;
   const solicitudId = route.params?.solicitudId;
-  const resumenPago = route.params?.resumenPago;
+  const ofertaIdParam = route.params?.ofertaId;
+  const resumenPago = route.params?.resumenPago; // legacy, ya no se usa para secundarias
   const esSolicitudPublica = origen === 'solicitud_publica' && solicitudId;
-  const esOfertaSecundaria = origen === 'oferta_secundaria' && resumenPago;
+  // Oferta secundaria: se identifica solo con origen + solicitudId + ofertaId (no requiere resumenPago)
+  const esOfertaSecundaria = origen === 'oferta_secundaria' && !!solicitudId && !!ofertaIdParam;
 
   const [metodoPagoSeleccionado, setMetodoPagoSeleccionado] = useState(METODOS_PAGO.MERCADOPAGO);
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
@@ -65,6 +69,7 @@ const OpcionesPagoScreen = () => {
 
   // Estados para pago con desglose de repuestos
   const [tipoPagoRepuestos, setTipoPagoRepuestos] = useState(TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO);
+  const [modalAcuerdoVisible, setModalAcuerdoVisible] = useState(false);
 
   // Estado para manejar el pago pendiente (para guardar en AsyncStorage)
   const [pagoPendiente, setPagoPendiente] = useState(null);
@@ -73,11 +78,24 @@ const OpcionesPagoScreen = () => {
   useFocusEffect(
     useCallback(() => {
       const cargarDatos = async () => {
-        // Si es oferta secundaria, no necesitamos cargar datos adicionales (ya vienen en resumenPago)
+        // Oferta secundaria: cargar con el mismo flujo que solicitud pública pero usando ofertaIdParam
         if (esOfertaSecundaria) {
-          console.log('💳 OpcionesPagoScreen: Usando datos de oferta secundaria del resumenPago');
-          setCargandoCarrito(false);
-          setCargandoSolicitud(false);
+          try {
+            setCargandoSolicitud(true);
+            console.log('💳 OpcionesPagoScreen: Cargando datos de oferta secundaria:', ofertaIdParam);
+            const solicitudesService = (await import('../../services/solicitudesService')).default;
+            const datos = await solicitudesService.obtenerDatosPagoOferta(solicitudId, ofertaIdParam);
+            console.log('✅ OpcionesPagoScreen: Datos de oferta secundaria cargados:', datos);
+            setDatosSolicitud(datos);
+          } catch (error) {
+            console.error('❌ OpcionesPagoScreen: Error cargando datos de oferta secundaria:', error);
+            Alert.alert('Error', `No se pudieron cargar los datos de pago: ${error.message || 'Error desconocido'}`, [
+              { text: 'Volver', onPress: () => navigation.goBack() }
+            ]);
+          } finally {
+            setCargandoSolicitud(false);
+            setCargandoCarrito(false);
+          }
           return;
         }
 
@@ -133,44 +151,16 @@ const OpcionesPagoScreen = () => {
 
       console.log('🛒 OpcionesPagoScreen: Pantalla enfocada, origen:', origen, 'solicitudId:', solicitudId);
       cargarDatos();
-    }, [esSolicitudPublica, esOfertaSecundaria, solicitudId, resumenPago, cargarTodosLosCarritos])
+    }, [esSolicitudPublica, esOfertaSecundaria, solicitudId, ofertaIdParam, cargarTodosLosCarritos])
   );
 
   // Calcular resumen según el origen (carrito, solicitud pública u oferta secundaria)
+  // Oferta secundaria y solicitud pública usan exactamente el mismo procesamiento
+  // pues `datosSolicitud` tiene la misma estructura en ambos casos.
   const resumenGlobal = React.useMemo(() => {
-    // Si es oferta secundaria, usar el resumenPago que viene en los parámetros
-    if (esOfertaSecundaria && resumenPago) {
-      console.log('🛒 OpcionesPagoScreen: Calculando resumen desde oferta secundaria');
-
-      const serviciosDetalle = (resumenPago.servicios || []).map(servicio => ({
-        servicio: servicio.nombre,
-        proveedor: resumenPago.proveedor?.nombre || 'Proveedor',
-        tipoProveedor: resumenPago.proveedor?.tipo === 'taller' ? 'Taller' : 'Mecánico',
-        fecha: resumenPago.fecha_servicio || 'Por confirmar',
-        hora: resumenPago.hora_servicio || 'Por confirmar',
-        precio: (servicio.precio || 0) / 1.19, // Sin IVA
-        precioOriginal: servicio.precio || 0,
-        fotoServicio: null
-      }));
-
-      const totalGeneral = (resumenPago.monto_total || 0) / 1.19; // Sin IVA
-
-      console.log('✅ OpcionesPagoScreen: Resumen desde oferta secundaria calculado:', {
-        totalGeneral,
-        totalServicios: serviciosDetalle.length
-      });
-
-      return {
-        totalGeneral,
-        totalServicios: serviciosDetalle.length,
-        serviciosDetalle
-      };
-    }
-
-    // Si es solicitud pública, usar los datos de la solicitud
-    if (esSolicitudPublica && datosSolicitud) {
-      console.log('🛒 OpcionesPagoScreen: Calculando resumen desde solicitud pública');
-      console.log('🛒 OpcionesPagoScreen: Datos COMPLETOS de solicitud:', JSON.stringify(datosSolicitud, null, 2));
+    if ((esSolicitudPublica || esOfertaSecundaria) && datosSolicitud) {
+      const origenLabel = esOfertaSecundaria ? 'oferta secundaria' : 'solicitud pública';
+      console.log(`🛒 OpcionesPagoScreen: Calculando resumen desde ${origenLabel}`);
       console.log('🛒 OpcionesPagoScreen: Datos clave:', {
         incluye_repuestos: datosSolicitud.incluye_repuestos,
         costo_repuestos: datosSolicitud.costo_repuestos,
@@ -186,13 +176,16 @@ const OpcionesPagoScreen = () => {
       const costoGestionCompraSinIva = parseFloat(datosSolicitud.costo_gestion_compra || 0);
 
       // Inferir mano de obra si es 0 pero hay total
+      let costoManoObraConIva;
       if (costoManoObraSinIva === 0 && montoTotal > 0) {
         const totalServiciosConIva = Math.max(0, montoTotal - costoRepuestos);
         const totalServiciosSinIva = totalServiciosConIva / 1.19;
         costoManoObraSinIva = Math.max(0, totalServiciosSinIva - costoGestionCompraSinIva);
+        // Usar el valor exacto del API como base del monto con IVA (evita pérdida por redondeo)
+        costoManoObraConIva = Math.max(0, totalServiciosConIva - Math.round(costoGestionCompraSinIva * 1.19));
+      } else {
+        costoManoObraConIva = Math.round(costoManoObraSinIva * 1.19);
       }
-
-      const costoManoObraConIva = Math.round(costoManoObraSinIva * 1.19);
       const costoGestionCompraConIva = Math.round(costoGestionCompraSinIva * 1.19);
 
       const serviciosDetalle = datosSolicitud.servicios.map((servicio, index) => {
@@ -269,15 +262,18 @@ const OpcionesPagoScreen = () => {
       });
 
       // Si es pago parcial (solo falta pagar servicio), calcular solo el saldo pendiente
-      let montoAPagar = Math.round(montoTotal);
+      // Usar montoTotal exacto del API (no Math.round) para evitar pérdida de centavos en precios de prueba
+      let montoAPagar = montoTotal;
+      const subtotalSinIva = costoManoObraSinIva + costoRepuestos + costoGestionCompraSinIva;
+      const ivaCalculado = montoTotal - Math.round(montoTotal / 1.19); // IVA exacto basado en total real
       let desgloseParaMostrar = {
         costoRepuestos: costoRepuestos,
         costoManoObraSinIva: costoManoObraSinIva,
         costoGestionCompraSinIva: costoGestionCompraSinIva,
         costoManoObraConIva: costoManoObraConIva,
         costoGestionCompraConIva: costoGestionCompraConIva,
-        subtotalSinIva: costoManoObraSinIva + costoRepuestos + costoGestionCompraSinIva,
-        iva: (costoManoObraSinIva + costoGestionCompraSinIva) * 0.19,
+        subtotalSinIva,
+        iva: ivaCalculado,
       };
 
       if (soloServicioPendiente) {
@@ -290,7 +286,7 @@ const OpcionesPagoScreen = () => {
           costoManoObraConIva: costoManoObraConIva,
           costoGestionCompraConIva: 0, // Ya pagado, no mostrar
           subtotalSinIva: costoManoObraSinIva,
-          iva: costoManoObraSinIva * 0.19,
+          iva: costoManoObraConIva - costoManoObraSinIva, // IVA exacto = con IVA - sin IVA
         };
         console.log('💰 Pago parcial detectado - Solo falta pagar servicio:', {
           montoAPagar,
@@ -335,13 +331,13 @@ const OpcionesPagoScreen = () => {
       };
     }
 
-    // Si es solicitud pública pero aún no hay datos, retornar null para evitar procesar carrito
-    if (esSolicitudPublica && !datosSolicitud) {
-      console.log('⏳ OpcionesPagoScreen: Esperando datos de solicitud pública...');
+    // Si es solicitud pública u oferta secundaria pero aún no hay datos, esperar
+    if ((esSolicitudPublica || esOfertaSecundaria) && !datosSolicitud) {
+      console.log('⏳ OpcionesPagoScreen: Esperando datos...');
       return null;
     }
 
-    // Flujo tradicional - Calcular desde carritos (solo si NO es solicitud pública)
+    // Flujo tradicional - Calcular desde carritos (solo si NO es solicitud pública ni secundaria)
     const carritosArray = carritos || (carrito ? [carrito] : []);
 
     if (!carritosArray || carritosArray.length === 0) return null;
@@ -376,6 +372,10 @@ const OpcionesPagoScreen = () => {
         let fotoServicio = null;
         const ofertaDetail = item.oferta_servicio_detail || item.oferta_servicio;
 
+        // Declarar aquí para que estén disponibles en todo el bloque del item
+        const tallerInfo = ofertaDetail?.taller_info || item?.taller_info || ofertaDetail?.taller || null;
+        const mecanicoInfo = ofertaDetail?.mecanico_info || item?.mecanico_info || ofertaDetail?.mecanico || null;
+
         if (ofertaDetail && ofertaDetail.fotos_servicio && ofertaDetail.fotos_servicio.length > 0) {
           const primeraFoto = ofertaDetail.fotos_servicio[0];
           fotoServicio = primeraFoto.imagen || primeraFoto.imagen_url;
@@ -384,11 +384,7 @@ const OpcionesPagoScreen = () => {
         } else if (!fotoServicio && ofertaDetail?.servicio?.foto) {
           fotoServicio = ofertaDetail.servicio.foto;
         } else {
-          // Usar optional chaining para evitar errores si taller_info o mecanico_info no existen
-          const tallerInfo = ofertaDetail?.taller_info || item?.taller_info || ofertaDetail?.taller || null;
-          const mecanicoInfo = ofertaDetail?.mecanico_info || item?.mecanico_info || ofertaDetail?.mecanico || null;
           const proveedorInfo = tallerInfo || mecanicoInfo;
-
           if (proveedorInfo) {
             fotoServicio = proveedorInfo.foto_perfil ||
               proveedorInfo.usuario?.foto_perfil ||
@@ -515,74 +511,7 @@ const OpcionesPagoScreen = () => {
     try {
       setCreandoPreferencia(true);
 
-      if (esOfertaSecundaria && resumenPago) {
-        // Flujo de oferta secundaria - Crear preferencia de Mercado Pago con el solicitud_servicio_id
-        console.log('💳 Iniciando pago de oferta secundaria:', resumenPago.oferta_id);
-
-        const solicitudServicioId = resumenPago.solicitud_servicio_id;
-
-        if (!solicitudServicioId) {
-          throw new Error('No se pudo obtener el ID de la solicitud de servicio');
-        }
-
-        // Construir URLs de retorno
-        const scheme = 'mecanimovil';
-        const backUrls = {
-          success: `${scheme}://payment/success`,
-          failure: `${scheme}://payment/failure`,
-          pending: `${scheme}://payment/pending`,
-        };
-
-        // Crear preferencia de pago usando el ID de la solicitud de servicio
-        console.log('📝 Creando preferencia de pago para oferta secundaria, solicitud servicio:', solicitudServicioId);
-
-        const preferencia = await MercadoPagoService.createPreference(
-          null, // No hay carrito_id
-          backUrls,
-          null, // notification_url
-          solicitudServicioId // solicitud_servicio_id
-        );
-
-        console.log('✅ Preferencia creada:', preferencia.preference_id_mp);
-        console.log('   - Init Point:', preferencia.init_point);
-
-        // Abrir Checkout Pro en navegador in-app
-        // Usar init_point primero (producción), sandbox solo como fallback
-        const checkoutUrl = preferencia.init_point || preferencia.sandbox_init_point;
-        const result = await MercadoPagoService.openCheckoutPro(checkoutUrl);
-
-        console.log('📥 Resultado de preparar Checkout Pro para oferta secundaria:', result);
-
-        // Navegar a la pantalla de WebView modal si useWebView es true
-        if (result && result.useWebView && result.url) {
-          console.log('✅ Abriendo WebView modal para Checkout Pro (oferta secundaria)');
-          navigation.navigate('MercadoPagoWebView', {
-            checkoutUrl: result.url
-          });
-        } else if (result && result.url && result.url.startsWith('mecanimovil://')) {
-          // Si el navegador retornó una URL (deep link), procesarla
-          navigation.navigate('PaymentCallback', {
-            url: result.url,
-            from_browser: true
-          });
-        } else {
-          // Verificar si hay un deep link pendiente
-          try {
-            const pendingDeepLink = await AsyncStorage.getItem('pending_deep_link');
-            if (pendingDeepLink) {
-              navigation.navigate('PaymentCallback', {
-                url: pendingDeepLink,
-                from_browser: true
-              });
-            } else {
-              throw new Error('No se pudo preparar el WebView para Checkout Pro');
-            }
-          } catch (e) {
-            console.error('Error verificando deep link pendiente:', e);
-            Alert.alert('Error', 'No se pudo abrir el checkout de Mercado Pago. Por favor, intenta nuevamente.');
-          }
-        }
-      } else if (esSolicitudPublica) {
+      if (esSolicitudPublica || esOfertaSecundaria) {
         // Flujo de solicitud pública - Pago directo al proveedor
         console.log('💳 Iniciando pago directo de solicitud pública:', solicitudId);
 
@@ -894,30 +823,7 @@ const OpcionesPagoScreen = () => {
       await Linking.openURL(whatsappUrl);
 
       setTimeout(() => {
-        // Si es oferta secundaria, manejar diferente
-        if (esOfertaSecundaria && resumenPago) {
-          Alert.alert(
-            'Comprobante Enviado',
-            'Tu comprobante de pago ha sido enviado por WhatsApp. El pago será validado manualmente y recibirás una notificación push cuando sea confirmado.',
-            [
-              {
-                text: 'Ver Mis Solicitudes',
-                onPress: () => {
-                  navigation.navigate(ROUTES.MIS_SOLICITUDES || 'MisSolicitudes');
-                }
-              },
-              {
-                text: 'Ver Detalle',
-                style: 'cancel',
-                onPress: () => {
-                  navigation.navigate(ROUTES.DETALLE_SOLICITUD || 'DetalleSolicitud', {
-                    solicitudId: resumenPago.solicitud_publica_id || solicitudId
-                  });
-                }
-              }
-            ]
-          );
-        } else if (esSolicitudPublica) {
+        if (esSolicitudPublica || esOfertaSecundaria) {
           Alert.alert(
             'Comprobante Enviado',
             'Tu comprobante de pago ha sido enviado por WhatsApp. El pago será validado manualmente y recibirás una notificación push cuando sea confirmado.',
@@ -976,8 +882,8 @@ const OpcionesPagoScreen = () => {
   }, [aceptaTerminos, resumenGlobal, navigation, metodoPagoSeleccionado, esSolicitudPublica, esOfertaSecundaria, solicitudId, resumenPago, route.params?.ofertaId]);
 
   // Mostrar loading mientras se cargan los datos (carrito, solicitud u oferta secundaria)
-  const estasCargando = esOfertaSecundaria ? false : (esSolicitudPublica ? cargandoSolicitud : (cargandoCarrito || carritoLoading));
-  const tieneDatos = esOfertaSecundaria ? !!resumenPago : (esSolicitudPublica ? !!datosSolicitud : !!(carritos?.length > 0 || carrito));
+  const estasCargando = (esSolicitudPublica || esOfertaSecundaria) ? cargandoSolicitud : (cargandoCarrito || carritoLoading);
+  const tieneDatos = (esSolicitudPublica || esOfertaSecundaria) ? !!datosSolicitud : !!(carritos?.length > 0 || carrito);
 
   if (estasCargando && !tieneDatos) {
     return (
@@ -986,7 +892,7 @@ const OpcionesPagoScreen = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>
-            {esSolicitudPublica ? 'Cargando información de pago...' : 'Cargando información del carrito...'}
+            {(esSolicitudPublica || esOfertaSecundaria) ? 'Cargando información de pago...' : 'Cargando información del carrito...'}
           </Text>
         </View>
       </SafeAreaView>
@@ -1001,11 +907,11 @@ const OpcionesPagoScreen = () => {
         <View style={styles.errorContainer}>
           <Ionicons name="cart-outline" size={64} color={COLORS.textLight} />
           <Text style={styles.errorTitle}>
-            {esSolicitudPublica ? 'No hay datos de pago disponibles' : 'No hay carrito disponible'}
+            {(esSolicitudPublica || esOfertaSecundaria) ? 'No hay datos de pago disponibles' : 'No hay carrito disponible'}
           </Text>
           <Text style={styles.errorText}>
-            {esSolicitudPublica
-              ? 'No se pudieron cargar los datos de pago de la solicitud. Por favor, verifica que la solicitud esté adjudicada.'
+            {(esSolicitudPublica || esOfertaSecundaria)
+              ? 'No se pudieron cargar los datos de pago. Por favor, intenta de nuevo.'
               : 'No se encontró ningún carrito activo. Por favor, vuelve a aceptar la oferta o verifica que el carrito esté disponible.'
             }
           </Text>
@@ -1059,7 +965,7 @@ const OpcionesPagoScreen = () => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>
-            {esSolicitudPublica ? 'Preparando información de pago...' : 'Preparando información del carrito...'}
+            {(esSolicitudPublica || esOfertaSecundaria) ? 'Preparando información de pago...' : 'Preparando información del carrito...'}
           </Text>
         </View>
       </SafeAreaView>
@@ -1126,7 +1032,7 @@ const OpcionesPagoScreen = () => {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Text style={[styles.servicioResumenNombre, { flex: 1, marginRight: 8 }]}>{servicio.servicio}</Text>
                     <Text style={{ fontSize: 16, fontWeight: '700', color: '#003459' }}>
-                      ${Math.round(servicio.precioOriginal || servicio.precio).toLocaleString('es-CL')}
+                      ${(servicio.precioOriginal || servicio.precio).toLocaleString('es-CL')}
                     </Text>
                   </View>
                   <View style={styles.proveedorResumenRow}>
@@ -1162,7 +1068,7 @@ const OpcionesPagoScreen = () => {
         </View>
 
         {/* Sección de desglose de repuestos - Solo si la oferta incluye repuestos */}
-        {esSolicitudPublica && resumenGlobal?.tieneDesgloseRepuestos && (
+        {(esSolicitudPublica || esOfertaSecundaria) && resumenGlobal?.tieneDesgloseRepuestos && (
           <View style={styles.seccion}>
             <Text style={styles.seccionTitulo}>Detalle de precios</Text>
 
@@ -1216,7 +1122,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseLabel}>📋 IVA (19% sobre mano de obra)</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
-                      ${Math.round(resumenGlobal.iva || (resumenGlobal.costoManoObraSinIva * 0.19)).toLocaleString('es-CL')}
+                      ${(resumenGlobal.iva != null ? resumenGlobal.iva : (resumenGlobal.costoManoObraSinIva * 0.19)).toLocaleString('es-CL')}
                     </Text>
                   </View>
 
@@ -1294,7 +1200,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseLabel}>📋 IVA (19% sobre servicios)</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
-                      ${Math.round((resumenGlobal.iva || ((resumenGlobal.costoManoObraSinIva + resumenGlobal.costoGestionCompraSinIva) * 0.19))).toLocaleString('es-CL')}
+                      ${(resumenGlobal.iva != null ? resumenGlobal.iva : ((resumenGlobal.costoManoObraSinIva + resumenGlobal.costoGestionCompraSinIva) * 0.19)).toLocaleString('es-CL')}
                     </Text>
                   </View>
 
@@ -1302,7 +1208,7 @@ const OpcionesPagoScreen = () => {
                   <View style={styles.desgloseDivider} />
                   <View style={[styles.desgloseRow, styles.desgloseTotalRow]}>
                     <View style={styles.desgloseItem}>
-                      <Text style={styles.desgloseTotalLabel}>Total a pagar</Text>
+                      <Text style={styles.desgloseTotalLabel}>Total Cotización</Text>
                     </View>
                     <Text style={styles.desgloseTotalValue}>
                       ${resumenGlobal.totalConIva?.toLocaleString('es-CL')}
@@ -1429,6 +1335,39 @@ const OpcionesPagoScreen = () => {
                     Paga el servicio completo (repuestos + mano de obra) ahora. No tendrás que preocuparte por pagos adicionales.
                   </Text>
                 </TouchableOpacity>
+
+                {/* Opción 3: Comprar mis propios repuestos */}
+                <TouchableOpacity
+                  style={[
+                    styles.tipoPagoButton,
+                    tipoPagoRepuestos === TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA && styles.tipoPagoButtonSelected
+                  ]}
+                  onPress={() => setTipoPagoRepuestos(TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.tipoPagoHeader}>
+                    <View style={[
+                      styles.radioButton,
+                      tipoPagoRepuestos === TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA && styles.radioButtonSelected
+                    ]}>
+                      {tipoPagoRepuestos === TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA && (
+                        <View style={styles.radioButtonInner} />
+                      )}
+                    </View>
+                    <View style={styles.tipoPagoInfo}>
+                      <Text style={styles.tipoPagoTitulo}>🛍️ Comprar mis propios repuestos</Text>
+                      <Text style={styles.tipoPagoMonto}>
+                        ${(resumenGlobal.costoManoObraConIva || 0).toLocaleString('es-CL')}
+                      </Text>
+                      <Text style={styles.tipoPagoDetalle}>
+                        (Solo Mano de obra)
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.tipoPagoDescripcion}>
+                    El proveedor te indicará qué comprar y tú te encargarás de conseguirlos. Ahora solo reservarás pagando la Mano de Obra.
+                  </Text>
+                </TouchableOpacity>
               </>
             ) : (
               /* Si NO hay repuestos para pagar (servicio sin repuestos), mostrar solo opción de pagar total */
@@ -1527,7 +1466,7 @@ const OpcionesPagoScreen = () => {
         )}
 
         {/* Mensaje informativo cuando incluye repuestos pero NO hay desglose detallado */}
-        {esSolicitudPublica && resumenGlobal?.incluyeRepuestosSinDesglose && (
+        {(esSolicitudPublica || esOfertaSecundaria) && resumenGlobal?.incluyeRepuestosSinDesglose && (
           <View style={styles.seccion}>
             <View style={styles.infoRepuestosSinDesgloseCard}>
               <Ionicons name="information-circle" size={24} color="#1976D2" />
@@ -1609,15 +1548,21 @@ const OpcionesPagoScreen = () => {
             </View>
             <View style={styles.terminosTextoContainer}>
               <Text style={styles.terminosTexto}>
-                Acepto los términos y condiciones
+                Acepto los términos y el <Text style={{ color: TOKENS.colors.primary[600], textDecorationLine: 'underline' }} onPress={(e) => { e.stopPropagation(); setModalAcuerdoVisible(true); }}>Acuerdo de Servicio</Text>
               </Text>
               <Text style={styles.terminosSubtexto}>
-                Al continuar, aceptas nuestras políticas de servicio
+                Estableces un contrato protegido por la Plataforma
               </Text>
             </View>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <AcuerdoServicioModal
+        visible={modalAcuerdoVisible}
+        onClose={() => setModalAcuerdoVisible(false)}
+        proveedorNombre={resumenGlobal?.serviciosDetalle?.[0]?.proveedor}
+      />
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         {metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO ? (
@@ -1641,7 +1586,7 @@ const OpcionesPagoScreen = () => {
                 <Text style={styles.primaryButtonText}>
                   {(() => {
                     // Si es solicitud pública con desglose de repuestos
-                    if (esSolicitudPublica && resumenGlobal?.tieneDesgloseRepuestos) {
+                    if ((esSolicitudPublica || esOfertaSecundaria) && resumenGlobal?.tieneDesgloseRepuestos) {
                       // Si es pago parcial (solo falta pagar servicio)
                       if (resumenGlobal.soloServicioPendiente) {
                         return `Pagar Saldo Restante ($${resumenGlobal.totalConIva?.toLocaleString('es-CL')})`;
@@ -1653,6 +1598,10 @@ const OpcionesPagoScreen = () => {
                       // Si el usuario eligió pagar solo repuestos
                       if (tipoPagoRepuestos === TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO) {
                         return `Pagar Repuestos ($${resumenGlobal.pagoAnticipadoRepuestos?.toLocaleString('es-CL')})`;
+                      }
+                      // Si el usuario elige comprar sus propios repuestos
+                      if (tipoPagoRepuestos === TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA) {
+                        return `Pagar Mano de Obra ($${(resumenGlobal.costoManoObraConIva || 0).toLocaleString('es-CL')})`;
                       }
                       // Si el usuario eligió pagar todo
                       return `Pagar Todo ($${resumenGlobal.totalConIva?.toLocaleString('es-CL')})`;

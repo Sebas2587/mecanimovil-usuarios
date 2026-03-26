@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
+import { getProviderSpecialty } from '../../utils/providerUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -122,6 +123,13 @@ const NearbyMecanicoCard = ({ mecanico, onPress }) => {
         <Text style={styles.mecanicoName} numberOfLines={1} ellipsizeMode="tail">
           {mecanico?.nombre || 'Mecánico'}
         </Text>
+
+        {/* Marcas / especialidades */}
+        {getProviderSpecialty(mecanico, null) && (
+          <Text style={styles.specialtyText} numberOfLines={1}>
+            {getProviderSpecialty(mecanico, null)}
+          </Text>
+        )}
 
         {/* Fila de distancia y calificación */}
         <View style={styles.bottomRow}>
@@ -247,8 +255,13 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.bold || '700',
     color: colors.text?.primary || '#00171F',
-    marginBottom: 0,
+    marginBottom: 1,
     lineHeight: typography.fontSize?.base ? typography.fontSize.base * 1.1 : 15.4,
+  },
+  specialtyText: {
+    fontSize: typography.fontSize?.xs || 10,
+    color: colors.text?.secondary || '#5D6F75',
+    marginBottom: 2,
   },
   bottomRow: {
     flexDirection: 'row',

@@ -14,6 +14,7 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
@@ -33,6 +34,13 @@ import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 
 const TAB_PRINCIPALES = 'principales';
 const TAB_ADICIONALES = 'adicionales';
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const BLUR_I = Platform.OS === 'ios' ? 40 : 0;
 
 const ESTADOS_OFERTA_YA_RESUELTA = ['aceptada', 'pendiente_pago', 'pagada', 'en_ejecucion', 'completada', 'rechazada', 'expirada', 'retirada'];
 const ESTADOS_OFERTA_ACEPTADA = ['aceptada', 'pendiente_pago', 'pagada', 'en_ejecucion', 'completada'];
@@ -219,17 +227,24 @@ const DetalleSolicitudScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
+        <View style={styles.blobEmerald} />
+        <View style={styles.blobIndigo} />
+        <View style={styles.blobCyan} />
+      </View>
+
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       {/* Sticky Header with Blur */}
-      <BlurView intensity={80} tint="light" style={[styles.header, { paddingTop: insets.top }]}>
+      <BlurView intensity={BLUR_I} tint="dark" style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+            <Ionicons name="arrow-back" size={24} color="#F9FAFB" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Detalle de Solicitud</Text>
@@ -246,13 +261,13 @@ const DetalleSolicitudScreen = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* A. Resumen del Servicio */}
-        <ServiceSummaryCard solicitud={solicitud} />
-
-        {/* B. Vehículo Certificado */}
+        {/* 1) Vehículo (primero) */}
         {solicitud.vehiculo_info && (
           <CertifiedVehicleCard vehiculo={solicitud.vehiculo_info} />
         )}
+
+        {/* 2) Detalle de Solicitud */}
+        <ServiceSummaryCard solicitud={solicitud} />
 
         {/* C. Tabs: Ofertas recibidas | Ofertas adicionales */}
         <View style={styles.tabSection}>
@@ -540,17 +555,44 @@ const DetalleSolicitudScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA', // Background base claro
+    backgroundColor: '#030712',
+  },
+  blobEmerald: {
+    position: 'absolute',
+    top: -50,
+    left: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(16,185,129,0.10)',
+  },
+  blobIndigo: {
+    position: 'absolute',
+    top: 220,
+    right: -60,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(99,102,241,0.08)',
+  },
+  blobCyan: {
+    position: 'absolute',
+    bottom: 140,
+    left: 20,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: 'rgba(6,182,212,0.06)',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#030712',
   },
   loadingText: {
     marginTop: 12,
-    color: '#64748B',
+    color: 'rgba(255,255,255,0.55)',
     fontSize: 16,
   },
   header: {
@@ -559,9 +601,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)', // Fallback for no blur
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(226, 232, 240, 0.6)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(3,7,18,0.55)' : 'rgba(3,7,18,0.92)',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   headerContent: {
     height: 60,
@@ -582,11 +624,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: '#F9FAFB',
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: 'rgba(255,255,255,0.45)',
     fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
   },
   scrollContent: {
@@ -598,9 +640,11 @@ const styles = StyleSheet.create({
   },
   segmentContainer: {
     flexDirection: 'row',
-    backgroundColor: COLORS?.neutral?.gray?.[100] ?? '#F1F5F9',
-    borderRadius: BORDERS?.radius?.lg ?? 12,
+    backgroundColor: GLASS_BG,
+    borderRadius: 14,
     padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   segmentButton: {
     flex: 1,
@@ -612,20 +656,21 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS?.radius?.md ?? 8,
   },
   segmentActive: {
-    backgroundColor: '#FFFFFF',
-    ...(SHADOWS?.sm ?? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 2 }),
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   segmentText: {
     fontSize: TYPOGRAPHY?.fontSize?.sm ?? 14,
     fontWeight: TYPOGRAPHY?.fontWeight?.medium ?? '500',
-    color: COLORS?.text?.secondary ?? '#64748B',
+    color: 'rgba(255,255,255,0.45)',
   },
   segmentTextActive: {
-    color: COLORS?.text?.primary ?? '#0F172A',
+    color: '#F9FAFB',
     fontWeight: TYPOGRAPHY?.fontWeight?.semibold ?? '600',
   },
   segmentBadge: {
-    backgroundColor: COLORS?.primary?.[500] ?? '#2563EB',
+    backgroundColor: 'rgba(147,197,253,0.25)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 99,
@@ -633,7 +678,7 @@ const styles = StyleSheet.create({
   segmentBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#F9FAFB',
   },
   offersSection: {
     marginTop: 8,
@@ -676,7 +721,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
   offersHeader: {
     marginBottom: 16,
@@ -684,7 +729,7 @@ const styles = StyleSheet.create({
   offersTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#0F172A',
+    color: '#F9FAFB',
     marginBottom: 4,
   },
   offersTitleRow: {
@@ -695,22 +740,22 @@ const styles = StyleSheet.create({
   compareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF', // Blue-50
+    backgroundColor: 'rgba(147,197,253,0.12)',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 99,
     gap: 6,
     borderWidth: 1,
-    borderColor: '#BFDBFE', // Blue-200
+    borderColor: 'rgba(147,197,253,0.35)',
   },
   compareButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#2563EB', // Blue-600
+    color: '#93C5FD',
   },
   offersSubtitle: {
     fontSize: 14,
-    color: '#64748B',
+    color: 'rgba(255,255,255,0.5)',
   },
   ofertaSecundariaWrapper: {
     marginBottom: 20,
@@ -722,36 +767,36 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#94A3B8',
+    borderLeftColor: 'rgba(255,255,255,0.25)',
   },
   referenciaSolicitudText: {
     fontSize: 13,
-    color: '#64748B',
+    color: 'rgba(255,255,255,0.55)',
     flex: 1,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: GLASS_BG,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: 'rgba(255,255,255,0.10)',
     borderStyle: 'dashed',
   },
   emptyStateText: {
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: '#64748B',
+    color: 'rgba(255,255,255,0.65)',
   },
   emptyStateSubtext: {
     marginTop: 8,
     fontSize: 14,
-    color: '#94A3B8',
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
     paddingHorizontal: 32,
   },
@@ -770,16 +815,16 @@ const styles = StyleSheet.create({
   },
   footer: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(3,7,18,0.7)' : 'rgba(3,7,18,0.95)',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: 'rgba(255,255,255,0.10)',
     paddingTop: 16,
     paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 16,
   },
   footerContent: {
     width: '100%',
@@ -788,15 +833,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FEF2F2', // Red-50
+    backgroundColor: 'rgba(248,113,113,0.10)',
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#FCA5A5', // Red-300
+    borderColor: 'rgba(248,113,113,0.35)',
     gap: 8,
   },
   cancelButtonText: {
-    color: '#EF4444', // Red-500
+    color: '#FCA5A5',
     fontWeight: '700',
     fontSize: 16,
   },
@@ -804,15 +849,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2563EB', // Blue-600
+    backgroundColor: '#059669',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(110,231,183,0.35)',
   },
   primaryButtonText: {
     color: '#FFFFFF',
@@ -823,14 +865,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: GLASS_BG,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
     gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   statusFooterText: {
-    color: '#64748B',
+    color: 'rgba(255,255,255,0.55)',
     fontWeight: '500',
     fontSize: 13,
     flex: 1,

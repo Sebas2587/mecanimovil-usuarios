@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { View, Text, StyleSheet, Animated, Linking, AppState, LogBox as RNLogBox, Alert } from 'react-native';
+import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import AuthNavigator from './app/navigation/AuthNavigator';
 import AppNavigator from './app/navigation/AppNavigator';
@@ -25,6 +26,7 @@ import logger from './app/utils/logger';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queryClient, asyncStoragePersister } from './app/config/queryClient';
+import './app/services/tripTrackingService';
 
 // CRÍTICO: Deshabilitar LogBox COMPLETAMENTE después de importar React Native
 // Esto debe ejecutarse INMEDIATAMENTE después de importar para que funcione correctamente
@@ -381,6 +383,34 @@ const Main = () => {
       }).start();
     }
   }, [loading]);
+
+  // EAS Update: al volver de segundo plano, comprobar si hay un bundle nuevo (mismo runtimeVersion + canal).
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    if (__DEV__) return undefined;
+
+    const checkAndReloadOta = async () => {
+      try {
+        if (!Updates.isEnabled) return;
+        const check = await Updates.checkForUpdateAsync();
+        if (!check.isAvailable) return;
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } catch (e) {
+        logger.debug('expo-updates (resume): sin OTA o error no crítico', e?.message || e);
+      }
+    };
+
+    const sub = AppState.addEventListener('change', (nextState) => {
+      const prev = appStateRef.current;
+      appStateRef.current = nextState;
+      if (prev.match(/inactive|background/) && nextState === 'active') {
+        checkAndReloadOta();
+      }
+    });
+
+    return () => sub.remove();
+  }, []);
 
   // Función para navegar a PaymentCallbackScreen con parámetros
   const navigateToPaymentCallback = useCallback((url) => {
@@ -896,6 +926,149 @@ const Main = () => {
     return () => clearTimeout(timeout);
   }, [isAuthenticated, loading, navigationRef, navigateToPaymentCallback]);
 
+  // Handler para onReady del NavigationContainer - Memoizado para evitar loops
+  const onNavigationReady = useCallback(async () => {
+    logger.debug('✅ NavigationContainer está listo');
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'I',
+        location: 'App.js:Main:NavigationContainer:onReady',
+        message: 'NavigationContainer listo',
+        data: { is_authenticated: isAuthenticated, loading },
+        timestamp: Date.now()
+      })
+    }).catch(() => { });
+    // #endregion
+
+    // Procesar deep link pendiente cuando el NavigationContainer esté listo
+    // Esto es CRÍTICO cuando se abre una nueva instancia desde Mercado Pago
+    // El deep link se captura en getInitialURL() y se guarda en AsyncStorage
+    // Aquí lo procesamos cuando el NavigationContainer está listo
+    const processDeepLinkOnReady = async () => {
+      try {
+        const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+
+        // PRIMERO: Verificar si hay un deep link pendiente en AsyncStorage
+        // Esto es lo más importante cuando se abre una nueva instancia
+        const pendingDeepLink = await AsyncStorage.getItem('pending_deep_link');
+        if (pendingDeepLink) {
+          logger.debug('🔗 Deep link pendiente encontrado en onReady (nueva instancia):', pendingDeepLink);
+
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: 'debug-session',
+              runId: 'run1',
+              hypothesisId: 'P',
+              location: 'App.js:Main:NavigationContainer:onReady:process_pending',
+              message: 'Procesando deep link pendiente desde onReady (nueva instancia)',
+              data: {
+                pending_deep_link: pendingDeepLink,
+                is_authenticated: isAuthenticated,
+                loading,
+                nav_ready: navigationRef.isReady()
+              },
+              timestamp: Date.now()
+            })
+          }).catch(() => { });
+          // #endregion
+
+          // Si el usuario está autenticado, procesar inmediatamente
+          if (isAuthenticated && !loading) {
+            // Limpiar el deep link antes de navegar
+            await AsyncStorage.removeItem('pending_deep_link');
+
+            // Esperar un poco para asegurar que la navegación esté completamente lista
+            // Este delay es importante en desarrollo local cuando se abre una nueva instancia
+            setTimeout(() => {
+              if (navigationRef.isReady() && isAuthenticated && !loading) {
+                const navigated = navigateToPaymentCallback(pendingDeepLink);
+                if (navigated) {
+                  logger.debug('✅ Deep link procesado exitosamente desde onReady (nueva instancia)');
+                } else {
+                  // Si la navegación falló, volver a guardar el deep link
+                  logger.warn('⚠️ Navegación falló desde onReady, volviendo a guardar deep link');
+                  AsyncStorage.setItem('pending_deep_link', pendingDeepLink);
+                }
+              } else {
+                // Si el usuario aún no está autenticado o el NavigationContainer no está listo, volver a guardar
+                logger.warn('⚠️ Condiciones no cumplidas, volviendo a guardar deep link');
+                AsyncStorage.setItem('pending_deep_link', pendingDeepLink);
+              }
+            }, 3000); // Aumentado a 3 segundos para dar más tiempo en desarrollo local
+            return; // Salir temprano si se procesó un deep link pendiente
+          } else {
+            logger.debug('⏳ Usuario no autenticado aún, el deep link se procesará después de autenticación');
+            // El useEffect que procesa deep links después de autenticación se encargará de esto
+          }
+        }
+
+        // SEGUNDO: Si no hay deep link pendiente, verificar si hay datos de pago pendiente
+        // Esto puede ocurrir si la app se reinició antes de que llegara el deep link
+        const pagoPendienteDataStr = await AsyncStorage.getItem('pago_pendiente_data');
+        if (pagoPendienteDataStr) {
+          const pagoPendienteData = JSON.parse(pagoPendienteDataStr);
+          logger.debug('💾 Datos de pago pendiente encontrados en onReady:', pagoPendienteData);
+
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: 'debug-session',
+              runId: 'run1',
+              hypothesisId: 'Q',
+              location: 'App.js:Main:NavigationContainer:onReady:pago_pendiente_found',
+              message: 'Datos de pago pendiente encontrados en onReady',
+              data: {
+                pago_pendiente_data: pagoPendienteData,
+                is_authenticated: isAuthenticated,
+                loading
+              },
+              timestamp: Date.now()
+            })
+          }).catch(() => { });
+          // #endregion
+
+          // Si el usuario está autenticado, navegar a PaymentCallbackScreen
+          if (isAuthenticated && !loading) {
+            setTimeout(() => {
+              if (navigationRef.isReady() && isAuthenticated) {
+                navigationRef.navigate('PaymentCallback', {
+                  status: 'processing',
+                  from_storage: true,
+                  ofertaId: pagoPendienteData.ofertaId
+                });
+                logger.debug('✅ Navegado a PaymentCallbackScreen desde onReady con datos de pago pendiente');
+              }
+            }, 3000); // Aumentado a 3 segundos para dar más tiempo
+          } else {
+            logger.debug('⏳ Usuario no autenticado aún, los datos de pago se procesarán después de autenticación');
+          }
+        }
+      } catch (e) {
+        logger.warn('Error procesando deep link pendiente desde onReady:', e);
+      }
+    };
+
+    // Ejecutar inmediatamente si el usuario ya está autenticado
+    if (isAuthenticated && !loading) {
+      processDeepLinkOnReady();
+    } else {
+      // Si el usuario no está autenticado aún, esperar a que se autentique
+      // El useEffect que procesa deep links después de autenticación se encargará de esto
+      logger.debug('⏳ Esperando autenticación antes de procesar deep links desde onReady...');
+    }
+  }, [isAuthenticated, loading, navigationRef, navigateToPaymentCallback]);
+
   // IMPORTANTE: Todos los hooks deben estar antes de cualquier return condicional
   if (loading) {
     return <SplashScreen />;
@@ -906,146 +1079,7 @@ const Main = () => {
       <NavigationContainer
         ref={navigationRef}
         linking={linking}
-        onReady={async () => {
-          logger.debug('✅ NavigationContainer está listo');
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: 'debug-session',
-              runId: 'run1',
-              hypothesisId: 'I',
-              location: 'App.js:Main:NavigationContainer:onReady',
-              message: 'NavigationContainer listo',
-              data: { is_authenticated: isAuthenticated, loading },
-              timestamp: Date.now()
-            })
-          }).catch(() => { });
-          // #endregion
-
-          // Procesar deep link pendiente cuando el NavigationContainer esté listo
-          // Esto es CRÍTICO cuando se abre una nueva instancia desde Mercado Pago
-          // El deep link se captura en getInitialURL() y se guarda en AsyncStorage
-          // Aquí lo procesamos cuando el NavigationContainer está listo
-          const processDeepLinkOnReady = async () => {
-            try {
-              const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-
-              // PRIMERO: Verificar si hay un deep link pendiente en AsyncStorage
-              // Esto es lo más importante cuando se abre una nueva instancia
-              const pendingDeepLink = await AsyncStorage.getItem('pending_deep_link');
-              if (pendingDeepLink) {
-                logger.debug('🔗 Deep link pendiente encontrado en onReady (nueva instancia):', pendingDeepLink);
-
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    sessionId: 'debug-session',
-                    runId: 'run1',
-                    hypothesisId: 'P',
-                    location: 'App.js:Main:NavigationContainer:onReady:process_pending',
-                    message: 'Procesando deep link pendiente desde onReady (nueva instancia)',
-                    data: {
-                      pending_deep_link: pendingDeepLink,
-                      is_authenticated: isAuthenticated,
-                      loading,
-                      nav_ready: navigationRef.isReady()
-                    },
-                    timestamp: Date.now()
-                  })
-                }).catch(() => { });
-                // #endregion
-
-                // Si el usuario está autenticado, procesar inmediatamente
-                if (isAuthenticated && !loading) {
-                  // Limpiar el deep link antes de navegar
-                  await AsyncStorage.removeItem('pending_deep_link');
-
-                  // Esperar un poco para asegurar que la navegación esté completamente lista
-                  // Este delay es importante en desarrollo local cuando se abre una nueva instancia
-                  setTimeout(() => {
-                    if (navigationRef.isReady() && isAuthenticated && !loading) {
-                      const navigated = navigateToPaymentCallback(pendingDeepLink);
-                      if (navigated) {
-                        logger.debug('✅ Deep link procesado exitosamente desde onReady (nueva instancia)');
-                      } else {
-                        // Si la navegación falló, volver a guardar el deep link
-                        logger.warn('⚠️ Navegación falló desde onReady, volviendo a guardar deep link');
-                        AsyncStorage.setItem('pending_deep_link', pendingDeepLink);
-                      }
-                    } else {
-                      // Si el usuario aún no está autenticado o el NavigationContainer no está listo, volver a guardar
-                      logger.warn('⚠️ Condiciones no cumplidas, volviendo a guardar deep link');
-                      AsyncStorage.setItem('pending_deep_link', pendingDeepLink);
-                    }
-                  }, 3000); // Aumentado a 3 segundos para dar más tiempo en desarrollo local
-                  return; // Salir temprano si se procesó un deep link pendiente
-                } else {
-                  logger.debug('⏳ Usuario no autenticado aún, el deep link se procesará después de autenticación');
-                  // El useEffect que procesa deep links después de autenticación se encargará de esto
-                }
-              }
-
-              // SEGUNDO: Si no hay deep link pendiente, verificar si hay datos de pago pendiente
-              // Esto puede ocurrir si la app se reinició antes de que llegara el deep link
-              const pagoPendienteDataStr = await AsyncStorage.getItem('pago_pendiente_data');
-              if (pagoPendienteDataStr) {
-                const pagoPendienteData = JSON.parse(pagoPendienteDataStr);
-                logger.debug('💾 Datos de pago pendiente encontrados en onReady:', pagoPendienteData);
-
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    sessionId: 'debug-session',
-                    runId: 'run1',
-                    hypothesisId: 'Q',
-                    location: 'App.js:Main:NavigationContainer:onReady:pago_pendiente_found',
-                    message: 'Datos de pago pendiente encontrados en onReady',
-                    data: {
-                      pago_pendiente_data: pagoPendienteData,
-                      is_authenticated: isAuthenticated,
-                      loading
-                    },
-                    timestamp: Date.now()
-                  })
-                }).catch(() => { });
-                // #endregion
-
-                // Si el usuario está autenticado, navegar a PaymentCallbackScreen
-                if (isAuthenticated && !loading) {
-                  setTimeout(() => {
-                    if (navigationRef.isReady() && isAuthenticated) {
-                      navigationRef.navigate('PaymentCallback', {
-                        status: 'processing',
-                        from_storage: true,
-                        ofertaId: pagoPendienteData.ofertaId
-                      });
-                      logger.debug('✅ Navegado a PaymentCallbackScreen desde onReady con datos de pago pendiente');
-                    }
-                  }, 3000); // Aumentado a 3 segundos para dar más tiempo
-                } else {
-                  logger.debug('⏳ Usuario no autenticado aún, los datos de pago se procesarán después de autenticación');
-                }
-              }
-            } catch (e) {
-              logger.warn('Error procesando deep link pendiente desde onReady:', e);
-            }
-          };
-
-          // Ejecutar inmediatamente si el usuario ya está autenticado
-          if (isAuthenticated && !loading) {
-            processDeepLinkOnReady();
-          } else {
-            // Si el usuario no está autenticado aún, esperar a que se autentique
-            // El useEffect que procesa deep links después de autenticación se encargará de esto
-            logger.debug('⏳ Esperando autenticación antes de procesar deep links desde onReady...');
-          }
-        }}
+        onReady={onNavigationReady}
       >
         {/* Mostrar AppNavigator si el usuario está autenticado, de lo contrario mostrar AuthNavigator */}
         {isAuthenticated ? (
@@ -1070,16 +1104,16 @@ export default function App() {
           >
             <AuthProvider>
               <FavoritesProvider>
-              <ChatsProvider>
-                <AgendamientoProvider>
-                  <BookingCartProvider>
-                    <SolicitudesProvider>
-                      <Main />
-                      <StatusBar style="auto" />
-                    </SolicitudesProvider>
-                  </BookingCartProvider>
-                </AgendamientoProvider>
-              </ChatsProvider>
+                <ChatsProvider>
+                  <AgendamientoProvider>
+                    <BookingCartProvider>
+                      <SolicitudesProvider>
+                        <Main />
+                        <StatusBar style="auto" />
+                      </SolicitudesProvider>
+                    </BookingCartProvider>
+                  </AgendamientoProvider>
+                </ChatsProvider>
               </FavoritesProvider>
             </AuthProvider>
           </PersistQueryClientProvider>

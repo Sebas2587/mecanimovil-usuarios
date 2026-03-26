@@ -23,7 +23,7 @@
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="true"/>
     <meta-data android:name="expo.modules.updates.EXPO_RUNTIME_VERSION" android:value="@string/expo_runtime_version"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
-    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="10000"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATE_URL" android:value="https://u.expo.dev/0e27e8dc-b47f-40b2-a23d-396a627ce8e8"/>
     <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustPan" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
       <intent-filter>

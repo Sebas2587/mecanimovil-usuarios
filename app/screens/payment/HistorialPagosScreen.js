@@ -8,30 +8,52 @@ import {
   ActivityIndicator,
   RefreshControl,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { LinearGradient } from 'expo-linear-gradient';
 import pagosService from '../../services/pagosService';
 import { COLORS, SPACING, BORDERS } from '../../utils/constants';
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 /**
  * Pantalla que muestra el historial de pagos del usuario
  */
 const HistorialPagosScreen = () => {
   const navigation = useNavigation();
-  const theme = useTheme();
   const [pagos, setPagos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  // Extraer valores del tema
-  const colors = theme?.colors || {};
-  const typography = theme?.typography || {};
-  const spacing = theme?.spacing || {};
-  const borders = theme?.borders || {};
+  // Paleta dark glass (evita depender del tema claro)
+  const colors = {
+    background: {
+      default: '#030712',
+      paper: GLASS_BG,
+    },
+    text: {
+      primary: '#F9FAFB',
+      secondary: 'rgba(255,255,255,0.6)',
+    },
+    neutral: { gray: { 200: 'rgba(255,255,255,0.10)' } },
+    primary: { 500: '#93C5FD' },
+    success: { 50: 'rgba(16,185,129,0.12)', 500: '#6EE7B7', 600: '#10B981', 700: '#34D399' },
+    warning: { 500: '#F59E0B' },
+    info: { 500: '#93C5FD' },
+    error: { 50: 'rgba(239,68,68,0.12)', 500: '#F87171', 700: '#FCA5A5' },
+  };
+  const typography = {};
+  const spacing = {};
+  const borders = {};
 
   // Asegurar que typography tenga todas las propiedades necesarias
   const safeTypography = typography?.fontSize && typography?.fontWeight
@@ -207,20 +229,15 @@ const HistorialPagosScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color={colors.text?.primary || '#00171F'} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Historial de Pagos</Text>
-          <View style={styles.backButton} />
+        <StatusBar barStyle="light-content" backgroundColor="#030712" />
+        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+          <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+          <View style={{ position: 'absolute', top: 400, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+          <View style={{ position: 'absolute', bottom: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(6,182,212,0.05)' }} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
+          <ActivityIndicator size="large" color="#6EE7B7" />
           <Text style={styles.loadingText}>Cargando pagos...</Text>
         </View>
       </SafeAreaView>
@@ -229,19 +246,12 @@ const HistorialPagosScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text?.primary || '#00171F'} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Historial de Pagos</Text>
-        <View style={styles.backButton} />
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 400, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(6,182,212,0.05)' }} />
       </View>
 
       {/* Lista de pagos */}
@@ -258,8 +268,8 @@ const HistorialPagosScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[colors.primary?.[500] || '#003459']}
-            tintColor={colors.primary?.[500] || '#003459'}
+            colors={['#6EE7B7']}
+            tintColor={'#6EE7B7'}
           />
         }
         showsVerticalScrollIndicator={false}
@@ -279,28 +289,7 @@ const HistorialPagosScreen = () => {
 const createStyles = (colors, typography, spacing, borders) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background?.default || '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md || SPACING.md,
-    paddingVertical: spacing.md || SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral?.gray?.[200] || '#E5E7EB',
-    backgroundColor: colors.background?.paper || '#FFFFFF',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: typography.fontSize?.lg || 18,
-    fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
+    backgroundColor: '#030712',
   },
   listContent: {
     padding: spacing.md || SPACING.md,
@@ -309,16 +298,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     flexGrow: 1,
   },
   pagoCard: {
-    backgroundColor: colors.background?.paper || '#FFFFFF',
+    backgroundColor: colors.background?.paper || GLASS_BG,
     borderRadius: borders.radius?.card?.md || BORDERS.radius.md,
     padding: spacing.md || SPACING.md,
     borderWidth: 1,
-    borderColor: colors.neutral?.gray?.[200] || '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   pagoHeader: {
     flexDirection: 'row',
@@ -339,7 +324,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   monto: {
     fontSize: typography.fontSize?.lg || 18,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
+    color: '#F9FAFB',
   },
   infoRow: {
     flexDirection: 'row',
@@ -349,14 +334,14 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   infoText: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5D6F75',
+    color: 'rgba(255,255,255,0.6)',
     flex: 1,
   },
   estadoContainer: {
     marginTop: spacing.sm || SPACING.sm,
     paddingTop: spacing.sm || SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral?.gray?.[200] || '#E5E7EB',
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
   estadoBadge: {
     flexDirection: 'row',
@@ -383,13 +368,13 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   emptyTitle: {
     fontSize: typography.fontSize?.lg || 18,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
+    color: '#F9FAFB',
     marginTop: spacing.md || SPACING.md,
     marginBottom: spacing.xs || SPACING.xs,
   },
   emptySubtitle: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5D6F75',
+    color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
   },
   loadingContainer: {
@@ -400,21 +385,23 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   loadingText: {
     marginTop: spacing.md || SPACING.md,
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5D6F75',
+    color: 'rgba(255,255,255,0.6)',
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.error?.[50] || '#FEF2F2',
+    backgroundColor: colors.error?.[50] || 'rgba(239,68,68,0.12)',
     padding: spacing.md || SPACING.md,
     margin: spacing.md || SPACING.md,
     borderRadius: borders.radius?.md || BORDERS.radius.md,
     gap: spacing.sm || SPACING.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.22)',
   },
   errorText: {
     flex: 1,
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.error?.[700] || '#B91C1C',
+    color: colors.error?.[700] || '#FCA5A5',
   },
 });
 

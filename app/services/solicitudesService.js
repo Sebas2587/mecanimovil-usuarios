@@ -513,6 +513,79 @@ class SolicitudesService {
   }
 
   /**
+   * Obtiene los datos de pago para cualquier oferta (principal o secundaria).
+   * Replica la misma estructura que obtenerDatosPago pero sin restricción de estado
+   * de la solicitud y usando la oferta indicada por ofertaId.
+   * @param {string} solicitudId
+   * @param {string} ofertaId
+   */
+  async obtenerDatosPagoOferta(solicitudId, ofertaId) {
+    try {
+      console.log('SolicitudesService: Obteniendo datos de pago para oferta:', ofertaId, 'de solicitud:', solicitudId);
+
+      const [solicitud, ofertasData] = await Promise.all([
+        this.obtenerDetalleSolicitud(solicitudId),
+        import('./ofertasService').then(m => m.default.obtenerOfertasDeSolicitud(solicitudId))
+      ]);
+
+      const normalizada = (solicitud.type === 'Feature')
+        ? { ...solicitud.properties, id: solicitud.id }
+        : solicitud;
+
+      const todas = ofertasData || [];
+      const oferta = todas.find(o => o.id === ofertaId);
+
+      if (!oferta) {
+        throw new Error(`No se encontró la oferta ${ofertaId}`);
+      }
+
+      console.log('🔍 SolicitudesService[oferta]: Campos de desglose:', {
+        costo_repuestos: oferta.costo_repuestos,
+        costo_mano_obra: oferta.costo_mano_obra,
+        incluye_repuestos: oferta.incluye_repuestos,
+        precio_total_ofrecido: oferta.precio_total_ofrecido,
+        proveedor_puede_recibir_pagos: oferta.proveedor_puede_recibir_pagos
+      });
+
+      const datosPago = {
+        solicitud_id: normalizada.id,
+        oferta_id: oferta.id,
+        monto_total: parseFloat(oferta.precio_total_ofrecido || 0),
+        proveedor: {
+          id: oferta.proveedor || oferta.proveedor_id,
+          nombre: oferta.nombre_proveedor || oferta.proveedor_nombre,
+          tipo: oferta.tipo_proveedor,
+        },
+        servicios: (oferta.detalles_servicios || []).map(detalle => ({
+          nombre: detalle.servicio_nombre || detalle.servicio?.nombre || 'Servicio',
+          precio: parseFloat(detalle.precio_servicio || 0),
+          tiempo_estimado: detalle.tiempo_estimado_horas || detalle.tiempo_estimado,
+        })),
+        fecha_servicio: oferta.fecha_disponible,
+        hora_servicio: oferta.hora_disponible,
+        ubicacion: normalizada.direccion_servicio_texto || 'No especificada',
+        vehiculo: normalizada.vehiculo_detail || normalizada.vehiculo,
+        incluye_repuestos: oferta.incluye_repuestos || false,
+        descripcion: normalizada.descripcion_servicio || '',
+        costo_repuestos: parseFloat(oferta.costo_repuestos || 0),
+        costo_mano_obra: parseFloat(oferta.costo_mano_obra || 0),
+        costo_gestion_compra: parseFloat(oferta.costo_gestion_compra || 0),
+        foto_cotizacion_repuestos: oferta.foto_cotizacion_repuestos || null,
+        metodo_pago_cliente: oferta.metodo_pago_cliente || 'pendiente',
+        estado_pago_repuestos: oferta.estado_pago_repuestos || 'no_aplica',
+        estado_pago_servicio: oferta.estado_pago_servicio || 'pendiente',
+        proveedor_puede_recibir_pagos: oferta.proveedor_puede_recibir_pagos || false,
+      };
+
+      console.log('SolicitudesService: Datos de pago de oferta estructurados:', datosPago);
+      return datosPago;
+    } catch (error) {
+      console.error('SolicitudesService: Error al obtener datos de pago de oferta:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Obtiene los datos necesarios para procesar el pago de una solicitud adjudicada
    * @param {string} solicitudId - ID de la solicitud
    * @returns {Promise<Object>} Datos para el pago

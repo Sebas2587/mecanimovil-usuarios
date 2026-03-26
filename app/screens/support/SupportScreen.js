@@ -1,8 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Platform, Linking, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Linking, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../utils/constants';
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const SupportScreen = () => {
   const navigation = useNavigation();
@@ -53,17 +63,23 @@ const SupportScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
 
-      <ScrollView 
-        style={styles.scrollContainer}
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
         {/* Sección de bienvenida */}
         <View style={styles.welcomeCard}>
-          <Ionicons name="headset-outline" size={60} color={COLORS.primary} />
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
+          <Ionicons name="headset-outline" size={60} color="#93C5FD" />
           <Text style={styles.welcomeTitle}>¿Necesitas ayuda?</Text>
           <Text style={styles.welcomeText}>
             Estamos aquí para ayudarte. Selecciona una opción para obtener la asistencia que necesitas.
@@ -80,82 +96,72 @@ const SupportScreen = () => {
               activeOpacity={0.8}
             >
               <View style={styles.optionIcon}>
-                <Ionicons name={option.icon} size={24} color={COLORS.primary} />
+                {Platform.OS === 'ios' && <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
+                <Ionicons name={option.icon} size={22} color="#6EE7B7" />
               </View>
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>{option.title}</Text>
                 <Text style={styles.optionDescription}>{option.description}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.35)" />
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Información de contacto */}
         <View style={styles.contactCard}>
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
           <Text style={styles.contactTitle}>Información de Contacto</Text>
           
           <TouchableOpacity style={styles.contactItem} onPress={handleEmailSupport}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.primary} />
+            <Ionicons name="mail-outline" size={20} color="#93C5FD" />
             <Text style={styles.contactText}>soporte@mecanimovil.com</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.contactItem} onPress={handleCallSupport}>
-            <Ionicons name="call-outline" size={20} color={COLORS.primary} />
+            <Ionicons name="call-outline" size={20} color="#93C5FD" />
             <Text style={styles.contactText}>+56 9 1234 5678</Text>
           </TouchableOpacity>
           
           <View style={styles.contactItem}>
-            <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+            <Ionicons name="time-outline" size={20} color="#93C5FD" />
             <Text style={styles.contactText}>Lunes a Viernes: 9:00 - 18:00</Text>
           </View>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  scrollContainer: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#030712',
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
   },
   welcomeCard: {
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 24,
     marginBottom: 24,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   welcomeTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginTop: 16,
     marginBottom: 8,
   },
   welcomeText: {
     fontSize: 16,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -165,30 +171,25 @@ const styles = StyleSheet.create({
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: GLASS_BG,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   optionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(147,197,253,0.14)' : 'rgba(147,197,253,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(147,197,253,0.22)',
+    overflow: 'hidden',
   },
   optionContent: {
     flex: 1,
@@ -196,34 +197,26 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginBottom: 4,
   },
   optionDescription: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.6)',
     lineHeight: 18,
   },
   contactCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   contactTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginBottom: 16,
   },
   contactItem: {
@@ -231,11 +224,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   contactText: {
     fontSize: 16,
-    color: COLORS.text,
+    color: 'rgba(255,255,255,0.72)',
     marginLeft: 12,
     flex: 1,
   },

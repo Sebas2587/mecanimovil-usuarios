@@ -1,8 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
 
 const CARD_WIDTH = 280;
 const CARD_GAP = 16;
@@ -49,14 +55,14 @@ const CompletedJobCard = ({ job }) => {
     return (
         <View style={styles.card}>
             <View style={styles.cardRow}>
-                <Ionicons name="construct-outline" size={18} color={COLORS.primary[500]} style={styles.rowIcon} />
+                <Ionicons name="construct-outline" size={18} color="#6EE7B7" style={styles.rowIcon} />
                 <Text style={styles.serviceText} numberOfLines={2}>
                     {serviceName}
                 </Text>
             </View>
             {vehicleLabel && (
                 <View style={styles.cardRow}>
-                    <Ionicons name="car-outline" size={18} color={COLORS.text.secondary} style={styles.rowIcon} />
+                    <Ionicons name="car-outline" size={18} color="rgba(255,255,255,0.45)" style={styles.rowIcon} />
                     <Text style={styles.vehicleText} numberOfLines={1}>
                         {vehicleLabel}
                     </Text>
@@ -78,7 +84,7 @@ const ProviderCompletedJobsSection = ({ jobs = [] }) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.iconContainer}>
-                    <Ionicons name="checkmark-done-circle-outline" size={18} color={COLORS.primary[500]} />
+                    <Ionicons name="checkmark-done-circle-outline" size={18} color="#93C5FD" />
                 </View>
                 <Text style={styles.title}>Trabajos Realizados</Text>
             </View>
@@ -117,7 +123,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: COLORS.primary[50],
+        backgroundColor: 'rgba(147,197,253,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
@@ -125,7 +131,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
     },
     scrollContent: {
         paddingBottom: 8,
@@ -136,16 +142,11 @@ const styles = StyleSheet.create({
     },
     card: {
         width: CARD_WIDTH,
-        backgroundColor: COLORS.base.white,
+        backgroundColor: GLASS_BG,
         borderRadius: CARD_RADIUS,
         padding: 16,
         borderWidth: 1,
-        borderColor: COLORS.neutral.gray[100],
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     cardRow: {
         flexDirection: 'row',
@@ -159,18 +160,18 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
         lineHeight: 20,
     },
     vehicleText: {
         flex: 1,
         fontSize: 13,
-        color: COLORS.text.secondary,
+        color: 'rgba(255,255,255,0.55)',
         lineHeight: 18,
     },
     dateText: {
         fontSize: 12,
-        color: COLORS.text.tertiary,
+        color: 'rgba(255,255,255,0.35)',
         marginTop: 4,
         marginLeft: 26,
     },

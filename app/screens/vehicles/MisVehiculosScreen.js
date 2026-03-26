@@ -16,8 +16,10 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Car, X, Camera, Tag, Wrench, CheckCircle, Info, AlertCircle, AlertTriangle, Plus, ChevronDown, ChevronLeft, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { COLORS, ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,6 +40,15 @@ const tiposMotor = [
   { id: 1, nombre: 'Gasolina' },
   { id: 2, nombre: 'Diésel' },
 ];
+
+const GlassCard = ({ children, style }) => (
+  <View style={[styles.glassCard, style]}>
+    {Platform.OS === 'ios' && (
+      <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+    )}
+    {children}
+  </View>
+);
 
 const MisVehiculosScreen = () => {
   const navigation = useNavigation();
@@ -398,14 +409,13 @@ const MisVehiculosScreen = () => {
 
   // Get health color based on score
   const getHealthColor = (score) => {
-    if (score >= 80) return '#10B981'; // Green - Excellent
-    if (score >= 60) return '#F59E0B'; // Yellow/Amber - Good
-    if (score >= 40) return '#F97316'; // Orange - Fair
-    return '#EF4444'; // Red - Poor
+    if (score >= 80) return '#10B981';
+    if (score >= 60) return '#F59E0B';
+    if (score >= 40) return '#F97316';
+    return '#EF4444';
   };
 
   const renderVehicleItem = ({ item }) => {
-    // Mock Data for Visuals (replace with real data if available)
     const estimatedValue = item.precio_sugerido_final || item.precio_mercado_promedio || 0;
 
     return (
@@ -414,6 +424,10 @@ const MisVehiculosScreen = () => {
         activeOpacity={0.9}
         onPress={() => handleVehiclePress(item)}
       >
+        {Platform.OS === 'ios' && (
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        )}
+
         {/* Cover Image */}
         <View style={styles.imageContainer}>
           <Image
@@ -422,7 +436,7 @@ const MisVehiculosScreen = () => {
             resizeMode="cover"
           />
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.8)']}
+            colors={['transparent', 'rgba(0,0,0,0.85)']}
             style={styles.imageOverlay}
           >
             <View>
@@ -438,7 +452,7 @@ const MisVehiculosScreen = () => {
           {/* Active Offers Indicator - Right Side */}
           {item.ofertas_activas_count > 0 && (
             <View style={styles.offersBadge}>
-              <Ionicons name="pricetag" size={14} color="#FFFFFF" />
+              <Tag size={14} color="#FFFFFF" />
               <Text style={styles.offersBadgeText}>{item.ofertas_activas_count} {item.ofertas_activas_count === 1 ? 'oferta' : 'ofertas'}</Text>
             </View>
           )}
@@ -446,7 +460,7 @@ const MisVehiculosScreen = () => {
           {/* Active Service Indicator */}
           {item.active_requests_count > 0 && (
             <View style={styles.serviceBadge}>
-              <Ionicons name="construct" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Wrench size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
               <Text style={styles.serviceBadgeText}>En Servicio</Text>
             </View>
           )}
@@ -481,27 +495,39 @@ const MisVehiculosScreen = () => {
                 </View>
 
                 {item.health_score >= 80 ? (
-                  <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
-                    <Ionicons name="checkmark-circle" size={12} /> En Buen Estado
-                  </Text>
+                  <View style={styles.healthStatusRow}>
+                    <CheckCircle size={12} color={getHealthColor(item.health_score)} />
+                    <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                      {' '}En Buen Estado
+                    </Text>
+                  </View>
                 ) : item.health_score >= 60 ? (
-                  <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
-                    <Ionicons name="information-circle" size={12} /> Buen Estado
-                  </Text>
+                  <View style={styles.healthStatusRow}>
+                    <Info size={12} color={getHealthColor(item.health_score)} />
+                    <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                      {' '}Buen Estado
+                    </Text>
+                  </View>
                 ) : item.health_score >= 40 ? (
-                  <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
-                    <Ionicons name="alert-circle" size={12} /> Mantenimiento Recomendado ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
-                  </Text>
+                  <View style={styles.healthStatusRow}>
+                    <AlertCircle size={12} color={getHealthColor(item.health_score)} />
+                    <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                      {' '}Mantenimiento Recomendado ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
+                    </Text>
+                  </View>
                 ) : (
-                  <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
-                    <Ionicons name="warning" size={12} /> Requiere Atención ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
-                  </Text>
+                  <View style={styles.healthStatusRow}>
+                    <AlertTriangle size={12} color={getHealthColor(item.health_score)} />
+                    <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                      {' '}Requiere Atención ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
+                    </Text>
+                  </View>
                 )}
               </>
             ) : (
               <View style={styles.healthHeader}>
                 <Text style={styles.healthLabel}>Calculando Salud...</Text>
-                <ActivityIndicator size="small" color={COLORS.primary} />
+                <ActivityIndicator size="small" color="#6EE7B7" />
               </View>
             )}
           </View>
@@ -513,36 +539,53 @@ const MisVehiculosScreen = () => {
   const EmptyVehiclesList = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Ionicons name="car-sport-outline" size={64} color={COLORS.primary} />
+        <Car size={64} color="#6EE7B7" />
       </View>
       <Text style={styles.emptyTitle}>Comienza tu Garage</Text>
       <Text style={styles.emptyDescription}>
         Registra tu primer vehículo para acceder a servicios, valoraciones y gestión de mantenimiento.
       </Text>
-      <Button
-        title="Agregar Vehículo"
-        onPress={handleAddVehicle}
-        style={styles.emptyButton}
-        textStyle={styles.emptyButtonText}
-      />
+      <TouchableOpacity onPress={handleAddVehicle} activeOpacity={0.8}>
+        <LinearGradient
+          colors={['#10B981', '#059669']}
+          style={styles.emptyButton}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Plus size={18} color="#FFF" />
+          <Text style={styles.emptyButtonText}>Agregar Vehículo</Text>
+        </LinearGradient>
+      </TouchableOpacity>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F9FAFB" />
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+
+      {/* Background */}
+      <LinearGradient
+        colors={['#030712', '#0a1628', '#030712']}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Decorative Blobs */}
+      <View style={styles.blobEmerald} />
+      <View style={styles.blobIndigo} />
+      <View style={styles.blobCyan} />
 
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mis Vehículos</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleAddVehicle}>
+          <Plus size={18} color="#6EE7B7" />
           <Text style={styles.addButtonText}>Agregar auto</Text>
         </TouchableOpacity>
       </View>
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
+          <ActivityIndicator size="large" color="#6EE7B7" />
         </View>
       ) : (
         <FlatList
@@ -554,6 +597,7 @@ const MisVehiculosScreen = () => {
           ListEmptyComponent={EmptyVehiclesList}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          tintColor="#6EE7B7"
         />
       )}
 
@@ -566,28 +610,31 @@ const MisVehiculosScreen = () => {
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContainer}>
           <View style={styles.modalContent}>
+            {Platform.OS === 'ios' && (
+              <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+            )}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{isEdit ? 'Editar Vehículo' : 'Nuevo Vehículo'}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color={COLORS.text} />
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseBtn}>
+                <X size={22} color="rgba(255,255,255,0.7)" />
               </TouchableOpacity>
             </View>
 
             <ScrollContainer>
               {currentStep === 1 && (
                 <>
-                  {/* Simplified Form Render for Brevity - Keeping logic intact */}
                   {/* Brand Selector */}
                   <View style={styles.formField}>
                     <Text style={styles.formLabel}>Marca</Text>
                     <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowMarcasDropdown(!showMarcasDropdown)}>
-                      <Text>{marcaSeleccionada?.nombre || 'Seleccionar Marca'}</Text>
+                      <Text style={styles.dropdownButtonText}>{marcaSeleccionada?.nombre || 'Seleccionar Marca'}</Text>
+                      <ChevronDown size={18} color="rgba(255,255,255,0.5)" />
                     </TouchableOpacity>
                     {showMarcasDropdown && (
                       <View style={styles.dropdownList}>
                         {marcas.map(m => (
                           <TouchableOpacity key={m.id} style={styles.dropdownItem} onPress={() => { setMarcaSeleccionada(m); setShowMarcasDropdown(false); }}>
-                            <Text>{m.nombre}</Text>
+                            <Text style={styles.dropdownItemText}>{m.nombre}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -598,13 +645,14 @@ const MisVehiculosScreen = () => {
                   <View style={styles.formField}>
                     <Text style={styles.formLabel}>Modelo</Text>
                     <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowModelosDropdown(!showModelosDropdown)}>
-                      <Text>{formData.modelo ? modelos.find(m => m.id.toString() === formData.modelo)?.nombre : 'Seleccionar Modelo'}</Text>
+                      <Text style={styles.dropdownButtonText}>{formData.modelo ? modelos.find(m => m.id.toString() === formData.modelo)?.nombre : 'Seleccionar Modelo'}</Text>
+                      <ChevronDown size={18} color="rgba(255,255,255,0.5)" />
                     </TouchableOpacity>
                     {showModelosDropdown && (
                       <View style={styles.dropdownList}>
                         {modelos.map(m => (
                           <TouchableOpacity key={m.id} style={styles.dropdownItem} onPress={() => { handleChange('modelo', m.id.toString()); setShowModelosDropdown(false); }}>
-                            <Text>{m.nombre}</Text>
+                            <Text style={styles.dropdownItemText}>{m.nombre}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
@@ -620,8 +668,8 @@ const MisVehiculosScreen = () => {
                       <Image source={{ uri: formData.foto.uri }} style={styles.photoPreview} />
                     ) : (
                       <View style={styles.photoPlaceholder}>
-                        <Ionicons name="camera" size={32} color={COLORS.primary} />
-                        <Text>Subir Foto</Text>
+                        <Camera size={32} color="#6EE7B7" />
+                        <Text style={styles.photoPlaceholderText}>Subir Foto</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -631,10 +679,12 @@ const MisVehiculosScreen = () => {
               {currentStep === 2 && (
                 <View style={styles.checklistContainer}>
                   <Text style={styles.checklistTitle}>Checklist Inicial</Text>
-                  {fetchingChecklist ? <ActivityIndicator /> : checklistItems.map(item => (
+                  {fetchingChecklist ? <ActivityIndicator color="#6EE7B7" /> : checklistItems.map(item => (
                     <TouchableOpacity key={item.id} style={styles.checklistItem} onPress={() => toggleChecklistItem(item.id)}>
-                      <View style={[styles.checkbox, selectedChecklistItems.includes(item.id) && styles.checkboxActive]} />
-                      <Text>{item.nombre}</Text>
+                      <View style={[styles.checkbox, selectedChecklistItems.includes(item.id) && styles.checkboxActive]}>
+                        {selectedChecklistItems.includes(item.id) && <Check size={14} color="#FFF" />}
+                      </View>
+                      <Text style={styles.checklistItemText}>{item.nombre}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -643,11 +693,36 @@ const MisVehiculosScreen = () => {
 
             <View style={styles.modalFooter}>
               {currentStep === 1 ? (
-                <Button title="Continuar" onPress={handleNextStep} style={styles.submitButton} />
+                <TouchableOpacity onPress={handleNextStep} activeOpacity={0.8}>
+                  <LinearGradient
+                    colors={['#10B981', '#059669']}
+                    style={styles.submitButton}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Text style={styles.submitButtonText}>Continuar</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               ) : (
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <Button title="Atrás" onPress={handlePreviousStep} style={{ flex: 1, backgroundColor: '#999' }} />
-                  <Button title="Guardar" onPress={handleSubmit} isLoading={isSubmitting} style={{ flex: 1 }} />
+                  <TouchableOpacity onPress={handlePreviousStep} style={styles.backButton} activeOpacity={0.8}>
+                    <ChevronLeft size={18} color="rgba(255,255,255,0.7)" />
+                    <Text style={styles.backButtonText}>Atrás</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleSubmit} activeOpacity={0.8} style={{ flex: 1 }} disabled={isSubmitting}>
+                    <LinearGradient
+                      colors={['#10B981', '#059669']}
+                      style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      {isSubmitting ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                      ) : (
+                        <Text style={styles.submitButtonText}>Guardar</Text>
+                      )}
+                    </LinearGradient>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -661,33 +736,64 @@ const MisVehiculosScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#030712',
+  },
+  blobEmerald: {
+    position: 'absolute',
+    top: -80,
+    right: -80,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(16,185,129,0.08)',
+  },
+  blobIndigo: {
+    position: 'absolute',
+    top: 300,
+    left: -100,
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    backgroundColor: 'rgba(99,102,241,0.06)',
+  },
+  blobCyan: {
+    position: 'absolute',
+    bottom: 100,
+    right: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(6,182,212,0.05)',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60, // Safe area
+    paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: '#F9FAFB',
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#111827', // colors.text.primary
+    color: '#FFFFFF',
     flex: 1,
   },
   addButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.25)',
   },
   addButtonText: {
-    color: COLORS.primary,
+    color: '#6EE7B7',
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 14,
   },
   listContent: {
     padding: 20,
@@ -695,17 +801,20 @@ const styles = StyleSheet.create({
   },
   // Card Styles
   cardContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderRadius: 20,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
+  },
+  glassCard: {
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+    padding: 16,
   },
   imageContainer: {
     height: 160,
@@ -721,12 +830,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 80,
+    height: 90,
     justifyContent: 'flex-end',
     padding: 16,
   },
   cardBrand: {
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -742,26 +851,23 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   serviceBadge: {
     position: 'absolute',
     top: 16,
     left: 16,
-    backgroundColor: COLORS.primary, // Using primary color (Blue/Orange depending on theme)
+    backgroundColor: 'rgba(16,185,129,0.85)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   serviceBadgeText: {
     fontSize: 12,
@@ -772,18 +878,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 50,
     right: 16,
-    backgroundColor: '#10B981', // Green for offers
+    backgroundColor: 'rgba(16,185,129,0.85)',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   offersBadgeText: {
     fontSize: 11,
@@ -793,7 +894,7 @@ const styles = StyleSheet.create({
   yearText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#111827',
+    color: '#FFFFFF',
   },
   cardBody: {
     padding: 20,
@@ -803,13 +904,13 @@ const styles = StyleSheet.create({
   },
   valueLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: 'rgba(255,255,255,0.5)',
     marginBottom: 4,
   },
   valueAmount: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#2563EB', // Blue
+    color: '#93C5FD',
   },
   healthContainer: {
     marginTop: 0,
@@ -822,27 +923,28 @@ const styles = StyleSheet.create({
   healthLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#374151',
+    color: 'rgba(255,255,255,0.5)',
   },
   healthPercent: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.success,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 3,
     marginBottom: 8,
   },
   progressBarFill: {
     height: 6,
-    backgroundColor: COLORS.success,
     borderRadius: 3,
+  },
+  healthStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   healthStatus: {
     fontSize: 12,
-    color: '#6B7280',
   },
   // Empty State
   emptyContainer: {
@@ -853,50 +955,61 @@ const styles = StyleSheet.create({
   emptyIconContainer: {
     width: 120,
     height: 120,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(16,185,129,0.1)',
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.2)',
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   emptyDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,
   },
   emptyButton: {
-    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     paddingHorizontal: 32,
-    borderRadius: 12,
+    paddingVertical: 14,
+    borderRadius: 14,
   },
   emptyButtonText: {
     fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // Form/Modal Styles (Simplified)
+  // Modal Styles
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(15,23,42,0.95)' : '#0f172a',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     height: '90%',
     padding: 20,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -907,6 +1020,15 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   formField: {
     marginBottom: 16,
@@ -914,35 +1036,52 @@ const styles = StyleSheet.create({
   formLabel: {
     marginBottom: 8,
     fontWeight: '500',
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
   },
   dropdownButton: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  dropdownButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
   },
   dropdownList: {
     maxHeight: 200,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: 'rgba(255,255,255,0.12)',
     marginTop: 4,
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: 'rgba(15,23,42,0.98)',
+    overflow: 'hidden',
   },
   dropdownItem: {
-    padding: 12,
+    padding: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  dropdownItemText: {
+    color: '#FFFFFF',
+    fontSize: 15,
   },
   photoButton: {
     height: 150,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: 'rgba(255,255,255,0.12)',
     borderStyle: 'dashed',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
     overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   photoPreview: {
     width: '100%',
@@ -950,6 +1089,11 @@ const styles = StyleSheet.create({
   },
   photoPlaceholder: {
     alignItems: 'center',
+    gap: 8,
+  },
+  photoPlaceholderText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 14,
   },
   checklistContainer: {
     marginTop: 20,
@@ -958,31 +1102,63 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
+    color: '#FFFFFF',
   },
   checklistItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  checklistItemText: {
+    color: '#FFFFFF',
+    fontSize: 15,
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 22,
+    height: 22,
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: 'rgba(255,255,255,0.25)',
     marginRight: 12,
-    borderRadius: 4,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checkboxActive: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
   },
   modalFooter: {
     marginTop: 20,
   },
   submitButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  backButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: 14,
+    paddingVertical: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  backButtonText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

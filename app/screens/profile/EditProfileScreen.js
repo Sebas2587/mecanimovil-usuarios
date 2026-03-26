@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, StatusBar, TouchableOpacity, Image } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, StatusBar, TouchableOpacity, Image, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { BlurView } from 'expo-blur';
 
 import { useAuth } from '../../context/AuthContext';
 import * as userService from '../../services/user';
@@ -16,10 +17,16 @@ import { useUserProfile } from '../../hooks/useUserProfile';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
 
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
+
 const EditProfileScreen = () => {
   const navigation = useNavigation();
   const { user, updateProfile } = useAuth();
-  const insets = useSafeAreaInsets();
 
   // State
   const [loading, setLoading] = useState(false);
@@ -165,21 +172,32 @@ const EditProfileScreen = () => {
     // para evitar flickering si ya tenemos datos básicos
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={COLORS.primary[500]} />
+        <StatusBar barStyle="light-content" backgroundColor="#030712" />
+        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <ActivityIndicator color="#6EE7B7" />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.profilePicWrapper}>
           <TouchableOpacity onPress={handleImagePick} activeOpacity={0.8} style={styles.avatarContainer}>
+            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
             {profileImage ? (
               <Image source={{ uri: profileImage }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={40} color={COLORS.neutral.gray[400]} />
+                <Ionicons name="person" size={40} color="rgba(255,255,255,0.45)" />
               </View>
             )}
             <View style={styles.cameraBadge}>
@@ -198,7 +216,9 @@ const EditProfileScreen = () => {
             onChangeText={v => handleChange('first_name', v)}
             placeholder="Tu nombre"
             leftIcon="person-outline"
-            containerStyle={styles.inputContainer}
+            appearance="darkGlass"
+            variant="filled"
+            style={styles.inputContainer}
           />
           <Input
             label="Apellidos"
@@ -206,7 +226,9 @@ const EditProfileScreen = () => {
             onChangeText={v => handleChange('last_name', v)}
             placeholder="Tus apellidos"
             leftIcon="person-outline"
-            containerStyle={styles.inputContainer}
+            appearance="darkGlass"
+            variant="filled"
+            style={styles.inputContainer}
           />
         </View>
 
@@ -220,7 +242,9 @@ const EditProfileScreen = () => {
             placeholder="usuario@email.com"
             leftIcon="mail-outline"
             editable={false} // Often email is immutable or requires specific flow
-            containerStyle={[styles.inputContainer, { opacity: 0.6 }]}
+            appearance="darkGlass"
+            variant="filled"
+            style={[styles.inputContainer, { opacity: 0.6 }]}
           />
           <Input
             label="Teléfono"
@@ -229,7 +253,9 @@ const EditProfileScreen = () => {
             placeholder="+56 9 1234 5678"
             leftIcon="call-outline"
             keyboardType="phone-pad"
-            containerStyle={styles.inputContainer}
+            appearance="darkGlass"
+            variant="filled"
+            style={styles.inputContainer}
           />
         </View>
 
@@ -239,6 +265,8 @@ const EditProfileScreen = () => {
             onPress={handleSubmit}
             isLoading={loading}
             style={styles.saveButton}
+            useGradient
+            gradientColors={['#0d9488', '#10b981']}
           />
           <TouchableOpacity style={styles.cancelLink} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelText}>Cancelar</Text>
@@ -246,38 +274,43 @@ const EditProfileScreen = () => {
         </View>
 
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#030712',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#030712',
   },
   profilePicWrapper: {
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 24,
+    marginTop: 8,
+    marginBottom: 18,
   },
   avatarContainer: {
     position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: COLORS.neutral.gray[100],
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   avatarPlaceholder: {
     justifyContent: 'center',
@@ -285,19 +318,19 @@ const styles = StyleSheet.create({
   },
   cameraBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 4,
-    backgroundColor: COLORS.primary[500],
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(147,197,253,0.95)',
     width: 28,
     height: 28,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'white',
+    borderColor: 'rgba(3,7,18,0.9)',
   },
   formContainer: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 40,
   },
   spacer: {
@@ -306,23 +339,19 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.neutral.gray[400],
+    color: 'rgba(255,255,255,0.45)',
     marginBottom: 12,
     marginTop: 8,
     letterSpacing: 1,
   },
   inputGroup: {
-    backgroundColor: 'white',
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 18,
     borderWidth: 1,
-    borderColor: COLORS.neutral.gray[100],
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
     gap: 16,
   },
   inputContainer: {
@@ -331,17 +360,19 @@ const styles = StyleSheet.create({
   actionButtons: {
     gap: 16,
     marginTop: 8,
+    marginBottom: 6,
   },
   saveButton: {
     borderRadius: 12,
+    overflow: 'hidden',
   },
   cancelLink: {
     alignItems: 'center',
     padding: 12,
   },
   cancelText: {
-    color: COLORS.neutral.gray[500],
-    fontWeight: '600',
+    color: '#93C5FD',
+    fontWeight: '700',
   },
 });
 

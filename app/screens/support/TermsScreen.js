@@ -1,8 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, StatusBar } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../../utils/constants';
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const TermsScreen = () => {
   const navigation = useNavigation();
@@ -43,7 +53,14 @@ const TermsScreen = () => {
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
       <ScrollView 
         style={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
@@ -51,7 +68,8 @@ const TermsScreen = () => {
       >
         {/* Introducción */}
         <View style={styles.introCard}>
-          <Ionicons name="document-text-outline" size={48} color={COLORS.primary} />
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
+          <Ionicons name="document-text-outline" size={48} color="#93C5FD" />
           <Text style={styles.introTitle}>Términos y Condiciones de Uso</Text>
           <Text style={styles.introText}>
             Última actualización: Enero 2025
@@ -60,6 +78,7 @@ const TermsScreen = () => {
 
         {/* Contenido de términos */}
         <View style={styles.termsCard}>
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
           {termsContent.map((section, index) => (
             <View key={index} style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -77,101 +96,87 @@ const TermsScreen = () => {
           </View>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#030712',
   },
   scrollContainer: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
   },
   introCard: {
     alignItems: 'center',
-    backgroundColor: COLORS.white,
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 24,
     marginBottom: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   introTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginTop: 12,
     marginBottom: 8,
     textAlign: 'center',
   },
   introText: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.55)',
     textAlign: 'center',
   },
   termsCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 20,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   sectionContainer: {
     marginBottom: 24,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginBottom: 8,
   },
   sectionContent: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.65)',
     lineHeight: 20,
   },
   additionalInfo: {
-    backgroundColor: COLORS.background,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(147,197,253,0.08)' : 'rgba(147,197,253,0.10)',
     borderRadius: 12,
     padding: 16,
     marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(147,197,253,0.18)',
   },
   additionalTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: '#93C5FD',
     marginBottom: 8,
   },
   additionalText: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.65)',
     lineHeight: 20,
   },
 });

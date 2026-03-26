@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { getMediaURL } from '../../services/api';
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -77,7 +83,7 @@ const OfferCardDetailed = ({
         <View style={styles.card}>
             {nombreServicio ? (
                 <View style={styles.servicioLabelRow}>
-                    <Ionicons name="construct-outline" size={14} color="#64748B" />
+                    <Ionicons name="construct-outline" size={14} color="rgba(255,255,255,0.45)" />
                     <Text style={styles.servicioLabelText}>{nombreServicio}</Text>
                 </View>
             ) : null}
@@ -100,20 +106,20 @@ const OfferCardDetailed = ({
                                 {oferta.nombre_proveedor}
                             </Text>
                             {oferta.proveedor_verificado && (
-                                <Ionicons name="checkmark-circle" size={16} color="#3B82F6" />
+                                <Ionicons name="checkmark-circle" size={16} color="#93C5FD" />
                             )}
                         </View>
                         <View style={styles.viewProfileRow}>
                             <Text style={styles.providerType}>
                                 {oferta.tipo_proveedor === 'taller' ? 'Taller Certificado' : 'Mecánico a Domicilio'}
                             </Text>
-                            <Ionicons name="chevron-forward" size={12} color="#64748B" style={{ marginLeft: 4, marginTop: 1 }} />
+                            <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.35)" style={{ marginLeft: 4, marginTop: 1 }} />
                         </View>
                     </View>
                 </TouchableOpacity>
 
                 <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={14} color="#FBBF24" />
+                    <Ionicons name="star" size={14} color="#FCD34D" />
                     <Text style={styles.ratingScore}>{rating.toFixed(1)}</Text>
                 </View>
             </View>
@@ -121,11 +127,11 @@ const OfferCardDetailed = ({
             {/* 2. Promesas de Valor (Tags) */}
             <View style={styles.tagsRow}>
                 <View style={styles.tag}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color="#64748B" />
+                    <Ionicons name="shield-checkmark-outline" size={14} color="rgba(255,255,255,0.45)" />
                     <Text style={styles.tagText}>Garantía {oferta.garantia_ofrecida || '3 meses'}</Text>
                 </View>
                 <View style={styles.tag}>
-                    <Ionicons name="time-outline" size={14} color="#64748B" />
+                    <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.45)" />
                     <Text style={styles.tagText}>{oferta.tiempo_estimado_total || '2h'} est.</Text>
                 </View>
             </View>
@@ -221,7 +227,7 @@ const OfferCardDetailed = ({
                     style={styles.chatButton}
                     onPress={() => onChatPress(oferta)}
                 >
-                    <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0F172A" />
+                    <Ionicons name="chatbubble-ellipses-outline" size={22} color="#F9FAFB" />
                 </TouchableOpacity>
 
                 {/* Botón Aceptar o Badge Aceptado */}
@@ -247,18 +253,12 @@ const OfferCardDetailed = ({
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: GLASS_BG,
         borderRadius: 24,
         padding: 20,
         marginBottom: 20,
-        // Sombra Premium
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 4,
         borderWidth: 1,
-        borderColor: '#F1F5F9', // Slate-100
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     servicioLabelRow: {
         flexDirection: 'row',
@@ -267,12 +267,12 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
     servicioLabelText: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.55)',
     },
     header: {
         flexDirection: 'row',
@@ -290,7 +290,9 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 16, // Rounded square look
-        backgroundColor: '#F1F5F9',
+        backgroundColor: 'rgba(255,255,255,0.10)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     providerInfo: {
         flex: 1,
@@ -303,11 +305,11 @@ const styles = StyleSheet.create({
     providerName: {
         fontSize: 16,
         fontWeight: '800', // Extra bold
-        color: '#0F172A',
+        color: '#F9FAFB',
     },
     providerType: {
         fontSize: 12,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.45)',
         fontWeight: '500',
     },
     viewProfileRow: {
@@ -317,16 +319,18 @@ const styles = StyleSheet.create({
     ratingBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFBEB', // Amber-50
+        backgroundColor: 'rgba(245,158,11,0.18)',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 12,
         gap: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(245,158,11,0.25)',
     },
     ratingScore: {
         fontSize: 13,
         fontWeight: '700',
-        color: '#B45309', // Amber-700
+        color: '#FCD34D',
     },
     ratingCount: {
         fontSize: 12,
@@ -344,21 +348,23 @@ const styles = StyleSheet.create({
         gap: 4,
         paddingHorizontal: 10,
         paddingVertical: 4,
-        backgroundColor: '#F8FAFC', // Slate-50
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: 'rgba(255,255,255,0.10)',
     },
     tagText: {
         fontSize: 12,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.55)',
         fontWeight: '500',
     },
     costContainer: {
-        backgroundColor: '#F8FAFC', // Slate-50
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderRadius: 16,
         padding: 16,
         marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     costRow: {
         flexDirection: 'row',
@@ -367,17 +373,17 @@ const styles = StyleSheet.create({
     },
     costLabel: {
         fontSize: 14,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.45)',
         fontWeight: '500',
     },
     costValue: {
         fontSize: 14,
-        color: '#334155', // Slate-700
+        color: '#F9FAFB',
         fontWeight: '600',
     },
     divider: {
         height: 1,
-        backgroundColor: '#E2E8F0', // Slate-200
+        backgroundColor: 'rgba(255,255,255,0.08)',
         marginVertical: 12,
     },
     totalRow: {
@@ -388,13 +394,13 @@ const styles = StyleSheet.create({
     totalLabel: {
         fontSize: 14,
         fontWeight: '800',
-        color: '#0F172A',
+        color: 'rgba(255,255,255,0.65)',
         letterSpacing: 0.5,
     },
     totalValue: {
         fontSize: 20,
         fontWeight: '900',
-        color: '#0F172A',
+        color: '#93C5FD',
     },
     fechaSection: {
         marginBottom: 16,
@@ -404,37 +410,37 @@ const styles = StyleSheet.create({
     },
     fechaLabel: {
         fontSize: 12,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.45)',
         fontWeight: '600',
         marginBottom: 2,
     },
     fechaValue: {
         fontSize: 14,
-        color: '#0F172A',
+        color: '#F9FAFB',
         fontWeight: '500',
     },
     fechaAlternativaBlock: {
         marginTop: 10,
         padding: 12,
-        backgroundColor: '#FFFBEB',
+        backgroundColor: 'rgba(245,158,11,0.16)',
         borderRadius: 12,
         borderLeftWidth: 3,
-        borderLeftColor: '#F59E0B',
+        borderLeftColor: 'rgba(245,158,11,0.8)',
     },
     fechaAlternativaTitle: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#B45309',
+        color: '#FCD34D',
         marginBottom: 6,
     },
     fechaAlternativaRow: {
         fontSize: 13,
-        color: '#334155',
+        color: 'rgba(255,255,255,0.7)',
         marginBottom: 4,
     },
     fechaAlternativaMotivo: {
         fontSize: 13,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.55)',
         fontStyle: 'italic',
         marginTop: 4,
     },
@@ -442,17 +448,17 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
+        borderTopColor: 'rgba(255,255,255,0.08)',
     },
     descripcionLabel: {
         fontSize: 12,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.45)',
         fontWeight: '600',
         marginBottom: 6,
     },
     descripcionText: {
         fontSize: 14,
-        color: '#334155',
+        color: 'rgba(255,255,255,0.65)',
         lineHeight: 20,
     },
     actionsRow: {
@@ -463,49 +469,43 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 14,
-        backgroundColor: '#F1F5F9', // Slate-100
+        backgroundColor: 'rgba(255,255,255,0.08)',
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     disabledChatButton: {
-        backgroundColor: '#E5E7EB',
-        opacity: 0.5,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        opacity: 0.45,
     },
     acceptButton: {
         flex: 1,
         flexDirection: 'row',
-        backgroundColor: '#2563EB', // Blue-600
+        backgroundColor: '#059669',
         borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
         gap: 8,
         height: 48,
-        shadowColor: '#2563EB',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        shadowRadius: 8,
-        elevation: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(110,231,183,0.35)',
     },
     acceptedButton: {
         flex: 1,
         flexDirection: 'row',
-        backgroundColor: '#10B981', // Emerald-500
+        backgroundColor: 'rgba(16,185,129,0.85)',
         borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',
         gap: 8,
         height: 48,
-        shadowColor: '#10B981',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(110,231,183,0.35)',
     },
     disabledButton: {
-        backgroundColor: '#94A3B8',
-        elevation: 0,
-        shadowOpacity: 0,
+        backgroundColor: 'rgba(255,255,255,0.10)',
+        borderColor: 'rgba(255,255,255,0.08)',
     },
     acceptButtonText: {
         color: '#FFFFFF',

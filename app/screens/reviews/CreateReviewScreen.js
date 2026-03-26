@@ -4,18 +4,28 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   ScrollView,
   TextInput,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { post } from '../../services/api';
 import { COLORS } from '../../utils/constants';
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const CreateReviewScreen = () => {
   const navigation = useNavigation();
@@ -31,11 +41,8 @@ const CreateReviewScreen = () => {
       headerTitle: 'Dejar Reseña',
       headerShown: true,
       headerBackTitleVisible: false,
-      headerTintColor: COLORS.primary,
-      headerTitleStyle: {
-        fontWeight: 'bold',
-        color: COLORS.text,
-      },
+      headerTintColor: '#F9FAFB',
+      headerTitleStyle: { fontWeight: '700', color: '#F9FAFB' },
     });
   }, [navigation]);
 
@@ -116,14 +123,21 @@ const CreateReviewScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 340, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Información del servicio */}
         <View style={styles.card}>
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
           <View style={styles.cardHeader}>
-            <Ionicons name="receipt-outline" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
+            <Ionicons name="receipt-outline" size={20} color="#93C5FD" style={{ marginRight: 8 }} />
             <Text style={styles.cardTitle}>Detalles del Servicio</Text>
           </View>
 
@@ -137,7 +151,7 @@ const CreateReviewScreen = () => {
                 />
               ) : (
                 <View style={styles.providerPlaceholder}>
-                  <Ionicons name="person" size={20} color={COLORS.textLight} />
+                  <Ionicons name="person" size={20} color="rgba(255,255,255,0.5)" />
                 </View>
               )}
               <View>
@@ -149,11 +163,11 @@ const CreateReviewScreen = () => {
             <View style={styles.divider} />
 
             <View style={styles.detailRow}>
-              <Ionicons name="car-outline" size={16} color={COLORS.textLight} />
+              <Ionicons name="car-outline" size={16} color="rgba(255,255,255,0.5)" />
               <Text style={styles.detailText}>{service.vehicle.full_name}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={16} color={COLORS.textLight} />
+              <Ionicons name="calendar-outline" size={16} color="rgba(255,255,255,0.5)" />
               <Text style={styles.detailText}>Completado el {new Date(service.completion_date).toLocaleDateString()}</Text>
             </View>
           </View>
@@ -161,20 +175,22 @@ const CreateReviewScreen = () => {
 
         {/* Calificación */}
         <View style={styles.card}>
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
           <Text style={styles.sectionTitleCenter}>¿Cómo calificarías el servicio?</Text>
           {renderStars()}
-          <Text style={[styles.ratingText, { color: rating > 0 ? COLORS.warning : COLORS.textLight }]}>
+          <Text style={[styles.ratingText, { color: rating > 0 ? '#FBBF24' : 'rgba(255,255,255,0.45)' }]}>
             {getRatingText()}
           </Text>
         </View>
 
         {/* Comentario */}
         <View style={styles.card}>
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
           <Text style={styles.inputLabel}>Cuéntanos tu experiencia (opcional)</Text>
           <TextInput
             style={styles.commentInput}
             placeholder="¿Qué te pareció el servicio? ¿El tiempo de espera fue adecuado?"
-            placeholderTextColor={COLORS.textLight}
+            placeholderTextColor={'rgba(255,255,255,0.35)'}
             value={comment}
             onChangeText={setComment}
             multiline
@@ -199,10 +215,10 @@ const CreateReviewScreen = () => {
           disabled={rating === 0 || submitting}
         >
           {submitting ? (
-            <ActivityIndicator size="small" color="white" />
+            <ActivityIndicator size="small" color="#F9FAFB" />
           ) : (
             <>
-              <Ionicons name="send" size={16} color="white" />
+              <Ionicons name="send" size={16} color="#F9FAFB" />
               <Text style={styles.submitButtonText}>Enviar Reseña</Text>
             </>
           )}
@@ -215,20 +231,16 @@ const CreateReviewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#030712',
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -238,7 +250,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text,
+    color: '#F9FAFB',
   },
   serviceInfoContainer: {
     gap: 12,
@@ -257,7 +269,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -265,15 +277,15 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text,
+    color: '#F9FAFB',
   },
   serviceName: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.6)',
   },
   divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     marginVertical: 4,
   },
   detailRow: {
@@ -283,12 +295,12 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.6)',
   },
   sectionTitleCenter: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginBottom: 16,
     textAlign: 'center',
   },
@@ -309,48 +321,52 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginBottom: 12,
   },
   commentInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(3,7,18,0.55)' : 'rgba(3,7,18,0.75)',
     borderRadius: 12,
     padding: 16,
     fontSize: 14,
-    color: COLORS.text,
+    color: '#F9FAFB',
     minHeight: 120,
     marginBottom: 8,
     textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
   },
   characterCount: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.45)',
     textAlign: 'right',
   },
   footer: {
     padding: 16,
-    backgroundColor: 'white',
+    backgroundColor: GLASS_BG,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    borderTopColor: 'rgba(255,255,255,0.10)',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderLeftColor: GLASS_BORDER,
+    borderRightColor: GLASS_BORDER,
   },
   submitButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#0d9488',
     paddingVertical: 16,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(110,231,183,0.25)',
   },
   submitButtonDisabled: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderColor: 'rgba(255,255,255,0.10)',
   },
   submitButtonText: {
-    color: 'white',
+    color: '#F9FAFB',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,

@@ -1,7 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
 
 const PortfolioCarousel = ({ portfolio }) => {
     if (!portfolio || portfolio.length === 0) return null;
@@ -12,7 +18,7 @@ const PortfolioCarousel = ({ portfolio }) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.iconContainer}>
-                    <Ionicons name="images" size={18} color={COLORS.primary[500]} />
+                    <Ionicons name="images" size={18} color="#93C5FD" />
                 </View>
                 <Text style={styles.title}>Trabajos Realizados</Text>
             </View>
@@ -45,7 +51,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: COLORS.primary[50],
+        backgroundColor: 'rgba(147,197,253,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
@@ -53,7 +59,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
     },
     scrollContent: {
         paddingHorizontal: 16,
@@ -62,16 +68,11 @@ const styles = StyleSheet.create({
     card: {
         width: 240,
         marginRight: 16,
-        backgroundColor: COLORS.base.white,
-        borderRadius: 12,
+        backgroundColor: GLASS_BG,
+        borderRadius: 16,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: COLORS.neutral.gray[200],
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     image: {
         width: '100%',
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.text.primary,
+        color: 'rgba(255,255,255,0.75)',
     },
 });
 

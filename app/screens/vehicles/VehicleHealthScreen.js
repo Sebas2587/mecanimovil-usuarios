@@ -8,16 +8,33 @@ import {
   FlatList,
   Modal,
   Alert,
-  ScrollView
+  ScrollView,
+  StatusBar,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  Gauge,
+  HelpCircle,
+  RefreshCw,
+  CheckCircle,
+  X,
+  Heart,
+  Wrench,
+  ChevronRight,
+  ArrowLeft,
+  ArrowRight,
+  AlertTriangle,
+  Hourglass,
+} from 'lucide-react-native';
 import * as Animatable from 'react-native-animatable';
 import { ROUTES } from '../../utils/constants';
-import { useNavigation, useFocusEffect, CommonActions } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { getVehicleById } from '../../services/vehicle';
-import { useTheme } from '../../design-system/theme/useTheme';
-import { COLORS } from '../../design-system/tokens/colors';
 import HealthMetricCard from '../../components/vehicles/HealthMetricCard';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
@@ -28,8 +45,8 @@ const { width } = Dimensions.get('window');
 const VehicleHealthScreen = ({ route }) => {
   const navigation = useNavigation();
   const { vehicleId, vehicle } = route.params;
-  const theme = useTheme();
-  const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
+  const styles = createStyles(insets);
 
   // Data State
   // Prefer fresh data from fetch, fallback to route params if available
@@ -152,25 +169,11 @@ const VehicleHealthScreen = ({ route }) => {
   };
 
   const handleNavToService = (extraParams = {}) => {
-    // Params del tab CrearSolicitud: deben ir en params.params para navegación anidada
-    const screenParams = {
+    navigation.navigate(ROUTES.CREAR_SOLICITUD, {
       vehicle: vehicleData,
       alertas: healthData?.alertas,
       ...extraParams,
-    };
-    try {
-      navigation.dispatch(
-        CommonActions.navigate({
-          name: 'TabNavigator',
-          params: {
-            screen: ROUTES.CREAR_SOLICITUD,
-            params: screenParams,
-          },
-        })
-      );
-    } catch (e) {
-      navigation.navigate(ROUTES.CREAR_SOLICITUD, screenParams);
-    }
+    });
   };
 
   /**
@@ -219,11 +222,14 @@ const VehicleHealthScreen = ({ route }) => {
 
     return (
       <View style={styles.headerContainer}>
+        {Platform.OS === 'ios' && (
+          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+        )}
         <View style={styles.vehicleInfo}>
           <Text style={styles.brand}>{vehicleData?.marca_nombre || 'Marca'} {vehicleData?.modelo_nombre}</Text>
           <Text style={styles.plate}>{vehicleData?.patente} • {vehicleData?.year}</Text>
           <View style={styles.kmBadge}>
-            <Ionicons name="speedometer-outline" size={14} color={COLORS.primary[600]} />
+            <Gauge size={14} color="#6EE7B7" />
             <Text style={styles.kmText}>{vehicleData?.kilometraje?.toLocaleString()} km</Text>
           </View>
         </View>
@@ -244,20 +250,20 @@ const VehicleHealthScreen = ({ route }) => {
       <View style={styles.summaryContainer}>
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: COLORS.success[500] }]} />
+            <View style={[styles.dot, { backgroundColor: '#10B981' }]} />
             <Text style={styles.legendText}>{componentes_optimos} Óptimos</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: COLORS.warning[500] }]} />
+            <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
             <Text style={styles.legendText}>{componentes_atencion} Atención</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
+            <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
             <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
-          <Ionicons name="help-circle-outline" size={18} color={COLORS.primary[500]} />
+          <HelpCircle size={18} color="#93C5FD" />
           <Text style={styles.helpLinkText}>Ayuda</Text>
         </TouchableOpacity>
       </View>
@@ -268,13 +274,26 @@ const VehicleHealthScreen = ({ route }) => {
     if (healthData?.tiene_alertas_activas) {
       return (
         <Animatable.View animation="pulse" iterationCount="infinite" style={styles.ctaContainer}>
-          <View>
-            <Text style={styles.ctaTitle}>Atención Requerida</Text>
-            <Text style={styles.ctaSubtitle}>Se detectaron problemas en tu vehículo.</Text>
+          {Platform.OS === 'ios' && (
+            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+          )}
+          <View style={styles.ctaContent}>
+            <AlertTriangle size={20} color="#F87171" />
+            <View style={styles.ctaTextWrap}>
+              <Text style={styles.ctaTitle}>Atención Requerida</Text>
+              <Text style={styles.ctaSubtitle}>Se detectaron problemas en tu vehículo.</Text>
+            </View>
           </View>
-          <TouchableOpacity style={styles.ctaButton} onPress={handleNavToService}>
-            <Text style={styles.ctaButtonText}>Agendar</Text>
-            <Ionicons name="arrow-forward" color="white" size={16} />
+          <TouchableOpacity activeOpacity={0.8} onPress={handleNavToService}>
+            <LinearGradient
+              colors={['#EF4444', '#DC2626']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.ctaButton}
+            >
+              <Text style={styles.ctaButtonText}>Agendar</Text>
+              <ArrowRight size={16} color="white" />
+            </LinearGradient>
           </TouchableOpacity>
         </Animatable.View>
       );
@@ -291,6 +310,25 @@ const VehicleHealthScreen = ({ route }) => {
 
   return (
     <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={['#030712', '#0a1628', '#030712']}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={styles.blob1} />
+      <View style={styles.blob2} />
+      <View style={styles.blob3} />
+
+      {/* Glass header with back button */}
+      <View style={[styles.screenHeader, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <ArrowLeft size={22} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.screenTitle}>Salud del Vehículo</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <FlatList
         data={listData}
         keyExtractor={(item, index) => item.slug || item.componente || String(index)}
@@ -310,11 +348,11 @@ const VehicleHealthScreen = ({ route }) => {
                 disabled={syncing}
                 accessibilityLabel="Sincronizar métricas de salud"
               >
-                <Ionicons
-                  name={syncing ? 'hourglass-outline' : 'sync-outline'}
-                  size={18}
-                  color={syncing ? COLORS.neutral.gray[400] : COLORS.primary[600]}
-                />
+                {syncing ? (
+                  <Hourglass size={18} color="rgba(255,255,255,0.35)" />
+                ) : (
+                  <RefreshCw size={18} color="#6EE7B7" />
+                )}
                 <Text style={[styles.syncButtonText, syncing && styles.syncButtonTextDisabled]}>
                   {syncing ? '…' : 'Sincronizar'}
                 </Text>
@@ -334,7 +372,7 @@ const VehicleHealthScreen = ({ route }) => {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="checkmark-circle-outline" size={64} color={COLORS.neutral.gray[300]} />
+              <CheckCircle size={64} color="rgba(255,255,255,0.2)" />
               <Text style={styles.emptyText}>Sin datos de componentes.</Text>
               <Text style={styles.emptySubText}>Tu vehículo parece estar nuevo en el sistema o no tiene reglas asignadas.</Text>
             </View>
@@ -351,10 +389,13 @@ const VehicleHealthScreen = ({ route }) => {
       >
         <View style={styles.modalOverlay}>
           <Animatable.View animation="zoomIn" duration={300} style={styles.modalCard}>
+            {Platform.OS === 'ios' && (
+              <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+            )}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>¿Cómo calculamos la salud de tu vehículo?</Text>
               <TouchableOpacity onPress={() => setShowHelpModal(false)}>
-                <Ionicons name="close" size={24} color={COLORS.base.inkBlack} />
+                <X size={24} color="#FFF" />
               </TouchableOpacity>
             </View>
 
@@ -375,19 +416,19 @@ const VehicleHealthScreen = ({ route }) => {
 
               <Text style={styles.helpSubtitle}>Niveles de estado</Text>
               <View style={styles.helpLevelRow}>
-                <View style={[styles.dot, { backgroundColor: COLORS.success[500] }]} />
+                <View style={[styles.dot, { backgroundColor: '#10B981' }]} />
                 <Text style={styles.helpLevelText}>Óptimo (≥70%): en buen estado.</Text>
               </View>
               <View style={styles.helpLevelRow}>
-                <View style={[styles.dot, { backgroundColor: COLORS.warning[500] }]} />
+                <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
                 <Text style={styles.helpLevelText}>Atención (40–70%): planificar revisión pronto.</Text>
               </View>
               <View style={styles.helpLevelRow}>
-                <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
+                <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
                 <Text style={styles.helpLevelText}>Urgente (10–40%): revisar a la brevedad.</Text>
               </View>
               <View style={styles.helpLevelRow}>
-                <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
+                <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
                 <Text style={styles.helpLevelText}>Crítico ({'<'}10%): atención inmediata.</Text>
               </View>
 
@@ -397,8 +438,15 @@ const VehicleHealthScreen = ({ route }) => {
               </Text>
             </ScrollView>
 
-            <TouchableOpacity style={styles.modalButton} onPress={() => setShowHelpModal(false)}>
-              <Text style={styles.modalButtonText}>Entendido</Text>
+            <TouchableOpacity activeOpacity={0.8} onPress={() => setShowHelpModal(false)}>
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.modalButton}
+              >
+                <Text style={styles.modalButtonText}>Entendido</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </Animatable.View>
         </View>
@@ -413,12 +461,15 @@ const VehicleHealthScreen = ({ route }) => {
       >
         <View style={styles.modalOverlay}>
           <Animatable.View animation="zoomIn" duration={300} style={styles.modalCardLarge}>
+            {Platform.OS === 'ios' && (
+              <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+            )}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle} numberOfLines={2}>
                 {selectedMetric?.name}
               </Text>
               <TouchableOpacity onPress={() => setSelectedMetric(null)} hitSlop={12}>
-                <Ionicons name="close" size={24} color={COLORS.base.inkBlack} />
+                <X size={24} color="#FFF" />
               </TouchableOpacity>
             </View>
 
@@ -429,7 +480,7 @@ const VehicleHealthScreen = ({ route }) => {
               keyboardShouldPersistTaps="handled"
             >
               <View style={styles.infoRow}>
-                <Ionicons name="speedometer-outline" size={20} color={COLORS.text.secondary} />
+                <Gauge size={20} color="rgba(255,255,255,0.5)" />
                 <Text style={styles.infoText}>
                   Próx. revisión en:{' '}
                   <Text style={styles.bold}>{selectedMetric?.vida_util}</Text>
@@ -437,7 +488,7 @@ const VehicleHealthScreen = ({ route }) => {
               </View>
               {selectedMetric?.salud_porcentaje != null && (
                 <View style={styles.infoRow}>
-                  <Ionicons name="heart-outline" size={20} color={COLORS.text.secondary} />
+                  <Heart size={20} color="rgba(255,255,255,0.5)" />
                   <Text style={styles.infoText}>
                     Salud del componente:{' '}
                     <Text style={styles.bold}>{Math.round(selectedMetric.salud_porcentaje)}%</Text>
@@ -485,7 +536,7 @@ const VehicleHealthScreen = ({ route }) => {
                       }}
                     >
                       <View style={styles.serviceCardIcon}>
-                        <Ionicons name="construct-outline" size={22} color={COLORS.primary[600]} />
+                        <Wrench size={22} color="#6EE7B7" />
                       </View>
                       <View style={styles.serviceCardBody}>
                         <Text style={styles.serviceCardTitle} numberOfLines={2}>
@@ -502,7 +553,7 @@ const VehicleHealthScreen = ({ route }) => {
                           </Text>
                         ) : null}
                       </View>
-                      <Ionicons name="chevron-forward" size={20} color={COLORS.neutral.gray[400]} />
+                      <ChevronRight size={20} color="rgba(255,255,255,0.35)" />
                     </TouchableOpacity>
                   ))}
                 </>
@@ -529,10 +580,60 @@ const VehicleHealthScreen = ({ route }) => {
   );
 };
 
-const createStyles = (theme) => StyleSheet.create({
+const createStyles = (insets) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: COLORS.background.default, // #F8F9FA
+    backgroundColor: '#030712',
+  },
+  screenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    zIndex: 10,
+  },
+  screenTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  blob1: {
+    position: 'absolute',
+    top: -80,
+    left: -80,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(16,185,129,0.08)',
+  },
+  blob2: {
+    position: 'absolute',
+    top: 200,
+    right: -100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
+    backgroundColor: 'rgba(99,102,241,0.06)',
+  },
+  blob3: {
+    position: 'absolute',
+    bottom: 50,
+    left: -60,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(6,182,212,0.05)',
   },
   listContent: {
     padding: 20,
@@ -542,15 +643,13 @@ const createStyles = (theme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
     padding: 20,
-    borderRadius: 24,
+    borderRadius: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
   },
   vehicleInfo: {
     flex: 1,
@@ -558,19 +657,19 @@ const createStyles = (theme) => StyleSheet.create({
   brand: {
     fontSize: 20,
     fontWeight: '800',
-    color: COLORS.base.inkBlack,
+    color: '#FFF',
     textTransform: 'uppercase',
   },
   plate: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: 'rgba(255,255,255,0.5)',
     marginTop: 4,
     fontWeight: '600',
   },
   kmBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: 'rgba(16,185,129,0.15)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -580,7 +679,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   kmText: {
     fontSize: 12,
-    color: COLORS.primary[600],
+    color: '#6EE7B7',
     fontWeight: '700',
   },
   scoreCircle: {
@@ -590,7 +689,7 @@ const createStyles = (theme) => StyleSheet.create({
     borderWidth: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
   scoreText: {
     fontSize: 22,
@@ -598,7 +697,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   scoreLabel: {
     fontSize: 10,
-    color: COLORS.text.tertiary,
+    color: 'rgba(255,255,255,0.35)',
     textTransform: 'uppercase',
     fontWeight: '600',
   },
@@ -618,23 +717,23 @@ const createStyles = (theme) => StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: COLORS.primary[50] || '#EEF2FF',
+    backgroundColor: 'rgba(16,185,129,0.12)',
     borderWidth: 1,
-    borderColor: COLORS.primary[200] || '#C7D2FE',
+    borderColor: 'rgba(16,185,129,0.25)',
     flexShrink: 0,
   },
   syncButtonDisabled: {
-    opacity: 0.7,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderColor: COLORS.neutral.gray[200],
+    opacity: 0.5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   syncButtonText: {
     fontSize: 14,
-    color: COLORS.primary[700] || COLORS.primary[600],
+    color: '#6EE7B7',
     fontWeight: '600',
   },
   syncButtonTextDisabled: {
-    color: COLORS.neutral.gray[500],
+    color: 'rgba(255,255,255,0.35)',
   },
   legendRow: {
     flexDirection: 'row',
@@ -652,7 +751,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   legendText: {
     fontSize: 12,
-    color: COLORS.text.secondary,
+    color: 'rgba(255,255,255,0.5)',
     fontWeight: '500',
   },
   helpLink: {
@@ -662,7 +761,7 @@ const createStyles = (theme) => StyleSheet.create({
   },
   helpLinkText: {
     fontSize: 14,
-    color: COLORS.primary[500],
+    color: '#93C5FD',
     fontWeight: '600',
   },
   helpScrollView: {
@@ -673,14 +772,14 @@ const createStyles = (theme) => StyleSheet.create({
   },
   helpSectionText: {
     fontSize: 14,
-    color: COLORS.text.primary,
+    color: 'rgba(255,255,255,0.7)',
     lineHeight: 22,
     marginBottom: 12,
   },
   helpSubtitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.base.inkBlack,
+    color: '#FFF',
     marginTop: 16,
     marginBottom: 8,
   },
@@ -692,11 +791,11 @@ const createStyles = (theme) => StyleSheet.create({
   },
   helpLevelText: {
     fontSize: 14,
-    color: COLORS.text.primary,
+    color: 'rgba(255,255,255,0.7)',
     lineHeight: 20,
   },
   ctaContainer: {
-    backgroundColor: '#FEF2F2', // Red 50
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.12)',
     borderRadius: 16,
     padding: 16,
     flexDirection: 'row',
@@ -704,19 +803,28 @@ const createStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: 'rgba(239,68,68,0.25)',
+    overflow: 'hidden',
+  },
+  ctaContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  ctaTextWrap: {
+    flex: 1,
   },
   ctaTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#991B1B', // Red 800
+    color: '#F87171',
   },
   ctaSubtitle: {
     fontSize: 12,
-    color: '#B91C1C', // Red 700
+    color: 'rgba(248,113,113,0.7)',
   },
   ctaButton: {
-    backgroundColor: '#DC2626', // Red 600
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
@@ -739,7 +847,7 @@ const createStyles = (theme) => StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.base.inkBlack,
+    color: '#FFF',
     flex: 1,
   },
   emptyState: {
@@ -749,12 +857,12 @@ const createStyles = (theme) => StyleSheet.create({
   emptyText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.neutral.gray[500],
+    color: 'rgba(255,255,255,0.5)',
     marginTop: 16,
   },
   emptySubText: {
     fontSize: 13,
-    color: COLORS.neutral.gray[400],
+    color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
     marginTop: 8,
     maxWidth: '70%',
@@ -762,20 +870,26 @@ const createStyles = (theme) => StyleSheet.create({
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     padding: 24,
   },
   modalCard: {
-    backgroundColor: 'white',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
     borderRadius: 24,
     padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
   },
   modalCardLarge: {
-    backgroundColor: 'white',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
     borderRadius: 24,
     padding: 20,
     maxHeight: '85%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
   },
   modalScroll: {
     maxHeight: 340,
@@ -786,38 +900,38 @@ const createStyles = (theme) => StyleSheet.create({
   modalSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.base.inkBlack,
+    color: '#FFF',
     marginTop: 8,
     marginBottom: 4,
   },
   modalSectionHint: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: 'rgba(255,255,255,0.5)',
     marginBottom: 12,
     lineHeight: 18,
   },
   infoBoxLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.text.tertiary,
+    color: 'rgba(255,255,255,0.35)',
     marginBottom: 6,
     textTransform: 'uppercase',
   },
   serviceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background.default,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: COLORS.neutral.gray[100],
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   serviceCardIcon: {
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: 'rgba(16,185,129,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -829,18 +943,18 @@ const createStyles = (theme) => StyleSheet.create({
   serviceCardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.base.inkBlack,
+    color: '#FFF',
   },
   serviceCardDesc: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: 'rgba(255,255,255,0.5)',
     marginTop: 4,
     lineHeight: 18,
   },
   serviceCardMeta: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.primary[600],
+    color: '#6EE7B7',
     marginTop: 6,
   },
   modalButtonSecondary: {
@@ -848,10 +962,12 @@ const createStyles = (theme) => StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.gray[100],
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   modalButtonSecondaryText: {
-    color: COLORS.text.primary,
+    color: '#FFF',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -864,7 +980,9 @@ const createStyles = (theme) => StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.base.inkBlack,
+    color: '#FFF',
+    flex: 1,
+    marginRight: 12,
   },
   modalBody: {
     marginBottom: 24,
@@ -877,23 +995,25 @@ const createStyles = (theme) => StyleSheet.create({
   },
   infoText: {
     fontSize: 15,
-    color: COLORS.text.primary,
+    color: 'rgba(255,255,255,0.7)',
   },
   bold: {
     fontWeight: '700',
+    color: '#FFF',
   },
   infoBox: {
-    backgroundColor: COLORS.background.default,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     padding: 16,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   infoBoxText: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: 'rgba(255,255,255,0.5)',
     lineHeight: 20,
   },
   modalButton: {
-    backgroundColor: COLORS.primary[600],
     paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',

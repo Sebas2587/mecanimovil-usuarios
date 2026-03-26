@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
-    Switch, ActivityIndicator, Alert, Modal, TextInput, RefreshControl
+    Switch, ActivityIndicator, Alert, Modal, TextInput, RefreshControl, Platform
 } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useTheme } from '../../design-system/theme/useTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // React Query Imports
@@ -19,7 +20,6 @@ import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 const SellVehicleScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const theme = useTheme();
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
 
@@ -150,19 +150,27 @@ const SellVehicleScreen = () => {
         }).format(value || 0);
     };
 
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
+    const safeTop = Math.max(
+        insets.top,
+        Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0
+    );
+    const styles = getStyles(insets, safeTop);
 
-    const styles = getStyles(colors, typography, spacing, borders, insets);
+    const Background = () => (
+        <>
+            <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+            <View style={{ position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+            <View style={{ position: 'absolute', bottom: 100, left: -50, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        </>
+    );
 
     if (isLoading) {
         return (
             <View style={styles.container}>
+                <Background />
                 <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
                 {/* Header Skeleton */}
-                <View style={{ height: 200, backgroundColor: '#1F2937' }}>
+                <View style={{ height: 228, backgroundColor: '#0a1628' }}>
                     <View style={{ position: 'absolute', top: insets.top + 10, left: 20 }}>
                         <Skeleton width={40} height={40} borderRadius={20} style={{ opacity: 0.2 }} />
                     </View>
@@ -204,6 +212,7 @@ const SellVehicleScreen = () => {
 
     return (
         <View style={styles.container}>
+            <Background />
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
             <ScrollView
@@ -212,7 +221,7 @@ const SellVehicleScreen = () => {
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#FFF" />}
             >
-                {/* 1. Immersive Header */}
+                {/* 1. Immersive Header (sin topBar aquí: va fijo encima para que nada se solape) */}
                 <View style={styles.headerContainer}>
                     <View style={styles.imageWrapper}>
                         {vehicle?.foto ? (
@@ -227,37 +236,21 @@ const SellVehicleScreen = () => {
                         <View style={styles.overlay} />
                     </View>
 
-                    <View style={styles.topBar}>
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={() => navigation.goBack()}
-                        >
-                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-
-                        <View style={[
-                            styles.statusBadge,
-                            isPublished ? styles.statusPublished : styles.statusDraft
-                        ]}>
-                            <View style={[
-                                styles.statusDot,
-                                isPublished ? styles.dotPublished : styles.dotDraft
-                            ]} />
-                            <Text style={[
-                                styles.statusText,
-                                isPublished ? styles.textPublished : styles.textDraft
-                            ]}>
-                                {isPublished ? 'PUBLICADO' : 'BORRADOR'}
+                    {/* Bandas oscuras bajo la zona del back: los textos solo en la parte baja del header */}
+                    <View style={styles.headerTextSafeZone} pointerEvents="none">
+                        <View style={styles.headerInfo}>
+                            <Text style={styles.headerSubtitle}>Gestión de Venta</Text>
+                            <Text
+                                style={styles.headerTitle}
+                                numberOfLines={2}
+                                ellipsizeMode="tail"
+                            >
+                                {vehicle?.marca_nombre || vehicle?.marca} {vehicle?.modelo_nombre || vehicle?.modelo}
+                            </Text>
+                            <Text style={styles.headerSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                                {vehicle?.year} • {vehicle?.patente}
                             </Text>
                         </View>
-                    </View>
-
-                    <View style={styles.headerInfo}>
-                        <Text style={styles.headerSubtitle}>Gestión de Venta</Text>
-                        <Text style={styles.headerTitle}>
-                            {vehicle?.marca_nombre || vehicle?.marca} {vehicle?.modelo_nombre || vehicle?.modelo}
-                        </Text>
-                        <Text style={styles.headerSubtitle}>{vehicle?.year} • {vehicle?.patente}</Text>
                     </View>
                 </View>
 
@@ -269,7 +262,7 @@ const SellVehicleScreen = () => {
                         <View style={styles.cardHeader}>
                             <Text style={styles.cardTitle}>Precio de Venta</Text>
                             <TouchableOpacity style={styles.editButton} onPress={openPriceModal}>
-                                <Ionicons name="pencil" size={16} color={colors.primary?.main || '#003459'} />
+                                <Ionicons name="pencil" size={16} color="#93C5FD" />
                                 <Text style={styles.editButtonText}>Editar</Text>
                             </TouchableOpacity>
                         </View>
@@ -306,16 +299,16 @@ const SellVehicleScreen = () => {
                     {/* Visibility Card */}
                     <View style={styles.card}>
                         <View style={styles.cardHeaderRow}>
-                            <Ionicons name="eye-outline" size={20} color={colors.text?.primary || '#111827'} />
+                            <Ionicons name="eye-outline" size={20} color="#E5E7EB" />
                             <Text style={[styles.cardTitle, { marginLeft: 8 }]}>Visibilidad en Marketplace</Text>
                         </View>
 
                         <View style={styles.toggleRow}>
                             <Text style={styles.toggleLabel}>Publicar Vehículo</Text>
                             <Switch
-                                trackColor={{ false: colors.neutral?.gray?.[300] || '#D1D5DB', true: colors.success?.main || '#10B981' }}
+                                trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#10B981' }}
                                 thumbColor={'#FFFFFF'}
-                                ios_backgroundColor={colors.neutral?.gray?.[300] || '#D1D5DB'}
+                                ios_backgroundColor="rgba(255,255,255,0.15)"
                                 onValueChange={togglePublish}
                                 value={isPublished}
                             />
@@ -324,7 +317,7 @@ const SellVehicleScreen = () => {
                         <View style={styles.separator} />
 
                         <View style={styles.toggleRow}>
-                            <Text style={[styles.toggleLabel, { color: colors.text?.disabled || '#9CA3AF' }]}>Destacar Publicación</Text>
+                            <Text style={[styles.toggleLabel, styles.toggleLabelDisabled]}>Destacar Publicación</Text>
                             <Switch
                                 trackColor={{ false: '#E5E7EB', true: '#E5E7EB' }}
                                 thumbColor={'#F3F4F6'}
@@ -341,7 +334,7 @@ const SellVehicleScreen = () => {
                             <View style={styles.decorativeCircle} />
 
                             <View style={styles.cardHeaderRow}>
-                                <Ionicons name="stats-chart-outline" size={20} color={colors.primary?.light || '#38BDF8'} />
+                                <Ionicons name="stats-chart-outline" size={20} color="#38BDF8" />
                                 <Text style={styles.darkCardTitle}>Rendimiento</Text>
                             </View>
 
@@ -362,24 +355,58 @@ const SellVehicleScreen = () => {
                         </View>
                     )}
 
-                    {/* Padding before footer - Increased per request */}
-                    <View style={{ height: 140 }} />
+                    {/* Espacio para que la card Rendimiento no quede bajo el sticky inferior */}
+                    <View style={{ height: 100 + insets.bottom + 80 }} />
                 </View>
             </ScrollView>
 
-            {/* 3. Footer Actions */}
-            < View style={styles.footerContainer} >
-                <TouchableOpacity style={styles.outlineButton} onPress={() => Alert.alert("Compartir", "Funcionalidad próximamente")}>
-                    <Ionicons name="share-outline" size={20} color={colors.text?.primary || '#374151'} />
+            {/* Barra back + badge FUERA del scroll: siempre encima; los textos solo se pintan en headerTextSafeZone */}
+            <View style={styles.headerTopOverlay} pointerEvents="box-none">
+                <View style={styles.topBar}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+                    <View
+                        style={[
+                            styles.statusBadge,
+                            isPublished ? styles.statusPublished : styles.statusDraft
+                        ]}
+                    >
+                        <View
+                            style={[
+                                styles.statusDot,
+                                isPublished ? styles.dotPublished : styles.dotDraft
+                            ]}
+                        />
+                        <Text
+                            style={[
+                                styles.statusText,
+                                isPublished ? styles.textPublished : styles.textDraft
+                            ]}
+                        >
+                            {isPublished ? 'PUBLICADO' : 'BORRADOR'}
+                        </Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* 3. Footer: solo Compartir Ficha (eliminada opción eliminar publicación) */}
+            <View style={styles.footerContainer}>
+                <TouchableOpacity
+                    style={styles.outlineButton}
+                    onPress={() => Alert.alert('Compartir', 'Funcionalidad próximamente')}
+                >
+                    <Ionicons name="share-outline" size={20} color="rgba(255,255,255,0.85)" />
                     <Text style={styles.outlineButtonText}>Compartir Ficha</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.textButton}>
-                    <Text style={styles.textButtonText}>Eliminar Publicación</Text>
-                </TouchableOpacity>
-            </View >
+            </View>
 
             {/* Price Edit Modal */}
-            < Modal
+            <Modal
                 visible={priceModalVisible}
                 transparent={true}
                 animationType="fade"
@@ -391,6 +418,8 @@ const SellVehicleScreen = () => {
                     onPress={() => setPriceModalVisible(false)}
                 >
                     <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+                        {Platform.OS === 'ios' && <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />}
+                        <View style={styles.modalGlassFill} pointerEvents="none" />
                         <Text style={styles.modalTitle}>Editar Precio de Venta</Text>
                         <Text style={styles.modalSubtitle}>
                             Define el precio al que quieres vender tu vehículo.
@@ -399,6 +428,7 @@ const SellVehicleScreen = () => {
                         <TextInput
                             style={styles.input}
                             placeholder="Ej: 8000000"
+                            placeholderTextColor="rgba(255,255,255,0.35)"
                             keyboardType="numeric"
                             value={newPriceInput}
                             onChangeText={setNewPriceInput}
@@ -421,15 +451,17 @@ const SellVehicleScreen = () => {
                         </View>
                     </View>
                 </TouchableOpacity>
-            </Modal >
-        </View >
+            </Modal>
+        </View>
     );
 };
 
-const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.create({
+const GLASS = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
+
+const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background?.default || '#F3F4F6',
+        backgroundColor: '#030712',
     },
     scrollView: {
         flex: 1,
@@ -437,12 +469,13 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     scrollContent: {
         paddingBottom: 0,
     },
-    // Header
+    // Header (más alto para que la zona de textos no quede comprimida bajo el overlay)
     headerContainer: {
-        height: 200,
+        height: 228,
         width: '100%',
         position: 'relative',
         backgroundColor: '#000',
+        overflow: 'hidden',
     },
     imageWrapper: {
         width: '100%',
@@ -456,17 +489,25 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     },
     overlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.3)', // Extra overlay
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        zIndex: 0,
     },
-    topBar: {
+    // Overlay fijo encima del ScrollView (back + badge)
+    headerTopOverlay: {
         position: 'absolute',
-        top: insets.top + 10,
+        top: 0,
         left: 0,
         right: 0,
+        zIndex: 20,
+        elevation: 20,
+    },
+    topBar: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
+        paddingTop: safeTop + 8,
+        paddingBottom: 12,
     },
     backButton: {
         width: 40,
@@ -487,14 +528,14 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         borderRadius: 20,
     },
     statusPublished: {
-        backgroundColor: 'rgba(16, 185, 129, 0.9)', // More solid for visibility
+        backgroundColor: 'rgba(16, 185, 129, 0.9)',
         borderWidth: 1,
-        borderColor: colors.success?.main || '#10B981',
+        borderColor: '#10B981',
     },
     statusDraft: {
-        backgroundColor: 'rgba(75, 85, 99, 0.8)', // More solid
+        backgroundColor: 'rgba(75, 85, 99, 0.8)',
         borderWidth: 1,
-        borderColor: colors.neutral?.gray?.[400] || '#9CA3AF',
+        borderColor: '#9CA3AF',
     },
     statusDot: {
         width: 6,
@@ -519,11 +560,22 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     textDraft: {
         color: '#FFFFFF',
     },
-    headerInfo: {
+    // Solo esta banda puede mostrar textos; overflow hidden recorta cualquier cosa que suba
+    // safeTop + fila back (~56) + margen extra para que nunca toque el botón
+    headerTextSafeZone: {
         position: 'absolute',
-        bottom: 20,
-        left: 20,
-        right: 20,
+        top: safeTop + 8 + 44 + 8 + 20,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'flex-end',
+        paddingHorizontal: 20,
+        paddingBottom: 20,
+        overflow: 'hidden',
+        zIndex: 1,
+    },
+    headerInfo: {
+        width: '100%',
     },
     headerTitle: {
         color: '#FFFFFF',
@@ -539,25 +591,23 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         fontSize: 14,
         fontWeight: '500',
     },
-    // Body
     bodyContainer: {
         marginTop: -16,
-        backgroundColor: colors.background?.default || '#F3F4F6',
+        backgroundColor: '#030712',
+        zIndex: 0,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         paddingHorizontal: 20,
-        paddingTop: 32, // Increased top padding per request
+        paddingTop: 32,
     },
     card: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: GLASS,
         borderRadius: 16,
         padding: 20,
         marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     cardHeader: {
         flexDirection: 'row',
@@ -573,7 +623,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     cardTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: colors.text?.primary || '#111827',
+        color: '#FFFFFF',
     },
     editButton: {
         flexDirection: 'row',
@@ -581,7 +631,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         padding: 4,
     },
     editButtonText: {
-        color: colors.primary?.main || '#003459',
+        color: '#93C5FD',
         fontWeight: '600',
         fontSize: 14,
         marginLeft: 4,
@@ -595,25 +645,25 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     priceSymbol: {
         fontSize: 20,
         fontWeight: '600',
-        color: colors.text?.primary || '#111827',
+        color: 'rgba(255,255,255,0.85)',
         marginTop: 6,
         marginRight: 2,
     },
     priceValue: {
-        fontSize: 32, // Slightly smaller to prevent wrap
+        fontSize: 32,
         fontWeight: '800',
-        color: colors.text?.primary || '#111827',
+        color: '#FFFFFF',
     },
     suggestedPrice: {
         textAlign: 'center',
         fontSize: 13,
-        color: colors.text?.secondary || '#6B7280',
+        color: 'rgba(255,255,255,0.45)',
         marginBottom: 20,
     },
     insightBox: {
-        backgroundColor: '#EFF6FF',
+        backgroundColor: 'rgba(59,130,246,0.12)',
         borderWidth: 1,
-        borderColor: '#BFDBFE',
+        borderColor: 'rgba(147,197,253,0.25)',
         borderRadius: 12,
         padding: 16,
     },
@@ -625,16 +675,16 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     insightTitle: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#1E40AF',
+        color: '#93C5FD',
     },
     insightValue: {
         fontSize: 12,
         fontWeight: '700',
-        color: colors.success?.main || '#10B981',
+        color: '#6EE7B7',
     },
     progressBarBackground: {
         height: 6,
-        backgroundColor: '#DBEAFE',
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 3,
         marginBottom: 8,
     },
@@ -645,7 +695,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     },
     insightDescription: {
         fontSize: 11,
-        color: '#3B82F6',
+        color: 'rgba(147,197,253,0.9)',
     },
     // Visibility
     toggleRow: {
@@ -657,21 +707,26 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     toggleLabel: {
         fontSize: 14,
         fontWeight: '500',
-        color: colors.text?.primary || '#374151',
+        color: 'rgba(255,255,255,0.9)',
+    },
+    toggleLabelDisabled: {
+        color: 'rgba(255,255,255,0.35)',
     },
     separator: {
         height: 1,
-        backgroundColor: colors.border?.light || '#F3F4F6',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         marginVertical: 12,
     },
     // Performance Card
     darkCard: {
-        backgroundColor: '#111827',
+        backgroundColor: 'rgba(15,23,42,0.85)',
         borderRadius: 16,
         padding: 20,
         marginBottom: 20,
         position: 'relative',
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     decorativeCircle: {
         position: 'absolute',
@@ -710,17 +765,18 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         color: '#9CA3AF',
         letterSpacing: 0.5,
     },
-    // Footer
     footerContainer: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        padding: 20,
-        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: insets.bottom + 16,
+        backgroundColor: 'rgba(3,7,18,0.92)',
         borderTopWidth: 1,
-        borderTopColor: colors.border?.light || '#E5E7EB',
-        paddingBottom: insets.bottom + 10,
+        borderTopColor: 'rgba(255,255,255,0.08)',
+        zIndex: 5,
     },
     outlineButton: {
         flexDirection: 'row',
@@ -729,61 +785,64 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         paddingVertical: 14,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: colors.border?.medium || '#D1D5DB',
-        backgroundColor: '#FFFFFF',
-        marginBottom: 16,
+        borderColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: 'rgba(255,255,255,0.06)',
     },
     outlineButtonText: {
         marginLeft: 8,
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text?.primary || '#374151',
-    },
-    textButton: {
-        alignItems: 'center',
-        paddingVertical: 8,
-    },
-    textButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: colors.error?.main || '#EF4444',
+        color: 'rgba(255,255,255,0.9)',
     },
     // Modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 24,
     },
     modalContent: {
-        backgroundColor: 'white',
         borderRadius: 24,
         padding: 24,
         width: '100%',
         alignItems: 'center',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: GLASS,
+    },
+    modalGlassFill: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: GLASS,
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: '700',
         marginBottom: 8,
-        color: '#1F2937',
+        color: '#FFFFFF',
+        zIndex: 1,
     },
     modalSubtitle: {
         fontSize: 14,
-        color: '#6B7280',
+        color: 'rgba(255,255,255,0.5)',
         textAlign: 'center',
         marginBottom: 20,
+        zIndex: 1,
     },
     input: {
         width: '100%',
-        backgroundColor: '#F3F4F6',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderRadius: 12,
         padding: 16,
         fontSize: 18,
         fontWeight: '600',
         marginBottom: 24,
         textAlign: 'center',
+        color: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        zIndex: 1,
     },
     modalButtons: {
         flexDirection: 'row',

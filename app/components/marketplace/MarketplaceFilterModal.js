@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) => {
-    const theme = useTheme();
-    const insets = useSafeAreaInsets();
-    const colors = theme?.colors || {};
+const BLUR_I = Platform.OS === 'ios' ? 40 : 0;
 
-    // Local state for filters
+const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) => {
+    const insets = useSafeAreaInsets();
+
     const [filters, setFilters] = useState({
         priceMin: '',
         priceMax: '',
@@ -19,7 +18,6 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
         kmMax: '',
     });
 
-    // Load current filters when modal opens
     useEffect(() => {
         if (visible) {
             setFilters({
@@ -35,22 +33,17 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
 
     const formatCurrency = (value) => {
         if (!value) return '';
-        // Remove non-numeric characters first
         const num = value.replace(/\D/g, '');
         if (!num) return '';
-        // Format with thousands separator
-        return num.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        return num.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     };
 
     const parseCurrency = (value) => {
         if (!value) return '';
-        // Return raw number string
         return value.replace(/\./g, '');
     };
 
-    // Handlers for Price Input Changes
     const handlePriceMinChange = (text) => {
-        // We only allow numeric input (and dots if pasting, but we strip them to re-format)
         const raw = text.replace(/\D/g, '');
         const formatted = formatCurrency(raw);
         setFilters(prev => ({ ...prev, priceMin: formatted }));
@@ -63,7 +56,6 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
     };
 
     const handleApply = () => {
-        // Send raw numbers to parent
         const cleanFilters = {
             ...filters,
             priceMin: parseCurrency(filters.priceMin),
@@ -83,17 +75,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
             kmMax: '',
         };
         setFilters(cleared);
-        // Important: Pass cleared values back to parent so they apply immediately or at least clear the parent state
-        // If we want "Apply" to confirm, we shouldn't call onApply here.
-        // But usually "Clear" immediately resets the selection.
-        // Let's reset local state only, so user has to click apply?
-        // Actually user request implies the filter wasn't working well.
-        // Let's make "Clear" just clear inputs. User clicks Apply to confirm.
-        // But for better UX, if I click "Limpiar", I expect filters to be gone.
-        // I will make it clear local state only.
     };
-
-    const styles = getStyles(colors, insets);
 
     return (
         <Modal
@@ -104,12 +86,16 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
         >
             <View style={styles.modalOverlay}>
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={styles.modalContent}
                 >
+                    <View style={styles.sheetBase} pointerEvents="none" />
+                    {Platform.OS === 'ios' && (
+                        <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />
+                    )}
                     <View style={styles.header}>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <Ionicons name="close" size={24} color={colors.text?.primary || '#111827'} />
+                            <Ionicons name="close" size={24} color="#F9FAFB" />
                         </TouchableOpacity>
                         <Text style={styles.title}>Filtros</Text>
                         <TouchableOpacity onPress={handleClear}>
@@ -118,8 +104,6 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                     </View>
 
                     <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-                        {/* Price Range */}
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Precio ($)</Text>
                             <View style={styles.row}>
@@ -128,6 +112,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="0"
+                                        placeholderTextColor="rgba(255,255,255,0.35)"
                                         keyboardType="numeric"
                                         value={filters.priceMin}
                                         onChangeText={handlePriceMinChange}
@@ -139,6 +124,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Sin límite"
+                                        placeholderTextColor="rgba(255,255,255,0.35)"
                                         keyboardType="numeric"
                                         value={filters.priceMax}
                                         onChangeText={handlePriceMaxChange}
@@ -148,7 +134,6 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                             </View>
                         </View>
 
-                        {/* Year Range */}
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Año</Text>
                             <View style={styles.row}>
@@ -157,6 +142,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="ej. 2015"
+                                        placeholderTextColor="rgba(255,255,255,0.35)"
                                         keyboardType="numeric"
                                         maxLength={4}
                                         value={filters.yearMin}
@@ -168,6 +154,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="ej. 2024"
+                                        placeholderTextColor="rgba(255,255,255,0.35)"
                                         keyboardType="numeric"
                                         maxLength={4}
                                         value={filters.yearMax}
@@ -177,7 +164,6 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                             </View>
                         </View>
 
-                        {/* Mileage Range */}
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Kilometraje (km)</Text>
                             <View style={styles.row}>
@@ -186,6 +172,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="0"
+                                        placeholderTextColor="rgba(255,255,255,0.35)"
                                         keyboardType="numeric"
                                         value={filters.kmMin}
                                         onChangeText={(t) => setFilters(prev => ({ ...prev, kmMin: t }))}
@@ -196,6 +183,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Sin límite"
+                                        placeholderTextColor="rgba(255,255,255,0.35)"
                                         keyboardType="numeric"
                                         value={filters.kmMax}
                                         onChangeText={(t) => setFilters(prev => ({ ...prev, kmMax: t }))}
@@ -218,24 +206,28 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
     );
 };
 
-const getStyles = (colors, insets) => StyleSheet.create({
+const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0,0,0,0.55)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#0a0f1a',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         maxHeight: '90%',
         minHeight: '50%',
         width: '100%',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 5,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
+    },
+    sheetBase: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(10,15,26,0.94)',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
     },
     header: {
         flexDirection: 'row',
@@ -244,7 +236,8 @@ const getStyles = (colors, insets) => StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
+        zIndex: 2,
     },
     closeButton: {
         padding: 4,
@@ -252,15 +245,16 @@ const getStyles = (colors, insets) => StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: colors.text?.primary || '#111827',
+        color: '#F9FAFB',
     },
     clearText: {
         fontSize: 14,
-        color: colors.primary?.main || '#003459',
+        color: '#93C5FD',
         fontWeight: '600',
     },
     scrollContent: {
         padding: 20,
+        zIndex: 2,
     },
     section: {
         marginBottom: 24,
@@ -268,7 +262,7 @@ const getStyles = (colors, insets) => StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: colors.text?.primary || '#111827',
+        color: '#F9FAFB',
         marginBottom: 12,
     },
     row: {
@@ -280,30 +274,33 @@ const getStyles = (colors, insets) => StyleSheet.create({
     },
     label: {
         fontSize: 12,
-        color: '#6B7280',
+        color: 'rgba(255,255,255,0.45)',
         marginBottom: 6,
     },
     input: {
         height: 48,
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
         borderRadius: 12,
         paddingHorizontal: 12,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: 'rgba(255,255,255,0.05)',
         fontSize: 14,
-        color: '#111827',
+        color: '#F9FAFB',
     },
     footer: {
         padding: 20,
         borderTopWidth: 1,
-        borderTopColor: '#F3F4F6',
+        borderTopColor: 'rgba(255,255,255,0.08)',
+        zIndex: 2,
     },
     applyButton: {
-        backgroundColor: colors.primary?.main || '#003459',
+        backgroundColor: 'rgba(16,185,129,0.85)',
         height: 50,
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     applyButtonText: {
         color: '#FFFFFF',

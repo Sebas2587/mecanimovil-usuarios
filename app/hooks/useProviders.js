@@ -118,8 +118,11 @@ export const useProviderDetails = (id, type) => {
             return await get(endpoint);
         },
         enabled: !!id && !!type,
-        staleTime: 1000 * 60 * 5, // 5 min
-        refetchInterval: 30000, // Poll every 30s
+        staleTime: 1000 * 60 * 5,   // 5 min
+        gcTime: 1000 * 60 * 30,     // 30 min en memoria
+        refetchOnMount: false,       // no refetch si los datos son frescos
+        refetchOnWindowFocus: false,
+        // refetchInterval eliminado: el polling cada 30s multiplicaba los requests al backend
     });
 };
 
@@ -127,121 +130,76 @@ export const useProviderServices = (id, type, providerName) => {
     return useQuery({
         queryKey: ['providerServices', type, id],
         queryFn: async () => {
-            console.log(`[useProviderServices] Query starting for ${type} ${id}`);
             const endpoint = type === 'taller'
                 ? `/servicios/ofertas/por_taller/?taller=${id}`
                 : `/servicios/ofertas/por_mecanico/?mecanico=${id}`;
 
-            console.log(`[useProviderServices] Fetching from: ${endpoint}`);
             const response = await get(endpoint);
-            console.log(`[useProviderServices] Raw response received for ${type} ${id}:`, response ? 'yes' : 'no');
-
-            // Handle paginated response or direct array
             const ofertas = Array.isArray(response) ? response : (response?.results || []);
 
-            console.log(`[useProviderServices] Fetched ${ofertas.length} offers for ${type} ${id}. Structuring...`);
+            if (ofertas.length === 0) return [];
 
-            // Process offers (logic integrated from ProviderDetailScreen)
+            // El backend ahora embebe categorias_info y modelos_info directamente
+            // en oferta.servicio_info, eliminando la necesidad de N requests adicionales.
             const serviciosMap = new Map();
 
-            // Use Promise.all for parallel fetching of details
-            if (ofertas.length === 0) {
-                console.log(`[useProviderServices] No offers found for ${type} ${id}`);
-                return [];
-            }
+            ofertas.forEach((oferta) => {
+                const info = oferta.servicio_info || {};
+                const servicioId = info.id || oferta.servicio || oferta.id;
+                if (!servicioId) return;
 
-            await Promise.all(ofertas.map(async (oferta) => {
-                // Determine service ID from various possible fields
-                const servicioId = oferta.servicio_info?.id || oferta.servicio || oferta.id;
+                const categoriasInfo = info.categorias_info || [];
+                const modelosInfo = info.modelos_info || [];
 
-                if (!servicioId) {
-                    console.warn('[useProviderServices] Could not determine service ID for offer:', oferta);
-                    return;
-                }
-                let servicioFinal;
+                const servicioFinal = {
+                    id: servicioId,
+                    nombre: info.nombre || 'Servicio',
+                    descripcion: info.descripcion || '',
+                    categoria: categoriasInfo[0]?.nombre || 'General',
+                    foto: info.foto || null,
+                    duracion_estimada_base: info.duracion_estimada_base || null,
+                    precio_referencia: info.precio_referencia || null,
+                    categorias_completas: categoriasInfo,
+                    modelos_info: modelosInfo,
+                    modelos_compatibles: modelosInfo.map((m) => {
+                        const marca = m.marca_nombre || '';
+                        const nom = m.nombre || m.modelo_nombre || '';
+                        return `${marca} ${nom}`.trim() || String(m.id || '');
+                    }),
 
-                try {
-                    const servicioCompleto = await get(`/servicios/servicios/${servicioId}/`);
-                    const primeraCategoria = servicioCompleto.categorias_info?.[0]?.nombre || 'General';
+                    // Precios y detalles de la oferta
+                    precio_con_repuestos: oferta.precio_con_repuestos,
+                    precio_sin_repuestos: oferta.precio_sin_repuestos,
+                    tipo_servicio: oferta.tipo_servicio || 'sin_repuestos',
+                    costo_mano_de_obra_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0),
+                    costo_repuestos_sin_iva: parseFloat(oferta.costo_repuestos_sin_iva || 0),
+                    precio_real_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0) + parseFloat(oferta.costo_repuestos_sin_iva || 0),
+                    precio_publicado_cliente: parseFloat(oferta.precio_publicado_cliente || 0),
+                    fotos_servicio: oferta.fotos_servicio || [],
+                    desglose_precios: oferta.desglose_precios || {},
+                    oferta_id: oferta.id,
+                    duracion_estimada: oferta.duracion_estimada,
+                    incluye_garantia: oferta.incluye_garantia,
+                    duracion_garantia: oferta.duracion_garantia,
 
-                    servicioFinal = {
-                        id: servicioId,
-                        nombre: servicioCompleto.nombre || oferta.servicio_info.nombre,
-                        descripcion: servicioCompleto.descripcion || oferta.servicio_info.descripcion,
-                        categoria: primeraCategoria,
-
-                        // Legacy Data
-                        precio_con_repuestos: oferta.precio_con_repuestos,
-                        precio_sin_repuestos: oferta.precio_sin_repuestos,
-
-                        // New Data
-                        tipo_servicio: oferta.tipo_servicio,
-                        costo_mano_de_obra_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0),
-                        costo_repuestos_sin_iva: parseFloat(oferta.costo_repuestos_sin_iva || 0),
-                        precio_real_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0) + parseFloat(oferta.costo_repuestos_sin_iva || 0),
-                        precio_publicado_cliente: parseFloat(oferta.precio_publicado_cliente || 0),
-                        fotos_servicio: oferta.fotos_servicio || [],
-                        desglose_precios: oferta.desglose_precios || {},
-
-                        oferta_id: oferta.id,
-                        duracion_estimada: oferta.duracion_estimada,
-                        incluye_garantia: oferta.incluye_garantia,
-                        duracion_garantia: oferta.duracion_garantia,
-
-                        duracion_estimada_base: servicioCompleto.duracion_estimada_base,
-                        precio_referencia: servicioCompleto.precio_referencia,
-                        foto: servicioCompleto.foto,
-                        categorias_completas: servicioCompleto.categorias_info,
-
-                        modelos_info: servicioCompleto.modelos_info || [],
-                        // API ModeloSerializer usa 'nombre' (modelo), no 'modelo_nombre' → evitar "Marca undefined"
-                        modelos_compatibles: (servicioCompleto.modelos_info || []).map((modelo) => {
-                            const marca = modelo.marca_nombre || modelo.marca || '';
-                            const nom = modelo.nombre || modelo.modelo_nombre || '';
-                            return `${marca} ${nom}`.trim() || String(modelo.id || '');
-                        }),
-
-                        tipo_proveedor: type,
-                        [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
-                        [type === 'taller' ? 'taller_info' : 'mecanico_info']: {
-                            id: id,
-                            nombre: providerName || 'Sin nombre',
-                        }
-                    };
-                } catch (error) {
-                    console.warn(`[useProviderServices] Error fetching detail for service ${servicioId}:`, error);
-                    // Fallback for failed service details fetch
-                    servicioFinal = {
-                        id: servicioId,
-                        nombre: oferta.servicio_info.nombre,
-                        descripcion: oferta.servicio_info.descripcion,
-                        categoria: 'General',
-
-                        precio_con_repuestos: oferta.precio_con_repuestos,
-                        precio_sin_repuestos: oferta.precio_sin_repuestos,
-
-                        tipo_servicio: oferta.tipo_servicio || 'sin_repuestos',
-                        costo_mano_de_obra_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0),
-                        costo_repuestos_sin_iva: parseFloat(oferta.costo_repuestos_sin_iva || 0),
-                        precio_real_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0) + parseFloat(oferta.costo_repuestos_sin_iva || 0),
-                        precio_publicado_cliente: parseFloat(oferta.precio_publicado_cliente || 0),
-                        fotos_servicio: oferta.fotos_servicio || [],
-                        desglose_precios: oferta.desglose_precios || {},
-
-                        oferta_id: oferta.id,
-                        tipo_proveedor: type
-                    };
-                }
+                    tipo_proveedor: type,
+                    [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
+                    [type === 'taller' ? 'taller_info' : 'mecanico_info']: {
+                        id,
+                        nombre: providerName || 'Sin nombre',
+                    },
+                };
 
                 serviciosMap.set(servicioId, servicioFinal);
-            }));
+            });
 
-            const finalResult = Array.from(serviciosMap.values());
-            console.log(`[useProviderServices] Returning ${finalResult.length} processed services for ${type} ${id}`);
-            return finalResult;
+            return Array.from(serviciosMap.values());
         },
         enabled: !!id && !!type,
-        staleTime: 1000 * 60 * 5, // 5 min
+        staleTime: 1000 * 60 * 30,  // 30 min — datos de servicios no cambian seguido
+        gcTime: 1000 * 60 * 60,     // 1 hora en memoria tras salir del perfil
+        refetchOnMount: false,       // si el cache es fresco, no refetch al navegar de vuelta
+        refetchOnWindowFocus: false,
     });
 };
 

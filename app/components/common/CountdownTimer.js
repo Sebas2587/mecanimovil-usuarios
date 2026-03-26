@@ -17,7 +17,9 @@ const CountdownTimer = ({
   type = 'solicitud',
   size = 'medium',
   showIcon = true,
-  style 
+  style,
+  /** When true, uses translucent dark backgrounds (for glass solicitud cards) */
+  dark = false,
 }) => {
   const theme = useTheme();
   const [timeRemaining, setTimeRemaining] = useState(null);
@@ -74,35 +76,56 @@ const CountdownTimer = ({
     return null;
   }
 
-  // Determinar color según tiempo restante
   const getColorConfig = () => {
     const totalHours = timeRemaining.days * 24 + timeRemaining.hours;
-    
+
+    if (dark) {
+      if (totalHours > 24) {
+        return {
+          backgroundColor: 'rgba(16,185,129,0.12)',
+          borderColor: 'rgba(16,185,129,0.45)',
+          textColor: '#6EE7B7',
+          iconColor: '#34D399',
+        };
+      }
+      if (totalHours > 6) {
+        return {
+          backgroundColor: 'rgba(245,158,11,0.12)',
+          borderColor: 'rgba(245,158,11,0.45)',
+          textColor: '#FCD34D',
+          iconColor: '#FBBF24',
+        };
+      }
+      return {
+        backgroundColor: 'rgba(239,68,68,0.12)',
+        borderColor: 'rgba(239,68,68,0.45)',
+        textColor: '#FCA5A5',
+        iconColor: '#F87171',
+      };
+    }
+
     if (totalHours > 24) {
-      // Verde: más de 24 horas
       return {
         backgroundColor: colors.success?.[50] || '#ECFDF5',
         borderColor: colors.success?.[300] || '#6EE7B7',
         textColor: colors.success?.[700] || '#047857',
         iconColor: colors.success?.[600] || '#10B981',
       };
-    } else if (totalHours > 6) {
-      // Amarillo: 6-24 horas
+    }
+    if (totalHours > 6) {
       return {
         backgroundColor: colors.warning?.[50] || '#FFFBEB',
         borderColor: colors.warning?.[300] || '#FCD34D',
         textColor: colors.warning?.[700] || '#B45309',
         iconColor: colors.warning?.[600] || '#F59E0B',
       };
-    } else {
-      // Rojo: menos de 6 horas
-      return {
-        backgroundColor: colors.error?.[50] || '#FEF2F2',
-        borderColor: colors.error?.[300] || '#FCA5A5',
-        textColor: colors.error?.[700] || '#B91C1C',
-        iconColor: colors.error?.[600] || '#EF4444',
-      };
     }
+    return {
+      backgroundColor: colors.error?.[50] || '#FEF2F2',
+      borderColor: colors.error?.[300] || '#FCA5A5',
+      textColor: colors.error?.[700] || '#B91C1C',
+      iconColor: colors.error?.[600] || '#EF4444',
+    };
   };
 
   const colorConfig = getColorConfig();

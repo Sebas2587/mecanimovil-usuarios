@@ -6,16 +6,26 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
   StatusBar,
   RefreshControl,
   Alert,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { get, post } from '../../services/api';
 import { COLORS } from '../../utils/constants';
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const PendingReviewsScreen = () => {
   const navigation = useNavigation();
@@ -108,15 +118,23 @@ const PendingReviewsScreen = () => {
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+        <StatusBar barStyle="light-content" backgroundColor="#030712" />
+        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <ActivityIndicator size="large" color="#6EE7B7" />
         <Text style={styles.loadingText}>Cargando servicios...</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 340, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
 
       <FlatList
         data={services}
@@ -128,8 +146,8 @@ const PendingReviewsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
+            colors={['#6EE7B7']}
+            tintColor={'#6EE7B7'}
           />
         }
       />
@@ -149,15 +167,15 @@ const PendingReviewsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7F8', // Slightly bluish light gray for modern look
+    backgroundColor: '#030712',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: GLASS_BG,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   backButton: {
     marginRight: 15,
@@ -181,17 +199,13 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   serviceCard: {
-    backgroundColor: 'white',
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   serviceHeader: {
     marginBottom: 12,
@@ -206,13 +220,13 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     marginRight: 14,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   providerPhotoPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -223,12 +237,12 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginBottom: 2,
   },
   serviceName: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.62)',
   },
   vehicleInfo: {
     flexDirection: 'row',
@@ -236,7 +250,7 @@ const styles = StyleSheet.create({
   },
   vehicleText: {
     fontSize: 13,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.62)',
     marginLeft: 4,
   },
   serviceFooter: {
@@ -246,15 +260,17 @@ const styles = StyleSheet.create({
   },
   completionDate: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.45)',
   },
   reviewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A', // Darker slate for premium feel
+    backgroundColor: '#0d9488',
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(110,231,183,0.25)',
   },
   reviewButtonText: {
     color: 'white',
@@ -270,13 +286,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: '#F9FAFB',
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -284,28 +300,30 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: '#030712',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: COLORS.textLight,
+    color: 'rgba(255,255,255,0.6)',
   },
   errorContainer: {
     padding: 16,
     alignItems: 'center',
   },
   errorText: {
-    color: COLORS.danger,
+    color: '#FCA5A5',
     fontSize: 15,
     marginBottom: 12,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: 'rgba(239,68,68,0.25)',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.25)',
   },
   retryButtonText: {
     color: 'white',

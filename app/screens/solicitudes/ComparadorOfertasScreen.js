@@ -8,12 +8,11 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
-  Platform
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
 import { ROUTES } from '../../utils/constants';
 import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
 import { useSolicitudes } from '../../context/SolicitudesContext';
@@ -21,6 +20,15 @@ import { useAgendamiento } from '../../context/AgendamientoContext';
 import ofertasService from '../../services/ofertasService';
 import solicitudesService from '../../services/solicitudesService';
 import chatService from '../../services/chatService';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 /**
  * Pantalla para comparar múltiples ofertas lado a lado
@@ -30,10 +38,6 @@ const ComparadorOfertasScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const theme = useTheme();
-  const colors = theme?.colors || {};
-  const spacing = theme?.spacing || {};
-  const typography = theme?.typography || {};
 
   const { solicitudId, ofertas: ofertasIds } = route.params || {};
 
@@ -214,36 +218,22 @@ const ComparadorOfertasScreen = () => {
     }
   };
 
-  // Renderizar header consistente
-  const renderHeader = (title) => (
-    <View style={[styles.header, { borderBottomColor: colors.border?.light || '#E5E7EB', backgroundColor: colors.background?.paper || '#FFFFFF' }]}>
-      <TouchableOpacity
-        style={[styles.backButton, { backgroundColor: colors.background?.default || '#F8F9FA' }]}
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="arrow-back" size={24} color={colors.text?.primary || '#0F172A'} />
-      </TouchableOpacity>
-      <Text style={[styles.headerTitle, { color: colors.text?.primary || '#0F172A' }]}>{title}</Text>
-      <View style={styles.headerRight}>
-        <View style={[styles.ofertasCount, { backgroundColor: colors.primary?.['50'] || '#EFF6FF' }]}>
-          <MaterialIcons name="compare-arrows" size={18} color={colors.primary?.['600'] || '#2563EB'} />
-          <Text style={[styles.ofertasCountText, { color: colors.primary?.['600'] || '#2563EB' }]}>{ofertas.length}</Text>
-        </View>
-      </View>
-    </View>
-  );
-
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
-        {renderHeader('Comparar Ofertas')}
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#030712" />
+        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+          <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+          <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+          <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+        </View>
         <View style={styles.loadingContainer}>
-          <View style={[styles.loadingCard, { backgroundColor: colors.background?.paper || '#FFFFFF' }]}>
-            <ActivityIndicator size="large" color={colors.primary?.['600'] || '#2563EB'} />
-            <Text style={[styles.loadingTitle, { color: colors.text?.primary || '#0F172A' }]}>Cargando ofertas</Text>
-            <Text style={[styles.loadingSubtitle, { color: colors.text?.secondary || '#64748B' }]}>Preparando la comparación...</Text>
+          <View style={styles.loadingCard}>
+            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
+            <ActivityIndicator size="large" color="#6EE7B7" />
+            <Text style={styles.loadingTitle}>Cargando ofertas</Text>
+            <Text style={styles.loadingSubtitle}>Preparando la comparación...</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -252,17 +242,22 @@ const ComparadorOfertasScreen = () => {
 
   if (errorValidacion) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
-        {renderHeader('Comparar Ofertas')}
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#030712" />
+        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+          <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+          <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+          <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+        </View>
         <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIconContainer, { backgroundColor: (colors.error?.['500'] || '#EF4444') + '15' }]}>
-            <Ionicons name="alert-circle" size={48} color={colors.error?.['500'] || '#EF4444'} />
+          <View style={[styles.emptyIconContainer, { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.20)' }]}>
+            <Ionicons name="alert-circle" size={48} color="#FCA5A5" />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.text?.primary || '#0F172A' }]}>Error de Validación</Text>
-          <Text style={[styles.emptyText, { color: colors.text?.secondary || '#64748B' }]}>{errorValidacion}</Text>
+          <Text style={styles.emptyTitle}>Error de Validación</Text>
+          <Text style={styles.emptyText}>{errorValidacion}</Text>
           <TouchableOpacity
-            style={[styles.emptyButton, { backgroundColor: colors.primary?.['600'] || '#2563EB' }]}
+            style={styles.emptyButton}
             onPress={() => navigation.goBack()}
             activeOpacity={0.8}
           >
@@ -275,19 +270,24 @@ const ComparadorOfertasScreen = () => {
 
   if (ofertas.length < 2) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
-        {renderHeader('Comparar Ofertas')}
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#030712" />
+        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+          <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+          <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+          <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+        </View>
         <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIconContainer, { backgroundColor: (colors.warning?.['500'] || '#F59E0B') + '15' }]}>
-            <MaterialIcons name="compare-arrows" size={48} color={colors.warning?.['500'] || '#F59E0B'} />
+          <View style={[styles.emptyIconContainer, { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.22)' }]}>
+            <MaterialIcons name="compare-arrows" size={48} color="#FBBF24" />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.text?.primary || '#0F172A' }]}>Ofertas Insuficientes</Text>
-          <Text style={[styles.emptyText, { color: colors.text?.secondary || '#64748B' }]}>
+          <Text style={styles.emptyTitle}>Ofertas Insuficientes</Text>
+          <Text style={styles.emptyText}>
             Necesitas al menos 2 ofertas para poder compararlas
           </Text>
           <TouchableOpacity
-            style={[styles.emptyButton, { backgroundColor: colors.primary?.['600'] || '#2563EB' }]}
+            style={styles.emptyButton}
             onPress={() => navigation.goBack()}
             activeOpacity={0.8}
           >
@@ -299,9 +299,14 @@ const ComparadorOfertasScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background?.default || '#F8F9FA' }]} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
-      {renderHeader('Comparar Ofertas')}
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
 
       <ScrollView
         style={styles.scrollView}
@@ -323,9 +328,10 @@ const ComparadorOfertasScreen = () => {
 
       {procesando && (
         <View style={styles.processingOverlay}>
-          <View style={[styles.processingCard, { backgroundColor: colors.background?.paper || '#FFFFFF' }]}>
-            <ActivityIndicator size="large" color={colors.primary?.['600'] || '#2563EB'} />
-            <Text style={[styles.processingText, { color: colors.text?.primary || '#0F172A' }]}>Procesando oferta...</Text>
+          <View style={styles.processingCard}>
+            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
+            <ActivityIndicator size="large" color="#6EE7B7" />
+            <Text style={styles.processingText}>Procesando oferta...</Text>
           </View>
         </View>
       )}
@@ -336,56 +342,7 @@ const ComparadorOfertasScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  // Header styles
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginHorizontal: 8,
-  },
-  headerRight: {
-    width: 40,
-    alignItems: 'flex-end',
-  },
-  ofertasCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    gap: 4,
-  },
-  ofertasCountText: {
-    fontSize: 12,
-    fontWeight: '700',
+    backgroundColor: '#030712',
   },
   // Scroll
   scrollView: {
@@ -405,26 +362,21 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 32,
     alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   loadingTitle: {
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
+    color: '#F9FAFB',
   },
   loadingSubtitle: {
     marginTop: 4,
     fontSize: 12,
+    color: 'rgba(255,255,255,0.55)',
   },
   // Empty states
   emptyContainer: {
@@ -440,12 +392,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    borderWidth: 1,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 8,
     textAlign: 'center',
+    color: '#F9FAFB',
   },
   emptyText: {
     fontSize: 14,
@@ -453,11 +407,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 22,
     paddingHorizontal: 16,
+    color: 'rgba(255,255,255,0.6)',
   },
   emptyButton: {
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 12,
+    backgroundColor: '#0d9488',
+    borderWidth: 1,
+    borderColor: 'rgba(110,231,183,0.25)',
   },
   emptyButtonText: {
     color: '#FFFFFF',
@@ -481,11 +439,16 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     minWidth: 180,
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   processingText: {
     marginTop: 16,
     fontSize: 14,
-    fontWeight: '500'
+    fontWeight: '600',
+    color: '#F9FAFB',
   }
 });
 

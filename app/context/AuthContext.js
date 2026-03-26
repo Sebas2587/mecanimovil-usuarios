@@ -751,8 +751,9 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    registerSuccess,
     isAuthenticated: !!token,
-  }), [user, token, loading, error]);
+  }), [user, token, loading, error, registerSuccess]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

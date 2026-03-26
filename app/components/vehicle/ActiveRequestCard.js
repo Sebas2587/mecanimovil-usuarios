@@ -1,69 +1,43 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ArrowRight } from 'lucide-react-native';
 
-/**
- * ActiveRequestCard
- * Displays a high-priority active request for the vehicle.
- * Includes a pulsing status indicator and action button.
- */
 const ActiveRequestCard = ({ request, onPress }) => {
-    const theme = useTheme();
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
-
-    const styles = getStyles(colors, typography, spacing, borders);
-
-    // Animation for pulsing dot
     const pulseAnim = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
         Animated.loop(
             Animated.sequence([
-                Animated.timing(pulseAnim, {
-                    toValue: 0.4,
-                    duration: 1000,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(pulseAnim, {
-                    toValue: 1,
-                    duration: 1000,
-                    useNativeDriver: true,
-                }),
+                Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
             ])
         ).start();
     }, [pulseAnim]);
 
     if (!request) return null;
 
-    // Extract data safely
     const serviceName = request.servicio_solicitado || request.titulo || 'Servicio Mecánico';
     const status = request.estado || 'Pendiente';
     const offersCount = request.ofertas_count || request.ofertas?.length || 0;
 
-    // Format info based on status
     let statusText = 'Solicitud Activa';
-    let statusColor = colors.primary?.[400] || '#3397C1';
-    let statusIcon = 'time-outline';
+    let statusColor = '#93C5FD';
 
     if (status === 'pendiente') {
         statusText = 'Buscando mecánicos...';
-        statusIcon = 'search-outline';
     } else if (status === 'confirmado') {
         statusText = 'Servicio Confirmado';
-        statusColor = colors.success?.[500] || '#10B981';
-        statusIcon = 'calendar-outline';
+        statusColor = '#6EE7B7';
     } else if (status === 'en_camino') {
         statusText = 'Mecánico en camino';
-        statusColor = colors.warning?.[500] || '#F59E0B';
-        statusIcon = 'bicycle-outline';
+        statusColor = '#FBBF24';
     }
 
     return (
         <View style={styles.container}>
+            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
             <View style={styles.header}>
                 <View style={styles.statusContainer}>
                     <Animated.View style={[styles.pulseDot, { opacity: pulseAnim, backgroundColor: statusColor }]} />
@@ -82,41 +56,32 @@ const ActiveRequestCard = ({ request, onPress }) => {
                 <Text style={styles.subtitle}>Esperando ofertas...</Text>
             )}
 
-            <TouchableOpacity
-                style={styles.button}
-                activeOpacity={0.8}
-                onPress={onPress}
-            >
-                <Text style={styles.buttonText}>
-                    {status === 'pendiente' ? 'Ver Ofertas' : 'Ver Detalles'}
-                </Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.base?.white || '#FFFFFF'} />
+            <TouchableOpacity style={styles.button} activeOpacity={0.8} onPress={onPress}>
+                <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                <Text style={styles.buttonText}>{status === 'pendiente' ? 'Ver Ofertas' : 'Ver Detalles'}</Text>
+                <ArrowRight size={16} color="#FFF" />
             </TouchableOpacity>
         </View>
     );
 };
 
-const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
-        backgroundColor: colors.background?.paper || '#FFFFFF',
-        borderRadius: borders.radius?.lg || 16,
-        padding: spacing.md || 16,
-        marginHorizontal: spacing.md || 16,
-        marginTop: -40, // Negative margin to overlap header slightly
-        marginBottom: spacing.md || 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
+        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+        borderRadius: 16,
+        padding: 16,
+        marginHorizontal: 16,
+        marginTop: -40,
+        marginBottom: 16,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: spacing.xs || 8,
+        marginBottom: 8,
     },
     statusContainer: {
         flexDirection: 'row',
@@ -129,39 +94,39 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         marginRight: 6,
     },
     statusText: {
-        fontSize: typography.fontSize?.xs || 12,
-        fontWeight: typography.fontWeight?.semibold || '600',
+        fontSize: 12,
+        fontWeight: '600',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     dateText: {
-        fontSize: typography.fontSize?.xs || 12,
-        color: colors.neutral?.gray?.[400] || '#9CA3AF',
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.35)',
     },
     title: {
-        fontSize: typography.fontSize?.lg || 18,
-        fontWeight: typography.fontWeight?.bold || '700',
-        color: colors.text?.primary || '#111827',
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#FFFFFF',
         marginBottom: 4,
     },
     subtitle: {
-        fontSize: typography.fontSize?.sm || 14,
-        color: colors.text?.secondary || '#6B7280',
-        marginBottom: spacing.md || 16,
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.5)',
+        marginBottom: 16,
     },
     button: {
-        backgroundColor: '#2563EB', // Blue-600
-        borderRadius: borders.radius?.md || 8,
-        paddingVertical: spacing.sm || 10,
-        paddingHorizontal: spacing.md || 16,
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
     },
     buttonText: {
-        color: colors.base?.white || '#FFFFFF',
-        fontWeight: typography.fontWeight?.semibold || '600',
-        fontSize: typography.fontSize?.sm || 14,
+        color: '#FFFFFF',
+        fontWeight: '600',
+        fontSize: 14,
         marginRight: 6,
     },
 });

@@ -1,31 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { DollarSign, ChevronRight, Pencil } from 'lucide-react-native';
 
 const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEditPress }) => {
-    const theme = useTheme();
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
-
-    const styles = getStyles(colors, typography, spacing, borders);
-
-    const formatCurrency = (value) => {
-        return new Intl.NumberFormat('es-CL', {
-            style: 'currency',
-            currency: 'CLP',
-            minimumFractionDigits: 0,
-        }).format(value || 0);
-    };
+    const formatCurrency = (value) =>
+        new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(value || 0);
 
     return (
         <View style={styles.container}>
+            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
             <View style={styles.header}>
                 <View style={styles.iconContainer}>
-                    <Ionicons name="cash-outline" size={20} color={colors.success?.[600]} />
+                    <DollarSign size={18} color="#6EE7B7" />
                 </View>
                 <Text style={styles.title}>Gestión de Activo</Text>
             </View>
@@ -36,19 +24,16 @@ const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEdit
                     <View style={{ alignItems: 'flex-end' }}>
                         <Text style={styles.valueText}>{formatCurrency(marketValue)}</Text>
                         {(marketValue === 0 || marketValue === '0') && onEditPress && (
-                            <TouchableOpacity onPress={onEditPress} style={{ marginTop: 4 }}>
-                                <Text style={{ color: colors.primary?.DEFAULT || '#2563EB', fontSize: 12, fontWeight: '600' }}>
-                                    Establecer Valor
-                                </Text>
+                            <TouchableOpacity onPress={onEditPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                                <Pencil size={12} color="#93C5FD" />
+                                <Text style={{ color: '#93C5FD', fontSize: 12, fontWeight: '600' }}>Establecer Valor</Text>
                             </TouchableOpacity>
                         )}
                     </View>
                 </View>
 
-                {/* Divider */}
                 <View style={styles.divider} />
 
-                {/* Suggested Value */}
                 <View style={styles.valueRow}>
                     <View>
                         <Text style={styles.valueLabel}>Valor Sugerido Certificado</Text>
@@ -56,59 +41,57 @@ const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEdit
                             <Text style={styles.badgeText}>+5% por Salud</Text>
                         </View>
                     </View>
-
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={[styles.valueText, styles.highlightValue]}>{formatCurrency(suggestedValue)}</Text>
-                    </View>
+                    <Text style={[styles.valueText, styles.highlightValue]}>{formatCurrency(suggestedValue)}</Text>
                 </View>
             </View>
 
-            <TouchableOpacity onPress={onSellPress}>
+            <TouchableOpacity onPress={onSellPress} activeOpacity={0.8}>
                 <LinearGradient
-                    colors={[colors.primary?.[600] || '#002A47', colors.primary?.[800] || '#001524']}
+                    colors={['#10B981', '#059669']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.actionButton}
                 >
                     <Text style={styles.actionButtonText}>Gestionar Venta</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#FFF" />
+                    <ChevronRight size={16} color="#FFF" />
                 </LinearGradient>
             </TouchableOpacity>
         </View>
     );
 };
 
-const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
-        backgroundColor: colors.background?.paper || '#FFFFFF',
-        borderRadius: borders.radius?.lg || 12,
-        padding: spacing.md || 16,
-        marginHorizontal: spacing.md || 16,
-        marginBottom: spacing.lg || 24,
+        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+        borderRadius: 16,
+        padding: 16,
+        marginHorizontal: 16,
+        marginBottom: 24,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.md || 16,
+        marginBottom: 16,
     },
     iconContainer: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.success?.light || '#E6F7F4',
+        backgroundColor: 'rgba(16,185,129,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: spacing.sm || 8,
+        marginRight: 10,
     },
     title: {
-        fontSize: typography.fontSize?.md || 16,
-        fontWeight: typography.fontWeight?.bold || '700',
-        color: colors.text?.primary || '#111827',
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#FFFFFF',
     },
     valuesContainer: {
-        marginBottom: spacing.md || 16,
+        marginBottom: 16,
     },
     valueRow: {
         flexDirection: 'row',
@@ -117,48 +100,48 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         marginVertical: 4,
     },
     valueLabel: {
-        fontSize: typography.fontSize?.sm || 14,
-        color: colors.text?.secondary || '#6B7280',
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.5)',
     },
     valueText: {
-        fontSize: typography.fontSize?.md || 16,
-        fontWeight: typography.fontWeight?.semibold || '600',
-        color: colors.text?.primary || '#111827',
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#FFFFFF',
     },
     highlightValue: {
-        color: colors.success?.[600] || '#059669',
-        fontWeight: typography.fontWeight?.bold || '700',
+        color: '#6EE7B7',
+        fontWeight: '700',
     },
     divider: {
         height: 1,
-        backgroundColor: colors.border?.light || '#F3F4F6',
-        marginVertical: spacing.sm || 8,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        marginVertical: 10,
     },
     badge: {
-        backgroundColor: colors.success?.light || '#ECFDF5',
+        backgroundColor: 'rgba(16,185,129,0.15)',
         alignSelf: 'flex-start',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-        marginTop: 2,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        marginTop: 4,
     },
     badgeText: {
         fontSize: 10,
-        fontWeight: typography.fontWeight?.medium || '500',
-        color: colors.success?.[700] || '#047857',
+        fontWeight: '600',
+        color: '#6EE7B7',
     },
     actionButton: {
-        borderRadius: borders.radius?.md || 8,
-        paddingVertical: 12,
+        borderRadius: 12,
+        paddingVertical: 13,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
     },
     actionButtonText: {
         color: '#FFF',
-        fontWeight: typography.fontWeight?.medium || '500',
-        fontSize: typography.fontSize?.sm || 14,
-        marginRight: 8,
+        fontWeight: '600',
+        fontSize: 14,
+        marginRight: 6,
     }
 });
 

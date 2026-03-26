@@ -143,6 +143,18 @@ const ProviderCard = ({
         {provider.nombre}
       </Text>
 
+      {/* Marcas / especialidades */}
+      {(provider.marcas_atendidas_nombres?.length > 0 || provider.especialidades_nombres?.length > 0) && (
+        <View style={styles.specialtyContainer}>
+          <Ionicons name="ribbon-outline" size={12} color={COLORS.textLight} />
+          <Text style={styles.specialtyText} numberOfLines={1}>
+            {provider.marcas_atendidas_nombres?.length > 0
+              ? provider.marcas_atendidas_nombres.join(', ')
+              : provider.especialidades_nombres.join(', ')}
+          </Text>
+        </View>
+      )}
+
       {/* Calificación con estrellas */}
       <View style={styles.ratingContainer}>
         {renderRatingStars(provider.calificacion_promedio)}
@@ -229,6 +241,17 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 4,
     height: 38, // Fijamos altura para 2 líneas
+  },
+  specialtyContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  specialtyText: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginLeft: 4,
+    flex: 1,
   },
   ratingContainer: {
     flexDirection: 'row',

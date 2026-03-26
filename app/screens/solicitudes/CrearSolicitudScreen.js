@@ -7,14 +7,16 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
-  Platform
+  Platform,
+  StatusBar
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { ArrowLeft, Car, Plus, Sparkles } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
-import { useTheme } from '../../design-system/theme/useTheme';
 import FormularioSolicitud from '../../components/solicitudes/FormularioSolicitud';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import * as vehicleService from '../../services/vehicle';
@@ -32,41 +34,9 @@ const CrearSolicitudScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { crearSolicitud } = useSolicitudes();
-  const theme = useTheme();
 
-  // Extraer valores del tema de forma segura
-  const colors = theme?.colors || {};
-  const typography = theme?.typography || {};
-  const spacing = theme?.spacing || {};
-  const borders = theme?.borders || {};
-
-  // Asegurar que typography tenga todas las propiedades necesarias
-  const safeTypography = typography?.fontSize && typography?.fontWeight
-    ? typography
-    : {
-      fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
-      fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
-    };
-
-  // Validar que borders esté completamente inicializado
-  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined')
-    ? borders
-    : {
-      radius: {
-        none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
-        full: 9999,
-        button: { sm: 8, md: 12, lg: 16, full: 9999 },
-        input: { sm: 8, md: 12, lg: 16 },
-        card: { sm: 8, md: 12, lg: 16, xl: 20 },
-        modal: { sm: 12, md: 16, lg: 20, xl: 24 },
-        avatar: { sm: 16, md: 24, lg: 32, full: 9999 },
-        badge: { sm: 4, md: 8, lg: 12, full: 9999 },
-      },
-      width: { none: 0, thin: 1, medium: 2, thick: 4 }
-    };
-
-  // Crear estilos dinámicos con los tokens del tema
-  const styles = createStyles(colors, safeTypography, spacing, safeBorders);
+  // Incremented after successful submit to force FormularioSolicitud re-mount
+  const [submitCount, setSubmitCount] = useState(0);
 
   // Extraer parámetros de la ruta (servicio y proveedor preseleccionados)
   const {
@@ -78,7 +48,8 @@ const CrearSolicitudScreen = () => {
     categoriaId,
     categoriaNombre,
     vehicle, // Vehículo preseleccionado (desde alertas)
-    descripcionPrellenada // Descripción pre-rellenada (desde alertas)
+    descripcionPrellenada, // Descripción pre-rellenada (desde alertas)
+    fromDashboard // Flag para flujo desde dashboard predictivo
   } = route.params || {};
 
   /** Servicios que pueden contratarse sin vehículo en la plataforma (ej. revisión precompra) */
@@ -345,11 +316,10 @@ const CrearSolicitudScreen = () => {
 
             setInitialData({
               servicios_seleccionados: serviciosParaInitialData,
-              // Si hay proveedor preseleccionado, configurar tipo_solicitud como 'dirigida'
               tipo_solicitud: proveedorFormato ? 'dirigida' : 'global',
               proveedores_dirigidos: proveedorFormato ? [proveedorFormato] : [],
-              fromProviderDetail: fromProviderDetail || false, // Flag para FormularioSolicitud
-              // Si hay vehículo preseleccionado (desde alertas), usarlo
+              fromProviderDetail: fromProviderDetail || false,
+              fromDashboard: fromDashboard || false,
               vehiculo: tieneVehicleParam ? vehicle : null,
               descripcion_problema: descripcionPrellenada || '',
               urgencia: 'normal',
@@ -772,11 +742,18 @@ const CrearSolicitudScreen = () => {
           await solicitudesService.publicarSolicitud(solicitudId);
           console.log('CrearSolicitudScreen: ✅ Solicitud publicada automáticamente');
 
-          // Navegar directamente a mis solicitudes
-          // Como ambas pantallas están en el TabNavigator, usar navigate directamente
-          // El TabNavigator manejará la navegación correctamente
-          // Navigate to home which will show the active request
-          navigation.navigate(ROUTES.HOME);
+          setSubmitCount(prev => prev + 1);
+
+          Alert.alert(
+            'Éxito',
+            'Solicitud creada y publicada con éxito. Los proveedores podrán ver tu solicitud y hacer ofertas.',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.navigate(ROUTES.HOME)
+              }
+            ]
+          );
         } catch (error) {
           console.error('CrearSolicitudScreen: ❌ Error publicando solicitud:', error);
           // Si hay error al publicar, navegar al detalle para que el usuario pueda publicarla manualmente
@@ -812,7 +789,16 @@ const CrearSolicitudScreen = () => {
         try {
           await solicitudesService.publicarSolicitud(solicitudId);
           console.log('CrearSolicitudScreen: ✅ Solicitud publicada automáticamente (fallback)');
-          navigation.navigate(ROUTES.HOME);
+          Alert.alert(
+            'Éxito',
+            'Solicitud creada y publicada con éxito. Los proveedores podrán ver tu solicitud y hacer ofertas.',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.navigate(ROUTES.HOME)
+              }
+            ]
+          );
         } catch (error) {
           console.error('CrearSolicitudScreen: ❌ Error publicando solicitud (fallback):', error);
           Alert.alert(
@@ -844,62 +830,76 @@ const CrearSolicitudScreen = () => {
     }
   };
 
+  const GlassShell = ({ children }) => (
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 300, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
+
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
+          <ArrowLeft size={22} color="#FFF" />
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Sparkles size={16} color="#6EE7B7" />
+          <Text style={styles.headerTitle}>Nueva Solicitud</Text>
+        </View>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {children}
+    </View>
+  );
+
   if (loading || (needsPreloadServicios && !initialDataReady)) {
     return (
-      <SafeAreaView style={styles.container} edges={[]}>
-        <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
-          <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
-          <Text style={styles.loadingText}>
-            {needsPreloadServicios && !initialDataReady
-              ? 'Preparando servicio seleccionado...'
-              : 'Cargando datos...'}
+      <GlassShell>
+        <View style={styles.centeredState}>
+          <ActivityIndicator size="large" color="#6EE7B7" />
+          <Text style={styles.stateText}>
+            {needsPreloadServicios && !initialDataReady ? 'Preparando servicio...' : 'Cargando datos...'}
           </Text>
         </View>
-      </SafeAreaView>
+      </GlassShell>
     );
   }
 
   if (vehiculos.length === 0) {
     return (
-      <SafeAreaView style={styles.container} edges={[]}>
-        <View style={[styles.emptyContainer, { paddingTop: insets.top }]}>
-          <Ionicons name="car-outline" size={64} color={colors.text?.secondary || '#5D6F75'} />
+      <GlassShell>
+        <View style={styles.centeredState}>
+          <View style={styles.emptyIconWrap}>
+            <Car size={40} color="rgba(255,255,255,0.5)" />
+          </View>
           <Text style={styles.emptyTitle}>Sin vehículos registrados</Text>
-          <Text style={styles.emptyText}>
-            Necesitas tener al menos un vehículo para crear una solicitud
-          </Text>
+          <Text style={styles.stateText}>Necesitas al menos un vehículo para crear una solicitud</Text>
+          <TouchableOpacity style={styles.addVehicleBtn} onPress={() => navigation.navigate(ROUTES.MIS_VEHICULOS)} activeOpacity={0.8}>
+            <Plus size={18} color="#FFF" />
+            <Text style={styles.addVehicleBtnText}>Agregar vehículo</Text>
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </GlassShell>
     );
   }
 
-  // Solo safe area: el FormularioSolicitud aplica padding interno compacto en la barra (evita doble padding)
   const totalBottomPadding = insets.bottom;
 
   return (
-    <SafeAreaView style={styles.container} edges={[]}>
-      <View style={[styles.header, { paddingTop: insets.top + (spacing.sm || 8) }]}>
-        <View style={styles.headerContent}>
-          {/* Botón de retroceso eliminado del paso 1 del onboarding */}
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Nueva Solicitud</Text>
-          </View>
-        </View>
-      </View>
-
+    <GlassShell>
       {creando && (
         <View style={styles.creatingOverlay}>
-          <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
+          <ActivityIndicator size="large" color="#6EE7B7" />
           <Text style={styles.creatingText}>Creando solicitud...</Text>
         </View>
       )}
 
       <FormularioSolicitud
-        key={
-          servicioPreseleccionado?.id ||
-          (serviciosPreSeleccionados && serviciosPreSeleccionados.join(',')) ||
-          'default'
-        }
+        key={`${submitCount}-${route.params?.vehicle?.id || ''}-${servicioPreseleccionado?.id || ''}-${serviciosPreSeleccionados?.join(',') || ''}`}
         onSubmit={handleSubmit}
         initialData={initialData || {}}
         vehiculos={vehiculos}
@@ -907,105 +907,107 @@ const CrearSolicitudScreen = () => {
         contentPaddingBottom={totalBottomPadding}
         onExit={() => navigation.goBack()}
       />
-    </SafeAreaView>
+    </GlassShell>
   );
 };
 
 // Función para crear estilos dinámicos basados en el tema
-const createStyles = (colors, typography, spacing, borders) => StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background?.default || '#F8F9FA'
+    backgroundColor: '#030712',
   },
   header: {
-    backgroundColor: colors.background?.paper || '#FFFFFF',
-    borderBottomWidth: borders.width?.thin || 1,
-    borderBottomColor: colors.neutral?.gray?.[200] || '#E5E7EB',
-    paddingBottom: spacing.md || 16,
-    // paddingTop se calcula dinámicamente con insets en el componente
-    shadowColor: colors.base?.inkBlack || '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  headerContent: {
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.md || 16
-  },
-  headerTitleContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
   },
   headerTitle: {
-    fontSize: typography.fontSize?.xl || 20,
-    fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
-    letterSpacing: typography.letterSpacing?.normal || 0,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
-  cancelButton: {
-    padding: spacing.xs || 4,
-    minWidth: 40,
-    minHeight: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: borders.radius?.avatar?.sm || 20,
-    backgroundColor: 'transparent',
-  },
-  loadingContainer: {
+  centeredState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background?.default || '#F8F9FA'
+    paddingHorizontal: 32,
   },
-  loadingText: {
-    marginTop: spacing.md || 16,
-    fontSize: typography.fontSize?.md || 16,
-    color: colors.text?.secondary || '#5D6F75',
-    fontWeight: typography.fontWeight?.medium || '500',
+  stateText: {
+    marginTop: 16,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '500',
+    textAlign: 'center',
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
-    padding: spacing.xl || 32,
-    backgroundColor: colors.background?.default || '#F8F9FA'
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   emptyTitle: {
-    fontSize: typography.fontSize?.xl || 20,
-    fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
-    marginTop: spacing.md || 16,
-    marginBottom: spacing.sm || 12,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  emptyText: {
-    fontSize: typography.fontSize?.md || 16,
-    color: colors.text?.secondary || '#5D6F75',
-    textAlign: 'center',
-    lineHeight: typography.fontSize?.md ? typography.fontSize.md * 1.5 : 24,
-    paddingHorizontal: spacing.md || 16,
+  addVehicleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(16,185,129,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.4)',
+  },
+  addVehicleBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6EE7B7',
   },
   creatingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(3,7,18,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
   },
   creatingText: {
-    marginTop: spacing.md || 16,
-    fontSize: typography.fontSize?.md || 16,
-    color: colors.background?.paper || '#FFFFFF',
-    fontWeight: typography.fontWeight?.semibold || '600',
-  }
+    marginTop: 16,
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
 });
 
 export default CrearSolicitudScreen;

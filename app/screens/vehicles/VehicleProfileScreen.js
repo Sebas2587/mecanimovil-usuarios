@@ -10,21 +10,23 @@ import {
     ActivityIndicator,
     RefreshControl,
     Modal,
-    TextInput
+    TextInput,
+    Platform
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { Camera, Trash2, Info, ArrowLeft } from 'lucide-react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ROUTES } from '../../utils/constants';
 
 // Services
 import * as vehicleService from '../../services/vehicle';
 import * as VehicleHealthService from '../../services/vehicleHealthService';
-import { useServicesHistory } from '../../hooks/useServices'; // Keeping hooks pattern if available, or direct service
+import solicitudesService from '../../services/solicitudesService';
 import { useSolicitudes } from '../../context/SolicitudesContext'; // To get active requests
 
 // Components
@@ -43,24 +45,16 @@ const VehicleProfileScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const insets = useSafeAreaInsets();
-    const theme = useTheme();
 
-    // Initial Params
     const { vehicle: initialVehicle } = route.params || {};
 
-    // State
     const [vehicle, setVehicle] = useState(initialVehicle);
     const [healthData, setHealthData] = useState(null);
     const [servicesCount, setServicesCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Design System
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
-    const styles = getStyles(colors, typography, spacing, borders, insets);
+    const styles = getStyles(insets);
 
     // Active Requests Context
     const { solicitudesActivas, cargarSolicitudesActivas } = useSolicitudes();
@@ -87,8 +81,23 @@ const VehicleProfileScreen = () => {
 
             setHealthData(health);
 
-            // Calculate service count (Mock for now as service is missing)
-            setServicesCount(0);
+            // Recuento real: solicitudes completadas de este vehículo (con oferta pagada)
+            try {
+                const response = await solicitudesService.obtenerMisSolicitudes({ estado: 'completada' });
+                let list = [];
+                if (Array.isArray(response)) list = response;
+                else if (response?.results) list = response.results;
+                else if (response?.features) list = response.features.map(f => ({ ...f.properties, id: f.id || f.properties?.id }));
+                const vehicleId = freshVehicle?.id ?? vehicle?.id;
+                const count = list.filter((s) => {
+                    const sid = s.vehiculo?.id ?? s.vehiculo_detail?.id ?? s.vehiculo;
+                    return sid != null && String(sid) === String(vehicleId);
+                }).length;
+                setServicesCount(count);
+            } catch (e) {
+                console.warn('Error obteniendo conteo de servicios:', e);
+                setServicesCount(0);
+            }
 
             await cargarSolicitudesActivas();
 
@@ -110,9 +119,6 @@ const VehicleProfileScreen = () => {
 
     // Handlers
     const handleEdit = () => {
-        // Reuse existing edit logic (Modal) - simplified for this implementation, 
-        // ideally navigate to separate EditScreen to keep this clean.
-        // For now, prompt user or navigate to legacy screen if kept.
         Alert.alert("Editar Vehículo", "Funcionalidad de edición en mantenimiento.");
     };
 
@@ -228,7 +234,7 @@ const VehicleProfileScreen = () => {
         }
     };
 
-    if (!vehicle) return <ActivityIndicator style={{ flex: 1 }} color={colors.primary?.[500]} />;
+    if (!vehicle) return <ActivityIndicator style={{ flex: 1, backgroundColor: '#030712' }} color="#6EE7B7" />;
 
     const imageUrl = vehicle.foto || null;
 
@@ -263,24 +269,37 @@ const VehicleProfileScreen = () => {
         <View style={styles.container}>
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
+            {/* Dark gradient background */}
+            <LinearGradient
+                colors={['#030712', '#0a1628', '#030712']}
+                style={StyleSheet.absoluteFill}
+            />
+
+            {/* Decorative blurred blobs */}
+            <View style={styles.blobEmerald} />
+            <View style={styles.blobIndigo} />
+            <View style={styles.blobCyan} />
+
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6EE7B7" />}
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.headerImageContainer}>
 
-                    {/* Header Controls (Inside Scroll) */}
                     <View style={[styles.scrollableHeaderControls, { top: insets.top }]}>
-                        {/* Left side - Camera button */}
-                        <TouchableOpacity style={styles.iconButton} onPress={handleChangePhoto}>
-                            <Ionicons name="camera-outline" size={24} color="#FFF" />
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                            <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
+                                <ArrowLeft size={22} color="#FFF" />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.iconButton} onPress={handleChangePhoto}>
+                                <Camera size={22} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
 
-                        {/* Right side - Delete button */}
                         <View style={styles.rightButtons}>
                             <TouchableOpacity style={styles.iconButton} onPress={handleDelete}>
-                                <Ionicons name="trash-outline" size={24} color="#FFF" />
+                                <Trash2 size={22} color="#FFF" />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -290,13 +309,13 @@ const VehicleProfileScreen = () => {
                         <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
                     ) : (
                         <View style={styles.placeholderHeader}>
-                            <Ionicons name="car-sport" size={80} color={colors.neutral?.gray?.[600]} />
+                            <Ionicons name="car-sport" size={80} color="rgba(255,255,255,0.15)" />
                         </View>
                     )}
 
                     {/* Gradient Overlay */}
                     <LinearGradient
-                        colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.8)']}
+                        colors={['transparent', 'rgba(3,7,18,0.9)']}
                         style={styles.gradientOverlay}
                     >
                         <View style={styles.headerInfo}>
@@ -343,12 +362,15 @@ const VehicleProfileScreen = () => {
 
                     {/* 5. Valuation Explanation */}
                     <View style={styles.infoCard}>
+                        {Platform.OS === 'ios' && (
+                            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+                        )}
                         <View style={styles.infoHeader}>
-                            <Ionicons name="information-circle-outline" size={20} color={colors.primary?.[500] || '#2563EB'} />
+                            <Info size={20} color="#93C5FD" />
                             <Text style={styles.infoTitle}>¿Cómo calculamos tu valor?</Text>
                         </View>
                         <Text style={styles.infoText}>
-                            Usamos el <Text style={{ fontWeight: '700' }}>Precio de Mercado</Text> real como base y sumamos valor adicional por tu <Text style={{ fontWeight: '700' }}>Salud Certificada</Text> y <Text style={{ fontWeight: '700' }}>Kilometraje</Text>. ¡Sin castigos injustos!
+                            Usamos el <Text style={{ fontWeight: '700', color: '#FFF' }}>Precio de Mercado</Text> real como base y sumamos valor adicional por tu <Text style={{ fontWeight: '700', color: '#FFF' }}>Salud Certificada</Text> y <Text style={{ fontWeight: '700', color: '#FFF' }}>Kilometraje</Text>. ¡Sin castigos injustos!
                         </Text>
                     </View>
 
@@ -368,6 +390,9 @@ const VehicleProfileScreen = () => {
                             onPress={() => setValuationModalVisible(false)}
                         >
                             <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+                                {Platform.OS === 'ios' && (
+                                    <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
+                                )}
                                 <Text style={styles.modalTitle}>Establecer Valor</Text>
                                 <Text style={styles.modalSubtitle}>
                                     No pudimos obtener la tasación automática. Ingresa tu estimación.
@@ -376,6 +401,7 @@ const VehicleProfileScreen = () => {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Ej: 8000000"
+                                    placeholderTextColor="rgba(255,255,255,0.35)"
                                     keyboardType="numeric"
                                     value={manualValuation}
                                     onChangeText={setManualValuation}
@@ -393,6 +419,12 @@ const VehicleProfileScreen = () => {
                                         style={[styles.modalButton, styles.saveButton]}
                                         onPress={handleSaveValuation}
                                     >
+                                        <LinearGradient
+                                            colors={['#10B981', '#059669']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                            style={StyleSheet.absoluteFill}
+                                        />
                                         <Text style={styles.saveButtonText}>Guardar</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -405,10 +437,37 @@ const VehicleProfileScreen = () => {
     );
 };
 
-const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.create({
+const getStyles = (insets) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background?.default || '#F8F9FA',
+        backgroundColor: '#030712',
+    },
+    blobEmerald: {
+        position: 'absolute',
+        width: 300,
+        height: 300,
+        borderRadius: 150,
+        backgroundColor: 'rgba(16,185,129,0.08)',
+        top: -80,
+        right: -100,
+    },
+    blobIndigo: {
+        position: 'absolute',
+        width: 250,
+        height: 250,
+        borderRadius: 125,
+        backgroundColor: 'rgba(99,102,241,0.06)',
+        top: 300,
+        left: -80,
+    },
+    blobCyan: {
+        position: 'absolute',
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: 'rgba(6,182,212,0.05)',
+        bottom: 100,
+        right: -60,
     },
     scrollContent: {
         paddingBottom: insets.bottom,
@@ -417,7 +476,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         height: 340,
         width: '100%',
         position: 'relative',
-        backgroundColor: '#1E1E1E',
+        backgroundColor: '#0a1628',
     },
     headerImage: {
         width: '100%',
@@ -428,7 +487,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: colors.neutral?.gray?.[800] || '#262626',
+        backgroundColor: '#0a1628',
     },
     gradientOverlay: {
         position: 'absolute',
@@ -437,32 +496,32 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         right: 0,
         height: 160,
         justifyContent: 'flex-end',
-        padding: spacing.md || 16,
-        paddingBottom: 48, // Give space for the overlap
+        padding: 16,
+        paddingBottom: 48,
     },
     headerInfo: {
-        marginBottom: spacing.xs || 8,
+        marginBottom: 8,
     },
     headerTitle: {
-        fontSize: typography.fontSize?.['3xl'] || 28,
-        fontWeight: typography.fontWeight?.bold || '700',
+        fontSize: 28,
+        fontWeight: '700',
         color: '#FFFFFF',
-        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
         textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
+        textShadowRadius: 4,
     },
     headerSubtitle: {
-        fontSize: typography.fontSize?.md || 16,
-        color: 'rgba(255, 255, 255, 0.9)',
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.7)',
         marginBottom: 4,
-        fontWeight: typography.fontWeight?.medium || '500',
+        fontWeight: '500',
     },
     contentBody: {
-        marginTop: -32, // Negative margin for overlap effect
+        marginTop: -32,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        backgroundColor: colors.background?.default || '#F8F9FA',
-        paddingTop: spacing.lg || 24,
+        backgroundColor: '#030712',
+        paddingTop: 24,
     },
     scrollableHeaderControls: {
         position: 'absolute',
@@ -471,18 +530,19 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         right: 0,
         zIndex: 10,
         flexDirection: 'row',
-        justifyContent: 'space-between', // Space between left and right controls
+        justifyContent: 'space-between',
         paddingHorizontal: 16,
-        paddingTop: 16, // Add some padding from the very top edge of the container
+        paddingTop: 16,
     },
     backButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
         justifyContent: 'center',
         alignItems: 'center',
-        backdropFilter: 'blur(10px)', // Only works on some versions/platforms, fallback is safe
     },
     rightButtons: {
         flexDirection: 'row',
@@ -491,44 +551,52 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: 8,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 24,
     },
     modalContent: {
-        backgroundColor: 'white',
+        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
         borderRadius: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
         padding: 24,
         width: '100%',
         alignItems: 'center',
+        overflow: 'hidden',
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: '700',
         marginBottom: 8,
-        color: '#1F2937',
+        color: '#FFFFFF',
     },
     modalSubtitle: {
         fontSize: 14,
-        color: '#6B7280',
+        color: 'rgba(255,255,255,0.5)',
         textAlign: 'center',
         marginBottom: 20,
     },
     input: {
         width: '100%',
-        backgroundColor: '#F3F4F6',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
         padding: 16,
         fontSize: 18,
         fontWeight: '600',
+        color: '#FFFFFF',
         marginBottom: 24,
         textAlign: 'center',
     },
@@ -543,29 +611,33 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
     },
     cancelButton: {
-        backgroundColor: '#F3F4F6',
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     saveButton: {
-        backgroundColor: '#0F172A',
+        // LinearGradient fills via absoluteFill
     },
     cancelButtonText: {
         fontWeight: '600',
-        color: '#4B5563',
+        color: 'rgba(255,255,255,0.5)',
     },
     saveButtonText: {
         fontWeight: '600',
-        color: 'white',
+        color: '#FFFFFF',
     },
     infoCard: {
-        backgroundColor: 'rgba(37, 99, 235, 0.05)', // Light blue tint
+        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
         marginHorizontal: 16,
         marginTop: 16,
         padding: 16,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: 'rgba(37, 99, 235, 0.1)',
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     infoHeader: {
         flexDirection: 'row',
@@ -576,11 +648,11 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     infoTitle: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#1F2937',
+        color: '#FFFFFF',
     },
     infoText: {
         fontSize: 13,
-        color: '#4B5563',
+        color: 'rgba(255,255,255,0.5)',
         lineHeight: 20,
     }
 });

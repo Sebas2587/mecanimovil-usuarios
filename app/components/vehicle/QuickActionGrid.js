@@ -1,116 +1,96 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
+import { HeartPulse, Clock, ChevronRight } from 'lucide-react-native';
 
-const QuickActionCard = ({ title, subtitle, icon, color, onPress, styles, colors }) => (
-    <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={onPress}>
-        <View style={styles.cardHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: `${color}15` }]}>
-                <Ionicons name={icon} size={24} color={color} />
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.neutral?.gray?.[300] || '#D1D5DB'} />
-        </View>
-        <View style={styles.textContainer}>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
+const GlassCard = ({ children, style, onPress }) => (
+    <TouchableOpacity style={[styles.card, style]} activeOpacity={0.7} onPress={onPress}>
+        {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
+        {children}
     </TouchableOpacity>
 );
 
-const QuickActionGrid = ({
-    healthScore,
-    serviceCount,
-    onHealthPress,
-    onHistoryPress
-}) => {
-    const theme = useTheme();
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
-
-    const styles = getStyles(colors, typography, spacing, borders);
-
-    // Get health color based on score
+const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPress }) => {
     const getHealthColor = (score) => {
-        if (score >= 80) return '#10B981'; // Green - Excellent
-        if (score >= 60) return '#F59E0B'; // Yellow/Amber - Good
-        if (score >= 40) return '#F97316'; // Orange - Fair
-        return '#EF4444'; // Red - Poor
+        if (score >= 80) return '#10B981';
+        if (score >= 60) return '#F59E0B';
+        if (score >= 40) return '#F97316';
+        return '#EF4444';
     };
+
+    const healthColor = getHealthColor(healthScore || 0);
 
     return (
         <View style={styles.container}>
-            {/* Health Card */}
-            <QuickActionCard
-                title="Salud del Motor"
-                subtitle={`${healthScore || 0}% de condición óptima`}
-                icon="pulse"
-                color={getHealthColor(healthScore || 0)}
-                onPress={onHealthPress}
-                styles={styles}
-                colors={colors}
-            />
+            <GlassCard onPress={onHealthPress}>
+                <View style={styles.cardHeader}>
+                    <View style={[styles.iconCircle, { backgroundColor: `${healthColor}20` }]}>
+                        <HeartPulse size={22} color={healthColor} />
+                    </View>
+                    <ChevronRight size={16} color="rgba(255,255,255,0.25)" />
+                </View>
+                <View>
+                    <Text style={styles.title}>Salud del Motor</Text>
+                    <Text style={styles.subtitle}>{healthScore || 0}% de condición óptima</Text>
+                </View>
+            </GlassCard>
 
-            {/* Spacer */}
-            <View style={{ width: spacing.md || 16 }} />
-
-            {/* History Card */}
-            <QuickActionCard
-                title="Historial"
-                subtitle={`${serviceCount || 0} servicios registrados`}
-                icon="time"
-                color={colors.warning?.[500] || '#F59E0B'}
-                onPress={onHistoryPress}
-                styles={styles}
-                colors={colors}
-            />
+            <GlassCard onPress={onHistoryPress}>
+                <View style={styles.cardHeader}>
+                    <View style={[styles.iconCircle, { backgroundColor: 'rgba(251,191,36,0.15)' }]}>
+                        <Clock size={22} color="#FBBF24" />
+                    </View>
+                    <ChevronRight size={16} color="rgba(255,255,255,0.25)" />
+                </View>
+                <View>
+                    <Text style={styles.title}>Historial</Text>
+                    <Text style={styles.subtitle}>{serviceCount || 0} servicios registrados</Text>
+                </View>
+            </GlassCard>
         </View>
     );
 };
 
-const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        paddingHorizontal: spacing.md || 16,
-        marginBottom: spacing.lg || 24,
+        paddingHorizontal: 16,
+        marginBottom: 24,
+        gap: 12,
     },
     card: {
         flex: 1,
-        backgroundColor: colors.background?.paper || '#FFFFFF',
-        borderRadius: borders.radius?.lg || 12,
-        padding: spacing.md || 16,
+        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+        borderRadius: 16,
+        padding: 16,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
         justifyContent: 'space-between',
-        minHeight: 140, // Ensure nice square-ish aspect ratio
+        minHeight: 140,
+        overflow: 'hidden',
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: spacing.sm || 8,
+        marginBottom: 12,
     },
     iconCircle: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    textContainer: {
-        // No margin bottom needed as it is at the bottom
-    },
     title: {
-        fontSize: typography.fontSize?.base || 14,
-        fontWeight: typography.fontWeight?.bold || '700',
-        color: colors.text?.primary || '#111827',
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#FFFFFF',
         marginBottom: 4,
     },
     subtitle: {
         fontSize: 11,
-        color: colors.text?.tertiary || '#6B7280',
+        color: 'rgba(255,255,255,0.4)',
         lineHeight: 16,
     }
 });

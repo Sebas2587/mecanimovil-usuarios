@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   FlatList,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,6 +34,13 @@ const C = {
   borderLight:   DS_COLORS?.border?.light          ?? '#D7DFE3',
   borderMain:    DS_COLORS?.border?.main           ?? '#C3CFD5',
 };
+
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => {
   console.log('🔍 Modal Props:', { visible, ordenId, servicioNombre });
@@ -189,7 +197,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
                 <Ionicons
                   name={checklistClienteService.obtenerIconoCategoria(categoria)}
                   size={18}
-                  color={categoriaSeleccionada === categoria ? '#fff' : C.primary}
+                  color={categoriaSeleccionada === categoria ? '#F9FAFB' : 'rgba(255,255,255,0.55)'}
                 />
                 <Text
                   style={[
@@ -577,12 +585,18 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
       <View style={styles.container}>
+        <View style={styles.bg}>
+          <View style={styles.blobGreen} />
+          <View style={styles.blobIndigo} />
+          <View style={styles.blobCyan} />
+        </View>
 
         {/* Header mejorado */}
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <View style={styles.headerGlassBase} pointerEvents="none" />
           <View style={styles.headerTopRow}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Ionicons name="arrow-back" size={22} color="#F9FAFB" />
             </TouchableOpacity>
 
             <View style={styles.headerCenter}>
@@ -603,17 +617,22 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
         {/* Contenido */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={C.primary} />
+            <View style={styles.centerCard}>
+              <View style={styles.centerCardBase} pointerEvents="none" />
+              <ActivityIndicator size="large" color="#6EE7B7" />
             <Text style={styles.loadingText}>📋 Cargando inspección...</Text>
-            <Text style={{ fontSize: 14, color: C.textLight, marginTop: 5 }}>
-              Obteniendo detalles del servicio realizado
-            </Text>
+              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginTop: 5 }}>
+                Obteniendo detalles del servicio realizado
+              </Text>
+            </View>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
-            <Ionicons name="warning-outline" size={64} color={C.warning} />
-            <Text style={styles.errorText}>⚠️ Error al cargar inspección</Text>
-            <Text style={styles.errorSubtext}>{String(error)}</Text>
+            <View style={styles.centerCard}>
+              <View style={styles.centerCardBase} pointerEvents="none" />
+              <Ionicons name="warning-outline" size={64} color="#FBBF24" />
+              <Text style={styles.errorText}>⚠️ Error al cargar inspección</Text>
+              <Text style={styles.errorSubtext}>{String(error)}</Text>
             <TouchableOpacity
               style={styles.retryButton}
               onPress={cargarChecklist}
@@ -621,6 +640,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
             >
               <Text style={styles.retryButtonText}>🔄 Reintentar</Text>
             </TouchableOpacity>
+            </View>
           </View>
         ) : checklist ? (
           <View style={styles.content}>
@@ -630,11 +650,14 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
           </View>
         ) : (
           <View style={styles.noDataContainer}>
-            <Ionicons name="document-outline" size={64} color={C.textLight} />
+            <View style={styles.centerCard}>
+              <View style={styles.centerCardBase} pointerEvents="none" />
+              <Ionicons name="document-outline" size={64} color="rgba(255,255,255,0.35)" />
             <Text style={styles.noDataText}>📋 No hay datos de inspección disponibles</Text>
-            <Text style={{ fontSize: 14, color: C.textLight, marginTop: 10 }}>
-              Este servicio no tiene una inspección registrada
-            </Text>
+              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginTop: 10 }}>
+                Este servicio no tiene una inspección registrada
+              </Text>
+            </View>
           </View>
         )}
       </View>
@@ -645,19 +668,51 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: C.bgDefault,
+    backgroundColor: '#030712',
+  },
+  bg: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#030712',
+  },
+  blobGreen: {
+    position: 'absolute',
+    top: -80,
+    right: -60,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(16,185,129,0.08)',
+  },
+  blobIndigo: {
+    position: 'absolute',
+    top: 360,
+    left: -90,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(99,102,241,0.06)',
+  },
+  blobCyan: {
+    position: 'absolute',
+    bottom: -50,
+    right: -40,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: 'rgba(6,182,212,0.05)',
   },
 
   // ── Header ──────────────────────────────────────────────────────────────
   header: {
-    backgroundColor: C.primary,
+    backgroundColor: 'transparent',
     paddingHorizontal: 16,
     paddingBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+  },
+  headerGlassBase: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: GLASS_BG,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -667,7 +722,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -683,30 +740,34 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.55)',
   },
   estadoBadge: {
-    backgroundColor: 'rgba(0,201,167,0.2)',
+    backgroundColor: 'rgba(16,185,129,0.16)',
     borderRadius: 12,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginLeft: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(110,231,183,0.25)',
   },
   estadoBadgeTexto: {
     fontSize: 12,
     fontWeight: '600',
-    color: C.success,
+    color: '#6EE7B7',
   },
 
   // ── Tarjeta del proveedor ────────────────────────────────────────────────
   proveedorCard: {
-    backgroundColor: C.primary,
+    backgroundColor: GLASS_BG,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   proveedorAvatar: {
     width: 38,
@@ -774,11 +835,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: C.bgDefault,
+    backgroundColor: 'transparent',
   },
   loadingText: {
     fontSize: 18,
-    color: C.textPrimary,
+    color: '#F9FAFB',
     marginTop: 15,
     fontWeight: '500',
   },
@@ -787,31 +848,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 30,
-    backgroundColor: C.bgDefault,
+    backgroundColor: 'transparent',
   },
   errorText: {
     fontSize: 20,
     fontWeight: '600',
-    color: C.error,
+    color: '#FCA5A5',
     marginBottom: 10,
     textAlign: 'center',
   },
   errorSubtext: {
     fontSize: 16,
-    color: C.textLight,
+    color: 'rgba(255,255,255,0.55)',
     textAlign: 'center',
     marginBottom: 25,
   },
   retryButton: {
-    backgroundColor: C.primary,
+    backgroundColor: '#0d9488',
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 12,
-    shadowColor: C.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(110,231,183,0.25)',
   },
   retryButtonText: {
     fontSize: 16,
@@ -823,21 +881,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 30,
-    backgroundColor: C.bgDefault,
+    backgroundColor: 'transparent',
   },
   noDataText: {
     fontSize: 18,
-    color: C.textLight,
+    color: 'rgba(255,255,255,0.55)',
     textAlign: 'center',
     marginTop: 15,
   },
 
   // ── Navegación de categorías ─────────────────────────────────────────────
   navegacionContainer: {
-    backgroundColor: C.bgPaper,
+    backgroundColor: 'transparent',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: C.borderLight,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
   categoriasScroll: {
     flexGrow: 0,
@@ -845,22 +903,36 @@ const styles = StyleSheet.create({
   categoriaTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.bgDefault,
+    backgroundColor: GLASS_BG,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
     marginHorizontal: 4,
     borderWidth: 1.5,
-    borderColor: C.borderLight,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+
+  centerCard: {
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    borderRadius: 18,
+    padding: 18,
+    alignItems: 'center',
+    overflow: 'hidden',
+    maxWidth: 340,
+  },
+  centerCardBase: {
+    ...StyleSheet.absoluteFillObject,
   },
   categoriaTabActiva: {
-    backgroundColor: C.primary,
-    borderColor: C.primary,
+    backgroundColor: 'rgba(13,148,136,0.35)',
+    borderColor: 'rgba(110,231,183,0.25)',
   },
   categoriaTabTexto: {
     fontSize: 12,
     fontWeight: '600',
-    color: C.textSecondary,
+    color: 'rgba(255,255,255,0.7)',
     marginLeft: 5,
     marginRight: 5,
   },
@@ -878,7 +950,7 @@ const styles = StyleSheet.create({
   contadorTexto: {
     fontSize: 10,
     fontWeight: '700',
-    color: C.textSecondary,
+    color: 'rgba(255,255,255,0.7)',
   },
 
   // ── Contenido ────────────────────────────────────────────────────────────

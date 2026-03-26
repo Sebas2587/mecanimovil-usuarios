@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { InteractionManager } from 'react-native';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { InteractionManager, Platform } from 'react-native';
 import {
   View,
   Text,
@@ -11,22 +11,77 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Image
+  Dimensions
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, SPACING, BORDERS } from '../../utils/constants';
-import { useTheme } from '../../design-system/theme/useTheme';
-import Card from '../base/Card/Card';
-import Button from '../base/Button/Button';
+import { BlurView } from 'expo-blur';
+import { Image } from 'expo-image';
+import { ROUTES } from '../../utils/constants';
 import VehicleSelector from '../vehicles/VehicleSelector';
 import AddressSelector from '../forms/AddressSelector';
-import ServiceCard from '../cards/ServiceCard';
-import CategoryGridCard from '../cards/CategoryGridCard';
 import * as serviceService from '../../services/service';
 import * as providerService from '../../services/providers';
 import * as categoriesService from '../../services/categories';
 import { getMediaURL } from '../../services/api';
+import VehicleHealthService from '../../services/vehicleHealthService';
+import { getProviderSpecialty } from '../../utils/providerUtils';
+import {
+  Car as CarIcon,
+  TriangleAlert as AlertTriangleIcon,
+  Check as CheckIcon,
+  CheckCircle2 as CheckCircle2Icon,
+  Clock as ClockIcon,
+  FileText as FileTextIcon,
+  ChevronRight as ChevronRightIcon,
+  ShieldAlert as ShieldAlertIcon,
+  Star,
+  MapPin,
+  Eye,
+  User as UserIcon,
+  Search,
+  Zap,
+  CalendarDays,
+  MapPinned,
+  Send,
+  Globe,
+  Users,
+  Building2,
+  Wrench,
+  Package,
+} from 'lucide-react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const GlassCard = ({ children, style, onPress, activeOpacity = 0.8 }) => {
+  const content = (
+    <View style={[glassCardBase, style]}>
+      {Platform.OS === 'ios' ? (
+        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
+      ) : null}
+      {children}
+    </View>
+  );
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={activeOpacity}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+  return content;
+};
+
+const glassCardBase = {
+  backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: 'rgba(255,255,255,0.12)',
+  overflow: 'hidden',
+  padding: 16,
+};
 
 /**
  * Formulario multi-paso para crear una solicitud de servicio
@@ -58,12 +113,43 @@ const FormularioSolicitud = ({
   });
 
 
-  // Estados para servicios y proveedores
-  const [serviciosDisponibles, setServiciosDisponibles] = useState([]);
-  const [categorias, setCategorias] = useState([]);
+  // Detectar si hay servicio o proveedor preseleccionado (needed before queries)
+  const tieneServicioPreseleccionado = initialData?.servicios_seleccionados &&
+    initialData.servicios_seleccionados.length > 0;
+  const tieneProveedorPreseleccionado = initialData?.fromProviderDetail &&
+    initialData?.proveedores_dirigidos &&
+    initialData.proveedores_dirigidos.length > 0 &&
+    initialData?.tipo_solicitud === 'dirigida';
+  const flujoCuatroPasos = tieneProveedorPreseleccionado && tieneServicioPreseleccionado && !formData.sin_vehiculo_registrado;
+
+  // ── TanStack Query for services, categories, and health ──
+  const vehiculoId = formData.vehiculo?.id;
+
+  const {
+    data: serviciosDisponibles = [],
+    isLoading: cargandoServicios,
+  } = useQuery({
+    queryKey: ['vehicleServices', vehiculoId],
+    queryFn: () => serviceService.getServicesByVehiculo(vehiculoId),
+    enabled: !!vehiculoId && !tieneServicioPreseleccionado,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const {
+    data: categorias = [],
+  } = useQuery({
+    queryKey: ['mainCategories'],
+    queryFn: categoriesService.getMainCategories,
+    enabled: !!vehiculoId && !tieneServicioPreseleccionado,
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 24,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
-  const [cargandoServicios, setCargandoServicios] = useState(false);
-  const [vistaServicios, setVistaServicios] = useState('categorias'); // 'categorias' o 'lista'
+  const [vistaServicios, setVistaServicios] = useState('categorias');
 
   const [proveedoresDisponibles, setProveedoresDisponibles] = useState({ talleres: [], mecanicos: [] });
   const [cargandoProveedores, setCargandoProveedores] = useState(false);
@@ -74,18 +160,33 @@ const FormularioSolicitud = ({
   const [mostrarSelectorHora, setMostrarSelectorHora] = useState(false);
   const [mesCalendario, setMesCalendario] = useState(new Date());
 
-  // Detectar si hay servicio preseleccionado ANTES de los effects
-  const tieneServicioPreseleccionado = initialData?.servicios_seleccionados &&
-    initialData.servicios_seleccionados.length > 0;
+  // (tieneServicioPreseleccionado, tieneProveedorPreseleccionado, flujoCuatroPasos defined above queries)
 
-  // Detectar si hay proveedor preseleccionado (desde ProviderDetailScreen)
-  const tieneProveedorPreseleccionado = initialData?.fromProviderDetail &&
-    initialData?.proveedores_dirigidos &&
-    initialData.proveedores_dirigidos.length > 0 &&
-    initialData?.tipo_solicitud === 'dirigida';
+  const navigation = useNavigation();
 
-  // Sin vehículo (precompra): no saltar paso 4 — el usuario debe ver talleres/mecánicos del servicio
-  const flujoCuatroPasos = tieneProveedorPreseleccionado && tieneServicioPreseleccionado && !formData.sin_vehiculo_registrado;
+  // Health components via TanStack Query (instant from cache when navigating back)
+  const {
+    data: healthComponentsQuery = [],
+    isLoading: loadingHealth,
+  } = useQuery({
+    queryKey: ['vehicleHealthComponents', vehiculoId],
+    queryFn: () => VehicleHealthService.getComponents(vehiculoId),
+    enabled: !!vehiculoId,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    select: (data) => {
+      const results = Array.isArray(data) ? data : (data?.results || []);
+      return results;
+    },
+    placeholderData: () => {
+      const vehicleReport = formData.vehiculo?.health_report;
+      return Array.isArray(vehicleReport) && vehicleReport.length > 0 ? vehicleReport : undefined;
+    },
+  });
+  const healthComponents = healthComponentsQuery;
+
+  const [descriptionModalVisible, setDescriptionModalVisible] = useState(false);
+  const [tempDescription, setTempDescription] = useState('');
 
   // Ref para trackear si es la primera vez que se monta el componente
   // Esto evita limpiar servicios seleccionados manualmente cuando useFocusEffect
@@ -196,32 +297,12 @@ const FormularioSolicitud = ({
     previousInitialDataRef.current = initialData;
   }, [initialData]);
 
-  // Cargar servicios cuando se selecciona un vehículo
+  // Clear selected services when vehicle changes (useQuery handles data fetching)
   useEffect(() => {
-    if (formData.vehiculo && formData.vehiculo.id) {
-      // Limpiar servicios anteriores al cambiar de vehículo
-      setServiciosDisponibles([]);
-
-      // IMPORTANTE: NO limpiar servicios si hay un servicio preseleccionado
-      if (!tieneServicioPreseleccionado) {
-        setFormData(prev => ({
-          ...prev,
-          servicios_seleccionados: [] // Limpiar servicios seleccionados al cambiar vehículo
-        }));
-      }
-
-      // Solo cargar servicios si NO hay servicio preseleccionado
-      if (!tieneServicioPreseleccionado) {
-        cargarServiciosPorVehiculo();
-        cargarCategorias();
-      }
-    } else {
-      // Si no hay vehículo seleccionado, limpiar servicios solo si no hay preselección
-      if (!tieneServicioPreseleccionado) {
-        setServiciosDisponibles([]);
-      }
+    if (formData.vehiculo?.id && !tieneServicioPreseleccionado) {
+      setFormData(prev => ({ ...prev, servicios_seleccionados: [] }));
     }
-  }, [formData.vehiculo]);
+  }, [formData.vehiculo?.id]);
 
   // Cargar proveedores cuando se selecciona "solo proveedores específicos"
   useEffect(() => {
@@ -252,46 +333,40 @@ const FormularioSolicitud = ({
     }
   }, [formData.servicios_seleccionados]);
 
-  const cargarServiciosPorVehiculo = async () => {
-    if (!formData.vehiculo || !formData.vehiculo.id) {
-      setServiciosDisponibles([]);
-      return;
-    }
+  // Build recommendations from critical health components
+  const healthRecommendations = React.useMemo(() => {
+    if (!healthComponents?.length) return [];
 
-    setCargandoServicios(true);
-    try {
-      const servicios = await serviceService.getServicesByVehiculo(formData.vehiculo.id);
-      const serviciosArray = Array.isArray(servicios) ? servicios : [];
-      setServiciosDisponibles(serviciosArray);
-      console.log(`✅ Servicios cargados para vehículo ${formData.vehiculo.id}:`, serviciosArray.length);
-      if (serviciosArray.length > 0) {
-        console.log('📋 Estructura del primer servicio:', serviciosArray[0]);
+    const recs = [];
+    const seenServiceIds = new Set();
+    const critical = [...healthComponents]
+      .filter(c => {
+        const level = c.nivel_alerta || c.status || 'OPTIMO';
+        return level !== 'OPTIMO';
+      })
+      .sort((a, b) => (a.salud_porcentaje ?? a.salud ?? 100) - (b.salud_porcentaje ?? b.salud ?? 100))
+      .slice(0, 5);
+
+    for (const comp of critical) {
+      const compName = comp.componente?.nombre || comp.componente_nombre || comp.componente || 'Componente';
+      const compHealth = comp.salud_porcentaje ?? comp.salud ?? 0;
+      const compLevel = comp.nivel_alerta || comp.status || 'ATENCION';
+      const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
+      const services = comp.servicios_asociados || [];
+
+      if (services.length > 0) {
+        for (const svc of services) {
+          if (svc?.id && !seenServiceIds.has(svc.id)) {
+            seenServiceIds.add(svc.id);
+            recs.push({ componentName: compName, componentHealth: compHealth, componentLevel: compLevel, kmRestantes: kmRest, service: svc });
+          }
+        }
+      } else {
+        recs.push({ componentName: compName, componentHealth: compHealth, componentLevel: compLevel, kmRestantes: kmRest, service: null });
       }
-
-      // Si no hay servicios disponibles, mostrar mensaje informativo
-      if (serviciosArray.length === 0) {
-        console.warn(`⚠️ No se encontraron servicios disponibles para el vehículo ${formData.vehiculo.id}`);
-      }
-    } catch (error) {
-      console.error('❌ Error cargando servicios:', error);
-      setServiciosDisponibles([]);
-    } finally {
-      setCargandoServicios(false);
     }
-  };
-
-  const cargarCategorias = async () => {
-    try {
-      console.log('📂 Cargando categorías principales...');
-      const categoriasData = await categoriesService.getMainCategories();
-      const categoriasArray = Array.isArray(categoriasData) ? categoriasData : [];
-      setCategorias(categoriasArray);
-      console.log(`✅ Categorías cargadas:`, categoriasArray.length, categoriasArray);
-    } catch (error) {
-      console.error('❌ Error cargando categorías:', error);
-      setCategorias([]);
-    }
-  };
+    return recs;
+  }, [healthComponents]);
 
   /** Cargar talleres/mecánicos que ofrecen los servicios seleccionados sin vehículo (precompra) */
   const cargarProveedoresPorServicioSinVehiculo = async () => {
@@ -458,11 +533,8 @@ const FormularioSolicitud = ({
   // Si hay servicio + proveedor preseleccionados: 4 pasos (saltamos pasos 2 y 4)
   // Si hay solo servicio preseleccionado: 5 pasos (saltamos el paso 2)
   // Si NO hay preselecciones: 6 pasos (flujo normal)
-  const totalPasos = flujoCuatroPasos
-    ? 4
-    : tieneServicioPreseleccionado
-      ? 5
-      : 6;
+  // Always 5 steps (skip step 2); 4 when provider also preselected
+  const totalPasos = flujoCuatroPasos ? 4 : 5;
 
   // Sincronizar initialData cuando llegue (se ejecuta una sola vez al montar o cuando initialData cambia)
   useEffect(() => {
@@ -563,121 +635,110 @@ const FormularioSolicitud = ({
     initialData?.servicios_seleccionados,
   ]);
 
+  // Regla de negocio: precompra sin vehículo NO pregunta por repuestos.
+  useEffect(() => {
+    if (formData.sin_vehiculo_registrado && formData.requiere_repuestos !== false) {
+      setFormData(prev => ({ ...prev, requiere_repuestos: false }));
+    }
+  }, [formData.sin_vehiculo_registrado, formData.requiere_repuestos]);
+
   const handleNext = () => {
-    // Validar paso actual antes de avanzar
-    if (!validarPaso(pasoActual)) {
+    if (!validarPaso(pasoActual)) return;
+
+    // flujoCuatroPasos: 1→3→5→6 (skip step 2 and 4)
+    if (flujoCuatroPasos) {
+      if (pasoActual === 1) { setPasoActual(3); }
+      else if (pasoActual === 3) { setPasoActual(5); }
+      else if (pasoActual === 5) { setPasoActual(6); }
+      else if (pasoActual === 6) { handleSubmit(); }
+      else { setPasoActual(pasoActual + 1); }
       return;
     }
 
-    // Si hay proveedor + servicio preseleccionados (flujo de 4 pasos: 1→3→5→6)
-    if (flujoCuatroPasos) {
-      // Del paso 1 saltar al paso 3 (salta paso 2)
+    // tieneServicioPreseleccionado: 1→3→4→5→6 (skip step 2)
+    if (tieneServicioPreseleccionado) {
       if (pasoActual === 1) {
-        console.log('🚀 Saltando del paso 1 al paso 3 (servicio y proveedor preseleccionados)');
-        setPasoActual(3);
-      }
-      // Del paso 3 saltar al paso 5 (salta paso 4)
-      else if (pasoActual === 3) {
-        console.log('🚀 Saltando del paso 3 al paso 5 (proveedor preseleccionado, saltando paso 4)');
-        setPasoActual(5);
-      }
-      // De paso 5 a paso 6 (el último paso)
-      else if (pasoActual === 5) {
-        console.log('🚀 Avanzando del paso 5 al paso 6 (fecha/hora)');
-        setPasoActual(6);
-      }
-      // En el paso 6, hacer submit
-      else if (pasoActual === 6) {
-        console.log('✅ Paso 6 completado, enviando solicitud');
-        handleSubmit();
-      }
-      // Cualquier otro caso, avanzar normalmente
-      else {
-        setPasoActual(pasoActual + 1);
-      }
-    }
-    // Si solo hay servicio preseleccionado (flujo de 5 pasos: 1→3→4→5→6)
-    // Cuando se navega desde CategoryServicesListScreen, el usuario selecciona un servicio
-    // El flujo debe ser: Paso 1 (vehículo) → Paso 3 (urgencia/descripción) → Paso 4 (proveedores) → Paso 5 (dirección) → Paso 6 (fecha/hora)
-    else if (tieneServicioPreseleccionado) {
-      if (pasoActual === 1) {
-        // Sin vehículo (precompra): avanzar solo con servicio ya seleccionado
         if (formData.sin_vehiculo_registrado) {
           if (!formData.servicios_seleccionados?.length) {
-            Alert.alert('Error', 'Debes tener el servicio de precompra seleccionado');
+            Alert.alert('Error', 'Debes tener el servicio seleccionado');
             return;
           }
-          console.log('🚀 Precompra sin vehículo: paso 1 → 3');
           setPasoActual(3);
           return;
         }
-        // Validar que haya vehículo seleccionado antes de saltar
         if (!formData.vehiculo) {
-          console.warn('⚠️ No se puede avanzar: falta seleccionar vehículo');
           Alert.alert('Error', 'Debes seleccionar un vehículo para continuar');
           return;
         }
-        console.log('🚀 Saltando del paso 1 al paso 3 (servicio preseleccionado desde categoría)');
-        console.log('📋 Servicio preseleccionado:', formData.servicios_seleccionados[0]?.nombre);
-        console.log('🚗 Vehículo seleccionado:', formData.vehiculo?.marca_nombre, formData.vehiculo?.modelo_nombre);
-        setPasoActual(3); // Saltar directamente al paso de urgencia (saltando paso 2)
+        setPasoActual(3);
       } else if (pasoActual === 6) {
-        // En el paso 6 (último paso), hacer submit
-        console.log('✅ Paso 6 completado, enviando solicitud');
         handleSubmit();
-      } else if (pasoActual < 6) {
-        // Avanzar al siguiente paso (puede ser 3→4, 4→5, o 5→6)
-        console.log(`🚀 Avanzando del paso ${pasoActual} al paso ${pasoActual + 1} (servicio preseleccionado)`);
-        setPasoActual(pasoActual + 1);
       } else {
-        // Fallback: si por alguna razón estamos en un paso inválido, hacer submit
-        console.warn(`⚠️ Paso inválido ${pasoActual}, llamando handleSubmit`);
-        handleSubmit();
+        setPasoActual(pasoActual + 1);
       }
+      return;
     }
-    // Flujo normal (6 pasos: 1→2→3→4→5→6)
-    else {
-      if (pasoActual < totalPasos) {
-        setPasoActual(pasoActual + 1);
-      } else {
-        handleSubmit();
+
+    // Unified normal flow: 1→3→4→5→6 (always skip step 2)
+    if (pasoActual === 1) {
+      if (!formData.vehiculo) {
+        Alert.alert('Selecciona un vehículo', 'Debes seleccionar un vehículo para continuar.');
+        return;
       }
+      if (!Array.isArray(formData.servicios_seleccionados) || formData.servicios_seleccionados.length === 0) {
+        Alert.alert('Selecciona un servicio', 'Debes seleccionar al menos un servicio para continuar.');
+        return;
+      }
+      if (!formData.descripcion_problema?.trim()) {
+        setTempDescription(formData.descripcion_problema || '');
+        setDescriptionModalVisible(true);
+        return;
+      }
+      setPasoActual(3);
+    } else if (pasoActual === 6) {
+      handleSubmit();
+    } else {
+      setPasoActual(pasoActual + 1);
     }
   };
 
   const handleBack = () => {
-    if (pasoActual > 1) {
-      // Si hay proveedor + servicio preseleccionados
-      if (flujoCuatroPasos) {
-        // Del paso 3 retroceder al paso 1 (si proveedor preseleccionado)
-        if (pasoActual === 3) {
-          console.log('🔙 Retrocediendo del paso 3 al paso 1 (servicio y proveedor preseleccionados)');
-          setPasoActual(1);
-        }
-        // Del paso 5 retroceder al paso 3 (saltar paso 4 hacia atrás)
-        else if (pasoActual === 5) {
-          console.log('🔙 Retrocediendo del paso 5 al paso 3 (proveedor preseleccionado, saltando paso 4)');
-          setPasoActual(3);
-        }
-        // De paso 6 a paso 5 (normal)
-        else {
-          setPasoActual(pasoActual - 1);
-        }
-      }
-      // Si solo hay servicio preseleccionado
-      else if (tieneServicioPreseleccionado && pasoActual === 3) {
-        console.log('🔙 Retrocediendo del paso 3 al paso 1 (servicio preseleccionado)');
-        setPasoActual(1); // Retroceder directamente al paso de vehículo
-      } else {
-        setPasoActual(pasoActual - 1);
-      }
+    if (pasoActual <= 1) return;
+
+    // Precompra sin vehículo: back from step 3 resets to normal
+    if (formData.sin_vehiculo_registrado && pasoActual === 3) {
+      setFormData(prev => ({
+        ...prev,
+        sin_vehiculo_registrado: false,
+        servicios_seleccionados: [],
+        tipo_solicitud: 'global',
+        proveedores_dirigidos: [],
+        requiere_repuestos: true,
+      }));
+      setPasoActual(1);
+      return;
+    }
+
+    // flujoCuatroPasos: skip step 4 and 2 going back
+    if (flujoCuatroPasos) {
+      if (pasoActual === 3) { setPasoActual(1); }
+      else if (pasoActual === 5) { setPasoActual(3); }
+      else { setPasoActual(pasoActual - 1); }
+      return;
+    }
+
+    // All flows: step 3 goes back to step 1 (skip step 2)
+    if (pasoActual === 3) {
+      setPasoActual(1);
+    } else {
+      setPasoActual(pasoActual - 1);
     }
   };
 
   const validarPaso = (paso) => {
     switch (paso) {
       case 1:
-        // Precompra / sin vehículo: solo si ya hay servicios seleccionados (viene preseleccionado)
+        // Precompra / sin vehículo
         if (formData.sin_vehiculo_registrado) {
           if (!Array.isArray(formData.servicios_seleccionados) || formData.servicios_seleccionados.length === 0) {
             Alert.alert('Error', 'Para continuar sin vehículo debes tener un servicio seleccionado (ej. revisión precompra).');
@@ -710,8 +771,15 @@ const FormularioSolicitud = ({
         }
         return true;
       case 3:
-        // Precompra sin vehículo: no exigir vehículo
+        // Precompra sin vehículo: no exigir vehículo, pero sí comentario obligatorio
         if (formData.sin_vehiculo_registrado) {
+          if (!formData.descripcion_problema || !formData.descripcion_problema.trim()) {
+            Alert.alert(
+              'Comentario requerido',
+              'Para precompra sin vehículo debes indicar en el comentario el vehículo a inspeccionar.'
+            );
+            return false;
+          }
           return true;
         }
         // Si hay servicio y proveedor preseleccionados, validar que haya vehículo seleccionado
@@ -786,8 +854,17 @@ const FormularioSolicitud = ({
     const datosFinales = formData && typeof formData === 'object' && !Array.isArray(formData)
       ? { ...formData }
       : {};
-    if (tieneServicioPreseleccionado && !datosFinales.descripcion_problema.trim()) {
-      const nombreServicio = formData.servicios_seleccionados[0]?.nombre || 'servicio seleccionado';
+    const descripcionActual = String(datosFinales.descripcion_problema || '').trim();
+    const debeAutogenerarDescripcion =
+      !descripcionActual &&
+      !formData.sin_vehiculo_registrado &&
+      (
+        tieneServicioPreseleccionado ||
+        (Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0)
+      );
+
+    if (debeAutogenerarDescripcion) {
+      const nombreServicio = formData.servicios_seleccionados?.[0]?.nombre || 'servicio seleccionado';
       datosFinales.descripcion_problema = `Solicitud de ${nombreServicio}`;
       console.log('📝 Descripción generada automáticamente:', datosFinales.descripcion_problema);
     }
@@ -868,13 +945,18 @@ const FormularioSolicitud = ({
         vehiculo: null,
         servicios_seleccionados: [], // Limpiar servicios al deseleccionar vehículo
       }));
-      // Limpiar servicios disponibles también
-      setServiciosDisponibles([]);
-      setCategorias([]);
       setCategoriaSeleccionada(null);
     } else {
-      // Seleccionar nuevo vehículo
-      setFormData(prev => ({ ...prev, vehiculo }));
+      // Seleccionar nuevo vehículo: salir del modo "sin vehículo registrado"
+      setFormData(prev => ({
+        ...prev,
+        vehiculo,
+        sin_vehiculo_registrado: false,
+        // Permitir nueva elección de servicio al volver al flujo con vehículo
+        servicios_seleccionados: [],
+        tipo_solicitud: 'global',
+        proveedores_dirigidos: [],
+      }));
     }
   };
 
@@ -883,11 +965,8 @@ const FormularioSolicitud = ({
     setFormData(prev => ({
       ...prev,
       vehiculo: null,
-      servicios_seleccionados: [], // Limpiar servicios al deseleccionar vehículo
+      servicios_seleccionados: [],
     }));
-    // Limpiar servicios disponibles también
-    setServiciosDisponibles([]);
-    setCategorias([]);
     setCategoriaSeleccionada(null);
   };
 
@@ -930,6 +1009,7 @@ const FormularioSolicitud = ({
         ...prev,
         vehiculo: null,
         sin_vehiculo_registrado: true,
+        requiere_repuestos: false,
         // Dirigida para cargar listado de talleres/mecánicos que ofrecen el servicio (sin vehiculo_id)
         tipo_solicitud: 'dirigida',
         proveedores_dirigidos: [],
@@ -942,9 +1022,8 @@ const FormularioSolicitud = ({
           },
         ],
       }));
-      setServiciosDisponibles([]);
-      setCategorias([]);
       setCategoriaSeleccionada(null);
+      setPasoActual(3);
     } catch (e) {
       console.error('activarPrecompraSinVehiculo', e);
       Alert.alert('Error', 'No se pudo cargar el servicio de precompra. Intenta de nuevo.');
@@ -953,16 +1032,276 @@ const FormularioSolicitud = ({
     }
   };
 
+  // ── Dashboard flow: Step 1 with vehicle tag, recommendations and categorized services ──
+  const renderDashboardPaso1 = () => {
+    const vehicle = formData.vehiculo;
+    const vehiculosDisponibles = vehiculos && vehiculos.length > 0 ? vehiculos : [];
+
+    const getScoreColor = (s) => {
+      if (s >= 80) return '#10B981';
+      if (s >= 60) return '#F59E0B';
+      if (s >= 40) return '#F97316';
+      return '#EF4444';
+    };
+    const getLevelColor = (level) => {
+      if (level === 'CRITICO') return '#EF4444';
+      if (level === 'URGENTE') return '#F97316';
+      return '#F59E0B';
+    };
+
+    const categoriasConServicios = categorias.filter((cat) =>
+      serviciosDisponibles.some((s) => {
+        if (s.categorias_ids && Array.isArray(s.categorias_ids)) return s.categorias_ids.includes(cat.id);
+        return s.categoria === cat.id;
+      })
+    );
+
+    const serviciosFiltrados = categoriaSeleccionada
+      ? serviciosDisponibles.filter((s) => {
+          if (s.categorias_ids && Array.isArray(s.categorias_ids)) return s.categorias_ids.includes(categoriaSeleccionada.id);
+          return s.categoria === categoriaSeleccionada.id;
+        })
+      : serviciosDisponibles;
+
+    return (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: 16 }}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+      >
+        {/* ── Vehicle Selector / Tag ── */}
+        {!vehicle ? (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={gs.sectionTitle}>Selecciona tu vehículo</Text>
+            <Text style={gs.sectionSub}>Elige el vehículo para el cual necesitas el servicio</Text>
+            {vehiculosDisponibles.map((v) => (
+              <GlassCard
+                key={v.id}
+                style={{ marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                onPress={() => handleVehiculoToggle(v)}
+              >
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                  <CarIcon size={22} color="#60A5FA" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>{v.marca_nombre} {v.modelo_nombre}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>
+                    {v.year} · {v.patente} · {(v.kilometraje || 0).toLocaleString()} km
+                  </Text>
+                </View>
+                <ChevronRightIcon size={18} color="rgba(255,255,255,0.3)" />
+              </GlassCard>
+            ))}
+
+            {vehiculosDisponibles.length > 0 && (
+              <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 8 }}>
+                  ¿Comprando un auto? Pide inspección precompra sin vehículo registrado.
+                </Text>
+                <GlassCard
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}
+                  onPress={activarPrecompraSinVehiculo}
+                >
+                  {cargandoPrecompra ? (
+                    <ActivityIndicator color="#6EE7B7" />
+                  ) : (
+                    <>
+                      <Search size={20} color="#6EE7B7" />
+                      <Text style={{ color: '#6EE7B7', fontSize: 14, fontWeight: '600' }}>Inspección precompra</Text>
+                    </>
+                  )}
+                </GlassCard>
+              </View>
+            )}
+          </View>
+        ) : (
+          <>
+            {/* Vehicle Tag */}
+            <GlassCard style={{ marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(96,165,250,0.08)', borderColor: 'rgba(96,165,250,0.2)' }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <CarIcon size={22} color="#60A5FA" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>
+                  {vehicle.marca_nombre} {vehicle.modelo_nombre}
+                </Text>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>
+                  {vehicle.year} · {vehicle.patente} · {(vehicle.kilometraje || 0).toLocaleString()} km
+                </Text>
+              </View>
+              <View style={{ backgroundColor: getScoreColor(vehicle.health_score ?? 0) + '22', borderWidth: 1, borderColor: getScoreColor(vehicle.health_score ?? 0) + '55', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
+                <Text style={{ color: getScoreColor(vehicle.health_score ?? 0), fontSize: 13, fontWeight: '700' }}>
+                  {Math.round(vehicle.health_score ?? 0)}%
+                </Text>
+              </View>
+              {vehiculosDisponibles.length > 1 && (
+                <TouchableOpacity onPress={handleDeseleccionarVehiculo} style={{ padding: 4 }}>
+                  <Ionicons name="swap-horizontal" size={18} color="rgba(255,255,255,0.4)" />
+                </TouchableOpacity>
+              )}
+            </GlassCard>
+
+            {/* ── Recommendations (Horizontal Scroll) ── */}
+            {loadingHealth && healthRecommendations.length === 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, paddingVertical: 12 }}>
+                <ActivityIndicator size="small" color="#6EE7B7" />
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Analizando estado del vehículo...</Text>
+              </View>
+            ) : healthRecommendations.length > 0 ? (
+              <View style={{ marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <ShieldAlertIcon size={18} color="#F59E0B" />
+                  <Text style={gs.sectionTitle}>Recomendaciones según desgaste</Text>
+                </View>
+                <Text style={[gs.sectionSub, { marginBottom: 12 }]}>Servicios sugeridos según el estado de tu vehículo</Text>
+
+                <FlatList
+                  horizontal
+                  data={healthRecommendations}
+                  keyExtractor={(_, idx) => `rec-${idx}`}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingRight: 8 }}
+                  renderItem={({ item: rec }) => {
+                    const svc = rec.service;
+                    const isSelected = svc && Array.isArray(formData.servicios_seleccionados) &&
+                      formData.servicios_seleccionados.some((s) => s.id === svc.id);
+                    return (
+                      <TouchableOpacity
+                        style={[gs.recCard, isSelected && gs.recCardSelected]}
+                        onPress={() => svc && toggleServicioSeleccionado(svc)}
+                        activeOpacity={0.8}
+                        disabled={!svc}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getLevelColor(rec.componentLevel) }} />
+                          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={1}>
+                            {svc?.nombre || `Revisar ${rec.componentName}`}
+                          </Text>
+                          {isSelected && <CheckCircle2Icon size={18} color="#10B981" />}
+                        </View>
+                        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 10, lineHeight: 17 }} numberOfLines={2}>
+                          {rec.componentName} al {Math.round(rec.componentHealth)}%{rec.kmRestantes != null ? ` · ~${rec.kmRestantes.toLocaleString()} km rest.` : ''}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
+                          {svc?.precio_referencia != null && (
+                            <Text style={{ color: '#6EE7B7', fontSize: 13, fontWeight: '700' }}>
+                              ~${Number(svc.precio_referencia).toLocaleString('es-CL')}
+                            </Text>
+                          )}
+                          {svc?.duracion_estimada && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                              <ClockIcon size={11} color="rgba(255,255,255,0.4)" />
+                              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{svc.duracion_estimada}</Text>
+                            </View>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+              </View>
+            ) : null}
+
+            {/* ── Services Section ── */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={gs.sectionTitle}>Servicios disponibles</Text>
+              <Text style={[gs.sectionSub, { marginBottom: 12 }]}>
+                Selecciona los servicios que necesitas para tu {vehicle.marca_nombre} {vehicle.modelo_nombre}
+              </Text>
+
+              {/* Category Tabs */}
+              {categoriasConServicios.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 14 }} bounces={false}>
+                  <TouchableOpacity
+                    style={[gs.catTab, !categoriaSeleccionada && gs.catTabActive]}
+                    onPress={() => setCategoriaSeleccionada(null)}
+                  >
+                    <Text style={[gs.catTabText, !categoriaSeleccionada && gs.catTabTextActive]}>Todos</Text>
+                  </TouchableOpacity>
+                  {categoriasConServicios.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[gs.catTab, categoriaSeleccionada?.id === cat.id && gs.catTabActive]}
+                      onPress={() => setCategoriaSeleccionada(cat)}
+                    >
+                      <Text style={[gs.catTabText, categoriaSeleccionada?.id === cat.id && gs.catTabTextActive]}>{cat.nombre}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+
+              {/* Service Cards */}
+              {cargandoServicios ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                  <ActivityIndicator size="large" color="#6EE7B7" />
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Cargando servicios...</Text>
+                </View>
+              ) : serviciosFiltrados.length > 0 ? (
+                <View style={{ gap: 10 }}>
+                  {serviciosFiltrados.map((servicio) => {
+                    const isSelected = Array.isArray(formData.servicios_seleccionados) &&
+                      formData.servicios_seleccionados.some((s) => s.id === servicio.id);
+                    return (
+                      <GlassCard
+                        key={servicio.id}
+                        style={[{ gap: 6 }, isSelected && { borderColor: 'rgba(16,185,129,0.5)', backgroundColor: 'rgba(16,185,129,0.08)' }]}
+                        onPress={() => toggleServicioSeleccionado(servicio)}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={2}>{servicio.nombre}</Text>
+                          {isSelected && <CheckCircle2Icon size={20} color="#10B981" />}
+                        </View>
+                        {servicio.descripcion ? (
+                          <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, lineHeight: 17 }} numberOfLines={2}>{servicio.descripcion}</Text>
+                        ) : null}
+                        {servicio.precio_referencia != null ? (
+                          <Text style={{ color: '#6EE7B7', fontSize: 13, fontWeight: '600' }}>
+                            Desde ${Number(servicio.precio_referencia).toLocaleString('es-CL')}
+                          </Text>
+                        ) : null}
+                      </GlassCard>
+                    );
+                  })}
+                </View>
+              ) : (
+                <GlassCard style={{ alignItems: 'center', paddingVertical: 24 }}>
+                  <Wrench size={28} color="rgba(255,255,255,0.3)" />
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 8, fontSize: 13 }}>No hay servicios disponibles para este vehículo</Text>
+                </GlassCard>
+              )}
+            </View>
+
+            {/* ── Selected Counter ── */}
+            {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0 && (
+              <View style={gs.selectedBadge}>
+                <CheckCircle2Icon size={16} color="#10B981" />
+                <Text style={{ color: '#6EE7B7', fontSize: 13, fontWeight: '600' }}>
+                  {formData.servicios_seleccionados.length} servicio{formData.servicios_seleccionados.length !== 1 ? 's' : ''} seleccionado{formData.servicios_seleccionados.length !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+    );
+  };
+
   const renderPaso1 = () => {
-    // Flujo sin vehículo (precompra): no pedir auto registrado
+    // All non-precompra flows use the unified dashboard layout
+    if (!formData.sin_vehiculo_registrado) {
+      return renderDashboardPaso1();
+    }
+
+    // Flujo sin vehículo (precompra): no pedir auto registrado en este paso.
     if (formData.sin_vehiculo_registrado) {
       const nombreServicio = formData.servicios_seleccionados?.[0]?.nombre || 'servicio';
       return (
         <View style={styles.pasoContainer}>
           <Text style={styles.pasoTitle}>Servicio sin vehículo registrado</Text>
           <Text style={styles.pasoDescripcion}>
-            Solicitas {nombreServicio} sin asociar un auto a tu cuenta (por ejemplo, antes de comprar).
-            Completa ubicación y fecha en los siguientes pasos.
+            Solicitas {nombreServicio} sin asociar un auto a tu cuenta. Continúa con urgencia, tipo de solicitud,
+            dirección y fecha.
           </Text>
         </View>
       );
@@ -990,10 +1329,9 @@ const FormularioSolicitud = ({
                 onPress={() => handleVehiculoToggle(vehiculo)}
               >
                 <View style={styles.vehiculoCardContent}>
-                  <Ionicons
-                    name="car"
-                    size={24}
-                    color={formData.vehiculo?.id === vehiculo.id ? COLORS.primary : COLORS.textLight}
+                  <CarIcon
+                    size={22}
+                    color={formData.vehiculo?.id === vehiculo.id ? '#93C5FD' : 'rgba(255,255,255,0.4)'}
                   />
                   <View style={styles.vehiculoCardInfo}>
                     <Text style={[
@@ -1007,7 +1345,7 @@ const FormularioSolicitud = ({
                     </Text>
                   </View>
                   {formData.vehiculo?.id === vehiculo.id && (
-                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                    <CheckCircle2Icon size={20} color="#6EE7B7" />
                   )}
                 </View>
               </TouchableOpacity>
@@ -1029,8 +1367,8 @@ const FormularioSolicitud = ({
 
         {/* Quien ya tiene autos registrados pero quiere precompra de OTRO auto no registrado */}
         {vehiculosDisponibles.length > 0 && !formData.sin_vehiculo_registrado && (
-          <View style={{ marginTop: SPACING.lg, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.borderLight || '#E5E7EB' }}>
-            <Text style={[styles.pasoDescripcion, { marginBottom: SPACING.sm }]}>
+          <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
+            <Text style={[styles.pasoDescripcion, { marginBottom: 8 }]}>
               ¿Vas a comprar un auto y aún no lo tienes en la app? Puedes pedir inspección precompra sin elegir un vehículo tuyo.
             </Text>
             <TouchableOpacity
@@ -1040,10 +1378,10 @@ const FormularioSolicitud = ({
               activeOpacity={0.7}
             >
               {cargandoPrecompra ? (
-                <ActivityIndicator color={COLORS.primary} />
+                <ActivityIndicator color="#6EE7B7" />
               ) : (
                 <>
-                  <Ionicons name="search-outline" size={24} color={COLORS.primary} />
+                  <Search size={22} color="#93C5FD" />
                   <View style={styles.opcionContent}>
                     <Text style={styles.opcionTitle}>Inspección precompra (auto no registrado)</Text>
                     <Text style={styles.opcionDescripcion}>
@@ -1057,380 +1395,23 @@ const FormularioSolicitud = ({
         )}
 
         {formData.vehiculo && (
-          <Card style={styles.vehiculoSeleccionado}>
+          <View style={styles.vehiculoSeleccionado}>
             <View style={styles.vehiculoSeleccionadoContent}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+              <CheckCircle2Icon size={18} color="#6EE7B7" />
               <Text style={styles.vehiculoText}>
                 {formData.vehiculo.marca_nombre} {formData.vehiculo.modelo_nombre} ({formData.vehiculo.year})
               </Text>
-              <TouchableOpacity
-                onPress={handleDeseleccionarVehiculo}
-                style={styles.deseleccionarVehiculoButton}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="close-circle" size={20} color={COLORS.error || COLORS.danger || '#DC3545'} />
+              <TouchableOpacity onPress={handleDeseleccionarVehiculo} style={styles.deseleccionarVehiculoButton} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={20} color="#EF4444" />
               </TouchableOpacity>
             </View>
-          </Card>
+          </View>
         )}
       </View>
     );
   };
 
-  const renderPaso2 = () => {
-    if (!formData.vehiculo && !formData.sin_vehiculo_registrado) {
-      return (
-        <View style={styles.pasoContainer}>
-          <Text style={styles.errorText}>
-            Primero debes seleccionar un vehículo en el paso anterior
-          </Text>
-        </View>
-      );
-    }
-
-    // Verificar si hay servicios preseleccionados desde la navegación
-    const tieneServiciosPreseleccionados = initialData?.servicios_seleccionados &&
-      Array.isArray(initialData.servicios_seleccionados) &&
-      initialData.servicios_seleccionados.length > 0;
-
-    // Si hay servicios preseleccionados, mostrar solo confirmación
-    if (tieneServiciosPreseleccionados && Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0) {
-      return (
-        <View style={styles.pasoContainer}>
-          <Text style={styles.pasoTitle}>Servicio seleccionado</Text>
-          <Text style={styles.pasoDescripcion}>
-            {formData.sin_vehiculo_registrado
-              ? 'Has seleccionado el siguiente servicio (sin vehículo registrado en la app).'
-              : `Has seleccionado el siguiente servicio para tu ${formData.vehiculo.marca_nombre} ${formData.vehiculo.modelo_nombre}`}
-          </Text>
-
-          {/* Mostrar servicios preseleccionados */}
-          <View style={styles.serviciosPreseleccionadosContainer}>
-            {(Array.isArray(formData.servicios_seleccionados) ? formData.servicios_seleccionados : []).map((servicio, index) => (
-              <View key={index} style={styles.servicioPreseleccionadoCard}>
-                <View style={styles.servicioPreseleccionadoHeader}>
-                  <Ionicons name="checkmark-circle" size={24} color={COLORS.success} />
-                  <Text style={styles.servicioPreseleccionadoNombre}>
-                    {servicio.nombre}
-                  </Text>
-                </View>
-                {servicio.descripcion && (
-                  <Text style={styles.servicioPreseleccionadoDescripcion}>
-                    {servicio.descripcion}
-                  </Text>
-                )}
-                {servicio.precio_referencia && (
-                  <Text style={styles.servicioPreseleccionadoPrecio}>
-                    Precio referencia: ${parseFloat(servicio.precio_referencia).toLocaleString('es-CL')}
-                  </Text>
-                )}
-              </View>
-            ))}
-          </View>
-
-          {/* Descripción del problema */}
-          <View style={styles.descripcionContainer}>
-            <Text style={styles.descripcionLabel}>Describe el problema o necesidad específica:</Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={4}
-              placeholder="Ej: Mi auto hace un ruido extraño, necesito una revisión completa..."
-              value={formData.descripcion_problema || ''}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, descripcion_problema: text || '' }))}
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Botón para cambiar servicio (opcional) */}
-          <TouchableOpacity
-            style={styles.cambiarServicioButton}
-            onPress={() => {
-              // Limpiar servicio preseleccionado y permitir selección manual
-              setFormData(prev => ({ ...prev, servicios_seleccionados: [] }));
-            }}
-          >
-            <Ionicons name="swap-horizontal" size={20} color={COLORS.primary} />
-            <Text style={styles.cambiarServicioButtonText}>
-              Elegir otro servicio
-            </Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    // Filtrar servicios por categoría si hay una seleccionada
-    const serviciosFiltrados = categoriaSeleccionada
-      ? serviciosDisponibles.filter(s => {
-        // Verificar si el servicio tiene categorias_ids (array de IDs)
-        if (s.categorias_ids && Array.isArray(s.categorias_ids)) {
-          return s.categorias_ids.includes(categoriaSeleccionada.id);
-        }
-        // Fallback: verificar si tiene el campo categoria (ID único)
-        return s.categoria === categoriaSeleccionada.id;
-      })
-      : serviciosDisponibles;
-
-    return (
-      <ScrollView
-        ref={paso2ScrollViewRef}
-        style={styles.pasoContainer}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        showsVerticalScrollIndicator={true}
-        nestedScrollEnabled={true}
-      >
-        <Text style={styles.pasoTitle}>Selecciona el servicio necesario</Text>
-        <Text style={styles.pasoDescripcion}>
-          Elige los servicios que necesitas para tu {formData.vehiculo.marca_nombre} {formData.vehiculo.modelo_nombre}
-        </Text>
-
-        {/* Selector de vista: Categorías o Lista */}
-        <View style={styles.vistaSelector}>
-          <TouchableOpacity
-            style={[
-              styles.vistaButton,
-              vistaServicios === 'categorias' && styles.vistaButtonActiva
-            ]}
-            onPress={() => {
-              setVistaServicios('categorias');
-              setCategoriaSeleccionada(null);
-            }}
-          >
-            <Ionicons
-              name="grid-outline"
-              size={20}
-              color={vistaServicios === 'categorias' ? COLORS.primary : COLORS.textLight}
-            />
-            <Text style={[
-              styles.vistaButtonText,
-              vistaServicios === 'categorias' && styles.vistaButtonTextActiva
-            ]}>
-              Por Categoría
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.vistaButton,
-              vistaServicios === 'lista' && styles.vistaButtonActiva
-            ]}
-            onPress={() => {
-              setVistaServicios('lista');
-              setCategoriaSeleccionada(null);
-            }}
-          >
-            <Ionicons
-              name="list-outline"
-              size={20}
-              color={vistaServicios === 'lista' ? COLORS.primary : COLORS.textLight}
-            />
-            <Text style={[
-              styles.vistaButtonText,
-              vistaServicios === 'lista' && styles.vistaButtonTextActiva
-            ]}>
-              Todos los Servicios
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {cargandoServicios ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
-            <Text style={styles.loadingText}>Cargando servicios...</Text>
-          </View>
-        ) : vistaServicios === 'categorias' ? (
-          <ScrollView style={styles.categoriasContainer} nestedScrollEnabled={true}>
-            {categoriaSeleccionada ? (
-              <View>
-                <TouchableOpacity
-                  style={styles.backToCategories}
-                  onPress={() => setCategoriaSeleccionada(null)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="arrow-back" size={20} color={colors.primary?.[500] || '#003459'} />
-                  <Text style={styles.backToCategoriesText}>
-                    Volver a categorías
-                  </Text>
-                </TouchableOpacity>
-                <Text style={styles.categoriaTitle}>{categoriaSeleccionada.nombre}</Text>
-                {serviciosFiltrados.length > 0 ? (
-                  <View style={styles.serviciosGrid}>
-                    {serviciosFiltrados.map((servicio) => {
-                      const estaSeleccionado = Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.some(s => s && s.id === servicio.id);
-                      return (
-                        <TouchableOpacity
-                          key={servicio.id}
-                          style={[
-                            styles.servicioCard,
-                            estaSeleccionado && styles.servicioCardSeleccionado
-                          ]}
-                          onPress={() => toggleServicioSeleccionado(servicio)}
-                        >
-                          <View style={styles.servicioCardHeader}>
-                            <Text
-                              style={[
-                                styles.servicioCardNombre,
-                                estaSeleccionado && styles.servicioCardNombreSeleccionado,
-                              ]}
-                              numberOfLines={2}
-                            >
-                              {servicio.nombre}
-                            </Text>
-                            {estaSeleccionado && (
-                              <Ionicons name="checkmark-circle" size={24} color={colors.primary?.[500] || '#003459'} />
-                            )}
-                          </View>
-                          {servicio.descripcion && (
-                            <Text style={styles.servicioCardDescripcion} numberOfLines={2}>
-                              {servicio.descripcion}
-                            </Text>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <Text style={styles.emptyText}>No hay servicios disponibles en esta categoría</Text>
-                )}
-              </View>
-            ) : (
-              (() => {
-                // Filtrar categorías que tienen servicios disponibles para la marca del vehículo
-                const categoriasConServicios = categorias.filter((categoria) => {
-                  const serviciosEnCategoria = serviciosDisponibles.filter(s => {
-                    // Verificar si el servicio tiene categorias_ids (array de IDs)
-                    if (s.categorias_ids && Array.isArray(s.categorias_ids)) {
-                      return s.categorias_ids.includes(categoria.id);
-                    }
-                    // Fallback: verificar si tiene el campo categoria (ID único)
-                    return s.categoria === categoria.id;
-                  });
-                  // Solo incluir categorías que tienen al menos un servicio
-                  return serviciosEnCategoria.length > 0;
-                });
-
-                return categoriasConServicios.length > 0 ? (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoriasHorizontal}
-                    bounces={false}
-                    decelerationRate="fast"
-                  >
-                    {categoriasConServicios.map((categoria) => (
-                      <CategoryGridCard
-                        key={categoria.id}
-                        category={categoria}
-                        onPress={() => setCategoriaSeleccionada(categoria)}
-                      />
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <View style={styles.emptyCategoriasContainer}>
-                    <Ionicons name="albums-outline" size={48} color={colors.text?.secondary || '#5D6F75'} />
-                    <Text style={styles.emptyText}>
-                      No hay categorías disponibles para este vehículo
-                    </Text>
-                  </View>
-                );
-              })()
-            )}
-          </ScrollView>
-        ) : (
-          /* Todos los servicios: misma rejilla 2 columnas que "Por categoría" para menos scroll */
-          <View style={styles.serviciosGridContainer}>
-            {serviciosDisponibles.length > 0 ? (
-              <View style={styles.serviciosGrid}>
-                {serviciosDisponibles.map((servicio) => {
-                  const estaSeleccionado =
-                    Array.isArray(formData.servicios_seleccionados) &&
-                    formData.servicios_seleccionados.some((s) => s && s.id === servicio.id);
-                  return (
-                    <TouchableOpacity
-                      key={servicio.id}
-                      style={[
-                        styles.servicioCard,
-                        estaSeleccionado && styles.servicioCardSeleccionado,
-                      ]}
-                      onPress={() => toggleServicioSeleccionado(servicio)}
-                      activeOpacity={0.85}
-                    >
-                      <View style={styles.servicioCardHeader}>
-                        <Text
-                          style={[
-                            styles.servicioCardNombre,
-                            estaSeleccionado && styles.servicioCardNombreSeleccionado,
-                          ]}
-                          numberOfLines={2}
-                        >
-                          {servicio.nombre}
-                        </Text>
-                        {estaSeleccionado ? (
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={22}
-                            color={colors.primary?.[500] || COLORS.primary}
-                          />
-                        ) : null}
-                      </View>
-                      {servicio.descripcion ? (
-                        <Text
-                          style={styles.servicioCardDescripcion}
-                          numberOfLines={3}
-                        >
-                          {servicio.descripcion}
-                        </Text>
-                      ) : null}
-                      {servicio.precio_referencia != null ? (
-                        <Text style={styles.servicioCardPrecio} numberOfLines={1}>
-                          Desde ${Number(servicio.precio_referencia).toLocaleString('es-CL')}
-                        </Text>
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ) : (
-              <Text style={styles.emptyText}>
-                No hay servicios disponibles para este vehículo
-              </Text>
-            )}
-          </View>
-        )}
-
-        {/* Contador de servicios seleccionados */}
-        {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0 && (
-          <View style={styles.serviciosSeleccionadosBadge}>
-            <Text style={styles.serviciosSeleccionadosText}>
-              {formData.servicios_seleccionados.length} servicio{formData.servicios_seleccionados.length !== 1 ? 's' : ''} seleccionado{formData.servicios_seleccionados.length !== 1 ? 's' : ''}
-            </Text>
-          </View>
-        )}
-
-        {/* Descripción del problema */}
-        <View
-          ref={descripcionProblemaRef}
-          style={styles.descripcionContainer}
-          onLayout={(event) => {
-            // Guardar la posición Y de la descripción para hacer scroll
-            const { y } = event.nativeEvent.layout;
-            descripcionYPosition.current = y;
-          }}
-        >
-          <Text style={styles.descripcionLabel}>Describe el problema o necesidad específica:</Text>
-          <TextInput
-            style={styles.textArea}
-            multiline
-            numberOfLines={4}
-            placeholder="Ej: Mi auto hace un ruido extraño al frenar, necesito revisar las pastillas de freno..."
-            value={formData.descripcion_problema || ''}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, descripcion_problema: text || '' }))}
-            textAlignVertical="top"
-          />
-        </View>
-      </ScrollView>
-    );
-  };
+  const renderPaso2 = () => null;
 
   const renderPaso3 = () => {
     // Si hay servicio y proveedor preseleccionados pero no hay vehículo, mostrar selector de vehículo primero
@@ -1443,154 +1424,119 @@ const FormularioSolicitud = ({
       return (
         <View style={styles.pasoContainer}>
           <Text style={styles.pasoTitle}>Selecciona tu vehículo</Text>
-          <Text style={styles.pasoDescripcion}>
-            Elige el vehículo para el cual necesitas el servicio
-          </Text>
+          <Text style={styles.pasoDescripcion}>Elige el vehículo para el cual necesitas el servicio</Text>
 
-          {/* Mensaje informativo cuando hay proveedor preseleccionado */}
           {formData.proveedores_dirigidos.length > 0 && (
-            <View style={[styles.infoBox, { backgroundColor: COLORS.info + '15', borderLeftColor: COLORS.info, marginBottom: SPACING.md }]}>
-              <Ionicons name="information-circle" size={20} color={COLORS.info} style={{ marginRight: SPACING.xs }} />
+            <View style={[styles.infoBox, { marginBottom: 14 }]}>
+              <Ionicons name="information-circle" size={20} color="#60A5FA" style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.infoBoxText, { color: COLORS.info }]}>
-                  Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor seleccionado'}
-                </Text>
-                <Text style={[styles.infoBoxSubtext, { color: COLORS.info + 'CC' }]}>
-                  Esta solicitud se enviará directamente al proveedor desde cuyo perfil iniciaste el proceso
-                </Text>
+                <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor seleccionado'}</Text>
               </View>
             </View>
           )}
 
-          {/* Mostrar servicio preseleccionado */}
-          {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0 && (
-            <View style={[styles.infoBox, { backgroundColor: COLORS.success + '15', borderLeftColor: COLORS.success, marginBottom: SPACING.md }]}>
-              <Ionicons name="checkmark-circle" size={20} color={COLORS.success} style={{ marginRight: SPACING.xs }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.infoBoxText, { color: COLORS.success }]}>
-                  Servicio: {formData.servicios_seleccionados[0]?.nombre || 'Servicio seleccionado'}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Selector de vehículos */}
           {vehiculos.length > 0 ? (
             <View style={styles.vehiculosList}>
               {vehiculos.map((vehiculo) => (
                 <TouchableOpacity
                   key={vehiculo.id}
-                  style={[
-                    styles.vehiculoCard,
-                    formData.vehiculo?.id === vehiculo.id && styles.vehiculoCardSeleccionado
-                  ]}
+                  style={[styles.vehiculoCard, formData.vehiculo?.id === vehiculo.id && styles.vehiculoCardSeleccionado]}
                   onPress={() => handleVehiculoToggle(vehiculo)}
                 >
                   <View style={styles.vehiculoCardContent}>
-                    <Ionicons
-                      name="car"
-                      size={24}
-                      color={formData.vehiculo?.id === vehiculo.id ? COLORS.primary : COLORS.textLight}
-                    />
+                    <CarIcon size={22} color={formData.vehiculo?.id === vehiculo.id ? '#60A5FA' : 'rgba(255,255,255,0.3)'} />
                     <View style={styles.vehiculoCardInfo}>
-                      <Text style={[
-                        styles.vehiculoCardNombre,
-                        formData.vehiculo?.id === vehiculo.id && styles.vehiculoCardNombreSeleccionado
-                      ]}>
+                      <Text style={[styles.vehiculoCardNombre, formData.vehiculo?.id === vehiculo.id && styles.vehiculoCardNombreSeleccionado]}>
                         {vehiculo.marca_nombre} {vehiculo.modelo_nombre}
                       </Text>
-                      <Text style={styles.vehiculoCardDetalles}>
-                        {vehiculo.ano} • {vehiculo.color || 'Sin color'}
-                      </Text>
+                      <Text style={styles.vehiculoCardDetalles}>{vehiculo.year} · {vehiculo.patente}</Text>
                     </View>
-                    {formData.vehiculo?.id === vehiculo.id && (
-                      <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
-                    )}
+                    {formData.vehiculo?.id === vehiculo.id && <CheckCircle2Icon size={22} color="#60A5FA" />}
                   </View>
                 </TouchableOpacity>
               ))}
             </View>
           ) : (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="car-outline" size={48} color={COLORS.textLight} />
+            <GlassCard style={{ alignItems: 'center', paddingVertical: 24 }}>
+              <CarIcon size={32} color="rgba(255,255,255,0.3)" />
               <Text style={styles.emptyText}>No tienes vehículos registrados</Text>
-              <Text style={styles.emptySubtext}>
-                Necesitas tener al menos un vehículo para crear una solicitud
-              </Text>
-            </View>
+            </GlassCard>
           )}
         </View>
       );
     }
 
-    // Si ya hay vehículo seleccionado, mostrar el paso 3 normal (urgencia y repuestos)
     return (
       <View style={styles.pasoContainer}>
         <Text style={styles.pasoTitle}>¿Qué tan urgente es?</Text>
-        <Text style={styles.pasoDescripcion}>
-          Selecciona el nivel de urgencia del servicio
-        </Text>
+        <Text style={styles.pasoDescripcion}>Selecciona el nivel de urgencia del servicio</Text>
 
-        {/* Mensaje informativo cuando hay proveedor preseleccionado */}
         {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
-          <View style={[styles.infoBox, { backgroundColor: COLORS.info + '15', borderLeftColor: COLORS.info, marginBottom: SPACING.md }]}>
-            <Ionicons name="information-circle" size={20} color={COLORS.info} style={{ marginRight: SPACING.xs }} />
+          <View style={[styles.infoBox, { marginBottom: 14 }]}>
+            <Ionicons name="information-circle" size={20} color="#60A5FA" style={{ marginRight: 8 }} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.infoBoxText, { color: COLORS.info }]}>
-                Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor seleccionado'}
-              </Text>
-              <Text style={[styles.infoBoxSubtext, { color: COLORS.info + 'CC' }]}>
-                Esta solicitud se enviará directamente al proveedor desde cuyo perfil iniciaste el proceso
-              </Text>
+              <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor'}</Text>
             </View>
           </View>
         )}
 
-        <TouchableOpacity
-          style={[
-            styles.opcionCard,
-            formData.urgencia === 'normal' && styles.opcionSeleccionada
-          ]}
+        <GlassCard
+          style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+            formData.urgencia === 'normal' && { borderColor: 'rgba(16,185,129,0.5)', backgroundColor: 'rgba(16,185,129,0.08)' }]}
           onPress={() => setFormData(prev => ({ ...prev, urgencia: 'normal' }))}
         >
-          <Ionicons
-            name={formData.urgencia === 'normal' ? 'radio-button-on' : 'radio-button-off'}
-            size={24}
-            color={formData.urgencia === 'normal' ? COLORS.primary : COLORS.textLight}
-          />
-          <View style={styles.opcionContent}>
-            <Text style={styles.opcionTitle}>Normal</Text>
-            <Text style={styles.opcionDescripcion}>
-              Puede esperar unos días
-            </Text>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(16,185,129,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+            <ClockIcon size={20} color="#6EE7B7" />
           </View>
-        </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.opcionTitle}>Normal</Text>
+            <Text style={styles.opcionDescripcion}>Puede esperar unos días</Text>
+          </View>
+          {formData.urgencia === 'normal' && <CheckCircle2Icon size={22} color="#6EE7B7" />}
+        </GlassCard>
 
-        <TouchableOpacity
-          style={[
-            styles.opcionCard,
-            formData.urgencia === 'urgente' && styles.opcionSeleccionada
-          ]}
+        <GlassCard
+          style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+            formData.urgencia === 'urgente' && { borderColor: 'rgba(245,158,11,0.5)', backgroundColor: 'rgba(245,158,11,0.08)' }]}
           onPress={() => setFormData(prev => ({ ...prev, urgencia: 'urgente' }))}
         >
-          <Ionicons
-            name={formData.urgencia === 'urgente' ? 'radio-button-on' : 'radio-button-off'}
-            size={24}
-            color={formData.urgencia === 'urgente' ? COLORS.warning : COLORS.textLight}
-          />
-          <View style={styles.opcionContent}>
-            <Text style={styles.opcionTitle}>Urgente</Text>
-            <Text style={styles.opcionDescripcion}>
-              Necesito el servicio lo antes posible
-            </Text>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(245,158,11,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={20} color="#F59E0B" />
           </View>
-        </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.opcionTitle}>Urgente</Text>
+            <Text style={styles.opcionDescripcion}>Necesito el servicio lo antes posible</Text>
+          </View>
+          {formData.urgencia === 'urgente' && <CheckCircle2Icon size={22} color="#F59E0B" />}
+        </GlassCard>
 
-        {/* Separador visual */}
-        <View style={{ marginVertical: SPACING.md }} />
+        {/* Precompra sin vehículo: comentario obligatorio para detallar el auto a inspeccionar */}
+        {formData.sin_vehiculo_registrado && (
+          <View style={styles.descripcionContainer}>
+            <Text style={styles.descripcionLabel}>
+              Comentario obligatorio: indica marca, modelo, año y observaciones del vehículo a inspeccionar
+            </Text>
+            <TextInput
+              style={styles.textArea}
+              multiline
+              numberOfLines={4}
+              placeholder="Ej: Chevrolet Sail 2016, 145.000 km, quiero revisar motor, caja y estado general antes de compra."
+              value={formData.descripcion_problema || ''}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, descripcion_problema: text || '' }))}
+              textAlignVertical="top"
+            />
+          </View>
+        )}
 
-        {/* Selección de repuestos - Solo mostrar si NO todos los servicios son de "diagnóstico e inspección" */}
+        <View style={{ marginVertical: 16 }} />
+
+        {/* Repuestos selection */}
         {(() => {
+          // Regla de negocio: en precompra sin vehículo no se muestra esta pregunta.
+          if (formData.sin_vehiculo_registrado) {
+            return null;
+          }
+
           // Verificar si todos los servicios seleccionados son SOLO de "diagnóstico e inspección"
           const serviciosSeleccionados = Array.isArray(formData.servicios_seleccionados) ? formData.servicios_seleccionados : [];
 
@@ -1666,49 +1612,37 @@ const FormularioSolicitud = ({
           return (
             <>
               <Text style={styles.pasoTitle}>¿Necesitas repuestos?</Text>
-              <Text style={styles.pasoDescripcion}>
-                Selecciona si el servicio requiere repuestos o solo mano de obra
-              </Text>
+              <Text style={styles.pasoDescripcion}>Selecciona si el servicio requiere repuestos o solo mano de obra</Text>
 
-              <TouchableOpacity
-                style={[
-                  styles.opcionCard,
-                  formData.requiere_repuestos === true && styles.opcionSeleccionada
-                ]}
+              <GlassCard
+                style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+                  formData.requiere_repuestos === true && { borderColor: 'rgba(96,165,250,0.5)', backgroundColor: 'rgba(96,165,250,0.08)' }]}
                 onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: true }))}
               >
-                <Ionicons
-                  name={formData.requiere_repuestos === true ? 'radio-button-on' : 'radio-button-off'}
-                  size={24}
-                  color={formData.requiere_repuestos === true ? COLORS.primary : COLORS.textLight}
-                />
-                <View style={styles.opcionContent}>
-                  <Text style={styles.opcionTitle}>Con Repuestos</Text>
-                  <Text style={styles.opcionDescripcion}>
-                    El servicio incluye repuestos y mano de obra
-                  </Text>
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Package size={20} color="#60A5FA" />
                 </View>
-              </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.opcionTitle}>Con Repuestos</Text>
+                  <Text style={styles.opcionDescripcion}>El servicio incluye repuestos y mano de obra</Text>
+                </View>
+                {formData.requiere_repuestos === true && <CheckCircle2Icon size={22} color="#60A5FA" />}
+              </GlassCard>
 
-              <TouchableOpacity
-                style={[
-                  styles.opcionCard,
-                  formData.requiere_repuestos === false && styles.opcionSeleccionada
-                ]}
+              <GlassCard
+                style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+                  formData.requiere_repuestos === false && { borderColor: 'rgba(168,85,247,0.5)', backgroundColor: 'rgba(168,85,247,0.08)' }]}
                 onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: false }))}
               >
-                <Ionicons
-                  name={formData.requiere_repuestos === false ? 'radio-button-on' : 'radio-button-off'}
-                  size={24}
-                  color={formData.requiere_repuestos === false ? COLORS.primary : COLORS.textLight}
-                />
-                <View style={styles.opcionContent}>
-                  <Text style={styles.opcionTitle}>Sin Repuestos</Text>
-                  <Text style={styles.opcionDescripcion}>
-                    Solo necesito mano de obra (ya tengo los repuestos)
-                  </Text>
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Wrench size={20} color="#A855F7" />
                 </View>
-              </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.opcionTitle}>Sin Repuestos</Text>
+                  <Text style={styles.opcionDescripcion}>Solo necesito mano de obra</Text>
+                </View>
+                {formData.requiere_repuestos === false && <CheckCircle2Icon size={22} color="#A855F7" />}
+              </GlassCard>
             </>
           );
         })()}
@@ -1716,335 +1650,209 @@ const FormularioSolicitud = ({
     );
   };
 
-  // Componente Avatar para proveedores
-  const ProviderAvatar = ({ proveedor, tipo, estaSeleccionado, size = 40 }) => {
-    const [imageError, setImageError] = useState(false);
-    const [imageUrl, setImageUrl] = useState(null);
+  const navigateToProviderProfile = (proveedor, tipo) => {
+    navigation.navigate(ROUTES.PROVIDER_DETAIL, {
+      providerId: proveedor.id,
+      type: tipo,
+      provider: proveedor,
+      fromSolicitud: true,
+    });
+  };
 
-    const iconName = tipo === 'taller' ? 'business' : 'person';
-    const iconColor = estaSeleccionado
-      ? (tipo === 'taller' ? COLORS.primary : COLORS.secondary)
-      : COLORS.textLight;
+  const renderProviderCard = (proveedor, tipo) => {
+    const userId = proveedor.usuario?.id || proveedor.usuario || proveedor.id;
+    const estaSeleccionado = formData.proveedores_dirigidos.some(p => {
+      const pId = p.usuario?.id || p.usuario || p.usuario_id || p.id;
+      return pId === userId && p.tipo === tipo;
+    });
 
-    // Obtener foto del proveedor
-    useEffect(() => {
-      const loadImage = async () => {
-        const fotoUsuario = proveedor?.usuario?.foto_perfil;
-        const fotoProveedor = proveedor?.foto_perfil;
-        const url = fotoUsuario || fotoProveedor;
-
-        if (url) {
-          try {
-            // Si la URL ya es completa, usarla directamente
-            if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
-              setImageUrl(url);
-            } else {
-              // Si no es completa, usar getMediaURL
-              const fullUrl = await getMediaURL(url);
-              setImageUrl(fullUrl);
-            }
-            setImageError(false);
-          } catch (error) {
-            console.error('Error cargando foto de proveedor:', error);
-            setImageUrl(null);
-            setImageError(true);
-          }
-        } else {
-          setImageUrl(null);
-          setImageError(true);
-        }
-      };
-
-      loadImage();
-    }, [proveedor?.usuario?.foto_perfil, proveedor?.foto_perfil]);
-
-    const showPlaceholder = !imageUrl || imageError;
-    const borderColor = estaSeleccionado
-      ? (tipo === 'taller' ? COLORS.primary : COLORS.secondary)
-      : COLORS.borderLight;
+    const fotoUrl = proveedor?.usuario?.foto_perfil || proveedor?.foto_perfil;
+    const hasPhoto = typeof fotoUrl === 'string' && fotoUrl.startsWith('http');
+    const calificacion = parseFloat(proveedor?.calificacion_promedio || 0);
+    const totalResenas = proveedor?.total_resenas ?? proveedor?.numero_de_calificaciones ?? 0;
+    const specialtyText = getProviderSpecialty ? getProviderSpecialty(proveedor, null) : null;
+    const direccion = proveedor?.direccion_fisica?.direccion_completa || proveedor?.direccion;
 
     return (
-      <View style={[styles.avatarContainer, { width: size, height: size }]}>
-        {!showPlaceholder ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={[
-              styles.avatarImage,
-              {
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                borderWidth: 2,
-                borderColor: borderColor
-              }
-            ]}
-            resizeMode="cover"
-            onError={() => {
-              setImageError(true);
-            }}
-          />
-        ) : (
-          <View style={[
-            styles.avatarPlaceholder,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              borderWidth: 2,
-              borderColor: borderColor
-            }
-          ]}>
-            <Ionicons name={iconName} size={size * 0.6} color={iconColor} />
+      <GlassCard
+        key={`${tipo}-${proveedor.id}`}
+        style={[{ padding: 0, overflow: 'hidden' }, estaSeleccionado && { borderColor: 'rgba(16,185,129,0.5)', backgroundColor: 'rgba(16,185,129,0.06)' }]}
+        onPress={() => toggleProveedorSeleccionado(proveedor, tipo)}
+      >
+        {/* Image Section (4:3 aspect) */}
+        <View style={{ width: '100%', aspectRatio: 16 / 7, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+          {hasPhoto ? (
+            <Image source={{ uri: fotoUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} cachePolicy="memory-disk" />
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              {tipo === 'taller' ? <Building2 size={32} color="rgba(255,255,255,0.2)" /> : <UserIcon size={32} color="rgba(255,255,255,0.2)" />}
+            </View>
+          )}
+          {/* Type badge */}
+          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '600' }}>
+              {tipo === 'taller' ? 'Taller' : 'A domicilio'}
+            </Text>
           </View>
-        )}
-      </View>
+          {/* Selection indicator */}
+          {estaSeleccionado && (
+            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#10B981', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+              <CheckIcon size={14} color="#FFF" />
+            </View>
+          )}
+        </View>
+
+        {/* Info */}
+        <View style={{ padding: 14, gap: 4 }}>
+          <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }} numberOfLines={1}>
+            {proveedor.nombre || (tipo === 'taller' ? 'Taller' : 'Mecánico')}
+          </Text>
+          {specialtyText && (
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }} numberOfLines={1}>{specialtyText}</Text>
+          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+            {direccion ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                <MapPin size={12} color="rgba(255,255,255,0.4)" />
+                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, flex: 1 }} numberOfLines={1}>{String(direccion)}</Text>
+              </View>
+            ) : <View />}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8 }}>
+              {calificacion > 0 ? (
+                <>
+                  <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>{calificacion.toFixed(1)}</Text>
+                  {totalResenas > 0 && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>({totalResenas})</Text>}
+                </>
+              ) : (
+                <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, fontStyle: 'italic' }}>Nuevo</Text>
+              )}
+            </View>
+          </View>
+
+          {/* View Profile link */}
+          <TouchableOpacity
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, alignSelf: 'flex-start' }}
+            onPress={() => navigateToProviderProfile(proveedor, tipo)}
+            activeOpacity={0.7}
+          >
+            <Eye size={14} color="#60A5FA" />
+            <Text style={{ color: '#60A5FA', fontSize: 12, fontWeight: '600' }}>Ver perfil</Text>
+          </TouchableOpacity>
+        </View>
+      </GlassCard>
     );
   };
 
   const renderPaso4 = () => {
-    // Si hay proveedor preseleccionado, no mostrar este paso (se salta) — salvo precompra sin vehículo
-    if (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado) {
-      return null;
-    }
+    if (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado) return null;
 
     if (!formData.vehiculo && !formData.sin_vehiculo_registrado) {
       return (
-        <View style={styles.pasoContainer}>
-          <Text style={styles.errorText}>
-            Primero debes seleccionar un vehículo
-          </Text>
+        <View style={{ flex: 1, paddingHorizontal: 16 }}>
+          <Text style={{ color: '#EF4444', fontSize: 14, textAlign: 'center', marginTop: 20 }}>Primero debes seleccionar un vehículo</Text>
         </View>
       );
     }
 
-    // Sin vehículo: mismo paso 4 pero proveedores cargados por servicio (sin marca)
     const todosProveedores = [...proveedoresDisponibles.talleres, ...proveedoresDisponibles.mecanicos];
 
     return (
-      <View style={styles.pasoContainer}>
-        <Text style={styles.pasoTitle}>Tipo de solicitud</Text>
-        <Text style={styles.pasoDescripcion}>
-          ¿Quieres que todos los proveedores vean tu solicitud o solo algunos específicos?
-        </Text>
+      <View style={{ flex: 1, paddingHorizontal: 16 }}>
+        <Text style={gs.sectionTitle}>Tipo de solicitud</Text>
+        <Text style={[gs.sectionSub, { marginBottom: 14 }]}>¿Quieres que todos los proveedores vean tu solicitud o solo algunos específicos?</Text>
 
-        <TouchableOpacity
-          style={[
-            styles.opcionCard,
-            formData.tipo_solicitud === 'global' && styles.opcionSeleccionada
-          ]}
+        {/* Global option */}
+        <GlassCard
+          style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+            formData.tipo_solicitud === 'global' && { borderColor: 'rgba(96,165,250,0.5)', backgroundColor: 'rgba(96,165,250,0.08)' }]}
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'global', proveedores_dirigidos: [] }))}
-          disabled={tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado}
         >
-          <Ionicons
-            name={formData.tipo_solicitud === 'global' ? 'radio-button-on' : 'radio-button-off'}
-            size={24}
-            color={formData.tipo_solicitud === 'global' ? COLORS.primary : COLORS.textLight}
-          />
-          <View style={styles.opcionContent}>
-            <Text style={styles.opcionTitle}>Abierta a Todos</Text>
-            <Text style={styles.opcionDescripcion}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+            <Globe size={20} color="#60A5FA" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>Abierta a Todos</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>
               {formData.sin_vehiculo_registrado || !formData.vehiculo
-                ? 'Todos los proveedores que ofrezcan el servicio podrán ofertar'
-                : `Todos los proveedores que atienden tu ${formData.vehiculo.marca_nombre} podrán ofertar`}
+                ? 'Todos los proveedores que ofrezcan el servicio'
+                : `Todos los proveedores que atienden tu ${formData.vehiculo.marca_nombre}`}
             </Text>
           </View>
-        </TouchableOpacity>
+          {formData.tipo_solicitud === 'global' && <CheckCircle2Icon size={22} color="#60A5FA" />}
+        </GlassCard>
 
-        <TouchableOpacity
-          style={[
-            styles.opcionCard,
-            formData.tipo_solicitud === 'dirigida' && styles.opcionSeleccionada
-          ]}
+        {/* Directed option */}
+        <GlassCard
+          style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+            formData.tipo_solicitud === 'dirigida' && { borderColor: 'rgba(168,85,247,0.5)', backgroundColor: 'rgba(168,85,247,0.08)' }]}
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'dirigida' }))}
-          disabled={tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado}
         >
-          <Ionicons
-            name={formData.tipo_solicitud === 'dirigida' ? 'radio-button-on' : 'radio-button-off'}
-            size={24}
-            color={formData.tipo_solicitud === 'dirigida' ? COLORS.primary : COLORS.textLight}
-          />
-          <View style={styles.opcionContent}>
-            <Text style={styles.opcionTitle}>Solo Proveedores Específicos</Text>
-            <Text style={styles.opcionDescripcion}>
-              Selecciona hasta 3 proveedores que recibirán tu solicitud
-            </Text>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+            <Users size={20} color="#A855F7" />
           </View>
-        </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>Solo Proveedores Específicos</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>Selecciona hasta 3 proveedores</Text>
+          </View>
+          {formData.tipo_solicitud === 'dirigida' && <CheckCircle2Icon size={22} color="#A855F7" />}
+        </GlassCard>
 
+        {/* Provider list */}
         {formData.tipo_solicitud === 'dirigida' && (
-          <View style={styles.proveedoresContainer}>
-            <Text style={styles.proveedoresTitle}>
-              Selecciona los proveedores (máximo 3)
-            </Text>
-            <Text style={styles.proveedoresSubtitle}>
+          <View>
+            <Text style={[gs.sectionSub, { marginBottom: 12 }]}>
               {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0
                 ? (formData.sin_vehiculo_registrado || !formData.vehiculo
-                    ? 'Proveedores que ofrecen el servicio seleccionado'
-                    : `Proveedores que atienden tu ${formData.vehiculo.marca_nombre} y ofrecen los servicios seleccionados`)
-                : (formData.sin_vehiculo_registrado || !formData.vehiculo
-                    ? 'Proveedores disponibles para el servicio'
-                    : `Proveedores que atienden tu ${formData.vehiculo.marca_nombre} ${formData.vehiculo.modelo_nombre}`)
-              }
+                    ? 'Proveedores que ofrecen el servicio'
+                    : `Proveedores para tu ${formData.vehiculo.marca_nombre}`)
+                : 'Proveedores disponibles'}
             </Text>
 
             {cargandoProveedores ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Cargando proveedores...</Text>
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#6EE7B7" />
+                <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Cargando proveedores...</Text>
               </View>
             ) : todosProveedores.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="business-outline" size={48} color={COLORS.textLight} />
-                <Text style={styles.emptyText}>
-                  {formData.sin_vehiculo_registrado || !formData.vehiculo
-                    ? 'No hay proveedores con oferta activa para este servicio. Prueba solicitud abierta a todos o más tarde.'
-                    : (Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0
-                        ? `No hay proveedores que atiendan tu ${formData.vehiculo.marca_nombre} y ofrezcan los servicios seleccionados`
-                        : `No hay proveedores disponibles que atiendan tu ${formData.vehiculo.marca_nombre}`)
-                  }
+              <GlassCard style={{ alignItems: 'center', paddingVertical: 24 }}>
+                <Building2 size={32} color="rgba(255,255,255,0.3)" />
+                <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13, textAlign: 'center' }}>
+                  No hay proveedores disponibles. Prueba solicitud abierta a todos.
                 </Text>
-                {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0 && (
-                  <Text style={[styles.emptyText, { marginTop: 8, fontSize: 14, opacity: 0.7 }]}>
-                    Intenta seleccionar otros servicios o crear una solicitud abierta a todos
-                  </Text>
+              </GlassCard>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {proveedoresDisponibles.talleres.length > 0 && (
+                  <>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                      <Building2 size={16} color="rgba(255,255,255,0.5)" />
+                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' }}>
+                        Talleres ({proveedoresDisponibles.talleres.length})
+                      </Text>
+                    </View>
+                    {proveedoresDisponibles.talleres.map((t) => renderProviderCard(t, 'taller'))}
+                  </>
+                )}
+
+                {proveedoresDisponibles.mecanicos.length > 0 && (
+                  <>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 4 }}>
+                      <Wrench size={16} color="rgba(255,255,255,0.5)" />
+                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' }}>
+                        Mecánicos a Domicilio ({proveedoresDisponibles.mecanicos.length})
+                      </Text>
+                    </View>
+                    {proveedoresDisponibles.mecanicos.map((m) => renderProviderCard(m, 'mecanico'))}
+                  </>
                 )}
               </View>
-            ) : (
-              <ScrollView
-                style={styles.proveedoresList}
-                nestedScrollEnabled={true}
-                contentContainerStyle={styles.proveedoresListContent}
-                showsVerticalScrollIndicator={true}
-              >
-                {/* Talleres */}
-                {proveedoresDisponibles.talleres.length > 0 && (
-                  <View>
-                    <Text style={styles.proveedoresSectionTitle}>
-                      Talleres ({proveedoresDisponibles.talleres.length})
-                    </Text>
-                    {proveedoresDisponibles.talleres.map((taller) => {
-                      const tallerUsuarioId = taller.usuario?.id || taller.usuario || taller.id;
-                      const estaSeleccionado = formData.proveedores_dirigidos.some(p => {
-                        const pUsuarioId = p.usuario?.id || p.usuario || p.usuario_id || p.id;
-                        return pUsuarioId === tallerUsuarioId && p.tipo === 'taller';
-                      });
-                      return (
-                        <TouchableOpacity
-                          key={`taller-${taller.id}`}
-                          style={[
-                            styles.proveedorCard,
-                            estaSeleccionado && styles.proveedorCardSeleccionado
-                          ]}
-                          onPress={() => toggleProveedorSeleccionado(taller, 'taller')}
-                        >
-                          <View style={styles.proveedorCardContent}>
-                            <ProviderAvatar
-                              proveedor={taller}
-                              tipo="taller"
-                              estaSeleccionado={estaSeleccionado}
-                              size={40}
-                            />
-                            <View style={styles.proveedorCardInfo}>
-                              <Text style={[
-                                styles.proveedorCardNombre,
-                                estaSeleccionado && styles.proveedorCardNombreSeleccionado
-                              ]}>
-                                {taller.nombre || 'Sin nombre'}
-                              </Text>
-                              {(taller.direccion_fisica?.direccion_completa || taller.direccion) && (
-                                <Text style={styles.proveedorCardDireccion} numberOfLines={1}>
-                                  {String(taller.direccion_fisica?.direccion_completa || taller.direccion || '')}
-                                </Text>
-                              )}
-                              {taller.calificacion_promedio != null && (
-                                <View style={styles.proveedorCardRating}>
-                                  <Ionicons name="star" size={14} color={COLORS.warning} />
-                                  <Text style={styles.proveedorCardRatingText}>
-                                    {Number(taller.calificacion_promedio).toFixed(1)} ({taller.total_resenas || 0} reseñas)
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                            {estaSeleccionado ? (
-                              <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
-                            ) : (
-                              <Ionicons name="ellipse-outline" size={24} color={COLORS.borderLight} />
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-
-                {/* Mecánicos */}
-                {proveedoresDisponibles.mecanicos.length > 0 && (
-                  <View style={styles.mecanicosSection}>
-                    <Text style={styles.proveedoresSectionTitle}>
-                      Mecánicos a Domicilio ({proveedoresDisponibles.mecanicos.length})
-                    </Text>
-                    {proveedoresDisponibles.mecanicos.map((mecanico) => {
-                      const mecanicoUsuarioId = mecanico.usuario?.id || mecanico.usuario || mecanico.id;
-                      const estaSeleccionado = formData.proveedores_dirigidos.some(p => {
-                        const pUsuarioId = p.usuario?.id || p.usuario || p.usuario_id || p.id;
-                        return pUsuarioId === mecanicoUsuarioId && p.tipo === 'mecanico';
-                      });
-                      return (
-                        <TouchableOpacity
-                          key={`mecanico-${mecanico.id}`}
-                          style={[
-                            styles.proveedorCard,
-                            estaSeleccionado && styles.proveedorCardSeleccionado
-                          ]}
-                          onPress={() => toggleProveedorSeleccionado(mecanico, 'mecanico')}
-                        >
-                          <View style={styles.proveedorCardContent}>
-                            <ProviderAvatar
-                              proveedor={mecanico}
-                              tipo="mecanico"
-                              estaSeleccionado={estaSeleccionado}
-                              size={40}
-                            />
-                            <View style={styles.proveedorCardInfo}>
-                              <Text style={[
-                                styles.proveedorCardNombre,
-                                estaSeleccionado && styles.proveedorCardNombreSeleccionado
-                              ]}>
-                                {mecanico.nombre || 'Sin nombre'}
-                              </Text>
-                              {(mecanico.direccion_fisica?.direccion_completa || mecanico.direccion) && (
-                                <Text style={styles.proveedorCardDireccion} numberOfLines={1}>
-                                  {String(mecanico.direccion_fisica?.direccion_completa || mecanico.direccion || '')}
-                                </Text>
-                              )}
-                              {mecanico.calificacion_promedio != null && (
-                                <View style={styles.proveedorCardRating}>
-                                  <Ionicons name="star" size={14} color={COLORS.warning} />
-                                  <Text style={styles.proveedorCardRatingText}>
-                                    {Number(mecanico.calificacion_promedio).toFixed(1)} ({mecanico.total_resenas || 0} reseñas)
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
-                            {estaSeleccionado ? (
-                              <Ionicons name="checkmark-circle" size={24} color={COLORS.secondary} />
-                            ) : (
-                              <Ionicons name="ellipse-outline" size={24} color={COLORS.borderLight} />
-                            )}
-                          </View>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-
-              </ScrollView>
             )}
 
-            {/* Contador de proveedores seleccionados - Fuera del ScrollView */}
             {formData.proveedores_dirigidos.length > 0 && (
-              <View style={styles.proveedoresSeleccionadosBadge}>
-                <Text style={styles.proveedoresSeleccionadosText}>
+              <View style={[gs.selectedBadge, { marginTop: 14 }]}>
+                <CheckCircle2Icon size={16} color="#A855F7" />
+                <Text style={{ color: '#C084FC', fontSize: 13, fontWeight: '600' }}>
                   {formData.proveedores_dirigidos.length} de 3 proveedores seleccionados
                 </Text>
               </View>
@@ -2057,28 +1865,24 @@ const FormularioSolicitud = ({
 
   const renderPaso5 = () => (
     <View style={styles.pasoContainer}>
-      <Text style={styles.pasoTitle}>Ubicación del servicio</Text>
-      <Text style={styles.pasoDescripcion}>
-        Selecciona una dirección registrada o ingresa una nueva
-      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <MapPinned size={20} color="#6EE7B7" />
+        <Text style={styles.pasoTitle}>Ubicación del servicio</Text>
+      </View>
+      <Text style={styles.pasoDescripcion}>Selecciona una dirección registrada o ingresa una nueva</Text>
 
-      {/* Mensaje informativo cuando hay proveedor preseleccionado */}
       {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
-        <View style={[styles.infoBox, { backgroundColor: COLORS.info + '15', borderLeftColor: COLORS.info, marginBottom: SPACING.md }]}>
-          <Ionicons name="information-circle" size={20} color={COLORS.info} style={{ marginRight: SPACING.xs }} />
+        <View style={[styles.infoBox, { marginBottom: 14 }]}>
+          <Ionicons name="information-circle" size={20} color="#60A5FA" style={{ marginRight: 8 }} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.infoBoxText, { color: COLORS.info }]}>
-              Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor seleccionado'}
-            </Text>
-            <Text style={[styles.infoBoxSubtext, { color: COLORS.info + 'CC' }]}>
-              Esta solicitud se enviará directamente al proveedor desde cuyo perfil iniciaste el proceso
-            </Text>
+            <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor'}</Text>
           </View>
         </View>
       )}
 
       <AddressSelector
         currentAddress={formData.direccion_usuario}
+        glassStyle
         onAddressChange={(direccion) => {
           setFormData(prev => ({
             ...prev,
@@ -2090,24 +1894,23 @@ const FormularioSolicitud = ({
       />
 
       {formData.direccion_usuario && (
-        <Card style={styles.direccionSeleccionada}>
-          <Text style={styles.direccionText}>
-            {formData.direccion_usuario.direccion}
-          </Text>
+        <GlassCard style={{ marginTop: 12, borderColor: 'rgba(16,185,129,0.3)', backgroundColor: 'rgba(16,185,129,0.06)' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <MapPin size={16} color="#6EE7B7" />
+            <Text style={{ color: '#6EE7B7', fontSize: 14, fontWeight: '600', flex: 1 }}>{formData.direccion_usuario.direccion}</Text>
+          </View>
           {formData.direccion_usuario.detalles && (
-            <Text style={styles.direccionDetalles}>
-              {formData.direccion_usuario.detalles}
-            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginLeft: 24 }}>{formData.direccion_usuario.detalles}</Text>
           )}
-        </Card>
+        </GlassCard>
       )}
 
       <TextInput
-        style={styles.input}
+        style={[styles.textInput, { marginTop: 14 }]}
         placeholder="Detalles adicionales (opcional)"
         value={formData.detalles_ubicacion}
         onChangeText={(text) => setFormData(prev => ({ ...prev, detalles_ubicacion: text }))}
-        placeholderTextColor={COLORS.textLight}
+        placeholderTextColor="rgba(255,255,255,0.25)"
       />
     </View>
   );
@@ -2247,34 +2050,30 @@ const FormularioSolicitud = ({
 
     return (
       <View style={styles.pasoContainer}>
-        <Text style={styles.pasoTitle}>Fecha y hora preferida</Text>
-        <Text style={styles.pasoDescripcion}>
-          ¿Cuándo te gustaría recibir el servicio?
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <CalendarDays size={20} color="#6EE7B7" />
+          <Text style={styles.pasoTitle}>Fecha y hora preferida</Text>
+        </View>
+        <Text style={styles.pasoDescripcion}>¿Cuándo te gustaría recibir el servicio?</Text>
 
-        {/* Selector de Fecha */}
-        <TouchableOpacity
-          style={styles.dateTimeButton}
-          onPress={() => {
-            console.log('📅 Abriendo calendario desde paso 6');
-            setMostrarCalendario(true);
-          }}
-        >
-          <Ionicons name="calendar-outline" size={24} color={COLORS.primary} />
-          <View style={styles.dateTimeButtonContent}>
-            <Text style={styles.dateTimeButtonLabel}>Fecha</Text>
-            <Text style={styles.dateTimeButtonValue}>
-              {formData.fecha_preferida
-                ? formatDate(formData.fecha_preferida)
-                : 'Seleccionar fecha'}
+        {/* Date picker button */}
+        <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }} onPress={() => setMostrarCalendario(true)}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+            <CalendarDays size={20} color="#60A5FA" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Fecha</Text>
+            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>
+              {formData.fecha_preferida ? formatDate(formData.fecha_preferida) : 'Seleccionar fecha'}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-        </TouchableOpacity>
+          <ChevronRightIcon size={18} color="rgba(255,255,255,0.3)" />
+        </GlassCard>
 
-        {/* Selector de Hora */}
-        <TouchableOpacity
-          style={styles.dateTimeButton}
+        {/* Time picker button */}
+        <GlassCard
+          style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+            !formData.fecha_preferida && { opacity: 0.5 }]}
           onPress={() => {
             if (!formData.fecha_preferida) {
               Alert.alert('Selecciona fecha primero', 'Debes seleccionar una fecha antes de elegir la hora');
@@ -2282,125 +2081,70 @@ const FormularioSolicitud = ({
             }
             setMostrarSelectorHora(true);
           }}
-          disabled={!formData.fecha_preferida}
         >
-          <Ionicons
-            name="time-outline"
-            size={24}
-            color={formData.fecha_preferida ? COLORS.primary : COLORS.textLight}
-          />
-          <View style={styles.dateTimeButtonContent}>
-            <Text style={styles.dateTimeButtonLabel}>Hora (Opcional)</Text>
-            <Text style={[
-              styles.dateTimeButtonValue,
-              !formData.hora_preferida && styles.dateTimeButtonValuePlaceholder
-            ]}>
-              {formData.hora_preferida
-                ? formatTime(formData.hora_preferida)
-                : 'Seleccionar hora'}
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+            <ClockIcon size={20} color="#A855F7" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Hora (Opcional)</Text>
+            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>
+              {formData.hora_preferida ? formatTime(formData.hora_preferida) : 'Seleccionar hora'}
             </Text>
           </View>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={formData.fecha_preferida ? COLORS.textLight : COLORS.borderLight}
-          />
-        </TouchableOpacity>
+          <ChevronRightIcon size={18} color="rgba(255,255,255,0.3)" />
+        </GlassCard>
 
-        {/* Preview de fecha y hora seleccionada */}
+        {/* Preview */}
         {formData.fecha_preferida && validarFecha(formData.fecha_preferida) && (
-          <View style={styles.fechaPreview}>
-            <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
-            <Text style={styles.fechaPreviewText}>
+          <View style={[gs.selectedBadge, { marginTop: 4, marginBottom: 0 }]}>
+            <CheckCircle2Icon size={16} color="#10B981" />
+            <Text style={{ color: '#6EE7B7', fontSize: 13, fontWeight: '600' }}>
               {formatDate(formData.fecha_preferida)}
-              {formData.hora_preferida && validarHora(formData.hora_preferida) &&
-                ` a las ${formatTime(formData.hora_preferida)}`}
+              {formData.hora_preferida && validarHora(formData.hora_preferida) && ` a las ${formatTime(formData.hora_preferida)}`}
             </Text>
           </View>
         )}
 
-        {/* Modal de Calendario */}
-        <Modal
-          visible={mostrarCalendario}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setMostrarCalendario(false)}
-        >
+        {/* Calendar Modal */}
+        <Modal visible={mostrarCalendario} transparent animationType="slide" onRequestClose={() => setMostrarCalendario(false)}>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Seleccionar Fecha</Text>
-                <TouchableOpacity
-                  onPress={() => setMostrarCalendario(false)}
-                  style={styles.modalCloseButton}
-                >
-                  <Ionicons name="close" size={24} color={COLORS.text} />
+            <View style={styles.descModal}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>Seleccionar Fecha</Text>
+                <TouchableOpacity onPress={() => setMostrarCalendario(false)} style={{ padding: 4 }}>
+                  <Ionicons name="close" size={24} color="rgba(255,255,255,0.6)" />
                 </TouchableOpacity>
               </View>
 
-              {/* Navegación del mes */}
               <View style={styles.calendarHeader}>
-                <TouchableOpacity
-                  onPress={() => cambiarMes(-1)}
-                  style={styles.calendarNavButton}
-                >
-                  <Ionicons name="chevron-back" size={24} color={COLORS.primary} />
+                <TouchableOpacity onPress={() => cambiarMes(-1)} style={styles.calendarNavButton}>
+                  <Ionicons name="chevron-back" size={20} color="#60A5FA" />
                 </TouchableOpacity>
-                <Text style={styles.calendarMonthText}>
-                  {mesesNombres[mesCalendario.getMonth()]} {mesCalendario.getFullYear()}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => cambiarMes(1)}
-                  style={styles.calendarNavButton}
-                >
-                  <Ionicons name="chevron-forward" size={24} color={COLORS.primary} />
+                <Text style={styles.calendarTitle}>{mesesNombres[mesCalendario.getMonth()]} {mesCalendario.getFullYear()}</Text>
+                <TouchableOpacity onPress={() => cambiarMes(1)} style={styles.calendarNavButton}>
+                  <Ionicons name="chevron-forward" size={20} color="#60A5FA" />
                 </TouchableOpacity>
               </View>
 
-              {/* Días de la semana */}
-              <View style={styles.calendarWeekDays}>
-                {diasSemana.map((dia, index) => (
-                  <View key={index} style={styles.calendarWeekDay}>
-                    <Text style={styles.calendarWeekDayText}>{dia}</Text>
-                  </View>
+              <View style={styles.calendarDaysHeader}>
+                {diasSemana.map((dia, i) => (
+                  <Text key={i} style={styles.calendarDayLabel}>{dia}</Text>
                 ))}
               </View>
 
-              {/* Calendario */}
               <View style={styles.calendarGrid}>
                 {calendario.map((dia, index) => {
                   const esSeleccionado = dia.fecha === formData.fecha_preferida;
-                  const hoy = new Date();
-                  hoy.setHours(0, 0, 0, 0);
+                  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
                   const esHoy = dia.date.getTime() === hoy.getTime();
-
                   return (
                     <TouchableOpacity
                       key={index}
-                      style={[
-                        styles.calendarDay,
-                        !dia.isCurrentMonth && styles.calendarDayOtherMonth,
-                        !dia.disponible && styles.calendarDayDisabled,
-                        esHoy && styles.calendarDayToday,
-                        esSeleccionado && styles.calendarDaySelected
-                      ]}
-                      onPress={() => {
-                        if (dia.disponible) {
-                          console.log('📅 Día seleccionado del calendario:', dia.fecha, 'Formato:', typeof dia.fecha);
-                          seleccionarFecha(dia.fecha);
-                        } else {
-                          console.log('⚠️ Día no disponible:', dia.fecha);
-                        }
-                      }}
+                      style={[styles.calendarDay, esHoy && styles.calendarDayToday, esSeleccionado && styles.calendarDaySelected, !dia.disponible && { opacity: 0.3 }]}
+                      onPress={() => dia.disponible && seleccionarFecha(dia.fecha)}
                       disabled={!dia.disponible}
                     >
-                      <Text style={[
-                        styles.calendarDayText,
-                        !dia.isCurrentMonth && styles.calendarDayTextOtherMonth,
-                        !dia.disponible && styles.calendarDayTextDisabled,
-                        esHoy && styles.calendarDayTextToday,
-                        esSeleccionado && styles.calendarDayTextSelected
-                      ]}>
+                      <Text style={[styles.calendarDayText, !dia.isCurrentMonth && { opacity: 0.3 }, esSeleccionado && styles.calendarDayTextSelected]}>
                         {dia.day}
                       </Text>
                     </TouchableOpacity>
@@ -2411,59 +2155,35 @@ const FormularioSolicitud = ({
           </View>
         </Modal>
 
-        {/* Modal de Selector de Hora */}
-        <Modal
-          visible={mostrarSelectorHora}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={() => setMostrarSelectorHora(false)}
-        >
+        {/* Time Modal */}
+        <Modal visible={mostrarSelectorHora} transparent animationType="slide" onRequestClose={() => setMostrarSelectorHora(false)}>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Seleccionar Hora</Text>
-                <TouchableOpacity
-                  onPress={() => setMostrarSelectorHora(false)}
-                  style={styles.modalCloseButton}
-                >
-                  <Ionicons name="close" size={24} color={COLORS.text} />
+            <View style={styles.descModal}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>Seleccionar Hora</Text>
+                <TouchableOpacity onPress={() => setMostrarSelectorHora(false)} style={{ padding: 4 }}>
+                  <Ionicons name="close" size={24} color="rgba(255,255,255,0.6)" />
                 </TouchableOpacity>
               </View>
 
-              <ScrollView style={styles.hoursList}>
-                {horasDisponibles.map((hora) => {
-                  const esSeleccionado = hora === formData.hora_preferida;
-                  return (
-                    <TouchableOpacity
-                      key={hora}
-                      style={[
-                        styles.hourItem,
-                        esSeleccionado && styles.hourItemSelected
-                      ]}
-                      onPress={() => seleccionarHora(hora)}
-                    >
-                      <Text style={[
-                        styles.hourItemText,
-                        esSeleccionado && styles.hourItemTextSelected
-                      ]}>
-                        {hora}
-                      </Text>
-                      {esSeleccionado && (
-                        <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
+              <ScrollView style={{ maxHeight: 300 }}>
+                <View style={styles.timeGrid}>
+                  {horasDisponibles.map((hora) => {
+                    const sel = hora === formData.hora_preferida;
+                    return (
+                      <TouchableOpacity key={hora} style={[styles.timeButton, sel && styles.timeButtonSelected]} onPress={() => seleccionarHora(hora)}>
+                        <Text style={[styles.timeButtonText, sel && styles.timeButtonTextSelected]}>{hora}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </ScrollView>
 
               <TouchableOpacity
-                style={styles.hourClearButton}
-                onPress={() => {
-                  setFormData(prev => ({ ...prev, hora_preferida: '' }));
-                  setMostrarSelectorHora(false);
-                }}
+                style={[styles.descModalCancelBtn, { marginTop: 12 }]}
+                onPress={() => { setFormData(prev => ({ ...prev, hora_preferida: '' })); setMostrarSelectorHora(false); }}
               >
-                <Text style={styles.hourClearButtonText}>Limpiar hora</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '600' }}>Limpiar hora</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2487,30 +2207,20 @@ const FormularioSolicitud = ({
   // Calcular el paso visual para mostrar en la barra de progreso
   // Cuando hay servicio y/o proveedor preseleccionado, mapear pasos reales a pasos visuales
   const getPasoVisual = () => {
-    // Flujo normal: paso real = paso visual
-    if (!tieneServicioPreseleccionado && !tieneProveedorPreseleccionado) {
-      return pasoActual;
-    }
-
-    // Flujo con servicio + proveedor preseleccionados: mapear pasos (4 pasos visuales: 1→3→5→6)
+    // flujoCuatroPasos: 4 visual steps (1→3→5→6)
     if (flujoCuatroPasos) {
-      const mapaPasos = {
-        1: 1, // Vehículo (paso visual 1)
-        3: 2, // Urgencia (paso visual 2, saltamos el paso 2 real)
-        5: 3, // Ubicación (paso visual 3, saltamos el paso 4 real)
-        6: 4  // Fecha/hora (paso visual 4, último paso)
-      };
+      const mapaPasos = { 1: 1, 3: 2, 5: 3, 6: 4 };
       return mapaPasos[pasoActual] || pasoActual;
     }
 
-    // Flujo con solo servicio preseleccionado: mapear pasos (5 pasos visuales: 1→3→4→5→6)
-    if (tieneServicioPreseleccionado) {
+    // All other flows: 5 visual steps (1→3→4→5→6)
+    {
       const mapaPasos = {
-        1: 1, // Vehículo (paso visual 1)
-        3: 2, // Urgencia (paso visual 2, saltamos el paso 2 real)
-        4: 3, // Tipo solicitud (paso visual 3)
-        5: 4, // Ubicación (paso visual 4)
-        6: 5  // Fecha/hora (paso visual 5, último paso)
+        1: 1,
+        3: 2,
+        4: 3,
+        5: 4,
+        6: 5
       };
       return mapaPasos[pasoActual] || pasoActual;
     }
@@ -2534,1009 +2244,626 @@ const FormularioSolicitud = ({
     }
   };
 
-  // Obtener tema para los botones de navegación y categorías
-  const theme = useTheme();
-  const colors = theme?.colors || {};
-  const typography = theme?.typography || {};
-  const spacing = theme?.spacing || {};
-  const borders = theme?.borders || {};
-
-  // Asegurar que typography tenga todas las propiedades necesarias
-  const safeTypography = typography?.fontSize && typography?.fontWeight
-    ? typography
-    : {
-      fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
-      fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
-    };
-
-  // Validar que borders esté completamente inicializado
-  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined')
-    ? borders
-    : {
-      radius: {
-        none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
-        full: 9999,
-        button: { sm: 8, md: 12, lg: 16, full: 9999 },
-        input: { sm: 8, md: 12, lg: 16 },
-        card: { sm: 8, md: 12, lg: 16, xl: 20 },
-        modal: { sm: 12, md: 16, lg: 20, xl: 24 },
-        avatar: { sm: 16, md: 24, lg: 32, full: 9999 },
-        badge: { sm: 4, md: 8, lg: 12, full: 9999 },
-      },
-      width: { none: 0, thin: 1, medium: 2, thick: 4 }
-    };
-
-  // Crear estilos dinámicos para los botones de navegación
-  const navStyles = createNavStyles(colors, safeTypography, spacing, safeBorders);
-
-  // Colores para el gradiente del botón siguiente
-  const gradientColors = [
-    '#2563EB', // Blue-600
-    '#2563EB'  // Solid color effect
-  ];
-
   return (
     <View style={styles.container}>
-      {/* Indicador de progreso */}
+      {/* Glass progress bar */}
       <View style={styles.progressContainer}>
-        <Text style={styles.progressText}>
-          Paso {pasoVisual} de {totalPasos}
-        </Text>
+        <Text style={styles.progressText}>Paso {pasoVisual} de {totalPasos}</Text>
         <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${(pasoVisual / totalPasos) * 100}%` }
-            ]}
+          <LinearGradient
+            colors={['#10B981', '#6EE7B7']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[styles.progressFill, { width: `${(pasoVisual / totalPasos) * 100}%` }]}
           />
         </View>
       </View>
 
-      {/* Contenido del paso */}
-      {/* paddingBottom solo para aire al final del scroll; la barra está fuera del ScrollView */}
+      {/* Content */}
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{
-          paddingBottom:
-            (spacing.lg || 20) +
-            (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? (spacing.md || 12) : 0),
-        }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 20 + (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? 12 : 0) }}
         showsVerticalScrollIndicator={false}
       >
         {renderPaso()}
       </ScrollView>
 
-      {/* Barra inferior compacta: safe area una sola vez + padding moderado */}
-      <View
-        style={[
-          navStyles.navigation,
-          {
-            paddingBottom: (contentPaddingBottom || 0) + (spacing.sm || 10),
-          },
-        ]}
-      >
-        {pasoActual === 1 && onExit && (
-          <TouchableOpacity
-            onPress={onExit}
-            style={[navStyles.navButton, navStyles.backButton]}
-            activeOpacity={0.8}
-          >
-            <View style={navStyles.backButtonContainer}>
-              <Text style={navStyles.backButtonText}>Salir</Text>
-            </View>
+      {/* Glass navigation bar */}
+      <View style={[styles.navBar, { paddingBottom: (contentPaddingBottom || 0) + 10 }]}>
+        {pasoActual === 1 && onExit ? (
+          <TouchableOpacity onPress={onExit} style={styles.navBackBtn} activeOpacity={0.8}>
+            <Text style={styles.navBackText}>Salir</Text>
           </TouchableOpacity>
-        )}
-        {pasoActual > 1 && (
-          <TouchableOpacity
-            onPress={handleBack}
-            style={[navStyles.navButton, navStyles.backButton]}
-            activeOpacity={0.8}
-          >
-            <View style={navStyles.backButtonContainer}>
-              <Text style={navStyles.backButtonText}>Atrás</Text>
-            </View>
+        ) : pasoActual > 1 ? (
+          <TouchableOpacity onPress={handleBack} style={styles.navBackBtn} activeOpacity={0.8}>
+            <Text style={styles.navBackText}>Atrás</Text>
           </TouchableOpacity>
+        ) : (
+          <View style={{ flex: 1 }} />
         )}
-        <TouchableOpacity
-          onPress={handleNext}
-          style={[navStyles.navButton, navStyles.nextButton]}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity onPress={handleNext} style={{ flex: 2 }} activeOpacity={0.8}>
           <LinearGradient
-            colors={gradientColors}
+            colors={esUltimoPaso() ? ['#10B981', '#059669'] : ['#2563EB', '#3B82F6']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={navStyles.nextButtonGradient}
+            style={styles.navNextBtn}
           >
-            <Text style={navStyles.nextButtonText}>
-              {esUltimoPaso() ? 'Crear Solicitud' : 'Siguiente'}
-            </Text>
+            {esUltimoPaso() && <Send size={16} color="#FFF" style={{ marginRight: 6 }} />}
+            <Text style={styles.navNextText}>{esUltimoPaso() ? 'Crear Solicitud' : 'Siguiente'}</Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      {/* Description Modal */}
+      <Modal visible={descriptionModalVisible} transparent animationType="fade" onRequestClose={() => setDescriptionModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setDescriptionModalVisible(false)}>
+          <View style={styles.descModal} onStartShouldSetResponder={() => true}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <FileTextIcon size={22} color="#6EE7B7" />
+              <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>Describe tu necesidad</Text>
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
+              Cuéntanos qué problema tienes para que los proveedores entiendan tu solicitud.
+            </Text>
+            <TextInput
+              style={styles.descModalInput}
+              multiline
+              numberOfLines={5}
+              placeholder="Ej: Mi auto hace un ruido al frenar..."
+              placeholderTextColor="rgba(255,255,255,0.25)"
+              value={tempDescription}
+              onChangeText={setTempDescription}
+              textAlignVertical="top"
+              autoFocus
+            />
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity style={styles.descModalCancelBtn} onPress={() => setDescriptionModalVisible(false)}>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '600' }}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ flex: 1, opacity: tempDescription.trim() ? 1 : 0.4 }}
+                onPress={() => {
+                  if (tempDescription.trim()) {
+                    setFormData((prev) => ({ ...prev, descripcion_problema: tempDescription.trim() }));
+                    setDescriptionModalVisible(false);
+                    setPasoActual(3);
+                  }
+                }}
+                disabled={!tempDescription.trim()}
+              >
+                <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>Continuar</Text>
+                  <ChevronRightIcon size={18} color="#FFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
 
+// ── Glassmorphism shared styles ──
+const gs = StyleSheet.create({
+  sectionTitle: { color: '#FFF', fontSize: 17, fontWeight: '700', letterSpacing: 0.2 },
+  sectionSub: { color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 19, marginTop: 4 },
+  recCard: {
+    width: SCREEN_WIDTH * 0.7,
+    marginRight: 12,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    padding: 14,
+  },
+  recCardSelected: { borderColor: 'rgba(16,185,129,0.5)', backgroundColor: 'rgba(16,185,129,0.08)' },
+  catTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  catTabActive: { backgroundColor: 'rgba(96,165,250,0.15)', borderColor: 'rgba(96,165,250,0.4)' },
+  catTabText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '500' },
+  catTabTextActive: { color: '#93C5FD', fontWeight: '600' },
+  selectedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(16,185,129,0.1)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)',
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginTop: 12,
+  },
+});
+
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
+    backgroundColor: 'transparent',
   },
   progressContainer: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.white,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   progressText: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    marginBottom: SPACING.xs
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
   },
   progressBar: {
     height: 4,
-    backgroundColor: COLORS.lightGray,
-    borderRadius: BORDERS.radius.sm,
-    overflow: 'hidden'
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDERS.radius.sm
+    borderRadius: 2,
   },
-  scrollView: {
-    flex: 1
+  navBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(3,7,18,0.9)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    gap: 10,
   },
+  navBackBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  navBackText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  navNextBtn: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    borderRadius: 14,
+  },
+  navNextText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  descModal: {
+    backgroundColor: '#111827',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  descModalInput: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 14,
+    color: '#FFF',
+    fontSize: 14,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  descModalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+
+  // ── Step container & text ──
   pasoContainer: {
-    padding: SPACING.md
+    flex: 1,
+    paddingHorizontal: 16,
   },
   pasoTitle: {
-    fontSize: 24,
+    color: '#FFF',
+    fontSize: 17,
     fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: SPACING.xs
+    letterSpacing: 0.2,
+    marginBottom: 4,
   },
   pasoDescripcion: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    marginBottom: SPACING.lg
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 16,
   },
-  textArea: {
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
-    fontSize: 16,
-    color: COLORS.text,
-    minHeight: 120,
-    backgroundColor: COLORS.white
-  },
+
+  // ── Option cards (urgency, repuestos, etc.) ──
   opcionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.md,
-    marginVertical: SPACING.sm,
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight
+    gap: 12,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 10,
   },
   opcionSeleccionada: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F7FF'
+    borderColor: 'rgba(96,165,250,0.5)',
+    backgroundColor: 'rgba(96,165,250,0.08)',
   },
-  opcionContent: {
-    flex: 1,
-    marginLeft: SPACING.sm
-  },
+  opcionContent: { flex: 1 },
   opcionTitle: {
-    fontSize: 16,
+    color: '#FFF',
+    fontSize: 15,
     fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs
+    marginBottom: 2,
   },
   opcionDescripcion: {
-    fontSize: 14,
-    color: COLORS.textLight
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    lineHeight: 17,
   },
-  vehiculosList: {
-    marginTop: SPACING.md
-  },
+
+  // ── Vehicle cards ──
+  vehiculosList: { gap: 10, marginBottom: 12 },
   vehiculoCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   vehiculoCardSeleccionado: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F7FF'
+    borderColor: 'rgba(96,165,250,0.5)',
+    backgroundColor: 'rgba(96,165,250,0.08)',
   },
   vehiculoCardContent: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: 12,
   },
-  vehiculoCardInfo: {
-    flex: 1,
-    marginLeft: SPACING.sm
-  },
+  vehiculoCardInfo: { flex: 1 },
   vehiculoCardNombre: {
-    fontSize: 16,
+    color: '#FFF',
+    fontSize: 15,
     fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs
   },
-  vehiculoCardNombreSeleccionado: {
-    color: COLORS.primary
-  },
+  vehiculoCardNombreSeleccionado: { color: '#93C5FD' },
   vehiculoCardDetalles: {
-    fontSize: 14,
-    color: COLORS.textLight
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    marginTop: 2,
   },
+
+  // ── Text inputs ──
+  descripcionContainer: { marginTop: 16 },
+  descripcionLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  textArea: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 14,
+    color: '#FFF',
+    fontSize: 14,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+
+  // ── Info box ──
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    backgroundColor: 'rgba(96,165,250,0.1)',
+    borderLeftColor: '#60A5FA',
+  },
+  infoBoxText: {
+    color: '#93C5FD',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  infoBoxSubtext: {
+    color: 'rgba(147,197,253,0.7)',
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // ── Loading & empty ──
+  loadingContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 10,
+    fontSize: 13,
+  },
+  emptyContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  emptySubtext: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 20,
+  },
+
+  // ── Address selector ──
+  addressContainer: { gap: 12 },
+  inputContainer: { marginBottom: 12 },
+  inputLabel: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 6,
+  },
+  textInput: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    padding: 14,
+    color: '#FFF',
+    fontSize: 14,
+  },
+
+  // ── Vehicle selected badge ──
   vehiculoSeleccionado: {
-    marginTop: SPACING.md,
-    backgroundColor: '#E8F5E9'
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
   },
   vehiculoSeleccionadoContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
-    justifyContent: 'space-between'
-  },
-  deseleccionarVehiculoButton: {
-    padding: SPACING.xs,
-    marginLeft: SPACING.sm
+    gap: 8,
   },
   vehiculoText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.success
-  },
-  direccionSeleccionada: {
-    marginTop: SPACING.md,
-    backgroundColor: '#E3F2FD'
-  },
-  direccionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.primary
-  },
-  direccionDetalles: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    marginTop: SPACING.xs
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
-    fontSize: 16,
-    color: COLORS.text,
-    backgroundColor: COLORS.white,
-    marginTop: SPACING.sm
-  },
-  dateTimeContainer: {
-    marginTop: SPACING.md
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.white,
-    marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.md
-  },
-  inputIcon: {
-    marginRight: SPACING.sm
-  },
-  dateInput: {
-    flex: 1,
-    borderWidth: 0,
-    marginTop: 0,
-    paddingVertical: SPACING.md
-  },
-  timeInput: {
-    flex: 1,
-    borderWidth: 0,
-    marginTop: 0,
-    paddingVertical: SPACING.md
-  },
-  errorText: {
-    fontSize: 12,
-    color: COLORS.danger,
-    marginTop: SPACING.xs,
-    marginLeft: SPACING.md
-  },
-  fechaPreview: {
-    marginTop: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: '#E8F5E9',
-    borderRadius: BORDERS.radius.md,
-    borderWidth: 1,
-    borderColor: COLORS.success
-  },
-  fechaPreviewText: {
-    fontSize: 14,
-    color: COLORS.success,
-    fontWeight: '600'
-  },
-  dateTimeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: SPACING.md,
-    marginVertical: SPACING.sm,
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    gap: SPACING.sm
-  },
-  dateTimeText: {
-    fontSize: 16,
-    color: COLORS.text
-  },
-  notaContainer: {
-    marginTop: SPACING.md,
-    padding: SPACING.sm,
-    backgroundColor: '#FFF3E0',
-    borderRadius: BORDERS.radius.sm
-  },
-  notaText: {
-    fontSize: 12,
-    color: COLORS.warning,
-    fontStyle: 'italic'
-  },
-  // Estilos de navegación movidos a createNavStyles() para usar el nuevo sistema de diseño
-  // Estilos para servicios (Paso 2)
-  vistaSelector: {
-    flexDirection: 'row',
-    marginBottom: SPACING.md,
-    gap: SPACING.sm
-  },
-  vistaButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.sm,
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-    gap: SPACING.xs
-  },
-  vistaButtonActiva: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F7FF'
-  },
-  vistaButtonText: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    fontWeight: '500'
-  },
-  vistaButtonTextActiva: {
-    color: COLORS.primary,
-    fontWeight: '600'
-  },
-  loadingContainer: {
-    padding: SPACING.xl,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  loadingText: {
-    marginTop: SPACING.md,
-    fontSize: 14,
-    color: COLORS.textLight
-  },
-  categoriasContainer: {
-    marginTop: SPACING.md
-  },
-  categoriasHorizontal: {
-    paddingVertical: SPACING.sm || 8,
-    paddingLeft: SPACING.md || 16,
-    paddingRight: SPACING.md || 16,
-    alignItems: 'center',
-  },
-  emptyCategoriasContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.xl,
-    marginTop: SPACING.xl,
-  },
-  backToCategories: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-    gap: SPACING.xs
-  },
-  backToCategoriesText: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '600'
-  },
-  categoriaTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: SPACING.md
-  },
-  serviciosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  /* Contenedor del grid en "Todos los servicios" — sin maxHeight para que el scroll sea el del paso */
-  serviciosGridContainer: {
-    marginTop: SPACING.md,
-    marginBottom: SPACING.sm,
-  },
-  servicioCard: {
-    width: '48%',
-    maxWidth: '48%',
-    marginBottom: SPACING.sm,
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.sm,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2
-  },
-  servicioCardSeleccionado: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F7FF'
-  },
-  servicioCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.xs,
-  },
-  /* Solo un poco más de negrita que la descripción; sin bloques ni bordes extra */
-  servicioCardNombre: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.text,
-    flex: 1,
-  },
-  servicioCardNombreSeleccionado: {
-    color: COLORS.primary,
-  },
-  servicioCardDescripcion: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginTop: SPACING.xs,
-    lineHeight: 16,
-  },
-  servicioCardPrecio: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginTop: SPACING.sm,
-  },
-  serviciosListContainer: {
-    maxHeight: 400,
-    marginTop: SPACING.md
-  },
-  servicioListItem: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2
-  },
-  servicioListItemSeleccionado: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F7FF'
-  },
-  servicioListItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm
-  },
-  servicioListItemInfo: {
-    flex: 1
-  },
-  servicioListItemNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs
-  },
-  servicioListItemNombreSeleccionado: {
-    color: COLORS.primary
-  },
-  servicioListItemDescripcion: {
-    fontSize: 14,
-    color: COLORS.textLight
-  },
-  serviciosSeleccionadosBadge: {
-    marginTop: SPACING.md,
-    padding: SPACING.sm,
-    backgroundColor: '#E8F5E9',
-    borderRadius: BORDERS.radius.md,
-    alignItems: 'center'
-  },
-  serviciosSeleccionadosText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.success
-  },
-  // Estilos para servicios preseleccionados
-  serviciosPreseleccionadosContainer: {
-    marginTop: SPACING.md,
-    marginBottom: SPACING.md
-  },
-  servicioPreseleccionadoCard: {
-    backgroundColor: '#F0F8FF',
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 2,
-    borderColor: COLORS.success
-  },
-  servicioPreseleccionadoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.xs
-  },
-  servicioPreseleccionadoNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginLeft: SPACING.sm,
-    flex: 1
-  },
-  servicioPreseleccionadoDescripcion: {
+    color: '#6EE7B7',
     fontSize: 13,
-    color: COLORS.textLight,
-    marginTop: SPACING.xs,
-    lineHeight: 18
-  },
-  servicioPreseleccionadoPrecio: {
-    fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary,
-    marginTop: SPACING.xs
-  },
-  cambiarServicioButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING.sm,
-    marginTop: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: BORDERS.radius.md,
-    gap: SPACING.xs
-  },
-  cambiarServicioButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary
-  },
-  descripcionContainer: {
-    marginTop: SPACING.lg
-  },
-  descripcionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.sm
-  },
-  emptyText: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    textAlign: 'center',
-    marginTop: SPACING.md
-  },
-  emptyContainer: {
-    padding: SPACING.xl,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  errorText: {
-    fontSize: 14,
-    color: COLORS.danger,
-    textAlign: 'center',
-    marginTop: SPACING.md
-  },
-  // Estilos para proveedores (Paso 4)
-  proveedoresContainer: {
-    marginTop: SPACING.lg
-  },
-  proveedoresTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: SPACING.xs
-  },
-  proveedoresSubtitle: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    marginBottom: SPACING.md
-  },
-  proveedoresList: {
-    maxHeight: 500
-  },
-  proveedoresListContent: {
-    paddingBottom: SPACING.lg || 20
-  },
-  proveedoresSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.sm
-  },
-  mecanicosSection: {
-    marginTop: SPACING.lg
-  },
-  proveedorCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2
-  },
-  proveedorCardSeleccionado: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F7FF'
-  },
-  proveedorCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm
-  },
-  avatarContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarImage: {
-    backgroundColor: COLORS.borderLight,
-  },
-  avatarPlaceholder: {
-    backgroundColor: COLORS.borderLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  proveedorCardInfo: {
-    flex: 1
-  },
-  proveedorCardNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: SPACING.xs
-  },
-  proveedorCardNombreSeleccionado: {
-    color: COLORS.primary
-  },
-  proveedorCardDireccion: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginBottom: SPACING.xs
-  },
-  proveedorCardRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs
-  },
-  proveedorCardRatingText: {
-    fontSize: 12,
-    color: COLORS.textLight
-  },
-  proveedoresSeleccionadosBadge: {
-    marginTop: SPACING.md,
-    marginBottom: SPACING.xs,
-    padding: SPACING.sm,
-    backgroundColor: '#E3F2FD',
-    borderRadius: BORDERS.radius.md,
-    alignItems: 'center'
-  },
-  proveedoresSeleccionadosText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary
-  },
-  // Estilos para selector de fecha y hora (Paso 6)
-  dateTimeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
-    marginBottom: SPACING.md,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2
-  },
-  dateTimeButtonContent: {
     flex: 1,
-    marginLeft: SPACING.sm
   },
-  dateTimeButtonLabel: {
-    fontSize: 12,
-    color: COLORS.textLight,
-    marginBottom: SPACING.xs
+  deseleccionarVehiculoButton: {
+    padding: 4,
   },
-  dateTimeButtonValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text
-  },
-  dateTimeButtonValuePlaceholder: {
-    color: COLORS.textLight,
-    fontWeight: '400'
-  },
-  fechaPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.md,
-    padding: SPACING.md,
-    backgroundColor: '#E8F5E9',
-    borderRadius: BORDERS.radius.md,
-    gap: SPACING.sm
-  },
-  fechaPreviewText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.success,
-    flex: 1
-  },
-  // Estilos para modal de calendario
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end'
-  },
-  modalContent: {
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: SPACING.md,
-    maxHeight: '80%'
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-    paddingBottom: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text
-  },
-  modalCloseButton: {
-    padding: SPACING.xs
-  },
+
+  // ── Services grid (kept for legacy) ──
+  serviciosGrid: { gap: 10 },
+
+  // ── Calendar styles ──
+  calendarContainer: { marginTop: 12 },
   calendarHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.md
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   calendarNavButton: {
-    padding: SPACING.sm
-  },
-  calendarMonthText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text
-  },
-  calendarWeekDays: {
-    flexDirection: 'row',
-    marginBottom: SPACING.sm
-  },
-  calendarWeekDay: {
-    flex: 1,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
-    padding: SPACING.xs
+    justifyContent: 'center',
   },
-  calendarWeekDayText: {
+  calendarTitle: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  calendarDaysHeader: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  calendarDayLabel: {
+    flex: 1,
+    textAlign: 'center',
+    color: 'rgba(255,255,255,0.4)',
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.textLight
   },
   calendarGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap'
+    flexWrap: 'wrap',
   },
   calendarDay: {
     width: '14.28%',
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.xs
-  },
-  calendarDayOtherMonth: {
-    opacity: 0.3
-  },
-  calendarDayDisabled: {
-    opacity: 0.3
-  },
-  calendarDayToday: {
-    backgroundColor: COLORS.primary + '20',
-    borderRadius: BORDERS.radius.sm
+    borderRadius: 8,
   },
   calendarDaySelected: {
-    backgroundColor: COLORS.primary,
-    borderRadius: BORDERS.radius.sm
+    backgroundColor: 'rgba(96,165,250,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(96,165,250,0.5)',
+    borderRadius: 8,
   },
   calendarDayText: {
+    color: '#FFF',
     fontSize: 14,
-    color: COLORS.text
-  },
-  calendarDayTextOtherMonth: {
-    color: COLORS.textLight
-  },
-  calendarDayTextDisabled: {
-    color: COLORS.textLight
-  },
-  calendarDayTextToday: {
-    fontWeight: '700',
-    color: COLORS.primary
+    fontWeight: '500',
   },
   calendarDayTextSelected: {
+    color: '#93C5FD',
     fontWeight: '700',
-    color: COLORS.white
   },
-  // Estilos para selector de hora
-  hoursList: {
-    maxHeight: 400,
-    marginBottom: SPACING.md
+  calendarDayTextDisabled: {
+    color: 'rgba(255,255,255,0.15)',
   },
-  hourItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING.md,
-    marginBottom: SPACING.sm,
-    backgroundColor: COLORS.white,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: 2,
-    borderColor: COLORS.borderLight
+  calendarDayToday: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
   },
-  hourItemSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F7FF'
-  },
-  hourItemText: {
-    fontSize: 16,
-    color: COLORS.text
-  },
-  hourItemTextSelected: {
-    fontWeight: '600',
-    color: COLORS.primary
-  },
-  hourClearButton: {
-    padding: SPACING.md,
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight
-  },
-  hourClearButtonText: {
-    fontSize: 16,
-    color: COLORS.danger,
-    fontWeight: '600'
-  },
-  // Estilos para mensajes informativos
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: SPACING.md,
-    borderRadius: BORDERS.radius.md,
-    borderLeftWidth: 4,
-    marginBottom: SPACING.md
-  },
-  infoBoxText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: SPACING.xs
-  },
-  infoBoxSubtext: {
-    fontSize: 12,
-    lineHeight: 18
-  }
-});
 
-// Función para crear estilos dinámicos de los botones de navegación basados en el tema
-const createNavStyles = (colors, typography, spacing, borders) => StyleSheet.create({
-  // Barra sticky: menos padding vertical para ganar área útil al ScrollView
-  navigation: {
+  // ── Time selector ──
+  timeContainer: { marginTop: 20 },
+  timeGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: spacing.sm || 10,
-    paddingHorizontal: spacing.md || 16,
-    backgroundColor: colors.background?.paper || '#FFFFFF',
-    borderTopWidth: borders.width?.thin || 1,
-    borderTopColor: colors.neutral?.gray?.[200] || '#E5E7EB',
-    gap: spacing.sm || 10,
-    shadowColor: colors.base?.inkBlack || '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 6,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
   },
-  navButton: {
-    flex: 1,
-    minHeight: 0,
+  timeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  backButton: {
-    borderRadius: borders.radius?.button?.md || 12,
-    overflow: 'hidden',
+  timeButtonSelected: {
+    backgroundColor: 'rgba(96,165,250,0.15)',
+    borderColor: 'rgba(96,165,250,0.4)',
   },
-  backButtonContainer: {
-    paddingVertical: spacing.sm || 12,
-    paddingHorizontal: spacing.md || 16,
+  timeButtonText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  timeButtonTextSelected: {
+    color: '#93C5FD',
+    fontWeight: '600',
+  },
+
+  // ── Provider styles (kept for compatibility) ──
+  proveedoresContainer: { marginTop: 14 },
+  proveedoresTitle: { color: '#FFF', fontSize: 15, fontWeight: '600', marginBottom: 4 },
+  proveedoresSubtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginBottom: 12, lineHeight: 17 },
+  proveedoresList: { maxHeight: 400 },
+  proveedoresListContent: { gap: 10 },
+  proveedoresSectionTitle: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  mecanicosSection: { marginTop: 16 },
+  proveedorCard: {
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 8,
+  },
+  proveedorCardSeleccionado: {
+    borderColor: 'rgba(16,185,129,0.5)',
+    backgroundColor: 'rgba(16,185,129,0.06)',
+  },
+  proveedorCardContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  proveedorCardInfo: { flex: 1 },
+  proveedorCardNombre: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  proveedorCardNombreSeleccionado: { color: '#6EE7B7' },
+  proveedorCardDireccion: { color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 },
+  proveedorCardRating: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  proveedorCardRatingText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
+  proveedoresSeleccionadosBadge: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 10, marginTop: 10,
+    backgroundColor: 'rgba(168,85,247,0.1)', borderRadius: 10,
+    borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)',
+  },
+  proveedoresSeleccionadosText: { color: '#C084FC', fontSize: 13, fontWeight: '600' },
+
+  // ── Avatar ──
+  avatarContainer: { overflow: 'hidden' },
+  avatarImage: { backgroundColor: 'rgba(255,255,255,0.05)' },
+  avatarPlaceholder: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: borders.radius?.button?.md || 12,
-    backgroundColor: colors.neutral?.gray?.[100] || colors.background?.default || '#F3F4F6',
-    borderWidth: borders.width?.thin || 1,
-    borderColor: colors.neutral?.gray?.[300] || '#D1D5DB',
   },
-  backButtonText: {
-    color: colors.text?.primary || '#00171F',
-    fontSize: typography.fontSize?.md || 16,
-    fontWeight: typography.fontWeight?.bold || '700',
-    letterSpacing: typography.letterSpacing?.normal || 0,
+
+  // ── Precompra & misc ──
+  cambiarServicioButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: 16, paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(96,165,250,0.1)',
+    borderWidth: 1, borderColor: 'rgba(96,165,250,0.3)',
+    alignSelf: 'flex-start',
   },
-  nextButton: {
-    borderRadius: borders.radius?.button?.md || 12,
-    overflow: 'hidden',
-    shadowColor: colors.primary?.[500] || '#003459',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+  cambiarServicioButtonText: { color: '#93C5FD', fontSize: 13, fontWeight: '600' },
+  servicioPreseleccionadoCard: {
+    padding: 14, borderRadius: 14, marginBottom: 10,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
-  nextButtonGradient: {
-    paddingVertical: spacing.sm || 12,
-    paddingHorizontal: spacing.md || 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borders.radius?.button?.md || 12,
+  servicioPreseleccionadoHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  servicioPreseleccionadoNombre: { color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 },
+  servicioPreseleccionadoDescripcion: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginBottom: 4 },
+  servicioPreseleccionadoPrecio: { color: '#6EE7B7', fontSize: 13, fontWeight: '600' },
+  serviciosPreseleccionadosContainer: { gap: 10, marginBottom: 12 },
+
+  // ── Address (paso 5) ──
+  direccionCard: {
+    padding: 14, borderRadius: 14, marginBottom: 10,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
   },
-  nextButtonText: {
-    color: '#FFFFFF',
-    fontSize: typography.fontSize?.md || 16,
-    fontWeight: typography.fontWeight?.bold || '700',
-    letterSpacing: typography.letterSpacing?.normal || 0,
+  direccionCardSelected: { borderColor: 'rgba(96,165,250,0.5)', backgroundColor: 'rgba(96,165,250,0.08)' },
+  direccionCardContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  direccionCardInfo: { flex: 1 },
+  direccionCardNombre: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  direccionCardNombreSelected: { color: '#93C5FD' },
+  direccionCardDireccion: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 },
+  direccionCardDetalle: { color: 'rgba(255,255,255,0.35)', fontSize: 11, marginTop: 2 },
+
+  // ── Service selector (paso 2 - unused now, kept for compat) ──
+  vistaSelector: {
+    flexDirection: 'row', gap: 8, marginBottom: 14,
   },
+  vistaButton: {
+    flex: 1, paddingVertical: 10, alignItems: 'center',
+    borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  vistaButtonActiva: { backgroundColor: 'rgba(96,165,250,0.15)', borderColor: 'rgba(96,165,250,0.4)' },
+  vistaButtonText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '500' },
+  vistaButtonTextActiva: { color: '#93C5FD', fontWeight: '600' },
+
+  scrollView: { flex: 1 },
 });
 
 export default FormularioSolicitud;
-

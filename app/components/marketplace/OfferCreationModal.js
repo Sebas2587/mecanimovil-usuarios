@@ -12,19 +12,21 @@ import {
     Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
+const BLUR_I = Platform.OS === 'ios' ? 45 : 0;
 
 /**
  * OfferCreationModal
- * 
+ *
  * Modal for a buyer to initiate an offer on a vehicle.
  * Allows choosing between the published price or entering a counter-offer.
- * 
- * @param {boolean} visible - Visibility state of the modal
- * @param {Function} onClose - Function to close the modal
- * @param {Function} onSubmit - Function called with the offer amount
- * @param {number} vehiclePrice - The published price of the vehicle
- * @param {string} vehicleName - The name/title of the vehicle
  */
 const OfferCreationModal = ({
     visible,
@@ -33,17 +35,10 @@ const OfferCreationModal = ({
     vehiclePrice,
     vehicleName
 }) => {
-    const theme = useTheme();
-    const colors = theme.colors || {};
-    const typography = theme.typography || {};
-    const borders = theme.borders || {};
-    const spacing = theme.spacing || {};
-
     const [option, setOption] = useState('published'); // 'published' | 'counter'
     const [offerAmount, setOfferAmount] = useState('');
     const [error, setError] = useState('');
 
-    // Reset state when modal opens
     useEffect(() => {
         if (visible) {
             setOption('published');
@@ -53,7 +48,6 @@ const OfferCreationModal = ({
     }, [visible]);
 
     const handleCustomAmountChange = (text) => {
-        // Only allow numbers
         const numericValue = text.replace(/[^0-9]/g, '');
         setOfferAmount(numericValue);
         if (error) setError('');
@@ -76,9 +70,6 @@ const OfferCreationModal = ({
                 setError('El monto debe ser mayor a 0');
                 return;
             }
-
-            // Basic validation: warn if offer is too low (e.g., < 50% of price)
-            // For now just submit
             onSubmit(amount);
         }
         onClose();
@@ -86,49 +77,30 @@ const OfferCreationModal = ({
 
     const RadioCard = ({ type, title, subtitle, selected, onSelect }) => {
         const isSelected = selected === type;
-        const borderColor = isSelected ? (colors.primary?.main || '#003459') : (colors.border?.default || '#E5E7EB');
-        const bkgColor = isSelected ? 'rgba(0, 52, 89, 0.03)' : (colors.background?.paper || '#FFF');
-
         return (
             <TouchableOpacity
                 style={[
                     styles.radioCard,
-                    {
-                        borderColor,
-                        backgroundColor: bkgColor,
-                        borderRadius: borders.radius?.md || 8
-                    }
+                    isSelected ? styles.radioCardSelected : null,
                 ]}
                 onPress={() => onSelect(type)}
-                activeOpacity={0.7}
+                activeOpacity={0.75}
             >
                 <View style={styles.radioContainer}>
                     <View style={[
                         styles.radioOuter,
-                        { borderColor: isSelected ? (colors.primary?.main || '#003459') : (colors.text?.disabled || '#9CA3AF') }
+                        isSelected ? styles.radioOuterSelected : null,
                     ]}>
-                        {isSelected && <View style={[styles.radioInner, { backgroundColor: colors.primary?.main || '#003459' }]} />}
+                        {isSelected && <View style={styles.radioInner} />}
                     </View>
                 </View>
                 <View style={styles.radioContent}>
-                    <Text style={[
-                        styles.radioTitle,
-                        {
-                            color: isSelected ? (colors.primary?.main || '#003459') : (colors.text?.primary || '#111827'),
-                            fontSize: typography.fontSize?.md || 16,
-                            fontWeight: isSelected ? '700' : '500'
-                        }
-                    ]}>
+                    <Text style={[styles.radioTitle, isSelected && styles.radioTitleSelected]}>
                         {title}
                     </Text>
-                    {subtitle && (
-                        <Text style={[
-                            styles.radioSubtitle,
-                            { color: colors.text?.secondary || '#6B7280', fontSize: typography.fontSize?.sm || 14 }
-                        ]}>
-                            {subtitle}
-                        </Text>
-                    )}
+                    {subtitle ? (
+                        <Text style={styles.radioSubtitle}>{subtitle}</Text>
+                    ) : null}
                 </View>
             </TouchableOpacity>
         );
@@ -147,56 +119,26 @@ const OfferCreationModal = ({
                         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                         style={styles.keyboardAvoidingView}
                     >
-                        <View style={[
-                            styles.modalContainer,
-                            {
-                                backgroundColor: colors.background?.paper || '#FFF',
-                                borderTopLeftRadius: borders.radius?.xl || 20,
-                                borderTopRightRadius: borders.radius?.xl || 20,
-                            }
-                        ]}>
-                            {/* Header handle */}
+                        <View style={styles.modalOuter}>
+                            <View style={styles.modalBase} pointerEvents="none" />
+                            {Platform.OS === 'ios' && (
+                                <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />
+                            )}
                             <View style={styles.handleContainer}>
-                                <View style={[styles.handleBar, { backgroundColor: colors.neutral?.gray?.[300] || '#D1D5DB' }]} />
+                                <View style={styles.handleBar} />
                             </View>
 
-                            <View style={[styles.content, { paddingHorizontal: spacing.md || 20, paddingBottom: spacing.lg || 32 }]}>
-                                {/* Header */}
-                                <View style={[styles.header, { marginBottom: spacing.lg || 24 }]}>
-                                    <Text style={[
-                                        styles.title,
-                                        { color: colors.text?.primary || '#111827', fontSize: typography.fontSize?.xl || 20 }
-                                    ]}>
-                                        Realizar Oferta
-                                    </Text>
-                                    <Text style={[
-                                        styles.subtitle,
-                                        { color: colors.text?.secondary || '#6B7280', fontSize: typography.fontSize?.sm || 14 }
-                                    ]}>
-                                        {vehicleName}
-                                    </Text>
+                            <View style={styles.content}>
+                                <View style={styles.header}>
+                                    <Text style={styles.title}>Realizar Oferta</Text>
+                                    <Text style={styles.subtitle}>{vehicleName}</Text>
                                 </View>
 
-                                {/* Published Price Display */}
-                                <View style={[
-                                    styles.priceBox,
-                                    {
-                                        backgroundColor: colors.neutral?.surface || '#F3F4F6',
-                                        borderRadius: borders.radius?.md || 8,
-                                        marginBottom: spacing.md || 16
-                                    }
-                                ]}>
-                                    <Text style={{ color: colors.text?.secondary || '#6B7280', fontSize: 12 }}>Precio Publicado</Text>
-                                    <Text style={{
-                                        color: colors.text?.primary || '#111827',
-                                        fontSize: 24,
-                                        fontWeight: 'bold'
-                                    }}>
-                                        {formatCurrency(vehiclePrice)}
-                                    </Text>
+                                <View style={styles.priceBox}>
+                                    <Text style={styles.priceLabel}>Precio Publicado</Text>
+                                    <Text style={styles.priceValue}>{formatCurrency(vehiclePrice)}</Text>
                                 </View>
 
-                                {/* Options */}
                                 <View style={{ marginBottom: 24 }}>
                                     <RadioCard
                                         type="published"
@@ -215,62 +157,52 @@ const OfferCreationModal = ({
                                     />
                                 </View>
 
-                                {/* Counter Offer Input */}
                                 {option === 'counter' && (
                                     <View style={{ marginBottom: 24 }}>
-                                        <Text style={{
-                                            marginBottom: 8,
-                                            fontWeight: '600',
-                                            color: colors.text?.primary || '#111827'
-                                        }}>
-                                            Tu oferta:
-                                        </Text>
+                                        <Text style={styles.inputLabel}>Tu oferta:</Text>
                                         <View style={[
                                             styles.inputContainer,
-                                            {
-                                                borderColor: error ? (colors.error?.main || '#EF4444') : (colors.border?.default || '#E5E7EB'),
-                                                backgroundColor: colors.input?.background || '#F9FAFB',
-                                                borderRadius: borders.radius?.md || 8
-                                            }
+                                            error ? styles.inputContainerError : null,
                                         ]}>
-                                            <Text style={{ fontSize: 18, color: colors.text?.secondary || '#9CA3AF', marginRight: 8 }}>$</Text>
+                                            <Text style={styles.inputPrefix}>$</Text>
                                             <TextInput
-                                                style={[styles.input, { color: colors.text?.primary || '#111827' }]}
+                                                style={styles.input}
                                                 value={offerAmount}
                                                 onChangeText={handleCustomAmountChange}
                                                 keyboardType="numeric"
                                                 placeholder="0"
-                                                placeholderTextColor={colors.text?.disabled || '#D1D5DB'}
+                                                placeholderTextColor="rgba(255,255,255,0.35)"
                                                 autoFocus
                                             />
                                         </View>
                                         {error ? (
-                                            <Text style={{ color: colors.error?.main || '#EF4444', fontSize: 12, marginTop: 4 }}>
-                                                {error}
-                                            </Text>
+                                            <Text style={styles.errorText}>{error}</Text>
                                         ) : null}
                                     </View>
                                 )}
 
-                                {/* Action Buttons */}
                                 <View style={styles.footer}>
                                     <TouchableOpacity
                                         style={[styles.btn, styles.ghostBtn]}
                                         onPress={onClose}
                                     >
-                                        <Text style={{ color: colors.text?.secondary || '#6B7280', fontWeight: '600' }}>Cancelar</Text>
+                                        <Text style={styles.ghostBtnText}>Cancelar</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        style={[
-                                            styles.btn,
-                                            styles.primaryBtn,
-                                            { backgroundColor: colors.primary?.main || '#003459', borderRadius: borders.radius?.md || 8 }
-                                        ]}
+                                        style={[styles.btn, styles.primaryBtnWrap]}
                                         onPress={handleSubmit}
+                                        activeOpacity={0.85}
                                     >
-                                        <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Enviar Oferta</Text>
-                                        <Ionicons name="send" size={16} color="#FFF" style={{ marginLeft: 8 }} />
+                                        <LinearGradient
+                                            colors={['#0f766e', '#059669', '#10B981']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                            style={styles.primaryGradient}
+                                        >
+                                            <Text style={styles.primaryBtnText}>Enviar Oferta</Text>
+                                            <Ionicons name="send" size={16} color="#FFF" style={{ marginLeft: 8 }} />
+                                        </LinearGradient>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -285,48 +217,91 @@ const OfferCreationModal = ({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(0,0,0,0.55)',
         justifyContent: 'flex-end',
     },
     keyboardAvoidingView: {
         width: '100%',
     },
-    modalContainer: {
+    modalOuter: {
         width: '100%',
         paddingTop: 12,
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: '#0a0f1a',
+    },
+    modalBase: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(10,15,26,0.94)',
+        borderTopLeftRadius: 22,
+        borderTopRightRadius: 22,
     },
     handleContainer: {
         alignItems: 'center',
         marginBottom: 8,
+        zIndex: 2,
     },
     handleBar: {
         width: 40,
         height: 4,
         borderRadius: 2,
+        backgroundColor: 'rgba(255,255,255,0.2)',
     },
     content: {
-        // padding set in render
+        paddingHorizontal: 20,
+        paddingBottom: 32,
+        zIndex: 2,
     },
     header: {
         alignItems: 'center',
+        marginBottom: 24,
     },
     title: {
-        fontWeight: 'bold',
+        fontWeight: '700',
         marginBottom: 4,
+        fontSize: 20,
+        color: '#F9FAFB',
     },
     subtitle: {
         textAlign: 'center',
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.5)',
     },
     priceBox: {
         padding: 16,
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: GLASS_BG,
+        borderRadius: 14,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    priceLabel: {
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 12,
+        marginBottom: 4,
+    },
+    priceValue: {
+        color: '#93C5FD',
+        fontSize: 24,
+        fontWeight: '800',
     },
     radioCard: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
         borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        borderRadius: 14,
+        backgroundColor: GLASS_BG,
+    },
+    radioCardSelected: {
+        borderColor: 'rgba(147,197,253,0.45)',
+        backgroundColor: 'rgba(147,197,253,0.08)',
     },
     radioContainer: {
         marginRight: 12,
@@ -336,32 +311,70 @@ const styles = StyleSheet.create({
         height: 20,
         borderRadius: 10,
         borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.35)',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    radioOuterSelected: {
+        borderColor: '#93C5FD',
     },
     radioInner: {
         width: 10,
         height: 10,
         borderRadius: 5,
+        backgroundColor: '#6EE7B7',
     },
     radioContent: {
         flex: 1,
     },
     radioTitle: {
         marginBottom: 2,
+        fontSize: 16,
+        fontWeight: '500',
+        color: 'rgba(255,255,255,0.85)',
+    },
+    radioTitleSelected: {
+        color: '#F9FAFB',
+        fontWeight: '700',
+    },
+    radioSubtitle: {
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 14,
+    },
+    inputLabel: {
+        marginBottom: 8,
+        fontWeight: '600',
+        color: '#F9FAFB',
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 12,
-        height: 50,
+        height: 52,
         borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.15)',
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    inputContainerError: {
+        borderColor: 'rgba(248,113,113,0.8)',
+    },
+    inputPrefix: {
+        fontSize: 18,
+        color: 'rgba(255,255,255,0.45)',
+        marginRight: 8,
     },
     input: {
         flex: 1,
         fontSize: 18,
         fontWeight: '600',
         height: '100%',
+        color: '#F9FAFB',
+    },
+    errorText: {
+        color: '#FCA5A5',
+        fontSize: 12,
+        marginTop: 4,
     },
     footer: {
         flexDirection: 'row',
@@ -370,17 +383,39 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     btn: {
-        height: 48,
+        height: 50,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 8,
+        borderRadius: 12,
     },
     ghostBtn: {
         width: '30%',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.15)',
+        backgroundColor: 'rgba(255,255,255,0.05)',
     },
-    primaryBtn: {
+    ghostBtnText: {
+        color: 'rgba(255,255,255,0.65)',
+        fontWeight: '600',
+    },
+    primaryBtnWrap: {
         width: '65%',
+        overflow: 'hidden',
+        borderRadius: 12,
+        minHeight: 50,
+    },
+    primaryGradient: {
+        minHeight: 50,
+        width: '100%',
         flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 12,
+        borderRadius: 12,
+    },
+    primaryBtnText: {
+        color: '#FFF',
+        fontWeight: '700',
     },
 });
 

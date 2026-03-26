@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, TextInput, StatusBar, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ROUTES } from '../../utils/constants';
-import { useTheme } from '../../design-system/theme/useTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
 import OfferNegotiationCard from '../../components/marketplace/OfferNegotiationCard';
 import MarketplaceFilterModal from '../../components/marketplace/MarketplaceFilterModal';
 
-
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
 
 // Mock Data for Offers
 const MOCK_OFFERS = [
@@ -66,16 +70,9 @@ const MOCK_OFFERS = [
 
 const MarketplaceScreen = () => {
     const navigation = useNavigation();
-    const theme = useTheme();
     const insets = useSafeAreaInsets();
 
-    // Design Tokens
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
-
-    const styles = getStyles(colors, typography, spacing, borders);
+    const styles = getStyles();
 
     // State
     const [activeTab, setActiveTab] = useState('explore'); // 'explore' | 'deals'
@@ -271,8 +268,8 @@ const MarketplaceScreen = () => {
                 {item.foto_url ? (
                     <Image source={{ uri: item.foto_url }} style={[styles.image, item.is_reserved && { opacity: 0.6 }]} contentFit="cover" />
                 ) : (
-                    <View style={[styles.image, { backgroundColor: '#E5E7EB', alignItems: 'center', justifyContent: 'center' }]}>
-                        <Ionicons name="car-outline" size={48} color="#9CA3AF" />
+                    <View style={[styles.image, styles.imagePlaceholder]}>
+                        <Ionicons name="car-outline" size={48} color="rgba(255,255,255,0.35)" />
                     </View>
                 )}
 
@@ -337,11 +334,11 @@ const MarketplaceScreen = () => {
                 <View style={styles.cardHeader}>
                     <View style={{ flex: 1, marginRight: 12 }}>
                         <Text style={styles.title}>{item.marca_nombre} {item.modelo_nombre}</Text>
-                        <Text style={[styles.subtitle, item.is_reserved && { color: '#6B7280' }]}>
+                        <Text style={[styles.subtitle, item.is_reserved && styles.subtitleMuted]}>
                             {item.year} • {item.transmision || 'Automática'}
                         </Text>
                     </View>
-                    <Text style={[styles.price, item.is_reserved && { color: '#9CA3AF', textDecorationLine: 'line-through' }]}>
+                    <Text style={[styles.price, item.is_reserved && styles.priceReserved]}>
                         {formatPrice(item.precio_venta || item.settings?.precio_venta || item.marketplace_data?.precio_venta || item.price || item.selling_price || item.precio_publicado || item.precio_sugerido_final || item.suggested_price)}
                     </Text>
                 </View>
@@ -355,8 +352,8 @@ const MarketplaceScreen = () => {
                             contentFit="cover"
                         />
                     ) : (
-                        <View style={[styles.sellerAvatar, { backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' }]}>
-                            <Ionicons name="person" size={12} color="#9CA3AF" />
+                        <View style={[styles.sellerAvatar, styles.sellerAvatarPlaceholder]}>
+                            <Ionicons name="person" size={12} color="rgba(255,255,255,0.35)" />
                         </View>
                     )}
                     <Text style={styles.sellerName} numberOfLines={1}>
@@ -368,7 +365,7 @@ const MarketplaceScreen = () => {
 
                 <View style={styles.cardFooter}>
                     <View style={styles.footerItem}>
-                        <Ionicons name="location-outline" size={14} color={colors.text?.tertiary} />
+                        <Ionicons name="location-outline" size={14} color="rgba(255,255,255,0.45)" />
                         <Text style={styles.footerText}>Santiago</Text>
                     </View>
                     <TouchableOpacity onPress={() => navigation.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicle: item })}>
@@ -422,7 +419,14 @@ const MarketplaceScreen = () => {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor={colors.background?.default} />
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
+                <View style={styles.blobEmerald} />
+                <View style={styles.blobIndigo} />
+                <View style={styles.blobCyan} />
+            </View>
+
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
             <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
                 <Text style={styles.headerTitle}>Marketplace</Text>
@@ -448,11 +452,11 @@ const MarketplaceScreen = () => {
                     <View>
                         <View style={styles.searchRow}>
                             <View style={styles.searchBar}>
-                                <Ionicons name="search" size={20} color={colors.text?.disabled} />
+                                <Ionicons name="search" size={20} color="rgba(255,255,255,0.35)" />
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Buscar marca, modelo..."
-                                    placeholderTextColor={colors.text?.disabled}
+                                    placeholderTextColor="rgba(255,255,255,0.35)"
                                     value={searchQuery}
                                     onChangeText={setSearchQuery}
                                 />
@@ -460,14 +464,14 @@ const MarketplaceScreen = () => {
                             <TouchableOpacity
                                 style={[
                                     styles.filterButton,
-                                    (Object.values(activeFilters).some(v => v !== '')) && { borderColor: colors.primary?.main, borderWidth: 2 }
+                                    (Object.values(activeFilters).some(v => v !== '')) && styles.filterButtonActive
                                 ]}
                                 onPress={() => setFilterModalVisible(true)}
                             >
                                 <Ionicons
                                     name="options-outline"
                                     size={20}
-                                    color={(Object.values(activeFilters).some(v => v !== '')) ? colors.primary?.main : colors.text?.secondary}
+                                    color={(Object.values(activeFilters).some(v => v !== '')) ? '#93C5FD' : 'rgba(255,255,255,0.55)'}
                                 />
                             </TouchableOpacity>
                         </View>
@@ -504,7 +508,7 @@ const MarketplaceScreen = () => {
             {activeTab === 'explore' ? (
                 loading ? (
                     <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={colors.primary?.main} />
+                        <ActivityIndicator size="large" color="#6EE7B7" />
                     </View>
                 ) : (
                     <FlatList
@@ -513,10 +517,10 @@ const MarketplaceScreen = () => {
                         keyExtractor={item => item.id.toString()}
                         contentContainerStyle={styles.listContent}
                         showsVerticalScrollIndicator={false}
-                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6EE7B7" />}
                         ListEmptyComponent={
                             <View style={styles.emptyContainer}>
-                                <Ionicons name="car-sport-outline" size={64} color={colors.neutral?.gray?.[300] || '#D1D5DB'} />
+                                <Ionicons name="car-sport-outline" size={64} color="rgba(255,255,255,0.2)" />
                                 <Text style={styles.emptyText}>No hay vehículos publicados aún.</Text>
                                 <Text style={styles.emptySubtext}>Sé el primero en vender tu auto.</Text>
                             </View>
@@ -533,7 +537,7 @@ const MarketplaceScreen = () => {
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <Ionicons name="receipt-outline" size={64} color={colors.neutral?.gray?.[300] || '#D1D5DB'} />
+                            <Ionicons name="receipt-outline" size={64} color="rgba(255,255,255,0.2)" />
                             <Text style={styles.emptyText}>No tienes negocios activos.</Text>
                         </View>
                     }
@@ -553,10 +557,37 @@ const MarketplaceScreen = () => {
     );
 };
 
-const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
+const getStyles = () => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background?.default || '#F9FAFB',
+        backgroundColor: '#030712',
+    },
+    blobEmerald: {
+        position: 'absolute',
+        top: -40,
+        left: -50,
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: 'rgba(16,185,129,0.10)',
+    },
+    blobIndigo: {
+        position: 'absolute',
+        top: 180,
+        right: -50,
+        width: 220,
+        height: 220,
+        borderRadius: 110,
+        backgroundColor: 'rgba(99,102,241,0.08)',
+    },
+    blobCyan: {
+        position: 'absolute',
+        bottom: 80,
+        left: 20,
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        backgroundColor: 'rgba(6,182,212,0.06)',
     },
     loadingContainer: {
         flex: 1,
@@ -564,74 +595,73 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         alignItems: 'center',
     },
     headerContainer: {
-        backgroundColor: colors.background?.default || '#F9FAFB',
-        paddingBottom: spacing.sm || 8,
+        paddingBottom: 8,
         zIndex: 10,
     },
     headerTitle: {
-        fontSize: typography.fontSize?.['3xl'] || 28,
-        fontWeight: typography.fontWeight?.bold || '700',
-        color: colors.text?.primary || '#111827',
-        paddingHorizontal: spacing.md || 16,
-        marginBottom: spacing.sm || 12,
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#F9FAFB',
+        paddingHorizontal: 16,
+        marginBottom: 12,
     },
     // Tabs Styles
     tabsContainer: {
         flexDirection: 'row',
-        backgroundColor: '#E5E7EB',
-        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 14,
         marginHorizontal: 16,
         marginBottom: 16,
         padding: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     tab: {
         flex: 1,
-        paddingVertical: 8,
+        paddingVertical: 10,
         alignItems: 'center',
-        borderRadius: 8,
+        borderRadius: 10,
     },
     activeTab: {
-        backgroundColor: '#FFFFFF',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.18)',
     },
     tabText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6B7280',
+        color: 'rgba(255,255,255,0.45)',
     },
     activeTabText: {
-        color: colors.primary?.main || '#003459',
+        color: '#F9FAFB',
     },
     // Segment Control Styles
     segmentContainer: {
         flexDirection: 'row',
         paddingHorizontal: 16,
         paddingBottom: 8,
-        gap: 12,
+        gap: 10,
     },
     segment: {
-        paddingVertical: 6,
-        paddingHorizontal: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
         borderRadius: 20,
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     activeSegment: {
-        backgroundColor: colors.primary?.light || '#E0F2FE',
-        borderColor: colors.primary?.main || '#003459',
+        backgroundColor: 'rgba(147,197,253,0.12)',
+        borderColor: 'rgba(147,197,253,0.45)',
     },
     segmentText: {
         fontSize: 13,
-        color: '#6B7280',
+        color: 'rgba(255,255,255,0.45)',
         fontWeight: '500',
     },
     activeSegmentText: {
-        color: colors.primary?.main || '#003459',
+        color: '#93C5FD',
         fontWeight: '600',
     },
     segmentBadge: {
@@ -648,81 +678,80 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         fontSize: 10,
         fontWeight: 'bold',
     },
-    // Existing Styles
     searchRow: {
         flexDirection: 'row',
-        paddingHorizontal: spacing.md || 16,
-        marginBottom: spacing.md || 16,
+        paddingHorizontal: 16,
+        marginBottom: 16,
     },
     searchBar: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: borders.radius?.lg || 12,
+        backgroundColor: GLASS_BG,
+        borderRadius: 14,
         paddingHorizontal: 12,
         height: 48,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
+        overflow: 'hidden',
     },
     input: {
         flex: 1,
         marginLeft: 8,
-        fontSize: typography.fontSize?.base || 14,
-        color: colors.text?.primary || '#111827',
+        fontSize: 14,
+        color: '#F9FAFB',
     },
     filterButton: {
         width: 48,
         height: 48,
-        borderRadius: 12,
-        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        backgroundColor: GLASS_BG,
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: 8,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
+    },
+    filterButtonActive: {
+        borderColor: 'rgba(147,197,253,0.55)',
+        borderWidth: 2,
     },
     filterList: {
-        paddingHorizontal: spacing.md || 16,
+        paddingHorizontal: 16,
         paddingBottom: 8,
     },
     filterPill: {
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 99,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: GLASS_BG,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
         marginRight: 8,
     },
     filterPillActive: {
-        backgroundColor: colors.primary?.main || '#003459',
-        borderColor: colors.primary?.main || '#003459',
+        backgroundColor: 'rgba(147,197,253,0.2)',
+        borderColor: 'rgba(147,197,253,0.45)',
     },
     filterText: {
         fontSize: 14,
         fontWeight: '500',
-        color: colors.text?.secondary || '#374151',
+        color: 'rgba(255,255,255,0.55)',
     },
     filterTextActive: {
-        color: '#FFFFFF',
+        color: '#F9FAFB',
     },
     listContent: {
-        padding: spacing.md || 16,
-        paddingBottom: 80, // Space for FAB
+        padding: 16,
+        paddingBottom: 80,
     },
     card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: borders.radius?.xl || 16,
-        marginBottom: spacing.lg || 20,
+        backgroundColor: GLASS_BG,
+        borderRadius: 18,
+        marginBottom: 20,
         overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 3,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#F3F4F6',
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     imageContainer: {
         height: 180,
@@ -733,6 +762,11 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         width: '100%',
         height: '100%',
     },
+    imagePlaceholder: {
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     topBadges: {
         position: 'absolute',
         top: 12,
@@ -742,10 +776,12 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     certifiedBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.success?.main || '#10B981',
+        backgroundColor: 'rgba(16,185,129,0.85)',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
     },
     certifiedText: {
         color: '#FFFFFF',
@@ -762,23 +798,20 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     healthBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(3,7,18,0.65)',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 99,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     healthText: {
         fontSize: 12,
         fontWeight: '700',
-        color: colors.text?.primary || '#111827',
         marginLeft: 4,
     },
     cardBody: {
-        padding: spacing.md || 16,
+        padding: 16,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -786,23 +819,30 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         alignItems: 'flex-start',
     },
     title: {
-        fontSize: typography.fontSize?.lg || 18,
-        fontWeight: typography.fontWeight?.bold || '700',
-        color: colors.text?.primary || '#111827',
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#F9FAFB',
     },
     subtitle: {
         fontSize: 14,
-        color: colors.text?.secondary || '#6B7280',
+        color: 'rgba(255,255,255,0.5)',
         marginTop: 2,
     },
+    subtitleMuted: {
+        color: 'rgba(255,255,255,0.35)',
+    },
     price: {
-        fontSize: typography.fontSize?.lg || 18,
-        fontWeight: typography.fontWeight?.bold || '700',
-        color: colors.info?.main || '#2563EB',
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#93C5FD',
+    },
+    priceReserved: {
+        color: 'rgba(255,255,255,0.35)',
+        textDecorationLine: 'line-through',
     },
     divider: {
         height: 1,
-        backgroundColor: colors.border?.light || '#F3F4F6',
+        backgroundColor: 'rgba(255,255,255,0.08)',
         marginVertical: 12,
     },
     cardFooter: {
@@ -817,7 +857,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         marginTop: 12,
         paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: '#F3F4F6',
+        borderTopColor: 'rgba(255,255,255,0.08)',
     },
     sellerAvatar: {
         width: 24,
@@ -825,10 +865,15 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         borderRadius: 12,
         marginRight: 8,
     },
+    sellerAvatarPlaceholder: {
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     sellerName: {
         fontSize: 12,
         fontWeight: '500',
-        color: '#4B5563',
+        color: 'rgba(255,255,255,0.65)',
         flex: 1,
     },
 
@@ -838,13 +883,13 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     },
     footerText: {
         fontSize: 12,
-        color: colors.text?.tertiary || '#9CA3AF',
+        color: 'rgba(255,255,255,0.45)',
         marginLeft: 4,
     },
     viewMoreText: {
         fontSize: 14,
         fontWeight: '600',
-        color: colors.primary?.main || '#003459',
+        color: '#6EE7B7',
     },
     emptyContainer: {
         alignItems: 'center',
@@ -854,13 +899,13 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     emptyText: {
         fontSize: 18,
         fontWeight: '700',
-        color: colors.text?.secondary || '#6B7280',
+        color: 'rgba(255,255,255,0.65)',
         marginTop: 16,
         textAlign: 'center',
     },
     emptySubtext: {
         fontSize: 14,
-        color: colors.text?.tertiary || '#9CA3AF',
+        color: 'rgba(255,255,255,0.4)',
         marginTop: 8,
         textAlign: 'center',
     },
@@ -870,10 +915,12 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         right: 24,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.primary?.main || '#003459',
+        backgroundColor: 'rgba(147,197,253,0.25)',
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 30,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,

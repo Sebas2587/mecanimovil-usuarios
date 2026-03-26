@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../design-system/tokens/colors';
 
 const ProfileMenuItem = ({
     icon,
@@ -9,8 +8,8 @@ const ProfileMenuItem = ({
     onPress,
     isLast,
     badge,
-    iconColor = COLORS.primary[500],
-    iconBgColor = COLORS.primary[50],
+    iconColor = '#93C5FD',
+    iconBgColor = 'rgba(147,197,253,0.15)',
     isSwitch,
     switchValue,
     onSwitchChange
@@ -31,27 +30,27 @@ const ProfileMenuItem = ({
                 </View>
 
                 <View style={styles.rightContent}>
-                    {badge && (
+                    {badge ? (
                         <View style={styles.badge}>
                             <Text style={styles.badgeText}>{badge}</Text>
                         </View>
-                    )}
+                    ) : null}
 
                     {isSwitch ? (
                         <Switch
-                            trackColor={{ false: "#E2E8F0", true: COLORS.primary[200] }}
-                            thumbColor={switchValue ? COLORS.primary[500] : "#94A3B8"}
-                            ios_backgroundColor="#E2E8F0"
+                            trackColor={{ false: 'rgba(255,255,255,0.15)', true: 'rgba(16,185,129,0.45)' }}
+                            thumbColor={switchValue ? '#6EE7B7' : 'rgba(255,255,255,0.55)'}
+                            ios_backgroundColor="rgba(255,255,255,0.12)"
                             onValueChange={onSwitchChange}
                             value={switchValue}
                         />
                     ) : (
-                        <Ionicons name="chevron-forward" size={20} color={COLORS.neutral.gray[400]} />
+                        <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.35)" />
                     )}
                 </View>
             </TouchableOpacity>
 
-            {!isLast && <View style={styles.separator} />}
+            {!isLast ? <View style={styles.separator} /> : null}
         </View>
     );
 };
@@ -62,7 +61,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 16,
-        backgroundColor: COLORS.base.white,
+        backgroundColor: 'transparent',
     },
     leftContent: {
         flexDirection: 'row',
@@ -79,7 +78,7 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 16,
         fontWeight: '600',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
     },
     rightContent: {
         flexDirection: 'row',
@@ -87,7 +86,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     badge: {
-        backgroundColor: COLORS.error[500],
+        backgroundColor: 'rgba(248,113,113,0.85)',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 10,
@@ -98,9 +97,9 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     separator: {
-        height: 1,
-        backgroundColor: COLORS.neutral.gray[100],
-        marginLeft: 64, // Align with text, skipping icon
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        marginLeft: 64,
     },
 });
 

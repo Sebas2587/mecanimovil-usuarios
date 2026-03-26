@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
+import { getProviderSpecialty } from '../../utils/providerUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -22,10 +23,9 @@ const NearbyTallerCard = ({ taller, onPress }) => {
       fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
     };
 
-  // Solo especialidades, sin servicios
+  const specialtyText = getProviderSpecialty(taller, null);
+  // Para el badge flotante en la imagen
   const especialidadesDestacadas = taller?.especialidades_nombres?.slice(0, 2) || [];
-  const totalEspecialidades = taller?.especialidades_nombres?.length || 0;
-  const especialidadesRestantes = Math.max(0, totalEspecialidades - 2);
 
   // Formatear calificación - verificar múltiples campos posibles
   // El backend devuelve: calificacion_promedio, numero_de_calificaciones, total_resenas
@@ -126,6 +126,13 @@ const NearbyTallerCard = ({ taller, onPress }) => {
           {taller?.nombre || 'Taller'}
         </Text>
 
+        {/* Marcas / especialidades */}
+        {specialtyText && (
+          <Text style={styles.specialtyText} numberOfLines={1}>
+            {specialtyText}
+          </Text>
+        )}
+
         {/* Fila de distancia y calificación */}
         <View style={styles.bottomRow}>
           <Text style={styles.distanceText}>
@@ -222,8 +229,13 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.bold || '700',
     color: colors.text?.primary || '#00171F',
-    marginBottom: 0,
+    marginBottom: 1,
     lineHeight: typography.fontSize?.base ? typography.fontSize.base * 1.1 : 15.4,
+  },
+  specialtyText: {
+    fontSize: typography.fontSize?.xs || 10,
+    color: colors.text?.secondary || '#5D6F75',
+    marginBottom: 2,
   },
   bottomRow: {
     flexDirection: 'row',

@@ -39,6 +39,7 @@ import Badge from '../../components/base/Badge/Badge';
 import { ROUTES } from '../../utils/constants';
 import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
 import { useTheme } from '../../design-system/theme/useTheme';
+import { formatProviderForCard } from '../../utils/providerUtils';
 
 const MecanicosScreen = () => {
   const navigation = useNavigation();
@@ -447,27 +448,7 @@ const MecanicosScreen = () => {
     </View>
   );
 
-  // Format mechanics for ProviderPreviewCard
-  const formatForPreviewCard = (item) => {
-    // Show car brands first, then specialties
-    let specialty = "General";
-    if (item.marcas_atendidas_nombres && item.marcas_atendidas_nombres.length > 0) {
-      specialty = item.marcas_atendidas_nombres.join(', ');
-    } else if (item.especialidades && Array.isArray(item.especialidades) && item.especialidades.length > 0) {
-      specialty = item.especialidades[0].nombre || item.especialidades.map(s => s.nombre).join(', ');
-    }
-
-    return {
-      id: item.id,
-      name: item.nombre,
-      specialty: specialty,
-      rating: item.calificacion_promedio ? parseFloat(item.calificacion_promedio).toFixed(1) : "0.0",
-      reviews: item.numero_de_calificaciones || 0,
-      distance: item.distance ? `${parseFloat(item.distance).toFixed(1)} km` : null,
-      verified: item.verificado,
-      image: item.usuario?.foto_perfil || item.usuario?.foto_perfil_url || item.foto_perfil_url || item.foto_perfil || item.imagen
-    };
-  };
+  const formatForPreviewCard = formatProviderForCard;
 
   return (
     <View style={styles.container}>

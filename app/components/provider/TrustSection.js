@@ -1,8 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
 
 const DOCUMENT_LABELS = {
     curriculum: 'Curriculum Vitae',
@@ -24,7 +30,7 @@ const TrustSection = ({ documents }) => {
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.iconContainer}>
-                    <Ionicons name="shield-checkmark" size={18} color={COLORS.primary[500]} />
+                    <Ionicons name="shield-checkmark" size={18} color="#93C5FD" />
                 </View>
                 <Text style={styles.title}>Verificaciones</Text>
             </View>
@@ -35,7 +41,7 @@ const TrustSection = ({ documents }) => {
                         <Ionicons
                             name="checkmark-circle"
                             size={22}
-                            color={COLORS.success[500]}
+                            color="#6EE7B7"
                             style={styles.checkIcon}
                         />
                         <Text style={styles.badgeLabel}>{getDocumentLabel(doc)}</Text>
@@ -62,7 +68,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: COLORS.primary[50],
+        backgroundColor: 'rgba(147,197,253,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
@@ -70,7 +76,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
     },
     badgesGrid: {
         flexDirection: 'row',
@@ -81,17 +87,12 @@ const styles = StyleSheet.create({
         width: '48%',
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.base.white,
+        backgroundColor: GLASS_BG,
         borderRadius: CARD_RADIUS,
         paddingVertical: 12,
         paddingHorizontal: 12,
         borderWidth: 1,
-        borderColor: COLORS.neutral.gray[100],
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     checkIcon: {
         marginRight: 8,
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 12,
         fontWeight: '600',
-        color: COLORS.text.primary,
+        color: 'rgba(255,255,255,0.75)',
         lineHeight: 16,
     },
 });

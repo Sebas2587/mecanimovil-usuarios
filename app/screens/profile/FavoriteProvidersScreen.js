@@ -1,56 +1,47 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFavorites } from '../../context/FavoritesContext';
 import { COLORS } from '../../design-system/tokens/colors';
 import { ROUTES } from '../../utils/constants';
+import { formatProviderForCard } from '../../utils/providerUtils';
 
-const formatProviderData = (provider) => {
-  const specialty =
-    provider?.marcas_atendidas_nombres?.length > 0
-      ? provider.marcas_atendidas_nombres.join(', ')
-      : provider?.especialidades_nombres?.length > 0
-        ? provider.especialidades_nombres.join(', ')
-        : 'Especialidad general';
-  return {
-    id: provider.id,
-    type: provider.type,
-    name: provider.nombre || 'Proveedor',
-    specialty,
-    rating: provider.calificacion_promedio != null
-      ? parseFloat(provider.calificacion_promedio).toFixed(1)
-      : null,
-    reviews: provider.numero_de_calificaciones ?? 0,
-    image: provider.foto_perfil || provider.usuario?.foto_perfil || provider.foto_perfil_url,
-    verified: provider.verificado ?? false,
-  };
-};
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const FavoriteProviderCard = ({ provider, onPress }) => {
-  const formatted = formatProviderData(provider);
+  const formatted = formatProviderForCard(provider);
   const avatarUri = formatted.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(formatted.name)}&background=random`;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
+      {Platform.OS === 'ios' && <BlurView intensity={25} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
       <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
       <View style={styles.content}>
         <Text style={styles.name} numberOfLines={1}>{formatted.name}</Text>
         <Text style={styles.specialty} numberOfLines={2}>{formatted.specialty}</Text>
-        {(formatted.rating != null || formatted.reviews > 0) && (
-          <View style={styles.ratingRow}>
-            {formatted.rating != null && (
-              <>
-                <Ionicons name="star" size={12} color={COLORS.warning[500]} />
-                <Text style={styles.ratingText}>{formatted.rating}</Text>
-              </>
-            )}
-            {formatted.reviews > 0 && (
-              <Text style={styles.reviewsText}>({formatted.reviews})</Text>
-            )}
-          </View>
-        )}
+        <View style={styles.ratingRow}>
+          {formatted.rating != null ? (
+            <>
+              <Ionicons name="star" size={12} color="#F59E0B" />
+              <Text style={styles.ratingText}>{formatted.rating}</Text>
+              {formatted.reviews > 0 && (
+                <Text style={styles.reviewsText}>({formatted.reviews})</Text>
+              )}
+            </>
+          ) : (
+            <Text style={styles.newProviderText}>Sin calificaciones</Text>
+          )}
+        </View>
       </View>
       <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
     </TouchableOpacity>
@@ -63,30 +54,29 @@ const FavoriteProvidersScreen = () => {
 
   const handlePress = (item) => {
     // Navigate to Home tab first, then to provider detail
-    // This is necessary because FavoriteProvidersScreen is in ProfileStack
-    // and ProviderDetailScreen is in HomeStack
-    navigation.navigate('TabNavigator', {
-      screen: ROUTES.HOME,
-      params: {
-        screen: ROUTES.PROVIDER_DETAIL,
-        params: {
-          providerId: item.id,
-          providerType: item.type,
-          provider: item,
-        },
-      },
+    navigation.navigate(ROUTES.PROVIDER_DETAIL, {
+      providerId: item.id,
+      providerType: item.type,
+      provider: item,
     });
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 320, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {favorites.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="heart-outline" size={64} color={COLORS.neutral.gray[300]} />
+            <Ionicons name="heart-outline" size={64} color="rgba(255,255,255,0.28)" />
             <Text style={styles.emptyTitle}>Aún no tienes proveedores favoritos</Text>
             <Text style={styles.emptySubtitle}>
               Guarda tus talleres o mecánicos favoritos tocando el corazón en su perfil
@@ -97,7 +87,7 @@ const FavoriteProvidersScreen = () => {
               activeOpacity={0.8}
             >
               <Text style={styles.browseButtonText}>Buscar Talleres</Text>
-              <Ionicons name="arrow-forward" size={18} color={COLORS.base.white} />
+              <Ionicons name="arrow-forward" size={18} color="#F9FAFB" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.browseButtonSecondary}
@@ -119,14 +109,14 @@ const FavoriteProvidersScreen = () => {
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background.default || '#F9FAFB',
+    backgroundColor: '#030712',
   },
   scrollContent: {
     padding: 16,
@@ -142,13 +132,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: '#F9FAFB',
     marginTop: 20,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: COLORS.text.secondary,
+    color: 'rgba(255,255,255,0.6)',
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
@@ -157,17 +147,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary[500],
+    backgroundColor: '#0d9488',
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
     marginTop: 24,
     gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(110,231,183,0.25)',
   },
   browseButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.base.white,
+    color: '#F9FAFB',
   },
   browseButtonSecondary: {
     marginTop: 12,
@@ -176,7 +168,7 @@ const styles = StyleSheet.create({
   browseButtonSecondaryText: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.primary[500],
+    color: '#93C5FD',
   },
   list: {
     gap: 12,
@@ -184,22 +176,18 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.base.white,
+    backgroundColor: GLASS_BG,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.neutral.gray[100],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: COLORS.neutral.gray[100],
+    backgroundColor: 'rgba(255,255,255,0.08)',
     marginRight: 14,
   },
   content: {
@@ -208,12 +196,12 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text.primary,
+    color: '#F9FAFB',
     marginBottom: 4,
   },
   specialty: {
     fontSize: 13,
-    color: COLORS.text.secondary,
+    color: 'rgba(255,255,255,0.62)',
     lineHeight: 18,
   },
   ratingRow: {
@@ -225,12 +213,17 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.text.primary,
+    color: '#F9FAFB',
   },
   reviewsText: {
     fontSize: 12,
-    color: COLORS.text.tertiary,
+    color: 'rgba(255,255,255,0.45)',
     marginLeft: 2,
+  },
+  newProviderText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
+    fontStyle: 'italic',
   },
 });
 

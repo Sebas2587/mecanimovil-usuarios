@@ -1,9 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import SPACING from '../../design-system/tokens/spacing';
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
 
 const ServicesList = ({ services, onServicePress }) => {
     if (!services || services.length === 0) return null;
@@ -75,7 +81,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: COLORS.primary[50],
+        backgroundColor: 'rgba(147,197,253,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
@@ -83,7 +89,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
     },
     listContainer: {
         flexDirection: 'row',
@@ -92,16 +98,11 @@ const styles = StyleSheet.create({
     },
     serviceCard: {
         width: '48%', // Approx half with gap
-        backgroundColor: COLORS.base.white,
+        backgroundColor: GLASS_BG,
         borderRadius: 16,
         padding: 12, // Reduced padding for compact card
         borderWidth: 1,
-        borderColor: COLORS.neutral.gray[100],
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
+        borderColor: 'rgba(255,255,255,0.12)',
         marginBottom: 4, // Slight bottom margin if wrapping issues occur
     },
     cardHeader: {
@@ -113,7 +114,9 @@ const styles = StyleSheet.create({
         width: 36,
         height: 36,
         borderRadius: 10,
-        backgroundColor: COLORS.neutral.gray[50],
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 8, // Separator from text since we stacked them
@@ -124,7 +127,7 @@ const styles = StyleSheet.create({
     serviceName: {
         fontSize: 14, // Slightly smaller font for compact grid
         fontWeight: '600',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
         marginBottom: 2,
         lineHeight: 18,
     },
@@ -133,29 +136,31 @@ const styles = StyleSheet.create({
         alignItems: 'stretch',
         paddingTop: 10,
         borderTopWidth: 1,
-        borderTopColor: COLORS.neutral.gray[100],
+        borderTopColor: 'rgba(255,255,255,0.08)',
     },
     priceRow: {
         marginBottom: 10,
     },
     startLabel: {
         fontSize: 11,
-        color: COLORS.text.secondary,
+        color: 'rgba(255,255,255,0.45)',
         marginBottom: 2,
     },
     priceText: {
         fontSize: 15,
         fontWeight: '700',
-        color: COLORS.primary[500],
+        color: '#93C5FD',
     },
     agendarButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: COLORS.primary[500],
+        backgroundColor: '#059669',
         borderRadius: BORDERS.radius.button?.md ?? 12,
         paddingHorizontal: SPACING.buttonPadding?.horizontal ?? 20,
         paddingVertical: SPACING.buttonPadding?.vertical ?? 14,
+        borderWidth: 1,
+        borderColor: 'rgba(110,231,183,0.35)',
     },
     agendarIcon: {
         marginRight: 6,

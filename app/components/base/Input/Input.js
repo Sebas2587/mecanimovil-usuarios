@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { TOKENS } from '../../../design-system/tokens';
 
@@ -53,6 +53,7 @@ const Input = ({
   autoCapitalize = 'none',
   size = 'md',
   variant = 'default',
+  appearance = 'light',
   leftIcon,
   rightIcon,
   onLeftIconPress,
@@ -91,13 +92,22 @@ const Input = ({
 
   // Memoizar estilos según la variante y estado
   const containerStyles = useMemo(() => {
-    const borderColor = error 
-      ? SAFE_COLORS.border?.error 
-      : (isFocused ? SAFE_COLORS.border?.focus : SAFE_COLORS.border?.main);
+    const isDark = appearance === 'darkGlass';
+    const borderMain = isDark ? 'rgba(255,255,255,0.10)' : SAFE_COLORS.border?.main;
+    const borderFocus = isDark ? 'rgba(147,197,253,0.35)' : SAFE_COLORS.border?.focus;
+    const borderColor = error
+      ? SAFE_COLORS.border?.error
+      : (isFocused ? borderFocus : borderMain);
     
-    let backgroundColor = SAFE_COLORS.background?.paper || '#FFF';
+    let backgroundColor = isDark
+      ? (variant === 'filled'
+        ? (Platform.OS === 'ios' ? 'rgba(3,7,18,0.55)' : 'rgba(3,7,18,0.75)')
+        : (Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)'))
+      : (SAFE_COLORS.background?.paper || '#FFF');
     if (variant === 'filled') {
-      backgroundColor = error ? SAFE_COLORS.background?.error : SAFE_COLORS.neutral?.gray?.[100];
+      backgroundColor = isDark
+        ? (Platform.OS === 'ios' ? 'rgba(3,7,18,0.55)' : 'rgba(3,7,18,0.75)')
+        : (error ? SAFE_COLORS.background?.error : SAFE_COLORS.neutral?.gray?.[100]);
     } else if (error) {
       backgroundColor = SAFE_COLORS.background?.error;
     }
@@ -110,7 +120,7 @@ const Input = ({
       borderWidth: SAFE_BORDERS.width?.thin || 1,
       backgroundColor,
     };
-  }, [sizeStyles, borderRadius, variant, error, isFocused]);
+  }, [sizeStyles, borderRadius, variant, error, isFocused, appearance]);
 
   const handleFocus = useCallback(() => {
     setIsFocused(true);
@@ -131,7 +141,7 @@ const Input = ({
           style={[
             styles.label,
             {
-              color: SAFE_COLORS.text?.primary,
+              color: appearance === 'darkGlass' ? '#F9FAFB' : SAFE_COLORS.text?.primary,
               fontSize: SAFE_TYPOGRAPHY.fontSize?.sm || 14,
               fontWeight: SAFE_TYPOGRAPHY.fontWeight?.medium || '500',
               marginBottom: SAFE_SPACING.xs || 4,
@@ -152,13 +162,13 @@ const Input = ({
             <Ionicons
               name={leftIcon}
               size={20}
-              color={SAFE_COLORS.text?.secondary}
+              color={appearance === 'darkGlass' ? 'rgba(255,255,255,0.55)' : SAFE_COLORS.text?.secondary}
             />
           </TouchableOpacity>
         )}
         <TextInput
           placeholder={placeholder}
-          placeholderTextColor={SAFE_COLORS.text?.hint}
+          placeholderTextColor={appearance === 'darkGlass' ? 'rgba(255,255,255,0.35)' : SAFE_COLORS.text?.hint}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
@@ -168,7 +178,7 @@ const Input = ({
             styles.input,
             {
               fontSize: sizeStyles.fontSize,
-              color: SAFE_COLORS.text?.primary,
+              color: appearance === 'darkGlass' ? '#F9FAFB' : SAFE_COLORS.text?.primary,
               paddingLeft: leftIcon ? (SAFE_SPACING.xs || 4) : 0,
               paddingRight: secureTextEntry 
                 ? 36 // Espacio suficiente para el icono del ojo (22px icono + 8px padding + 6px margin)
@@ -191,7 +201,7 @@ const Input = ({
             <Ionicons
               name={rightIcon}
               size={20}
-              color={SAFE_COLORS.text?.secondary}
+              color={appearance === 'darkGlass' ? 'rgba(255,255,255,0.55)' : SAFE_COLORS.text?.secondary}
             />
           </TouchableOpacity>
         )}
@@ -204,7 +214,7 @@ const Input = ({
             <Ionicons
               name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
               size={22}
-              color={SAFE_COLORS.text?.secondary}
+              color={appearance === 'darkGlass' ? 'rgba(255,255,255,0.55)' : SAFE_COLORS.text?.secondary}
             />
           </TouchableOpacity>
         )}

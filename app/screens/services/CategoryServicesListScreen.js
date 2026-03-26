@@ -179,16 +179,12 @@ const CategoryServicesListScreen = () => {
 
       // Navegar a la pantalla de crear solicitud con el servicio preseleccionado
       try {
-        navigation.navigate('TabNavigator', {
-          screen: ROUTES.CREAR_SOLICITUD,
-          params: {
-            servicioPreseleccionado: servicioParaSolicitud,
-            categoriaId: categoryId || categoria?.id,
-            categoriaNombre: categoryName || categoria?.nombre,
-            fromCategory: true,
-          },
+        navigation.navigate(ROUTES.CREAR_SOLICITUD, {
+          servicioPreseleccionado: servicioParaSolicitud,
+          categoriaId: categoryId || categoria?.id,
+          categoriaNombre: categoryName || categoria?.nombre,
+          fromCategory: true,
         });
-        console.log('✅ Navegación exitosa a CREAR_SOLICITUD con servicio preseleccionado desde categoría');
       } catch (error) {
         console.error('❌ Error navegando a CREAR_SOLICITUD:', error);
         // Fallback: intentar navegación directa

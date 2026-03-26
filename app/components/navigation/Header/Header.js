@@ -93,6 +93,9 @@ const Header = ({
   // Determinar si debe mostrar el botón back
   const canGoBack = navigation.canGoBack();
   const shouldShowBack = showBack !== null ? showBack : canGoBack;
+  const isDarkGlass = backgroundColor === '#030712';
+  const iconColor = isDarkGlass ? '#F9FAFB' : COLORS.primary[500];
+  const rightIconColor = isDarkGlass ? '#F9FAFB' : COLORS.text.primary;
 
   // Cargar URL de foto de perfil
   useEffect(() => {
@@ -141,8 +144,8 @@ const Header = ({
       {
         paddingTop: Math.max(insets.top, 10),
         backgroundColor,
-        borderBottomColor: COLORS.border.light,
-        ...SHADOWS.sm,
+        borderBottomColor: isDarkGlass ? 'rgba(255,255,255,0.08)' : COLORS.border.light,
+        ...(isDarkGlass ? {} : SHADOWS.sm),
       },
       style
     ]}>
@@ -177,10 +180,10 @@ const Header = ({
             ) : shouldShowBack ? (
               <TouchableOpacity
                 onPress={handleBackPress}
-                style={styles.backButton}
+                style={[styles.backButton, isDarkGlass && styles.backButtonDark]}
                 activeOpacity={0.7}
               >
-                <Ionicons name="arrow-back" size={24} color={COLORS.primary[500]} />
+                <Ionicons name="arrow-back" size={22} color={iconColor} />
               </TouchableOpacity>
             ) : null
           )}
@@ -210,9 +213,9 @@ const Header = ({
             (showProfile || notificationBadge > 0) && (
               <TouchableOpacity
                 onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
-                style={styles.notificationButton}
+                style={[styles.notificationButton, isDarkGlass && styles.notificationButtonDark]}
               >
-                <Ionicons name="notifications-outline" size={24} color={COLORS.text.primary} />
+                <Ionicons name="notifications-outline" size={22} color={rightIconColor} />
                 {(notificationBadge > 0) && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>
@@ -255,6 +258,12 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButtonDark: {
+    borderRadius: safeRadius.full,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderWidth: safeWidth.thin,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   titleContainer: {
     flex: 1,
@@ -313,6 +322,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+  },
+  notificationButtonDark: {
+    borderRadius: safeRadius.full,
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    borderWidth: safeWidth.thin,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
 });
 

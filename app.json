@@ -2,7 +2,7 @@
   "expo": {
     "name": "mecanimovil-app",
     "slug": "mecanimovil-app",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,6 +18,11 @@
       "requireFullScreen": false,
       "bundleIdentifier": "com.mecanimovil.app",
       "infoPlist": {
+        "UIBackgroundModes": [
+          "location"
+        ],
+        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicacion para iniciar y mostrar telemetria del viaje.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Necesitamos tu ubicacion en segundo plano para continuar registrando kilometros durante el viaje.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -28,6 +33,14 @@
       }
     },
     "android": {
+      "versionCode": 3,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -57,7 +70,7 @@
     "runtimeVersion": "1.0.0",
     "updates": {
       "enabled": true,
-      "fallbackToCacheTimeout": 0,
+      "fallbackToCacheTimeout": 10000,
       "checkAutomatically": "ON_LOAD",
       "url": "https://u.expo.dev/0e27e8dc-b47f-40b2-a23d-396a627ce8e8"
     },
@@ -75,6 +88,15 @@
         {
           "photosPermission": "Permitir acceso a tu galería para enviar fotos en el chat.",
           "cameraPermission": "Permitir acceso a tu cámara para enviar fotos en el chat."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Permitir acceso a tu ubicacion para telemetria de viaje.",
+          "locationAlwaysAndWhenInUsePermission": "Permitir acceso a tu ubicacion en segundo plano para telemetria continua de viaje.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       "./plugins/withAndroidSingleTask.js"

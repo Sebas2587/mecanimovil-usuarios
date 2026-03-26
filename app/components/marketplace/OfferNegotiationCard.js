@@ -1,20 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
 import Avatar from '../base/Avatar/Avatar';
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
 
 /**
  * OfferNegotiationCard
- * 
+ *
  * Card to display negotiation offers in the marketplace.
- * Distinguishes between sent and received offers, shows status, and provides actions.
- * 
- * @param {Object} offer - The offer object containing details
- * @param {Function} onAccept - Callback for accepting the offer
- * @param {Function} onReject - Callback for rejecting the offer
- * @param {Function} onChat - Callback for navigating to chat
  */
 const OfferNegotiationCard = ({
     offer,
@@ -24,14 +23,6 @@ const OfferNegotiationCard = ({
     onTransfer,
     onReceive
 }) => {
-    const theme = useTheme();
-    const colors = theme.colors || {};
-    const typography = theme.typography || {};
-    const spacing = theme.spacing || {};
-    const borders = theme.borders || {};
-
-    // Destructure offer data (mock structure based on requirements)
-    // Assuming offer structure: { id, type: 'sent'|'received', status: 'pending'|'accepted'|'rejected', amount, vehicle: { name, image }, counterpart: { name, avatar }, createdAt }
     const {
         type = 'received',
         status = 'pending',
@@ -43,43 +34,39 @@ const OfferNegotiationCard = ({
     const isReceived = type === 'received';
     const isPending = status === 'pending';
     const isAccepted = status === 'accepted';
-    const isRejected = status === 'rejected';
-    const isCompleted = status === 'completed';
 
-    // formatting currency
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(value);
     };
 
-    // Status Badge Configuration
     const getStatusConfig = () => {
         switch (status) {
             case 'accepted':
                 return {
                     label: 'ACEPTADA',
-                    bgColor: colors.success?.light || '#DCFCE7',
-                    textColor: colors.success?.main || '#16A34A',
+                    bgColor: 'rgba(16,185,129,0.18)',
+                    textColor: '#6EE7B7',
                     icon: 'checkmark-circle'
                 };
             case 'rejected':
                 return {
                     label: 'RECHAZADA',
-                    bgColor: colors.error?.light || '#FEE2E2',
-                    textColor: colors.error?.main || '#DC2626',
+                    bgColor: 'rgba(248,113,113,0.15)',
+                    textColor: '#FCA5A5',
                     icon: 'close-circle'
                 };
             case 'completed':
                 return {
                     label: isReceived ? 'VENDIDO' : 'COMPRADO',
-                    bgColor: colors.primary?.light || '#E0F2FE',
-                    textColor: colors.primary?.main || '#003459',
+                    bgColor: 'rgba(147,197,253,0.15)',
+                    textColor: '#93C5FD',
                     icon: isReceived ? 'pricetag' : 'car'
                 };
             default:
                 return {
                     label: 'PENDIENTE',
-                    bgColor: colors.warning?.light || '#FEF3C7',
-                    textColor: colors.warning?.main || '#D97706',
+                    bgColor: 'rgba(245,158,11,0.18)',
+                    textColor: '#FCD34D',
                     icon: 'time'
                 };
         }
@@ -87,91 +74,43 @@ const OfferNegotiationCard = ({
 
     const statusConfig = getStatusConfig();
 
-    // Header Colors based on type
     const headerBgColor = isReceived
-        ? (colors.neutral?.surface || '#F3F4F6') // Gray for Selling (Received offer)
-        : 'rgba(0, 52, 89, 0.05)'; // Blue tint for Buying (Sent offer)
+        ? 'rgba(255,255,255,0.04)'
+        : 'rgba(147,197,253,0.08)';
 
     const headerLabel = isReceived ? 'Oferta Recibida' : 'Oferta Enviada';
 
     return (
-        <View style={[
-            styles.card,
-            {
-                backgroundColor: colors.background?.paper || '#FFF',
-                borderColor: colors.border?.default || '#E5E7EB',
-                borderRadius: borders.radius?.lg || 12
-            }
-        ]}>
-            {/* Header */}
-            <View style={[
-                styles.header,
-                {
-                    backgroundColor: headerBgColor,
-                    borderTopLeftRadius: borders.radius?.lg || 12,
-                    borderTopRightRadius: borders.radius?.lg || 12,
-                    borderBottomWidth: 1,
-                    borderColor: colors.border?.default || '#E5E7EB'
-                }
-            ]}>
+        <View style={styles.card}>
+            <View style={[styles.header, { backgroundColor: headerBgColor }]}>
                 <View style={styles.offerTypeContainer}>
                     <Ionicons
-                        name={isReceived ? "arrow-down-circle-outline" : "arrow-up-circle-outline"}
+                        name={isReceived ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
                         size={16}
-                        color={colors.text?.secondary || '#6B7280'}
+                        color="rgba(255,255,255,0.55)"
                     />
-                    <Text style={[
-                        styles.offerTypeLabel,
-                        {
-                            color: colors.text?.secondary || '#6B7280',
-                            fontSize: typography.fontSize?.xs || 12
-                        }
-                    ]}>
-                        {headerLabel}
-                    </Text>
+                    <Text style={styles.offerTypeLabel}>{headerLabel}</Text>
                 </View>
 
-                <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: statusConfig.bgColor }
-                ]}>
+                <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
                     <Ionicons name={statusConfig.icon} size={12} color={statusConfig.textColor} style={{ marginRight: 4 }} />
-                    <Text style={[
-                        styles.statusText,
-                        {
-                            color: statusConfig.textColor,
-                            fontSize: typography.fontSize?.xs || 12,
-                            fontWeight: typography.fontWeight?.bold || '600'
-                        }
-                    ]}>
+                    <Text style={[styles.statusText, { color: statusConfig.textColor }]}>
                         {statusConfig.label}
                     </Text>
                 </View>
             </View>
 
-            {/* Body */}
-            <View style={[styles.body, { padding: spacing.md || 16 }]}>
-
-                {/* Vehicle Info */}
+            <View style={styles.body}>
                 <View style={styles.vehicleRow}>
                     <Image
                         source={vehicle.image ? { uri: vehicle.image } : null}
-                        style={[styles.vehicleThumb, { borderRadius: borders.radius?.md || 8, backgroundColor: colors.neutral?.gray?.[200] || '#E5E7EB' }]}
+                        style={styles.vehicleThumb}
                         contentFit="cover"
                     />
                     <View style={styles.vehicleInfo}>
-                        <Text style={[
-                            styles.vehicleName,
-                            {
-                                color: colors.text?.primary || '#111827',
-                                fontSize: typography.fontSize?.md || 16,
-                                fontWeight: typography.fontWeight?.semibold || '600'
-                            }
-                        ]}>
+                        <Text style={styles.vehicleName}>
                             {vehicle.name || 'Vehículo sin nombre'}
                         </Text>
-
-                        {/* Counterpart Info */}
                         <View style={styles.counterpartContainer}>
                             <Avatar
                                 source={counterpart.avatar}
@@ -179,72 +118,32 @@ const OfferNegotiationCard = ({
                                 size="xs"
                                 style={{ marginRight: 6 }}
                             />
-                            <Text style={[
-                                styles.counterpartName,
-                                { color: colors.text?.secondary || '#4B5563', fontSize: typography.fontSize?.sm || 14 }
-                            ]}>
+                            <Text style={styles.counterpartName}>
                                 {counterpart.name || 'Usuario'}
                             </Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Amount */}
-                <View style={[
-                    styles.amountContainer,
-                    {
-                        backgroundColor: colors.background?.default || '#F9FAFB',
-                        borderRadius: borders.radius?.md || 8,
-                        borderColor: colors.border?.default || '#E5E7EB'
-                    }
-                ]}>
-                    <Text style={[
-                        styles.amountLabel,
-                        { color: colors.text?.secondary || '#6B7280', fontSize: typography.fontSize?.xs || 12 }
-                    ]}>
-                        Monto Ofertado
-                    </Text>
-                    <Text style={[
-                        styles.amountValue,
-                        {
-                            color: colors.text?.primary || '#111827',
-                            fontSize: typography.fontSize?.xl || 20,
-                            fontWeight: typography.fontWeight?.bold || '700'
-                        }
-                    ]}>
-                        {formatCurrency(amount || 0)}
-                    </Text>
+                <View style={styles.amountContainer}>
+                    <Text style={styles.amountLabel}>Monto Ofertado</Text>
+                    <Text style={styles.amountValue}>{formatCurrency(amount || 0)}</Text>
                 </View>
             </View>
 
-            {/* Actions Footer */}
             {(isPending || isAccepted) && (
-                <View style={[
-                    styles.footer,
-                    {
-                        padding: spacing.md || 16,
-                        paddingTop: 0
-                    }
-                ]}>
+                <View style={styles.footer}>
                     {isPending && isReceived && (
                         <View style={styles.pendingActions}>
                             <TouchableOpacity
-                                style={[
-                                    styles.button,
-                                    styles.rejectButton,
-                                    { borderColor: colors.error?.main || '#EF4444' }
-                                ]}
+                                style={[styles.button, styles.rejectButton]}
                                 onPress={onReject}
                             >
-                                <Text style={[styles.buttonText, { color: colors.error?.main || '#EF4444' }]}>Rechazar</Text>
+                                <Text style={styles.rejectButtonText}>Rechazar</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
-                                style={[
-                                    styles.button,
-                                    styles.acceptButton,
-                                    { backgroundColor: colors.success?.main || '#10B981' }
-                                ]}
+                                style={[styles.button, styles.acceptButton]}
                                 onPress={onAccept}
                             >
                                 <Text style={[styles.buttonText, { color: '#FFF' }]}>Aceptar</Text>
@@ -254,39 +153,25 @@ const OfferNegotiationCard = ({
 
                     {isAccepted && (
                         <View style={{ gap: 8 }}>
-                            {/* Chat Button - Always visible */}
                             <TouchableOpacity
-                                style={[
-                                    styles.button,
-                                    styles.chatButton,
-                                    { backgroundColor: colors.primary?.main || '#003459' }
-                                ]}
+                                style={[styles.button, styles.chatButton, styles.primaryBlue]}
                                 onPress={onChat}
                             >
                                 <Ionicons name="chatbubbles-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
                                 <Text style={[styles.buttonText, { color: '#FFF' }]}>Ir al Chat de Negocios</Text>
                             </TouchableOpacity>
 
-                            {/* Transfer Actions */}
                             {isReceived ? (
-                                // Seller View -> Show "Entregar Vehículo"
                                 <TouchableOpacity
-                                    style={[
-                                        styles.button,
-                                        { backgroundColor: colors.secondary?.main || '#007EA7', marginTop: 8 }
-                                    ]}
+                                    style={[styles.button, styles.chatButton, styles.secondaryCyan, { marginTop: 8 }]}
                                     onPress={onTransfer}
                                 >
                                     <Ionicons name="qr-code-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
                                     <Text style={[styles.buttonText, { color: '#FFF' }]}>Entregar Vehículo (QR)</Text>
                                 </TouchableOpacity>
                             ) : (
-                                // Buyer View -> Show "Recibir Vehículo"
                                 <TouchableOpacity
-                                    style={[
-                                        styles.button,
-                                        { backgroundColor: colors.secondary?.main || '#007EA7', marginTop: 8 }
-                                    ]}
+                                    style={[styles.button, styles.chatButton, styles.secondaryCyan, { marginTop: 8 }]}
                                     onPress={onReceive}
                                 >
                                     <Ionicons name="scan-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
@@ -296,10 +181,9 @@ const OfferNegotiationCard = ({
                         </View>
                     )}
 
-                    {/* Pending && User is Sender (Buying) -> Cancel option could be here, but not in requirements */}
                     {isPending && !isReceived && (
                         <View style={styles.waitingContainer}>
-                            <Text style={{ color: colors.text?.secondary || '#6B7280', fontSize: 13, fontStyle: 'italic' }}>
+                            <Text style={styles.waitingText}>
                                 Esperando respuesta del vendedor...
                             </Text>
                         </View>
@@ -313,13 +197,11 @@ const OfferNegotiationCard = ({
 const styles = StyleSheet.create({
     card: {
         borderWidth: 1,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 3,
-        elevation: 2,
+        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: GLASS_BG,
+        borderRadius: 16,
         marginBottom: 16,
-        overflow: 'hidden'
+        overflow: 'hidden',
     },
     header: {
         flexDirection: 'row',
@@ -327,6 +209,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.08)',
     },
     offerTypeContainer: {
         flexDirection: 'row',
@@ -335,6 +219,8 @@ const styles = StyleSheet.create({
     offerTypeLabel: {
         marginLeft: 6,
         fontWeight: '500',
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.55)',
     },
     statusBadge: {
         flexDirection: 'row',
@@ -343,8 +229,12 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 12,
     },
+    statusText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
     body: {
-        // padding set in render
+        padding: 16,
     },
     vehicleRow: {
         flexDirection: 'row',
@@ -355,6 +245,8 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         marginRight: 12,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
     vehicleInfo: {
         flex: 1,
@@ -362,21 +254,42 @@ const styles = StyleSheet.create({
     },
     vehicleName: {
         marginBottom: 4,
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#F9FAFB',
     },
     counterpartContainer: {
         flexDirection: 'row',
         alignItems: 'center',
+    },
+    counterpartName: {
+        color: 'rgba(255,255,255,0.55)',
+        fontSize: 14,
     },
     amountContainer: {
         padding: 12,
         alignItems: 'center',
         borderWidth: 1,
         borderStyle: 'dashed',
+        borderColor: 'rgba(147,197,253,0.35)',
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.04)',
     },
     amountLabel: {
         marginBottom: 4,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.45)',
+    },
+    amountValue: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#93C5FD',
+    },
+    footer: {
+        padding: 16,
+        paddingTop: 0,
     },
     pendingActions: {
         flexDirection: 'row',
@@ -387,17 +300,31 @@ const styles = StyleSheet.create({
     button: {
         flex: 1,
         flexDirection: 'row',
-        height: 44,
-        borderRadius: 8,
+        height: 46,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
     },
     rejectButton: {
         backgroundColor: 'transparent',
         borderWidth: 1,
+        borderColor: 'rgba(248,113,113,0.55)',
+    },
+    rejectButtonText: {
+        color: '#FCA5A5',
+        fontSize: 14,
+        fontWeight: '600',
     },
     acceptButton: {
-        // color set in render
+        backgroundColor: 'rgba(16,185,129,0.85)',
+    },
+    primaryBlue: {
+        backgroundColor: 'rgba(30,58,138,0.9)',
+        borderWidth: 1,
+        borderColor: 'rgba(147,197,253,0.25)',
+    },
+    secondaryCyan: {
+        backgroundColor: 'rgba(8,145,178,0.85)',
     },
     chatButton: {
         width: '100%',
@@ -409,7 +336,12 @@ const styles = StyleSheet.create({
     waitingContainer: {
         alignItems: 'center',
         paddingVertical: 8,
-    }
+    },
+    waitingText: {
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 13,
+        fontStyle: 'italic',
+    },
 });
 
 export default OfferNegotiationCard;

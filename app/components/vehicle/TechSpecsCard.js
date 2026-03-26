@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
 
-const SpecRow = ({ label, value, icon, isLast, styles, colors }) => (
+const SpecRow = ({ label, value, icon, isLast }) => (
     <View style={[styles.row, !isLast && styles.rowBorder]}>
         <View style={styles.labelContainer}>
-            <Ionicons name={icon} size={18} color={colors.text?.tertiary || '#9CA3AF'} />
+            <Ionicons name={icon} size={18} color="rgba(255,255,255,0.35)" />
             <Text style={styles.label}>{label}</Text>
         </View>
         <Text style={styles.value} numberOfLines={1}>{value || '-'}</Text>
@@ -14,14 +14,6 @@ const SpecRow = ({ label, value, icon, isLast, styles, colors }) => (
 );
 
 const TechSpecsCard = ({ vehicle }) => {
-    const theme = useTheme();
-    const colors = theme?.colors || {};
-    const typography = theme?.typography || {};
-    const spacing = theme?.spacing || {};
-    const borders = theme?.borders || {};
-
-    const styles = getStyles(colors, typography, spacing, borders);
-
     if (!vehicle) return null;
 
     const specs = [
@@ -43,67 +35,64 @@ const TechSpecsCard = ({ vehicle }) => {
         { label: 'VIN', value: vehicle.vin, icon: 'finger-print-outline' },
         { label: 'Nº Motor', value: vehicle.numero_motor, icon: 'settings-outline' },
         { label: 'Patente', value: vehicle.patente, icon: 'barcode-outline' },
-    ].filter(spec => spec.value); // Optional: filter out undefined/null if desired, or keep to show missing info
+    ].filter(spec => spec.value);
 
     return (
         <View style={styles.container}>
             <Text style={styles.headerTitle}>Ficha Técnica</Text>
             <View style={styles.card}>
+                {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
                 {specs.map((spec, index) => (
-                    <SpecRow
-                        key={index}
-                        {...spec}
-                        isLast={index === specs.length - 1}
-                        styles={styles}
-                        colors={colors}
-                    />
+                    <SpecRow key={index} {...spec} isLast={index === specs.length - 1} />
                 ))}
             </View>
         </View>
     );
 };
 
-const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: spacing.md || 16,
-        marginBottom: spacing.xl || 32,
+        paddingHorizontal: 16,
+        marginBottom: 24,
     },
     headerTitle: {
-        fontSize: typography.fontSize?.lg || 18,
-        fontWeight: typography.fontWeight?.bold || '700',
-        color: colors.text?.primary || '#111827',
-        marginBottom: spacing.sm || 12,
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        marginBottom: 12,
     },
     card: {
-        backgroundColor: colors.background?.paper || '#FFFFFF',
-        borderRadius: borders.radius?.lg || 12,
+        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.border?.light || '#E5E7EB',
+        borderColor: 'rgba(255,255,255,0.12)',
         overflow: 'hidden',
     },
     row: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: spacing.md || 16,
+        padding: 14,
     },
     rowBorder: {
         borderBottomWidth: 1,
-        borderBottomColor: colors.border?.light || '#F3F4F6',
+        borderBottomColor: 'rgba(255,255,255,0.06)',
     },
     labelContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     label: {
-        fontSize: typography.fontSize?.base || 14,
-        color: colors.text?.secondary || '#6B7280',
-        marginLeft: spacing.sm || 8,
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.5)',
+        marginLeft: 10,
     },
     value: {
-        fontSize: typography.fontSize?.base || 14,
-        fontWeight: typography.fontWeight?.medium || '500',
-        color: colors.text?.primary || '#111827',
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#FFFFFF',
+        maxWidth: '50%',
+        textAlign: 'right',
     }
 });
 

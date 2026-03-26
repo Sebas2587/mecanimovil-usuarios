@@ -210,7 +210,8 @@ export default VehicleHistoryCard;
  * @param {Object} item - Service history item
  * @param {Function} onViewChecklist - Callback for clicking the checklist button
  */
-export const VehicleServiceHistoryRow = ({ item, onViewChecklist }) => {
+export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'light' }) => {
+  const s = variant === 'dark' ? historyStylesDark : historyStyles;
   // Data Mapping for Real DB Fields
 
   // Check if item has oferta details (common in Solicitud objects)
@@ -276,10 +277,10 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist }) => {
   const displayCost = item.cost || item.total || item.price || item.monto || item.valor || 0;
 
   return (
-    <View style={historyStyles.rowContainer}>
+    <View style={s.rowContainer}>
       {/* Header: Provider Avatar + Name + Date */}
-      <View style={historyStyles.header}>
-        <View style={historyStyles.providerInfo}>
+      <View style={s.header}>
+        <View style={s.providerInfo}>
           <Avatar
             source={providerAvatar}
             name={providerName}
@@ -288,11 +289,11 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist }) => {
             style={{ marginRight: 10 }}
           />
           <View>
-            <Text style={historyStyles.providerName}>{providerName}</Text>
+            <Text style={s.providerName}>{providerName}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={historyStyles.dateText}>{dateStr}</Text>
-              <View style={historyStyles.dotSeparator} />
-              <Text style={historyStyles.providerType}>
+              <Text style={s.dateText}>{dateStr}</Text>
+              <View style={s.dotSeparator} />
+              <Text style={s.providerType}>
                 {providerType === 'taller' ? 'Taller' : 'Mecánico a Domicilio'}
               </Text>
             </View>
@@ -301,33 +302,33 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist }) => {
       </View>
 
       {/* Body: Service & Mileage */}
-      <View style={historyStyles.body}>
-        <View style={historyStyles.serviceInfo}>
-          <Text style={historyStyles.serviceTitle}>{serviceName}</Text>
-          <View style={historyStyles.specsRow}>
-            <View style={historyStyles.specItem}>
-              <Feather name="activity" size={12} color="#6B7280" />
-              <Text style={historyStyles.specText}>{mileage}</Text>
+      <View style={s.body}>
+        <View style={s.serviceInfo}>
+          <Text style={s.serviceTitle}>{serviceName}</Text>
+          <View style={s.specsRow}>
+            <View style={s.specItem}>
+              <Feather name="activity" size={12} color={variant === 'dark' ? 'rgba(255,255,255,0.45)' : '#6B7280'} />
+              <Text style={s.specText}>{mileage}</Text>
             </View>
-            <View style={historyStyles.specItem}>
+            <View style={s.specItem}>
               <Ionicons name="checkmark-circle" size={12} color="#10B981" />
-              <Text style={historyStyles.specText}>Verificado</Text>
+              <Text style={s.specText}>Verificado</Text>
             </View>
           </View>
         </View>
 
         {/* Cost Display - Enhanced */}
         {parseFloat(displayCost) > 0 && (
-          <View style={historyStyles.costBadge}>
-            <Text style={historyStyles.costLabel}>Valor Servicio</Text>
-            <Text style={historyStyles.costValue}>
+          <View style={s.costBadge}>
+            <Text style={s.costLabel}>Valor Servicio</Text>
+            <Text style={s.costValue}>
               ${parseFloat(displayCost).toLocaleString('es-CL')}
             </Text>
           </View>
         )}
 
         <TouchableOpacity
-          style={historyStyles.viewButton}
+          style={s.viewButton}
           onPress={() => onViewChecklist(item)}
         >
           {/* Arrow removed as per user request */}
@@ -338,11 +339,11 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist }) => {
       {/* Footer: Checklist Button */}
       {/* Always show if we have an ID to query, typically 'id' is the orden_id */}
       <TouchableOpacity
-        style={historyStyles.checklistButton}
+        style={s.checklistButton}
         onPress={() => onViewChecklist && onViewChecklist(item)}
       >
-        <Text style={historyStyles.checklistButtonText}>Ver Checklist del Servicio</Text>
-        <Ionicons name="chevron-forward" size={14} color={COLORS.primary} />
+        <Text style={s.checklistButtonText}>Ver Checklist del Servicio</Text>
+        <Ionicons name="chevron-forward" size={14} color={variant === 'dark' ? '#93C5FD' : COLORS.primary} />
       </TouchableOpacity>
     </View>
   );
@@ -477,4 +478,131 @@ const historyStyles = StyleSheet.create({
     color: '#059669',
     fontWeight: '800',
   }
-}); 
+});
+
+const historyStylesDark = StyleSheet.create({
+  rowContainer: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  providerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  providerName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F9FAFB',
+  },
+  dateText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+  },
+  dotSeparator: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+    marginHorizontal: 6,
+    marginTop: 2,
+  },
+  providerType: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  body: {
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  serviceInfo: {
+    flex: 1,
+    marginRight: 8,
+  },
+  serviceTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#F9FAFB',
+    marginBottom: 4,
+  },
+  specsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  specItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  specText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginLeft: 4,
+  },
+  viewButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checklistButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(147,197,253,0.45)',
+    borderStyle: 'dashed',
+    borderRadius: 10,
+    backgroundColor: 'rgba(147,197,253,0.08)',
+  },
+  checklistButtonText: {
+    color: '#93C5FD',
+    fontWeight: '600',
+    fontSize: 13,
+    marginRight: 4,
+  },
+  costBadge: {
+    backgroundColor: 'rgba(16,185,129,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'flex-end',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.35)',
+  },
+  costLabel: {
+    fontSize: 10,
+    color: '#6EE7B7',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  costValue: {
+    fontSize: 14,
+    color: '#6EE7B7',
+    fontWeight: '800',
+  },
+});
