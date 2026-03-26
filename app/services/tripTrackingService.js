@@ -14,11 +14,13 @@ const MIN_DISTANCE_KM = 0.008;
 const MAX_DISTANCE_KM = 2;
 const MIN_SPEED_KMH = 3;
 const MAX_SPEED_KMH = 200;
+const STATIONARY_SPEED_KMH = 2;
 
 const emptySnapshot = () => ({
   active: false,
   vehicleId: null,
   km: 0,
+  currentSpeed: 0,
   startTime: null,
   endTime: null,
   lastPoint: null,
@@ -48,6 +50,15 @@ const processPoint = (snapshot, coords, timestamp) => {
   const point = { latitude, longitude };
   const now = timestamp || Date.now();
   const next = { ...snapshot };
+
+  // Always update live speed from GPS (m/s → km/h).
+  // When the device reports low speed or negative (invalid), treat as stationary.
+  if (rawSpeed != null && rawSpeed >= 0) {
+    const gpsKmh = rawSpeed * 3.6;
+    next.currentSpeed = gpsKmh < STATIONARY_SPEED_KMH ? 0 : Math.round(gpsKmh);
+  } else {
+    next.currentSpeed = 0;
+  }
 
   if (!next.startCoords) next.startCoords = point;
   next.endCoords = point;
@@ -142,9 +153,9 @@ export const startTripTracking = async (vehicleId) => {
     }
     foregroundLocationSub = await Location.watchPositionAsync(
       {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 5000,
-        distanceInterval: 10,
+        accuracy: Location.Accuracy.High,
+        timeInterval: 3000,
+        distanceInterval: 5,
       },
       async (location) => {
         const current = await readSnapshot();
@@ -167,9 +178,9 @@ export const startTripTracking = async (vehicleId) => {
   }
 
   await Location.startLocationUpdatesAsync(TRIP_TASK_NAME, {
-    accuracy: Location.Accuracy.Balanced,
-    timeInterval: 5000,
-    distanceInterval: 10,
+    accuracy: Location.Accuracy.High,
+    timeInterval: 3000,
+    distanceInterval: 5,
     pausesUpdatesAutomatically: false,
     ...(Platform.OS === 'ios' ? { showsBackgroundLocationIndicator: true } : {}),
     foregroundService: {

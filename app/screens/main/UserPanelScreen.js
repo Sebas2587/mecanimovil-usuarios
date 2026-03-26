@@ -143,6 +143,7 @@ const UserPanelScreen = () => {
   const [tripElapsed, setTripElapsed] = useState(0);
   const [tripCompletionVisible, setTripCompletionVisible] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
 
   const [tripCoords, setTripCoords] = useState({ start: null, end: null });
   const elapsedRef = useRef(null);
@@ -240,11 +241,14 @@ const UserPanelScreen = () => {
       poller = setInterval(async () => {
         const snapshot = await getTripSnapshot();
         setTripKm(snapshot.km || 0);
+        setCurrentSpeed(snapshot.currentSpeed || 0);
         setTripCoords({
           start: snapshot.startCoords || null,
           end: snapshot.endCoords || null,
         });
       }, 2000);
+    } else {
+      setCurrentSpeed(0);
     }
     return () => {
       if (poller) clearInterval(poller);
@@ -334,11 +338,19 @@ const UserPanelScreen = () => {
         `Se registraron ${tripKm.toFixed(1)} km. Nuevo odómetro: ${formatKm(nuevoKm)} km.\nLas métricas de salud se actualizarán automáticamente.`,
       );
     } catch (err) {
-      const msg = err?.response?.data?.detail
-        || err?.response?.data?.km_recorridos?.[0]
-        || err?.message
-        || 'Error desconocido';
-      Alert.alert('Error al registrar', `No se pudo registrar el viaje: ${msg}`);
+      const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
+      if (isTimeout) {
+        Alert.alert(
+          'Registro lento',
+          'El servidor tardó en responder. Es posible que el viaje se haya registrado correctamente. Verifica el odómetro en unos segundos.',
+        );
+      } else {
+        const msg = err?.response?.data?.detail
+          || err?.response?.data?.km_recorridos?.[0]
+          || err?.message
+          || 'Error desconocido';
+        Alert.alert('Error al registrar', `No se pudo registrar el viaje: ${msg}`);
+      }
     } finally {
       setRegistering(false);
       setTripCompletionVisible(false);
@@ -527,7 +539,7 @@ const UserPanelScreen = () => {
                   </View>
                   <View style={styles.telemetrySep} />
                   <View style={styles.telemetryItem}>
-                    <Text style={styles.telemetryValue}>{avgSpeed.toFixed(0)}</Text>
+                    <Text style={styles.telemetryValue}>{currentSpeed}</Text>
                     <Text style={styles.telemetryLabel}>km/h</Text>
                   </View>
                 </View>
@@ -771,6 +783,10 @@ const UserPanelScreen = () => {
                 <View style={styles.tripModalStat}>
                   <Text style={styles.tripModalStatValue}>{formatDuration(tripElapsed)}</Text>
                   <Text style={styles.tripModalStatLabel}>duración</Text>
+                </View>
+                <View style={styles.tripModalStat}>
+                  <Text style={styles.tripModalStatValue}>{avgSpeed.toFixed(0)}</Text>
+                  <Text style={styles.tripModalStatLabel}>km/h prom.</Text>
                 </View>
               </View>
 

@@ -23,7 +23,7 @@ export const registrarViaje = async (vehicleId, tripData) => {
     fecha_inicio: tripData.fecha_inicio || null,
   };
 
-  return post(`/vehiculos/${vehicleId}/registrar-viaje/`, payload);
+  return post(`/vehiculos/${vehicleId}/registrar-viaje/`, payload, { timeout: 20000 });
 };
 
 /**

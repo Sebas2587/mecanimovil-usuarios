@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ArrowLeft, Car, Plus, Sparkles } from 'lucide-react-native';
@@ -34,6 +34,7 @@ const CrearSolicitudScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { crearSolicitud } = useSolicitudes();
+  const queryClient = useQueryClient();
 
   // Incremented after successful submit to force FormularioSolicitud re-mount
   const [submitCount, setSubmitCount] = useState(0);
@@ -143,8 +144,9 @@ const CrearSolicitudScreen = () => {
   // Verificar si puede crear solicitud y cargar parámetros cuando la pantalla recibe foco
   useFocusEffect(
     useCallback(() => {
-      // Force vehicle refresh
+      // Force vehicle & services refresh (clears any corrupted cache from server outages)
       refetchVehicles();
+      queryClient.invalidateQueries({ queryKey: ['vehicleServices'] });
 
       const verificarYCargarDatos = async () => {
         try {
@@ -359,6 +361,7 @@ const CrearSolicitudScreen = () => {
       navigation,
       route.params,
       refetchVehicles,
+      queryClient,
       servicioPreseleccionado,
       serviciosPreSeleccionados,
       proveedorPreseleccionado,

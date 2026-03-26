@@ -36,21 +36,14 @@ export const getServices = async () => {
  * @returns {Promise<Array>} Lista de servicios disponibles para el vehículo
  */
 export const getServicesByVehiculo = async (vehiculoId) => {
-  try {
-    // Primero obtener información del vehículo para conocer su modelo
-    const vehicleResponse = await get(`/vehiculos/${vehiculoId}/`);
-    if (!vehicleResponse || !vehicleResponse.modelo) {
-      console.log(`Vehículo ${vehiculoId} no encontrado o sin modelo`);
-      return [];
-    }
-    
-    // Obtener servicios por modelo
-    const response = await get('/servicios/servicios/por_modelo/', { modelo: vehicleResponse.modelo });
-    return response || [];
-  } catch (error) {
-    console.error(`Error obteniendo servicios para vehículo ${vehiculoId}:`, error);
+  const vehicleResponse = await get(`/vehiculos/${vehiculoId}/`);
+  if (!vehicleResponse || !vehicleResponse.modelo) {
+    console.log(`Vehículo ${vehiculoId} no encontrado o sin modelo`);
     return [];
   }
+
+  const response = await get('/servicios/servicios/por_modelo/', { modelo: vehicleResponse.modelo });
+  return Array.isArray(response) ? response : (response?.results ?? []);
 };
 
 /**
