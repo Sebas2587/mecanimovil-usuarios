@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -15,16 +15,16 @@ import {
     KeyboardAvoidingView,
     Platform
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons'; // Lucide substitute
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 import { COLORS } from '../../design-system/tokens/colors';
 import * as vehicleService from '../../services/vehicle';
 import { useQuery } from '@tanstack/react-query';
 import Button from '../../components/base/Button/Button';
-import Input from '../../components/base/Input/Input'; // Reused for kilometraje
 import * as ImagePicker from 'expo-image-picker'; // New import
 import { useQueryClient } from '@tanstack/react-query'; // For invalidation
 
@@ -33,6 +33,28 @@ const formatPatente = (text) => {
     // Only alphanumeric, max 6, uppercase
     return text.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
 };
+
+const GLASS_BG = Platform.select({
+    ios: 'rgba(255,255,255,0.06)',
+    android: 'rgba(255,255,255,0.10)',
+    default: 'rgba(255,255,255,0.08)',
+});
+const BLUR_INTENSITY = Platform.OS === 'ios' ? 30 : 0;
+const ENGINE_OPTIONS = ['GASOLINA', 'DIESEL', 'HIBRIDO', 'ELECTRICO'];
+
+const GlassCard = ({ children, style }) => (
+    <View style={[styles.glassOuter, style]}>
+        <BlurView
+            intensity={BLUR_INTENSITY}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+        />
+        <View style={[styles.glassInner, { backgroundColor: GLASS_BG }]}>
+            {children}
+        </View>
+    </View>
+);
 
 const VehicleRegistrationScreen = () => {
     const navigation = useNavigation();
@@ -90,6 +112,27 @@ const VehicleRegistrationScreen = () => {
         Keyboard.dismiss();
         setLoading(true);
         try {
+            // 1. Check if patente is already registered in the system
+            const check = await vehicleService.verificarPatenteRegistrada(patente);
+            if (check?.registered) {
+                if (check.owner === 'self') {
+                    Alert.alert(
+                        'Patente ya registrada',
+                        'Este vehículo ya se encuentra en tu garaje. Puedes verlo desde tu panel principal.',
+                        [{ text: 'Entendido' }],
+                    );
+                } else {
+                    Alert.alert(
+                        'Patente no disponible',
+                        'Esta patente ya se encuentra registrada por otro usuario en el sistema. Si crees que esto es un error, contáctanos a soporte.',
+                        [{ text: 'Entendido' }],
+                    );
+                }
+                setLoading(false);
+                return;
+            }
+
+            // 2. Fetch vehicle info from external API
             const data = await vehicleService.getVehicleByPatente(patente);
 
             if (data && (data.marca || data.marca_nombre || data.modelo || data.year || data.vin || data.numero_motor)) {
@@ -174,6 +217,22 @@ const VehicleRegistrationScreen = () => {
         if (!selectedEngineType) {
             Alert.alert('Falta información', 'Por favor selecciona el tipo de combustible.');
             return;
+        }
+
+        // Double-check patente availability before saving (race-condition guard)
+        try {
+            const recheck = await vehicleService.verificarPatenteRegistrada(patente);
+            if (recheck?.registered && recheck.owner !== 'self') {
+                Alert.alert(
+                    'Patente no disponible',
+                    'Esta patente fue registrada por otro usuario mientras completabas el formulario. Intenta con otra patente.',
+                    [{ text: 'Entendido', onPress: handleReset }],
+                );
+                return;
+            }
+        } catch (e) {
+            // If verification fails, let the backend reject on create
+            console.warn('No se pudo re-verificar patente:', e);
         }
 
         const kmActual = parseInt(kilometraje, 10) || 0;
@@ -298,7 +357,17 @@ const VehicleRegistrationScreen = () => {
 
         } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'No se pudo guardar el vehículo. Inténtalo más tarde.');
+            const status = error?.response?.status;
+            const detail = error?.response?.data?.patente?.[0];
+            if (status === 409 || (detail && detail.toLowerCase().includes('registrada'))) {
+                Alert.alert(
+                    'Patente no disponible',
+                    detail || 'Esta patente ya se encuentra registrada por otro usuario.',
+                    [{ text: 'Entendido', onPress: handleReset }],
+                );
+            } else {
+                Alert.alert('Error', 'No se pudo guardar el vehículo. Inténtalo más tarde.');
+            }
         } finally {
             setSaving(false);
         }
@@ -315,14 +384,21 @@ const VehicleRegistrationScreen = () => {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="dark-content" />
+            <View style={StyleSheet.absoluteFill}>
+                <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
+                <View style={styles.blobEmerald} />
+                <View style={styles.blobIndigo} />
+                <View style={styles.blobCyan} />
+            </View>
+            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
             {/* Header */}
-            <View style={[styles.header, { marginTop: insets.top }]}>
-                <Text style={styles.headerTitle}>Nuevo Vehículo</Text>
+            <View style={[styles.header, { marginTop: insets.top + 4 }]}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-                    <Ionicons name="close" size={24} color={COLORS.base.inkBlack} />
+                    <Ionicons name="chevron-back" size={22} color="#E5E7EB" />
                 </TouchableOpacity>
+                <Text style={styles.headerTitle}>Nuevo Vehículo</Text>
+                <View style={styles.headerSpacer} />
             </View>
 
             {/* Main Content */}
@@ -338,7 +414,7 @@ const VehicleRegistrationScreen = () => {
                             <View style={styles.centerWrapper}>
                                 <Text style={styles.instructionText}>Ingresa la patente de tu vehículo para buscar sus datos automáticamente.</Text>
 
-                                <View style={styles.searchCard}>
+                                <View style={styles.searchCardShell}>
                                     <View style={styles.patenteInputContainer}>
                                         <View style={styles.patenteDecorator}>
                                             <Text style={styles.patenteFlag}>🇨🇱</Text>
@@ -353,6 +429,8 @@ const VehicleRegistrationScreen = () => {
                                             maxLength={6}
                                             autoCapitalize="characters"
                                             autoCorrect={false}
+                                            returnKeyType="search"
+                                            onSubmitEditing={handleSearch}
                                         />
                                     </View>
 
@@ -391,7 +469,7 @@ const VehicleRegistrationScreen = () => {
                             </View>
 
                             {/* Data Card */}
-                            <View style={styles.vehicleCard}>
+                            <GlassCard style={styles.vehicleCard}>
                                 <View style={styles.cardHeader}>
                                     <View>
                                         <Text style={styles.brandText}>{vehicleData.marca_nombre || 'Marca'}</Text>
@@ -410,25 +488,14 @@ const VehicleRegistrationScreen = () => {
                                     </View>
                                     <View style={styles.gridItem}>
                                         <Text style={styles.gridLabel}>Combustible</Text>
-                                        <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap', marginTop: 4 }}>
-                                            {['GASOLINA', 'DIESEL', 'HIBRIDO', 'ELECTRICO'].map((type) => (
+                                        <View style={styles.fuelChips}>
+                                            {ENGINE_OPTIONS.map((type) => (
                                                 <TouchableOpacity
                                                     key={type}
                                                     onPress={() => setSelectedEngineType(type)}
-                                                    style={{
-                                                        paddingHorizontal: 8,
-                                                        paddingVertical: 6,
-                                                        borderRadius: 8,
-                                                        backgroundColor: selectedEngineType === type ? COLORS.primary[600] : '#F1F5F9',
-                                                        borderWidth: 1,
-                                                        borderColor: selectedEngineType === type ? COLORS.primary[600] : '#E2E8F0'
-                                                    }}
+                                                    style={[styles.fuelChip, selectedEngineType === type && styles.fuelChipActive]}
                                                 >
-                                                    <Text style={{
-                                                        color: selectedEngineType === type ? 'white' : '#64748B',
-                                                        fontWeight: '600',
-                                                        fontSize: 10
-                                                    }}>{type}</Text>
+                                                    <Text style={[styles.fuelChipText, selectedEngineType === type && styles.fuelChipTextActive]}>{type}</Text>
                                                 </TouchableOpacity>
                                             ))}
                                         </View>
@@ -442,10 +509,10 @@ const VehicleRegistrationScreen = () => {
                                         <Text style={[styles.gridValue, styles.monospace]}>{vehicleData.vin || 'N/A'}</Text>
                                     </View>
                                 </View>
-                            </View>
+                            </GlassCard>
 
                             {/* Kilometraje Input */}
-                            <View style={styles.kilometerSection}>
+                            <GlassCard style={styles.kilometerSection}>
                                 <Text style={styles.sectionLabel}>Kilometraje Actual</Text>
                                 <View style={styles.kmInputWrapper}>
                                     <TextInput
@@ -458,10 +525,10 @@ const VehicleRegistrationScreen = () => {
                                     />
                                     <Text style={styles.kmSuffix}>km</Text>
                                 </View>
-                            </View>
+                            </GlassCard>
 
                             {/* Mantenimientos Recientes (Opcional) */}
-                            <View style={styles.maintenanceSection}>
+                            <GlassCard style={styles.maintenanceSection}>
                                 <TouchableOpacity
                                     style={styles.maintenanceHeader}
                                     onPress={() => setMaintenanceExpanded(!maintenanceExpanded)}
@@ -471,7 +538,7 @@ const VehicleRegistrationScreen = () => {
                                         <Text style={styles.sectionLabel}>Mantenimientos Recientes (Opcional)</Text>
                                         <Text style={styles.maintenanceSubtitle}>Indica los km que tenía el auto cuando cambiaste cada pieza.</Text>
                                     </View>
-                                    <Ionicons name={maintenanceExpanded ? 'chevron-up' : 'chevron-down'} size={24} color="#64748B" />
+                                    <Ionicons name={maintenanceExpanded ? 'chevron-up' : 'chevron-down'} size={24} color="rgba(255,255,255,0.6)" />
                                 </TouchableOpacity>
                                 {maintenanceExpanded && checklistItems.length > 0 && (
                                     <View style={styles.maintenanceList}>
@@ -511,10 +578,10 @@ const VehicleRegistrationScreen = () => {
                                         </TouchableOpacity>
                                     </View>
                                 )}
-                            </View>
+                            </GlassCard>
 
                             {/* Photo Upload Section */}
-                            <View style={styles.photoSection}>
+                            <GlassCard style={styles.photoSection}>
                                 <Text style={styles.sectionLabel}>Foto del Vehículo (Opcional)</Text>
                                 <TouchableOpacity style={styles.photoUpload} onPress={pickImage}>
                                     {image ? (
@@ -531,21 +598,13 @@ const VehicleRegistrationScreen = () => {
                                         </View>
                                     )}
                                 </TouchableOpacity>
-                            </View>
+                            </GlassCard>
 
                             {/* Warning Message */}
-                            <View style={{
-                                flexDirection: 'row',
-                                backgroundColor: '#FFF7ED', // Orange 50
-                                padding: 12,
-                                borderRadius: 12,
-                                marginBottom: 24,
-                                borderLeftWidth: 4,
-                                borderLeftColor: '#F97316' // Orange 500
-                            }}>
-                                <Ionicons name="alert-circle-outline" size={24} color="#F97316" style={{ marginRight: 8 }} />
-                                <Text style={{ flex: 1, color: '#C2410C', fontSize: 13, lineHeight: 18 }}>
-                                    <Text style={{ fontWeight: '700' }}>Importante:</Text> Para garantizar la veracidad de la información, los datos del vehículo no podrán ser editados después del registro.
+                            <View style={styles.warningCard}>
+                                <Ionicons name="alert-circle-outline" size={22} color="#F59E0B" style={{ marginRight: 8 }} />
+                                <Text style={styles.warningText}>
+                                    <Text style={styles.warningTextStrong}>Importante:</Text> Para garantizar la veracidad de la información, los datos del vehículo no podrán ser editados después del registro.
                                 </Text>
                             </View>
 
@@ -573,33 +632,75 @@ const VehicleRegistrationScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F9FA',
+        backgroundColor: '#030712',
+    },
+    blobEmerald: {
+        position: 'absolute',
+        top: -80,
+        left: -70,
+        width: 240,
+        height: 240,
+        borderRadius: 120,
+        backgroundColor: 'rgba(16,185,129,0.12)',
+    },
+    blobIndigo: {
+        position: 'absolute',
+        bottom: 90,
+        right: -40,
+        width: 260,
+        height: 260,
+        borderRadius: 130,
+        backgroundColor: 'rgba(99,102,241,0.10)',
+    },
+    blobCyan: {
+        position: 'absolute',
+        top: 280,
+        right: 36,
+        width: 150,
+        height: 150,
+        borderRadius: 75,
+        backgroundColor: 'rgba(6,182,212,0.08)',
+    },
+    glassOuter: {
+        borderRadius: 20,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+    },
+    glassInner: {
+        padding: 16,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center', // Title centered
-        height: 60,
-        position: 'relative',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        height: 56,
     },
     headerTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.base.inkBlack,
+        color: '#F9FAFB',
     },
     closeButton: {
-        position: 'absolute',
-        right: 20,
-        padding: 4,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    headerSpacer: {
+        width: 36,
+        height: 36,
     },
     keyboardContainer: {
         flex: 1,
     },
     contentContainer: {
         flex: 1,
-        padding: 24,
+        paddingHorizontal: 16,
+        paddingBottom: 32,
     },
     // SEARCH STYLES
     centerWrapper: {
@@ -610,34 +711,41 @@ const styles = StyleSheet.create({
     },
     instructionText: {
         fontSize: 16,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.65)',
         textAlign: 'center',
         marginBottom: 32,
-        maxWidth: '80%',
+        maxWidth: '90%',
     },
-    searchCard: {
+    searchCardShell: {
         flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24, // Rounder as requested
-        padding: 8,
+        backgroundColor: 'rgba(255,255,255,0.10)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.16)',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.18,
+        shadowRadius: 14,
         elevation: 4,
         width: '100%',
         alignItems: 'center',
+        padding: 8,
+        borderRadius: 24,
     },
     patenteInputContainer: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         paddingLeft: 12,
+        backgroundColor: 'rgba(2,6,23,0.52)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.20)',
+        borderRadius: 16,
+        height: 56,
     },
     patenteDecorator: {
         width: 24,
         height: 16,
-        backgroundColor: '#FFDD00', // Yellow strip simulation? Or Chile flag
+        backgroundColor: '#FFDD00',
         marginRight: 12,
         justifyContent: 'center',
         alignItems: 'center',
@@ -647,15 +755,15 @@ const styles = StyleSheet.create({
         fontSize: 10,
     },
     patenteInput: {
-        fontSize: 24,
-        fontWeight: '800', // Bold/Black
-        color: '#1E293B',
-        letterSpacing: 2,
+        fontSize: 22,
+        fontWeight: '800',
+        color: '#F9FAFB',
+        letterSpacing: 3,
         flex: 1,
         textTransform: 'uppercase',
     },
     searchButton: {
-        backgroundColor: COLORS.primary[600],
+        backgroundColor: '#6366F1',
         width: 56,
         height: 56,
         borderRadius: 20,
@@ -671,7 +779,7 @@ const styles = StyleSheet.create({
         padding: 12,
     },
     manualLinkText: {
-        color: COLORS.primary[600],
+        color: '#A5B4FC',
         fontWeight: '600',
         fontSize: 14,
     },
@@ -689,55 +797,45 @@ const styles = StyleSheet.create({
     successBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#DCFCE7', // Green 100
+        backgroundColor: 'rgba(16,185,129,0.22)',
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 20,
         gap: 8,
     },
     successBadgeText: {
-        color: '#15803D', // Green 700
+        color: '#6EE7B7',
         fontWeight: '700',
         fontSize: 14,
     },
     vehicleCard: {
-        backgroundColor: 'white',
-        borderRadius: 24,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 24,
-        elevation: 2,
         marginBottom: 32,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        borderBottomColor: 'rgba(255,255,255,0.08)',
         paddingBottom: 20,
         marginBottom: 20,
     },
     brandText: {
         fontSize: 14,
         textTransform: 'uppercase',
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.55)',
         fontWeight: '700',
         letterSpacing: 1,
     },
     modelText: {
         fontSize: 28,
         fontWeight: '800',
-        color: '#0F172A',
+        color: '#F9FAFB',
         marginTop: 4,
     },
     yearText: {
         fontSize: 18,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.6)',
         marginTop: 4,
     },
     grid: {
@@ -750,13 +848,39 @@ const styles = StyleSheet.create({
     },
     gridLabel: {
         fontSize: 12,
-        color: '#94A3B8',
+        color: 'rgba(255,255,255,0.45)',
         marginBottom: 4,
     },
     gridValue: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#334155',
+        color: '#E5E7EB',
+    },
+    fuelChips: {
+        flexDirection: 'row',
+        gap: 6,
+        flexWrap: 'wrap',
+        marginTop: 4,
+    },
+    fuelChip: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.16)',
+    },
+    fuelChipActive: {
+        backgroundColor: COLORS.primary[600],
+        borderColor: COLORS.primary[500],
+    },
+    fuelChipText: {
+        color: 'rgba(255,255,255,0.65)',
+        fontWeight: '700',
+        fontSize: 10,
+    },
+    fuelChipTextActive: {
+        color: '#FFFFFF',
     },
     monospace: {
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
@@ -767,11 +891,6 @@ const styles = StyleSheet.create({
     },
     maintenanceSection: {
         marginBottom: 32,
-        backgroundColor: 'white',
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
     },
     maintenanceHeader: {
         flexDirection: 'row',
@@ -780,23 +899,23 @@ const styles = StyleSheet.create({
     },
     maintenanceSubtitle: {
         fontSize: 13,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.5)',
         marginTop: 4,
     },
     maintenanceList: {
         marginTop: 16,
         paddingTop: 16,
         borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
+        borderTopColor: 'rgba(255,255,255,0.08)',
     },
     maintenanceQuestion: {
         fontSize: 14,
-        color: '#475569',
+        color: '#E5E7EB',
         marginBottom: 8,
     },
     maintenanceHint: {
         fontSize: 12,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.45)',
         lineHeight: 18,
         marginBottom: 12,
         fontStyle: 'italic',
@@ -811,7 +930,7 @@ const styles = StyleSheet.create({
         height: 24,
         borderRadius: 6,
         borderWidth: 2,
-        borderColor: '#CBD5E1',
+        borderColor: 'rgba(255,255,255,0.35)',
         marginRight: 12,
         justifyContent: 'center',
         alignItems: 'center',
@@ -823,14 +942,14 @@ const styles = StyleSheet.create({
     maintenanceLabel: {
         flex: 1,
         fontSize: 15,
-        color: '#334155',
+        color: '#E5E7EB',
     },
     kmInputInline: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F8FAFC',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: 'rgba(255,255,255,0.16)',
         borderRadius: 8,
         paddingHorizontal: 10,
         width: 100,
@@ -838,12 +957,12 @@ const styles = StyleSheet.create({
     kmInputSmall: {
         flex: 1,
         fontSize: 14,
-        color: '#0F172A',
+        color: '#F9FAFB',
         paddingVertical: 6,
     },
     kmSuffixSmall: {
         fontSize: 12,
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.45)',
         marginLeft: 4,
     },
     skipLink: {
@@ -852,21 +971,21 @@ const styles = StyleSheet.create({
     },
     skipLinkText: {
         fontSize: 14,
-        color: COLORS.primary[500],
+        color: '#A5B4FC',
         fontWeight: '600',
     },
     sectionLabel: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#1E293B',
+        color: '#F9FAFB',
         marginBottom: 12,
     },
     kmInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'white',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         borderWidth: 1,
-        borderColor: '#CBD5E1',
+        borderColor: 'rgba(255,255,255,0.18)',
         borderRadius: 16,
         paddingHorizontal: 20,
         paddingVertical: 4,
@@ -876,15 +995,15 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 24,
         fontWeight: '700',
-        color: '#0F172A',
+        color: '#F9FAFB',
     },
     kmSuffix: {
         fontSize: 16,
-        color: '#94A3B8',
+        color: 'rgba(255,255,255,0.45)',
         fontWeight: '500',
     },
     saveButton: {
-        backgroundColor: '#0F172A', // Slate 900
+        backgroundColor: '#6366F1',
         borderRadius: 16,
         height: 56,
         marginBottom: 16,
@@ -894,7 +1013,7 @@ const styles = StyleSheet.create({
         padding: 12,
     },
     retryText: {
-        color: '#64748B',
+        color: 'rgba(255,255,255,0.55)',
         fontWeight: '600',
     },
     // PHOTO STYLES
@@ -904,10 +1023,10 @@ const styles = StyleSheet.create({
     photoUpload: {
         width: '100%',
         height: 200,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255,255,255,0.04)',
         borderRadius: 24,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: 'rgba(255,255,255,0.20)',
         borderStyle: 'dashed',
         overflow: 'hidden',
         justifyContent: 'center',
@@ -924,7 +1043,7 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     photoText: {
-        color: COLORS.primary[500],
+        color: '#A5B4FC',
         fontWeight: '600',
         fontSize: 16,
     },
@@ -932,7 +1051,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 16,
         right: 16,
-        backgroundColor: COLORS.base.inkBlack,
+        backgroundColor: 'rgba(2,6,23,0.75)',
         width: 36,
         height: 36,
         borderRadius: 18,
@@ -942,6 +1061,24 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,
         shadowRadius: 4,
+    },
+    warningCard: {
+        flexDirection: 'row',
+        backgroundColor: 'rgba(245,158,11,0.12)',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 24,
+        borderLeftWidth: 4,
+        borderLeftColor: '#F59E0B',
+    },
+    warningText: {
+        flex: 1,
+        color: '#FCD34D',
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    warningTextStrong: {
+        fontWeight: '700',
     }
 });
 

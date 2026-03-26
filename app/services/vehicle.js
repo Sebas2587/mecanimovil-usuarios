@@ -220,6 +220,16 @@ export const deleteVehicle = async (vehicleId) => {
 };
 
 /**
+ * Verifica si una patente ya está registrada en el sistema
+ * @param {string} patente - Patente del vehículo
+ * @returns {Promise<Object>} { registered, owner, vehicle_id, marca, modelo }
+ */
+export const verificarPatenteRegistrada = async (patente) => {
+  const data = await get('/vehiculos/verificar-patente/', { patente: patente.toUpperCase().trim() });
+  return data;
+};
+
+/**
  * Consulta información de un vehículo por su patente
  * @param {string} patente - Patente del vehículo
  * @returns {Promise<Object>} Datos del vehículo encontrado o null
