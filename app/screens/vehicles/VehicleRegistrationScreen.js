@@ -16,10 +16,11 @@ import {
     Platform
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ 
 import { Ionicons } from '@expo/vector-icons'; // Lucide substitute
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../design-system/tokens/colors';
 import * as vehicleService from '../../services/vehicle';
@@ -27,6 +28,7 @@ import { useQuery } from '@tanstack/react-query';
 import Button from '../../components/base/Button/Button';
 import * as ImagePicker from 'expo-image-picker'; // New import
 import { useQueryClient } from '@tanstack/react-query'; // For invalidation
+import { ROUTES } from '../../utils/constants';
 
 // Utility
 const formatPatente = (text) => {
@@ -102,6 +104,17 @@ const VehicleRegistrationScreen = () => {
 
     // Initial focus
     const patenteInputRef = useRef(null);
+
+    const handleBackPress = useCallback(() => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+            return;
+        }
+        // Fallback: volver al tab raíz del stack ("TabNavigator") en MisVehiculos
+        navigation.navigate('TabNavigator', {
+            screen: ROUTES.MIS_VEHICULOS,
+        });
+    }, [navigation]);
 
     const handleSearch = async () => {
         if (patente.length < 6) {
@@ -375,7 +388,7 @@ const VehicleRegistrationScreen = () => {
 
     return (
         <View style={styles.container}>
-            <View style={StyleSheet.absoluteFill}>
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
                 <View style={styles.blobEmerald} />
                 <View style={styles.blobIndigo} />
@@ -384,12 +397,14 @@ const VehicleRegistrationScreen = () => {
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
             {/* Header */}
-            <View style={[styles.header, { marginTop: insets.top + 4 }]}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.closeButton}>
-                    <Ionicons name="chevron-back" size={22} color="#E5E7EB" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Nuevo Vehículo</Text>
-                <View style={styles.headerSpacer} />
+            <View style={[styles.headerSafeArea, { paddingTop: insets.top }]}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={handleBackPress} style={styles.closeButton}>
+                        <Ionicons name="chevron-back" size={22} color="#E5E7EB" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Nuevo Vehículo</Text>
+                    <View style={styles.headerSpacer} />
+                </View>
             </View>
 
             {/* Main Content */}
@@ -664,6 +679,10 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         height: 56,
+        zIndex: 2,
+    },
+    headerSafeArea: {
+        backgroundColor: 'transparent',
     },
     headerTitle: {
         fontSize: 18,
@@ -695,7 +714,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: -60, // visual offset
+        marginTop: -10, // Ajuste para evitar superposición con el header
     },
     instructionText: {
         fontSize: 16,
