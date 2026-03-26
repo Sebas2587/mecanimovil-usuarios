@@ -2,14 +2,51 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-// Configurar el comportamiento de las notificaciones
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldSetBadge: true,
   }),
 });
+
+const ANDROID_CHANNELS = [
+  {
+    id: 'default',
+    name: 'General',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#2A4065',
+    sound: 'default',
+  },
+  {
+    id: 'salud',
+    name: 'Salud del Vehículo',
+    description: 'Alertas y actualizaciones de métricas de salud',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#EF4444',
+    sound: 'default',
+  },
+  {
+    id: 'viajes',
+    name: 'Viajes y Telemetría',
+    description: 'Confirmaciones de viaje y kilometraje',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: [0, 200],
+    lightColor: '#10B981',
+    sound: 'default',
+  },
+  {
+    id: 'servicios',
+    name: 'Servicios y Pagos',
+    description: 'Ofertas, estados de solicitudes y recordatorios de pago',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#3B82F6',
+    sound: 'default',
+  },
+];
 
 class NotificationService {
   constructor() {
@@ -17,39 +54,21 @@ class NotificationService {
     this.initializeService();
   }
 
-  /**
-   * Inicializar el servicio de notificaciones
-   */
   async initializeService() {
-    console.log('📱 [NotificationService] Inicializando...');
     try {
-      // Registrar info del entorno para debugging
-      console.log('📱 [NotificationService] Datos del entorno:', {
-        isDevice: Constants.isDevice,
-        appOwnership: Constants.appOwnership,
-        executionEnvironment: Constants.executionEnvironment,
-        platform: Platform.OS
-      });
-
       if (!Constants.isDevice && Platform.OS !== 'web') {
-        console.log('⚠️ [NotificationService] Ejecutándose en SIMULADOR. Las notificaciones push no funcionarán aquí.');
+        console.log('[NotificationService] Ejecutándose en simulador – push no disponible.');
       }
 
-      // Configurar canal de notificaciones para Android
       if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'MecaniMóvil',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#2A4065',
-          sound: 'default',
-        });
+        await Promise.all(
+          ANDROID_CHANNELS.map((ch) => Notifications.setNotificationChannelAsync(ch.id, ch)),
+        );
       }
 
       this.isInitialized = true;
-      console.log('✅ [NotificationService] Servicio inicializado correctamente');
     } catch (error) {
-      console.error('❌ [NotificationService] Error inicializando servicio:', error);
+      console.error('[NotificationService] Error inicializando:', error);
     }
   }
 

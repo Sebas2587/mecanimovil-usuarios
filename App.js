@@ -539,61 +539,84 @@ const Main = () => {
 
   // Listener para push notifications
   useEffect(() => {
-    // Solo registrar listeners si el usuario está autenticado y la navegación está lista
     if (!isAuthenticated || !navigationRef.isReady()) {
       return;
     }
 
-    // Escuchar notificaciones cuando la app está en foreground
-    const foregroundSubscription = Notifications.addNotificationReceivedListener(
-      notification => {
-        try {
-          logger.debug('📱 Notificación recibida (foreground):', notification);
-          const { type, solicitud_id } = notification.request.content.data || {};
+    const navigateByNotification = (data) => {
+      if (!data || !navigationRef.isReady()) return;
+      const { type, solicitud_id, vehicle_id, order_id } = data;
 
-          if (type === 'recordatorio_pago' && solicitud_id && navigationRef.isReady()) {
-            // Navegar a detalle de solicitud
-            navigationRef.navigate('Solicitudes', {
-              screen: 'DetalleSolicitud',
-              params: { id: solicitud_id }
-            });
-          } else if (type === 'cambio_estado' && solicitud_id && navigationRef.isReady()) {
-            // Navegar a detalle de solicitud cuando cambia el estado
-            navigationRef.navigate('Solicitudes', {
-              screen: 'DetalleSolicitud',
-              params: { id: solicitud_id }
-            });
+      switch (type) {
+        case 'recordatorio_pago':
+        case 'cambio_estado':
+        case 'nueva_oferta':
+        case 'solicitud_adjudicada':
+        case 'new_offer':
+        case 'offer_accepted':
+        case 'solicitud_rechazada':
+          if (solicitud_id) {
+            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
           }
-        } catch (error) {
-          logger.error('❌ Error procesando notificación en foreground:', error);
-        }
+          break;
+
+        case 'status_update':
+        case 'order_completed':
+        case 'order_rejected':
+          if (solicitud_id) {
+            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+          } else if (order_id) {
+            navigationRef.navigate(ROUTES.MIS_SOLICITUDES);
+          }
+          break;
+
+        case 'health_alert':
+        case 'global_health_alert':
+        case 'salud_actualizada':
+          if (vehicle_id) {
+            navigationRef.navigate(ROUTES.VEHICLE_HEALTH, { vehiculoId: vehicle_id });
+          } else {
+            navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
+          }
+          break;
+
+        case 'viaje_registrado':
+          if (vehicle_id) {
+            navigationRef.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: vehicle_id });
+          }
+          break;
+
+        case 'payment_reminder':
+          if (solicitud_id) {
+            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+          }
+          break;
+
+        default:
+          navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
+          break;
       }
+    };
+
+    const foregroundSubscription = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        try {
+          logger.debug('Notificación recibida (foreground)');
+        } catch (error) {
+          logger.error('Error procesando notificación foreground:', error);
+        }
+      },
     );
 
-    // Escuchar cuando el usuario toca la notificación (app en background)
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(
-      response => {
+      (response) => {
         try {
-          logger.debug('📱 Notificación tocada (background):', response);
-          const { type, solicitud_id } = response.notification.request.content.data || {};
-
-          if (type === 'recordatorio_pago' && solicitud_id && navigationRef.isReady()) {
-            // Navegar a detalle de solicitud
-            navigationRef.navigate('Solicitudes', {
-              screen: 'DetalleSolicitud',
-              params: { id: solicitud_id }
-            });
-          } else if (type === 'cambio_estado' && solicitud_id && navigationRef.isReady()) {
-            // Navegar a detalle de solicitud cuando cambia el estado
-            navigationRef.navigate('Solicitudes', {
-              screen: 'DetalleSolicitud',
-              params: { id: solicitud_id }
-            });
-          }
+          const data = response.notification.request.content.data || {};
+          navigateByNotification(data);
         } catch (error) {
-          logger.error('❌ Error procesando notificación en background:', error);
+          logger.error('Error procesando notificación tap:', error);
         }
-      }
+      },
     );
 
     return () => {
@@ -601,7 +624,7 @@ const Main = () => {
         foregroundSubscription.remove();
         responseSubscription.remove();
       } catch (error) {
-        logger.warn('⚠️ Error removiendo listeners de notificaciones:', error);
+        logger.warn('Error removiendo listeners de notificaciones:', error);
       }
     };
   }, [navigationRef, isAuthenticated]);

@@ -1,10 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import { calculateDistance } from '../utils/geoUtils';
 
 const TRIP_TASK_NAME = 'mecanimovil-trip-tracking-task';
 const TRIP_STORAGE_KEY = '@trip_tracking_snapshot';
+let foregroundLocationSub = null;
 
 const MIN_ACCURACY_M = 50;
 const MIN_DISTANCE_KM = 0.008;
@@ -90,25 +93,67 @@ const processPoint = (snapshot, coords, timestamp) => {
   return next;
 };
 
-TaskManager.defineTask(TRIP_TASK_NAME, async ({ data, error }) => {
-  if (error) return;
-  const locations = data?.locations || [];
-  if (!locations.length) return;
+try {
+  if (!TaskManager.isTaskDefined(TRIP_TASK_NAME)) {
+    TaskManager.defineTask(TRIP_TASK_NAME, async ({ data, error }) => {
+      if (error) return;
+      const locations = data?.locations || [];
+      if (!locations.length) return;
 
-  const snapshot = await readSnapshot();
-  if (!snapshot.active) return;
+      const snapshot = await readSnapshot();
+      if (!snapshot.active) return;
 
-  let updated = snapshot;
-  for (const loc of locations) {
-    updated = processPoint(updated, loc.coords, loc.timestamp);
+      let updated = snapshot;
+      for (const loc of locations) {
+        updated = processPoint(updated, loc.coords, loc.timestamp);
+      }
+      await writeSnapshot(updated);
+    });
   }
-  await writeSnapshot(updated);
-});
+} catch {
+  // Avoid crashing app startup in Expo Go / Fast Refresh.
+}
+
+const shouldUseBackgroundTracking = () => {
+  // Expo Go has strong background limitations; use foreground watcher there.
+  if (Constants.appOwnership === 'expo') return false;
+  // In native dev/prod builds, we can use background tracking.
+  return true;
+};
 
 export const startTripTracking = async (vehicleId) => {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') {
     throw new Error('Se requieren permisos de ubicación en primer plano.');
+  }
+
+  const snapshot = {
+    ...emptySnapshot(),
+    active: true,
+    vehicleId,
+    startTime: Date.now(),
+  };
+  await writeSnapshot(snapshot);
+
+  if (!shouldUseBackgroundTracking()) {
+    if (foregroundLocationSub) {
+      foregroundLocationSub.remove();
+      foregroundLocationSub = null;
+    }
+    foregroundLocationSub = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 5000,
+        distanceInterval: 10,
+      },
+      async (location) => {
+        const current = await readSnapshot();
+        if (!current.active) return;
+        const updated = processPoint(current, location.coords, location.timestamp);
+        await writeSnapshot(updated);
+      },
+    );
+    return snapshot;
   }
 
   const bg = await Location.requestBackgroundPermissionsAsync();
@@ -121,20 +166,12 @@ export const startTripTracking = async (vehicleId) => {
     await Location.stopLocationUpdatesAsync(TRIP_TASK_NAME);
   }
 
-  const snapshot = {
-    ...emptySnapshot(),
-    active: true,
-    vehicleId,
-    startTime: Date.now(),
-  };
-  await writeSnapshot(snapshot);
-
   await Location.startLocationUpdatesAsync(TRIP_TASK_NAME, {
     accuracy: Location.Accuracy.Balanced,
     timeInterval: 5000,
     distanceInterval: 10,
     pausesUpdatesAutomatically: false,
-    showsBackgroundLocationIndicator: true,
+    ...(Platform.OS === 'ios' ? { showsBackgroundLocationIndicator: true } : {}),
     foregroundService: {
       notificationTitle: 'Mecanimovil - Telemetria activa',
       notificationBody: 'Registrando kilometros del viaje en segundo plano.',
@@ -151,6 +188,10 @@ export const getTripSnapshot = async () => {
 
 export const stopTripTracking = async () => {
   const snapshot = await readSnapshot();
+  if (foregroundLocationSub) {
+    foregroundLocationSub.remove();
+    foregroundLocationSub = null;
+  }
   const started = await Location.hasStartedLocationUpdatesAsync(TRIP_TASK_NAME);
   if (started) {
     await Location.stopLocationUpdatesAsync(TRIP_TASK_NAME);
@@ -166,6 +207,10 @@ export const stopTripTracking = async () => {
 };
 
 export const resetTripTracking = async () => {
+  if (foregroundLocationSub) {
+    foregroundLocationSub.remove();
+    foregroundLocationSub = null;
+  }
   const started = await Location.hasStartedLocationUpdatesAsync(TRIP_TASK_NAME);
   if (started) {
     await Location.stopLocationUpdatesAsync(TRIP_TASK_NAME);
