@@ -26,8 +26,6 @@ import {
   Wrench,
   ChevronRight,
   ArrowLeft,
-  ArrowRight,
-  AlertTriangle,
   Hourglass,
 } from 'lucide-react-native';
 import * as Animatable from 'react-native-animatable';
@@ -279,37 +277,6 @@ const VehicleHealthScreen = ({ route }) => {
     );
   };
 
-  const renderCTA = () => {
-    if (healthData?.tiene_alertas_activas) {
-      return (
-        <Animatable.View animation="pulse" iterationCount="infinite" style={styles.ctaContainer}>
-          {Platform.OS === 'ios' && (
-            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-          )}
-          <View style={styles.ctaContent}>
-            <AlertTriangle size={20} color="#F87171" />
-            <View style={styles.ctaTextWrap}>
-              <Text style={styles.ctaTitle}>Atención Requerida</Text>
-              <Text style={styles.ctaSubtitle}>Se detectaron problemas en tu vehículo.</Text>
-            </View>
-          </View>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleNavToService}>
-            <LinearGradient
-              colors={['#EF4444', '#DC2626']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.ctaButton}
-            >
-              <Text style={styles.ctaButtonText}>Agendar</Text>
-              <ArrowRight size={16} color="white" />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animatable.View>
-      );
-    }
-    return null;
-  };
-
   // Fuente de la lista: priorizar siempre componentes del endpoint de salud tras cargar
   // (evita health_report embebido en vehículo quedarse obsoleto tras sync)
   const listData =
@@ -348,7 +315,6 @@ const VehicleHealthScreen = ({ route }) => {
           <>
             {renderHeader()}
             {renderSummary()}
-            {renderCTA()}
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>Estado de Componentes</Text>
               <TouchableOpacity
@@ -800,49 +766,6 @@ const createStyles = (insets) => StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.7)',
     lineHeight: 20,
-  },
-  ctaContainer: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.12)',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.25)',
-    overflow: 'hidden',
-  },
-  ctaContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  ctaTextWrap: {
-    flex: 1,
-  },
-  ctaTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#F87171',
-  },
-  ctaSubtitle: {
-    fontSize: 12,
-    color: 'rgba(248,113,113,0.7)',
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    gap: 4,
-  },
-  ctaButtonText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '700',
   },
   sectionTitleRow: {
     flexDirection: 'row',
