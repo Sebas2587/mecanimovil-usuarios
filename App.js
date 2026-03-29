@@ -3,11 +3,11 @@
 // Esta configuración debe ejecutarse lo antes posible para evitar que errores aparezcan visualmente
 
 //importaciones de componentes
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
-import { View, Text, StyleSheet, Animated, Linking, AppState, LogBox as RNLogBox, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Linking, AppState, LogBox as RNLogBox, Alert, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import AuthNavigator from './app/navigation/AuthNavigator';
@@ -389,19 +389,7 @@ class ErrorBoundary extends React.Component {
 // Componente principal que maneja la navegación basada en el estado de autenticación
 const Main = () => {
   const { isAuthenticated, loading, registerSuccess } = useAuth();
-  const [fadeAnim] = useState(new Animated.Value(0));
   const navigationRef = useNavigationContainerRef();
-
-  useEffect(() => {
-    if (!loading) {
-      // Animación de fade-in cuando termina la carga
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [loading]);
 
   // EAS Update: al volver de segundo plano, comprobar si hay un bundle nuevo (mismo runtimeVersion + canal).
   const appStateRef = useRef(AppState.currentState);
@@ -1217,7 +1205,7 @@ const Main = () => {
   }
 
   return (
-    <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+    <View style={{ flex: 1 }}>
       <NavigationContainer
         ref={navigationRef}
         linking={linking}
@@ -1230,7 +1218,7 @@ const Main = () => {
           <AuthNavigator registerSuccess={registerSuccess} />
         )}
       </NavigationContainer>
-    </Animated.View>
+    </View>
   );
 };
 
