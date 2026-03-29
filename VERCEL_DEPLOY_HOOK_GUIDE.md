@@ -144,13 +144,15 @@ npx vercel link
 
 (elige el team y el proyecto que corresponde a **mecanimovil-usuarios** / `*.vercel.app`)
 
-Luego, cada vez que quieras publicar **exactamente** lo que acabas de buildear:
+Luego, cada vez que quieras publicar **exactamente** lo que tienes en el repo (build local + subida sin re-ejecutar Expo en los servidores de Vercel):
 
 ```bash
 npm run deploy:vercel:local
 ```
 
-Eso ejecuta `expo export` y `vercel deploy dist --prod` (carpeta `dist` que genera Expo).
+Eso ejecuta `vercel build --prod` (corre `expo export` en tu Mac y genera `.vercel/output`) y `vercel deploy --prebuilt` hacia el proyecto **mecanimovil-usuarios**.
+
+**No uses** `vercel deploy dist` desde la raíz: Vercel puede crear `dist/.vercel` y enlazar un proyecto basura llamado `dist`, y el deploy remoto falla porque no sube el `package.json`. Si ya pasó: `rm -rf dist/.vercel` y vuelve a enlazar solo en la raíz con `npx vercel link`.
 
 ### GitHub Actions (opcional)
 
