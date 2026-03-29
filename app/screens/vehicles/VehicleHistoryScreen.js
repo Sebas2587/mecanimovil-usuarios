@@ -9,7 +9,6 @@ import {
   RefreshControl,
   StatusBar,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -19,6 +18,7 @@ import { ArrowLeft, ClipboardList, Plus } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
 import * as vehicleService from '../../services/vehicle';
 import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
+import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 
 const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
 const BLUR_I = Platform.OS === 'ios' ? 30 : 0;
@@ -33,6 +33,9 @@ const VehicleHistoryScreen = () => {
   const [historyItems, setHistoryItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [checklistModalVisible, setChecklistModalVisible] = useState(false);
+  const [selectedChecklistId, setSelectedChecklistId] = useState(null);
+  const [selectedServiceName, setSelectedServiceName] = useState('');
 
   const fetchHistory = useCallback(async () => {
     if (!vehicleId) {
@@ -67,17 +70,13 @@ const VehicleHistoryScreen = () => {
     setRefreshing(false);
   }, [fetchHistory]);
 
-  const handleHistoryPress = useCallback(
-    (item) => {
-      const pubId = item.solicitud_publica_id;
-      if (!pubId) {
-        Alert.alert('Info', 'No se puede ver el detalle de esta solicitud.');
-        return;
-      }
-      navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: pubId });
-    },
-    [navigation]
-  );
+  const handleViewChecklist = useCallback((item) => {
+    const ordenId = item.id;
+    if (!ordenId) return;
+    setSelectedChecklistId(ordenId);
+    setSelectedServiceName(item.servicio_nombre || 'Servicio');
+    setChecklistModalVisible(true);
+  }, []);
 
   const EmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -115,7 +114,7 @@ const VehicleHistoryScreen = () => {
 
   const renderHistoryItem = ({ item }) => (
     <View style={styles.cardWrapper}>
-      <VehicleServiceHistoryRow item={item} onViewChecklist={() => handleHistoryPress(item)} variant="dark" />
+      <VehicleServiceHistoryRow item={item} onViewChecklist={() => handleViewChecklist(item)} variant="dark" />
     </View>
   );
 
@@ -170,6 +169,13 @@ const VehicleHistoryScreen = () => {
           showsVerticalScrollIndicator={false}
         />
       </SafeAreaView>
+
+      <ChecklistViewerModal
+        visible={checklistModalVisible}
+        onClose={() => setChecklistModalVisible(false)}
+        ordenId={selectedChecklistId}
+        servicioNombre={selectedServiceName}
+      />
     </View>
   );
 };

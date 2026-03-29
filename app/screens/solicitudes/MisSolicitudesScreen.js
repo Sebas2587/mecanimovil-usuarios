@@ -23,6 +23,7 @@ import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import * as vehicleService from '../../services/vehicle';
 import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
+import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 
 const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
 const BLUR_I = Platform.OS === 'ios' ? 30 : 0;
@@ -68,6 +69,9 @@ const MisSolicitudesScreen = () => {
   const [filtroEstado, setFiltroEstado] = useState(route?.params?.initialFiltroEstado || 'todos');
   const [vehicleHistory, setVehicleHistory] = useState([]);
   const [vehicleHistoryLoading, setVehicleHistoryLoading] = useState(false);
+  const [checklistModalVisible, setChecklistModalVisible] = useState(false);
+  const [selectedChecklistId, setSelectedChecklistId] = useState(null);
+  const [selectedServiceName, setSelectedServiceName] = useState('');
 
   const estadosDisponibles = [
     { key: 'todos', label: 'Todas', icon: 'list-outline' },
@@ -243,12 +247,10 @@ const MisSolicitudesScreen = () => {
       <VehicleServiceHistoryRow
         item={item}
         onViewChecklist={() => {
-          const pubId = item.solicitud_publica_id;
-          if (!pubId) {
-            Alert.alert('Info', 'No se puede ver el detalle de esta solicitud.');
-            return;
-          }
-          navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: pubId });
+          if (!item.id) return;
+          setSelectedChecklistId(item.id);
+          setSelectedServiceName(item.servicio_nombre || 'Servicio');
+          setChecklistModalVisible(true);
         }}
         variant="dark"
       />
@@ -348,6 +350,13 @@ const MisSolicitudesScreen = () => {
           </View>
         )}
       </SafeAreaView>
+
+      <ChecklistViewerModal
+        visible={checklistModalVisible}
+        onClose={() => setChecklistModalVisible(false)}
+        ordenId={selectedChecklistId}
+        servicioNombre={selectedServiceName}
+      />
     </View>
   );
 };
