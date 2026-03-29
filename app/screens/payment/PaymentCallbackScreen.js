@@ -406,11 +406,9 @@ const PaymentCallbackScreen = () => {
                 }, 1000);
                 return true;
               } else {
-                // Si el pago aún no está procesado, mostrar mensaje de procesamiento
                 setStatus('processing');
                 setMessage('Verificando estado del pago...');
-                
-                // Esperar un poco y verificar nuevamente
+
                 setTimeout(async () => {
                   try {
                     const estadoPagoRetry = await MercadoPagoService.getEstadoPagoOferta(ofertaId);
@@ -421,11 +419,70 @@ const PaymentCallbackScreen = () => {
                       await AsyncStorage.removeItem('pago_pendiente_data');
                       await AsyncStorage.removeItem('expected_deep_link');
                       await AsyncStorage.removeItem('pending_deep_link');
+                      setTimeout(() => {
+                        Alert.alert(
+                          '¡Pago Exitoso!',
+                          'Tu pago ha sido procesado correctamente.',
+                          [
+                            {
+                              text: 'Ver mis solicitudes',
+                              onPress: () => {
+                                navigation.reset({
+                                  index: 0,
+                                  routes: [{
+                                    name: 'TabNavigator',
+                                    params: { screen: ROUTES.MIS_SOLICITUDES },
+                                  }],
+                                });
+                              },
+                            },
+                          ]
+                        );
+                      }, 400);
+                    } else {
+                      setMessage('Sin confirmar aún');
+                      Alert.alert(
+                        'Pago no confirmado',
+                        'Todavía no registramos el pago. Si acabas de pagar, espera un momento y revisa «Mis solicitudes». Si no completaste el pago, puedes volver a intentarlo desde la solicitud.',
+                        [
+                          {
+                            text: 'Entendido',
+                            onPress: () => {
+                              navigation.reset({
+                                index: 0,
+                                routes: [{
+                                  name: 'TabNavigator',
+                                  params: { screen: ROUTES.MIS_SOLICITUDES },
+                                }],
+                              });
+                            },
+                          },
+                        ]
+                      );
                     }
                   } catch (e) {
                     console.warn('Error verificando estado del pago (retry):', e);
+                    Alert.alert(
+                      'Error',
+                      'No pudimos verificar el pago. Revisa «Mis solicitudes».',
+                      [
+                        {
+                          text: 'OK',
+                          onPress: () => {
+                            navigation.reset({
+                              index: 0,
+                              routes: [{
+                                name: 'TabNavigator',
+                                params: { screen: ROUTES.MIS_SOLICITUDES },
+                              }],
+                            });
+                          },
+                        },
+                      ]
+                    );
                   }
                 }, 3000);
+                return true;
               }
             } catch (e) {
               console.warn('Error obteniendo estado del pago:', e);
@@ -482,6 +539,99 @@ const PaymentCallbackScreen = () => {
         console.log('   - Payment ID:', finalPaymentId);
         console.log('   - External Reference:', finalExternalReference);
         console.log('   - Todos los parámetros recibidos:', paymentParams);
+
+        const normStatus = String(finalStatus || '').toLowerCase();
+        const verifyOfertaId =
+          paymentParams.ofertaId || paymentParams.oferta_id || null;
+        const isAppInternalVerifyOnly =
+          normStatus === 'processing' &&
+          (paymentParams.from_foreground || paymentParams.from_storage) &&
+          !finalPaymentId &&
+          !paymentParams.payment_id;
+
+        if (isAppInternalVerifyOnly && verifyOfertaId) {
+          try {
+            const estadoPago = await MercadoPagoService.getEstadoPagoOferta(verifyOfertaId);
+            if (estadoPago.oferta_estado === 'pagada') {
+              setStatus('success');
+              setMessage('¡Pago confirmado!');
+              await AsyncStorage.multiRemove([
+                'pago_pendiente',
+                'pago_pendiente_data',
+                'expected_deep_link',
+                'pending_deep_link',
+              ]);
+              setTimeout(() => {
+                Alert.alert(
+                  '¡Pago Exitoso!',
+                  'Tu pago ha sido procesado correctamente.',
+                  [
+                    {
+                      text: 'Ver mis solicitudes',
+                      onPress: () => {
+                        navigation.reset({
+                          index: 0,
+                          routes: [{
+                            name: 'TabNavigator',
+                            params: { screen: ROUTES.MIS_SOLICITUDES },
+                          }],
+                        });
+                      },
+                    },
+                  ]
+                );
+              }, 500);
+            } else {
+              setStatus('processing');
+              setMessage('Sin confirmar aún');
+              setTimeout(() => {
+                Alert.alert(
+                  'Pago no confirmado',
+                  'Todavía no registramos el pago en tu solicitud. Si acabas de pagar, puede tardar un minuto. Si interrumpiste el checkout, vuelve a «Mis solicitudes» e intenta de nuevo.',
+                  [
+                    {
+                      text: 'Entendido',
+                      onPress: () => {
+                        navigation.reset({
+                          index: 0,
+                          routes: [{
+                            name: 'TabNavigator',
+                            params: { screen: ROUTES.MIS_SOLICITUDES },
+                          }],
+                        });
+                      },
+                    },
+                  ]
+                );
+              }, 400);
+            }
+          } catch (e) {
+            console.error('Error verificando estado tras volver del checkout:', e);
+            setStatus('error');
+            setMessage('No pudimos verificar el pago');
+            setTimeout(() => {
+              Alert.alert(
+                'Error de verificación',
+                'No pudimos confirmar el estado del pago. Revisa «Mis solicitudes» o inténtalo de nuevo.',
+                [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      navigation.reset({
+                        index: 0,
+                        routes: [{
+                          name: 'TabNavigator',
+                          params: { screen: ROUTES.MIS_SOLICITUDES },
+                        }],
+                      });
+                    },
+                  },
+                ]
+              );
+            }, 400);
+          }
+          return;
+        }
 
         // Si el pago fue rechazado o cancelado
         if (['rejected', 'failure', 'cancelled'].includes(finalStatus)) {
@@ -722,17 +872,28 @@ const PaymentCallbackScreen = () => {
         } else {
           console.warn('⚠️ Estado de pago desconocido:', finalStatus);
           setStatus('processing');
-          setMessage('Verificando estado del pago...');
-          
+          setMessage('No pudimos interpretar la respuesta del pago');
+
           setTimeout(() => {
-            navigation.reset({
-              index: 0,
-              routes: [{ 
-                name: 'TabNavigator', 
-                params: { screen: ROUTES.MIS_SOLICITUDES } 
-              }],
-            });
-          }, 2000);
+            Alert.alert(
+              'Revisar pago',
+              'No recibimos un resultado claro de Mercado Pago. Revisa en «Mis solicitudes» si el pago quedó registrado; si no, vuelve a intentar el pago.',
+              [
+                {
+                  text: 'Ir a mis solicitudes',
+                  onPress: () => {
+                    navigation.reset({
+                      index: 0,
+                      routes: [{
+                        name: 'TabNavigator',
+                        params: { screen: ROUTES.MIS_SOLICITUDES },
+                      }],
+                    });
+                  },
+                },
+              ]
+            );
+          }, 400);
         }
       } catch (error) {
         console.error('❌ Error procesando callback:', error);

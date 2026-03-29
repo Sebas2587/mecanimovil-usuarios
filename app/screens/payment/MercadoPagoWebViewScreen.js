@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MercadoPagoService from '../../services/mercadopago';
+import { MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
 
 /**
  * Pantalla modal con WebView para procesar pagos de Mercado Pago
@@ -100,6 +101,14 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
 
     loadPagoPendiente();
 
+    (async () => {
+      try {
+        await AsyncStorage.setItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY, String(Date.now()));
+      } catch (e) {
+        console.warn('No se pudo marcar checkout WebView activo:', e);
+      }
+    })();
+
     // Configurar un timeout para verificar el estado del pago después de un tiempo
     // IMPORTANTE: Solo verificamos el estado en el backend, NO asumimos que el pago fue completado
     // El webhook de Mercado Pago es la única fuente de verdad para confirmar pagos
@@ -134,6 +143,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
       }
+      AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY).catch(() => {});
     };
   }, [navigation]);
 

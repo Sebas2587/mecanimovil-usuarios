@@ -286,4 +286,9 @@ export const ROUTES = {
   TRANSFERENCIA_VENDEDOR: 'TransferenciaVendedor',
   TRANSFERENCIA_COMPRADOR: 'TransferenciaComprador',
   TRANSFERENCIA_EXITO: 'TransferenciaExito',
-}; 
+};
+
+/** AsyncStorage: checkout Mercado Pago abierto en WebView (evita saltos a PaymentCallback en inactive→active). Valor: timestamp ms. */
+export const MP_CHECKOUT_WEBVIEW_ACTIVE_KEY = 'mp_checkout_webview_active';
+
+export const MP_CHECKOUT_WEBVIEW_MAX_AGE_MS = 45 * 60 * 1000;

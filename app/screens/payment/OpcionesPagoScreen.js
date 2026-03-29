@@ -9,19 +9,50 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
-  Image
+  Image,
+  Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAgendamiento } from '../../context/AgendamientoContext';
-import { COLORS, ROUTES } from '../../utils/constants';
+import { ROUTES, MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
 import { getMediaURL } from '../../services/api';
 import MercadoPagoService from '../../services/mercadopago';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { TOKENS } from '../../design-system/tokens';
 import AcuerdoServicioModal from '../../components/modals/AcuerdoServicioModal';
+
+const DARK_BG = '#030712';
+const GLASS_BG = Platform.select({
+  ios: 'rgba(255,255,255,0.06)',
+  android: 'rgba(255,255,255,0.10)',
+  default: 'rgba(255,255,255,0.08)',
+});
+const GLASS_BORDER = 'rgba(255,255,255,0.12)';
+const TEXT_PRIMARY_GLASS = '#F9FAFB';
+const TEXT_SECONDARY_GLASS = 'rgba(255,255,255,0.58)';
+const TEXT_MUTED_GLASS = 'rgba(255,255,255,0.42)';
+const ACCENT_CYAN = '#00A8E8';
+const ACCENT_MINT = '#6EE7B7';
+const ACCENT_BLUE = '#93C5FD';
+
+function PaymentGlassBackdrop({ children }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: DARK_BG }}>
+      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
+        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+        <View style={{ position: 'absolute', top: 280, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+        <View style={{ position: 'absolute', bottom: 20, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+      </View>
+      {children}
+    </View>
+  );
+}
 
 const METODOS_PAGO = {
   MERCADOPAGO: 'mercadopago'
@@ -38,14 +69,10 @@ const OpcionesPagoScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const { colors, typography, spacing, borders } = useTheme();
+  const { typography, spacing } = useTheme();
   const { carritos, carrito, cargarTodosLosCarritos, loading: carritoLoading } = useAgendamiento();
 
-  // Generate styles with theme values
-  const styles = getStyles(colors, typography, spacing, borders, insets);
-
-  // Safe borders for header
-  const safeWidth = borders?.width || TOKENS.borders?.width || { thin: 1 };
+  const styles = getStyles(typography, spacing, insets);
 
   // Detectar si viene de una solicitud pública, oferta secundaria o del flujo tradicional de carrito
   const origen = route.params?.origen;
@@ -672,6 +699,7 @@ const OpcionesPagoScreen = () => {
         // Navegar a la pantalla de WebView modal
         if (result.useWebView && result.url) {
           console.log('✅ Abriendo WebView modal para Checkout Pro');
+          await AsyncStorage.setItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY, String(Date.now()));
           navigation.navigate('MercadoPagoWebView', {
             checkoutUrl: result.url
           });
@@ -887,25 +915,28 @@ const OpcionesPagoScreen = () => {
 
   if (estasCargando && !tieneDatos) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>
-            {(esSolicitudPublica || esOfertaSecundaria) ? 'Cargando información de pago...' : 'Cargando información del carrito...'}
-          </Text>
-        </View>
-      </SafeAreaView>
+      <PaymentGlassBackdrop>
+        <SafeAreaView style={styles.glassSafeArea} edges={['top', 'left', 'right', 'bottom']}>
+          <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={ACCENT_MINT} />
+            <Text style={styles.loadingText}>
+              {(esSolicitudPublica || esOfertaSecundaria) ? 'Cargando información de pago...' : 'Cargando información del carrito...'}
+            </Text>
+          </View>
+        </SafeAreaView>
+      </PaymentGlassBackdrop>
     );
   }
 
   // Si terminó de cargar y no hay datos, mostrar error
   if (!estasCargando && !resumenGlobal) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+      <PaymentGlassBackdrop>
+        <SafeAreaView style={styles.glassSafeArea} edges={['top', 'left', 'right', 'bottom']}>
+          <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
         <View style={styles.errorContainer}>
-          <Ionicons name="cart-outline" size={64} color={COLORS.textLight} />
+          <Ionicons name="cart-outline" size={64} color={TEXT_MUTED_GLASS} />
           <Text style={styles.errorTitle}>
             {(esSolicitudPublica || esOfertaSecundaria) ? 'No hay datos de pago disponibles' : 'No hay carrito disponible'}
           </Text>
@@ -941,7 +972,7 @@ const OpcionesPagoScreen = () => {
               }
             }}
           >
-            <Ionicons name="refresh" size={20} color={COLORS.white} />
+            <Ionicons name="refresh" size={20} color="#FFF" />
             <Text style={styles.retryButtonText}>Reintentar</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -951,7 +982,8 @@ const OpcionesPagoScreen = () => {
             <Text style={styles.backButtonText}>Volver</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </PaymentGlassBackdrop>
     );
   }
 
@@ -960,56 +992,46 @@ const OpcionesPagoScreen = () => {
     // Los datos están cargados pero el resumenGlobal aún no se ha calculado
     // Esto puede ocurrir si hay un delay en el cálculo, esperar un momento
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>
-            {(esSolicitudPublica || esOfertaSecundaria) ? 'Preparando información de pago...' : 'Preparando información del carrito...'}
-          </Text>
-        </View>
-      </SafeAreaView>
+      <PaymentGlassBackdrop>
+        <SafeAreaView style={styles.glassSafeArea} edges={['top', 'left', 'right', 'bottom']}>
+          <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={ACCENT_MINT} />
+            <Text style={styles.loadingText}>
+              {(esSolicitudPublica || esOfertaSecundaria) ? 'Preparando información de pago...' : 'Preparando información del carrito...'}
+            </Text>
+          </View>
+        </SafeAreaView>
+      </PaymentGlassBackdrop>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background?.paper || '#FFFFFF'} />
+    <PaymentGlassBackdrop>
+      <StatusBar barStyle="light-content" backgroundColor={DARK_BG} />
 
-      <View style={[
-        styles.header,
-        {
-          paddingTop: Math.max(insets.top, 10),
-          backgroundColor: colors.background?.paper || '#FFFFFF',
-          borderBottomWidth: safeWidth.thin,
-          borderBottomColor: colors.border?.light || colors.neutral?.gray?.[200] || '#E5E7EB',
-          ...TOKENS.shadows.sm,
-        }
-      ]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: Math.max(insets.top, 10),
+          },
+        ]}
+      >
         <View style={[styles.headerContent, { paddingHorizontal: spacing.md || TOKENS.spacing.md }]}>
           <View style={styles.headerLeftContainer}>
             <TouchableOpacity
-              style={styles.backButton}
+              style={styles.backButtonGlass}
               onPress={() => navigation.goBack()}
               activeOpacity={0.7}
             >
-              <Ionicons name="arrow-back" size={24} color={colors.primary?.[500] || COLORS.primary[500]} />
+              <Ionicons name="arrow-back" size={22} color="#FFF" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.headerTitleContainer}>
-            <Text
-              style={[
-                styles.headerTitle,
-                {
-                  color: colors.text?.primary || '#00171F',
-                  fontSize: typography.fontSize?.xl || 20,
-                  fontWeight: typography.fontWeight?.bold || '700',
-                }
-              ]}
-              numberOfLines={1}
-            >
-              Método de Pago
+            <Text style={styles.headerTitleGlass} numberOfLines={1}>
+              Método de pago
             </Text>
           </View>
 
@@ -1019,19 +1041,25 @@ const OpcionesPagoScreen = () => {
 
       <ScrollView
         style={styles.content}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.seccion}>
           <Text style={styles.seccionTitulo}>Resumen del Pedido</Text>
 
           <View style={styles.resumenPedidoCard}>
+            {Platform.OS === 'ios' ? (
+              <BlurView intensity={28} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+            ) : null}
             {resumenGlobal.serviciosDetalle.map((servicio, index) => (
               <View key={index} style={styles.servicioResumenCard}>
+                {Platform.OS === 'ios' ? (
+                  <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+                ) : null}
                 <View style={styles.servicioResumenInfo}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Text style={[styles.servicioResumenNombre, { flex: 1, marginRight: 8 }]}>{servicio.servicio}</Text>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#003459' }}>
+                    <Text style={styles.precioLinea}>
                       ${(servicio.precioOriginal || servicio.precio).toLocaleString('es-CL')}
                     </Text>
                   </View>
@@ -1039,24 +1067,24 @@ const OpcionesPagoScreen = () => {
                     <Ionicons
                       name={servicio.tipoProveedor === 'Taller' ? 'business' : 'person'}
                       size={14}
-                      color="#666666"
+                      color={TEXT_MUTED_GLASS}
                     />
                     <Text style={styles.proveedorResumenNombre}>{servicio.proveedor}</Text>
                   </View>
                   <View style={styles.fechaHoraRow}>
                     <View style={styles.fechaHoraItem}>
-                      <Ionicons name="calendar-outline" size={14} color="#666666" />
+                      <Ionicons name="calendar-outline" size={14} color={TEXT_MUTED_GLASS} />
                       <Text style={styles.fechaHoraTexto}>{servicio.fecha}</Text>
                     </View>
                     <View style={styles.fechaHoraItem}>
-                      <Ionicons name="time-outline" size={14} color="#666666" />
+                      <Ionicons name="time-outline" size={14} color={TEXT_MUTED_GLASS} />
                       <Text style={styles.fechaHoraTexto}>{servicio.hora}</Text>
                     </View>
                   </View>
                   {servicio.ubicacion && (
                     <View style={styles.fechaHoraRow}>
                       <View style={styles.fechaHoraItem}>
-                        <Ionicons name="location-outline" size={14} color="#666666" />
+                        <Ionicons name="location-outline" size={14} color={TEXT_MUTED_GLASS} />
                         <Text style={styles.fechaHoraTexto} numberOfLines={1}>{servicio.ubicacion}</Text>
                       </View>
                     </View>
@@ -1097,7 +1125,7 @@ const OpcionesPagoScreen = () => {
                   {/* Solo mostrar mano de obra (lo que falta pagar) */}
                   <View style={styles.desgloseRow}>
                     <View style={styles.desgloseItem}>
-                      <Ionicons name="construct-outline" size={20} color={COLORS.primary} />
+                      <Ionicons name="construct-outline" size={20} color={ACCENT_CYAN} />
                       <Text style={styles.desgloseLabel}>🔧 Mano de obra (sin IVA)</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
@@ -1157,7 +1185,7 @@ const OpcionesPagoScreen = () => {
                       {resumenGlobal.costoManoObraSinIva > 0 && <View style={styles.desgloseDivider} />}
                       <View style={styles.desgloseRow}>
                         <View style={styles.desgloseItem}>
-                          <Ionicons name="cog-outline" size={20} color="#666666" />
+                          <Ionicons name="cog-outline" size={20} color={TEXT_MUTED_GLASS} />
                           <Text style={styles.desgloseLabel}>📦 Repuestos</Text>
                         </View>
                         <Text style={styles.desgloseValue}>
@@ -1173,10 +1201,10 @@ const OpcionesPagoScreen = () => {
                       <View style={styles.desgloseDivider} />
                       <View style={styles.desgloseRow}>
                         <View style={styles.desgloseItem}>
-                          <Ionicons name="car-outline" size={20} color="#FF9800" />
-                          <Text style={[styles.desgloseLabel, { color: '#FF9800' }]}>🚚 Gestión de compra (sin IVA)</Text>
+                          <Ionicons name="car-outline" size={20} color="#FBBF24" />
+                          <Text style={[styles.desgloseLabel, { color: '#FBBF24' }]}>🚚 Gestión de compra (sin IVA)</Text>
                         </View>
-                        <Text style={[styles.desgloseValue, { color: '#FF9800' }]}>
+                        <Text style={[styles.desgloseValue, { color: '#FBBF24' }]}>
                           ${Math.round(resumenGlobal.costoGestionCompraSinIva).toLocaleString('es-CL')}
                         </Text>
                       </View>
@@ -1227,9 +1255,9 @@ const OpcionesPagoScreen = () => {
                   Alert.alert('Cotización de Repuestos', 'Ver imagen de cotización de la casa de repuestos');
                 }}
               >
-                <Ionicons name="document-text-outline" size={20} color={COLORS.primary} />
+                <Ionicons name="document-text-outline" size={20} color={ACCENT_BLUE} />
                 <Text style={styles.fotoCotizacionText}>Ver cotización de repuestos</Text>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.primary} />
+                <Ionicons name="chevron-forward" size={18} color={ACCENT_BLUE} />
               </TouchableOpacity>
             )}
 
@@ -1405,7 +1433,7 @@ const OpcionesPagoScreen = () => {
             {/* Alerta si el proveedor no puede recibir pagos */}
             {!resumenGlobal.proveedorPuedeRecibirPagos && (
               <View style={styles.warningProveedorCard}>
-                <Ionicons name="warning" size={24} color="#E65100" />
+                <Ionicons name="warning" size={24} color="#FBBF24" />
                 <View style={styles.warningProveedorContent}>
                   <Text style={styles.warningProveedorTitulo}>Proveedor sin Mercado Pago</Text>
                   <Text style={styles.warningProveedorTexto}>
@@ -1418,7 +1446,7 @@ const OpcionesPagoScreen = () => {
 
             {/* Info de pago seguro */}
             <View style={styles.infoSeguroCard}>
-              <Ionicons name="shield-checkmark" size={20} color={COLORS.primary} />
+              <Ionicons name="shield-checkmark" size={20} color={ACCENT_MINT} />
               <Text style={styles.infoSeguroTexto}>
                 El pago va directamente a la cuenta de Mercado Pago del proveedor. Mecanimovil no interviene en la transacción.
               </Text>
@@ -1433,7 +1461,7 @@ const OpcionesPagoScreen = () => {
             <View style={styles.desgloseCard}>
               <View style={[styles.desgloseRow, { marginBottom: 8 }]}>
                 <View style={styles.desgloseItem}>
-                  <Ionicons name="receipt-outline" size={20} color={TOKENS.colors.text.secondary} />
+                  <Ionicons name="receipt-outline" size={20} color={TEXT_MUTED_GLASS} />
                   <Text style={styles.desgloseLabel}>Total Servicios</Text>
                 </View>
                 <Text style={styles.desgloseValue}>
@@ -1443,7 +1471,7 @@ const OpcionesPagoScreen = () => {
 
               <View style={styles.desgloseRow}>
                 <View style={styles.desgloseItem}>
-                  <Ionicons name="documents-outline" size={20} color={TOKENS.colors.text.secondary} />
+                  <Ionicons name="documents-outline" size={20} color={TEXT_MUTED_GLASS} />
                   <Text style={styles.desgloseLabel}>IVA (19%)</Text>
                 </View>
                 <Text style={styles.desgloseValue}>
@@ -1469,7 +1497,7 @@ const OpcionesPagoScreen = () => {
         {(esSolicitudPublica || esOfertaSecundaria) && resumenGlobal?.incluyeRepuestosSinDesglose && (
           <View style={styles.seccion}>
             <View style={styles.infoRepuestosSinDesgloseCard}>
-              <Ionicons name="information-circle" size={24} color="#1976D2" />
+              <Ionicons name="information-circle" size={24} color={ACCENT_BLUE} />
               <View style={styles.infoRepuestosSinDesgloseContent}>
                 <Text style={styles.infoRepuestosSinDesgloseTitulo}>Servicio con Repuestos</Text>
                 <Text style={styles.infoRepuestosSinDesgloseTexto}>
@@ -1497,7 +1525,7 @@ const OpcionesPagoScreen = () => {
             onPress={() => setMetodoPagoSeleccionado(METODOS_PAGO.MERCADOPAGO)}
             activeOpacity={0.7}
           >
-            <Ionicons name="card-outline" size={28} color={metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO ? TOKENS.colors.primary[500] : TOKENS.colors.text.tertiary} />
+            <Ionicons name="card-outline" size={28} color={metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO ? ACCENT_CYAN : TEXT_MUTED_GLASS} />
             <View style={styles.metodoInfo}>
               <Text style={[
                 styles.metodoNombre,
@@ -1510,7 +1538,7 @@ const OpcionesPagoScreen = () => {
               </Text>
             </View>
             {metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO && (
-              <Ionicons name="checkmark-circle" size={24} color={TOKENS.colors.primary[500]} />
+              <Ionicons name="checkmark-circle" size={24} color={ACCENT_MINT} />
             )}
           </TouchableOpacity>
 
@@ -1519,8 +1547,11 @@ const OpcionesPagoScreen = () => {
         {/* Información de Mercado Pago */}
         <View style={styles.seccion}>
           <View style={styles.infoCard}>
+            {Platform.OS === 'ios' ? (
+              <BlurView intensity={22} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
+            ) : null}
             <View style={styles.infoHeader}>
-              <Ionicons name="information-circle" size={24} color={TOKENS.colors.info.main} />
+              <Ionicons name="information-circle" size={24} color={ACCENT_BLUE} />
               <Text style={styles.infoTitulo}>Pago con Mercado Pago</Text>
             </View>
             <View style={styles.infoContent}>
@@ -1543,12 +1574,12 @@ const OpcionesPagoScreen = () => {
               aceptaTerminos && styles.checkboxChecked
             ]}>
               {aceptaTerminos && (
-                <Ionicons name="checkmark" size={18} color={TOKENS.colors.text.inverse} />
+                <Ionicons name="checkmark" size={18} color="#FFF" />
               )}
             </View>
             <View style={styles.terminosTextoContainer}>
               <Text style={styles.terminosTexto}>
-                Acepto los términos y el <Text style={{ color: TOKENS.colors.primary[600], textDecorationLine: 'underline' }} onPress={(e) => { e.stopPropagation(); setModalAcuerdoVisible(true); }}>Acuerdo de Servicio</Text>
+                Acepto los términos y el <Text style={{ color: ACCENT_BLUE, textDecorationLine: 'underline' }} onPress={(e) => { e.stopPropagation(); setModalAcuerdoVisible(true); }}>Acuerdo de Servicio</Text>
               </Text>
               <Text style={styles.terminosSubtexto}>
                 Estableces un contrato protegido por la Plataforma
@@ -1567,22 +1598,29 @@ const OpcionesPagoScreen = () => {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         {metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO ? (
           <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (!aceptaTerminos || creandoPreferencia) && styles.primaryButtonDisabled
-            ]}
             onPress={handlePagarConMercadoPago}
             disabled={!aceptaTerminos || creandoPreferencia}
-            activeOpacity={0.8}
+            activeOpacity={0.88}
+            style={{ width: '100%', borderRadius: 16, overflow: 'hidden' }}
           >
+            <LinearGradient
+              colors={
+                !aceptaTerminos || creandoPreferencia
+                  ? ['rgba(75,85,99,0.65)', 'rgba(55,65,81,0.65)']
+                  : ['#007EA7', '#00A8E8']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.primaryButtonGradient}
+            >
             {creandoPreferencia ? (
               <>
-                <ActivityIndicator size="small" color={TOKENS.colors.text.inverse} style={{ marginRight: 8 }} />
+                <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 8 }} />
                 <Text style={styles.primaryButtonText}>Procesando...</Text>
               </>
             ) : (
               <>
-                <Ionicons name="card" size={20} color={TOKENS.colors.text.inverse} />
+                <Ionicons name="card" size={20} color="#FFF" />
                 <Text style={styles.primaryButtonText}>
                   {(() => {
                     // Si es solicitud pública con desglose de repuestos
@@ -1612,34 +1650,43 @@ const OpcionesPagoScreen = () => {
                 </Text>
               </>
             )}
+            </LinearGradient>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              !aceptaTerminos && styles.primaryButtonDisabled
-            ]}
             onPress={handleEnviarComprobante}
             disabled={!aceptaTerminos}
-            activeOpacity={0.8}
+            activeOpacity={0.88}
+            style={{ width: '100%', borderRadius: 16, overflow: 'hidden', opacity: !aceptaTerminos ? 0.45 : 1 }}
           >
-            <Ionicons name="logo-whatsapp" size={20} color={TOKENS.colors.text.inverse} />
-            <Text style={styles.primaryButtonText}>Enviar Comprobante por WhatsApp</Text>
+            <LinearGradient
+              colors={['#0F766E', '#22C55E']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.primaryButtonGradient}
+            >
+              <Ionicons name="logo-whatsapp" size={20} color="#FFF" />
+              <Text style={styles.primaryButtonText}>Enviar Comprobante por WhatsApp</Text>
+            </LinearGradient>
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </PaymentGlassBackdrop>
   );
 };
 
-const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.create({
+const getStyles = (typography, spacing, insets) => StyleSheet.create({
+  glassSafeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: colors?.background?.default || '#F8F9FA',
+    backgroundColor: DARK_BG,
   },
   container: {
     flex: 1,
-    backgroundColor: colors?.background?.default || '#F8F9FA',
+    backgroundColor: 'transparent',
   },
   loadingContainer: {
     flex: 1,
@@ -1649,7 +1696,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   },
   loadingText: {
     fontSize: TOKENS.typography.fontSize.md,
-    color: TOKENS.colors.text.secondary,
+    color: TEXT_SECONDARY_GLASS,
     marginTop: TOKENS.spacing.md,
     fontWeight: TOKENS.typography.fontWeight.medium,
   },
@@ -1662,13 +1709,13 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   errorTitle: {
     fontSize: TOKENS.typography.fontSize.xl,
     fontWeight: TOKENS.typography.fontWeight.bold,
-    color: TOKENS.colors.text.primary,
+    color: TEXT_PRIMARY_GLASS,
     marginTop: TOKENS.spacing.md,
     marginBottom: TOKENS.spacing.sm,
   },
   errorText: {
     fontSize: TOKENS.typography.fontSize.md,
-    color: TOKENS.colors.text.secondary,
+    color: TEXT_SECONDARY_GLASS,
     textAlign: 'center',
     marginBottom: TOKENS.spacing.xl,
     lineHeight: 24,
@@ -1676,16 +1723,15 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   retryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: TOKENS.colors.primary[500],
+    backgroundColor: ACCENT_CYAN,
     paddingVertical: TOKENS.spacing.md,
     paddingHorizontal: TOKENS.spacing.xl,
     borderRadius: 16,
     gap: TOKENS.spacing.sm,
     marginBottom: TOKENS.spacing.md,
-    ...TOKENS.shadows.md,
   },
   retryButtonText: {
-    color: TOKENS.colors.text.inverse,
+    color: '#FFF',
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.semibold,
   },
@@ -1694,12 +1740,14 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     paddingHorizontal: TOKENS.spacing.md,
   },
   backButtonText: {
-    color: TOKENS.colors.primary[500],
+    color: ACCENT_BLUE,
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.medium,
   },
   header: {
-    // Estilos inline aplicados desde el componente
+    borderBottomWidth: 1,
+    borderBottomColor: GLASS_BORDER,
+    backgroundColor: 'transparent',
   },
   headerContent: {
     flexDirection: 'row',
@@ -1717,14 +1765,28 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     alignItems: 'center',
     borderRadius: TOKENS.borders.radius.full,
   },
+  backButtonGlass: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+  },
   headerTitleContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: TOKENS.spacing.sm,
   },
-  headerTitle: {
-    // Estilos inline aplicados desde el componente
+  headerTitle: {},
+  headerTitleGlass: {
+    fontSize: typography?.fontSize?.xl || 18,
+    fontWeight: typography?.fontWeight?.bold || '700',
+    color: TEXT_PRIMARY_GLASS,
+    letterSpacing: 0.3,
   },
   headerRightContainer: {
     width: 40,
@@ -1743,7 +1805,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   seccionTitulo: {
     fontSize: TOKENS.typography.fontSize.lg,
     fontWeight: TOKENS.typography.fontWeight.bold,
-    color: TOKENS.colors.text.primary,
+    color: TEXT_PRIMARY_GLASS,
     marginBottom: TOKENS.spacing.md,
   },
   metodoPagoCard: {
@@ -1775,14 +1837,29 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     borderWidth: TOKENS.borders.width.thin,
     borderColor: TOKENS.colors.border.light,
   },
+  servicioResumenCard: {
+    position: 'relative',
+    borderRadius: 16,
+    marginBottom: TOKENS.spacing.sm,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    backgroundColor: GLASS_BG,
+    padding: TOKENS.spacing.md,
+  },
   servicioResumenInfo: {
     flex: 1,
   },
   servicioResumenNombre: {
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.semibold,
-    color: TOKENS.colors.text.primary,
+    color: TEXT_PRIMARY_GLASS,
     marginBottom: 4,
+  },
+  precioLinea: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: ACCENT_MINT,
   },
   proveedorResumenRow: {
     flexDirection: 'row',
@@ -1791,7 +1868,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   },
   proveedorResumenNombre: {
     fontSize: TOKENS.typography.fontSize.sm,
-    color: TOKENS.colors.text.secondary,
+    color: TEXT_SECONDARY_GLASS,
     marginLeft: 6,
   },
   fechaHoraRow: {
@@ -1805,17 +1882,18 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   },
   fechaHoraTexto: {
     fontSize: TOKENS.typography.fontSize.xs,
-    color: TOKENS.colors.text.tertiary,
+    color: TEXT_MUTED_GLASS,
     marginLeft: 4,
   },
   // Card wrapper for order summary
   resumenPedidoCard: {
-    backgroundColor: TOKENS.colors.background.paper,
-    borderRadius: 24,
+    position: 'relative',
+    backgroundColor: GLASS_BG,
+    borderRadius: 20,
     padding: TOKENS.spacing.md,
-    borderWidth: TOKENS.borders.width.thin,
-    borderColor: TOKENS.colors.border.main,
-    ...TOKENS.shadows.md,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
+    overflow: 'hidden',
   },
   totalResumenCard: {
     backgroundColor: TOKENS.colors.neutral.inkBlack,
@@ -1840,16 +1918,16 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   metodoButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: TOKENS.colors.background.paper,
+    backgroundColor: GLASS_BG,
     padding: TOKENS.spacing.md,
-    borderRadius: TOKENS.borders.radius.md,
+    borderRadius: 16,
     marginBottom: TOKENS.spacing.sm,
-    borderWidth: 2, // Highlight border
-    borderColor: TOKENS.colors.border.main,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
   },
   metodoButtonSelected: {
-    borderColor: TOKENS.colors.primary[500],
-    backgroundColor: TOKENS.colors.primary[50],
+    borderColor: 'rgba(0,168,232,0.55)',
+    backgroundColor: 'rgba(0,168,232,0.12)',
   },
   metodoInfo: {
     flex: 1,
@@ -1858,35 +1936,36 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   metodoNombre: {
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.semibold,
-    color: TOKENS.colors.text.primary,
+    color: TEXT_PRIMARY_GLASS,
   },
   metodoNombreSelected: {
-    color: TOKENS.colors.primary[700],
+    color: ACCENT_BLUE,
   },
   metodoDescripcion: {
     fontSize: TOKENS.typography.fontSize.sm,
-    color: TOKENS.colors.text.secondary,
+    color: TEXT_SECONDARY_GLASS,
     marginTop: 2,
   },
   infoCard: {
-    backgroundColor: TOKENS.colors.background.paper,
-    borderRadius: TOKENS.borders.radius.md,
+    position: 'relative',
+    backgroundColor: GLASS_BG,
+    borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: TOKENS.borders.width.thin,
-    borderColor: TOKENS.colors.border.main,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
   },
   infoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: TOKENS.spacing.md,
-    backgroundColor: TOKENS.colors.info[50],
-    borderBottomWidth: TOKENS.borders.width.thin,
-    borderBottomColor: TOKENS.colors.border.light,
+    backgroundColor: 'rgba(59,130,246,0.12)',
+    borderBottomWidth: 1,
+    borderBottomColor: GLASS_BORDER,
   },
   infoTitulo: {
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.semibold,
-    color: TOKENS.colors.text.primary,
+    color: ACCENT_BLUE,
     marginLeft: TOKENS.spacing.sm,
   },
   infoContent: {
@@ -1908,32 +1987,32 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   },
   infoTexto: {
     fontSize: TOKENS.typography.fontSize.base,
-    color: TOKENS.colors.text.primary,
-    lineHeight: 18,
+    color: TEXT_SECONDARY_GLASS,
+    lineHeight: 22,
   },
   terminosContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: TOKENS.colors.background.paper,
-    borderRadius: TOKENS.borders.radius.md,
+    backgroundColor: GLASS_BG,
+    borderRadius: 16,
     padding: TOKENS.spacing.md,
-    borderWidth: TOKENS.borders.width.thin,
-    borderColor: TOKENS.colors.border.main,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: TOKENS.borders.radius.sm,
     borderWidth: 2,
-    borderColor: TOKENS.colors.neutral.gray[400],
+    borderColor: 'rgba(255,255,255,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: TOKENS.spacing.md,
     marginTop: 2,
   },
   checkboxChecked: {
-    backgroundColor: TOKENS.colors.primary[500],
-    borderColor: TOKENS.colors.primary[500],
+    backgroundColor: ACCENT_CYAN,
+    borderColor: ACCENT_CYAN,
   },
   terminosTextoContainer: {
     flex: 1,
@@ -1941,13 +2020,13 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   terminosTexto: {
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.semibold,
-    color: TOKENS.colors.text.primary,
+    color: TEXT_PRIMARY_GLASS,
     marginBottom: 4,
     lineHeight: 22,
   },
   terminosSubtexto: {
     fontSize: TOKENS.typography.fontSize.sm,
-    color: TOKENS.colors.text.secondary,
+    color: TEXT_MUTED_GLASS,
     lineHeight: 18,
   },
   servicioCard: {
@@ -1957,27 +2036,23 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     borderRadius: 24,
   },
   footer: {
-    backgroundColor: TOKENS.colors.background.paper,
+    backgroundColor: 'rgba(3,7,18,0.94)',
     paddingHorizontal: TOKENS.spacing.lg,
     paddingTop: TOKENS.spacing.md,
-    borderTopWidth: TOKENS.borders.width.thin,
-    borderTopColor: TOKENS.colors.border.light,
-    ...TOKENS.shadows.lg, // Use reversed shadow logic if possible, or just large shadow
+    borderTopWidth: 1,
+    borderTopColor: GLASS_BORDER,
   },
-  primaryButton: {
-    backgroundColor: '#007EA7',
+  primaryButtonGradient: {
     paddingVertical: TOKENS.spacing.md,
     paddingHorizontal: TOKENS.spacing.lg,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-  },
-  primaryButtonDisabled: {
-    backgroundColor: TOKENS.colors.neutral.gray[400],
+    width: '100%',
   },
   primaryButtonText: {
-    color: TOKENS.colors.text.inverse,
+    color: '#FFFFFF',
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.semibold,
     marginHorizontal: TOKENS.spacing.sm,
@@ -2122,13 +2197,12 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   },
   // Estilos para desglose de repuestos
   desgloseCard: {
-    backgroundColor: TOKENS.colors.background.paper,
-    borderRadius: 24,
+    backgroundColor: GLASS_BG,
+    borderRadius: 20,
     padding: TOKENS.spacing.lg,
-    borderWidth: 2,
-    borderColor: TOKENS.colors.primary[100],
+    borderWidth: 1,
+    borderColor: 'rgba(110,231,183,0.22)',
     marginBottom: TOKENS.spacing.sm,
-    ...TOKENS.shadows.lg,
   },
   desgloseRow: {
     flexDirection: 'row',
@@ -2144,20 +2218,20 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   desgloseLabel: {
     fontSize: 14,
     fontWeight: TOKENS.typography.fontWeight.medium,
-    color: TOKENS.colors.text.secondary,
+    color: TEXT_SECONDARY_GLASS,
   },
   desgloseValue: {
     fontSize: 14,
     fontWeight: TOKENS.typography.fontWeight.semibold,
-    color: TOKENS.colors.text.primary,
+    color: TEXT_PRIMARY_GLASS,
   },
   desgloseDivider: {
     height: 1,
-    backgroundColor: TOKENS.colors.border.light,
+    backgroundColor: GLASS_BORDER,
     marginVertical: 4,
   },
   desgloseTotalRow: {
-    backgroundColor: '#1F2937',
+    backgroundColor: 'rgba(0,0,0,0.35)',
     marginHorizontal: -TOKENS.spacing.lg,
     paddingHorizontal: TOKENS.spacing.lg,
     paddingVertical: 16,
@@ -2180,32 +2254,34 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: TOKENS.colors.info[50],
-    borderRadius: TOKENS.borders.radius.md,
+    backgroundColor: 'rgba(59,130,246,0.12)',
+    borderRadius: 14,
     padding: TOKENS.spacing.sm,
     marginBottom: TOKENS.spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.25)',
   },
   fotoCotizacionText: {
     flex: 1,
     fontSize: TOKENS.typography.fontSize.sm,
-    color: TOKENS.colors.info[700],
+    color: ACCENT_BLUE,
     fontWeight: TOKENS.typography.fontWeight.semibold,
     marginLeft: 10,
   },
   // Estilos para opciones de tipo de pago
   tipoPagoButton: {
-    backgroundColor: TOKENS.colors.background.paper,
-    borderRadius: TOKENS.borders.radius.md,
+    backgroundColor: GLASS_BG,
+    borderRadius: 16,
     padding: TOKENS.spacing.md,
     marginBottom: TOKENS.spacing.sm,
-    borderWidth: 2,
-    borderColor: TOKENS.colors.border.main,
+    borderWidth: 1,
+    borderColor: GLASS_BORDER,
     position: 'relative',
     overflow: 'hidden',
   },
   tipoPagoButtonSelected: {
-    borderColor: TOKENS.colors.primary[500],
-    backgroundColor: TOKENS.colors.primary[50],
+    borderColor: 'rgba(0,168,232,0.55)',
+    backgroundColor: 'rgba(0,168,232,0.1)',
   },
   tipoPagoHeader: {
     flexDirection: 'row',
@@ -2221,34 +2297,34 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   tipoPagoTitulo: {
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.bold,
-    color: TOKENS.colors.text.primary,
+    color: TEXT_PRIMARY_GLASS,
   },
   tipoPagoMonto: {
     fontSize: TOKENS.typography.fontSize.lg,
     fontWeight: TOKENS.typography.fontWeight.extrabold,
-    color: TOKENS.colors.primary[600],
+    color: ACCENT_MINT,
   },
   tipoPagoDetalle: {
     fontSize: 11,
-    color: TOKENS.colors.warning[500],
+    color: 'rgba(251,191,36,0.95)',
     fontWeight: TOKENS.typography.fontWeight.medium,
     marginTop: 2,
   },
   tipoPagoDescripcion: {
     fontSize: TOKENS.typography.fontSize.sm,
-    color: TOKENS.colors.text.secondary,
+    color: TEXT_SECONDARY_GLASS,
     lineHeight: 18,
     marginLeft: 36,
   },
   infoPagoParcialCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: TOKENS.colors.success[50],
-    borderRadius: TOKENS.borders.radius.md,
+    backgroundColor: 'rgba(16,185,129,0.14)',
+    borderRadius: 14,
     padding: TOKENS.spacing.sm,
     marginBottom: TOKENS.spacing.sm,
     borderWidth: 1,
-    borderColor: TOKENS.colors.success[200],
+    borderColor: 'rgba(16,185,129,0.35)',
   },
   infoPagoParcialContent: {
     flex: 1,
@@ -2257,19 +2333,19 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   infoPagoParcialTitulo: {
     fontSize: TOKENS.typography.fontSize.sm,
     fontWeight: TOKENS.typography.fontWeight.bold,
-    color: TOKENS.colors.success[700],
+    color: ACCENT_MINT,
     marginBottom: 4,
   },
   infoPagoParcialTexto: {
     fontSize: TOKENS.typography.fontSize.sm,
-    color: TOKENS.colors.success[600],
+    color: TEXT_SECONDARY_GLASS,
     lineHeight: 18,
   },
   tipoPagoBadge: {
     position: 'absolute',
     top: 0,
     right: 0,
-    backgroundColor: TOKENS.colors.success[500],
+    backgroundColor: 'rgba(16,185,129,0.85)',
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderBottomLeftRadius: 12,
@@ -2285,30 +2361,30 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: TOKENS.colors.neutral.gray[300],
+    borderColor: 'rgba(255,255,255,0.35)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     marginTop: 2,
   },
   radioButtonSelected: {
-    borderColor: TOKENS.colors.primary[500],
+    borderColor: ACCENT_CYAN,
   },
   radioButtonInner: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: TOKENS.colors.primary[500],
+    backgroundColor: ACCENT_CYAN,
   },
   warningProveedorCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: TOKENS.colors.warning[50],
-    borderRadius: TOKENS.borders.radius.md,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderRadius: 16,
     padding: TOKENS.spacing.md,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: TOKENS.colors.warning[200],
+    borderColor: 'rgba(245,158,11,0.35)',
     gap: 12,
   },
   warningProveedorContent: {
@@ -2317,38 +2393,40 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   warningProveedorTitulo: {
     fontSize: TOKENS.typography.fontSize.sm,
     fontWeight: TOKENS.typography.fontWeight.bold,
-    color: TOKENS.colors.warning[800],
+    color: '#FCD34D',
     marginBottom: 4,
   },
   warningProveedorTexto: {
     fontSize: TOKENS.typography.fontSize.sm,
-    color: TOKENS.colors.warning[900],
+    color: TEXT_SECONDARY_GLASS,
     lineHeight: 18,
   },
   infoSeguroCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: TOKENS.colors.success[50],
-    borderRadius: TOKENS.borders.radius.md,
+    backgroundColor: 'rgba(16,185,129,0.12)',
+    borderRadius: 14,
     padding: TOKENS.spacing.sm,
     marginTop: TOKENS.spacing.sm,
     gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.25)',
   },
   infoSeguroTexto: {
     flex: 1,
     fontSize: TOKENS.typography.fontSize.xs,
-    color: TOKENS.colors.success[800],
-    lineHeight: 16,
+    color: TEXT_SECONDARY_GLASS,
+    lineHeight: 18,
   },
   // Estilos para mensaje de repuestos sin desglose
   infoRepuestosSinDesgloseCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: TOKENS.colors.info[50],
-    borderRadius: TOKENS.borders.radius.md,
+    backgroundColor: 'rgba(59,130,246,0.12)',
+    borderRadius: 16,
     padding: TOKENS.spacing.md,
     borderWidth: 1,
-    borderColor: TOKENS.colors.info[200],
+    borderColor: 'rgba(59,130,246,0.28)',
     gap: 12,
   },
   infoRepuestosSinDesgloseContent: {
@@ -2357,18 +2435,18 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
   infoRepuestosSinDesgloseTitulo: {
     fontSize: TOKENS.typography.fontSize.md,
     fontWeight: TOKENS.typography.fontWeight.bold,
-    color: TOKENS.colors.info[700],
+    color: ACCENT_BLUE,
     marginBottom: 6,
   },
   infoRepuestosSinDesgloseTexto: {
     fontSize: TOKENS.typography.fontSize.sm,
-    color: TOKENS.colors.text.secondary,
+    color: TEXT_SECONDARY_GLASS,
     lineHeight: 18,
     marginBottom: 10,
   },
   infoRepuestosSinDesgloseNota: {
     fontSize: TOKENS.typography.fontSize.xs,
-    color: TOKENS.colors.info[800],
+    color: TEXT_MUTED_GLASS,
     lineHeight: 16,
     fontStyle: 'italic',
   },

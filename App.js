@@ -19,8 +19,12 @@ import { SolicitudesProvider } from './app/context/SolicitudesContext';
 import { ChatsProvider } from './app/context/ChatsContext';
 import { FavoritesProvider } from './app/context/FavoritesContext';
 import { ThemeProvider } from './app/design-system/theme/ThemeProvider';
-import { COLORS } from './app/utils/constants';
-import { ROUTES } from './app/utils/constants';
+import {
+  COLORS,
+  ROUTES,
+  MP_CHECKOUT_WEBVIEW_ACTIVE_KEY,
+  MP_CHECKOUT_WEBVIEW_MAX_AGE_MS,
+} from './app/utils/constants';
 import SplashScreen from './app/components/utils/SplashScreen';
 import logger from './app/utils/logger';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -460,6 +464,29 @@ const Main = () => {
     }
   }, [navigationRef, isAuthenticated]);
 
+  /** Evita navegar a PaymentCallback por «pago pendiente» mientras el WebView de checkout sigue abierto (p. ej. Android inactive→active al usar el teclado). */
+  const shouldDeferPaymentCallbackForActiveCheckout = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY);
+      if (!raw) return false;
+      const ts = parseInt(raw, 10);
+      if (!Number.isFinite(ts)) {
+        await AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY);
+        return false;
+      }
+      if (Date.now() - ts > MP_CHECKOUT_WEBVIEW_MAX_AGE_MS) {
+        await AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY);
+        return false;
+      }
+      logger.debug(
+        '🛒 Checkout WebView activo; no navegar a PaymentCallback desde foreground/nav-ready'
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   // Listener para deep links - debe funcionar incluso cuando la app se reinicia
   // Este listener es CRÍTICO para capturar deep links cuando Mercado Pago redirige
   useEffect(() => {
@@ -690,6 +717,9 @@ const Main = () => {
 
             // Si han pasado más de 3 segundos, probablemente el pago se completó
             if (tiempoTranscurrido > 3000) {
+              if (await shouldDeferPaymentCallbackForActiveCheckout()) {
+                return;
+              }
               logger.debug('💾 Datos de pago pendiente encontrados, navegando a PaymentCallbackScreen para verificar estado');
 
               // Navegar a PaymentCallbackScreen para que verifique el estado del pago
@@ -713,7 +743,13 @@ const Main = () => {
     }, 1000); // Aumentado a 1 segundo para dar más tiempo en desarrollo local
 
     return () => clearTimeout(timeout);
-  }, [navigationRef, isAuthenticated, loading, navigateToPaymentCallback]); // Usar navigationRef, no navigationRef.isReady()
+  }, [
+    navigationRef,
+    isAuthenticated,
+    loading,
+    navigateToPaymentCallback,
+    shouldDeferPaymentCallbackForActiveCheckout,
+  ]); // Usar navigationRef, no navigationRef.isReady()
 
   // Listener para cuando la app vuelve al foreground después de estar en background
   // Esto es crítico cuando el usuario completa el pago en la app de Mercado Pago
@@ -816,30 +852,32 @@ const Main = () => {
             // Esto indica que el usuario probablemente completó el pago
             const tiempoTranscurrido = Date.now() - (pagoPendienteData.timestamp || 0);
             if (tiempoTranscurrido > 3000) {
-              logger.debug('⏱️ Han pasado más de 3 segundos, verificando estado del pago desde backend...');
+              if (!(await shouldDeferPaymentCallbackForActiveCheckout())) {
+                logger.debug('⏱️ Han pasado más de 3 segundos, verificando estado del pago desde backend...');
 
-              // #region agent log
-              fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  sessionId: 'debug-session',
-                  runId: 'run1',
-                  hypothesisId: 'L',
-                  location: 'App.js:Main:handleAppStateChange:pago_pendiente',
-                  message: 'Verificando estado del pago desde backend',
-                  data: { pago_pendiente_data: pagoPendienteData, tiempo_transcurrido: tiempoTranscurrido },
-                  timestamp: Date.now()
-                })
-              }).catch(() => { });
-              // #endregion
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    sessionId: 'debug-session',
+                    runId: 'run1',
+                    hypothesisId: 'L',
+                    location: 'App.js:Main:handleAppStateChange:pago_pendiente',
+                    message: 'Verificando estado del pago desde backend',
+                    data: { pago_pendiente_data: pagoPendienteData, tiempo_transcurrido: tiempoTranscurrido },
+                    timestamp: Date.now()
+                  })
+                }).catch(() => { });
+                // #endregion
 
-              // Navegar a PaymentCallbackScreen para que verifique el estado del pago
-              navigationRef.navigate('PaymentCallback', {
-                status: 'processing',
-                from_foreground: true,
-                ofertaId: pagoPendienteData.ofertaId
-              });
+                // Navegar a PaymentCallbackScreen para que verifique el estado del pago
+                navigationRef.navigate('PaymentCallback', {
+                  status: 'processing',
+                  from_foreground: true,
+                  ofertaId: pagoPendienteData.ofertaId
+                });
+              }
             }
           }
         } catch (e) {
@@ -855,7 +893,13 @@ const Main = () => {
     return () => {
       subscription?.remove();
     };
-  }, [isAuthenticated, loading, navigationRef, navigateToPaymentCallback]);
+  }, [
+    isAuthenticated,
+    loading,
+    navigationRef,
+    navigateToPaymentCallback,
+    shouldDeferPaymentCallbackForActiveCheckout,
+  ]);
 
   // Procesar deep link pendiente cuando el usuario se autentica automáticamente
   // Esto es CRÍTICO para desarrollo local cuando se abre una nueva instancia
@@ -923,8 +967,11 @@ const Main = () => {
             if (tiempoTranscurrido > 3000) {
               logger.debug('💾 Datos de pago pendiente encontrados después de autenticación, navegando a PaymentCallbackScreen');
 
-              setTimeout(() => {
+              setTimeout(async () => {
                 if (navigationRef.isReady() && isAuthenticated) {
+                  if (await shouldDeferPaymentCallbackForActiveCheckout()) {
+                    return;
+                  }
                   navigationRef.navigate('PaymentCallback', {
                     status: 'processing',
                     from_storage: true,
@@ -947,7 +994,13 @@ const Main = () => {
     }, 2500); // Aumentado a 2.5 segundos para desarrollo local
 
     return () => clearTimeout(timeout);
-  }, [isAuthenticated, loading, navigationRef, navigateToPaymentCallback]);
+  }, [
+    isAuthenticated,
+    loading,
+    navigationRef,
+    navigateToPaymentCallback,
+    shouldDeferPaymentCallbackForActiveCheckout,
+  ]);
 
   // Handler para onReady del NavigationContainer - Memoizado para evitar loops
   const onNavigationReady = useCallback(async () => {
@@ -1063,8 +1116,11 @@ const Main = () => {
 
           // Si el usuario está autenticado, navegar a PaymentCallbackScreen
           if (isAuthenticated && !loading) {
-            setTimeout(() => {
+            setTimeout(async () => {
               if (navigationRef.isReady() && isAuthenticated) {
+                if (await shouldDeferPaymentCallbackForActiveCheckout()) {
+                  return;
+                }
                 navigationRef.navigate('PaymentCallback', {
                   status: 'processing',
                   from_storage: true,
@@ -1090,7 +1146,13 @@ const Main = () => {
       // El useEffect que procesa deep links después de autenticación se encargará de esto
       logger.debug('⏳ Esperando autenticación antes de procesar deep links desde onReady...');
     }
-  }, [isAuthenticated, loading, navigationRef, navigateToPaymentCallback]);
+  }, [
+    isAuthenticated,
+    loading,
+    navigationRef,
+    navigateToPaymentCallback,
+    shouldDeferPaymentCallbackForActiveCheckout,
+  ]);
 
   // IMPORTANTE: Todos los hooks deben estar antes de cualquier return condicional
   if (loading) {
