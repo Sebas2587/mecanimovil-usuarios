@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
-import { View, Text, StyleSheet, Animated, Linking, AppState, LogBox as RNLogBox, Alert } from 'react-native';
+import { View, Text, StyleSheet, Animated, Linking, AppState, LogBox as RNLogBox, Alert, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import AuthNavigator from './app/navigation/AuthNavigator';
@@ -1169,6 +1169,48 @@ const Main = () => {
     shouldDeferPaymentCallbackForActiveCheckout,
   ]);
 
+  // Invitado + app nativa: abrir ficha pública si el deep link / URL inicial es marketplace (linking a veces llega tarde)
+  useEffect(() => {
+    if (Platform.OS === 'web' || isAuthenticated || loading) return;
+
+    const openPublicListing = (vehicleId) => {
+      if (!vehicleId || !navigationRef.isReady()) return;
+      try {
+        navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId });
+      } catch (e) {
+        logger.warn('No se pudo navegar a ficha pública:', e);
+      }
+    };
+
+    const scheduleOpenFromUrl = (url) => {
+      const vehicleId = parseMarketplaceVehicleIdFromUrl(url);
+      if (!vehicleId) return;
+      let attempts = 0;
+      const tick = () => {
+        if (navigationRef.isReady()) {
+          openPublicListing(vehicleId);
+          return;
+        }
+        if (attempts++ < 40) {
+          setTimeout(tick, 50);
+        }
+      };
+      tick();
+    };
+
+    Linking.getInitialURL().then((url) => {
+      if (url) scheduleOpenFromUrl(url);
+    });
+
+    const sub = Linking.addEventListener('url', (event) => {
+      if (event?.url) scheduleOpenFromUrl(event.url);
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, [isAuthenticated, loading, navigationRef]);
+
   // IMPORTANTE: Todos los hooks deben estar antes de cualquier return condicional
   if (loading) {
     return <SplashScreen />;
@@ -1185,7 +1227,7 @@ const Main = () => {
         {isAuthenticated ? (
           <AppNavigator />
         ) : (
-          <AuthNavigator initialRouteName={registerSuccess ? ROUTES.REGISTER : ROUTES.LOGIN} />
+          <AuthNavigator registerSuccess={registerSuccess} />
         )}
       </NavigationContainer>
     </Animated.View>
