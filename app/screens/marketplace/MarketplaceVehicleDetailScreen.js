@@ -17,11 +17,10 @@ import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
 import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
 
-const GLASS_BG = Platform.select({
-    ios: 'rgba(255,255,255,0.06)',
-    android: 'rgba(255,255,255,0.10)',
-    default: 'rgba(255,255,255,0.08)',
-});
+// Superficie glass alineada con banner marketplace / dark slate + acento ice
+const GLASS_BG = 'rgba(15,23,42,0.78)';
+const GLASS_BORDER = 'rgba(147,197,253,0.24)';
+const GLASS_BG_SUBTLE = 'rgba(255,255,255,0.05)';
 const BLUR_I = Platform.OS === 'ios' ? 40 : 0;
 const SCREEN_H = Dimensions.get('window').height;
 const HEALTH_MODAL_SCROLL_MAX_H = SCREEN_H * 0.68;
@@ -252,6 +251,8 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const isOwner = user?.id && sellerId && (String(user.id) === String(sellerId));
     const isAnonymousViewer = !user;
     const showPublicInstallCtas = Platform.OS === 'web' || isAnonymousViewer;
+    /** Ficha compartida / visitante: sin flecha atrás (landing limpia). */
+    const showBackButton = !isAnonymousViewer && Platform.OS !== 'web';
 
     const handleHeaderBack = () => {
         if (navigation.canGoBack()) {
@@ -363,21 +364,25 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         style={styles.headerGradient}
                     />
 
-                    {/* Header Controls */}
+                    {/* Header: atrás solo en app con sesión; badge alineado a la derecha en ficha pública */}
                     <View style={styles.topBar}>
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={handleHeaderBack}
-                        >
-                            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-
-                        {healthScore > 90 && (
+                        {showBackButton ? (
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={handleHeaderBack}
+                                accessibilityRole="button"
+                                accessibilityLabel="Volver"
+                            >
+                                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                            </TouchableOpacity>
+                        ) : null}
+                        <View style={styles.topBarSpacer} />
+                        {healthScore > 90 ? (
                             <View style={styles.certifiedBadge}>
                                 <Ionicons name="shield-checkmark" size={14} color="#FFFFFF" />
                                 <Text style={styles.certifiedText}>CERTIFICADO</Text>
                             </View>
-                        )}
+                        ) : null}
                     </View>
 
                     {/* Bottom Info */}
@@ -391,8 +396,32 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 <View style={styles.bodyContainer}>
 
                     {showPublicInstallCtas && (
-                        <MarketplaceDownloadBanner style={{ marginTop: 4 }} />
+                        <MarketplaceDownloadBanner style={{ marginTop: 4, marginHorizontal: 0 }} />
                     )}
+
+                    {!loading && fullVehicleData.seller?.nombre ? (
+                        <View style={styles.sellerCard}>
+                            <View style={styles.sellerAvatarWrap}>
+                                {fullVehicleData.seller.foto_url ? (
+                                    <Image
+                                        source={{ uri: fullVehicleData.seller.foto_url }}
+                                        style={styles.sellerAvatar}
+                                        contentFit="cover"
+                                    />
+                                ) : (
+                                    <View style={[styles.sellerAvatar, styles.sellerAvatarPlaceholder]}>
+                                        <Ionicons name="person" size={22} color="rgba(147,197,253,0.9)" />
+                                    </View>
+                                )}
+                            </View>
+                            <View style={styles.sellerTextCol}>
+                                <Text style={styles.sellerLabel}>Publicado por</Text>
+                                <Text style={styles.sellerName} numberOfLines={1}>
+                                    {fullVehicleData.seller.nombre}
+                                </Text>
+                            </View>
+                        </View>
+                    ) : null}
 
                     {/* Health Summary Card */}
                     <View style={styles.healthCard}>
@@ -493,7 +522,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 </View>
             </ScrollView>
 
-            {/* 3. Sticky Bottom Bar (Replaces old Contact Button) */}
+            {/* 3. Sticky Bottom Bar — glass continuo */}
             <View style={[styles.stickyBottomBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 20 }]}>
                 {Platform.OS === 'ios' && <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />}
                 <View style={styles.stickyBottomInner}>
@@ -755,9 +784,11 @@ const getStyles = (insets) => StyleSheet.create({
         left: 0,
         right: 0,
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
+    },
+    topBarSpacer: {
+        flex: 1,
     },
     backButton: {
         width: 40,
@@ -772,12 +803,12 @@ const getStyles = (insets) => StyleSheet.create({
     certifiedBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(16, 185, 129, 0.9)', // Success green translucent
-        paddingHorizontal: 10,
-        paddingVertical: 6,
+        backgroundColor: 'rgba(16, 185, 129, 0.35)',
+        paddingHorizontal: 12,
+        paddingVertical: 7,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
+        borderColor: 'rgba(110,231,183,0.45)',
     },
     certifiedText: {
         color: '#FFFFFF',
@@ -807,21 +838,64 @@ const getStyles = (insets) => StyleSheet.create({
     },
     // Body
     bodyContainer: {
-        marginTop: -24,
+        marginTop: -20,
         backgroundColor: 'transparent',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         paddingHorizontal: 20,
-        paddingTop: 24,
+        paddingTop: 20,
+    },
+    sellerCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: GLASS_BG,
+        borderRadius: 18,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: GLASS_BORDER,
+    },
+    sellerAvatarWrap: {
+        marginRight: 14,
+    },
+    sellerAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: GLASS_BORDER,
+    },
+    sellerAvatarPlaceholder: {
+        backgroundColor: GLASS_BG_SUBTLE,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    sellerTextCol: {
+        flex: 1,
+        minWidth: 0,
+    },
+    sellerLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: 'rgba(249,250,251,0.5)',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+        marginBottom: 2,
+    },
+    sellerName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#F9FAFB',
     },
     // Health Card
     healthCard: {
         backgroundColor: GLASS_BG,
         borderRadius: 18,
         padding: 20,
-        marginBottom: 32,
+        marginBottom: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderColor: GLASS_BORDER,
         overflow: 'hidden',
     },
     healthRow: {
@@ -860,10 +934,10 @@ const getStyles = (insets) => StyleSheet.create({
         marginBottom: 12,
     },
     detailButton: {
-        backgroundColor: 'rgba(147,197,253,0.12)',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 10,
+        backgroundColor: 'rgba(147,197,253,0.14)',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
         alignSelf: 'flex-start',
         borderWidth: 1,
         borderColor: 'rgba(147,197,253,0.35)',
@@ -879,9 +953,9 @@ const getStyles = (insets) => StyleSheet.create({
         backgroundColor: GLASS_BG,
         borderRadius: 18,
         padding: 20,
-        marginBottom: 32,
+        marginBottom: 24,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderColor: GLASS_BORDER,
         overflow: 'hidden',
     },
     specsGrid: {
@@ -910,13 +984,15 @@ const getStyles = (insets) => StyleSheet.create({
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 12,
+        marginTop: 8,
     },
     sectionTitle: {
-        fontSize: 18,
+        fontSize: 17,
         fontWeight: '700',
         color: '#F9FAFB',
         marginLeft: 10,
+        letterSpacing: 0.2,
     },
     timelineContainer: {
         paddingLeft: 0,
@@ -936,19 +1012,20 @@ const getStyles = (insets) => StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        paddingTop: 16,
+        paddingTop: 14,
         paddingHorizontal: 20,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.12)',
+        borderTopColor: GLASS_BORDER,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 12,
-        elevation: 16,
+        shadowOffset: { width: 0, height: -6 },
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+        elevation: 20,
         overflow: 'hidden',
         ...Platform.select({
             ios: { backgroundColor: 'transparent' },
-            default: { backgroundColor: 'rgba(3,7,18,0.96)' },
+            android: { backgroundColor: 'rgba(15,23,42,0.98)' },
+            default: { backgroundColor: 'rgba(15,23,42,0.98)' },
         }),
     },
     stickyBottomInner: {
@@ -988,11 +1065,11 @@ const getStyles = (insets) => StyleSheet.create({
     makeOfferButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: 22,
         paddingVertical: 14,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderColor: GLASS_BORDER,
         maxWidth: '58%',
     },
     makeOfferText: {
@@ -1059,7 +1136,7 @@ const getStyles = (insets) => StyleSheet.create({
         backgroundColor: GLASS_BG,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderColor: GLASS_BORDER,
     },
     detailProgressTrack: {
         height: 5,
