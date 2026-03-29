@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     acceptButton: {
         flex: 1,
         flexDirection: 'row',
-        backgroundColor: '#059669',
+        backgroundColor: '#007EA7',
         borderRadius: 14,
         justifyContent: 'center',
         alignItems: 'center',

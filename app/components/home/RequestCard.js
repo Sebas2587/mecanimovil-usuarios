@@ -180,7 +180,7 @@ const RequestCard = ({ request, onPress }) => {
                 {/* Always show time remaining if available */}
                 {request.tiempo_restante && (
                     <View style={styles.timeBadge}>
-                        <Ionicons name="time" size={12} color={colors.primary?.main || '#2563EB'} />
+                        <Ionicons name="time" size={12} color={colors.secondary?.[500] || '#007EA7'} />
                         <Text style={styles.timeText}>
                             {request.tiempo_restante}
                         </Text>
@@ -337,7 +337,7 @@ const getStyles = (theme) => {
         timeText: {
             fontSize: 12,
             fontWeight: '600',
-            color: colors.primary?.main || '#2563EB',
+            color: colors.secondary?.[500] || '#007EA7',
         }
     });
 };

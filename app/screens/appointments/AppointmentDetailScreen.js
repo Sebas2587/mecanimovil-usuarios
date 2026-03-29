@@ -138,7 +138,7 @@ const AppointmentDetailScreen = () => {
       case 'pendiente':
         return '#FF9500';
       case 'pago_validado':
-        return '#007AFF';
+        return '#007EA7';
       case 'confirmado':
         return '#0056CC';
       case 'en_proceso':
@@ -280,7 +280,7 @@ const AppointmentDetailScreen = () => {
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color="#007EA7" />
             <Text style={styles.loadingText}>Cargando detalles...</Text>
           </View>
         ) : agendamientoActual ? (
@@ -345,7 +345,7 @@ const AppointmentDetailScreen = () => {
             if (!lineas || lineas.length === 0) return null;
             return (
               <View style={styles.servicioResumenRow}>
-                <Ionicons name="construct" size={18} color="#007AFF" />
+                <Ionicons name="construct" size={18} color="#007EA7" />
                 <Text style={styles.servicioResumenLabel}>Servicio:</Text>
                 <Text style={styles.servicioResumenText} numberOfLines={1}>
                   {lineas[0].servicio_nombre || lineas[0].nombre || 'Servicio'}
@@ -364,7 +364,7 @@ const AppointmentDetailScreen = () => {
         {agendamientoActual.vehiculo_detail && (
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="car" size={24} color="#007AFF" />
+              <Ionicons name="car" size={24} color="#007EA7" />
               <Text style={styles.sectionTitle}>Vehículo</Text>
             </View>
             <View style={styles.vehicleInfo}>
@@ -388,7 +388,7 @@ const AppointmentDetailScreen = () => {
         {agendamientoActual.taller_detail && (
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="business" size={24} color="#007AFF" />
+              <Ionicons name="business" size={24} color="#007EA7" />
               <Text style={styles.sectionTitle}>Taller</Text>
             </View>
             <View style={styles.tallerInfo}>
@@ -403,13 +403,13 @@ const AppointmentDetailScreen = () => {
               <View style={styles.serviceDateTimeContainer}>
                 <Text style={styles.serviceDateTimeLabel}>Fecha y hora del servicio:</Text>
                 <View style={styles.serviceDateTimeRow}>
-                  <Ionicons name="calendar" size={16} color="#007AFF" />
+                  <Ionicons name="calendar" size={16} color="#007EA7" />
                   <Text style={styles.serviceDateTimeText}>
                     {formatearFecha(agendamientoActual.fecha_servicio)}
                   </Text>
                 </View>
                 <View style={styles.serviceDateTimeRow}>
-                  <Ionicons name="time" size={16} color="#007AFF" />
+                  <Ionicons name="time" size={16} color="#007EA7" />
                   <Text style={styles.serviceDateTimeText}>
                     {agendamientoActual.hora_servicio}
                   </Text>
@@ -422,14 +422,14 @@ const AppointmentDetailScreen = () => {
                   style={styles.actionButton}
                   onPress={handleLlamarTaller}
                 >
-                  <Ionicons name="call" size={16} color="#007AFF" />
+                  <Ionicons name="call" size={16} color="#007EA7" />
                   <Text style={styles.actionButtonText}>Llamar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={handleVerUbicacion}
                 >
-                  <Ionicons name="location" size={16} color="#007AFF" />
+                  <Ionicons name="location" size={16} color="#007EA7" />
                   <Text style={styles.actionButtonText}>Ver Ubicación</Text>
                 </TouchableOpacity>
               </View>
@@ -442,7 +442,7 @@ const AppointmentDetailScreen = () => {
           || (Array.isArray(agendamientoActual.lineas_detail) && agendamientoActual.lineas_detail.length > 0)) && (
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="construct" size={24} color="#007AFF" />
+              <Ionicons name="construct" size={24} color="#007EA7" />
               <Text style={styles.sectionTitle}>Servicios</Text>
             </View>
             <View style={styles.serviciosContainer}>
@@ -556,7 +556,7 @@ const AppointmentDetailScreen = () => {
         {/* Información de Pago */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="card" size={24} color="#007AFF" />
+            <Ionicons name="card" size={24} color="#007EA7" />
             <Text style={styles.sectionTitle}>Información de Pago</Text>
           </View>
           <View style={styles.paymentInfo}>
@@ -770,11 +770,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#007EA7',
   },
   actionButtonText: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#007EA7',
     fontWeight: '600',
     marginLeft: 6,
   },
@@ -809,7 +809,7 @@ const styles = StyleSheet.create({
   servicioPrecio: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#007EA7',
     marginBottom: 2,
   },
   servicioTipo: {
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#007EA7',
   },
   actionsContainer: {
     marginTop: 8,
@@ -869,7 +869,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#DC3545',
   },
   contactButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
   },
   actionButtonLargeText: {
     fontSize: 16,
@@ -881,7 +881,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#007EA7',
     marginBottom: 16,
   },
   serviceDateTimeLabel: {
@@ -916,12 +916,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F8FF',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#007EA7',
   },
   repuestosTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#007EA7',
     marginBottom: 8,
   },
   repuestosList: {
@@ -949,7 +949,7 @@ const styles = StyleSheet.create({
   },
   repuestosGeneral: {
     fontSize: 13,
-    color: '#007AFF',
+    color: '#007EA7',
     fontStyle: 'italic',
   },
   sinRepuestosSection: {
@@ -1004,7 +1004,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#007EA7',
     marginTop: 16,
   },
   errorContainer: {
@@ -1037,7 +1037,7 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
   },
   checklistButton: {
-    backgroundColor: '#28A745',
+    backgroundColor: '#007EA7',
   },
   checklistNoDisponible: {
     flexDirection: 'row',

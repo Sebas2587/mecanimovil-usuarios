@@ -270,7 +270,7 @@ const CategoryServicesListScreen = () => {
     retryButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: colors.primary?.[500] || '#003459',
+      backgroundColor: colors.secondary?.[500] || '#007EA7',
       paddingHorizontal: spacing?.lg || 24,
       paddingVertical: spacing?.md || 12,
       borderRadius: borders.radius?.full || 24,

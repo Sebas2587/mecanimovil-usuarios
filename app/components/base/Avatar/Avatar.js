@@ -135,7 +135,7 @@ const Avatar = ({
             width: dimension,
             height: dimension,
             borderRadius,
-            backgroundColor: source ? 'transparent' : (SAFE_COLORS.primary?.[500] || '#3B82F6'),
+            backgroundColor: source ? 'transparent' : (SAFE_COLORS.primary?.[500] || '#007EA7'),
           },
         ]}
       >

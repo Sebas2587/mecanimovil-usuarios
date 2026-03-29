@@ -1965,7 +1965,7 @@ const getStyles = (colors, typography, spacing, borders, insets) => StyleSheet.c
     ...TOKENS.shadows.lg, // Use reversed shadow logic if possible, or just large shadow
   },
   primaryButton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#007EA7',
     paddingVertical: TOKENS.spacing.md,
     paddingHorizontal: TOKENS.spacing.lg,
     borderRadius: 16,

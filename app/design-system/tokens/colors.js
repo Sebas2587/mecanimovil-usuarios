@@ -322,13 +322,14 @@ export const COLORS = {
   // Para efectos visuales que mantienen la armonía
   // ============================================
   gradients: {
-    primary: ['#003459', '#007EA7'],           // Deep Space Blue → Cerulean
-    secondary: ['#007EA7', '#00A8E8'],          // Cerulean → Fresh Sky
+    primary: ['#007EA7', '#00A8E8'],           // Cerulean → Fresh Sky (CTA principal)
+    secondary: ['#003459', '#007EA7'],          // Deep Space Blue → Cerulean
     accent: ['#00A8E8', '#00C9A7'],             // Fresh Sky → Success
     ocean: ['#003459', '#007EA7', '#00A8E8'],   // Tríptico azul
     sunset: ['#00A8E8', '#FFB84D'],             // Fresh Sky → Warning
     calm: ['#E6F5F9', '#FFFFFF'],              // Fondo suave
     dark: ['#00171F', '#003459'],               // Ink Black → Deep Space Blue
+    button: ['#007EA7', '#00A8E8'],             // Gradiente estándar para botones primarios
   },
 
   // ============================================

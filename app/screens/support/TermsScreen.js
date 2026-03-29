@@ -1,11 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, StatusBar } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS } from '../../utils/constants';
 
 const GLASS_BG = Platform.select({
   ios: 'rgba(255,255,255,0.06)',
@@ -15,40 +13,50 @@ const GLASS_BG = Platform.select({
 const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const TermsScreen = () => {
-  const navigation = useNavigation();
-
   const termsContent = [
     {
       title: '1. Aceptación de los Términos',
-      content: 'Al utilizar la aplicación MecaniMóvil, usted acepta estar sujeto a estos términos y condiciones de uso. Si no está de acuerdo con alguno de estos términos, no debe utilizar nuestra aplicación.',
+      content: 'Al registrarse y utilizar la aplicación MecaniMóvil, el usuario acepta estos Términos y Condiciones. Si no está de acuerdo con alguna de sus disposiciones, debe abstenerse de utilizar la plataforma y sus servicios asociados.',
     },
     {
-      title: '2. Descripción del Servicio',
-      content: 'MecaniMóvil es una plataforma que conecta a usuarios con talleres mecánicos y mecánicos a domicilio para servicios automotrices. Facilitamos la comunicación y coordinación entre las partes, pero no somos responsables de la calidad del servicio prestado.',
+      title: '2. Objeto y Naturaleza del Servicio',
+      content: 'MecaniMóvil es una plataforma digital de intermediación que conecta clientes con talleres y mecánicos para la contratación de servicios automotrices. El uso de la plataforma no constituye relación laboral entre MecaniMóvil y los prestadores de servicios publicados en la aplicación.',
     },
     {
-      title: '3. Registro de Usuario',
-      content: 'Para utilizar ciertos servicios de la aplicación, debe registrarse y crear una cuenta. Usted es responsable de mantener la confidencialidad de su información de cuenta y de todas las actividades que ocurran bajo su cuenta.',
+      title: '3. Derechos del Consumidor (Ley N. 19.496)',
+      content: 'El cliente podrá ejercer los derechos reconocidos en la Ley sobre Protección de los Derechos de los Consumidores (Ley N. 19.496), incluyendo información veraz y oportuna, trato no discriminatorio, seguridad en el consumo, reparación e indemnización cuando corresponda, y acceso a mecanismos de reclamo ante el proveedor respectivo.',
     },
     {
-      title: '4. Uso Aceptable',
-      content: 'Usted se compromete a utilizar la aplicación únicamente para fines legales y de acuerdo con estos términos. No debe usar la aplicación de manera que pueda dañar, deshabilitar o sobrecargar nuestros servidores.',
+      title: '4. Cláusula de Responsabilidad',
+      content: 'El Usuario, en adelante "cliente", tendrá la libertad de ejercer los derechos previstos por la Ley sobre Protección de los Derechos de los Consumidores (Ley N. 19.496) respecto a los servicios prestados. MecaníMovil SPA actúa como intermediario entre el cliente, los talleres y mecánicos, seleccionando profesionales evaluados para promover un servicio confiable.',
     },
     {
-      title: '5. Privacidad',
-      content: 'Su privacidad es importante para nosotros. Nuestra Política de Privacidad explica cómo recopilamos, usamos y protegemos su información cuando utiliza nuestros servicios.',
+      title: '5. Alcance de la Intermediación',
+      content: 'MecaniMóvil facilita la publicación, comparación, coordinación y seguimiento de servicios. La ejecución material del trabajo, los tiempos técnicos, garantías mecánicas y resultados específicos del servicio son de responsabilidad del taller o mecánico que acepta la solicitud del cliente.',
     },
     {
-      title: '6. Limitación de Responsabilidad',
-      content: 'MecaniMóvil no será responsable por daños directos, indirectos, incidentales, especiales o consecuentes que resulten del uso o la imposibilidad de usar nuestros servicios.',
+      title: '6. Precios, Cotizaciones y Pago',
+      content: 'Los precios y cotizaciones informados en la plataforma pueden ser referenciales hasta su confirmación por el prestador. El cliente acepta revisar el detalle del servicio antes de pagar. Cualquier cobro indebido o diferencia relevante deberá reclamarse por los canales de soporte y, en su caso, ante el proveedor que emitió la cotización.',
     },
     {
-      title: '7. Modificaciones',
-      content: 'Nos reservamos el derecho de modificar estos términos en cualquier momento. Las modificaciones entrarán en vigor inmediatamente después de su publicación en la aplicación.',
+      title: '7. Cancelaciones, Reprogramaciones y Retracto',
+      content: 'Las condiciones de cancelación o reprogramación dependerán del estado de la solicitud y de las reglas informadas por el prestador. Cuando proceda legalmente, el cliente podrá ejercer los derechos de retracto u otros derechos establecidos en la Ley N. 19.496, considerando la naturaleza y etapa de ejecución del servicio contratado.',
     },
     {
-      title: '8. Contacto',
-      content: 'Si tiene preguntas sobre estos términos y condiciones, puede contactarnos a través de soporte@mecanimovil.com',
+      title: '8. Obligaciones del Usuario',
+      content: 'El cliente se obliga a entregar información veraz del vehículo, falla reportada, dirección y datos de contacto; a respetar a los prestadores; y a utilizar la plataforma de buena fe. El uso fraudulento, suplantación o manipulación del sistema podrá implicar suspensión o cierre de la cuenta.',
+    },
+    {
+      title: '9. Protección de Datos Personales',
+      content: 'MecaniMóvil tratará los datos personales del cliente conforme a la normativa chilena aplicable, utilizándolos para la operación del servicio, soporte, seguridad y mejora de la experiencia. El cliente podrá solicitar actualización o rectificación de sus datos por los canales oficiales de soporte.',
+    },
+    {
+      title: '10. Modificaciones de los Términos',
+      content: 'MecaniMóvil podrá actualizar estos Términos y Condiciones para ajustarlos a cambios legales, regulatorios o de operación de la plataforma. Las nuevas versiones se publicarán en la aplicación y entrarán en vigencia desde su publicación, salvo que se indique una fecha distinta.',
+    },
+    {
+      title: '11. Canal de Contacto y Reclamos',
+      content: 'Para consultas, soporte y reclamos, el cliente puede comunicarse a soporte@mecanimovil.cl o por WhatsApp al +56995945258. En caso de controversias de consumo, el cliente mantiene su derecho de acudir a las instancias contempladas por la legislación chilena.',
     },
   ];
 
@@ -91,7 +99,7 @@ const TermsScreen = () => {
             <Text style={styles.additionalTitle}>Información Importante</Text>
             <Text style={styles.additionalText}>
               Al continuar usando MecaniMóvil, usted acepta estos términos y condiciones en su totalidad. 
-              Si tiene alguna pregunta sobre estos términos, no dude en contactar a nuestro equipo de soporte.
+              Si tiene alguna pregunta sobre estos términos, no dude en contactar a nuestro equipo de soporte en soporte@mecanimovil.cl o por WhatsApp al +56995945258.
             </Text>
           </View>
         </View>

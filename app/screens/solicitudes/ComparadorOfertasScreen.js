@@ -413,9 +413,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 12,
-    backgroundColor: '#0d9488',
+    backgroundColor: '#007EA7',
     borderWidth: 1,
-    borderColor: 'rgba(110,231,183,0.25)',
+    borderColor: 'rgba(0,168,232,0.25)',
   },
   emptyButtonText: {
     color: '#FFFFFF',

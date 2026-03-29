@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS } from '../../utils/constants';
 
 const GLASS_BG = Platform.select({
   ios: 'rgba(255,255,255,0.06)',
@@ -19,32 +18,18 @@ const SupportScreen = () => {
 
   const supportOptions = [
     {
-      id: 'faq',
-      title: 'Preguntas Frecuentes',
-      description: 'Encuentra respuestas a las preguntas más comunes',
-      icon: 'help-circle-outline',
-      action: () => console.log('FAQ seleccionado'),
-    },
-    {
       id: 'contact',
       title: 'Contactar Soporte',
       description: 'Habla directamente con nuestro equipo de soporte',
       icon: 'mail-outline',
-      action: () => Linking.openURL('mailto:soporte@mecanimovil.com'),
+      action: () => Linking.openURL('mailto:soporte@mecanimovil.cl'),
     },
     {
       id: 'whatsapp',
       title: 'WhatsApp',
       description: 'Envíanos un mensaje por WhatsApp',
       icon: 'logo-whatsapp',
-      action: () => Linking.openURL('https://wa.me/+1234567890'),
-    },
-    {
-      id: 'phone',
-      title: 'Llamar',
-      description: 'Llámanos directamente',
-      icon: 'call-outline',
-      action: () => Linking.openURL('tel:+1234567890'),
+      action: () => Linking.openURL('https://wa.me/56995945258'),
     },
   ];
 
@@ -52,14 +37,6 @@ const SupportScreen = () => {
     if (option.action) {
       option.action();
     }
-  };
-
-  const handleCallSupport = () => {
-    Linking.openURL('tel:+56912345678');
-  };
-
-  const handleEmailSupport = () => {
-    Linking.openURL('mailto:soporte@mecanimovil.com');
   };
 
   return (
@@ -108,26 +85,6 @@ const SupportScreen = () => {
           ))}
         </View>
 
-        {/* Información de contacto */}
-        <View style={styles.contactCard}>
-          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
-          <Text style={styles.contactTitle}>Información de Contacto</Text>
-          
-          <TouchableOpacity style={styles.contactItem} onPress={handleEmailSupport}>
-            <Ionicons name="mail-outline" size={20} color="#93C5FD" />
-            <Text style={styles.contactText}>soporte@mecanimovil.com</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.contactItem} onPress={handleCallSupport}>
-            <Ionicons name="call-outline" size={20} color="#93C5FD" />
-            <Text style={styles.contactText}>+56 9 1234 5678</Text>
-          </TouchableOpacity>
-          
-          <View style={styles.contactItem}>
-            <Ionicons name="time-outline" size={20} color="#93C5FD" />
-            <Text style={styles.contactText}>Lunes a Viernes: 9:00 - 18:00</Text>
-          </View>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -204,33 +161,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.6)',
     lineHeight: 18,
-  },
-  contactCard: {
-    backgroundColor: GLASS_BG,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    overflow: 'hidden',
-  },
-  contactTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#F9FAFB',
-    marginBottom: 16,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  contactText: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.72)',
-    marginLeft: 12,
-    flex: 1,
   },
 });
 

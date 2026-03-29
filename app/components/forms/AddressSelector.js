@@ -245,7 +245,7 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
                 <Text style={styles.emptyTitle}>No tienes direcciones guardadas</Text>
                 <Text style={styles.emptySubtitle}>Agrega tu primera dirección para comenzar</Text>
                 <TouchableOpacity onPress={handleAddNew} style={styles.emptyButton} activeOpacity={0.8}>
-                  <LinearGradient colors={['#10B981', '#059669']} style={styles.emptyButtonGradient}>
+                  <LinearGradient colors={['#007EA7', '#00A8E8']} style={styles.emptyButtonGradient}>
                     <Plus size={18} color="#FFF" />
                     <Text style={styles.emptyButtonText}>Agregar Dirección</Text>
                   </LinearGradient>

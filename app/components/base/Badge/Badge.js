@@ -5,8 +5,8 @@ import { TOKENS } from '../../../design-system/tokens';
 
 // Fallback values in case tokens are not ready
 const SAFE_COLORS = TOKENS?.colors || {
-  primary: { 50: '#EFF6FF', 100: '#DBEAFE', 500: '#3B82F6', 700: '#1D4ED8' },
-  secondary: { 50: '#EEF2FF', 100: '#E0E7FF', 500: '#6366F1', 700: '#4338CA' },
+  primary: { 50: '#E6F2F7', 100: '#CCE5EF', 500: '#003459', 700: '#002035' },
+  secondary: { 50: '#E6F5F9', 100: '#CCEBF3', 500: '#007EA7', 700: '#004C65' },
   success: { 50: '#ECFDF5', 100: '#D1FAE5', 500: '#10B981', 700: '#047857' },
   warning: { 50: '#FFFBEB', 100: '#FEF3C7', 500: '#F59E0B', 700: '#B45309' },
   error: { 50: '#FEF2F2', 100: '#FEE2E2', 500: '#EF4444', 700: '#B91C1C' },
@@ -47,7 +47,7 @@ const Badge = ({
     if (variant === 'solid') {
       switch (type) {
         case 'primary': return colors.primary?.[500] || '#3B82F6';
-        case 'secondary': return colors.secondary?.[500] || '#6366F1';
+        case 'secondary': return colors.secondary?.[500] || '#007EA7';
         case 'success': return colors.success?.[500] || '#10B981';
         case 'warning': return colors.warning?.[500] || '#F59E0B';
         case 'error': return colors.error?.[500] || '#EF4444';
@@ -89,7 +89,7 @@ const Badge = ({
     if (variant === 'outline') {
       switch (type) {
         case 'primary': return colors.primary?.[500] || '#3B82F6';
-        case 'secondary': return colors.secondary?.[500] || '#6366F1';
+        case 'secondary': return colors.secondary?.[500] || '#007EA7';
         case 'success': return colors.success?.[500] || '#10B981';
         case 'warning': return colors.warning?.[500] || '#F59E0B';
         case 'error': return colors.error?.[500] || '#EF4444';

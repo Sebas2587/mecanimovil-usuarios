@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,8 +21,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
-import { useQuery } from '@tanstack/react-query';
-import { getUserVehicles } from '../../services/vehicle';
 
 const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
 const BLUR_I = Platform.OS === 'ios' ? 30 : 0;
@@ -48,11 +46,12 @@ const MisSolicitudesScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
-  const initialFiltroVehiculo = useMemo(() => {
+  const selectedVehicleId = useMemo(() => {
     const vid = route.params?.vehicleId;
-    if (vid != null && vid !== '') return Number(vid);
-    return route.params?.initialFiltroVehiculo ?? 'todos';
-  }, [route.params?.vehicleId, route.params?.initialFiltroVehiculo]);
+    if (vid == null || vid === '') return null;
+    const n = Number(vid);
+    return Number.isFinite(n) ? n : null;
+  }, [route.params?.vehicleId]);
 
   const {
     solicitudes,
@@ -65,23 +64,6 @@ const MisSolicitudesScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState(route?.params?.initialFiltroEstado || 'todos');
-  const [filtroVehiculo, setFiltroVehiculo] = useState(initialFiltroVehiculo);
-  const [showVehicleOptions, setShowVehicleOptions] = useState(false);
-
-  useEffect(() => {
-    const vid = route.params?.vehicleId;
-    if (vid != null && vid !== '') {
-      setFiltroVehiculo(Number(vid));
-    }
-  }, [route.params?.vehicleId]);
-
-  const { data: vehiclesData = [] } = useQuery({
-    queryKey: ['userVehicles'],
-    queryFn: getUserVehicles,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 30,
-    select: (data) => (Array.isArray(data) ? data : data?.results || []),
-  });
 
   const estadosDisponibles = [
     { key: 'todos', label: 'Todas', icon: 'list-outline' },
@@ -141,12 +123,9 @@ const MisSolicitudesScreen = () => {
         });
 
   const solicitudesFiltradas = solicitudesFiltradasPorEstado.filter((s) => {
-    if (filtroVehiculo === 'todos') return true;
+    if (!selectedVehicleId) return true;
     const vehiculoId = s?.vehiculo?.id ?? s?.vehiculo_id ?? (typeof s?.vehiculo === 'number' ? s.vehiculo : null);
-    const esSinVehiculo = s?.sin_vehiculo_registrado === true || vehiculoId == null;
-    if (filtroVehiculo === 'sin_vehiculo') return esSinVehiculo;
-    const targetId = typeof filtroVehiculo === 'string' ? parseInt(filtroVehiculo, 10) : filtroVehiculo;
-    return vehiculoId === targetId;
+    return vehiculoId === selectedVehicleId;
   });
 
   const handleSolicitudPress = (solicitud) => {
@@ -180,82 +159,9 @@ const MisSolicitudesScreen = () => {
     </View>
   );
 
-  const renderVehicleSelector = () => (
-    <View style={styles.vehicleSelectorWrapper}>
-      <Text style={styles.vehicleSelectorLabel}>Vehículo</Text>
-      <TouchableOpacity
-        style={[styles.vehicleSelect, showVehicleOptions && styles.vehicleSelectOpen]}
-        activeOpacity={0.8}
-        onPress={() => setShowVehicleOptions((prev) => !prev)}
-      >
-        <Text
-          style={[styles.vehicleSelectText, filtroVehiculo === 'todos' ? styles.vehicleSelectPlaceholder : null]}
-          numberOfLines={1}
-        >
-          {filtroVehiculo === 'todos'
-            ? 'Todos los vehículos'
-            : filtroVehiculo === 'sin_vehiculo'
-              ? 'Sin vehículo registrado'
-              : (() => {
-                  const v = vehiclesData.find((x) => String(x.id) === String(filtroVehiculo));
-                  if (!v) return 'Vehículo';
-                  return `${v.marca_nombre || v.marca || ''} ${v.modelo_nombre || v.modelo || ''} ${v.year || ''}`.trim();
-                })()}
-        </Text>
-        <Ionicons name={showVehicleOptions ? 'chevron-up' : 'chevron-down'} size={18} color="rgba(255,255,255,0.45)" />
-      </TouchableOpacity>
-
-      {showVehicleOptions && (
-        <GlassCard style={styles.vehicleOptionsPanel}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.vehicleFilterScroll}>
-            <TouchableOpacity
-              style={[styles.vehicleChip, filtroVehiculo === 'todos' && styles.vehicleChipActive]}
-              onPress={() => {
-                setFiltroVehiculo('todos');
-                setShowVehicleOptions(false);
-              }}
-            >
-              <Text style={[styles.vehicleChipText, filtroVehiculo === 'todos' && styles.vehicleChipTextActive]}>Todos</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.vehicleChip, filtroVehiculo === 'sin_vehiculo' && styles.vehicleChipActive]}
-              onPress={() => {
-                setFiltroVehiculo('sin_vehiculo');
-                setShowVehicleOptions(false);
-              }}
-            >
-              <Text style={[styles.vehicleChipText, filtroVehiculo === 'sin_vehiculo' && styles.vehicleChipTextActive]}>
-                Sin vehículo
-              </Text>
-            </TouchableOpacity>
-            {vehiclesData.map((v) => (
-              <TouchableOpacity
-                key={v.id}
-                style={[styles.vehicleChip, String(filtroVehiculo) === String(v.id) && styles.vehicleChipActive]}
-                onPress={() => {
-                  setFiltroVehiculo(v.id);
-                  setShowVehicleOptions(false);
-                }}
-              >
-                <Text
-                  style={[styles.vehicleChipText, String(filtroVehiculo) === String(v.id) && styles.vehicleChipTextActive]}
-                  numberOfLines={1}
-                >
-                  {(v.marca_nombre || v.marca || 'Vehículo')} {(v.modelo_nombre || v.modelo || '')}
-                  {v.year ? ` ${v.year}` : ''}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </GlassCard>
-      )}
-    </View>
-  );
-
   const renderListHeader = () => (
     <View>
       <View style={styles.controlsBlock}>
-        {renderVehicleSelector()}
         {renderFilters()}
       </View>
       <View style={styles.headerToListSpacer} />
@@ -296,7 +202,7 @@ const MisSolicitudesScreen = () => {
         <Text style={styles.emptySubtitle}>{mensajeActual.subtitulo}</Text>
         {filtroEstado === 'todos' && (
           <TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)} activeOpacity={0.85}>
-            <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
             <Ionicons name="add-circle" size={20} color="#FFFFFF" />
             <Text style={styles.createButtonText}>Crear Solicitud</Text>
           </TouchableOpacity>
@@ -466,71 +372,6 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#6EE7B7',
     fontWeight: '700',
-  },
-  vehicleSelectorWrapper: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 6,
-  },
-  vehicleSelectorLabel: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: '500',
-    marginBottom: 6,
-  },
-  vehicleSelect: {
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: GLASS_BG,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  vehicleSelectOpen: {
-    borderColor: 'rgba(110,231,183,0.35)',
-  },
-  vehicleSelectText: {
-    flex: 1,
-    marginRight: 12,
-    fontSize: 14,
-    color: '#FFF',
-    fontWeight: '500',
-  },
-  vehicleSelectPlaceholder: {
-    color: 'rgba(255,255,255,0.4)',
-  },
-  vehicleOptionsPanel: {
-    marginTop: 10,
-    padding: 12,
-  },
-  vehicleFilterScroll: {
-    paddingVertical: 2,
-    columnGap: 8,
-  },
-  vehicleChip: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    maxWidth: 220,
-  },
-  vehicleChipActive: {
-    backgroundColor: 'rgba(110,231,183,0.12)',
-    borderColor: 'rgba(110,231,183,0.35)',
-  },
-  vehicleChipText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
-    fontWeight: '500',
-  },
-  vehicleChipTextActive: {
-    color: '#6EE7B7',
-    fontWeight: '600',
   },
   listContent: {
     paddingTop: 0,

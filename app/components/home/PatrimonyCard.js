@@ -126,7 +126,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: colors.primary?.[500] || '#003459',
+        backgroundColor: colors.secondary?.[500] || '#007EA7',
         opacity: 0.1,
     },
     decoratorCircle2: {

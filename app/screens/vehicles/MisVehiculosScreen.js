@@ -547,7 +547,7 @@ const MisVehiculosScreen = () => {
       </Text>
       <TouchableOpacity onPress={handleAddVehicle} activeOpacity={0.8}>
         <LinearGradient
-          colors={['#10B981', '#059669']}
+          colors={['#007EA7', '#00A8E8']}
           style={styles.emptyButton}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
@@ -695,7 +695,7 @@ const MisVehiculosScreen = () => {
               {currentStep === 1 ? (
                 <TouchableOpacity onPress={handleNextStep} activeOpacity={0.8}>
                   <LinearGradient
-                    colors={['#10B981', '#059669']}
+                    colors={['#007EA7', '#00A8E8']}
                     style={styles.submitButton}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
@@ -711,7 +711,7 @@ const MisVehiculosScreen = () => {
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleSubmit} activeOpacity={0.8} style={{ flex: 1 }} disabled={isSubmitting}>
                     <LinearGradient
-                      colors={['#10B981', '#059669']}
+                      colors={['#007EA7', '#00A8E8']}
                       style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
@@ -1126,8 +1126,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxActive: {
-    backgroundColor: '#10B981',
-    borderColor: '#10B981',
+    backgroundColor: '#007EA7',
+    borderColor: '#007EA7',
   },
   modalFooter: {
     marginTop: 20,

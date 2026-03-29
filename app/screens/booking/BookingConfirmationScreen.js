@@ -505,7 +505,7 @@ const BookingConfirmationScreen = () => {
         <Ionicons 
           name={method.icon} 
           size={24} 
-          color={selectedPaymentMethod === method.id ? '#007AFF' : '#666666'} 
+          color={selectedPaymentMethod === method.id ? '#007EA7' : '#666666'} 
         />
         <View style={styles.paymentMethodText}>
           <Text style={[
@@ -521,7 +521,7 @@ const BookingConfirmationScreen = () => {
         <Ionicons 
           name={selectedPaymentMethod === method.id ? 'radio-button-on' : 'radio-button-off'} 
           size={20} 
-          color={selectedPaymentMethod === method.id ? '#007AFF' : '#CCCCCC'} 
+          color={selectedPaymentMethod === method.id ? '#007EA7' : '#CCCCCC'} 
         />
       </View>
     </TouchableOpacity>
@@ -551,7 +551,7 @@ const BookingConfirmationScreen = () => {
         <Text style={styles.bankDetailValue}>{bankDetails.titular}</Text>
       </View>
       <View style={styles.bankDetailNote}>
-        <Ionicons name="information-circle" size={16} color="#007AFF" />
+        <Ionicons name="information-circle" size={16} color="#007EA7" />
         <Text style={styles.bankDetailNoteText}>
           Estos datos se enviarán por WhatsApp después de confirmar
         </Text>
@@ -578,7 +578,7 @@ const BookingConfirmationScreen = () => {
           onPress={() => navigation.goBack()} 
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color="#007EA7" />
         </TouchableOpacity>
         <Text style={styles.title}>Confirmar Agendamiento</Text>
         <View style={styles.headerSpacer} />
@@ -632,7 +632,7 @@ const BookingConfirmationScreen = () => {
             <Ionicons 
               name={acceptedTerms ? 'checkbox' : 'square-outline'} 
               size={24} 
-              color={acceptedTerms ? '#007AFF' : '#CCCCCC'} 
+              color={acceptedTerms ? '#007EA7' : '#CCCCCC'} 
             />
             <Text style={styles.termsText}>
               Acepto los términos y condiciones de servicio
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
   servicePrice: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#007EA7',
   },
   serviceVehicle: {
     fontSize: 14,
@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 16,
     borderTopWidth: 2,
-    borderTopColor: '#007AFF',
+    borderTopColor: '#007EA7',
   },
   totalLabel: {
     fontSize: 18,
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#007EA7',
   },
   paymentMethod: {
     borderWidth: 2,
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   paymentMethodSelected: {
-    borderColor: '#007AFF',
+    borderColor: '#007EA7',
     backgroundColor: '#F0F8FF',
   },
   paymentMethodContent: {
@@ -824,7 +824,7 @@ const styles = StyleSheet.create({
     color: '#333333',
   },
   paymentMethodNameSelected: {
-    color: '#007AFF',
+    color: '#007EA7',
   },
   paymentMethodDescription: {
     fontSize: 14,
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
   },
   bankDetailNoteText: {
     fontSize: 12,
-    color: '#007AFF',
+    color: '#007EA7',
     marginLeft: 8,
     flex: 1,
   },
@@ -894,10 +894,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
     paddingVertical: 16,
     borderRadius: 12,
-    shadowColor: '#007AFF',
+    shadowColor: '#007EA7',
     shadowOffset: {
       width: 0,
       height: 4,

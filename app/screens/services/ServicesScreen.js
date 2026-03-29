@@ -212,8 +212,8 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         marginRight: spacing.sm || 8,
     },
     filterPillActive: {
-        backgroundColor: colors.primary?.main || '#003459',
-        borderColor: colors.primary?.main || '#003459',
+        backgroundColor: colors.secondary?.[500] || '#007EA7',
+        borderColor: colors.secondary?.[500] || '#007EA7',
     },
     filterText: {
         fontSize: typography.fontSize?.sm || 14,
@@ -289,7 +289,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         top: 0,
         bottom: 0,
         width: 4,
-        backgroundColor: colors.info?.main || '#2563EB',
+        backgroundColor: colors.info?.main || '#007EA7',
     },
     requestContent: {
         flex: 1,

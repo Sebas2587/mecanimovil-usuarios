@@ -266,7 +266,7 @@ const EditProfileScreen = () => {
             isLoading={loading}
             style={styles.saveButton}
             useGradient
-            gradientColors={['#0d9488', '#10b981']}
+            gradientColors={['#007EA7', '#00A8E8']}
           />
           <TouchableOpacity style={styles.cancelLink} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelText}>Cancelar</Text>

@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     },
     quoteButton: {
         flex: 1,
-        backgroundColor: '#059669',
+        backgroundColor: '#007EA7',
         borderRadius: 12,
         paddingVertical: 12,
         flexDirection: 'row',

@@ -11,23 +11,24 @@ import { TOKENS, withOpacity } from '../../../design-system/tokens';
 
 // Fallback values in case tokens are not ready
 const SAFE_COLORS = TOKENS?.colors || {
-  primary: { 500: '#3B82F6' },
-  secondary: { 500: '#6366F1' },
-  accent: { 500: '#10B981' },
+  primary: { 500: '#003459' },
+  secondary: { 500: '#007EA7' },
+  accent: { 500: '#00A8E8' },
   error: { 500: '#EF4444', 600: '#DC2626', 700: '#B91C1C' },
   success: { 500: '#10B981', 600: '#059669', 700: '#047857' },
   warning: { 500: '#F59E0B', 600: '#D97706', 700: '#B45309' },
-  info: { 500: '#3B82F6', 600: '#2563EB', 700: '#1D4ED8' },
+  info: { 500: '#007EA7', 600: '#006586', 700: '#004C65' },
   text: { onPrimary: '#FFFFFF', onSecondary: '#FFFFFF', onAccent: '#FFFFFF', onError: '#FFFFFF', onSuccess: '#FFFFFF', onWarning: '#FFFFFF', onInfo: '#FFFFFF' },
   states: {
-    hover: { primary: '#2563EB', secondary: '#4F46E5', accent: '#059669' },
-    pressed: { primary: '#1D4ED8', secondary: '#4338CA', accent: '#047857' },
+    hover: { primary: '#006586', secondary: '#006586', accent: '#0086BA' },
+    pressed: { primary: '#004C65', secondary: '#004C65', accent: '#00648B' },
     disabled: { background: '#E5E7EB', text: '#9CA3AF', border: '#D1D5DB' }
   },
   gradients: {
-    primary: ['#3B82F6', '#2563EB'],
-    secondary: ['#6366F1', '#4F46E5'],
-    accent: ['#10B981', '#059669']
+    primary: ['#007EA7', '#00A8E8'],
+    secondary: ['#003459', '#007EA7'],
+    accent: ['#00A8E8', '#00C9A7'],
+    button: ['#007EA7', '#00A8E8'],
   },
   opacity: { 10: '#0000001A' }
 };
@@ -77,10 +78,10 @@ const Button = ({
     switch (type) {
       case 'secondary':
         return {
-          background: SAFE_COLORS.secondary?.[500] || '#6366F1',
+          background: SAFE_COLORS.secondary?.[500] || '#007EA7',
           text: SAFE_COLORS.text?.onSecondary || '#FFF',
-          hover: SAFE_COLORS.states?.hover?.secondary || '#4F46E5',
-          pressed: SAFE_COLORS.states?.pressed?.secondary || '#4338CA',
+          hover: SAFE_COLORS.states?.hover?.secondary || '#006586',
+          pressed: SAFE_COLORS.states?.pressed?.secondary || '#004C65',
         };
       case 'accent':
         return {
@@ -112,17 +113,17 @@ const Button = ({
         };
       case 'info':
         return {
-          background: SAFE_COLORS.info?.[500] || '#3B82F6',
+          background: SAFE_COLORS.info?.[500] || '#007EA7',
           text: SAFE_COLORS.text?.onInfo || '#FFF',
-          hover: SAFE_COLORS.info?.[600] || '#2563EB',
-          pressed: SAFE_COLORS.info?.[700] || '#1D4ED8',
+          hover: SAFE_COLORS.info?.[600] || '#006586',
+          pressed: SAFE_COLORS.info?.[700] || '#004C65',
         };
       default: // primary
         return {
-          background: SAFE_COLORS.primary?.[500] || '#3B82F6',
+          background: SAFE_COLORS.secondary?.[500] || '#007EA7',
           text: SAFE_COLORS.text?.onPrimary || '#FFF',
-          hover: SAFE_COLORS.states?.hover?.primary || '#2563EB',
-          pressed: SAFE_COLORS.states?.pressed?.primary || '#1D4ED8',
+          hover: SAFE_COLORS.states?.hover?.primary || '#006586',
+          pressed: SAFE_COLORS.states?.pressed?.primary || '#004C65',
         };
     }
   };
@@ -158,13 +159,13 @@ const Button = ({
   const getDefaultGradientColors = () => {
     switch (type) {
       case 'primary':
-        return SAFE_COLORS.gradients?.primary || ['#3B82F6', '#2563EB'];
+        return SAFE_COLORS.gradients?.button || SAFE_COLORS.gradients?.primary || ['#007EA7', '#00A8E8'];
       case 'secondary':
-        return SAFE_COLORS.gradients?.secondary || ['#6366F1', '#4F46E5'];
+        return SAFE_COLORS.gradients?.secondary || ['#003459', '#007EA7'];
       case 'accent':
-        return SAFE_COLORS.gradients?.accent || ['#10B981', '#059669'];
+        return SAFE_COLORS.gradients?.accent || ['#00A8E8', '#00C9A7'];
       default:
-        return [SAFE_COLORS.primary?.[500] || '#3B82F6', SAFE_COLORS.secondary?.[500] || '#6366F1'];
+        return SAFE_COLORS.gradients?.button || [SAFE_COLORS.secondary?.[500] || '#007EA7', SAFE_COLORS.accent?.[500] || '#00A8E8'];
     }
   };
 

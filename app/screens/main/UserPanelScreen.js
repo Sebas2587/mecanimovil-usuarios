@@ -404,7 +404,7 @@ const UserPanelScreen = () => {
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>Hola, {user?.first_name || 'Conductor'}</Text>
             <View style={styles.subtitleRow}>
-              <Sparkles size={14} color="#818CF8" />
+              <Sparkles size={14} color="#00A8E8" />
               <Text style={styles.subtitle}>Dashboard Predictivo</Text>
             </View>
           </View>
@@ -430,7 +430,7 @@ const UserPanelScreen = () => {
                 <Image source={{ uri: selectedVehicle.foto }} style={styles.selectorThumb} contentFit="cover" />
               ) : (
                 <View style={[styles.selectorThumb, styles.selectorThumbFallback]}>
-                  <Car size={22} color="#6366F1" />
+                  <Car size={22} color="#007EA7" />
                 </View>
               )}
               <View style={{ flex: 1, marginLeft: 12 }}>
@@ -447,7 +447,7 @@ const UserPanelScreen = () => {
           </GlassCard>
         ) : vehiclesLoading ? (
           <GlassCard style={{ marginBottom: 16, alignItems: 'center', paddingVertical: 32 }}>
-            <ActivityIndicator color="#818CF8" size="large" />
+            <ActivityIndicator color="#00A8E8" size="large" />
             <Text style={[styles.emptyText, { marginTop: 12 }]}>Cargando vehículos...</Text>
           </GlassCard>
         ) : (
@@ -455,7 +455,7 @@ const UserPanelScreen = () => {
           <GlassCard style={{ marginBottom: 16 }}>
             <View style={{ alignItems: 'center', paddingVertical: 24 }}>
               <View style={styles.emptyIconWrap}>
-                <Car size={32} color="#6366F1" />
+                <Car size={32} color="#007EA7" />
               </View>
               <Text style={styles.emptyTitle}>Sin vehículos registrados</Text>
               <Text style={styles.emptyText}>
@@ -660,18 +660,20 @@ const UserPanelScreen = () => {
             </Text>
           </GlassCard>
 
-          {/* Marketplace */}
+          {/* Gestionar venta */}
           <GlassCard
             style={styles.quickCard}
             onPress={() =>
-              navigation.navigate(ROUTES.MARKETPLACE, selectedVehicle ? { vehicleId: selectedVehicle.id } : {})
+              selectedVehicle
+                ? navigation.navigate(ROUTES.SELL_VEHICLE, { vehicle: selectedVehicle, vehicleId: selectedVehicle.id })
+                : navigation.navigate(ROUTES.MARKETPLACE)
             }
           >
             <LinearGradient colors={['rgba(245,158,11,0.25)', 'rgba(245,158,11,0.05)']} style={styles.quickIconWrap}>
               <Store size={22} color="#FCD34D" />
             </LinearGradient>
-            <Text style={styles.quickTitle}>Marketplace</Text>
-            <Text style={styles.quickSub}>Compra y venta</Text>
+            <Text style={styles.quickTitle}>Gestionar venta</Text>
+            <Text style={styles.quickSub}>Vende tu vehículo</Text>
           </GlassCard>
 
           {/* Mensajes */}
@@ -722,7 +724,7 @@ const UserPanelScreen = () => {
                       <Image source={{ uri: item.foto }} style={styles.selectorListThumb} contentFit="cover" />
                     ) : (
                       <View style={[styles.selectorListThumb, styles.selectorThumbFallback]}>
-                        <Car size={18} color="#6366F1" />
+                        <Car size={18} color="#007EA7" />
                       </View>
                     )}
                     <View style={{ flex: 1, marginLeft: 12 }}>
@@ -973,7 +975,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#6366F1',
+    backgroundColor: '#007EA7',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -1083,7 +1085,7 @@ const styles = StyleSheet.create({
   },
   detailLinkText: {
     fontSize: 12,
-    color: '#818CF8',
+    color: '#00A8E8',
     fontWeight: '600',
   },
 
@@ -1125,7 +1127,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#10B981',
+    backgroundColor: '#007EA7',
     paddingVertical: 14,
     borderRadius: 14,
   },
@@ -1381,7 +1383,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#10B981',
+    backgroundColor: '#007EA7',
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 14,

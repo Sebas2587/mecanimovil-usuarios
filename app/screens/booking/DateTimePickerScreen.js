@@ -199,7 +199,7 @@ const DateTimePickerScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color="#007EA7" />
         </TouchableOpacity>
         <Text style={styles.title}>Seleccionar Fecha y Hora</Text>
       </View>
@@ -260,7 +260,7 @@ const DateTimePickerScreen = () => {
             
             {isLoadingAvailability ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color="#007EA7" />
                 <Text style={styles.loadingText}>Cargando horarios...</Text>
               </View>
             ) : errorAvailability ? (
@@ -281,13 +281,13 @@ const DateTimePickerScreen = () => {
           <View style={styles.summaryContainer}>
             <Text style={styles.summaryTitle}>Resumen de tu cita</Text>
             <View style={styles.summaryItem}>
-              <Ionicons name="calendar-outline" size={20} color="#007AFF" />
+              <Ionicons name="calendar-outline" size={20} color="#007EA7" />
               <Text style={styles.summaryText}>
                 {fechasDisponibles.find(f => f.fecha === selectedDate)?.fechaFormateada}
               </Text>
             </View>
             <View style={styles.summaryItem}>
-              <Ionicons name="time-outline" size={20} color="#007AFF" />
+              <Ionicons name="time-outline" size={20} color="#007EA7" />
               <Text style={styles.summaryText}>
                 {selectedTimeSlot.hora_inicio} - {selectedTimeSlot.hora_fin}
               </Text>
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
   },
   workshopName: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#007EA7',
     marginBottom: 5,
   },
   vehicleName: {
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   dateButtonSelected: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
   },
   dayText: {
     fontSize: 12,
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   timeSlotSelected: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
   },
   timeSlotDisabled: {
     backgroundColor: '#F5F5F5',
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   retryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E5E5',
   },
   continueButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',

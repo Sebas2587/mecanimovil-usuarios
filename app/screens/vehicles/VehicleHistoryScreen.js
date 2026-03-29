@@ -103,7 +103,7 @@ const VehicleHistoryScreen = () => {
         Cuando completes solicitudes para este vehículo, aparecerán aquí.
       </Text>
       <TouchableOpacity style={styles.emptyButton} activeOpacity={0.85} onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)}>
-        <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
         <Plus size={18} color="#FFF" />
         <Text style={styles.emptyButtonText}>Crear solicitud</Text>
       </TouchableOpacity>

@@ -675,10 +675,10 @@ const getStyles = () => StyleSheet.create({
         maxWidth: '100%',
     },
     bubbleRight: {
-        backgroundColor: '#0d9488',
+        backgroundColor: '#007EA7',
         borderBottomRightRadius: 4,
         borderWidth: 1,
-        borderColor: 'rgba(110,231,183,0.35)',
+        borderColor: 'rgba(0,168,232,0.35)',
     },
     bubbleLeft: {
         backgroundColor: GLASS_BG,
@@ -766,13 +766,13 @@ const getStyles = () => StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#059669',
+        backgroundColor: '#007EA7',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 8,
         marginLeft: 4,
         borderWidth: 1,
-        borderColor: 'rgba(110,231,183,0.4)',
+        borderColor: 'rgba(0,168,232,0.4)',
     },
     sendButtonDisabled: {
         backgroundColor: 'rgba(255,255,255,0.12)',

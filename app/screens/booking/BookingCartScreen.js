@@ -345,7 +345,7 @@ const BookingCartScreen = () => {
 
   const renderLoadingCart = () => (
     <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#007AFF" />
+      <ActivityIndicator size="large" color="#007EA7" />
       <Text style={styles.loadingText}>Cargando tu carrito...</Text>
     </View>
   );
@@ -361,7 +361,7 @@ const BookingCartScreen = () => {
           onPress={() => navigation.goBack()} 
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color="#007EA7" />
         </TouchableOpacity>
         <Text style={styles.title}>Carrito de Agendamiento</Text>
         {cartItems.length > 0 && (
@@ -425,7 +425,7 @@ const BookingCartScreen = () => {
               style={styles.addAnotherButton}
               onPress={handleAddAnotherService}
             >
-              <Ionicons name="add" size={20} color="#007AFF" />
+              <Ionicons name="add" size={20} color="#007EA7" />
               <Text style={styles.addAnotherButtonText}>Agregar otro servicio</Text>
             </TouchableOpacity>
 
@@ -519,11 +519,11 @@ const styles = StyleSheet.create({
   addServiceButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
     paddingHorizontal: 32,
     paddingVertical: 16,
     borderRadius: 25,
-    shadowColor: '#007AFF',
+    shadowColor: '#007EA7',
     shadowOffset: {
       width: 0,
       height: 4,
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   summaryPrice: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#007EA7',
   },
   actionsContainer: {
     backgroundColor: 'white',
@@ -603,11 +603,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F0F8FF',
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#007EA7',
     paddingVertical: 16,
     borderRadius: 12,
     marginBottom: 16,
-    shadowColor: '#007AFF',
+    shadowColor: '#007EA7',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -617,7 +617,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   addAnotherButtonText: {
-    color: '#007AFF',
+    color: '#007EA7',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
@@ -626,10 +626,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
     paddingVertical: 16,
     borderRadius: 12,
-    shadowColor: '#007AFF',
+    shadowColor: '#007EA7',
     shadowOffset: {
       width: 0,
       height: 4,

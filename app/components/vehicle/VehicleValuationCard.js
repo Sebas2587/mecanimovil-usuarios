@@ -47,7 +47,7 @@ const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEdit
 
             <TouchableOpacity onPress={onSellPress} activeOpacity={0.8}>
                 <LinearGradient
-                    colors={['#10B981', '#059669']}
+                    colors={['#007EA7', '#00A8E8']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={styles.actionButton}

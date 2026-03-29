@@ -217,7 +217,7 @@ const DetalleSolicitudScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#007EA7" />
         <Text style={styles.loadingText}>Cargando detalles...</Text>
       </View>
     );
@@ -316,7 +316,7 @@ const DetalleSolicitudScreen = () => {
                           style={styles.compareButton}
                           onPress={handleCompararOfertas}
                         >
-                          <Ionicons name="git-compare-outline" size={16} color="#2563EB" />
+                          <Ionicons name="git-compare-outline" size={16} color="#007EA7" />
                           <Text style={styles.compareButtonText}>Comparar</Text>
                         </TouchableOpacity>
                       </View>
@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#007EA7',
     borderRadius: 12,
   },
   accionSecundariaButtonTextPrimary: {
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
   verChecklistSecundarioText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#2563EB',
+    color: '#007EA7',
   },
   ofertasAdicionalesSection: {
     marginTop: 24,
@@ -849,7 +849,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#059669',
+    backgroundColor: '#007EA7',
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,

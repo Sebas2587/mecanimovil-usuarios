@@ -195,7 +195,7 @@ const OfferCreationModal = ({
                                         activeOpacity={0.85}
                                     >
                                         <LinearGradient
-                                            colors={['#0f766e', '#059669', '#10B981']}
+                                            colors={['#007EA7', '#00A8E8']}
                                             start={{ x: 0, y: 0 }}
                                             end={{ x: 1, y: 1 }}
                                             style={styles.primaryGradient}
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: '#6EE7B7',
+        backgroundColor: '#00A8E8',
     },
     radioContent: {
         flex: 1,

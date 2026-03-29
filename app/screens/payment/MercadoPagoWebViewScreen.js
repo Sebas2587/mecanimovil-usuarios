@@ -626,7 +626,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         {/* Loading indicator */}
         {loading && !pageLoadedRef.current && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color="#007EA7" />
             <Text style={styles.loadingText}>Cargando Mercado Pago...</Text>
           </View>
         )}

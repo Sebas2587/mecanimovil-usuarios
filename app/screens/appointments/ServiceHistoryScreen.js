@@ -466,7 +466,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     textTransform: 'capitalize',
   },
   monthBadge: {
-    backgroundColor: colors.primary?.[500] || '#003459',
+    backgroundColor: colors.secondary?.[500] || '#007EA7',
     borderRadius: borders.radius?.badge?.full || 12,
     paddingHorizontal: spacing?.sm || 10,
     paddingVertical: spacing?.xs || 4,
@@ -664,7 +664,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary?.[500] || '#003459',
+    backgroundColor: colors.secondary?.[500] || '#007EA7',
     borderRadius: borders.radius?.button?.md || 12,
     paddingHorizontal: spacing?.lg || 20,
     paddingVertical: spacing?.sm || 12,

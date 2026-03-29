@@ -494,7 +494,7 @@ const createStyles = (colors, typography, spacing, borders) => {
     errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: safeColors.background?.default || '#F3F4F6', paddingHorizontal: safeSpacing.lg || 24 },
     errorTitle: { fontSize: safeTypography.fontSize?.xl || 20, color: safeColors.text?.primary || '#111827', marginTop: safeSpacing.md || 16, marginBottom: safeSpacing.sm || 8 },
     errorMessage: { fontSize: safeTypography.fontSize?.md || 16, color: safeColors.text?.secondary || '#6B7280', textAlign: 'center', marginBottom: safeSpacing.lg || 24 },
-    retryButton: { backgroundColor: safeColors.primary?.[500] || '#3B82F6', paddingHorizontal: safeSpacing['2xl'] || 48, paddingVertical: safeSpacing.sm || 8, borderRadius: safeBorders.radius?.full || 9999 },
+    retryButton: { backgroundColor: safeColors.secondary?.[500] || '#007EA7', paddingHorizontal: safeSpacing['2xl'] || 48, paddingVertical: safeSpacing.sm || 8, borderRadius: safeBorders.radius?.full || 9999 },
     retryButtonText: { color: safeColors.text?.inverse || '#FFFFFF', fontSize: safeTypography.fontSize?.md || 16 },
     content: {
       paddingHorizontal: safeSpacing.md || 16,

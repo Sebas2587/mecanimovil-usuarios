@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
     },
     searchButton: {
-        backgroundColor: '#6366F1',
+        backgroundColor: '#007EA7',
         width: 56,
         height: 56,
         borderRadius: 20,
@@ -1001,7 +1001,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     saveButton: {
-        backgroundColor: '#6366F1',
+        backgroundColor: '#007EA7',
         borderRadius: 16,
         height: 56,
         marginBottom: 16,

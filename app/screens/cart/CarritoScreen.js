@@ -265,7 +265,7 @@ const CarritoScreen = () => {
               <Ionicons 
                 name={item.taller_nombre ? "business" : "person"} 
                 size={24} 
-                color="#007AFF" 
+                color="#007EA7" 
               />
             </View>
           )}
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   headerBadge: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
     borderRadius: 12,
     minWidth: 24,
     height: 24,

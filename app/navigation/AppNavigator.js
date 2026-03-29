@@ -166,7 +166,7 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
         if (route.name === ROUTES.MIS_VEHICULOS) IconComponent = Car;
         else if (route.name === ROUTES.MARKETPLACE) IconComponent = ShoppingBag;
 
-        const color = isFocused ? '#6EE7B7' : 'rgba(255,255,255,0.35)';
+        const color = isFocused ? '#00A8E8' : 'rgba(255,255,255,0.35)';
 
         return (
           <TouchableOpacity key={route.key} onPress={onPress} style={tabStyles.tab} activeOpacity={0.7}>
@@ -201,7 +201,7 @@ const tabStyles = StyleSheet.create({
     width: 24,
     height: 2,
     borderRadius: 1,
-    backgroundColor: '#6EE7B7',
+    backgroundColor: '#00A8E8',
   },
   label: {
     fontSize: 10,

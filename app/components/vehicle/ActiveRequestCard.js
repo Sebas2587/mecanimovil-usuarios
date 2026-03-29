@@ -57,7 +57,7 @@ const ActiveRequestCard = ({ request, onPress }) => {
             )}
 
             <TouchableOpacity style={styles.button} activeOpacity={0.8} onPress={onPress}>
-                <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
                 <Text style={styles.buttonText}>{status === 'pendiente' ? 'Ver Ofertas' : 'Ver Detalles'}</Text>
                 <ArrowRight size={16} color="#FFF" />
             </TouchableOpacity>

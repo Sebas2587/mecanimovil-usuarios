@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   reviewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0d9488',
+    backgroundColor: '#007EA7',
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 24,

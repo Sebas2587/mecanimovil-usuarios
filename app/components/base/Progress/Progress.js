@@ -9,8 +9,8 @@ import { TOKENS } from '../../../design-system/tokens';
 
 // Fallback values in case tokens are not ready
 const SAFE_COLORS = TOKENS?.colors || {
-  primary: { 500: '#3B82F6' },
-  secondary: { 500: '#6366F1' },
+  primary: { 500: '#003459' },
+  secondary: { 500: '#007EA7' },
   accent: { 500: '#10B981' },
   error: { 500: '#EF4444' },
   success: { 500: '#10B981' },
@@ -73,7 +73,7 @@ const Progress = ({
   // Obtener color según el tipo
   const getColor = () => {
     switch (type) {
-      case 'secondary': return SAFE_COLORS.secondary?.[500] || '#6366F1';
+      case 'secondary': return SAFE_COLORS.secondary?.[500] || '#007EA7';
       case 'accent': return SAFE_COLORS.accent?.[500] || '#10B981';
       case 'danger': return SAFE_COLORS.error?.[500] || '#EF4444';
       case 'success': return SAFE_COLORS.success?.[500] || '#10B981';

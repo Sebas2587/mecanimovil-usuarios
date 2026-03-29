@@ -85,7 +85,7 @@ const MisCitasScreen = () => {
       case 'pendiente':
         return '#FF9500';
       case 'pago_validado':
-        return '#007AFF';
+        return '#007EA7';
       case 'confirmado':
         return '#0056CC';
       case 'en_proceso':
@@ -177,7 +177,7 @@ const MisCitasScreen = () => {
       <Text style={styles.estadisticasTitle}>Resumen de Citas</Text>
       <View style={styles.estadisticasContainer}>
         <View style={styles.estadisticaItem}>
-          <View style={[styles.estadisticaIcono, { backgroundColor: '#007AFF' }]}>
+          <View style={[styles.estadisticaIcono, { backgroundColor: '#007EA7' }]}>
             <Ionicons name="calendar" size={16} color="white" />
           </View>
           <Text style={styles.estadisticaNumero}>{estadisticas.total}</Text>
@@ -278,7 +278,7 @@ const MisCitasScreen = () => {
           <Ionicons 
             name={cita.tipo_servicio === 'taller' ? 'business' : 'person'} 
             size={20} 
-            color="#007AFF" 
+            color="#007EA7" 
           />
         </View>
         <View style={styles.proveedorTextos}>
@@ -331,7 +331,7 @@ const MisCitasScreen = () => {
 
       {/* Indicador de ver más */}
       <View style={styles.verMasIndicador}>
-        <Ionicons name="chevron-forward" size={16} color="#007AFF" />
+        <Ionicons name="chevron-forward" size={16} color="#007EA7" />
       </View>
     </TouchableOpacity>
   );
@@ -341,7 +341,7 @@ const MisCitasScreen = () => {
       {/* Header del vehículo */}
       <View style={styles.vehiculoHeader}>
         <View style={styles.vehiculoIcono}>
-          <Ionicons name="car" size={24} color="#007AFF" />
+          <Ionicons name="car" size={24} color="#007EA7" />
         </View>
         <View style={styles.vehiculoInfo}>
           <Text style={styles.vehiculoNombre}>
@@ -370,7 +370,7 @@ const MisCitasScreen = () => {
       <View style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color="#007EA7" />
             <Text style={styles.loadingText}>Cargando tus citas...</Text>
           </View>
         </SafeAreaView>
@@ -390,7 +390,7 @@ const MisCitasScreen = () => {
             style={styles.historialButton}
             onPress={() => navigation.navigate(ROUTES.SERVICES_HISTORY)}
           >
-            <Ionicons name="time-outline" size={20} color="#007AFF" />
+            <Ionicons name="time-outline" size={20} color="#007EA7" />
             <Text style={styles.historialButtonText}>Historial</Text>
           </TouchableOpacity>
         </View>
@@ -468,10 +468,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#007EA7',
   },
   historialButtonText: {
-    color: '#007AFF',
+    color: '#007EA7',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   agendarButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 25,
@@ -602,7 +602,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#007EA7',
   },
   vehiculoInfo: {
     flex: 1,
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     color: '#666666',
   },
   citasCount: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007EA7',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -659,7 +659,7 @@ const styles = StyleSheet.create({
   },
   horaTexto: {
     fontSize: 14,
-    color: '#007AFF',
+    color: '#007EA7',
     fontWeight: '600',
   },
   estadoBadge: {
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
   },
   proveedorTipo: {
     fontSize: 12,
-    color: '#007AFF',
+    color: '#007EA7',
     fontWeight: '500',
     marginBottom: 2,
   },
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
   },
   serviciosExtra: {
     fontSize: 13,
-    color: '#007AFF',
+    color: '#007EA7',
     fontStyle: 'italic',
     fontWeight: '500',
   },
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#007EA7',
   },
   verMasIndicador: {
     position: 'absolute',

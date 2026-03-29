@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, StatusBar, Alert, TouchableOpacity, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
@@ -13,8 +13,6 @@ import ProfileMenuItem from '../../components/profile/ProfileMenuItem';
 const UserProfileScreen = () => {
   const navigation = useNavigation();
   const { user, logout } = useAuth();
-
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const handleEditProfile = () => {
     navigation.navigate(ROUTES.EDIT_PROFILE);
@@ -86,15 +84,6 @@ const UserProfileScreen = () => {
           </ProfileMenuSection>
 
           <ProfileMenuSection title="SOPORTE">
-            <ProfileMenuItem
-              icon="notifications-outline"
-              label="Notificaciones"
-              iconBgColor="rgba(167,139,250,0.18)"
-              iconColor="#C4B5FD"
-              isSwitch
-              switchValue={notificationsEnabled}
-              onSwitchChange={setNotificationsEnabled}
-            />
             <ProfileMenuItem
               icon="headset-outline"
               label="Ayuda y Chat"

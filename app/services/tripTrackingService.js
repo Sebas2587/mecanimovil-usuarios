@@ -186,7 +186,7 @@ export const startTripTracking = async (vehicleId) => {
     foregroundService: {
       notificationTitle: 'Mecanimovil - Telemetria activa',
       notificationBody: 'Registrando kilometros del viaje en segundo plano.',
-      notificationColor: '#0d9488',
+      notificationColor: '#007EA7',
     },
   });
 

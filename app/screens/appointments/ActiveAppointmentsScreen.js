@@ -162,7 +162,7 @@ const ActiveAppointmentsScreen = () => {
       case 'pendiente':
         return '#FF9500';
       case 'pago_validado':
-        return '#007AFF';
+        return '#007EA7';
       case 'confirmado':
         return '#0056CC';
       case 'en_proceso':
@@ -343,7 +343,7 @@ const ActiveAppointmentsScreen = () => {
         <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
         
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#007EA7" />
           <Text style={styles.loadingText}>Cargando agendamientos...</Text>
         </View>
       </View>

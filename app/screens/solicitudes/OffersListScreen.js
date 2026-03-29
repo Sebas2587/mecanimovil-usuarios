@@ -272,7 +272,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         marginLeft: 8,
     },
     acceptButton: {
-        backgroundColor: colors.primary?.main || '#003459',
+        backgroundColor: colors.secondary?.[500] || '#007EA7',
         borderRadius: borders.radius?.md || 8,
         paddingVertical: 12,
         alignItems: 'center',

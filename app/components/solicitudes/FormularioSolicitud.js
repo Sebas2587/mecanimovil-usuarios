@@ -2253,7 +2253,7 @@ const FormularioSolicitud = ({
         <Text style={styles.progressText}>Paso {pasoVisual} de {totalPasos}</Text>
         <View style={styles.progressBar}>
           <LinearGradient
-            colors={['#10B981', '#6EE7B7']}
+            colors={['#007EA7', '#00A8E8']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={[styles.progressFill, { width: `${(pasoVisual / totalPasos) * 100}%` }]}
@@ -2285,7 +2285,7 @@ const FormularioSolicitud = ({
         )}
         <TouchableOpacity onPress={handleNext} style={{ flex: 2 }} activeOpacity={0.8}>
           <LinearGradient
-            colors={esUltimoPaso() ? ['#10B981', '#059669'] : ['#2563EB', '#3B82F6']}
+            colors={['#007EA7', '#00A8E8']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.navNextBtn}
@@ -2333,7 +2333,7 @@ const FormularioSolicitud = ({
                 }}
                 disabled={!tempDescription.trim()}
               >
-                <LinearGradient colors={['#10B981', '#059669']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>Continuar</Text>
                   <ChevronRightIcon size={18} color="#FFF" />
                 </LinearGradient>

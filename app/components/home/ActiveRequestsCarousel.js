@@ -52,12 +52,12 @@ const styles = StyleSheet.create({
     newRequestCard: {
         width: 140,
         height: 170, // Match RequestCard height
-        backgroundColor: '#2563EB', // Blue 600
+        backgroundColor: '#007EA7',
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 16,
-        shadowColor: '#2563EB',
+        shadowColor: '#007EA7',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
