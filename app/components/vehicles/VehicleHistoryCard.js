@@ -274,7 +274,7 @@ function resolveHistoryItemCost(item, oferta) {
  * Used in MarketplaceVehicleDetailScreen.
  * 
  * @param {Object} item - Service history item
- * @param {Function} onViewChecklist - Callback for clicking the checklist button
+ * @param {Function} [onViewChecklist] - Si no se pasa, no se muestra el botón de checklist (p. ej. ficha pública).
  */
 export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'light' }) => {
   const s = variant === 'dark' ? historyStylesDark : historyStyles;
@@ -395,15 +395,16 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
         )}
       </View>
 
-      {/* Footer: Checklist Button */}
-      {/* Always show if we have an ID to query, typically 'id' is the orden_id */}
-      <TouchableOpacity
-        style={s.checklistButton}
-        onPress={() => onViewChecklist && onViewChecklist(item)}
-      >
-        <Text style={s.checklistButtonText}>Ver Checklist del Servicio</Text>
-        <Ionicons name="chevron-forward" size={14} color={variant === 'dark' ? '#93C5FD' : COLORS.primary} />
-      </TouchableOpacity>
+      {/* Checklist solo con sesión (datos sensibles); ficha pública omite onViewChecklist */}
+      {typeof onViewChecklist === 'function' ? (
+        <TouchableOpacity
+          style={s.checklistButton}
+          onPress={() => onViewChecklist(item)}
+        >
+          <Text style={s.checklistButtonText}>Ver Checklist del Servicio</Text>
+          <Ionicons name="chevron-forward" size={14} color={variant === 'dark' ? '#93C5FD' : COLORS.primary} />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 };

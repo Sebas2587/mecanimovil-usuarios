@@ -509,7 +509,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                     <VehicleServiceHistoryRow
                                         key={item.id}
                                         item={item}
-                                        onViewChecklist={handleViewChecklist}
+                                        onViewChecklist={user ? handleViewChecklist : undefined}
                                         variant="dark"
                                     />
                                 ))}
@@ -697,13 +697,15 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 vehicleName={`${brand} ${model}`}
             />
 
-            {/* 6. Checklist Viewer Modal */}
-            <ChecklistViewerModal
-                visible={checklistModalVisible}
-                onClose={() => setChecklistModalVisible(false)}
-                ordenId={selectedChecklistId}
-                servicioNombre={selectedServiceName}
-            />
+            {/* Checklist: solo usuarios con sesión (no en ficha pública anónima) */}
+            {user ? (
+                <ChecklistViewerModal
+                    visible={checklistModalVisible}
+                    onClose={() => setChecklistModalVisible(false)}
+                    ordenId={selectedChecklistId}
+                    servicioNombre={selectedServiceName}
+                />
+            ) : null}
         </View>
     );
 };
