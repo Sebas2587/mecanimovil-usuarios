@@ -26,7 +26,6 @@ import { ROUTES } from '../../utils/constants';
 // Services
 import * as vehicleService from '../../services/vehicle';
 import * as VehicleHealthService from '../../services/vehicleHealthService';
-import solicitudesService from '../../services/solicitudesService';
 import { useSolicitudes } from '../../context/SolicitudesContext'; // To get active requests
 
 // Components
@@ -81,19 +80,10 @@ const VehicleProfileScreen = () => {
 
             setHealthData(health);
 
-            // Recuento real: solicitudes completadas de este vehículo (con oferta pagada)
             try {
-                const response = await solicitudesService.obtenerMisSolicitudes({ estado: 'completada' });
-                let list = [];
-                if (Array.isArray(response)) list = response;
-                else if (response?.results) list = response.results;
-                else if (response?.features) list = response.features.map(f => ({ ...f.properties, id: f.id || f.properties?.id }));
                 const vehicleId = freshVehicle?.id ?? vehicle?.id;
-                const count = list.filter((s) => {
-                    const sid = s.vehiculo?.id ?? s.vehiculo_detail?.id ?? s.vehiculo;
-                    return sid != null && String(sid) === String(vehicleId);
-                }).length;
-                setServicesCount(count);
+                const history = await vehicleService.getVehicleServiceHistory(vehicleId);
+                setServicesCount(Array.isArray(history) ? history.length : 0);
             } catch (e) {
                 console.warn('Error obteniendo conteo de servicios:', e);
                 setServicesCount(0);

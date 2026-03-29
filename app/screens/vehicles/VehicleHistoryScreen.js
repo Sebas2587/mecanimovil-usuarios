@@ -9,6 +9,7 @@ import {
   RefreshControl,
   StatusBar,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -16,8 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ArrowLeft, ClipboardList, Plus } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
-import solicitudesService from '../../services/solicitudesService';
-import SolicitudCard from '../../components/solicitudes/SolicitudCard';
+import * as vehicleService from '../../services/vehicle';
+import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
 
 const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
 const BLUR_I = Platform.OS === 'ios' ? 30 : 0;
@@ -29,66 +30,51 @@ const VehicleHistoryScreen = () => {
   const initialVehicle = route.params?.vehicle || null;
 
   const [vehicle, setVehicle] = useState(initialVehicle);
-  const [solicitudes, setSolicitudes] = useState([]);
+  const [historyItems, setHistoryItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fetchSolicitudesCompletadas = useCallback(async () => {
+  const fetchHistory = useCallback(async () => {
     if (!vehicleId) {
-      setSolicitudes([]);
+      setHistoryItems([]);
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      const response = await solicitudesService.obtenerMisSolicitudes({ estado: 'completada' });
+      const [history, vehicleData] = await Promise.all([
+        vehicleService.getVehicleServiceHistory(vehicleId),
+        !vehicle && vehicleId ? vehicleService.getVehicleById(vehicleId).catch(() => null) : Promise.resolve(null),
+      ]);
 
-      let solicitudesArray = [];
-      if (Array.isArray(response)) {
-        solicitudesArray = response;
-      } else if (response?.results) {
-        solicitudesArray = response.results;
-      } else if (response?.features) {
-        solicitudesArray = response.features.map((f) => ({ ...f.properties, id: f.id || f.properties?.id }));
-      }
-
-      const filteredSolicitudes = solicitudesArray.filter((solicitud) => {
-        const vid = solicitud.vehiculo?.id || solicitud.vehiculo_detail?.id || solicitud.vehiculo;
-        const tieneOfertaSeleccionada = solicitud.oferta_seleccionada || solicitud.oferta_seleccionada_detail;
-        const esCompletada = solicitud.estado === 'completada';
-
-        return vid?.toString() === vehicleId.toString() && tieneOfertaSeleccionada && esCompletada;
-      });
-
-      setSolicitudes(filteredSolicitudes);
-
-      if (!initialVehicle && filteredSolicitudes[0]) {
-        const vehiculoData = filteredSolicitudes[0].vehiculo_detail || filteredSolicitudes[0].vehiculo;
-        if (vehiculoData && typeof vehiculoData === 'object') {
-          setVehicle(vehiculoData);
-        }
-      }
+      setHistoryItems(Array.isArray(history) ? history : []);
+      if (!vehicle && vehicleData) setVehicle(vehicleData);
     } catch (err) {
-      console.error('Error cargando solicitudes completadas:', err);
+      console.error('Error cargando historial del vehículo:', err);
     } finally {
       setLoading(false);
     }
-  }, [vehicleId, initialVehicle]);
+  }, [vehicleId, vehicle]);
 
   useEffect(() => {
-    fetchSolicitudesCompletadas();
-  }, [fetchSolicitudesCompletadas]);
+    fetchHistory();
+  }, [fetchHistory]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchSolicitudesCompletadas();
+    await fetchHistory();
     setRefreshing(false);
-  }, [fetchSolicitudesCompletadas]);
+  }, [fetchHistory]);
 
-  const handleSolicitudPress = useCallback(
-    (solicitud) => {
-      navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: solicitud.id });
+  const handleHistoryPress = useCallback(
+    (item) => {
+      const pubId = item.solicitud_publica_id;
+      if (!pubId) {
+        Alert.alert('Info', 'No se puede ver el detalle de esta solicitud.');
+        return;
+      }
+      navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: pubId });
     },
     [navigation]
   );
@@ -98,9 +84,9 @@ const VehicleHistoryScreen = () => {
       <View style={styles.emptyIconWrap}>
         <ClipboardList size={40} color="rgba(255,255,255,0.25)" />
       </View>
-      <Text style={styles.emptyTitle}>Sin solicitudes completadas</Text>
+      <Text style={styles.emptyTitle}>Sin servicios completados</Text>
       <Text style={styles.emptySubtitle}>
-        Cuando completes solicitudes para este vehículo, aparecerán aquí.
+        Cuando este vehículo tenga servicios completados, aparecerán aquí.
       </Text>
       <TouchableOpacity style={styles.emptyButton} activeOpacity={0.85} onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)}>
         <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
@@ -118,18 +104,18 @@ const VehicleHistoryScreen = () => {
         <Text style={styles.vehicleTitle}>
           {vehicle?.marca_nombre || vehicle?.marca || ''} {vehicle?.modelo_nombre || vehicle?.modelo || ''} • {vehicle?.patente || ''}
         </Text>
-        {solicitudes.length > 0 && (
+        {historyItems.length > 0 && (
           <Text style={styles.sectionSubtitle}>
-            {solicitudes.length} {solicitudes.length === 1 ? 'solicitud completada' : 'solicitudes completadas'}
+            {historyItems.length} {historyItems.length === 1 ? 'servicio completado' : 'servicios completados'}
           </Text>
         )}
       </View>
     </View>
   );
 
-  const renderSolicitud = ({ item }) => (
+  const renderHistoryItem = ({ item }) => (
     <View style={styles.cardWrapper}>
-      <SolicitudCard solicitud={item} onPress={() => handleSolicitudPress(item)} fullWidth />
+      <VehicleServiceHistoryRow item={item} onViewChecklist={() => handleHistoryPress(item)} variant="dark" />
     </View>
   );
 
@@ -174,9 +160,9 @@ const VehicleHistoryScreen = () => {
         </View>
 
         <FlatList
-          data={solicitudes}
-          keyExtractor={(item) => `solicitud-${item.id}`}
-          renderItem={renderSolicitud}
+          data={historyItems}
+          keyExtractor={(item) => `history-${item.id}`}
+          renderItem={renderHistoryItem}
           ListHeaderComponent={<ListHeader />}
           ListEmptyComponent={<EmptyState />}
           contentContainerStyle={styles.listContent}
