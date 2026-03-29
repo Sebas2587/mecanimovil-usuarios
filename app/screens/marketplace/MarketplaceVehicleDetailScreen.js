@@ -15,6 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 import OfferCreationModal from '../../components/marketplace/OfferCreationModal';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal'; // Import Checklist Modal
 import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
+import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
 
 const GLASS_BG = Platform.select({
     ios: 'rgba(255,255,255,0.06)',
@@ -223,6 +224,18 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     // Check ownership
     const sellerId = fullVehicleData.user_id || fullVehicleData.seller?.id || fullVehicleData.cliente_id;
     const isOwner = user?.id && sellerId && (String(user.id) === String(sellerId));
+    const isAnonymousViewer = !user;
+    const showPublicInstallCtas = Platform.OS === 'web' || isAnonymousViewer;
+
+    const handleHeaderBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else if (isAnonymousViewer) {
+            navigation.navigate(ROUTES.LOGIN);
+        } else {
+            navigation.navigate('TabNavigator', { screen: ROUTES.MARKETPLACE });
+        }
+    };
 
     const renderHealthDetailItem = (item) => {
         // Metric Logic matching VehicleHealthScreen - Consistent colors
@@ -317,7 +330,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     <View style={styles.topBar}>
                         <TouchableOpacity
                             style={styles.backButton}
-                            onPress={() => navigation.goBack()}
+                            onPress={handleHeaderBack}
                         >
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
@@ -339,6 +352,10 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
                 {/* 2. Body Content (Negative Margin) */}
                 <View style={styles.bodyContainer}>
+
+                    {showPublicInstallCtas && (
+                        <MarketplaceDownloadBanner style={{ marginTop: 4 }} />
+                    )}
 
                     {/* Health Summary Card */}
                     <View style={styles.healthCard}>
@@ -451,6 +468,37 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     {(() => {
                         const isReserved = fullVehicleData?.is_reserved || vehicle?.is_reserved;
                         const isOwnerView = isOwner;
+
+                        if (isAnonymousViewer && !isOwnerView) {
+                            if (isReserved) {
+                                return (
+                                    <TouchableOpacity
+                                        style={[styles.makeOfferButton, { backgroundColor: 'rgba(75,85,99,0.9)' }]}
+                                        disabled
+                                    >
+                                        <Ionicons name="lock-closed" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                                        <Text style={styles.makeOfferText}>Reservado</Text>
+                                    </TouchableOpacity>
+                                );
+                            }
+                            return (
+                                <TouchableOpacity
+                                    style={styles.makeOfferButtonWrap}
+                                    onPress={() => navigation.navigate(ROUTES.LOGIN)}
+                                    activeOpacity={0.85}
+                                >
+                                    <LinearGradient
+                                        colors={['#007EA7', '#00A8E8']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={styles.makeOfferGradient}
+                                    >
+                                        <Ionicons name="log-in-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                                        <Text style={styles.makeOfferText}>Iniciar sesión para ofertar</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            );
+                        }
 
                         let buttonText = "Hacer Oferta";
                         let disabled = false;

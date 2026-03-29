@@ -330,7 +330,7 @@ export const getMarketplaceStats = async (vehicleId) => {
  */
 export const getMarketplaceListings = async () => {
   try {
-    const data = await get('/vehiculos/marketplace-listings/');
+    const data = await get('/vehiculos/marketplace-listings/', {}, { requiresAuth: false });
     return data;
   } catch (error) {
     console.error("Error obteniendo listado marketplace:", error);
@@ -345,7 +345,10 @@ export const getMarketplaceListings = async () => {
  */
 export const getMarketplaceVehicleDetail = async (vehicleId) => {
   try {
-    const data = await get(`/vehiculos/${vehicleId}/marketplace-public-detail/`);
+    const data = await get(`/vehiculos/${vehicleId}/marketplace-public-detail/`, {}, {
+      requiresAuth: false,
+      forceRefresh: true,
+    });
     return data;
   } catch (error) {
     console.error(`Error obteniendo detalle marketplace ${vehicleId}:`, error);

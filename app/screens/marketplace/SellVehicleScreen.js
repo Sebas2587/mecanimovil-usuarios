@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
-    Switch, ActivityIndicator, Alert, Modal, TextInput, RefreshControl, Platform
+    Switch, ActivityIndicator, Alert, Modal, TextInput, RefreshControl, Platform, Share,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 // Services
 import * as vehicleService from '../../services/vehicle';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
+import { buildPublicListingUrl, buildDeepLinkListingUrl } from '../../config/publicListing';
 
 const SellVehicleScreen = () => {
     const navigation = useNavigation();
@@ -152,6 +153,54 @@ const SellVehicleScreen = () => {
         }
         togglePublishMutation.mutate(newValue);
     };
+
+    const handleShareFicha = useCallback(async () => {
+        if (!vehicle?.id) return;
+
+        const runShare = async () => {
+            const webUrl = buildPublicListingUrl(vehicle.id);
+            const deepUrl = buildDeepLinkListingUrl(vehicle.id);
+            const title = [vehicle.marca_nombre, vehicle.modelo_nombre].filter(Boolean).join(' ').trim() || 'Vehículo';
+            const message =
+                `Mirá esta ficha en MecaniMóvil: ${title}\n\nVer en la web:\n${webUrl}\n\nAbrir en la app:\n${deepUrl}`;
+            try {
+                if (Platform.OS === 'web') {
+                    await Share.share({ message, title: 'MecaniMóvil', url: webUrl });
+                } else {
+                    await Share.share({ message, url: webUrl });
+                }
+            } catch {
+                /* cancelado por el usuario */
+            }
+        };
+
+        if (!isPublished) {
+            Alert.alert(
+                'Publicá el vehículo',
+                'Para que otros vean la ficha, el auto debe estar publicado en el marketplace.',
+                [
+                    { text: 'Cancelar', style: 'cancel' },
+                    {
+                        text: 'Publicar y compartir',
+                        onPress: () => {
+                            if (!sellingPrice || sellingPrice <= 0) {
+                                Alert.alert('Precio requerido', 'Definí un precio de venta antes de publicar.');
+                                return;
+                            }
+                            togglePublishMutation.mutate(true, {
+                                onSuccess: () => {
+                                    runShare();
+                                },
+                            });
+                        },
+                    },
+                ]
+            );
+            return;
+        }
+
+        await runShare();
+    }, [vehicle, isPublished, sellingPrice, togglePublishMutation]);
 
     const handleSavePrice = () => {
         const priceValue = parseInt(newPriceInput.replace(/[^0-9]/g, ''));
@@ -424,7 +473,7 @@ const SellVehicleScreen = () => {
             <View style={styles.footerContainer}>
                 <TouchableOpacity
                     style={styles.outlineButton}
-                    onPress={() => Alert.alert('Compartir', 'Funcionalidad próximamente')}
+                    onPress={handleShareFicha}
                 >
                     <Ionicons name="share-outline" size={20} color="rgba(255,255,255,0.85)" />
                     <Text style={styles.outlineButtonText}>Compartir Ficha</Text>

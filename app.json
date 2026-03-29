@@ -102,6 +102,9 @@
       "./plugins/withAndroidSingleTask.js"
     ],
     "extra": {
+      "publicListingWebOrigin": "https://mecanimovil-usuarios.vercel.app",
+      "playStoreUrl": "https://play.google.com/store/apps/details?id=com.mecanimovil.app",
+      "appStoreUrl": "https://apps.apple.com/search?term=MecaniM%C3%B3vil",
       "serverHost": null,
       "serverPort": 8000,
       "apiUrl": "https://mecanimovil-api.onrender.com/api",

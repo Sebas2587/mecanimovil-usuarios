@@ -2,6 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import MarketplaceVehicleDetailScreen from '../screens/marketplace/MarketplaceVehicleDetailScreen';
 import { ROUTES } from '../utils/constants';
 
 const Stack = createStackNavigator();
@@ -25,6 +26,11 @@ const AuthNavigator = ({ initialRouteName }) => {
     >
       <Stack.Screen name={ROUTES.LOGIN} component={LoginScreen} />
       <Stack.Screen name={ROUTES.REGISTER} component={RegisterScreen} />
+      <Stack.Screen
+        name={ROUTES.MARKETPLACE_VEHICLE_DETAIL}
+        component={MarketplaceVehicleDetailScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 };

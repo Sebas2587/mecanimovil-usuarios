@@ -121,7 +121,11 @@ if (typeof global !== 'undefined' && global.ErrorUtils) {
 
 // Configuración de Deep Linking para Mercado Pago y otras integraciones
 const linking = {
-  prefixes: ['mecanimovil://', 'https://mecanimovil.app'],
+  prefixes: [
+    'mecanimovil://',
+    'https://mecanimovil.app',
+    'https://mecanimovil-usuarios.vercel.app',
+  ],
   config: {
     screens: {
       // Pantalla de callback de Mercado Pago
@@ -157,6 +161,17 @@ const linking = {
           },
           // name es opcional - puede ser undefined
           name: (name) => name || undefined,
+        },
+      },
+      // Ficha pública marketplace (web Vercel + deep link app)
+      MarketplaceVehicleDetail: {
+        path: 'marketplace/vehicle/:vehicleId',
+        parse: {
+          vehicleId: (id) => {
+            if (id == null || id === '') return undefined;
+            const n = parseInt(id, 10);
+            return Number.isNaN(n) ? id : n;
+          },
         },
       },
     },
