@@ -42,10 +42,14 @@ const TransferenciaCompradorScreen = () => {
 
             const result = await TransferenciaService.completeTransfer(token);
 
+            const vName = result.vehicle_name || 'Vehículo';
+            const vYear = result.vehicle_year || '';
+            const sellerName = result.seller_name || 'Vendedor';
+
             navigation.replace(ROUTES.TRANSFERENCIA_EXITO || 'TransferenciaExito', {
                 vehicleId: result.vehicle_id,
-                vehicleName: 'Vehículo', // El backend no devuelve nombre, podríamos mejorarlo, pero ok por ahora
-                newOwner: result.new_owner
+                vehicleName: vYear ? `${vName} ${vYear}` : vName,
+                newOwner: sellerName,
             });
 
         } catch (error) {

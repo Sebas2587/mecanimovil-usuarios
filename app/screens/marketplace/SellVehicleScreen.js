@@ -23,8 +23,34 @@ const SellVehicleScreen = () => {
     const insets = useSafeAreaInsets();
     const queryClient = useQueryClient();
 
-    // Get vehicle data from params
-    const { vehicle } = route.params || {};
+    // Get vehicle data from params (support both `vehicle` and `vehicleId`)
+    const { vehicle: vehicleFromParams, vehicleId } = route.params || {};
+    const [vehicle, setVehicle] = useState(vehicleFromParams || null);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const hydrate = async () => {
+            if (vehicleFromParams?.id) {
+                if (isMounted) setVehicle(vehicleFromParams);
+                return;
+            }
+
+            if (vehicleId != null && vehicleId !== '') {
+                try {
+                    const v = await vehicleService.getVehicleById(vehicleId);
+                    if (isMounted) setVehicle(v || null);
+                } catch (e) {
+                    if (isMounted) setVehicle(null);
+                }
+            }
+        };
+
+        hydrate();
+        return () => {
+            isMounted = false;
+        };
+    }, [vehicleFromParams, vehicleId]);
 
     // UI States (Modal & Input)
     const [priceModalVisible, setPriceModalVisible] = useState(false);
@@ -690,7 +716,7 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     },
     progressBarFill: {
         height: 6,
-        backgroundColor: '#2563EB',
+        backgroundColor: '#007EA7',
         borderRadius: 3,
     },
     insightDescription: {
@@ -860,7 +886,7 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         backgroundColor: '#F3F4F6',
     },
     saveButton: {
-        backgroundColor: '#003459', // Primary Brand Color
+        backgroundColor: '#007EA7',
     },
     cancelButtonText: {
         fontWeight: '600',

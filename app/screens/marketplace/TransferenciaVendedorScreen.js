@@ -56,10 +56,20 @@ const TransferenciaVendedorScreen = () => {
                 const offer = await getOfferById(offerId);
                 if (offer.estado === 'completada' || offer.estado === 'vendido') {
                     stopPolling();
+                    const vName = [
+                        offer.vehiculo_marca || offer.vehiculo?.marca?.nombre,
+                        offer.vehiculo_modelo || offer.vehiculo?.modelo?.nombre,
+                    ].filter(Boolean).join(' ') || 'Vehículo';
+                    const vYear = offer.vehiculo_year || offer.vehiculo?.year || '';
+                    const buyerName = [
+                        offer.comprador_nombre || offer.comprador?.first_name,
+                        offer.comprador_apellido || offer.comprador?.last_name,
+                    ].filter(Boolean).join(' ') || offer.comprador?.username || offer.comprador?.email || 'Comprador';
+
                     navigation.replace(ROUTES.TRANSFERENCIA_EXITO || 'TransferenciaExito', {
-                        vehicleId: offer.vehiculo?.id,
-                        vehicleName: `${offer.vehiculo?.marca?.nombre} ${offer.vehiculo?.modelo?.nombre}`,
-                        newOwner: offer.comprador?.username || 'Comprador'
+                        vehicleId: offer.vehiculo?.id || offer.vehiculo,
+                        vehicleName: vYear ? `${vName} ${vYear}` : vName,
+                        newOwner: buyerName,
                     });
                 }
             } catch (err) {

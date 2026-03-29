@@ -369,6 +369,20 @@ export const getVehicleAppraisal = async (vehicleId) => {
 };
 
 /**
+ * Obtiene el historial COMPLETO de servicios de un vehículo (todos los dueños).
+ * Solo accesible por el dueño actual.
+ */
+export const getVehicleServiceHistory = async (vehicleId) => {
+  try {
+    const data = await get(`/vehiculos/${vehicleId}/historial-servicios/`);
+    return data;
+  } catch (error) {
+    console.error(`Error obteniendo historial servicios ${vehicleId}:`, error);
+    return [];
+  }
+};
+
+/**
  * Crea una oferta para un vehículo
  * @param {Object} offerData - { vehiculo_id, monto, mensaje }
  * @returns {Promise<Object>}

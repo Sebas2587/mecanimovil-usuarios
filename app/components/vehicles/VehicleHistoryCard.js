@@ -202,6 +202,72 @@ const styles = StyleSheet.create({
 export default VehicleHistoryCard;
 
 /**
+ * Normaliza montos desde API (número, string con puntos de miles, $, comas decimales).
+ * Evita NaN en iOS/Android cuando el backend envía strings formateados.
+ */
+function parseMoneyValue(raw) {
+  if (raw == null || raw === '') return NaN;
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN;
+  const str = String(raw).trim();
+  if (!str) return NaN;
+  let cleaned = str.replace(/[$\s\u00A0]/g, '');
+  const hasCommaDecimal = /,\d{1,2}$/.test(cleaned);
+  if (hasCommaDecimal) {
+    cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+  } else {
+    cleaned = cleaned.replace(/\./g, '');
+  }
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+function sumDetalleServicios(detalles) {
+  if (!Array.isArray(detalles) || detalles.length === 0) return NaN;
+  let sum = 0;
+  for (const d of detalles) {
+    const p = parseMoneyValue(d?.precio_servicio ?? d?.precio ?? d?.subtotal ?? d?.total);
+    if (Number.isFinite(p)) sum += p;
+  }
+  return sum > 0 ? sum : NaN;
+}
+
+function sumLineas(lineas) {
+  if (!Array.isArray(lineas) || lineas.length === 0) return NaN;
+  let sum = 0;
+  for (const line of lineas) {
+    const p = parseMoneyValue(line?.precio ?? line?.subtotal ?? line?.total ?? line?.precio_servicio);
+    if (Number.isFinite(p)) sum += p;
+  }
+  return sum > 0 ? sum : NaN;
+}
+
+function resolveHistoryItemCost(item, oferta) {
+  const candidates = [
+    item.cost,
+    item.total,
+    item.price,
+    item.monto,
+    item.valor,
+    item.total_pagado,
+    item.monto_total,
+    item.precio_total,
+    item.precio_final,
+    oferta.monto,
+    oferta.precio_total,
+    oferta.precio_total_ofrecido,
+    oferta.total,
+    sumDetalleServicios(oferta.detalles_servicios),
+    sumLineas(item.lineas),
+    sumLineas(item.line_items),
+  ];
+  for (const c of candidates) {
+    const n = typeof c === 'number' && Number.isFinite(c) ? c : parseMoneyValue(c);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return NaN;
+}
+
+/**
  * VehicleServiceHistoryRow
  * 
  * Enhanced visual representation of a service history item for the Marketplace.
@@ -273,8 +339,7 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
     year: 'numeric'
   });
 
-  // Cost Display Logic
-  const displayCost = item.cost || item.total || item.price || item.monto || item.valor || 0;
+  const displayCostAmount = resolveHistoryItemCost(item, oferta);
 
   return (
     <View style={s.rowContainer}>
@@ -304,7 +369,7 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
       {/* Body: Service & Mileage */}
       <View style={s.body}>
         <View style={s.serviceInfo}>
-          <Text style={s.serviceTitle}>{serviceName}</Text>
+          <Text style={s.serviceTitle} numberOfLines={2}>{serviceName}</Text>
           <View style={s.specsRow}>
             <View style={s.specItem}>
               <Feather name="activity" size={12} color={variant === 'dark' ? 'rgba(255,255,255,0.45)' : '#6B7280'} />
@@ -317,23 +382,14 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
           </View>
         </View>
 
-        {/* Cost Display - Enhanced */}
-        {parseFloat(displayCost) > 0 && (
+        {Number.isFinite(displayCostAmount) && displayCostAmount > 0 && (
           <View style={s.costBadge}>
             <Text style={s.costLabel}>Valor Servicio</Text>
             <Text style={s.costValue}>
-              ${parseFloat(displayCost).toLocaleString('es-CL')}
+              ${Math.round(displayCostAmount).toLocaleString('es-CL')}
             </Text>
           </View>
         )}
-
-        <TouchableOpacity
-          style={s.viewButton}
-          onPress={() => onViewChecklist(item)}
-        >
-          {/* Arrow removed as per user request */}
-          <View style={{ width: 4 }} />
-        </TouchableOpacity>
       </View>
 
       {/* Footer: Checklist Button */}
@@ -409,12 +465,15 @@ const historyStyles = StyleSheet.create({
   serviceInfo: {
     flex: 1,
     marginRight: 8,
+    // iOS: allow text to shrink so cost badge stays visible
+    minWidth: 0,
   },
   serviceTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 4,
+    flexShrink: 1,
   },
   specsRow: {
     flexDirection: 'row',
@@ -431,13 +490,6 @@ const historyStyles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginLeft: 4,
-  },
-  viewButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   checklistButton: {
     flexDirection: 'row',
@@ -463,6 +515,7 @@ const historyStyles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'flex-end',
     marginLeft: 8,
+    flexShrink: 0,
     borderWidth: 1,
     borderColor: 'rgba(52, 211, 153, 0.2)',
   },
@@ -536,12 +589,15 @@ const historyStylesDark = StyleSheet.create({
   serviceInfo: {
     flex: 1,
     marginRight: 8,
+    // iOS: allow text to shrink so cost badge stays visible
+    minWidth: 0,
   },
   serviceTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: '#F9FAFB',
     marginBottom: 4,
+    flexShrink: 1,
   },
   specsRow: {
     flexDirection: 'row',
@@ -558,13 +614,6 @@ const historyStylesDark = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.5)',
     marginLeft: 4,
-  },
-  viewButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   checklistButton: {
     flexDirection: 'row',
@@ -590,6 +639,7 @@ const historyStylesDark = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'flex-end',
     marginLeft: 8,
+    flexShrink: 0,
     borderWidth: 1,
     borderColor: 'rgba(16,185,129,0.35)',
   },

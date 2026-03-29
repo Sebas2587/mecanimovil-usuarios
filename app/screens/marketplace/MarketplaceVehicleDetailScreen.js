@@ -68,74 +68,23 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 vehicleService.getMarketplaceVehicleDetail(effectiveVehicleId),
             ]);
 
-            // Merge basic info with detailed info (history, etc)
-            // ENRICHMENT: Fetch detailed request info for history items if they are Solicitudes
-            // The history items from `getMarketplaceVehicleDetail` are simplified.
-            // We need to fetch the full `Solicitud` for each to get provider details (avatar, name, type) from the offer.
             const rawHistory = detailData.history || detailData.historial || detailData.services || [];
 
-            // Enrich history items by fetching user's completed requests
             let enrichedHistory = [];
 
             try {
-                const SolicitudesService = (await import('../../services/solicitudesService')).default;
-                const myCompletedRequests = await SolicitudesService.obtenerMisSolicitudes({ estado: 'completada' });
-
-                console.log('📋 [Enrichment] Fetched completed requests:', myCompletedRequests.length);
-
-                // Filter for this vehicle
-                // Robust comparison: Ensure both IDs are strings for comparison
-                const targetIdStr = String(effectiveVehicleId);
-
-                const vehicleRequests = myCompletedRequests.filter(req => {
-                    const reqVehicleId = req.vehiculo_id || req.vehiculo?.id || req.vehiculo;
-                    return reqVehicleId && String(reqVehicleId) === targetIdStr;
-                });
-
-                console.log(`🚗 [Enrichment] Found ${vehicleRequests.length} requests for vehicle ${effectiveVehicleId}`);
-
-                // Check ownership to decide source of truth
-                // If I am the owner, the Solicitudes DB (vehicleRequests) is the absolute truth.
-                // If it's empty, it means I have no history. Do NOT fallback to rawHistory (which might be mock/stale).
-                // If I am NOT the owner, I must rely on rawHistory (public view).
-
                 const sellerId = detailData.user_id || detailData.seller?.id || detailData.cliente_id;
                 const isViewerOwner = user?.id && sellerId && (String(user.id) === String(sellerId));
 
                 if (isViewerOwner) {
-                    // As owner, trusted history comes from my execution requests
-                    if (vehicleRequests.length > 0) {
-                        enrichedHistory = vehicleRequests.map(req => ({
-                            ...req,
-                            date: req.fecha_servicio || req.fecha_creacion,
-                            service: req.nombre_servicio || req.servicio_nombre || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.servicio_nombre) || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.nombre) || 'Servicio',
-                            provider: req.nombre_proveedor || req.oferta_seleccionada_detail?.nombre_proveedor || req.oferta_seleccionada_detail?.proveedor_nombre,
-                            verified: true,
-                            kilometraje: req.kilometraje || req.vehiculo_info?.kilometraje,
-                            id: req.id,
-                            cost: req.total || req.monto || req.oferta_seleccionada_detail?.monto // Ensure cost is mapped for owner view
-                        }));
-                    } else {
-                        // OWNER with 0 requests -> Show Empty History (ignore generic rawHistory)
-                        enrichedHistory = [];
-                    }
-                } else {
-                    // NOT OWNER (Buyer) -> Fallback to public endpoint history or use enriched if available
-                    if (vehicleRequests.length > 0) {
-                        // This case is rare (buyer managed to service the car?) but valid
-                        enrichedHistory = vehicleRequests.map(req => ({
-                            ...req,
-                            date: req.fecha_servicio || req.fecha_creacion,
-                            service: req.nombre_servicio || req.servicio_nombre || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.servicio_nombre) || (req.oferta_seleccionada_detail?.detalles_servicios?.[0]?.nombre) || 'Servicio',
-                            provider: req.nombre_proveedor || req.oferta_seleccionada_detail?.nombre_proveedor || req.oferta_seleccionada_detail?.proveedor_nombre,
-                            verified: true,
-                            kilometraje: req.kilometraje || req.vehiculo_info?.kilometraje,
-                            id: req.id,
-                            cost: req.total || req.monto || req.oferta_seleccionada_detail?.monto
-                        }));
+                    const fullHistory = await vehicleService.getVehicleServiceHistory(effectiveVehicleId);
+                    if (Array.isArray(fullHistory) && fullHistory.length > 0) {
+                        enrichedHistory = fullHistory;
                     } else {
                         enrichedHistory = rawHistory;
                     }
+                } else {
+                    enrichedHistory = rawHistory;
                 }
             } catch (err) {
                 console.warn('⚠️ [Enrichment] Failed:', err);
@@ -541,7 +490,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                     activeOpacity={0.85}
                                 >
                                     <LinearGradient
-                                        colors={['#0f766e', '#059669', '#10B981']}
+                                        colors={['#007EA7', '#00A8E8']}
                                         start={{ x: 0, y: 0 }}
                                         end={{ x: 1, y: 1 }}
                                         style={styles.makeOfferGradient}
