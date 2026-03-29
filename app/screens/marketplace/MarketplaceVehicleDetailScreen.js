@@ -1,5 +1,5 @@
 import React, { useState, Fragment } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, Modal, Platform, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, Modal, Platform, Dimensions, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,17 +30,24 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const { user } = useAuth();
+    const { height: windowHeight } = useWindowDimensions();
 
     // Get basic vehicle data from params - Support both full object and ID only
     const { vehicle, vehicleId } = route?.params || {};
 
-    // Resolve effective ID
-    const effectiveVehicleId = vehicle?.id || vehicleId;
+    // Resolver ID numérico (linking web puede mandar string)
+    const rawVehicleId = vehicle?.id ?? vehicleId ?? route?.params?.vehicleId;
+    const effectiveVehicleId = (() => {
+        if (rawVehicleId === undefined || rawVehicleId === null || rawVehicleId === '') return undefined;
+        const n = typeof rawVehicleId === 'number' ? rawVehicleId : parseInt(String(rawVehicleId), 10);
+        return Number.isNaN(n) || n <= 0 ? undefined : n;
+    })();
 
     const [fullVehicleData, setFullVehicleData] = useState(vehicle || {});
     const [healthData, setHealthData] = useState(null); // State for real health data
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [loadError, setLoadError] = useState(null);
 
     // Modal state for making offer
     const [offerModalVisible, setOfferModalVisible] = useState(false);
@@ -51,17 +58,12 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const [selectedServiceName, setSelectedServiceName] = useState('');
 
     const styles = getStyles(insets);
+    const skipNextFocusFetchRef = React.useRef(false);
 
-    // Reload when screen gains focus - critical for real-time updates
-    useFocusEffect(
-        React.useCallback(() => {
-            if (effectiveVehicleId) fetchVehicleDetails(true);
-        }, [effectiveVehicleId])
-    );
+    const fetchVehicleDetails = React.useCallback(async (isFocusRefresh = false) => {
+        if (!effectiveVehicleId) return;
 
-    const fetchVehicleDetails = async (isFocusRefresh = false) => {
-        // Only show full loading spinner if we have NO data at all
-        if (!fullVehicleData.id && !isFocusRefresh) setLoading(true);
+        if (!isFocusRefresh) setLoading(true);
 
         try {
             // Parallel fetching for better performance
@@ -96,6 +98,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
             detailData.history = enrichedHistory;
 
             setFullVehicleData(prev => ({ ...prev, ...detailData }));
+            setLoadError(null);
 
             console.log('🚗 [DEBUG] Vehicle Detail Data (Enriched):', JSON.stringify(detailData, null, 2));
             console.log('📜 [DEBUG] Enriched History Items (first 2):', JSON.stringify(enrichedHistory.slice(0, 2), null, 2));
@@ -107,17 +110,40 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
         } catch (error) {
             console.error("Error fetching vehicle details:", error);
-            // Alert.alert("Error", "No se pudo cargar el detalle completo del vehículo.");
+            setLoadError('No se pudo cargar esta publicación. Revisa tu conexión o el enlace.');
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [effectiveVehicleId, user?.id]);
+
+    // Carga inicial + cuando cambia el id (web / deep link)
+    React.useEffect(() => {
+        if (!effectiveVehicleId) {
+            setLoading(false);
+            setLoadError('Enlace inválido o sin vehículo.');
+            return;
+        }
+        skipNextFocusFetchRef.current = true;
+        fetchVehicleDetails(false);
+    }, [effectiveVehicleId, fetchVehicleDetails]);
+
+    // Refresco al volver a la pantalla (evita doble fetch en el primer focus)
+    useFocusEffect(
+        React.useCallback(() => {
+            if (!effectiveVehicleId) return;
+            if (skipNextFocusFetchRef.current) {
+                skipNextFocusFetchRef.current = false;
+                return;
+            }
+            fetchVehicleDetails(true);
+        }, [effectiveVehicleId, fetchVehicleDetails])
+    );
 
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
-        fetchVehicleDetails();
-    }, []);
+        fetchVehicleDetails(false);
+    }, [fetchVehicleDetails]);
 
     // Handle Offer Submission
     // Handle Offer Submission
@@ -297,8 +323,13 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         }
     };
 
+    const webRootStyle = Platform.OS === 'web'
+        ? { height: windowHeight, maxHeight: windowHeight, overflow: 'hidden' }
+        : null;
+    const webScrollStyle = Platform.OS === 'web' ? { flex: 1, minHeight: 0 } : null;
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, webRootStyle]}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
                 <View style={styles.blobEmerald} />
@@ -309,11 +340,17 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
             <ScrollView
-                style={styles.scrollView}
+                style={[styles.scrollView, webScrollStyle]}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6EE7B7" />}
             >
+                {!loading && loadError ? (
+                    <View style={styles.loadErrorBox}>
+                        <Ionicons name="cloud-offline-outline" size={40} color="#9CA3AF" />
+                        <Text style={styles.loadErrorText}>{loadError}</Text>
+                    </View>
+                ) : null}
                 {/* 1. Immersive Header */}
                 <View style={styles.headerContainer}>
                     {imageUrl ? (
@@ -680,6 +717,20 @@ const getStyles = (insets) => StyleSheet.create({
     },
     scrollContent: {
         paddingBottom: 0,
+        flexGrow: 1,
+    },
+    loadErrorBox: {
+        paddingHorizontal: 24,
+        paddingVertical: 48,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    loadErrorText: {
+        marginTop: 16,
+        fontSize: 16,
+        color: '#D1D5DB',
+        textAlign: 'center',
+        lineHeight: 22,
     },
     // Header
     headerContainer: {

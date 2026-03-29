@@ -149,6 +149,13 @@ async function testConnection(url, timeout = 5000) {
 async function discoverServerURL() {
   console.log('🔍 Iniciando auto-discovery del servidor...');
 
+  // Web en producción (p. ej. static en Vercel): el probe GET a /api/hello/ puede fallar por CORS
+  // aunque la API sea válida; entonces se caía al fallback localhost y la ficha pública quedaba vacía.
+  if (Platform.OS === 'web' && !__DEV__ && ENV_CONFIG.API_URL) {
+    console.log('🌐 Web producción: usando API_URL del manifest (sin probe CORS):', ENV_CONFIG.API_URL);
+    return ENV_CONFIG.API_URL;
+  }
+
   // 1. PRIORIDAD MÁXIMA: URL de Producción (Configurada manualmente)
   if (ENV_CONFIG.API_URL) {
     console.log('🌐 Probando URL de producción (Prioridad 1):', ENV_CONFIG.API_URL);
