@@ -48,6 +48,22 @@ import {
 } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
+
+function resolveHealthComponentLabel(comp) {
+  if (!comp) return 'Componente';
+  if (typeof comp.nombre === 'string' && comp.nombre.trim()) return comp.nombre.trim();
+  if (comp.componente_detail?.nombre) return String(comp.componente_detail.nombre).trim();
+  const nested = comp.componente;
+  if (nested && typeof nested === 'object' && nested.nombre) return String(nested.nombre).trim();
+  if (typeof comp.componente_nombre === 'string' && comp.componente_nombre.trim()) {
+    return comp.componente_nombre.trim();
+  }
+  if (typeof nested === 'string' && nested.trim() && Number.isNaN(Number(nested))) {
+    return nested.replace(/_/g, ' ');
+  }
+  if (typeof comp.slug === 'string' && comp.slug.trim()) return comp.slug.replace(/_/g, ' ');
+  return 'Componente';
+}
 import { useAuth } from '../../context/AuthContext';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { getUserVehicles } from '../../services/vehicle';
@@ -591,7 +607,7 @@ const UserPanelScreen = () => {
             {criticalComponents.length > 0 ? (
               <View style={styles.alertsList}>
                 {criticalComponents.map((comp, idx) => {
-                  const name = comp.componente?.nombre || comp.componente_nombre || comp.componente || 'Componente';
+                  const name = resolveHealthComponentLabel(comp);
                   const pct = comp.salud_porcentaje ?? comp.salud ?? 0;
                   const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
                   const level = comp.nivel_alerta || comp.status || 'ATENCION';

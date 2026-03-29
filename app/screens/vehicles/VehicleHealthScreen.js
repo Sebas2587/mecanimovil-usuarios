@@ -244,7 +244,12 @@ const VehicleHealthScreen = ({ route }) => {
 
   const renderSummary = () => {
     if (!healthData) return null;
-    const { componentes_optimos = 0, componentes_atencion = 0, componentes_urgentes = 0 } = healthData;
+    const {
+      componentes_optimos = 0,
+      componentes_atencion = 0,
+      componentes_urgentes = 0,
+      componentes_criticos = 0,
+    } = healthData;
 
     return (
       <View style={styles.summaryContainer}>
@@ -260,6 +265,10 @@ const VehicleHealthScreen = ({ route }) => {
           <View style={styles.legendItem}>
             <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
             <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: '#7F1D1D' }]} />
+            <Text style={styles.legendText}>{componentes_criticos} Críticos</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
@@ -560,19 +569,17 @@ const VehicleHealthScreen = ({ route }) => {
               ) : null}
             </ScrollView>
 
-            <TouchableOpacity
-              style={styles.modalButtonSecondary}
-              onPress={() => {
-                setSelectedMetric(null);
-                handleNavToService();
-              }}
-            >
-              <Text style={styles.modalButtonSecondaryText}>
-                {serviciosDelComponente.length > 0
-                  ? 'Ver todos los servicios'
-                  : 'Cotizar / Nueva solicitud'}
-              </Text>
-            </TouchableOpacity>
+            {serviciosDelComponente.length === 0 ? (
+              <TouchableOpacity
+                style={styles.modalButtonSecondary}
+                onPress={() => {
+                  setSelectedMetric(null);
+                  handleNavToService();
+                }}
+              >
+                <Text style={styles.modalButtonSecondaryText}>Cotizar / Nueva solicitud</Text>
+              </TouchableOpacity>
+            ) : null}
           </Animatable.View>
         </View>
       </Modal>
@@ -867,10 +874,10 @@ const createStyles = (insets) => StyleSheet.create({
     marginTop: 8,
     maxWidth: '70%',
   },
-  // Modal
+  // Modal (Android: fondo más opaco para separar bien el diálogo del listado)
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: Platform.OS === 'android' ? 'rgba(0,0,0,0.88)' : 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     padding: 24,
   },

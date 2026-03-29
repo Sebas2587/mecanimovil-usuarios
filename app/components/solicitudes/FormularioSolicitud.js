@@ -86,13 +86,37 @@ const glassCardBase = {
 /**
  * Formulario multi-paso para crear una solicitud de servicio
  */
+/** Nombre legible del componente de salud (evita mostrar IDs como "13" en UI). */
+function resolveHealthComponentDisplayName(comp) {
+  if (!comp) return 'Componente';
+  const n = comp.nombre;
+  if (typeof n === 'string' && n.trim()) return n.trim();
+  const detail = comp.componente_detail;
+  if (detail && typeof detail.nombre === 'string' && detail.nombre.trim()) return detail.nombre.trim();
+  const nested = comp.componente;
+  if (nested && typeof nested === 'object' && typeof nested.nombre === 'string' && nested.nombre.trim()) {
+    return nested.nombre.trim();
+  }
+  if (typeof comp.componente_nombre === 'string' && comp.componente_nombre.trim()) {
+    return comp.componente_nombre.trim();
+  }
+  if (typeof nested === 'string' && nested.trim() && Number.isNaN(Number(nested))) {
+    return nested.replace(/_/g, ' ');
+  }
+  if (typeof comp.slug === 'string' && comp.slug.trim()) {
+    return comp.slug.replace(/_/g, ' ');
+  }
+  return 'Componente';
+}
+
 const FormularioSolicitud = ({
   onSubmit,
   initialData = {},
   vehiculos = [],
   direcciones = [],
   contentPaddingBottom = 0,
-  onExit = null
+  onExit = null,
+  bloquearCambioVehiculo = false,
 }) => {
   const [pasoActual, setPasoActual] = useState(1);
   const [formData, setFormData] = useState({
@@ -350,7 +374,7 @@ const FormularioSolicitud = ({
       .slice(0, 5);
 
     for (const comp of critical) {
-      const compName = comp.componente?.nombre || comp.componente_nombre || comp.componente || 'Componente';
+      const compName = resolveHealthComponentDisplayName(comp);
       const compHealth = comp.salud_porcentaje ?? comp.salud ?? 0;
       const compLevel = comp.nivel_alerta || comp.status || 'ATENCION';
       const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
@@ -360,11 +384,23 @@ const FormularioSolicitud = ({
         for (const svc of services) {
           if (svc?.id && !seenServiceIds.has(svc.id)) {
             seenServiceIds.add(svc.id);
-            recs.push({ componentName: compName, componentHealth: compHealth, componentLevel: compLevel, kmRestantes: kmRest, service: svc });
+            recs.push({
+              componentName: compName,
+              componentHealth: compHealth,
+              componentLevel: compLevel,
+              kmRestantes: kmRest,
+              service: svc,
+            });
           }
         }
       } else {
-        recs.push({ componentName: compName, componentHealth: compHealth, componentLevel: compLevel, kmRestantes: kmRest, service: null });
+        recs.push({
+          componentName: compName,
+          componentHealth: compHealth,
+          componentLevel: compLevel,
+          kmRestantes: kmRest,
+          service: null,
+        });
       }
     }
     return recs;
@@ -1137,7 +1173,7 @@ const FormularioSolicitud = ({
                   {Math.round(vehicle.health_score ?? 0)}%
                 </Text>
               </View>
-              {vehiculosDisponibles.length > 1 && (
+              {vehiculosDisponibles.length > 1 && !bloquearCambioVehiculo && (
                 <TouchableOpacity onPress={handleDeseleccionarVehiculo} style={{ padding: 4 }}>
                   <Ionicons name="swap-horizontal" size={18} color="rgba(255,255,255,0.4)" />
                 </TouchableOpacity>
@@ -1177,13 +1213,17 @@ const FormularioSolicitud = ({
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getLevelColor(rec.componentLevel) }} />
-                          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={1}>
-                            {svc?.nombre || `Revisar ${rec.componentName}`}
+                          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={2}>
+                            {svc?.nombre?.trim() ||
+                              `Revisión sugerida (${rec.componentName})`}
                           </Text>
                           {isSelected && <CheckCircle2Icon size={18} color="#10B981" />}
                         </View>
-                        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 10, lineHeight: 17 }} numberOfLines={2}>
-                          {rec.componentName} al {Math.round(rec.componentHealth)}%{rec.kmRestantes != null ? ` · ~${rec.kmRestantes.toLocaleString()} km rest.` : ''}
+                        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 10, lineHeight: 17 }} numberOfLines={3}>
+                          Desgaste estimado en «{rec.componentName}»: {Math.round(rec.componentHealth)}% de vida útil
+                          {rec.kmRestantes != null
+                            ? ` · ~${rec.kmRestantes.toLocaleString()} km hasta próx. revisión`
+                            : ''}
                         </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
                           {svc?.precio_referencia != null && (

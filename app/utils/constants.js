@@ -211,6 +211,8 @@ export const ROUTES = {
 
   // Rutas principales de la aplicación
   HOME: 'Home',
+  /** Pantalla raíz del stack Home (UserPanelScreen) */
+  USER_PANEL: 'UserPanel',
   PROFILE: 'Profile',
   SERVICES: 'Services',
   SERVICE_LIST: 'ServiceList',

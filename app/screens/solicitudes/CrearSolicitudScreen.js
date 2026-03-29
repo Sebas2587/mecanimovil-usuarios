@@ -753,7 +753,11 @@ const CrearSolicitudScreen = () => {
             [
               {
                 text: 'OK',
-                onPress: () => navigation.navigate(ROUTES.HOME)
+                onPress: () =>
+                  navigation.navigate('TabNavigator', {
+                    screen: ROUTES.HOME,
+                    params: { screen: ROUTES.USER_PANEL },
+                  })
               }
             ]
           );
@@ -798,7 +802,11 @@ const CrearSolicitudScreen = () => {
             [
               {
                 text: 'OK',
-                onPress: () => navigation.navigate(ROUTES.HOME)
+                onPress: () =>
+                  navigation.navigate('TabNavigator', {
+                    screen: ROUTES.HOME,
+                    params: { screen: ROUTES.USER_PANEL },
+                  })
               }
             ]
           );
@@ -822,10 +830,17 @@ const CrearSolicitudScreen = () => {
       }
     } catch (error) {
       console.error('Error creando solicitud:', error);
-      const mensajeError = error.response?.data?.detail
-        || error.response?.data?.message
-        || error.message
-        || 'No se pudo crear la solicitud. Inténtalo de nuevo.';
+      const d = error.response?.data;
+      let mensajeError =
+        (typeof d?.detail === 'string' ? d.detail : null)
+        || d?.message
+        || error.message;
+      if (!mensajeError && d && typeof d === 'object') {
+        const ss = d.servicios_solicitados;
+        if (typeof ss === 'string') mensajeError = ss;
+        else if (Array.isArray(ss) && ss[0]) mensajeError = String(ss[0]);
+      }
+      mensajeError = mensajeError || 'No se pudo crear la solicitud. Inténtalo de nuevo.';
 
       Alert.alert('Error', mensajeError);
     } finally {
@@ -909,6 +924,7 @@ const CrearSolicitudScreen = () => {
         direcciones={direcciones}
         contentPaddingBottom={totalBottomPadding}
         onExit={() => navigation.goBack()}
+        bloquearCambioVehiculo={!!(vehicle && fromDashboard)}
       />
     </GlassShell>
   );
