@@ -6,7 +6,7 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef, DarkTheme } from '@react-navigation/native';
 import { View, Text, StyleSheet, Linking, AppState, LogBox as RNLogBox, Alert, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
@@ -391,13 +391,18 @@ const Main = () => {
   const { isAuthenticated, loading, registerSuccess } = useAuth();
   const navigationRef = useNavigationContainerRef();
 
-  // EAS Update: al volver de segundo plano, comprobar si hay un bundle nuevo (mismo runtimeVersion + canal).
+  // EAS Update: al volver de segundo plano, comprobar OTA (no en los primeros segundos de vida del proceso).
+  // En el primer arranque Android suele pasar active↔inactive; un reload aquí parece “la app se cerró sola”.
   const appStateRef = useRef(AppState.currentState);
+  const processStartedAtRef = useRef(Date.now());
   useEffect(() => {
     if (__DEV__) return undefined;
 
     const checkAndReloadOta = async () => {
       try {
+        if (Date.now() - processStartedAtRef.current < 45000) {
+          return;
+        }
         if (!Updates.isEnabled) return;
         const check = await Updates.checkForUpdateAsync();
         if (!check.isAvailable) return;
@@ -1204,12 +1209,22 @@ const Main = () => {
     return <SplashScreen />;
   }
 
+  const navigationTheme = {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      background: '#030712',
+      card: '#030712',
+    },
+  };
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: '#030712' }}>
       <NavigationContainer
         ref={navigationRef}
         linking={linking}
         onReady={onNavigationReady}
+        theme={navigationTheme}
       >
         {/* Mostrar AppNavigator si el usuario está autenticado, de lo contrario mostrar AuthNavigator */}
         {isAuthenticated ? (

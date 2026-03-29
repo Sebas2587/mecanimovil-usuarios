@@ -28,12 +28,9 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
       initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
-        cardStyle: { backgroundColor: 'transparent' },
-        cardStyleInterpolator: ({ current: { progress } }) => ({
-          cardStyle: {
-            opacity: progress,
-          },
-        }),
+        // No usar opacity: progress en la card inicial: en Android release el progress puede
+        // quedar en 0 un tiempo → pantalla “gris” (fondo nativo) y sin UI.
+        cardStyle: { backgroundColor: '#030712' },
       }}
     >
       <Stack.Screen name={ROUTES.LOGIN} component={LoginScreen} />
