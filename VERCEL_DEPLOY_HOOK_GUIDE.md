@@ -115,3 +115,43 @@ curl -X POST https://api.vercel.com/v1/integrations/deploy/prj_onu4rpYmXcplOPOmS
 ```
 
 **Para futuro:** Contacta soporte de Vercel para resolver el problema de auto-deploy desde Git, o considera migrar a una plataforma con mejor integración CI/CD como Netlify o GitHub Pages.
+
+---
+
+## ⚠️ El hook responde `{"job":...}` pero no ves tu web actualizada
+
+Eso **no** sube los archivos de tu Mac. El Deploy Hook solo dice a Vercel: **“haz un build nuevo del proyecto enlazado a Git, usando la rama que configuraste al crear el hook”**.
+
+Si no ves cambios, suele ser por:
+
+1. **Proyecto distinto en Vercel**  
+   La URL del hook (`prj_…`) puede ser de un proyecto antiguo (p. ej. `mecanimovil-app`) y **no** del repo `mecanimovil-usuarios`. En el dashboard, abre el proyecto correcto → **Settings → Git → Deploy Hooks**, crea un hook nuevo para la rama **`main`** y usa esa URL (o actualiza `deploy:vercel:hook` en `package.json`).
+
+2. **Rama incorrecta**  
+   El hook está atado a una rama (p. ej. `master`). Si solo pusheas `main`, el deploy no incluye esos commits.
+
+3. **El build falla en Vercel**  
+   En **Deployments** revisa el último deploy: estado **Error** o **Canceled**. Abre los logs (suele ser `expo export` o Node).
+
+### Subir lo que tienes en local (sin depender del hook)
+
+Primero, una sola vez en esta carpeta:
+
+```bash
+npx vercel login
+npx vercel link
+```
+
+(elige el team y el proyecto que corresponde a **mecanimovil-usuarios** / `*.vercel.app`)
+
+Luego, cada vez que quieras publicar **exactamente** lo que acabas de buildear:
+
+```bash
+npm run deploy:vercel:local
+```
+
+Eso ejecuta `expo export` y `vercel deploy dist --prod` (carpeta `dist` que genera Expo).
+
+### GitHub Actions (opcional)
+
+Si añades el secret **`VERCEL_DEPLOY_HOOK_URL`** en el repo con la URL de un hook **del proyecto y rama correctos**, el workflow `.github/workflows/trigger-vercel-deploy-hook.yml` disparará ese hook en cada push a `main`.

@@ -11,7 +11,9 @@
     "ios:device": "expo run:ios --device",
     "web": "expo start --web",
     "export": "expo export --platform web",
-    "deploy:vercel": "curl -X POST https://api.vercel.com/v1/integrations/deploy/prj_onu4rpYmXcplOPOmS29auXoG4kZj/ppYbhmkdgZ -H 'Content-Type: application/json'"
+    "deploy:vercel:hook": "curl -fsS -X POST https://api.vercel.com/v1/integrations/deploy/prj_onu4rpYmXcplOPOmS29auXoG4kZj/ppYbhmkdgZ -H 'Content-Type: application/json'",
+    "deploy:vercel:local": "npm run export && npx vercel deploy dist --prod --yes",
+    "deploy:vercel": "npm run deploy:vercel:hook"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

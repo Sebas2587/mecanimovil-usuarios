@@ -1,0 +1,20 @@
+# Opcional: en GitHub → Settings → Secrets → Actions, crea VERCEL_DEPLOY_HOOK_URL
+# con la URL completa del Deploy Hook (Settings → Git → Deploy Hooks del proyecto correcto).
+name: Trigger Vercel deploy hook
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-hook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST deploy hook
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "Secret VERCEL_DEPLOY_HOOK_URL no definida; no se llama al hook."
+            exit 0
+          fi
+          curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL" -H "Content-Type: application/json"
