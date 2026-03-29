@@ -328,7 +328,10 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
     item.service?.nombre ||
     'Servicio General';
 
-  const mileage = item.kilometraje ? `${item.kilometraje.toLocaleString()} km` : (item.mileage || '0 km');
+  const kmNum = item.kilometraje != null && item.kilometraje !== '' ? Number(item.kilometraje) : NaN;
+  const mileage = Number.isFinite(kmNum)
+    ? `${kmNum.toLocaleString()} km`
+    : (typeof item.mileage === 'string' && item.mileage.trim() ? item.mileage : '—');
 
   // Date Formatting
   const dateObj = item.fecha_servicio ? new Date(item.fecha_servicio) : (item.date ? new Date(item.date) : new Date());
