@@ -289,11 +289,22 @@ function setupInterceptors(apiInstance) {
         // NUEVO: 404 esperado para puede-crear-solicitud (frontend usa validación alternativa)
         const isPuedeCrearSolicitudMissing = error.response.status === 404 &&
           error.config?.url?.includes('/puede-crear-solicitud/');
-        // NUEVO: 401 esperado para endpoints que requieren auth cuando no hay sesión activa
+        // 401 esperado sin sesión: listas que solo aplican con usuario autenticado
+        const reqUrl = error.config?.url || '';
+        const method = (error.config?.method || 'get').toLowerCase();
+        const pathNoQuery = reqUrl.split('?')[0].replace(/\/$/, '');
+        const isMisSolicitudesListGet =
+          method === 'get' &&
+          !pathNoQuery.includes('/activas') &&
+          /\/ordenes\/solicitudes-publicas\/?$/.test(pathNoQuery);
+        const isListaChats401 =
+          reqUrl.includes('/chat-solicitudes/lista-chats/');
         const isUnauthorizedExpected = error.response.status === 401 &&
           (error.config?.url?.includes('/solicitudes-publicas/activas/') ||
             error.config?.url?.includes('/solicitudes/activas/') ||
-            error.config?.url?.includes('/ordenes/solicitudes-publicas/activas/'));
+            error.config?.url?.includes('/ordenes/solicitudes-publicas/activas/') ||
+            isListaChats401 ||
+            isMisSolicitudesListGet);
 
         if (isCarritoNotFound) {
           // Este es un estado normal, no un error crítico
@@ -575,12 +586,21 @@ export const get = async (url, params = {}, options = {}) => {
       error.data?.error?.includes('No hay carrito activo');
     const isPuedeCrearSolicitudMissing = error.status === 404 &&
       url.includes('/puede-crear-solicitud/');
+    const pathNoQuery = url.split('?')[0].replace(/\/$/, '');
+    const is401SinSesionEsperado =
+      error.status === 401 &&
+      (url.includes('/chat-solicitudes/lista-chats/') ||
+        (pathNoQuery.includes('/ordenes/solicitudes-publicas') &&
+          !pathNoQuery.includes('/activas') &&
+          /\/ordenes\/solicitudes-publicas\/?$/.test(pathNoQuery)));
 
     if (isCarritoNotFound) {
       logger.info(`Estado normal en GET a ${url}: No hay carrito activo`);
     } else if (isPuedeCrearSolicitudMissing) {
       // No mostrar como error: este 404 es esperado, el caller usará validación alternativa
       logger.info(`ℹ️ Endpoint puede-crear-solicitud no disponible (404) en GET a ${url}. Se usará validación alternativa.`);
+    } else if (is401SinSesionEsperado) {
+      // Sin token: el caller devuelve []; no spamear consola
     } else {
       logger.error(`Error en GET a ${url}:`, error);
     }

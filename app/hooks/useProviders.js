@@ -3,6 +3,7 @@ import * as providerService from '../services/providers';
 import { get } from '../services/api';
 import * as userService from '../services/user';
 import solicitudesService from '../services/solicitudesService';
+import { useAuth } from '../context/AuthContext';
 
 // Cache for concurrent request deduplication
 const requestCache = new Map();
@@ -235,6 +236,7 @@ export const useProviderReviews = (providerId, providerType) => {
  * MarketplaceVehicleDetailScreen y VehicleHistoryScreen - en lugar de getServicesHistory (historial).
  */
 export const useProviderCompletedJobs = (id, type) => {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['providerJobs', type, id],
         queryFn: async () => {
@@ -262,7 +264,7 @@ export const useProviderCompletedJobs = (id, type) => {
 
             return filtered;
         },
-        enabled: !!id && !!type,
+        enabled: !!id && !!type && !!user,
         staleTime: 1000 * 60 * 5,
     });
 };

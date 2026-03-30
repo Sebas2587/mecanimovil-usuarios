@@ -33,7 +33,7 @@
       }
     },
     "android": {
-      "versionCode": 3,
+      "versionCode": 10,
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",

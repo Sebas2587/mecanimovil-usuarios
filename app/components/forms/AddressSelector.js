@@ -11,22 +11,21 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { MapPin, Plus, Star, Trash2, ChevronDown, Navigation } from 'lucide-react-native';
-import { ROUTES } from '../../utils/constants';
 import * as locationService from '../../services/location';
+import AddressSelectionModal from '../location/AddressSelectionModal';
 
 const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, modalVisible, onModalVisibleChange, glassStyle = false }) => {
-  const navigation = useNavigation();
   const [internalModalVisible, setInternalModalVisible] = useState(false);
 
   const isModalVisible = modalVisible !== undefined ? modalVisible : internalModalVisible;
   const setModalVisibleState = onModalVisibleChange || setInternalModalVisible;
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [addressPickerVisible, setAddressPickerVisible] = useState(false);
 
   useEffect(() => {
     fetchAddresses();
@@ -67,16 +66,20 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
       if (onAddNewAddress) {
         onAddNewAddress();
       } else {
-        navigation.navigate(ROUTES.ADD_ADDRESS, {
-          onAddressAdded: async (newAddress) => {
-            if (newAddress.es_principal || !currentAddress) {
-              if (onAddressChange) onAddressChange(newAddress);
-            }
-            await fetchAddresses();
-          }
-        });
+        setAddressPickerVisible(true);
       }
-    }, 100);
+    }, 120);
+  };
+
+  const handlePickerSelect = async (address) => {
+    try {
+      const active = await locationService.setActiveAddress(address);
+      if (onAddressChange) onAddressChange(active || address);
+    } catch (e) {
+      if (onAddressChange) onAddressChange(address);
+    }
+    await fetchAddresses();
+    setAddressPickerVisible(false);
   };
 
   const handleOpenModal = () => setModalVisibleState(true);
@@ -263,6 +266,15 @@ const AddressSelector = ({ currentAddress, onAddressChange, onAddNewAddress, mod
           </View>
         </View>
       </Modal>
+
+      <AddressSelectionModal
+        visible={addressPickerVisible}
+        onClose={() => setAddressPickerVisible(false)}
+        onSelectAddress={handlePickerSelect}
+        currentAddress={currentAddress}
+        variant="darkGlass"
+        heroSubtitle="Usa tu ubicación para guardar una dirección y usarla en tu solicitud."
+      />
     </>
   );
 };

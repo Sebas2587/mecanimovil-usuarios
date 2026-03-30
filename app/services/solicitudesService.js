@@ -101,7 +101,11 @@ class SolicitudesService {
    */
   async obtenerMisSolicitudes(filtros = {}) {
     try {
-      console.log('SolicitudesService: Obteniendo mis solicitudes con filtros:', filtros);
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token || token === 'usuario_registrado_exitosamente') {
+        return [];
+      }
+
       const queryParams = new URLSearchParams();
       Object.keys(filtros).forEach(key => {
         if (filtros[key] !== null && filtros[key] !== undefined) {
@@ -161,10 +165,11 @@ class SolicitudesService {
 
       // Normalizar todas las solicitudes para extraer properties de GeoJSON Features
       const solicitudesNormalizadas = solicitudesArray.map(normalizarSolicitud);
-      console.log('SolicitudesService: Solicitudes normalizadas (primeras 2):', solicitudesNormalizadas.slice(0, 2).map(s => ({ id: s?.id, tieneId: !!s?.id })));
       return solicitudesNormalizadas;
     } catch (error) {
-      console.error('SolicitudesService: Error al obtener mis solicitudes:', error);
+      if (error.status === 401) {
+        return [];
+      }
       if (error.status === 404) {
         return [];
       }

@@ -1,5 +1,9 @@
 import api from './api';
 import ServerConfig from '../config/serverConfig';
+import logger from '../utils/logger';
+
+/** Mensajes del protocolo WS del backend sin handler de UI (esperados). */
+const WS_TYPES_OPTIONAL_NO_HANDLER = new Set(['current_statuses', 'subscription_confirmed']);
 
 class WebSocketService {
   constructor() {
@@ -100,24 +104,25 @@ class WebSocketService {
   handleMessage(event) {
     try {
       const data = JSON.parse(event.data);
-      console.log('📨 [CLIENTE WS] Mensaje WebSocket recibido:', data);
-      console.log('📨 [CLIENTE WS] Handlers registrados:', Array.from(this.messageHandlers.keys()));
+      logger.debug('📨 [CLIENTE WS] Mensaje:', data?.type, data);
 
-      // Notificar a todos los handlers registrados
       let handlersCalled = 0;
       this.messageHandlers.forEach((handler, type) => {
         if (type === 'any' || data.type === type) {
-          console.log(`📨 [CLIENTE WS] Llamando handler para tipo: ${type}`);
           handler(data);
           handlersCalled++;
         }
       });
-      
-      if (handlersCalled === 0) {
-        console.log('⚠️ [CLIENTE WS] No hay handlers registrados para el tipo:', data.type);
+
+      if (
+        handlersCalled === 0 &&
+        data?.type &&
+        !WS_TYPES_OPTIONAL_NO_HANDLER.has(data.type)
+      ) {
+        logger.warn('[CLIENTE WS] Sin handler para tipo:', data.type);
       }
     } catch (error) {
-      console.log('❌ [CLIENTE WS] Error procesando mensaje WebSocket:', error);
+      logger.warn('❌ [CLIENTE WS] Error procesando mensaje:', error?.message || error);
     }
   }
 

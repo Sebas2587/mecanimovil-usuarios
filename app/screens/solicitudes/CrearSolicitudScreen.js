@@ -504,11 +504,15 @@ const CrearSolicitudScreen = () => {
         // Si ya está en formato YYYY-MM-DD, validar y retornar
         const regexYYYYMMDD = /^\d{4}-\d{2}-\d{2}$/;
         if (regexYYYYMMDD.test(fecha)) {
-          // Validar que sea una fecha válida
-          const date = new Date(fecha);
-          if (!isNaN(date.getTime())) {
-            return fecha;
+          // Validar sin efectos de zona horaria (no usar new Date('YYYY-MM-DD') en local)
+          try {
+            const [y, m, d] = String(fecha).split('-').map((v) => parseInt(v, 10));
+            const utc = new Date(Date.UTC(y, m - 1, d));
+            if (!isNaN(utc.getTime())) return fecha;
+          } catch (e) {
+            // noop
           }
+          return null;
         }
 
         // Intentar convertir desde Date object o string

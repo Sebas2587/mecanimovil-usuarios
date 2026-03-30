@@ -359,18 +359,30 @@ const FormularioSolicitud = ({
     }
   }, [formData.servicios_seleccionados]);
 
-  // Build recommendations from critical health components
+  // Build recommendations from critical health components.
+  // REGLA: Solo mostrar recomendaciones que estén asociadas a servicios disponibles del vehículo.
+  // (Evita cards "Revisión sugerida" sin servicio clickeable).
   const healthRecommendations = React.useMemo(() => {
     if (!healthComponents?.length) return [];
+
+    const availableById = new Map();
+    if (Array.isArray(serviciosDisponibles)) {
+      for (const s of serviciosDisponibles) {
+        if (s?.id) availableById.set(s.id, s);
+      }
+    }
 
     const recs = [];
     const seenServiceIds = new Set();
     const critical = [...healthComponents]
-      .filter(c => {
+      .filter((c) => {
         const level = c.nivel_alerta || c.status || 'OPTIMO';
         return level !== 'OPTIMO';
       })
-      .sort((a, b) => (a.salud_porcentaje ?? a.salud ?? 100) - (b.salud_porcentaje ?? b.salud ?? 100))
+      .sort(
+        (a, b) =>
+          (a.salud_porcentaje ?? a.salud ?? 100) - (b.salud_porcentaje ?? b.salud ?? 100)
+      )
       .slice(0, 5);
 
     for (const comp of critical) {
@@ -378,33 +390,27 @@ const FormularioSolicitud = ({
       const compHealth = comp.salud_porcentaje ?? comp.salud ?? 0;
       const compLevel = comp.nivel_alerta || comp.status || 'ATENCION';
       const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
-      const services = comp.servicios_asociados || [];
+      const services = Array.isArray(comp.servicios_asociados) ? comp.servicios_asociados : [];
 
-      if (services.length > 0) {
-        for (const svc of services) {
-          if (svc?.id && !seenServiceIds.has(svc.id)) {
-            seenServiceIds.add(svc.id);
-            recs.push({
-              componentName: compName,
-              componentHealth: compHealth,
-              componentLevel: compLevel,
-              kmRestantes: kmRest,
-              service: svc,
-            });
-          }
-        }
-      } else {
+      for (const svcCandidate of services) {
+        const svcId = svcCandidate?.id;
+        if (!svcId || seenServiceIds.has(svcId)) continue;
+        const svc = availableById.get(svcId);
+        if (!svc) continue;
+
+        seenServiceIds.add(svcId);
         recs.push({
           componentName: compName,
           componentHealth: compHealth,
           componentLevel: compLevel,
           kmRestantes: kmRest,
-          service: null,
+          service: svc,
         });
       }
     }
+
     return recs;
-  }, [healthComponents]);
+  }, [healthComponents, serviciosDisponibles]);
 
   /** Cargar talleres/mecánicos que ofrecen los servicios seleccionados sin vehículo (precompra) */
   const cargarProveedoresPorServicioSinVehiculo = async () => {
@@ -786,6 +792,21 @@ const FormularioSolicitud = ({
         }
         if (!formData.vehiculo) {
           Alert.alert('Error', 'Debes seleccionar un vehículo');
+          return false;
+        }
+        // REGLA: si el vehículo no tiene servicios asociados, no permitir crear solicitud
+        // (En este flujo, los "servicios disponibles" provienen del backend por vehículo).
+        if (
+          !tieneServicioPreseleccionado &&
+          !!vehiculoId &&
+          !cargandoServicios &&
+          Array.isArray(serviciosDisponibles) &&
+          serviciosDisponibles.length === 0
+        ) {
+          Alert.alert(
+            'No disponible',
+            'Este vehículo no tiene servicios asociados, por lo que no es posible crear una solicitud.'
+          );
           return false;
         }
         // Si hay servicio preseleccionado, validar que exista

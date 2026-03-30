@@ -27,6 +27,7 @@ import {
 } from './app/utils/constants';
 import SplashScreen from './app/components/utils/SplashScreen';
 import logger from './app/utils/logger';
+import { parseMarketplaceVehicleIdFromUrl } from './app/utils/publicListingRoute';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queryClient, asyncStoragePersister } from './app/config/queryClient';

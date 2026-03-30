@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { get, post, put } from './api';
 
 /**
@@ -252,13 +253,15 @@ class OfertasService {
    */
   async obtenerListaChats() {
     try {
-      console.log('OfertasService: Obteniendo lista de chats');
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token || token === 'usuario_registrado_exitosamente') {
+        return [];
+      }
+
       const data = await get('/ordenes/chat-solicitudes/lista-chats/');
-      console.log('OfertasService: Lista de chats obtenida:', data);
       return Array.isArray(data) ? data : [];
     } catch (error) {
-      console.error('OfertasService: Error al obtener lista de chats:', error);
-      if (error.status === 404) {
+      if (error.status === 401 || error.status === 404) {
         return [];
       }
       throw error;

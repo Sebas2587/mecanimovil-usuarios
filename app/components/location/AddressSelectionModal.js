@@ -14,21 +14,33 @@ import {
     Platform
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { useUserAddresses, useSaveAddress, useDeleteAddress } from '../../hooks/useAddress';
 import * as locationService from '../../services/location';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddress }) => {
+const DEFAULT_HERO_SUBTITLE = 'Activa el GPS para encontrar talleres o mecánicos cercanos.';
+
+const AddressSelectionModal = ({
+    visible,
+    onClose,
+    onSelectAddress,
+    currentAddress,
+    variant = 'default',
+    heroSubtitle = DEFAULT_HERO_SUBTITLE,
+}) => {
     const theme = useTheme();
     const colors = theme.colors;
     const typography = theme.typography;
     const spacing = theme.spacing;
     const borders = theme.borders;
-    const styles = getStyles(colors, typography, spacing, borders);
+    const isDarkGlass = variant === 'darkGlass';
+    const styles = isDarkGlass
+        ? getDarkGlassStyles(typography, spacing, borders)
+        : getStyles(colors, typography, spacing, borders);
 
     const [isLocating, setIsLocating] = useState(false);
     const [detectedAddress, setDetectedAddress] = useState(null);
@@ -186,6 +198,23 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                     keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
                 >
                     <View style={styles.modalContent}>
+                        {isDarkGlass && (
+                            <>
+                                <LinearGradient
+                                    colors={['#0a1628', '#030712']}
+                                    style={StyleSheet.absoluteFill}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                />
+                                {Platform.OS === 'ios' && (
+                                    <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
+                                )}
+                                <View
+                                    style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.03)' }]}
+                                    pointerEvents="none"
+                                />
+                            </>
+                        )}
                         {/* Handle Indicator */}
                         <View style={styles.handleIndicator} />
 
@@ -193,7 +222,11 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                         <View style={styles.header}>
                             <Text style={styles.title}>¿Dónde estás?</Text>
                             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <Ionicons name="close" size={24} color={colors.text.secondary} />
+                                <Ionicons
+                                    name="close"
+                                    size={22}
+                                    color={isDarkGlass ? 'rgba(255,255,255,0.7)' : colors.text.secondary}
+                                />
                             </TouchableOpacity>
                         </View>
 
@@ -208,9 +241,13 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                                 >
                                     <View style={styles.heroIconContainer}>
                                         {isLocating ? (
-                                            <ActivityIndicator color={colors.primary.main} />
+                                            <ActivityIndicator color={isDarkGlass ? '#00A8E8' : colors.primary.main} />
                                         ) : (
-                                            <Feather name="navigation" size={24} color={colors.primary.main} />
+                                            <Feather
+                                                name="navigation"
+                                                size={24}
+                                                color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                            />
                                         )}
                                     </View>
                                     <View style={styles.heroTextContainer}>
@@ -218,10 +255,14 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                                             {isLocating ? "Buscando satélites..." : "Usar mi ubicación actual"}
                                         </Text>
                                         <Text style={styles.heroSubtitle}>
-                                            Activa el GPS para encontrar talleres cercanos
+                                            {heroSubtitle}
                                         </Text>
                                     </View>
-                                    <Ionicons name="chevron-forward" size={20} color={colors.primary.light} />
+                                    <Ionicons
+                                        name="chevron-forward"
+                                        size={20}
+                                        color={isDarkGlass ? 'rgba(255,255,255,0.35)' : colors.primary.light}
+                                    />
                                 </TouchableOpacity>
                             )}
 
@@ -230,39 +271,67 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                                 <View style={styles.saveForm}>
                                     <View style={styles.detectedHeader}>
                                         <View style={styles.greenIconValues}>
-                                            <Ionicons name="checkmark-circle" size={20} color={colors.success.main} />
+                                            <Ionicons
+                                                name="checkmark-circle"
+                                                size={20}
+                                                color={isDarkGlass ? '#6EE7B7' : colors.success.main}
+                                            />
                                         </View>
-                                        <Text style={[styles.inputLabel, { marginBottom: 0, flex: 1, color: colors.success.dark || '#166534' }]}>
+                                        <Text style={styles.detectedLabel}>
                                             Ubicación detectada (Edita si faltan datos)
                                         </Text>
                                     </View>
 
                                     <TextInput
-                                        style={[styles.input, { marginBottom: 12, backgroundColor: '#FFFFFF' }]}
+                                        style={[styles.input, styles.inputDetected]}
                                         value={detectedAddress.name}
                                         onChangeText={(text) => setDetectedAddress(prev => ({ ...prev, name: text }))}
                                         placeholder="Dirección y Número"
+                                        placeholderTextColor={isDarkGlass ? 'rgba(255,255,255,0.35)' : undefined}
                                     />
 
                                     <Text style={styles.inputLabel}>Nombre para guardar (ej: Casa, Oficina)</Text>
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Ej: Casa, Oficina, Gimnasio"
+                                        placeholderTextColor={isDarkGlass ? 'rgba(255,255,255,0.35)' : undefined}
                                         value={addressLabel}
                                         onChangeText={setAddressLabel}
                                     />
 
-                                    <TouchableOpacity
-                                        style={styles.saveButton}
-                                        onPress={handleSaveAddress}
-                                        disabled={isSaving}
-                                    >
-                                        {isSaving ? (
-                                            <ActivityIndicator color="#FFF" />
-                                        ) : (
-                                            <Text style={styles.saveButtonText}>Confirmar y Guardar</Text>
-                                        )}
-                                    </TouchableOpacity>
+                                    {isDarkGlass ? (
+                                        <TouchableOpacity
+                                            style={styles.saveButtonWrap}
+                                            onPress={handleSaveAddress}
+                                            disabled={isSaving}
+                                            activeOpacity={0.85}
+                                        >
+                                            <LinearGradient
+                                                colors={['#007EA7', '#00A8E8']}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 0 }}
+                                                style={styles.saveButtonGradient}
+                                            >
+                                                {isSaving ? (
+                                                    <ActivityIndicator color="#FFF" />
+                                                ) : (
+                                                    <Text style={styles.saveButtonText}>Confirmar y Guardar</Text>
+                                                )}
+                                            </LinearGradient>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={styles.saveButton}
+                                            onPress={handleSaveAddress}
+                                            disabled={isSaving}
+                                        >
+                                            {isSaving ? (
+                                                <ActivityIndicator color="#FFF" />
+                                            ) : (
+                                                <Text style={styles.saveButtonText}>Confirmar y Guardar</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
 
                                     <TouchableOpacity
                                         style={styles.retryButton}
@@ -277,12 +346,18 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                             <Text style={styles.sectionTitle}>Mis Direcciones Guardadas</Text>
 
                             {isLoadingAddresses ? (
-                                <ActivityIndicator style={{ marginTop: 20 }} color={colors.primary.main} />
+                                <ActivityIndicator
+                                    style={{ marginTop: 20 }}
+                                    color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                />
                             ) : (
                                 <View style={styles.listContainer}>
                                     {savedAddresses?.length > 0 ? (
                                         savedAddresses.map((addr) => {
                                             const isSelected = currentAddress?.id === addr.id;
+                                            const iconColor = isSelected
+                                                ? (isDarkGlass ? '#00A8E8' : colors.primary.main)
+                                                : (isDarkGlass ? 'rgba(255,255,255,0.45)' : colors.neutral.gray[500]);
                                             return (
                                                 <TouchableOpacity
                                                     key={addr.id}
@@ -296,7 +371,7 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                                                         <Feather
                                                             name={getIconForLabel(addr.etiqueta)}
                                                             size={18}
-                                                            color={isSelected ? colors.primary.main : colors.neutral.gray[500]}
+                                                            color={iconColor}
                                                         />
                                                     </View>
                                                     <View style={styles.itemContent}>
@@ -308,14 +383,26 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                                                         </Text>
                                                     </View>
                                                     {isSelected && (
-                                                        <Ionicons name="checkmark" size={20} color={colors.primary.main} />
+                                                        <Ionicons
+                                                            name="checkmark"
+                                                            size={20}
+                                                            color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                                        />
                                                     )}
                                                     {!isSelected && (
                                                         <TouchableOpacity
                                                             style={styles.deleteButton}
                                                             onPress={() => handleDelete(addr.id)}
                                                         >
-                                                            <Ionicons name="trash-outline" size={18} color={colors.neutral.gray[400]} />
+                                                            <Ionicons
+                                                                name="trash-outline"
+                                                                size={18}
+                                                                color={
+                                                                    isDarkGlass
+                                                                        ? 'rgba(255,255,255,0.35)'
+                                                                        : colors.neutral.gray[400]
+                                                                }
+                                                            />
                                                         </TouchableOpacity>
                                                     )}
                                                 </TouchableOpacity>
@@ -326,7 +413,9 @@ const AddressSelectionModal = ({ visible, onClose, onSelectAddress, currentAddre
                                             <Ionicons
                                                 name="map-outline"
                                                 size={64}
-                                                color={colors.neutral.gray[300]}
+                                                color={
+                                                    isDarkGlass ? 'rgba(255,255,255,0.2)' : colors.neutral.gray[300]
+                                                }
                                                 style={{ marginBottom: spacing.md }}
                                             />
                                             <Text style={styles.emptyText}>No tienes direcciones guardadas aún.</Text>
@@ -448,6 +537,13 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         fontWeight: typography.fontWeight.medium,
         flex: 1,
     },
+    detectedLabel: {
+        fontSize: typography.fontSize.sm,
+        color: '#166534',
+        fontWeight: typography.fontWeight.medium,
+        flex: 1,
+        marginBottom: 0,
+    },
     inputLabel: {
         fontSize: typography.fontSize.xs,
         color: colors.text.secondary,
@@ -464,6 +560,10 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         fontSize: typography.fontSize.base,
         color: colors.text.primary,
         marginBottom: spacing.md,
+    },
+    inputDetected: {
+        marginBottom: 12,
+        backgroundColor: '#FFFFFF',
     },
     saveButton: {
         backgroundColor: colors.success.main, // Using theme token
@@ -558,5 +658,231 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         color: colors.text.tertiary,
     },
 });
+
+const getDarkGlassStyles = (typography, spacing, borders) =>
+    StyleSheet.create({
+        modalOverlay: {
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.55)',
+            justifyContent: 'flex-end',
+        },
+        dismissArea: {
+            flex: 1,
+        },
+        modalContent: {
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingHorizontal: spacing.md,
+            paddingTop: spacing.sm,
+            maxHeight: SCREEN_HEIGHT * 0.85,
+            minHeight: SCREEN_HEIGHT * 0.5,
+            overflow: 'hidden',
+            borderTopWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)',
+            backgroundColor: 'transparent',
+            elevation: 16,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 14,
+        },
+        keyboardView: {
+            width: '100%',
+        },
+        handleIndicator: {
+            width: 40,
+            height: 4,
+            backgroundColor: 'rgba(255,255,255,0.22)',
+            borderRadius: 2,
+            alignSelf: 'center',
+            marginTop: 8,
+            marginBottom: 20,
+        },
+        header: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: spacing.lg,
+        },
+        title: {
+            fontSize: typography.fontSize?.['xl'] || 20,
+            fontWeight: typography.fontWeight.bold,
+            color: '#FFFFFF',
+        },
+        closeButton: {
+            padding: 8,
+            borderRadius: 12,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+        },
+        heroButton: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor:
+                Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+            borderWidth: 1,
+            borderColor: 'rgba(96,165,250,0.35)',
+            borderRadius: borders.radius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.lg,
+        },
+        heroIconContainer: {
+            width: 44,
+            height: 44,
+            borderRadius: 14,
+            backgroundColor: 'rgba(0,126,167,0.22)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: spacing.md,
+        },
+        heroTextContainer: {
+            flex: 1,
+        },
+        heroTitle: {
+            fontSize: typography.fontSize.base,
+            fontWeight: typography.fontWeight.semibold,
+            color: '#FFFFFF',
+            marginBottom: 4,
+        },
+        heroSubtitle: {
+            fontSize: typography.fontSize.xs,
+            color: 'rgba(255,255,255,0.45)',
+            lineHeight: 18,
+        },
+        saveForm: {
+            backgroundColor: 'rgba(16,185,129,0.08)',
+            borderRadius: borders.radius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.lg,
+            borderWidth: 1,
+            borderColor: 'rgba(16,185,129,0.28)',
+        },
+        detectedHeader: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: spacing.md,
+        },
+        greenIconValues: {
+            marginRight: 8,
+        },
+        detectedLabel: {
+            fontSize: typography.fontSize.sm,
+            color: '#6EE7B7',
+            fontWeight: typography.fontWeight.medium,
+            flex: 1,
+            marginBottom: 0,
+        },
+        inputLabel: {
+            fontSize: typography.fontSize.xs,
+            color: 'rgba(255,255,255,0.55)',
+            marginBottom: 6,
+            fontWeight: typography.fontWeight.medium,
+        },
+        input: {
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.12)',
+            borderRadius: borders.radius.md,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            fontSize: typography.fontSize.base,
+            color: '#FFFFFF',
+            marginBottom: spacing.md,
+        },
+        inputDetected: {
+            marginBottom: 12,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+        },
+        saveButton: {},
+        saveButtonWrap: {
+            borderRadius: 14,
+            overflow: 'hidden',
+            marginBottom: spacing.sm,
+        },
+        saveButtonGradient: {
+            paddingVertical: 14,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+        saveButtonText: {
+            color: '#FFFFFF',
+            fontWeight: typography.fontWeight.semibold,
+            fontSize: typography.fontSize.base,
+        },
+        retryButton: {
+            alignItems: 'center',
+            paddingVertical: 4,
+        },
+        retryText: {
+            fontSize: typography.fontSize.xs,
+            color: 'rgba(255,255,255,0.45)',
+            textDecorationLine: 'underline',
+        },
+        sectionTitle: {
+            fontSize: typography.fontSize.md,
+            fontWeight: typography.fontWeight.bold,
+            color: '#FFFFFF',
+            marginBottom: spacing.md,
+            marginTop: 4,
+        },
+        listContainer: {
+            gap: spacing.sm,
+        },
+        addressItem: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: spacing.md,
+            borderRadius: borders.radius.lg,
+            backgroundColor:
+                Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)',
+        },
+        addressItemSelected: {
+            backgroundColor: 'rgba(0,168,232,0.12)',
+            borderColor: 'rgba(0,168,232,0.35)',
+        },
+        itemIcon: {
+            width: 36,
+            height: 36,
+            borderRadius: 12,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginRight: spacing.md,
+        },
+        itemIconSelected: {
+            backgroundColor: 'rgba(0,126,167,0.28)',
+        },
+        itemContent: {
+            flex: 1,
+            marginRight: spacing.sm,
+        },
+        itemLabel: {
+            fontSize: typography.fontSize.base,
+            fontWeight: typography.fontWeight.semibold,
+            color: '#FFFFFF',
+            marginBottom: 2,
+        },
+        itemLabelSelected: {
+            color: '#67E8F9',
+        },
+        itemAddress: {
+            fontSize: typography.fontSize.sm,
+            color: 'rgba(255,255,255,0.45)',
+        },
+        deleteButton: {
+            padding: 8,
+        },
+        emptyState: {
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: spacing.xl,
+        },
+        emptyText: {
+            fontSize: typography.fontSize.sm,
+            color: 'rgba(255,255,255,0.4)',
+            textAlign: 'center',
+        },
+    });
 
 export default AddressSelectionModal;

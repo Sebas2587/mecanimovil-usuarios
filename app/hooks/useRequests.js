@@ -1,20 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import solicitudesService from '../services/solicitudesService';
 import logger from '../utils/logger';
+import { useAuth } from '../context/AuthContext';
 
 export const useRequests = () => {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['requests'],
         queryFn: () => solicitudesService.obtenerMisSolicitudes(),
+        enabled: !!user,
         staleTime: 1000 * 60 * 5, // 5 min
         select: (data) => Array.isArray(data) ? data : [],
     });
 };
 
 export const useActiveRequests = () => {
+    const { user } = useAuth();
     return useQuery({
         queryKey: ['activeRequests'],
         queryFn: () => solicitudesService.obtenerSolicitudesActivas(),
+        enabled: !!user,
         staleTime: 1000 * 60 * 2, // 2 min
         refetchOnWindowFocus: true, // Actualizar al volver a la app
         select: (data) => Array.isArray(data) ? data : [],
