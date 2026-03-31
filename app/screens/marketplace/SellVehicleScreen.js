@@ -487,11 +487,15 @@ const SellVehicleScreen = () => {
                 animationType="fade"
                 onRequestClose={() => setPriceModalVisible(false)}
             >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setPriceModalVisible(false)}
-                >
+                <View style={styles.modalOverlay}>
+                    <BlurView intensity={Platform.OS === 'ios' ? 40 : 90} tint="dark" style={StyleSheet.absoluteFill} />
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.7)' }]} />
+                    <TouchableOpacity
+                        style={StyleSheet.absoluteFill}
+                        activeOpacity={1}
+                        onPress={() => setPriceModalVisible(false)}
+                    />
+                    
                     <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
                         {Platform.OS === 'ios' && <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />}
                         <View style={styles.modalGlassFill} pointerEvents="none" />
@@ -525,7 +529,7 @@ const SellVehicleScreen = () => {
                             </TouchableOpacity>
                         </View>
                     </View>
-                </TouchableOpacity>
+                </View>
             </Modal>
         </View>
     );

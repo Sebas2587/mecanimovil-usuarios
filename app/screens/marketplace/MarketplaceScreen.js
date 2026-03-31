@@ -311,7 +311,7 @@ const MarketplaceScreen = () => {
                 {!item.is_reserved && (
                     <View style={styles.bottomBadges}>
                         {(() => {
-                            const score = item.health_score || 100;
+                            const score = item.health_score ?? 0;
                             // Consistent color logic across all screens
                             let badgeColor = '#10B981'; // Green
                             if (score < 40) badgeColor = '#EF4444'; // Red

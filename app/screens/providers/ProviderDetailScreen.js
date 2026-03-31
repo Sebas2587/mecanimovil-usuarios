@@ -99,24 +99,7 @@ const ProviderDetailScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <ProviderHeader provider={provider} providerType={providerType} onShare={handleShare} onToggleFavorite={handleToggleFavorite} isFavorite={favorite} onBack={handleBack} />
 
-        {/* Quick Stats */}
-        <View style={styles.statsRow}>
-          <GlassCard style={styles.statCard}>
-            <Award size={18} color="#6EE7B7" />
-            <Text style={styles.statValue}>{provider.experiencia_anios ?? '—'}</Text>
-            <Text style={styles.statLabel}>Años exp.</Text>
-          </GlassCard>
-          <GlassCard style={styles.statCard}>
-            <Star size={18} color="#FBBF24" />
-            <Text style={styles.statValue}>{provider.calificacion_promedio ?? '—'}</Text>
-            <Text style={styles.statLabel}>Calificación</Text>
-          </GlassCard>
-          <GlassCard style={styles.statCard}>
-            <MapPin size={18} color="#93C5FD" />
-            <Text style={styles.statValue} numberOfLines={1}>{provider.direccion_fisica?.comuna || provider.comuna || '—'}</Text>
-            <Text style={styles.statLabel}>Ubicación</Text>
-          </GlassCard>
-        </View>
+        {/* Quick Stats was removed to eliminate redundancy with ProviderHeader */}
 
         {/* Cobertura / Dirección */}
         {(() => {
@@ -124,13 +107,15 @@ const ProviderDetailScreen = () => {
           const isTaller = resolvedType === 'taller';
 
           if (!isTaller) {
-            const comunasRaw =
+            const zonasComunas = provider?.zonas_servicio ? provider.zonas_servicio.flatMap(z => z.comunas || []) : [];
+            const comunasRaw = zonasComunas.length > 0 ? zonasComunas : (
               provider.comunas_cobertura_nombres
               || provider.comunas_cobertura?.map(c => c?.nombre || c)
               || provider.comunas_nombres
               || provider.comunas
               || provider.cobertura_comunas
-              || [];
+              || []
+            );
 
             const comunas = Array.isArray(comunasRaw) ? comunasRaw.filter(Boolean) : [];
 

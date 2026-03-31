@@ -151,6 +151,7 @@ const FormularioSolicitud = ({
 
   const {
     data: serviciosDisponibles = [],
+    isPending: serviciosQueryPending,
     isLoading: cargandoServicios,
   } = useQuery({
     queryKey: ['vehicleServices', vehiculoId],
@@ -159,7 +160,8 @@ const FormularioSolicitud = ({
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
     retry: 2,
-    refetchOnMount: 'always',
+    // 'always' refetch en cada montaje del query = parpadeos en paso 1; con staleTime basta refetch si está stale
+    refetchOnMount: true,
     select: (data) => (Array.isArray(data) ? data : []),
   });
 
@@ -312,6 +314,56 @@ const FormularioSolicitud = ({
         }
       }
 
+      // ── Campos adicionales (sincronizar solo cuando initialData NO está vacío) ──
+      // Anteriormente un segundo useEffect duplicado manejaba estos campos, causando
+      // actualizaciones de estado que competían y podían resetear selecciones del paso 1.
+      if (!initialDataVacio) {
+        if (initialData.sin_vehiculo_registrado === true && !prev.sin_vehiculo_registrado) {
+          cambios.vehiculo = null;
+          cambios.sin_vehiculo_registrado = true;
+          hayCambios = true;
+        } else if (initialData.sin_vehiculo_registrado === false && prev.sin_vehiculo_registrado) {
+          cambios.sin_vehiculo_registrado = false;
+          hayCambios = true;
+        }
+        if (initialData.descripcion_problema !== undefined && prev.descripcion_problema !== initialData.descripcion_problema) {
+          cambios.descripcion_problema = initialData.descripcion_problema;
+          hayCambios = true;
+        }
+        if (initialData.urgencia !== undefined && prev.urgencia !== initialData.urgencia) {
+          cambios.urgencia = initialData.urgencia;
+          hayCambios = true;
+        }
+        if (initialData.requiere_repuestos !== undefined && prev.requiere_repuestos !== initialData.requiere_repuestos) {
+          cambios.requiere_repuestos = initialData.requiere_repuestos;
+          hayCambios = true;
+        }
+        if (initialData.direccion_usuario !== undefined && prev.direccion_usuario !== initialData.direccion_usuario) {
+          cambios.direccion_usuario = initialData.direccion_usuario;
+          hayCambios = true;
+        }
+        if (initialData.direccion_servicio_texto !== undefined && prev.direccion_servicio_texto !== initialData.direccion_servicio_texto) {
+          cambios.direccion_servicio_texto = initialData.direccion_servicio_texto;
+          hayCambios = true;
+        }
+        if (initialData.detalles_ubicacion !== undefined && prev.detalles_ubicacion !== initialData.detalles_ubicacion) {
+          cambios.detalles_ubicacion = initialData.detalles_ubicacion;
+          hayCambios = true;
+        }
+        if (initialData.fecha_preferida !== undefined && prev.fecha_preferida !== initialData.fecha_preferida) {
+          cambios.fecha_preferida = initialData.fecha_preferida;
+          hayCambios = true;
+        }
+        if (initialData.hora_preferida !== undefined && prev.hora_preferida !== initialData.hora_preferida) {
+          cambios.hora_preferida = initialData.hora_preferida;
+          hayCambios = true;
+        }
+        if (initialData.ubicacion_servicio !== undefined && prev.ubicacion_servicio !== initialData.ubicacion_servicio) {
+          cambios.ubicacion_servicio = initialData.ubicacion_servicio;
+          hayCambios = true;
+        }
+      }
+
       return hayCambios ? { ...prev, ...cambios } : prev;
     });
 
@@ -323,12 +375,18 @@ const FormularioSolicitud = ({
     previousInitialDataRef.current = initialData;
   }, [initialData]);
 
-  // Clear selected services when vehicle changes (useQuery handles data fetching)
+  // Limpiar servicios solo si cambia el vehículo (no en la primera asignación desde vacío → evita carreras con TanStack/re-renders)
+  const previousVehiculoIdRef = useRef(undefined);
   useEffect(() => {
-    if (formData.vehiculo?.id && !tieneServicioPreseleccionado) {
-      setFormData(prev => ({ ...prev, servicios_seleccionados: [] }));
+    const id = formData.vehiculo?.id;
+    const prevId = previousVehiculoIdRef.current;
+    previousVehiculoIdRef.current = id;
+
+    if (tieneServicioPreseleccionado) return;
+    if (prevId !== undefined && id !== prevId) {
+      setFormData((p) => ({ ...p, servicios_seleccionados: [] }));
     }
-  }, [formData.vehiculo?.id]);
+  }, [formData.vehiculo?.id, tieneServicioPreseleccionado]);
 
   // Cargar proveedores cuando se selecciona "solo proveedores específicos"
   useEffect(() => {
@@ -579,35 +637,6 @@ const FormularioSolicitud = ({
   // Si NO hay preselecciones: 6 pasos (flujo normal)
   // Always 5 steps (skip step 2); 4 when provider also preselected
   const totalPasos = flujoCuatroPasos ? 4 : 5;
-
-  // Sincronizar initialData cuando llegue (se ejecuta una sola vez al montar o cuando initialData cambia)
-  useEffect(() => {
-    try {
-      if (initialData && typeof initialData === 'object' && initialData !== null && !Array.isArray(initialData)) {
-        const keys = Object.keys(initialData);
-        if (keys.length > 0) {
-          // Si hay initialData, actualizar formData (esto cubre el caso donde initialData llega después del mount)
-          setFormData(prev => ({
-            vehiculo: initialData.vehiculo || prev.vehiculo,
-            servicios_seleccionados: initialData.servicios_seleccionados || prev.servicios_seleccionados,
-            descripcion_problema: initialData.descripcion_problema || prev.descripcion_problema,
-            urgencia: initialData.urgencia || prev.urgencia,
-            tipo_solicitud: initialData.tipo_solicitud || prev.tipo_solicitud,
-            proveedores_dirigidos: initialData.proveedores_dirigidos || prev.proveedores_dirigidos,
-            direccion_usuario: initialData.direccion_usuario || prev.direccion_usuario,
-            direccion_servicio_texto: initialData.direccion_servicio_texto || prev.direccion_servicio_texto,
-            detalles_ubicacion: initialData.detalles_ubicacion || prev.detalles_ubicacion,
-            fecha_preferida: initialData.fecha_preferida || prev.fecha_preferida,
-            hora_preferida: initialData.hora_preferida || prev.hora_preferida,
-            ubicacion_servicio: initialData.ubicacion_servicio || prev.ubicacion_servicio
-          }));
-          console.log('✅ FormularioSolicitud: InitialData sincronizado con formData');
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error sincronizando initialData:', error);
-    }
-  }, [initialData]);
 
   // Asegurar que cuando hay proveedor preseleccionado, tipo_solicitud permanezca como 'dirigida'
   // y los proveedores no cambien
@@ -937,14 +966,21 @@ const FormularioSolicitud = ({
       } else {
         // Intentar convertir desde Date o otro formato
         try {
-          const date = new Date(datosFinales.fecha_preferida);
-          if (!isNaN(date.getTime())) {
-            datosFinales.fecha_preferida = formatearFechaYYYYMMDD(date);
-            console.log('🔧 Fecha convertida a YYYY-MM-DD:', datosFinales.fecha_preferida);
+          // Intentar parsear como componentes para evitar desfase UTC
+          const m = String(datosFinales.fecha_preferida).match(/(\d{4})-(\d{2})-(\d{2})/);
+          if (m) {
+            datosFinales.fecha_preferida = `${m[1]}-${m[2]}-${m[3]}`;
+            console.log('🔧 Fecha extraída manualmente:', datosFinales.fecha_preferida);
           } else {
-            console.error('❌ Error: No se pudo convertir la fecha:', datosFinales.fecha_preferida);
-            Alert.alert('Error', 'La fecha tiene un formato inválido. Por favor, selecciona una fecha nuevamente.');
-            return;
+            const date = new Date(datosFinales.fecha_preferida);
+            if (!isNaN(date.getTime())) {
+              datosFinales.fecha_preferida = formatearFechaYYYYMMDD(date);
+              console.log('🔧 Fecha convertida a YYYY-MM-DD:', datosFinales.fecha_preferida);
+            } else {
+              console.error('❌ Error: No se pudo convertir la fecha:', datosFinales.fecha_preferida);
+              Alert.alert('Error', 'La fecha tiene un formato inválido. Por favor, selecciona una fecha nuevamente.');
+              return;
+            }
           }
         } catch (error) {
           console.error('❌ Error al convertir fecha:', error);
@@ -1122,13 +1158,11 @@ const FormularioSolicitud = ({
         })
       : serviciosDisponibles;
 
+    // Un solo ScrollView vertical vive en el padre (contenido del formulario). Anidar otro aquí
+    // hacía que al cambiar altura (servicios/salud) Android/iOS resetearan el scroll y parecía un “reload”
+    // que perdía contexto; el horizontal de categorías y el FlatList de recs se mantienen.
     return (
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: 16 }}
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled={true}
-      >
+      <View style={{ paddingBottom: 24, paddingHorizontal: 16 }}>
         {/* ── Vehicle Selector / Tag ── */}
         {!vehicle ? (
           <View style={{ marginBottom: 20 }}>
@@ -1295,7 +1329,7 @@ const FormularioSolicitud = ({
               )}
 
               {/* Service Cards */}
-              {cargandoServicios ? (
+              {serviciosQueryPending ? (
                 <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                   <ActivityIndicator size="large" color="#6EE7B7" />
                   <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Cargando servicios...</Text>
@@ -1346,7 +1380,7 @@ const FormularioSolicitud = ({
             )}
           </>
         )}
-      </ScrollView>
+      </View>
     );
   };
 
@@ -2325,8 +2359,12 @@ const FormularioSolicitud = ({
       {/* Content */}
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 20 + (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? 12 : 0) }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingBottom: 20 + (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? 12 : 0),
+        }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {renderPaso()}
       </ScrollView>

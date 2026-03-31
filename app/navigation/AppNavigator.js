@@ -219,8 +219,10 @@ const TabNavigator = () => (
 );
 
 // ── Root Stack Navigator ──
+// detachInactiveScreens false: evita desmontar pantallas bajo el stack (p. ej. CrearSolicitud al abrir
+// ProviderDetail). Si se desmontan, el formulario pierde pasoActual/formData al volver atrás.
 const AppNavigator = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
+  <Stack.Navigator screenOptions={{ headerShown: false, detachInactiveScreens: false }}>
     <Stack.Screen name="TabNavigator" component={TabNavigator} />
 
     {/* CrearSolicitud - full screen (accessed from UserPanel quick actions) */}

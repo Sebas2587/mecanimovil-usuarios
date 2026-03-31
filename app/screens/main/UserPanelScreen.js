@@ -18,7 +18,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Car,
@@ -75,6 +75,7 @@ import {
   getTripSnapshot,
   resetTripTracking,
 } from '../../services/tripTrackingService';
+import { useUnreadCount } from '../../hooks/useNotifications';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -147,6 +148,15 @@ const UserPanelScreen = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { solicitudesActivas, cargarSolicitudesActivas } = useSolicitudes();
+  const { data: unreadData } = useUnreadCount();
+  const unreadCount = typeof unreadData === 'number' ? unreadData : (unreadData?.count || 0);
+
+  // Auto-refetch solicitudes activas (y por tanto el contador) cuando volvemos a la pantalla
+  useFocusEffect(
+    useCallback(() => {
+      cargarSolicitudesActivas();
+    }, [cargarSolicitudesActivas])
+  );
 
   // ── Vehicle selection ──
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
@@ -426,6 +436,11 @@ const UserPanelScreen = () => {
           </View>
           <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}>
             <Bell size={20} color="#E5E7EB" />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerAvatar} onPress={() => navigation.navigate(ROUTES.PROFILE)}>
             {user?.foto_perfil_url || user?.foto_perfil ? (
@@ -583,7 +598,7 @@ const UserPanelScreen = () => {
           <GlassCard style={{ marginBottom: 20 }}>
             <View style={styles.cardHeader}>
               <HeartPulse size={18} color="#F472B6" />
-              <Text style={styles.cardTitle}>Salud Predictiva IA</Text>
+              <Text style={styles.cardTitle}>Salud Predictiva</Text>
               <TouchableOpacity
                 style={styles.detailLink}
                 onPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: selectedVehicle.id, vehicle: selectedVehicle })}
@@ -935,6 +950,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(99,102,241,0.2)',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#030712',
+  },
+  bellBadgeText: {
+    color: '#FFF',
+    fontSize: 9,
+    fontWeight: 'bold',
   },
 
   // Vehicle selector

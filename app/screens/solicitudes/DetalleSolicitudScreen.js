@@ -190,27 +190,16 @@ const DetalleSolicitudScreen = () => {
   };
 
   const handleProfilePress = (oferta) => {
-    // Navigate to provider profile
-    // We need to pass the provider object properly
-    // The provider might be in oferta.proveedor_info, oferta.taller_info, or constructed from fields
-
-    const providerId = oferta.proveedor;
+    // proveedor_id_detail = taller.id o mecanico_domicilio.id (perfil del proveedor)
+    // oferta.proveedor = usuario.id (FK al modelo Usuario, NO sirve para la API de talleres/mecánicos)
+    const providerId = oferta.proveedor_id_detail || oferta.proveedor;
     const providerType = oferta.tipo_proveedor; // 'taller' or 'mecanico'
 
-    // Construct a minimal provider object for the screen to load details
-    const providerObj = {
-      id: providerId,
-      tipo: providerType,
-      nombre: oferta.nombre_proveedor,
-      usuario: {
-        foto_perfil: oferta.proveedor_foto
-      }
-    };
+    if (!providerId) return;
 
     navigation.navigate(ROUTES.PROVIDER_DETAIL, {
-      provider: providerObj,
       providerId: providerId,
-      type: providerType
+      providerType: providerType
     });
   };
 

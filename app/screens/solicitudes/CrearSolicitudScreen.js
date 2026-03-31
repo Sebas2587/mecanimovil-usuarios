@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { ArrowLeft, Car, Plus, Sparkles } from 'lucide-react-native';
@@ -34,10 +34,17 @@ const CrearSolicitudScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { crearSolicitud } = useSolicitudes();
-  const queryClient = useQueryClient();
 
   // Incremented after successful submit to force FormularioSolicitud re-mount
   const [submitCount, setSubmitCount] = useState(0);
+  // Evita volver a aplicar el mismo initialData en cada refocus (misma ruta/params)
+  const preselectAppliedFingerprintRef = useRef(null);
+  // El primer foco ya dispara refetch vía refetchOnMount en useQuery; evita segundo refetch inmediato + parpadeo
+  const skipFirstFocusVehicleRefetchRef = useRef(true);
+  // Ref estable para refetchVehicles: evita que useFocusEffect se recree en cada render
+  const refetchVehiclesRef = useRef(null);
+  // Bandera para saber si la carga inicial ya terminó — evita que loading vuelva a true y desmonte el formulario
+  const initialLoadDoneRef = useRef(false);
 
   // Extraer parámetros de la ruta (servicio y proveedor preseleccionados)
   const {
@@ -52,6 +59,38 @@ const CrearSolicitudScreen = () => {
     descripcionPrellenada, // Descripción pre-rellenada (desde alertas)
     fromDashboard // Flag para flujo desde dashboard predictivo
   } = route.params || {};
+
+  // Clave estable para useFocusEffect: `route.params` suele ser un objeto nuevo en cada render del
+  // navigator y recreaba el callback → doble foco / refetch y setInitialData en momentos raros.
+  const focusEffectRouteKey = React.useMemo(
+    () =>
+      JSON.stringify({
+        sp: servicioPreseleccionado?.id ?? null,
+        ss: serviciosPreSeleccionados ?? null,
+        pp:
+          proveedorPreseleccionado?.id ??
+          proveedorPreseleccionado?.usuario?.id ??
+          null,
+        v: vehicle?.id ?? null,
+        fpd: !!fromProviderDetail,
+        tpp: tipoProveedorPreseleccionado ?? null,
+        desc: descripcionPrellenada ?? null,
+        fd: !!fromDashboard,
+        cid: categoriaId ?? null,
+      }),
+    [
+      servicioPreseleccionado?.id,
+      serviciosPreSeleccionados,
+      proveedorPreseleccionado?.id,
+      proveedorPreseleccionado?.usuario?.id,
+      vehicle?.id,
+      fromProviderDetail,
+      tipoProveedorPreseleccionado,
+      descripcionPrellenada,
+      fromDashboard,
+      categoriaId,
+    ]
+  );
 
   /** Servicios que pueden contratarse sin vehículo en la plataforma (ej. revisión precompra) */
   const esServicioSinVehiculo = (servicio) => {
@@ -110,6 +149,7 @@ const CrearSolicitudScreen = () => {
   const {
     data: allVehicles = [],
     isLoading: isLoadingVehicles,
+    isFetched: vehiclesQueryFetched,
     refetch: refetchVehicles
   } = useQuery({
     queryKey: ['userVehicles'], // Shared key with UserPanelScreen
@@ -117,7 +157,9 @@ const CrearSolicitudScreen = () => {
     staleTime: 1000 * 60 * 5, // 5 minutes
     cacheTime: 1000 * 60 * 30, // 30 minutes
     refetchOnMount: true,
-    refetchOnWindowFocus: true, // Auto-refresh when coming back to app
+    // refetchOnWindowFocus desactivado: causaba refetches inesperados que podían cascadear
+    // re-renders en FormularioSolicitud y hacer parecer que el paso 1 se "recargaba".
+    refetchOnWindowFocus: false,
   });
 
   // Filter active vehicles from query data
@@ -140,13 +182,24 @@ const CrearSolicitudScreen = () => {
     }
   }, [vehiculos, clienteId]);
 
+  // Mantener ref actualizada para refetchVehicles (evita incluirla en deps de useFocusEffect)
+  refetchVehiclesRef.current = refetchVehicles;
+
   // UseFocusEffect to refetch when screen is focused (e.g. after adding vehicle)
   // Verificar si puede crear solicitud y cargar parámetros cuando la pantalla recibe foco
   useFocusEffect(
     useCallback(() => {
-      // Force vehicle & services refresh (clears any corrupted cache from server outages)
-      refetchVehicles();
-      queryClient.invalidateQueries({ queryKey: ['vehicleServices'] });
+      // Refetch de vehículos al volver a esta pantalla (ej. tras agregar auto en Mis vehículos).
+      // No en el primer foco: useQuery ya tiene refetchOnMount y un refetch extra aquí duplicaba peticiones
+      // y podía hacer "parpadear" listas del paso 1.
+      if (skipFirstFocusVehicleRefetchRef.current) {
+        skipFirstFocusVehicleRefetchRef.current = false;
+      } else {
+        // Usar ref para evitar que refetchVehicles sea dependencia del callback
+        refetchVehiclesRef.current?.();
+      }
+      // No invalidar ['vehicleServices'] en cada foco: el Formulario remonta queries, recarga listas de
+      // servicios y se siente como un mini reset en el paso 1; al volver del perfil basta el caché/local state.
 
       const verificarYCargarDatos = async () => {
         try {
@@ -213,18 +266,9 @@ const CrearSolicitudScreen = () => {
             );
           }
 
-          // 2. Verificar parámetros preseleccionados
-          const params = route.params || {};
-          const tieneServicio = !!params.servicioPreseleccionado;
-          const tieneServiciosArray = !!(params.serviciosPreSeleccionados && Array.isArray(params.serviciosPreSeleccionados) && params.serviciosPreSeleccionados.length > 0);
-          const tieneProveedor = !!params.proveedorPreseleccionado;
-          const tieneVehicle = !!params.vehicle;
-
-          // Si NO hay parámetros preseleccionados, limpiar initialData
-          if (!tieneServicio && !tieneServiciosArray && !tieneProveedor && !tieneVehicle) {
-            console.log('🔍 useFocusEffect: No hay parámetros preseleccionados - limpiando initialData');
-            setInitialData({});
-          }
+          // Nota: No resetear initialData aquí al volver el foco sin params (p. ej. tras ver perfil
+          // del proveedor). Eso recreaba {} y disparaba efectos en FormularioSolicitud que podían
+          // borrar servicios/paso. El estado inicial ya viene de buildInitialFromParams / prepararDatosIniciales.
         } catch (error) {
           console.error('Error verificando solicitud:', error);
           Alert.alert(
@@ -245,6 +289,19 @@ const CrearSolicitudScreen = () => {
         const tieneVehicleParam = !!vehicle;
 
         if (tieneServicioObjeto || tieneServiciosArray || tieneProveedor || tieneVehicleParam) {
+          const preselectFingerprint = [
+            servicioPreseleccionado?.id ?? '',
+            Array.isArray(serviciosPreSeleccionados) ? serviciosPreSeleccionados.join(',') : '',
+            proveedorPreseleccionado?.id ?? proveedorPreseleccionado?.usuario?.id ?? '',
+            vehicle?.id ?? '',
+            fromProviderDetail ? '1' : '',
+            tipoProveedorPreseleccionado ?? '',
+          ].join('|');
+
+          if (preselectAppliedFingerprintRef.current === preselectFingerprint) {
+            return;
+          }
+
           console.log('✅ CrearSolicitudScreen: Datos preseleccionados recibidos:', {
             tieneServicioObjeto,
             tieneServiciosArray,
@@ -316,13 +373,14 @@ const CrearSolicitudScreen = () => {
               console.log('✅ Proveedor formateado:', proveedorFormato);
             }
 
-            setInitialData({
+            // No mandar vehiculo: null: el Formulario interpretaba "fusionar" y borraba el auto ya elegido
+            // en paso 1 cuando este setInitialData llegaba tras preparar async / re-render.
+            const initialFromRoute = {
               servicios_seleccionados: serviciosParaInitialData,
               tipo_solicitud: proveedorFormato ? 'dirigida' : 'global',
               proveedores_dirigidos: proveedorFormato ? [proveedorFormato] : [],
               fromProviderDetail: fromProviderDetail || false,
               fromDashboard: fromDashboard || false,
-              vehiculo: tieneVehicleParam ? vehicle : null,
               descripcion_problema: descripcionPrellenada || '',
               urgencia: 'normal',
               direccion_usuario: null,
@@ -331,7 +389,13 @@ const CrearSolicitudScreen = () => {
               fecha_preferida: '',
               hora_preferida: '',
               ubicacion_servicio: null
-            });
+            };
+            if (tieneVehicleParam) {
+              initialFromRoute.vehiculo = vehicle;
+            }
+            setInitialData(initialFromRoute);
+
+            preselectAppliedFingerprintRef.current = preselectFingerprint;
 
             setInitialDataReady(true);
 
@@ -347,29 +411,16 @@ const CrearSolicitudScreen = () => {
             setInitialData({});
             setInitialDataReady(true);
           }
-        } else {
-          // Limpiar si no hay parámetros (ya manejado en verificarYCargarDatos pero se refuerza aquí)
-          console.log('🧹 CrearSolicitudScreen: No hay parámetros preseleccionados - limpiando initialData');
-          setInitialData({});
-          setInitialDataReady(true);
         }
+        // Sin params preseleccionados: no tocar initialData en cada refocus (conserva el flujo al volver del perfil).
       };
 
       prepararDatosIniciales();
 
-    }, [
-      navigation,
-      route.params,
-      refetchVehicles,
-      queryClient,
-      servicioPreseleccionado,
-      serviciosPreSeleccionados,
-      proveedorPreseleccionado,
-      tipoProveedorPreseleccionado,
-      fromProviderDetail,
-      vehicle,
-      descripcionPrellenada
-    ])
+      // NOTA: refetchVehicles se usa vía ref (refetchVehiclesRef) para no incluirla como dependencia
+      // y evitar que el callback se recree innecesariamente, lo que causaba re-ejecución del
+      // useFocusEffect → refetch → re-render → apariencia de "recarga" del paso 1.
+    }, [navigation, focusEffectRouteKey])
   );
 
   const cargarDatos = async () => {
@@ -377,8 +428,9 @@ const CrearSolicitudScreen = () => {
     // Vehicles are now handled by useQuery
     // But we still set generic loading state for initial render
 
-    // If vehicles are already loaded from cache, we don't need to block UI
-    if (isLoadingVehicles && vehicles.length === 0) {
+    // Si aún no hay vehículos en caché y la query está cargando, mantener overlay de carga
+    // Solo en la carga inicial (initialLoadDoneRef impide que loading vuelva a true después)
+    if (!initialLoadDoneRef.current && isLoadingVehicles && (!allVehicles || allVehicles.length === 0)) {
       setLoading(true);
     }
 
@@ -407,14 +459,16 @@ const CrearSolicitudScreen = () => {
     } finally {
       if (!isLoadingVehicles) {
         setLoading(false);
+        initialLoadDoneRef.current = true;
       }
     }
   };
 
-  // Sync loading state with query
+  // Sync loading state with query — una vez que loading pasa a false por primera vez, no vuelve a true
   useEffect(() => {
     if (!isLoadingVehicles) {
       setLoading(false);
+      initialLoadDoneRef.current = true;
     }
   }, [isLoadingVehicles]);
 
@@ -852,35 +906,17 @@ const CrearSolicitudScreen = () => {
     }
   };
 
-  const GlassShell = ({ children }) => (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-        <View style={{ position: 'absolute', top: 300, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-        <View style={{ position: 'absolute', bottom: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-      </View>
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.7}>
-          <ArrowLeft size={22} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Sparkles size={16} color="#6EE7B7" />
-          <Text style={styles.headerTitle}>Nueva Solicitud</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {children}
-    </View>
-  );
+  // GlassShell está definido FUERA del componente — ver abajo de CrearSolicitudScreen.
+  // Si se define aquí dentro, React crea un tipo de componente nuevo en cada render,
+  // desmontando y remontando todo el árbol (FormularioSolicitud pierde estado, scroll, selecciones).
+  const glassShellProps = {
+    insetsTop: insets.top,
+    onBack: () => navigation.goBack(),
+  };
 
   if (loading || (needsPreloadServicios && !initialDataReady)) {
     return (
-      <GlassShell>
+    <GlassShell {...glassShellProps}>
         <View style={styles.centeredState}>
           <ActivityIndicator size="large" color="#6EE7B7" />
           <Text style={styles.stateText}>
@@ -891,9 +927,10 @@ const CrearSolicitudScreen = () => {
     );
   }
 
-  if (vehiculos.length === 0) {
+  // Solo tras al menos una respuesta de la query: evita mostrar “sin vehículos”/cambiar de árbol antes de tiempo
+  if (vehiclesQueryFetched && vehiculos.length === 0) {
     return (
-      <GlassShell>
+    <GlassShell {...glassShellProps}>
         <View style={styles.centeredState}>
           <View style={styles.emptyIconWrap}>
             <Car size={40} color="rgba(255,255,255,0.5)" />
@@ -912,7 +949,7 @@ const CrearSolicitudScreen = () => {
   const totalBottomPadding = insets.bottom;
 
   return (
-    <GlassShell>
+    <GlassShell {...glassShellProps}>
       {creando && (
         <View style={styles.creatingOverlay}>
           <ActivityIndicator size="large" color="#6EE7B7" />
@@ -921,7 +958,7 @@ const CrearSolicitudScreen = () => {
       )}
 
       <FormularioSolicitud
-        key={`${submitCount}-${route.params?.vehicle?.id || ''}-${servicioPreseleccionado?.id || ''}-${serviciosPreSeleccionados?.join(',') || ''}`}
+        key={String(submitCount)}
         onSubmit={handleSubmit}
         initialData={initialData || {}}
         vehiculos={vehiculos}
@@ -933,6 +970,36 @@ const CrearSolicitudScreen = () => {
     </GlassShell>
   );
 };
+
+/**
+ * GlassShell: contenedor visual con gradiente y header.
+ * Definido FUERA del componente para que React mantenga la misma identidad de tipo
+ * entre renders. Si se define dentro, cada re-render crea un tipo nuevo y React
+ * desmonta/remonta todo el subárbol (FormularioSolicitud pierde estado).
+ */
+const GlassShell = ({ children, insetsTop, onBack }) => (
+  <View style={styles.container}>
+    <StatusBar barStyle="light-content" />
+    <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
+      <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
+      <View style={{ position: 'absolute', top: 300, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(99,102,241,0.06)' }} />
+      <View style={{ position: 'absolute', bottom: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(6,182,212,0.05)' }} />
+    </View>
+    {/* Header */}
+    <View style={[styles.header, { paddingTop: (insetsTop || 0) + 8 }]}>
+      <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
+        <ArrowLeft size={22} color="#FFF" />
+      </TouchableOpacity>
+      <View style={styles.headerCenter}>
+        <Sparkles size={16} color="#6EE7B7" />
+        <Text style={styles.headerTitle}>Nueva Solicitud</Text>
+      </View>
+      <View style={{ width: 40 }} />
+    </View>
+    {children}
+  </View>
+);
 
 // Función para crear estilos dinámicos basados en el tema
 const styles = StyleSheet.create({

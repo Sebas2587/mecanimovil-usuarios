@@ -38,7 +38,15 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
+    // Si el string está en formato YYYY-MM-DD, parsearlo manualmente para evitar
+    // desfase de zona horaria (new Date('2026-03-31') → UTC midnight → día anterior en UTC-3).
+    const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+      return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'No especificada';
     return date.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 

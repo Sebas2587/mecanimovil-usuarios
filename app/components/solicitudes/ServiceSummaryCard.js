@@ -36,11 +36,27 @@ const ServiceSummaryCard = ({ solicitud }) => {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Pendiente';
-        return new Date(dateString).toLocaleDateString('es-CL', {
-            day: 'numeric',
-            month: 'long'
-        });
+        // Parsear YYYY-MM-DD manualmente para evitar desfase de zona horaria
+        // (new Date('2026-03-31') crea UTC midnight → día anterior en timezones como Chile UTC-3).
+        const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+            const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+            return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
+        }
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return 'Pendiente';
+        return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
     };
+
+    const formatTime = (timeString) => {
+        if (!timeString) return null;
+        // Si viene como HH:MM:SS o HH:MM, tomar solo HH:MM
+        return String(timeString).substring(0, 5);
+    };
+
+    // Mostrar fecha preferida (la que eligió el usuario), no la fecha de creación del sistema
+    const fechaPreferida = solicitud.fecha_preferida || solicitud.fecha_creacion;
+    const horaPreferida = solicitud.hora_preferida || solicitud.preferencia_horario;
 
     return (
         <View style={styles.card}>
@@ -71,14 +87,14 @@ const ServiceSummaryCard = ({ solicitud }) => {
 
             {/* Grid de Información */}
             <View style={styles.gridContainer}>
-                {/* Fecha Creación */}
+                {/* Fecha Preferida */}
                 <View style={styles.gridItem}>
                     <View style={styles.iconContainer}>
                         <Ionicons name="calendar-outline" size={18} color={colors.text?.secondary || '#6B7280'} />
                     </View>
                     <View>
-                        <Text style={styles.gridLabel}>Publicado</Text>
-                        <Text style={styles.gridValue}>{formatDate(solicitud.fecha_creacion)}</Text>
+                        <Text style={styles.gridLabel}>Fecha solicitada</Text>
+                        <Text style={styles.gridValue}>{formatDate(fechaPreferida)}</Text>
                     </View>
                 </View>
 
@@ -103,7 +119,7 @@ const ServiceSummaryCard = ({ solicitud }) => {
                     <View>
                         <Text style={styles.gridLabel}>Horario</Text>
                         <Text style={styles.gridValue} numberOfLines={1}>
-                            {solicitud.preferencia_horario || 'Por coordinar'}
+                            {formatTime(horaPreferida) || 'Por coordinar'}
                         </Text>
                     </View>
                 </View>

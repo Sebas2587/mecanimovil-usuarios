@@ -363,6 +363,13 @@ const VehicleHealthScreen = ({ route }) => {
         onRequestClose={() => setShowHelpModal(false)}
       >
         <View style={styles.modalOverlay}>
+          <BlurView intensity={Platform.OS === 'ios' ? 40 : 90} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.7)' }]} />
+          <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setShowHelpModal(false)}
+          />
           <Animatable.View animation="zoomIn" duration={300} style={styles.modalCard}>
             {Platform.OS === 'ios' && (
               <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
@@ -435,6 +442,13 @@ const VehicleHealthScreen = ({ route }) => {
         onRequestClose={() => setSelectedMetric(null)}
       >
         <View style={styles.modalOverlay}>
+          <BlurView intensity={Platform.OS === 'ios' ? 40 : 90} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.7)' }]} />
+          <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setSelectedMetric(null)}
+          />
           <Animatable.View animation="zoomIn" duration={300} style={styles.modalCardLarge}>
             {Platform.OS === 'ios' && (
               <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
@@ -797,15 +811,14 @@ const createStyles = (insets) => StyleSheet.create({
     marginTop: 8,
     maxWidth: '70%',
   },
-  // Modal (Android: fondo más opaco para separar bien el diálogo del listado)
+  // Modal overlay
   modalOverlay: {
     flex: 1,
-    backgroundColor: Platform.OS === 'android' ? 'rgba(0,0,0,0.88)' : 'rgba(0,0,0,0.7)',
     justifyContent: 'center',
     padding: 24,
   },
   modalCard: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.97)',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
@@ -813,7 +826,7 @@ const createStyles = (insets) => StyleSheet.create({
     overflow: 'hidden',
   },
   modalCardLarge: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.97)',
     borderRadius: 24,
     padding: 20,
     maxHeight: '85%',

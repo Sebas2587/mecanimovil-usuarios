@@ -22,7 +22,7 @@ const ProviderHeader = ({ provider, providerType, onShare, onToggleFavorite, isF
     const location = provider?.direccion_fisica?.comuna || provider?.comuna || '';
     const rating = provider?.calificacion_promedio ?? '';
     const jobs = provider?.servicios_completados ?? provider?.trabajos_realizados ?? '';
-    const experience = provider?.experiencia_anios ?? '';
+    const experience = provider?.experiencia_anos ?? provider?.experiencia_anios ?? '';
 
     // Cover & Avatar fallbacks
     const coverImage = provider?.foto_portada || 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=1000&auto=format&fit=crop';
