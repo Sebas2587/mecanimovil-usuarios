@@ -1016,6 +1016,121 @@ export const getProviderReviews = async (providerId, providerType) => {
   }
 };
 
+/**
+ * Misma lógica que useProviderServices (hook) — para ficha pública sin React Query / persist.
+ */
+function mapOfertasToServicios(ofertas, type, id, providerName) {
+  const serviciosMap = new Map();
+  ofertas.forEach((oferta) => {
+    const info = oferta.servicio_info || {};
+    const servicioId = info.id || oferta.servicio || oferta.id;
+    if (!servicioId) return;
+
+    const categoriasInfo = info.categorias_info || [];
+    const modelosInfo = info.modelos_info || [];
+
+    const servicioFinal = {
+      id: servicioId,
+      nombre: info.nombre || 'Servicio',
+      descripcion: info.descripcion || '',
+      categoria: categoriasInfo[0]?.nombre || 'General',
+      foto: info.foto || null,
+      duracion_estimada_base: info.duracion_estimada_base || null,
+      precio_referencia: info.precio_referencia || null,
+      categorias_completas: categoriasInfo,
+      modelos_info: modelosInfo,
+      modelos_compatibles: modelosInfo.map((m) => {
+        const marca = m.marca_nombre || '';
+        const nom = m.nombre || m.modelo_nombre || '';
+        return `${marca} ${nom}`.trim() || String(m.id || '');
+      }),
+      precio_con_repuestos: oferta.precio_con_repuestos,
+      precio_sin_repuestos: oferta.precio_sin_repuestos,
+      tipo_servicio: oferta.tipo_servicio || 'sin_repuestos',
+      costo_mano_de_obra_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0),
+      costo_repuestos_sin_iva: parseFloat(oferta.costo_repuestos_sin_iva || 0),
+      precio_real_sin_iva:
+        parseFloat(oferta.costo_mano_de_obra_sin_iva || 0) +
+        parseFloat(oferta.costo_repuestos_sin_iva || 0),
+      precio_publicado_cliente: parseFloat(oferta.precio_publicado_cliente || 0),
+      fotos_servicio: oferta.fotos_servicio || [],
+      desglose_precios: oferta.desglose_precios || {},
+      oferta_id: oferta.id,
+      duracion_estimada: oferta.duracion_estimada,
+      incluye_garantia: oferta.incluye_garantia,
+      duracion_garantia: oferta.duracion_garantia,
+      tipo_proveedor: type,
+      [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
+      [type === 'taller' ? 'taller_info' : 'mecanico_info']: {
+        id,
+        nombre: providerName || 'Sin nombre',
+      },
+    };
+
+    serviciosMap.set(servicioId, servicioFinal);
+  });
+
+  return Array.from(serviciosMap.values());
+}
+
+/**
+ * Ficha pública de proveedor: igual patrón que getMarketplaceVehicleDetail (GET + forceRefresh, sin TanStack persist).
+ */
+export const fetchPublicProviderFicha = async (providerId, providerType) => {
+  const type = providerType === 'mecanico' ? 'mecanico' : 'taller';
+  const id = Number(providerId);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error('ID de proveedor inválido');
+  }
+
+  const opt = { requiresAuth: false, forceRefresh: true };
+  const detailUrl =
+    type === 'taller' ? `/usuarios/talleres/${id}/` : `/usuarios/mecanicos-domicilio/${id}/`;
+  const ofertasUrl =
+    type === 'taller'
+      ? `/servicios/ofertas/por_taller/?taller=${id}`
+      : `/servicios/ofertas/por_mecanico/?mecanico=${id}`;
+  const docsUrl = `/usuarios/documentos-onboarding/proveedor_documentos/?provider_id=${id}&provider_type=${type}`;
+
+  const [detail, ofertasResponse, documentsRaw] = await Promise.all([
+    get(detailUrl, {}, opt),
+    get(ofertasUrl, {}, opt),
+    get(docsUrl, {}, opt).catch(() => []),
+  ]);
+
+  if (detail == null || typeof detail !== 'object') {
+    throw new Error('Respuesta de proveedor vacía');
+  }
+
+  const u = detail.usuario || {};
+  const hasIdentity =
+    detail.id != null ||
+    detail.pk != null ||
+    (typeof detail.nombre === 'string' && detail.nombre.trim()) ||
+    (typeof detail.nombre_taller === 'string' && detail.nombre_taller.trim()) ||
+    (typeof detail.nombre_comercial === 'string' && detail.nombre_comercial.trim()) ||
+    (typeof u.nombre === 'string' && u.nombre.trim()) ||
+    (typeof u.first_name === 'string' && u.first_name.trim());
+  if (!hasIdentity) {
+    throw new Error('El servidor no devolvió datos del proveedor');
+  }
+
+  const nombreProveedor =
+    detail.nombre ||
+    detail.nombre_taller ||
+    detail.nombre_comercial ||
+    detail.usuario?.nombre ||
+    'Sin nombre';
+
+  const ofertas = Array.isArray(ofertasResponse)
+    ? ofertasResponse
+    : ofertasResponse?.results || [];
+  const servicios = mapOfertasToServicios(ofertas, type, id, nombreProveedor);
+  const documents = Array.isArray(documentsRaw) ? documentsRaw : [];
+
+  return { detail, servicios, documents };
+};
+
 export default {
   getProvidersByVehiculo,
   getProvidersByVehiculoAndService,
@@ -1033,5 +1148,6 @@ export default {
   getTallerDetalle,
   getMecanicoDetalle,
   buscarProveedores,
-  getProviderReviews
+  getProviderReviews,
+  fetchPublicProviderFicha,
 }; 

@@ -289,6 +289,9 @@ export const ROUTES = {
   TRANSFERENCIA_EXITO: 'TransferenciaExito',
 };
 
+/** Invitado: URL de ficha pública (proveedor o marketplace) guardada al abrir la app — misma vía que lee React Navigation (iOS). */
+export const PENDING_PUBLIC_DEEP_LINK_KEY = 'PENDING_PUBLIC_DEEP_LINK';
+
 /** AsyncStorage: checkout Mercado Pago abierto en WebView (evita saltos a PaymentCallback en inactive→active). Valor: timestamp ms. */
 export const MP_CHECKOUT_WEBVIEW_ACTIVE_KEY = 'mp_checkout_webview_active';
 

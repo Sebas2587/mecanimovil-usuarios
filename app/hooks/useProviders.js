@@ -110,15 +110,23 @@ export const useNearbyMecanicos = (vehicles, address) => {
 // --- New Hooks for Provider Detail ---
 
 export const useProviderDetails = (id, type) => {
+    const numericId =
+        id !== undefined && id !== null && id !== ''
+            ? typeof id === 'number'
+                ? id
+                : parseInt(String(id), 10)
+            : NaN;
+    const safeId = Number.isFinite(numericId) ? numericId : null;
+
     return useQuery({
-        queryKey: ['provider', type, id],
+        queryKey: ['provider', type, safeId],
         queryFn: async () => {
             const endpoint = type === 'taller'
-                ? `/usuarios/talleres/${id}/`
-                : `/usuarios/mecanicos-domicilio/${id}/`;
+                ? `/usuarios/talleres/${safeId}/`
+                : `/usuarios/mecanicos-domicilio/${safeId}/`;
             return await get(endpoint, {}, { requiresAuth: false });
         },
-        enabled: !!id && !!type,
+        enabled: safeId != null && !!type,
         staleTime: 1000 * 60 * 5,   // 5 min
         gcTime: 1000 * 60 * 30,     // 30 min en memoria
         refetchOnMount: false,       // no refetch si los datos son frescos
@@ -243,7 +251,11 @@ export const useProviderCompletedJobs = (id, type) => {
         queryKey: ['providerJobs', type, id],
         queryFn: async () => {
             const allCompleted = await solicitudesService.obtenerMisSolicitudes({ estado: 'completada' });
+            
+            // Si el usuario no está logueado, obtenerMisSolicitudes retorna []
             const list = Array.isArray(allCompleted) ? allCompleted : (allCompleted?.results || []);
+            
+            if (list.length === 0) return [];
 
             // Filtrar por proveedor: oferta_seleccionada_detail tiene proveedor_id_detail (taller/mecanico id) y tipo_proveedor
             const providerIdStr = id.toString();
@@ -254,7 +266,7 @@ export const useProviderCompletedJobs = (id, type) => {
                     if (!offer) return false;
                     const offerTipo = (offer.tipo_proveedor || '').toLowerCase();
                     if (offerTipo !== type) return false;
-                    const providerId = offer.proveedor_id_detail ?? offer.proveedor_id ?? offer.proveedor_info?.id;
+                    const providerId = offer.proveedor_id_detail || offer.proveedor_id || offer.proveedor_info?.id;
                     return providerId != null && providerId.toString() === providerIdStr;
                 })
                 .map(s => normalizarJobParaProviderDetail(s))
@@ -266,7 +278,7 @@ export const useProviderCompletedJobs = (id, type) => {
 
             return filtered;
         },
-        enabled: !!id && !!type && !!user,
+        enabled: !!id && !!type, // Habilitado siempre si tenemos id y type
         staleTime: 1000 * 60 * 5,
     });
 };

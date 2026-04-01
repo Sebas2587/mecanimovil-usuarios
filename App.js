@@ -24,10 +24,11 @@ import {
   ROUTES,
   MP_CHECKOUT_WEBVIEW_ACTIVE_KEY,
   MP_CHECKOUT_WEBVIEW_MAX_AGE_MS,
+  PENDING_PUBLIC_DEEP_LINK_KEY,
 } from './app/utils/constants';
 import SplashScreen from './app/components/utils/SplashScreen';
 import logger from './app/utils/logger';
-import { parseMarketplaceVehicleIdFromUrl } from './app/utils/publicListingRoute';
+import { parseMarketplaceVehicleIdFromUrl, parsePublicProviderFromUrl } from './app/utils/publicListingRoute';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queryClient, asyncStoragePersister } from './app/config/queryClient';
@@ -120,6 +121,20 @@ if (typeof global !== 'undefined' && global.ErrorUtils) {
 
 // Configuración de TanStack Query importada de app/config/queryClient.js
 
+/** Guarda URL de ficha pública en el mismo momento en que React Navigation lee getInitialURL (crítico en iOS: segunda lectura suele ser null). */
+async function persistPendingPublicDeepLinkUrl(url) {
+  if (!url || typeof url !== 'string') return;
+  const isVehicle = /marketplace\/vehicle\/\d+/i.test(url);
+  const isProvider = /provider\/(taller|mecanico|proveedor)\/\d+/i.test(url);
+  if (!isVehicle && !isProvider) return;
+  try {
+    const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+    await AsyncStorage.setItem(PENDING_PUBLIC_DEEP_LINK_KEY, url);
+  } catch (e) {
+    logger.warn('persistPendingPublicDeepLinkUrl:', e?.message || e);
+  }
+}
+
 // Configuración de Deep Linking para Mercado Pago y otras integraciones
 const linking = {
   prefixes: [
@@ -164,19 +179,6 @@ const linking = {
           name: (name) => name || undefined,
         },
       },
-      // Ficha pública de proveedor — mismo path, para AuthNavigator (sin sesión)
-      PublicProviderDetail: {
-        path: 'provider/:providerType/:providerId/:name?',
-        parse: {
-          providerType: (type) => type || 'taller',
-          providerId: (id) => {
-            if (!id) return null;
-            const parsed = parseInt(id, 10);
-            return isNaN(parsed) ? null : parsed;
-          },
-          name: (name) => name || undefined,
-        },
-      },
       // Ficha pública marketplace (web Vercel + deep link app)
       MarketplaceVehicleDetail: {
         path: 'marketplace/vehicle/:vehicleId',
@@ -198,6 +200,7 @@ const linking = {
     const url = await Linking.getInitialURL();
     if (url) {
       logger.debug('🔗 App abierta con deep link inicial (NUEVA INSTANCIA):', url);
+      await persistPendingPublicDeepLinkUrl(url);
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
         method: 'POST',
@@ -269,6 +272,8 @@ const linking = {
 
       // Guardar el deep link en AsyncStorage si es un pago
       // Esto asegura que no se pierda si el NavigationContainer no está listo
+      await persistPendingPublicDeepLinkUrl(url);
+
       if (url && (url.includes('payment') || url.includes('status') || url.includes('payment_id'))) {
         try {
           const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
@@ -404,6 +409,8 @@ class ErrorBoundary extends React.Component {
 const Main = () => {
   const { isAuthenticated, loading, registerSuccess } = useAuth();
   const navigationRef = useNavigationContainerRef();
+  /** Ficha pública invitado: capturar URL antes de que termine AuthContext.loading (iOS pierde getInitialURL si se lee tarde). */
+  const pendingGuestPublicRef = useRef(null);
 
   // EAS Update: al volver de segundo plano, comprobar OTA (no en los primeros segundos de vida del proceso).
   // En el primer arranque Android suele pasar active↔inactive; un reload aquí parece “la app se cerró sola”.
@@ -485,6 +492,78 @@ const Main = () => {
       return false;
     }
   }, [navigationRef, isAuthenticated]);
+
+  const flushPendingGuestPublicDeepLink = useCallback(() => {
+    if (Platform.OS === 'web' || isAuthenticated || loading) return;
+    const pending = pendingGuestPublicRef.current;
+    if (!pending?.kind || !navigationRef.isReady()) return;
+
+    try {
+      const state = navigationRef.getRootState();
+      const idx = state?.index ?? 0;
+      const route = state?.routes?.[idx];
+      const currentName = route?.name;
+      const p = route?.params || {};
+
+      if (pending.kind === 'vehicle') {
+        const already =
+          currentName === ROUTES.MARKETPLACE_VEHICLE_DETAIL &&
+          Number(p?.vehicleId) === Number(pending.vehicleId);
+        if (already) {
+          pendingGuestPublicRef.current = null;
+          return;
+        }
+        navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId: pending.vehicleId });
+        pendingGuestPublicRef.current = null;
+        return;
+      }
+
+      if (pending.kind === 'provider') {
+        const sameId =
+          Number(p?.id) === Number(pending.id) || Number(p?.providerId) === Number(pending.id);
+        const routeType = p?.type || p?.providerType;
+        const sameType = routeType === pending.type;
+        const already = currentName === ROUTES.PROVIDER_DETAIL && sameId && sameType;
+        if (already) {
+          pendingGuestPublicRef.current = null;
+          return;
+        }
+        navigationRef.navigate(ROUTES.PROVIDER_DETAIL, { type: pending.type, id: pending.id });
+        pendingGuestPublicRef.current = null;
+      }
+    } catch (e) {
+      logger.warn('No se pudo navegar a ficha pública (invitado):', e);
+    }
+  }, [isAuthenticated, loading, navigationRef]);
+
+  /** Consume URL guardada en linking.getInitialURL (invitado). iOS: la URL inicial no se puede recuperar después. */
+  const consumePendingPublicDeepLinkFromStorage = useCallback(async () => {
+    if (Platform.OS === 'web') return;
+    try {
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      const url = await AsyncStorage.getItem(PENDING_PUBLIC_DEEP_LINK_KEY);
+      if (!url) return;
+      if (isAuthenticated) {
+        await AsyncStorage.removeItem(PENDING_PUBLIC_DEEP_LINK_KEY);
+        return;
+      }
+      if (!navigationRef.isReady()) return;
+      const vehicleId = parseMarketplaceVehicleIdFromUrl(url);
+      const provider = vehicleId ? null : parsePublicProviderFromUrl(url);
+      if (!vehicleId && !provider) {
+        await AsyncStorage.removeItem(PENDING_PUBLIC_DEEP_LINK_KEY);
+        return;
+      }
+      await AsyncStorage.removeItem(PENDING_PUBLIC_DEEP_LINK_KEY);
+      if (vehicleId) {
+        navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId });
+      } else {
+        navigationRef.navigate(ROUTES.PROVIDER_DETAIL, { type: provider.type, id: provider.id });
+      }
+    } catch (e) {
+      logger.warn('consumePendingPublicDeepLinkFromStorage:', e);
+    }
+  }, [isAuthenticated, navigationRef]);
 
   /** Evita navegar a PaymentCallback por «pago pendiente» mientras el WebView de checkout sigue abierto (p. ej. Android inactive→active al usar el teclado). */
   const shouldDeferPaymentCallbackForActiveCheckout = useCallback(async () => {
@@ -1168,55 +1247,61 @@ const Main = () => {
       // El useEffect que procesa deep links después de autenticación se encargará de esto
       logger.debug('⏳ Esperando autenticación antes de procesar deep links desde onReady...');
     }
+
+    // Invitado: aplicar ficha pública/marketplace capturada durante el splash (p. ej. Universal Links iOS)
+    if (!isAuthenticated) {
+      setTimeout(() => flushPendingGuestPublicDeepLink(), 100);
+      setTimeout(() => consumePendingPublicDeepLinkFromStorage(), 50);
+      setTimeout(() => consumePendingPublicDeepLinkFromStorage(), 400);
+    }
   }, [
     isAuthenticated,
     loading,
     navigationRef,
     navigateToPaymentCallback,
     shouldDeferPaymentCallbackForActiveCheckout,
+    flushPendingGuestPublicDeepLink,
+    consumePendingPublicDeepLinkFromStorage,
   ]);
 
-  // Invitado + app nativa: abrir ficha pública si el deep link / URL inicial es marketplace (linking a veces llega tarde)
+  useEffect(() => {
+    if (isAuthenticated) {
+      pendingGuestPublicRef.current = null;
+    }
+  }, [isAuthenticated]);
+
+  // Invitado + nativo: capturar URL en cuanto (sin esperar loading); iOS suele perder getInitialURL tras el splash de auth
+  useEffect(() => {
+    if (Platform.OS === 'web' || isAuthenticated) return;
+
+    const ingestUrl = (url) => {
+      if (!url || typeof url !== 'string') return;
+      const vehicleId = parseMarketplaceVehicleIdFromUrl(url);
+      const provider = vehicleId ? null : parsePublicProviderFromUrl(url);
+      if (vehicleId) {
+        pendingGuestPublicRef.current = { kind: 'vehicle', vehicleId };
+      } else if (provider) {
+        pendingGuestPublicRef.current = { kind: 'provider', type: provider.type, id: provider.id };
+      } else {
+        return;
+      }
+      flushPendingGuestPublicDeepLink();
+    };
+
+    const sub = Linking.addEventListener('url', (event) => ingestUrl(event?.url));
+    Linking.getInitialURL().then(ingestUrl);
+
+    return () => sub.remove();
+  }, [isAuthenticated, flushPendingGuestPublicDeepLink]);
+
+  useEffect(() => {
+    flushPendingGuestPublicDeepLink();
+  }, [flushPendingGuestPublicDeepLink, loading]);
+
   useEffect(() => {
     if (Platform.OS === 'web' || isAuthenticated || loading) return;
-
-    const openPublicListing = (vehicleId) => {
-      if (!vehicleId || !navigationRef.isReady()) return;
-      try {
-        navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId });
-      } catch (e) {
-        logger.warn('No se pudo navegar a ficha pública:', e);
-      }
-    };
-
-    const scheduleOpenFromUrl = (url) => {
-      const vehicleId = parseMarketplaceVehicleIdFromUrl(url);
-      if (!vehicleId) return;
-      let attempts = 0;
-      const tick = () => {
-        if (navigationRef.isReady()) {
-          openPublicListing(vehicleId);
-          return;
-        }
-        if (attempts++ < 40) {
-          setTimeout(tick, 50);
-        }
-      };
-      tick();
-    };
-
-    Linking.getInitialURL().then((url) => {
-      if (url) scheduleOpenFromUrl(url);
-    });
-
-    const sub = Linking.addEventListener('url', (event) => {
-      if (event?.url) scheduleOpenFromUrl(event.url);
-    });
-
-    return () => {
-      sub.remove();
-    };
-  }, [isAuthenticated, loading, navigationRef]);
+    consumePendingPublicDeepLinkFromStorage();
+  }, [isAuthenticated, loading, consumePendingPublicDeepLinkFromStorage]);
 
   // IMPORTANTE: Todos los hooks deben estar antes de cualquier return condicional
   if (loading) {

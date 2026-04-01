@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import ProviderCompletedJobsSection from '../../components/provider/ProviderComp
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
 
 import { useProviderDetails, useProviderServices, useProviderDocuments, useProviderReviews, useProviderCompletedJobs } from '../../hooks/useProviders';
+import { getPublicProviderFromWebPath } from '../../utils/publicListingRoute';
 import { useAuth } from '../../context/AuthContext';
 import { useFavorites } from '../../context/FavoritesContext';
 import ReviewCard from '../../components/reviews/ReviewCard';
@@ -50,9 +51,35 @@ const ProviderDetailScreen = () => {
   const { vehicles: userVehicles = [] } = useAuth();
 
   const params = route.params || {};
-  const { provider: initialProvider, providerId, type, providerType: paramProviderType } = params;
-  const idToLoad = providerId || initialProvider?.id;
-  const providerType = type || paramProviderType || (initialProvider?.tipo === 'taller' ? 'taller' : 'mecanico');
+  const { provider: initialProvider, providerId, id: paramId, type, providerType: paramProviderType } = params;
+
+  /**
+   * Web + usuario con sesión: el stack es AppNavigator → ProviderDetailScreen.
+   * React Navigation a menudo NO inyecta params desde la URL, y sin id las queries quedan disabled
+   * (isLoading false) → se pinta el layout vacío. Misma fuente que la ficha pública: pathname.
+   */
+  const webParsed = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
+  const idToLoad = providerId ?? paramId ?? initialProvider?.id ?? webParsed?.providerId;
+  const providerType =
+    type ||
+    paramProviderType ||
+    webParsed?.providerType ||
+    (initialProvider?.tipo === 'taller' ? 'taller' : 'mecanico');
+
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const w = getPublicProviderFromWebPath();
+    if (!w) return;
+    const pid = params.id ?? params.providerId;
+    const ptype = params.type ?? params.providerType;
+    const sameId = Number(pid) === w.providerId;
+    const sameType =
+      String(ptype || '')
+        .toLowerCase()
+        .replace('proveedor', 'taller') === w.providerType;
+    if (sameId && sameType) return;
+    navigation.setParams({ type: w.providerType, id: w.providerId });
+  }, [navigation, params.id, params.providerId, params.type, params.providerType]);
 
   const { data: details, isLoading: loadingDetails } = useProviderDetails(idToLoad, providerType);
   const { data: services } = useProviderServices(idToLoad, providerType);
@@ -111,6 +138,21 @@ const ProviderDetailScreen = () => {
   };
 
   const handleBack = () => navigation.goBack();
+
+  if (idToLoad === undefined || idToLoad === null || idToLoad === '') {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <StatusBar barStyle="light-content" />
+        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <Text style={{ color: 'rgba(255,255,255,0.9)', textAlign: 'center', marginBottom: 16 }}>
+          No pudimos cargar este perfil. El enlace puede estar incompleto o caducado.
+        </Text>
+        <TouchableOpacity onPress={() => navigation.navigate(ROUTES.HOME)} style={{ padding: 12 }}>
+          <Text style={{ color: '#93C5FD', fontWeight: '600' }}>Ir al inicio</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   if (loadingDetails && !initialProvider) {
     return (

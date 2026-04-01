@@ -20,7 +20,7 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
   const publicProviderData = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
 
   const initialRouteName = publicProviderData
-    ? ROUTES.PUBLIC_PROVIDER_DETAIL
+    ? ROUTES.PROVIDER_DETAIL
     : marketplaceVehicleId
       ? ROUTES.MARKETPLACE_VEHICLE_DETAIL
       : registerSuccess
@@ -49,13 +49,14 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
             : undefined
         }
       />
+      {/* Mismo nombre que en AppNavigator + linking: provider/:type/:id → params type, id */}
       <Stack.Screen
-        name={ROUTES.PUBLIC_PROVIDER_DETAIL}
+        name={ROUTES.PROVIDER_DETAIL}
         component={PublicProviderDetailScreen}
         options={{ headerShown: false }}
         initialParams={
           publicProviderData
-            ? { providerType: publicProviderData.providerType, providerId: publicProviderData.providerId }
+            ? { type: publicProviderData.providerType, id: publicProviderData.providerId }
             : undefined
         }
       />

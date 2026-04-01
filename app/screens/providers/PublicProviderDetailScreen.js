@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, Platform, TouchableOpacity, useWindowDimensions } from 'react-native';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, StatusBar, Platform, TouchableOpacity, useWindowDimensions, Linking } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -13,7 +13,12 @@ import ProviderCompletedJobsSection from '../../components/provider/ProviderComp
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
 import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
 
-import { useProviderDetails, useProviderServices, useProviderDocuments, useProviderCompletedJobs } from '../../hooks/useProviders';
+import { fetchPublicProviderFicha } from '../../services/providers';
+import {
+  getPublicProviderFromWebPath,
+  normalizeProviderRouteParams,
+  parsePublicProviderFromUrl,
+} from '../../utils/publicListingRoute';
 
 const GlassCard = ({ children, style }) => (
   <View style={[glassBase, style]}>
@@ -36,14 +41,98 @@ const PublicProviderDetailScreen = () => {
   const route = useRoute();
   const { height: windowHeight } = useWindowDimensions();
 
-  const { providerId, providerType } = route.params || {};
+  const params = route.params || {};
+  const normalizedFromRoute = useMemo(
+    () => normalizeProviderRouteParams(params),
+    [params.id, params.providerId, params.type, params.providerType]
+  );
 
-  const { data: details, isLoading } = useProviderDetails(providerId, providerType);
-  const { data: services } = useProviderServices(providerId, providerType);
-  const { data: documents } = useProviderDocuments(providerId, providerType);
-  const { data: completedJobs = [] } = useProviderCompletedJobs(providerId, providerType);
+  const [fromLink, setFromLink] = useState(null);
 
-  const provider = { ...details, servicios: services || [] };
+  /** Web (Vercel / WhatsApp → navegador): la URL es la fuente de verdad; linking a veces deja params vacíos. */
+  const webFromLocation = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
+
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const w = getPublicProviderFromWebPath();
+    if (!w) return;
+    const pid = params.id ?? params.providerId;
+    const ptype = params.type ?? params.providerType;
+    const sameId = Number(pid) === w.providerId;
+    const sameType =
+      String(ptype || '')
+        .toLowerCase()
+        .replace('proveedor', 'taller') === w.providerType;
+    if (sameId && sameType) return;
+    navigation.setParams({ type: w.providerType, id: w.providerId });
+  }, [navigation, params.id, params.providerId, params.type, params.providerType]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (normalizedFromRoute.providerId != null) {
+      setFromLink(null);
+      return undefined;
+    }
+    let alive = true;
+    const apply = (url) => {
+      const parsed = url ? parsePublicProviderFromUrl(url) : null;
+      if (parsed && alive) {
+        setFromLink({ providerType: parsed.type, providerId: parsed.id });
+      }
+    };
+    Linking.getInitialURL().then(apply);
+    const sub = Linking.addEventListener('url', (e) => apply(e?.url));
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, [normalizedFromRoute.providerId]);
+
+  const providerId =
+    webFromLocation?.providerId ??
+    normalizedFromRoute.providerId ??
+    fromLink?.providerId ??
+    null;
+  const providerType =
+    webFromLocation?.providerType ??
+    (normalizedFromRoute.providerId != null ? normalizedFromRoute.providerType : null) ??
+    fromLink?.providerType ??
+    'taller';
+
+  const [details, setDetails] = useState(null);
+  const [servicios, setServicios] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+
+  const reload = useCallback(async () => {
+    if (providerId == null || providerId === '' || !providerType) return;
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const { detail, servicios: svc, documents: docs } = await fetchPublicProviderFicha(
+        providerId,
+        providerType
+      );
+      setDetails(detail);
+      setServicios(Array.isArray(svc) ? svc : []);
+      setDocuments(Array.isArray(docs) ? docs : []);
+    } catch (e) {
+      setLoadError('No se pudo cargar esta ficha. Revisa tu conexión o el enlace.');
+      setDetails(null);
+      setServicios([]);
+      setDocuments([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [providerId, providerType]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  const completedJobs = [];
+  const provider = { ...details, servicios };
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -60,10 +149,43 @@ const PublicProviderDetailScreen = () => {
     : null;
   const webScrollStyle = Platform.OS === 'web' ? { flex: 1, minHeight: 0 } : null;
 
-  if (isLoading || !details) {
+  if (providerId == null || providerId === '' || !providerType) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <Text style={{ color: 'white', textAlign: 'center' }}>
+          Enlace de perfil no válido o incompleto.
+        </Text>
+        <TouchableOpacity
+          style={styles.fallbackPrimaryButton}
+          onPress={() => navigation.navigate(ROUTES.LOGIN)}
+        >
+          <Text style={styles.ctaButtonText}>Ir a iniciar sesión</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={{ color: 'white' }}>Cargando información del especialista...</Text>
+      </View>
+    );
+  }
+
+  if (loadError || !details) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <Text style={{ color: 'rgba(255,255,255,0.85)', textAlign: 'center', marginBottom: 16 }}>
+          {loadError ||
+            'No se pudo cargar la ficha del especialista. Comprueba tu conexión e inténtalo de nuevo.'}
+        </Text>
+        <TouchableOpacity style={styles.fallbackPrimaryButton} onPress={() => reload()}>
+          <Text style={styles.ctaButtonText}>Reintentar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={{ marginTop: 16 }} onPress={() => navigation.navigate(ROUTES.LOGIN)}>
+          <Text style={{ color: '#93C5FD' }}>Iniciar sesión</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -186,8 +308,54 @@ const PublicProviderDetailScreen = () => {
         <ProviderCompletedJobsSection jobs={completedJobs} />
         <PortfolioCarousel portfolio={provider.portafolio || []} />
 
-        <View style={{ height: 40 }} />
+        {/* --- Call to Action para Login (solo si el app se usa sin sesión) --- */}
+        <View style={[styles.section, { marginTop: 20, marginBottom: 40 }]}>
+            <GlassCard style={styles.ctaCard}>
+                <LinearGradient
+                    colors={['rgba(59, 130, 246, 0.1)', 'rgba(147, 197, 253, 0.05)']}
+                    style={StyleSheet.absoluteFill}
+                />
+                <Text style={styles.ctaTitle}>¿Necesitas un servicio?</Text>
+                <Text style={styles.ctaText}>
+                    Inicia sesión para solicitar presupuestos, chatear con este especialista y agendar tu atención.
+                </Text>
+                <TouchableOpacity 
+                    style={styles.ctaButton}
+                    onPress={() => navigation.navigate(ROUTES.LOGIN)}
+                >
+                    <LinearGradient
+                        colors={['#007EA7', '#00A8E8']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.ctaGradient}
+                    >
+                        <Text style={styles.ctaButtonText}>Iniciar Sesión</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </GlassCard>
+        </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Botón flotante / sticky bottom para Login en Web/Móvil */}
+      <View style={[styles.stickyBottom, { paddingBottom: 20 }]}>
+          {Platform.OS === 'ios' && <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />}
+          <TouchableOpacity 
+              style={styles.stickyButton}
+              onPress={() => navigation.navigate(ROUTES.LOGIN)}
+          >
+              <LinearGradient
+                  colors={['#007EA7', '#00A8E8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.stickyGradient}
+              >
+                  <Ionicons name="log-in-outline" size={20} color="white" style={{ marginRight: 8 }} />
+                  <Text style={styles.stickyButtonText}>Iniciar Sesión para Agendar</Text>
+              </LinearGradient>
+          </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -245,15 +413,91 @@ const styles = StyleSheet.create({
   },
   serviceName: {
     color: 'white',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 4,
   },
   serviceCategory: {
     color: '#93C5FD',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     marginBottom: 0,
+  },
+  // CTA Styles
+  ctaCard: {
+    padding: 24,
+    alignItems: 'center',
+    textAlign: 'center',
+  },
+  ctaTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  ctaText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  fallbackPrimaryButton: {
+    marginTop: 20,
+    width: '85%',
+    maxWidth: 320,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#007EA7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ctaButton: {
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  ctaGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ctaButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  stickyBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+    backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(3,7,18,0.95)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  stickyButton: {
+    height: 50,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#00A8E8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  stickyGradient: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stickyButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
 

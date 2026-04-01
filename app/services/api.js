@@ -303,6 +303,9 @@ function setupInterceptors(apiInstance) {
           (error.config?.url?.includes('/solicitudes-publicas/activas/') ||
             error.config?.url?.includes('/solicitudes/activas/') ||
             error.config?.url?.includes('/ordenes/solicitudes-publicas/activas/') ||
+            error.config?.url?.includes('/usuarios/servicios-proveedor-publicos/') ||
+            error.config?.url?.includes('/usuarios/talleres/') ||
+            error.config?.url?.includes('/usuarios/mecanicos/') ||
             isListaChats401 ||
             isMisSolicitudesListGet);
 
