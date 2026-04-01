@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,41 +9,16 @@ import {
   ActivityIndicator,
   StatusBar,
   ScrollView,
-  Platform,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { ArrowLeft, ClipboardList } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
-import * as vehicleService from '../../services/vehicle';
-import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
-import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
-
-const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
-const BLUR_I = Platform.OS === 'ios' ? 30 : 0;
-
-const GlassCard = ({ children, style }) => (
-  <View style={[glassStyles.wrap, style]}>
-    {Platform.OS === 'ios' && <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />}
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: GLASS_BG }]} />
-    {children}
-  </View>
-);
-
-const glassStyles = StyleSheet.create({
-  wrap: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    overflow: 'hidden',
-  },
-});
 
 const MisSolicitudesScreen = () => {
   const navigation = useNavigation();
@@ -67,11 +42,6 @@ const MisSolicitudesScreen = () => {
 
   const [refreshing, setRefreshing] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState(route?.params?.initialFiltroEstado || 'todos');
-  const [vehicleHistory, setVehicleHistory] = useState([]);
-  const [vehicleHistoryLoading, setVehicleHistoryLoading] = useState(false);
-  const [checklistModalVisible, setChecklistModalVisible] = useState(false);
-  const [selectedChecklistId, setSelectedChecklistId] = useState(null);
-  const [selectedServiceName, setSelectedServiceName] = useState('');
 
   const estadosDisponibles = [
     { key: 'todos', label: 'Todas', icon: 'list-outline' },
@@ -94,29 +64,6 @@ const MisSolicitudesScreen = () => {
       cargarDatos();
     }, [])
   );
-
-  const fetchVehicleHistory = useCallback(async () => {
-    if (!selectedVehicleId) {
-      setVehicleHistory([]);
-      return;
-    }
-    try {
-      setVehicleHistoryLoading(true);
-      const history = await vehicleService.getVehicleServiceHistory(selectedVehicleId);
-      setVehicleHistory(Array.isArray(history) ? history : []);
-    } catch (err) {
-      console.warn('Error cargando historial de vehículo:', err);
-      setVehicleHistory([]);
-    } finally {
-      setVehicleHistoryLoading(false);
-    }
-  }, [selectedVehicleId]);
-
-  useEffect(() => {
-    if (filtroEstado === 'completada' && selectedVehicleId) {
-      fetchVehicleHistory();
-    }
-  }, [filtroEstado, selectedVehicleId, fetchVehicleHistory]);
 
   const cargarDatos = async () => {
     try {
@@ -148,10 +95,6 @@ const MisSolicitudesScreen = () => {
     const vehiculoId = s?.vehiculo?.id ?? s?.vehiculo_id ?? (typeof s?.vehiculo === 'number' ? s.vehiculo : null);
     return vehiculoId === selectedVehicleId;
   });
-
-  const useVehicleHistoryData = filtroEstado === 'completada' && selectedVehicleId && vehicleHistory.length > 0;
-
-  const displayData = useVehicleHistoryData ? vehicleHistory : solicitudesFiltradas;
 
   const handleSolicitudPress = (solicitud) => {
     const id = solicitud?.id || solicitud?.properties?.id;
@@ -193,28 +136,33 @@ const MisSolicitudesScreen = () => {
     </View>
   );
 
-  const mensajesVacios = {
-    todos: {
-      titulo: 'No tienes solicitudes',
-      subtitulo: 'Crea una nueva solicitud para recibir ofertas de proveedores',
-    },
-    activas: {
-      titulo: 'No tienes solicitudes activas',
-      subtitulo: 'Las solicitudes publicadas y con ofertas aparecerán aquí',
-    },
-    en_proceso: {
-      titulo: 'No tienes servicios en proceso',
-      subtitulo: 'Los servicios pagados y en ejecución aparecerán aquí',
-    },
-    completada: {
-      titulo: 'Sin servicios completados',
-      subtitulo: 'Los servicios finalizados de este vehículo aparecerán aquí',
-    },
-    historial: {
-      titulo: 'No tienes historial',
-      subtitulo: 'Las solicitudes expiradas o canceladas aparecerán aquí',
-    },
-  };
+  const mensajesVacios = useMemo(
+    () => ({
+      todos: {
+        titulo: 'No tienes solicitudes',
+        subtitulo: 'Crea una nueva solicitud para recibir ofertas de proveedores',
+      },
+      activas: {
+        titulo: 'No tienes solicitudes activas',
+        subtitulo: 'Las solicitudes publicadas y con ofertas aparecerán aquí',
+      },
+      en_proceso: {
+        titulo: 'No tienes servicios en proceso',
+        subtitulo: 'Los servicios pagados y en ejecución aparecerán aquí',
+      },
+      completada: {
+        titulo: 'Sin solicitudes completadas',
+        subtitulo: selectedVehicleId
+          ? 'No hay solicitudes completadas para este vehículo aquí. El historial de servicios del auto (transferible al venderlo) está en Perfil del vehículo → Historial.'
+          : 'Las solicitudes finalizadas aparecerán aquí con servicios y proveedores.',
+      },
+      historial: {
+        titulo: 'No tienes historial',
+        subtitulo: 'Las solicitudes expiradas o canceladas aparecerán aquí',
+      },
+    }),
+    [selectedVehicleId]
+  );
 
   const renderEmptyState = () => {
     const mensajeActual = mensajesVacios[filtroEstado] || mensajesVacios.todos;
@@ -239,21 +187,6 @@ const MisSolicitudesScreen = () => {
   const renderSolicitud = ({ item }) => (
     <View style={styles.cardWrapper}>
       <SolicitudCard solicitud={item} onPress={handleSolicitudPress} fullWidth />
-    </View>
-  );
-
-  const renderHistoryItem = ({ item }) => (
-    <View style={styles.cardWrapper}>
-      <VehicleServiceHistoryRow
-        item={item}
-        onViewChecklist={() => {
-          if (!item.id) return;
-          setSelectedChecklistId(item.id);
-          setSelectedServiceName(item.servicio_nombre || 'Servicio');
-          setChecklistModalVisible(true);
-        }}
-        variant="dark"
-      />
     </View>
   );
 
@@ -304,15 +237,15 @@ const MisSolicitudesScreen = () => {
 
       <SafeAreaView style={styles.safeContent} edges={['left', 'right', 'bottom']}>
         <FlatList
-          data={displayData}
-          keyExtractor={(item, index) => `${useVehicleHistoryData ? 'hist' : 'sol'}-${item.id ?? index}`}
-          renderItem={useVehicleHistoryData ? renderHistoryItem : renderSolicitud}
+          data={solicitudesFiltradas}
+          keyExtractor={(item, index) => `sol-${item.id ?? index}`}
+          renderItem={renderSolicitud}
           ItemSeparatorComponent={renderItemSeparator}
           ListHeaderComponent={renderListHeader}
-          ListEmptyComponent={!loading && !vehicleHistoryLoading && renderEmptyState}
+          ListEmptyComponent={!loading && renderEmptyState}
           contentContainerStyle={[
             styles.listContent,
-            displayData.length === 0 && styles.listContentEmpty,
+            solicitudesFiltradas.length === 0 && styles.listContentEmpty,
           ]}
           refreshControl={
             <RefreshControl
@@ -321,9 +254,6 @@ const MisSolicitudesScreen = () => {
                 setRefreshing(true);
                 try {
                   await cargarDatos();
-                  if (filtroEstado === 'completada' && selectedVehicleId) {
-                    await fetchVehicleHistory();
-                  }
                 } catch (e) {
                   console.error('Error refrescando:', e);
                 } finally {
@@ -336,13 +266,6 @@ const MisSolicitudesScreen = () => {
           showsVerticalScrollIndicator={false}
         />
 
-        {vehicleHistoryLoading && filtroEstado === 'completada' && (
-          <View style={styles.historyLoadingOverlay}>
-            <ActivityIndicator size="small" color="#00A8E8" />
-            <Text style={styles.historyLoadingText}>Cargando historial completo...</Text>
-          </View>
-        )}
-
         {error && (
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={20} color="#FCA5A5" />
@@ -350,13 +273,6 @@ const MisSolicitudesScreen = () => {
           </View>
         )}
       </SafeAreaView>
-
-      <ChecklistViewerModal
-        visible={checklistModalVisible}
-        onClose={() => setChecklistModalVisible(false)}
-        ordenId={selectedChecklistId}
-        servicioNombre={selectedServiceName}
-      />
     </View>
   );
 };
@@ -506,25 +422,6 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  historyLoadingOverlay: {
-    position: 'absolute',
-    bottom: 80,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,30,60,0.85)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0,168,232,0.3)',
-  },
-  historyLoadingText: {
-    color: '#00A8E8',
-    fontSize: 13,
     fontWeight: '600',
   },
   errorContainer: {
