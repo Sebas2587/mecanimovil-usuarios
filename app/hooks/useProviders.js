@@ -116,7 +116,7 @@ export const useProviderDetails = (id, type) => {
             const endpoint = type === 'taller'
                 ? `/usuarios/talleres/${id}/`
                 : `/usuarios/mecanicos-domicilio/${id}/`;
-            return await get(endpoint);
+            return await get(endpoint, {}, { requiresAuth: false });
         },
         enabled: !!id && !!type,
         staleTime: 1000 * 60 * 5,   // 5 min
@@ -135,7 +135,7 @@ export const useProviderServices = (id, type, providerName) => {
                 ? `/servicios/ofertas/por_taller/?taller=${id}`
                 : `/servicios/ofertas/por_mecanico/?mecanico=${id}`;
 
-            const response = await get(endpoint);
+            const response = await get(endpoint, {}, { requiresAuth: false });
             const ofertas = Array.isArray(response) ? response : (response?.results || []);
 
             if (ofertas.length === 0) return [];
@@ -209,7 +209,9 @@ export const useProviderDocuments = (id, type) => {
         queryKey: ['providerDocuments', type, id],
         queryFn: async () => {
             return await get(
-                `/usuarios/documentos-onboarding/proveedor_documentos/?provider_id=${id}&provider_type=${type}`
+                `/usuarios/documentos-onboarding/proveedor_documentos/?provider_id=${id}&provider_type=${type}`,
+                {},
+                { requiresAuth: false }
             );
         },
         enabled: !!id && !!type,

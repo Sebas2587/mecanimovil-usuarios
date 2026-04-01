@@ -164,6 +164,19 @@ const linking = {
           name: (name) => name || undefined,
         },
       },
+      // Ficha pública de proveedor — mismo path, para AuthNavigator (sin sesión)
+      PublicProviderDetail: {
+        path: 'provider/:providerType/:providerId/:name?',
+        parse: {
+          providerType: (type) => type || 'taller',
+          providerId: (id) => {
+            if (!id) return null;
+            const parsed = parseInt(id, 10);
+            return isNaN(parsed) ? null : parsed;
+          },
+          name: (name) => name || undefined,
+        },
+      },
       // Ficha pública marketplace (web Vercel + deep link app)
       MarketplaceVehicleDetail: {
         path: 'marketplace/vehicle/:vehicleId',

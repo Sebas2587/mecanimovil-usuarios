@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import solicitudesService from '../services/solicitudesService';
 import websocketService from '../services/websocketService';
+import { useAuth } from '../context/AuthContext';
 import {
   useRequests,
   useActiveRequests,
@@ -18,6 +19,7 @@ const SolicitudesContext = createContext();
 // Provider
 export function SolicitudesProvider({ children }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   // Queries
   const {
@@ -77,8 +79,10 @@ export function SolicitudesProvider({ children }) {
     return await seleccionarOfertaAsync({ solicitudId, ofertaId });
   }, [seleccionarOfertaAsync]);
 
-  // WebSocket Logic
+  // WebSocket Logic — only connect when authenticated
   useEffect(() => {
+    if (!user) return; // Skip WebSocket on public pages without auth
+
     const initWebSocket = async () => {
       try {
         if (!websocketService.getConnectionStatus()) {
@@ -128,7 +132,7 @@ export function SolicitudesProvider({ children }) {
       websocketService.offMessage('nueva_oferta');
       websocketService.offMessage('solicitud_adjudicada');
     };
-  }, [queryClient]);
+  }, [queryClient, user]);
 
   const limpiarOfertasNuevas = useCallback(() => {
     setOfertasNuevas([]);
