@@ -247,7 +247,13 @@ const UserPanelScreen = () => {
       .slice(0, 3);
   }, [healthReport]);
 
-  const activeSolicitudesCount = solicitudesActivas?.length || 0;
+  const activeSolicitudesCount = useMemo(() => {
+    if (!solicitudesActivas || !selectedVehicle) return 0;
+    return solicitudesActivas.filter(s => {
+      const vehiculoId = s.vehiculo?.id || s.vehiculo_detail?.id || s.vehiculo;
+      return vehiculoId === selectedVehicle.id;
+    }).length;
+  }, [solicitudesActivas, selectedVehicle]);
 
   // ── Trip elapsed timer ──
   useEffect(() => {

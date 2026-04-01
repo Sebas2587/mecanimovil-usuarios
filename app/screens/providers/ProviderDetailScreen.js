@@ -12,7 +12,9 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
+import { buildPublicProviderUrl, buildDeepLinkProviderUrl } from '../../config/publicListing';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
@@ -20,6 +22,7 @@ import ProviderCompletedJobsSection from '../../components/provider/ProviderComp
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
 
 import { useProviderDetails, useProviderServices, useProviderDocuments, useProviderReviews, useProviderCompletedJobs } from '../../hooks/useProviders';
+import { useAuth } from '../../context/AuthContext';
 import { useFavorites } from '../../context/FavoritesContext';
 import ReviewCard from '../../components/reviews/ReviewCard';
 import { TouchableOpacity } from 'react-native';
@@ -44,6 +47,7 @@ const glassBase = {
 const ProviderDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const { vehicles: userVehicles = [] } = useAuth();
 
   const params = route.params || {};
   const { provider: initialProvider, providerId, type, providerType: paramProviderType } = params;
@@ -63,8 +67,40 @@ const ProviderDetailScreen = () => {
   const handleToggleFavorite = () => toggleFavorite(provider, providerType);
 
   const handleShare = async () => {
+    if (!idToLoad) return;
     try {
-      await Share.share({ message: `Te recomiendo a ${provider.nombre} en MecaniMóvil!` });
+      const webUrl = buildPublicProviderUrl(providerType, idToLoad);
+      const deepUrl = buildDeepLinkProviderUrl(providerType, idToLoad);
+
+      const isTaller = providerType === 'taller';
+      let titleSpec = isTaller ? 'Taller especializado' : 'Mecánico a domicilio';
+      
+      const zonasComunas = provider?.zonas_servicio ? provider.zonas_servicio.flatMap(z => z.comunas || []) : [];
+      const comunasRaw = zonasComunas.length > 0 ? zonasComunas : (
+        provider.comunas_cobertura_nombres || provider.comunas_cobertura?.map(c => c?.nombre || c) || []
+      );
+      const comunasArr = Array.isArray(comunasRaw) ? comunasRaw.filter(Boolean) : [];
+      let comunasText = '';
+      if (comunasArr.length > 0) {
+        if (comunasArr.length > 3) {
+           comunasText = `Atiende en ${comunasArr.slice(0,3).join(', ')} y más comunas.`;
+        } else {
+           comunasText = `Atiende en ${comunasArr.join(', ')}.`;
+        }
+      } else {
+        comunasText = isTaller ? (provider.comuna ? `Atiende en ${provider.comuna}.` : '') : 'Atiende a domicilio.';
+      }
+
+      const marcasArr = provider.marcas_atendidas_nombres || ['Multimarca'];
+      const marcasText = marcasArr.length > 6 ? `${marcasArr.slice(0,6).join(', ')}...` : marcasArr.join(', ');
+
+      const messageTexto = `Conoce a ${provider.nombre}, ${titleSpec}.\n${comunasText}\nEspecialista en: ${marcasText}\n\nVer en la web:\n${webUrl}\n\nAbrir en la app:\n${deepUrl}`;
+
+      if (Platform.OS === 'web') {
+          await Share.share({ message: messageTexto, title: 'MecaniMóvil', url: webUrl });
+      } else {
+          await Share.share({ message: messageTexto, url: webUrl }); // iOS/Android share natively passes url and message
+      }
     } catch (error) {
       console.error(error);
     }
@@ -216,6 +252,61 @@ const ProviderDetailScreen = () => {
         </View>
 
         <TrustSection documents={documents || []} />
+
+        {/* --- SECCIÓN DE SERVICIOS --- */}
+        {provider.servicios && provider.servicios.length > 0 && (
+          <View style={styles.section}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <Award size={18} color="#A78BFA" />
+              <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 12, marginTop: -10 }}>
+              Revisa si el servicio o especialidad que necesitas es compatible con la marca de tus vehículos registrados.
+            </Text>
+            <View style={styles.servicesGrid}>
+              {provider.servicios.map((servicio, idx) => {
+                // Verificar compatibilidad simple con las marcas del garaje del usuario
+                // Asumimos que si el proveedor atiende múltiples marcas o la marca del usuario, hay compatibilidad general.
+                const providerBrands = provider.marcas_atendidas_nombres?.map(b => b.toLowerCase()) || [];
+                let isCompatible = false;
+
+                if (providerBrands.includes('multimarca')) {
+                  isCompatible = true;
+                } else if (userVehicles.length > 0) {
+                  userVehicles.forEach(uv => {
+                    const uM = (uv.marca_nombre || uv.marca || '').toLowerCase();
+                    if (providerBrands.some(pb => pb.includes(uM) || uM.includes(pb))) {
+                      isCompatible = true;
+                    }
+                  });
+                }
+                
+                return (
+                  <GlassCard key={`${servicio.id || idx}`} style={styles.serviceCardOuter}>
+                    <Text style={styles.serviceName} numberOfLines={2}>
+                      {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
+                    </Text>
+                    {servicio.categoria && (
+                      <Text style={styles.serviceCategory} numberOfLines={1}>
+                        {servicio.categoria}
+                      </Text>
+                    )}
+                    
+                    {isCompatible ? (
+                      <View style={styles.serviceFooter}>
+                        <View style={styles.compatibilityBadge}>
+                          <Ionicons name="checkmark-circle" size={12} color="#10B981" />
+                          <Text style={styles.compatibilityText}>Compatible</Text>
+                        </View>
+                      </View>
+                    ) : null}
+                  </GlassCard>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         <ProviderCompletedJobsSection jobs={completedJobs} />
         <PortfolioCarousel portfolio={provider.portafolio || []} />
 
@@ -297,6 +388,56 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontWeight: '500',
   },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  serviceCardOuter: {
+    width: '48%',
+    padding: 12,
+    marginBottom: 8,
+  },
+  serviceName: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  serviceCategory: {
+    color: '#93C5FD',
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  serviceFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+    paddingTop: 10,
+  },
+  compatibilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  compatibilityText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  noVehiclesHint: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
+    fontStyle: 'italic',
+  }
 });
 
 export default ProviderDetailScreen;

@@ -73,6 +73,8 @@ const VehicleRegistrationScreen = () => {
     const [selectedEngineType, setSelectedEngineType] = useState(null);
     const [maintenanceSelections, setMaintenanceSelections] = useState({});
     const [maintenanceExpanded, setMaintenanceExpanded] = useState(true);
+    const [valorMercado, setValorMercado] = useState('');
+    const [showValorMercadoAlert, setShowValorMercadoAlert] = useState(false);
     const queryClient = useQueryClient();
 
     // Fetch checklist for maintenance section
@@ -163,6 +165,12 @@ const VehicleRegistrationScreen = () => {
                     setSelectedEngineType(type);
                 }
 
+                if (!data.precio_mercado_promedio || Number(data.precio_mercado_promedio) === 0) {
+                    setShowValorMercadoAlert(true);
+                } else {
+                    setShowValorMercadoAlert(false);
+                }
+
                 setStep('success');
             } else {
                 Alert.alert(
@@ -221,6 +229,13 @@ const VehicleRegistrationScreen = () => {
         if (!selectedEngineType) {
             Alert.alert('Falta información', 'Por favor selecciona el tipo de combustible.');
             return;
+        }
+
+        if (!vehicleData.precio_mercado_promedio || Number(vehicleData.precio_mercado_promedio) === 0) {
+            if (!valorMercado) {
+                Alert.alert('Falta información', 'Por favor ingresa el valor de mercado referencial.');
+                return;
+            }
         }
 
         // Double-check patente availability before saving (race-condition guard)
@@ -299,7 +314,10 @@ const VehicleRegistrationScreen = () => {
                 formData.append('kilometraje_api', String(apiMileage));
             }
 
-
+            // Append market value manually if needed
+            if (valorMercado && (!vehicleData.precio_mercado_promedio || Number(vehicleData.precio_mercado_promedio) === 0)) {
+                formData.append('precio_mercado_promedio', valorMercado);
+            }
 
             // Optional fields - Strict checks
             if (vehicleData.cilindraje) formData.append('cilindraje', vehicleData.cilindraje);
@@ -382,6 +400,8 @@ const VehicleRegistrationScreen = () => {
         setVehicleData(null);
         setPatente('');
         setKilometraje('');
+        setValorMercado('');
+        setShowValorMercadoAlert(false);
         setImage(null);
         setMaintenanceSelections({});
     };
@@ -529,6 +549,39 @@ const VehicleRegistrationScreen = () => {
                                     <Text style={styles.kmSuffix}>km</Text>
                                 </View>
                             </GlassCard>
+
+                            {/* Valor Mercado (Condicional) */}
+                            {(!vehicleData.precio_mercado_promedio || Number(vehicleData.precio_mercado_promedio) === 0) && (
+                                <>
+                                    {showValorMercadoAlert && (
+                                        <View style={[styles.warningCard, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)', flexDirection: 'row', alignItems: 'flex-start' }]}>
+                                            <Ionicons name="information-circle-outline" size={22} color="#F59E0B" style={{ marginRight: 8, marginTop: 2 }} />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={[styles.warningText, { color: '#FDE68A' }]}>
+                                                    <Text style={[styles.warningTextStrong, { color: '#F59E0B' }]}>Aviso:</Text> No pudimos obtener el valor de mercado para este vehículo por defecto. Por favor ingresa el valor de mercado manualmente.
+                                                </Text>
+                                            </View>
+                                            <TouchableOpacity onPress={() => setShowValorMercadoAlert(false)} style={{ padding: 4 }}>
+                                                <Ionicons name="close" size={20} color="#F59E0B" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                    <GlassCard style={[styles.kilometerSection, { marginTop: 16 }]}>
+                                        <Text style={styles.sectionLabel}>Valor de Mercado Referencial</Text>
+                                        <View style={styles.kmInputWrapper}>
+                                            <Text style={[styles.kmSuffix, { marginRight: 8, marginLeft: 0 }]}>$</Text>
+                                            <TextInput
+                                                style={styles.kmInput}
+                                                value={valorMercado}
+                                                onChangeText={text => setValorMercado(text.replace(/[^0-9]/g, ''))}
+                                                placeholder="0"
+                                                keyboardType="numeric"
+                                                placeholderTextColor="#94A3B8"
+                                            />
+                                        </View>
+                                    </GlassCard>
+                                </>
+                            )}
 
                             {/* Mantenimientos Recientes (Opcional) */}
                             <GlassCard style={styles.maintenanceSection}>

@@ -4,8 +4,9 @@ import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import MarketplaceVehicleDetailScreen from '../screens/marketplace/MarketplaceVehicleDetailScreen';
+import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
 import { ROUTES } from '../utils/constants';
-import { getMarketplaceVehicleIdFromWebPath } from '../utils/publicListingRoute';
+import { getMarketplaceVehicleIdFromWebPath, getPublicProviderFromWebPath } from '../utils/publicListingRoute';
 
 const Stack = createStackNavigator();
 
@@ -14,14 +15,17 @@ const Stack = createStackNavigator();
  * del marketplace primero — sin forzar login a visitantes sin app / sin cuenta.
  */
 const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehicleIdProp }) => {
-  const fromPath = Platform.OS === 'web' ? getMarketplaceVehicleIdFromWebPath() : null;
-  const marketplaceVehicleId = marketplaceVehicleIdProp ?? fromPath;
+  const fromVehiclePath = Platform.OS === 'web' ? getMarketplaceVehicleIdFromWebPath() : null;
+  const marketplaceVehicleId = marketplaceVehicleIdProp ?? fromVehiclePath;
+  const publicProviderData = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
 
-  const initialRouteName = marketplaceVehicleId
-    ? ROUTES.MARKETPLACE_VEHICLE_DETAIL
-    : registerSuccess
-      ? ROUTES.REGISTER
-      : ROUTES.LOGIN;
+  const initialRouteName = publicProviderData
+    ? ROUTES.PUBLIC_PROVIDER_DETAIL
+    : marketplaceVehicleId
+      ? ROUTES.MARKETPLACE_VEHICLE_DETAIL
+      : registerSuccess
+        ? ROUTES.REGISTER
+        : ROUTES.LOGIN;
 
   return (
     <Stack.Navigator
@@ -42,6 +46,16 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
         initialParams={
           marketplaceVehicleId != null && !Number.isNaN(marketplaceVehicleId)
             ? { vehicleId: marketplaceVehicleId }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.PUBLIC_PROVIDER_DETAIL}
+        component={PublicProviderDetailScreen}
+        options={{ headerShown: false }}
+        initialParams={
+          publicProviderData
+            ? { providerType: publicProviderData.providerType, providerId: publicProviderData.providerId }
             : undefined
         }
       />

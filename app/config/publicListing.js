@@ -23,6 +23,19 @@ export function buildDeepLinkListingUrl(vehicleId) {
   return `mecanimovil://${path}`;
 }
 
+export function buildPublicProviderPath(providerType, providerId) {
+  return `/provider/${providerType}/${providerId}`;
+}
+
+export function buildPublicProviderUrl(providerType, providerId) {
+  return `${getPublicListingWebOrigin()}${buildPublicProviderPath(providerType, providerId)}`;
+}
+
+export function buildDeepLinkProviderUrl(providerType, providerId) {
+  const path = buildPublicProviderPath(providerType, providerId).replace(/^\//, '');
+  return `mecanimovil://${path}`;
+}
+
 export function getPlayStoreUrl() {
   return Constants.expoConfig?.extra?.playStoreUrl || 'https://play.google.com/store/apps/details?id=com.mecanimovil.app';
 }

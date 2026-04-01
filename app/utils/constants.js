@@ -280,6 +280,7 @@ export const ROUTES = {
   MARKETPLACE: 'Marketplace',
   MARKETPLACE_VEHICLE_DETAIL: 'MarketplaceVehicleDetail',
   SELL_VEHICLE: 'SellVehicle',
+  PUBLIC_PROVIDER_DETAIL: 'PublicProviderDetail',
   OFFERS_LIST: 'OffersList',
 
   // Rutas de Transferencia Digital

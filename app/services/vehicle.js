@@ -267,7 +267,8 @@ export const getVehicleByPatente = async (patente) => {
       transmision: source.transmission || source.transmision || vehicleData.transmision, // MECANICA
       puertas: source.doors || source.puertas || vehicleData.puertas,
       version: source.version || vehicleData.version,
-      mes_revision_tecnica: source.monthRT || vehicleData.mes_revision_tecnica
+      mes_revision_tecnica: source.monthRT || vehicleData.mes_revision_tecnica,
+      precio_mercado_promedio: source.precio_mercado_promedio || vehicleData.precio_mercado_promedio || source.marketValue || 0
     };
   } catch (error) {
     console.error('Error consultando patente:', error);
