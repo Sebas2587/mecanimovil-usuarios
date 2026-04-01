@@ -174,7 +174,11 @@ const ProviderDetailScreen = () => {
         <View style={{ position: 'absolute', bottom: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(6,182,212,0.05)' }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={Platform.OS !== 'web'}
+      >
         <ProviderHeader provider={provider} providerType={providerType} onShare={handleShare} onToggleFavorite={handleToggleFavorite} isFavorite={favorite} onBack={handleBack} />
 
         {/* Quick Stats was removed to eliminate redundancy with ProviderHeader */}
@@ -362,6 +366,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#030712',
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
+  },
+  /** Web: sin altura máxima el ScrollView crece con el contenido y no hay scroll (sesión con tabs/stack). */
+  scrollWeb: {
+    flex: 1,
+    minHeight: 0,
   },
   scrollContent: {
     paddingBottom: 30,

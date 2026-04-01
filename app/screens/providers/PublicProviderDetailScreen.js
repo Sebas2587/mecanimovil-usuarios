@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, Platform, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, Platform, TouchableOpacity, Linking, Share } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { MapPin, Award } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
+import { buildPublicProviderUrl, buildDeepLinkProviderUrl } from '../../config/publicListing';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
@@ -129,6 +130,51 @@ const PublicProviderDetailScreen = () => {
     reload();
   }, [reload]);
 
+  const handleShare = useCallback(async () => {
+    if (providerId == null || providerId === '' || !providerType || !details) return;
+    try {
+      const webUrl = buildPublicProviderUrl(providerType, providerId);
+      const deepUrl = buildDeepLinkProviderUrl(providerType, providerId);
+      const isTaller = providerType === 'taller';
+      const titleSpec = isTaller ? 'Taller especializado' : 'Mecánico a domicilio';
+      const zonasComunas = details?.zonas_servicio
+        ? details.zonas_servicio.flatMap((z) => z.comunas || [])
+        : [];
+      const comunasRaw =
+        zonasComunas.length > 0
+          ? zonasComunas
+          : details.comunas_cobertura_nombres ||
+            details.comunas_cobertura?.map((c) => c?.nombre || c) ||
+            [];
+      const comunasArr = Array.isArray(comunasRaw) ? comunasRaw.filter(Boolean) : [];
+      let comunasText = '';
+      if (comunasArr.length > 0) {
+        comunasText =
+          comunasArr.length > 3
+            ? `Atiende en ${comunasArr.slice(0, 3).join(', ')} y más comunas.`
+            : `Atiende en ${comunasArr.join(', ')}.`;
+      } else {
+        comunasText = isTaller
+          ? details.comuna
+            ? `Atiende en ${details.comuna}.`
+            : ''
+          : 'Atiende a domicilio.';
+      }
+      const marcasArr = details.marcas_atendidas_nombres || ['Multimarca'];
+      const marcasText =
+        marcasArr.length > 6 ? `${marcasArr.slice(0, 6).join(', ')}...` : marcasArr.join(', ');
+      const name = details.nombre || 'Especialista';
+      const messageTexto = `Conoce a ${name}, ${titleSpec}.\n${comunasText}\nEspecialista en: ${marcasText}\n\nVer en la web:\n${webUrl}\n\nAbrir en la app:\n${deepUrl}`;
+      if (Platform.OS === 'web') {
+        await Share.share({ message: messageTexto, title: 'MecaniMóvil', url: webUrl });
+      } else {
+        await Share.share({ message: messageTexto, url: webUrl });
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [providerId, providerType, details]);
+
   const completedJobs = [];
   const provider = { ...details, servicios };
 
@@ -186,6 +232,7 @@ const PublicProviderDetailScreen = () => {
           provider={provider}
           providerType={providerType}
           showBackButton={false}
+          onShare={handleShare}
         />
 
         <View style={styles.bannerWrap}>
@@ -331,13 +378,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#030712',
   },
-  /** Web: sin altura fija ni overflow:hidden (rompe el scroll en Chrome con caché / extensión). */
+  /** Web: minHeight 0 en la cadena flex para que el ScrollView tenga altura acotada y haga scroll. */
   containerWeb: {
     flexGrow: 1,
-    minHeight: '100%',
+    minHeight: 0,
+    height: '100%',
   },
   scrollWeb: {
-    flexGrow: 1,
+    flex: 1,
+    minHeight: 0,
   },
   scrollContent: {
     paddingBottom: 40,

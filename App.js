@@ -1318,7 +1318,13 @@ const Main = () => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#030712' }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: '#030712',
+        ...(Platform.OS === 'web' ? { minHeight: 0, height: '100%' } : {}),
+      }}
+    >
       <NavigationContainer
         ref={navigationRef}
         linking={linking}
