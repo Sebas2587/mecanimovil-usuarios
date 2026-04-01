@@ -53,7 +53,22 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
       <Stack.Screen
         name={ROUTES.PROVIDER_DETAIL}
         component={PublicProviderDetailScreen}
-        options={{ headerShown: false }}
+        options={{
+          headerShown: false,
+          ...(Platform.OS === 'web'
+            ? {
+                /** La escena hace scroll; ScrollView interno + stack overflow:hidden rompe el wheel en Chrome normal. */
+                cardStyle: {
+                  backgroundColor: '#030712',
+                  flex: 1,
+                  maxHeight: '100vh',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  WebkitOverflowScrolling: 'touch',
+                },
+              }
+            : {}),
+        }}
         initialParams={
           publicProviderData
             ? { type: publicProviderData.providerType, id: publicProviderData.providerId }

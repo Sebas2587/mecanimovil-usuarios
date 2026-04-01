@@ -219,15 +219,8 @@ const PublicProviderDetailScreen = () => {
     );
   }
 
-  return (
-    <View style={[styles.container, Platform.OS === 'web' && styles.containerWeb]}>
-      <StatusBar barStyle="light-content" backgroundColor="#030712" />
-      <ScrollView
-        showsVerticalScrollIndicator={Platform.OS !== 'web'}
-        contentContainerStyle={styles.scrollContent}
-        style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
-        keyboardShouldPersistTaps="handled"
-      >
+  const profileBody = (
+    <>
         <ProviderHeader
           provider={provider}
           providerType={providerType}
@@ -367,8 +360,23 @@ const PublicProviderDetailScreen = () => {
                 </TouchableOpacity>
             </GlassCard>
         </View>
+    </>
+  );
 
-      </ScrollView>
+  return (
+    <View style={[styles.container, Platform.OS === 'web' && styles.containerWebFlow]}>
+      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      {Platform.OS === 'web' ? (
+        <View style={styles.scrollContent}>{profileBody}</View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator
+        >
+          {profileBody}
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -378,15 +386,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#030712',
   },
-  /** Web: minHeight 0 en la cadena flex para que el ScrollView tenga altura acotada y haga scroll. */
-  containerWeb: {
-    flexGrow: 1,
-    minHeight: 0,
-    height: '100%',
-  },
-  scrollWeb: {
-    flex: 1,
-    minHeight: 0,
+  /** Web: sin flex:1 — la altura la define el contenido; el scroll lo hace cardStyle del Stack (overflowY auto). */
+  containerWebFlow: {
+    flexGrow: 0,
+    flexShrink: 0,
+    width: '100%',
+    minHeight: '100%',
+    alignSelf: 'stretch',
   },
   scrollContent: {
     paddingBottom: 40,

@@ -23,7 +23,12 @@ const PortfolioCarousel = ({ portfolio }) => {
                 <Text style={styles.title}>Trabajos Realizados</Text>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+                style={Platform.OS === 'web' ? styles.horizontalScrollWeb : undefined}
+            >
                 {items.map((item, index) => (
                     <TouchableOpacity key={item.id || index} style={styles.card} activeOpacity={0.9}>
                         <Image source={{ uri: item.image || item.url }} style={styles.image} resizeMode="cover" />
@@ -85,6 +90,11 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: 'rgba(255,255,255,0.75)',
+    },
+    /** Deja el scroll vertical (rueda/trackpad) para el contenedor padre en web. */
+    horizontalScrollWeb: {
+        touchAction: 'pan-x',
+        overscrollBehaviorX: 'contain',
     },
 });
 

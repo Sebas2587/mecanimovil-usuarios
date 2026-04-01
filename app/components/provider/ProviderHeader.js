@@ -41,7 +41,7 @@ const ProviderHeader = ({
             {/* Cover Image */}
             <View style={styles.coverContainer}>
                 <Image source={{ uri: coverImage }} style={styles.coverImage} resizeMode="cover" />
-                <View style={styles.coverOverlay} />
+                <View style={styles.coverOverlay} pointerEvents="none" />
 
                 {/* Top Bar Actions */}
                 <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
