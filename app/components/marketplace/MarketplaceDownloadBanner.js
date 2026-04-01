@@ -6,7 +6,7 @@ import { getAppStoreUrl, getPlayStoreUrl } from '../../config/publicListing';
 /**
  * CTA para instalar la app (web o visitante sin sesión en ficha pública).
  */
-const MarketplaceDownloadBanner = ({ style, compact = false }) => {
+const MarketplaceDownloadBanner = ({ style, compact = false, forPublicProfile = false }) => {
   const open = (url) => {
     Linking.openURL(url).catch(() => {});
   };
@@ -15,19 +15,28 @@ const MarketplaceDownloadBanner = ({ style, compact = false }) => {
   const playStore = getPlayStoreUrl();
 
   return (
-    <View style={[styles.wrap, compact && styles.wrapCompact, style]}>
+    <View
+      style={[
+        styles.wrap,
+        compact && styles.wrapCompact,
+        forPublicProfile && styles.wrapPublicProfile,
+        style,
+      ]}
+    >
       <View style={styles.titleRow}>
         <Ionicons name="phone-portrait-outline" size={20} color="#93C5FD" />
         <Text style={styles.title}>Consigue MecaniMóvil</Text>
       </View>
       <Text style={styles.sub}>
-        {Platform.OS === 'web'
-          ? 'Oferta, chatea y cierra la compra con más funciones en la app.'
-          : 'Para ofertar y negociar, usa la app MecaniMóvil.'}
+        {forPublicProfile
+          ? 'Descarga la app para solicitar servicios, chatear con el especialista y agendar.'
+          : Platform.OS === 'web'
+            ? 'Oferta, chatea y cierra la compra con más funciones en la app.'
+            : 'Para ofertar y negociar, usa la app MecaniMóvil.'}
       </Text>
-      <View style={styles.row}>
+      <View style={[styles.row, forPublicProfile && styles.rowPublicProfile]}>
         <TouchableOpacity
-          style={[styles.btn, styles.btnApple]}
+          style={[styles.btn, styles.btnApple, forPublicProfile && styles.btnPublicProfile]}
           onPress={() => open(appStore)}
           activeOpacity={0.85}
         >
@@ -35,7 +44,7 @@ const MarketplaceDownloadBanner = ({ style, compact = false }) => {
           <Text style={styles.btnText}>App Store</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.btn, styles.btnPlay]}
+          style={[styles.btn, styles.btnPlay, forPublicProfile && styles.btnPublicProfile]}
           onPress={() => open(playStore)}
           activeOpacity={0.85}
         >
@@ -61,6 +70,22 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
     marginBottom: 12,
     padding: 12,
+  },
+  wrapPublicProfile: {
+    marginHorizontal: 0,
+    marginBottom: 0,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
+  },
+  rowPublicProfile: {
+    justifyContent: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  btnPublicProfile: {
+    flex: 1,
+    minWidth: 142,
+    maxWidth: Platform.OS === 'web' ? 220 : 200,
   },
   titleRow: {
     flexDirection: 'row',

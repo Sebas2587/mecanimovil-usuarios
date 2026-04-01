@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, Platform, TouchableOpacity, useWindowDimensions, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, Platform, TouchableOpacity, Linking } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
 import { MapPin, Award } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
 
@@ -39,7 +38,6 @@ const glassBase = {
 const PublicProviderDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { height: windowHeight } = useWindowDimensions();
 
   const params = route.params || {};
   const normalizedFromRoute = useMemo(
@@ -134,21 +132,6 @@ const PublicProviderDetailScreen = () => {
   const completedJobs = [];
   const provider = { ...details, servicios };
 
-  const handleBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate(ROUTES.LOGIN);
-    }
-  };
-
-  const showBackButton = Platform.OS !== 'web'; // Si estamos en la web como ficha pública, ocultar atrás
-
-  const webRootStyle = Platform.OS === 'web'
-    ? { height: windowHeight, maxHeight: windowHeight, overflow: 'hidden' }
-    : null;
-  const webScrollStyle = Platform.OS === 'web' ? { flex: 1, minHeight: 0 } : null;
-
   if (providerId == null || providerId === '' || !providerType) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
@@ -191,19 +174,22 @@ const PublicProviderDetailScreen = () => {
   }
 
   return (
-    <View style={[styles.container, webRootStyle]}>
+    <View style={[styles.container, Platform.OS === 'web' && styles.containerWeb]}>
       <StatusBar barStyle="light-content" backgroundColor="#030712" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} style={webScrollStyle}>
-        
-        {/* Usamos el ProviderHeader simplificado, desactivando compartir y favoritos */}
-        <ProviderHeader 
-            provider={provider} 
-            providerType={providerType} 
-            onBack={showBackButton ? handleBack : undefined} 
+      <ScrollView
+        showsVerticalScrollIndicator={Platform.OS !== 'web'}
+        contentContainerStyle={styles.scrollContent}
+        style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ProviderHeader
+          provider={provider}
+          providerType={providerType}
+          showBackButton={false}
         />
 
-        <View style={{ paddingHorizontal: 16, marginTop: -40 }}>
-           <MarketplaceDownloadBanner style={{ marginTop: 4, marginHorizontal: 0, marginBottom: 20 }} />
+        <View style={styles.bannerWrap}>
+          <MarketplaceDownloadBanner forPublicProfile />
         </View>
 
         {/* Cobertura / Dirección */}
@@ -335,27 +321,7 @@ const PublicProviderDetailScreen = () => {
             </GlassCard>
         </View>
 
-        <View style={{ height: 100 }} />
       </ScrollView>
-
-      {/* Botón flotante / sticky bottom para Login en Web/Móvil */}
-      <View style={[styles.stickyBottom, { paddingBottom: 20 }]}>
-          {Platform.OS === 'ios' && <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />}
-          <TouchableOpacity 
-              style={styles.stickyButton}
-              onPress={() => navigation.navigate(ROUTES.LOGIN)}
-          >
-              <LinearGradient
-                  colors={['#007EA7', '#00A8E8']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.stickyGradient}
-              >
-                  <Ionicons name="log-in-outline" size={20} color="white" style={{ marginRight: 8 }} />
-                  <Text style={styles.stickyButtonText}>Iniciar Sesión para Agendar</Text>
-              </LinearGradient>
-          </TouchableOpacity>
-      </View>
     </View>
   );
 };
@@ -365,8 +331,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#030712',
   },
+  /** Web: sin altura fija ni overflow:hidden (rompe el scroll en Chrome con caché / extensión). */
+  containerWeb: {
+    flexGrow: 1,
+    minHeight: '100%',
+  },
+  scrollWeb: {
+    flexGrow: 1,
+  },
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: 40,
+  },
+  bannerWrap: {
+    paddingHorizontal: 16,
+    marginTop: -36,
+    marginBottom: 8,
   },
   section: {
     paddingHorizontal: 16,
@@ -467,37 +446,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  stickyBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: Platform.OS === 'ios' ? 'transparent' : 'rgba(3,7,18,0.95)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  stickyButton: {
-    height: 50,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#00A8E8',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  stickyGradient: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stickyButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
 

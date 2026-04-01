@@ -12,7 +12,15 @@ const GLASS_BG = Platform.select({
     default: 'rgba(255,255,255,0.08)',
 });
 
-const ProviderHeader = ({ provider, providerType, onShare, onToggleFavorite, isFavorite = false, onBack }) => {
+const ProviderHeader = ({
+  provider,
+  providerType,
+  onShare,
+  onToggleFavorite,
+  isFavorite = false,
+  onBack,
+  showBackButton = true,
+}) => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
 
@@ -37,13 +45,21 @@ const ProviderHeader = ({ provider, providerType, onShare, onToggleFavorite, isF
 
                 {/* Top Bar Actions */}
                 <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-                    <TouchableOpacity style={styles.iconButton} onPress={onBack || (() => navigation.goBack())}>
-                        <Ionicons name="arrow-back" size={24} color="white" />
-                    </TouchableOpacity>
-                    <View style={styles.rightActions}>
-                        <TouchableOpacity style={styles.iconButton} onPress={onShare}>
-                            <Ionicons name="share-outline" size={24} color="white" />
+                    {showBackButton ? (
+                        <TouchableOpacity style={styles.iconButton} onPress={onBack || (() => navigation.goBack())}>
+                            <Ionicons name="arrow-back" size={24} color="white" />
                         </TouchableOpacity>
+                    ) : (
+                        <View style={styles.iconButton} accessibilityElementsHidden />
+                    )}
+                    <View style={styles.rightActions}>
+                        {onShare ? (
+                            <TouchableOpacity style={styles.iconButton} onPress={onShare}>
+                                <Ionicons name="share-outline" size={24} color="white" />
+                            </TouchableOpacity>
+                        ) : (
+                            <View style={styles.iconButton} />
+                        )}
                         {onToggleFavorite && (
                             <TouchableOpacity style={styles.iconButton} onPress={onToggleFavorite}>
                                 <Ionicons
