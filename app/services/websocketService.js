@@ -9,8 +9,8 @@ class WebSocketService {
   constructor() {
     this.ws = null;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
+    this.maxReconnectDelay = 30000;
     this.isConnected = false;
     this.isConnecting = false;
     this.messageHandlers = new Map();
@@ -152,21 +152,26 @@ class WebSocketService {
   }
 
   /**
-   * Programa una reconexión
+   * Programa una reconexión con exponential backoff + jitter (sin límite de intentos).
+   * Tras un deploy o caída temporal del server, la app siempre se reconecta.
    */
   scheduleReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      const delay = this.reconnectDelay * this.reconnectAttempts;
-      
-      console.log(`🔄 Programando reconexión ${this.reconnectAttempts}/${this.maxReconnectAttempts} en ${delay}ms`);
-      
-      this.reconnectTimeout = setTimeout(() => {
-        this.connect();
-      }, delay);
-    } else {
-      console.log('❌ Máximo de intentos de reconexión alcanzado');
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
     }
+    this.reconnectAttempts++;
+    const exponential = Math.min(
+      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+      this.maxReconnectDelay
+    );
+    const jitter = Math.random() * 1000;
+    const delay = exponential + jitter;
+
+    console.log(`🔄 Reconexión #${this.reconnectAttempts} en ${Math.round(delay)}ms`);
+
+    this.reconnectTimeout = setTimeout(() => {
+      this.connect();
+    }, delay);
   }
 
   /**

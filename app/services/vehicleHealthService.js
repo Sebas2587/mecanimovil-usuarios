@@ -94,8 +94,8 @@ class VehicleHealthService {
   }
   
   /**
-   * Recalcula salud en el servidor (síncrono en backend) e invalida cache local.
-   * Devuelve el cuerpo del POST si el backend envía resumen/componentes (200).
+   * Solicita recálculo al backend (ahora asíncrono, devuelve 202).
+   * Invalida cache local para que el próximo GET cargue datos frescos.
    */
   static async syncVehicleHealth(vehicleId) {
     const data = await post(`/vehiculos/health/vehicle/${vehicleId}/sync/`, {});

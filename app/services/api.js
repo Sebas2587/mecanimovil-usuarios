@@ -4,6 +4,39 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../config/serverConfig';
 import logger from '../utils/logger';
 
+// Retry configuration: exponential backoff for transient failures
+const RETRY_CONFIG = {
+  maxRetries: 2,
+  baseDelay: 1000,
+  retryableStatuses: new Set([502, 503, 504]),
+  retryableCodes: new Set(['ECONNABORTED', 'ETIMEDOUT', 'ERR_NETWORK', 'ECONNRESET']),
+};
+
+async function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function withRetry(requestFn, retries = RETRY_CONFIG.maxRetries) {
+  let lastError;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error;
+      const status = error?.response?.status || error?.status;
+      const code = error?.code;
+      const isRetryable =
+        RETRY_CONFIG.retryableStatuses.has(status) ||
+        RETRY_CONFIG.retryableCodes.has(code);
+      if (!isRetryable || attempt === retries) break;
+      const delay = RETRY_CONFIG.baseDelay * Math.pow(2, attempt) + Math.random() * 500;
+      logger.info(`🔄 Reintentando petición (${attempt + 1}/${retries}) en ${Math.round(delay)}ms...`);
+      await sleep(delay);
+    }
+  }
+  throw lastError;
+}
+
 /**
  * Sistema de cache simple para respetar headers Cache-Control del servidor
  * Cachea respuestas por max-age especificado en Cache-Control header
@@ -561,7 +594,6 @@ function setupInterceptors(apiInstance) {
  */
 export const get = async (url, params = {}, options = {}) => {
   try {
-    // Intentar obtener del cache si no se fuerza refresh
     if (!options.forceRefresh) {
       const cachedData = getCachedResponse(url, params);
       if (cachedData !== null) {
@@ -569,13 +601,15 @@ export const get = async (url, params = {}, options = {}) => {
       }
     }
 
-    const apiInstance = await getApiInstance();
-    const response = await apiInstance.get(url, {
-      params,
-      requiresAuth: options.requiresAuth
-    });
+    const doRequest = async () => {
+      const apiInstance = await getApiInstance();
+      const config = { params, requiresAuth: options.requiresAuth };
+      if (options.timeout) config.timeout = options.timeout;
+      return apiInstance.get(url, config);
+    };
 
-    // Cachear la respuesta si el servidor envía Cache-Control
+    const response = await withRetry(doRequest);
+
     const cacheControl = response.headers?.['cache-control'] || response.headers?.['Cache-Control'];
     if (cacheControl) {
       setCachedResponse(url, params, response.data, cacheControl);
@@ -583,7 +617,6 @@ export const get = async (url, params = {}, options = {}) => {
 
     return response.data;
   } catch (error) {
-    // Casos especiales que no son errores críticos
     const isCarritoNotFound = error.status === 404 &&
       url.includes('/carritos/activo') &&
       error.data?.error?.includes('No hay carrito activo');
@@ -600,7 +633,6 @@ export const get = async (url, params = {}, options = {}) => {
     if (isCarritoNotFound) {
       logger.info(`Estado normal en GET a ${url}: No hay carrito activo`);
     } else if (isPuedeCrearSolicitudMissing) {
-      // No mostrar como error: este 404 es esperado, el caller usará validación alternativa
       logger.info(`ℹ️ Endpoint puede-crear-solicitud no disponible (404) en GET a ${url}. Se usará validación alternativa.`);
     } else if (is401SinSesionEsperado) {
       // Sin token: el caller devuelve []; no spamear consola
