@@ -58,11 +58,15 @@ const VehicleHealthScreen = ({ route }) => {
 
   const pollingIntervalRef = useRef(null);
   const wsHandlerRef = useRef(null);
+  const syncTimerRef = useRef(null);
 
   // Initial Load
   useEffect(() => {
     loadData();
-    return () => clearInterval(pollingIntervalRef.current);
+    return () => {
+      clearInterval(pollingIntervalRef.current);
+      clearTimeout(syncTimerRef.current);
+    };
   }, [vehicleId]);
 
   const loadData = async (force = false) => {
@@ -138,7 +142,7 @@ const VehicleHealthScreen = ({ route }) => {
         'Los datos se están recalculando. Se actualizarán automáticamente en unos segundos.'
       );
       // Re-fetch delayed para capturar resultado de Celery si WS no lo entregó
-      setTimeout(() => loadData(true), 5000);
+      syncTimerRef.current = setTimeout(() => loadData(true), 5000);
     } catch (e) {
       console.error('Sync salud error:', e);
       Alert.alert(
