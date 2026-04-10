@@ -3,7 +3,7 @@ import ServerConfig from '../config/serverConfig';
 import logger from '../utils/logger';
 
 /** Mensajes del protocolo WS del backend sin handler de UI (esperados). */
-const WS_TYPES_OPTIONAL_NO_HANDLER = new Set(['current_statuses', 'subscription_confirmed']);
+const WS_TYPES_OPTIONAL_NO_HANDLER = new Set(['current_statuses', 'subscription_confirmed', 'auth_invalid']);
 
 class WebSocketService {
   constructor() {
@@ -13,6 +13,9 @@ class WebSocketService {
     this.maxReconnectDelay = 30000;
     this.isConnected = false;
     this.isConnecting = false;
+    this.isAuthenticated = false;
+    this.authFailures = 0;
+    this.maxAuthFailures = 3;
     this.messageHandlers = new Map();
     this.reconnectTimeout = null;
   }
@@ -31,6 +34,10 @@ class WebSocketService {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
+    }
+
+    if (authToken) {
+      this.authFailures = 0;
     }
 
     try {
@@ -85,9 +92,9 @@ class WebSocketService {
     console.log('✅ [CLIENTE WS] WebSocket cliente conectado exitosamente!');
     this.isConnected = true;
     this.isConnecting = false;
+    this.isAuthenticated = true;
     this.reconnectAttempts = 0;
-    
-    // Suscribirse a mecánicos relevantes (se puede personalizar según la ubicación del usuario)
+
     this.subscribeToMechanics([]);
     console.log('✅ [CLIENTE WS] Conexión establecida, listo para recibir mensajes');
   }
@@ -99,6 +106,18 @@ class WebSocketService {
     try {
       const data = JSON.parse(event.data);
       logger.debug('📨 [CLIENTE WS] Mensaje:', data?.type, data);
+
+      if (data.type === 'auth_invalid') {
+        console.log('⚠️ [CLIENTE WS] Backend reporta token inválido, cerrando conexión');
+        this.isAuthenticated = false;
+        this.authFailures++;
+        if (this.ws) {
+          this.ws.close(1000, 'auth_invalid');
+        }
+        return;
+      }
+
+      this.authFailures = 0;
 
       let handlersCalled = 0;
       this.messageHandlers.forEach((handler, type) => {
@@ -127,8 +146,13 @@ class WebSocketService {
     console.log('🔌 [CLIENTE WS] WebSocket cliente desconectado. Code:', event.code, 'Reason:', event.reason);
     this.isConnected = false;
     this.isConnecting = false;
-    
-    // Solo programar reconexión si no fue una desconexión intencional
+    this.isAuthenticated = false;
+
+    if (event.reason === 'auth_invalid' || this.authFailures >= this.maxAuthFailures) {
+      console.log('🛑 [CLIENTE WS] Auth inválido, no se reintenta. Esperando nuevo login/token.');
+      return;
+    }
+
     if (event.code !== 1000) {
       console.log('🔄 [CLIENTE WS] Programando reconexión...');
       this.scheduleReconnect();
@@ -226,7 +250,9 @@ class WebSocketService {
     
     this.isConnected = false;
     this.isConnecting = false;
+    this.isAuthenticated = false;
     this.reconnectAttempts = 0;
+    this.authFailures = 0;
   }
 
   /**
