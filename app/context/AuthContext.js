@@ -89,7 +89,7 @@ export const AuthProvider = ({ children }) => {
     if (user && token && user.is_client) {
       logger.debug('🔗 [AUTH CONTEXT] Cliente autenticado detectado, conectando WebSocket...');
       logger.debug('🔗 [AUTH CONTEXT] Usuario:', user.username || user.email);
-      WebSocketService.connect();
+      WebSocketService.connect(token);
 
       // Cleanup al desmontar o al cambiar de usuario
       return () => {

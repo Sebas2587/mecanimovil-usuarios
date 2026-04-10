@@ -18,16 +18,16 @@ class WebSocketService {
   }
 
   /**
-   * Conecta al WebSocket
+   * Conecta al WebSocket.
+   * @param {string|null} authToken — Si se pasa, se usa directamente en vez de
+   *   leer AsyncStorage (evita race conditions con token rotation en login).
    */
-  async connect() {
-    // Evitar múltiples conexiones simultáneas
+  async connect(authToken = null) {
     if (this.isConnecting || (this.ws && this.ws.readyState === WebSocket.CONNECTING)) {
       console.log('🔄 [CLIENTE WS] Conexión ya en progreso, ignorando...');
       return;
     }
 
-    // Limpiar timeout de reconexión si existe
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
@@ -37,21 +37,16 @@ class WebSocketService {
       console.log('🔗 [CLIENTE WS] Iniciando conexión WebSocket cliente...');
       this.isConnecting = true;
       
-      // Cerrar conexión existente si está en estado inválido
       if (this.ws && (this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING)) {
         this.ws = null;
       }
       
-      // Obtener URL del servidor
       const serverUrl = await this.getServerUrl();
-      console.log('🔗 [CLIENTE WS] URL del servidor obtenida:', serverUrl);
-      
       if (!serverUrl) {
         throw new Error('No se pudo obtener la URL del servidor');
       }
       
-      // Obtener token de autenticación — sin token no intentar conexión
-      const token = await this.getAuthToken();
+      const token = authToken || await this.getAuthToken();
       if (!token || token === 'usuario_registrado_exitosamente') {
         console.log('🔌 [CLIENTE WS] Sin token de auth, no se intenta conexión');
         this.isConnecting = false;
