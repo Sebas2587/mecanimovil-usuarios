@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, Alert, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
@@ -12,7 +13,20 @@ import ProfileMenuItem from '../../components/profile/ProfileMenuItem';
 
 const UserProfileScreen = () => {
   const navigation = useNavigation();
+  const headerHeight = useHeaderHeight();
+  const { height: windowHeight } = useWindowDimensions();
   const { user, logout } = useAuth();
+
+  /** Web: área bajo CustomHeader con altura fija para que ScrollView haga scroll vertical */
+  const webRootStyle =
+    Platform.OS === 'web'
+      ? {
+          minHeight: 0,
+          height: Math.max(windowHeight - headerHeight, 0),
+          maxHeight: Math.max(windowHeight - headerHeight, 0),
+          overflow: 'hidden',
+        }
+      : null;
 
   const handleEditProfile = () => {
     navigation.navigate(ROUTES.EDIT_PROFILE);
@@ -40,7 +54,7 @@ const UserProfileScreen = () => {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, webRootStyle]}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
         <View style={styles.blobEmerald} />
@@ -51,6 +65,7 @@ const UserProfileScreen = () => {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <ScrollView
+        style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces
@@ -119,6 +134,10 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#030712',
+  },
+  scrollWeb: {
+    flex: 1,
+    minHeight: 0,
   },
   blobEmerald: {
     position: 'absolute',
