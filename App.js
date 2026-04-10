@@ -407,10 +407,10 @@ class ErrorBoundary extends React.Component {
 }
 
 // Componente principal que maneja la navegación basada en el estado de autenticación
-const Main = () => {
+// lastNotificationResponse: en web no se usa useLastNotificationResponse (expo-notifications lanza UnavailabilityError).
+const MainImpl = ({ lastNotificationResponse }) => {
   const { isAuthenticated, loading, registerSuccess } = useAuth();
   const navigationRef = useNavigationContainerRef();
-  const lastNotificationResponse = useLastNotificationResponse();
   /** Ficha pública invitado: capturar URL antes de que termine AuthContext.loading (iOS pierde getInitialURL si se lee tarde). */
   const pendingGuestPublicRef = useRef(null);
 
@@ -745,8 +745,9 @@ const Main = () => {
     navigateByNotification,
   ]);
 
-  // Listener para push notifications
+  // Listener para push notifications (no disponible en web; evita suscripciones innecesarias)
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     if (!isAuthenticated || !navigationRef.isReady()) {
       return;
     }
@@ -1365,6 +1366,19 @@ const Main = () => {
       </NavigationContainer>
     </View>
   );
+};
+
+/** iOS/Android: hook de Expo (usa API nativa). Web: omitido — getLastNotificationResponse() no existe y lanzaba crash. */
+const MainWithNotifications = () => {
+  const lastNotificationResponse = useLastNotificationResponse();
+  return <MainImpl lastNotificationResponse={lastNotificationResponse} />;
+};
+
+const Main = () => {
+  if (Platform.OS === 'web') {
+    return <MainImpl lastNotificationResponse={undefined} />;
+  }
+  return <MainWithNotifications />;
 };
 
 export default function App() {
