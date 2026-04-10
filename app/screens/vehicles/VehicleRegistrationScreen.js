@@ -356,7 +356,8 @@ const VehicleRegistrationScreen = () => {
 
             await vehicleService.createVehicle(formData);
 
-            // Invalidate queries to refresh lists
+            // Invalidar listas (UserPanel / CrearSolicitud usan ['userVehicles']; hooks usan ['vehicles', userId])
+            queryClient.invalidateQueries({ queryKey: ['userVehicles'] });
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
 
             Alert.alert('Éxito', 'Vehículo agregado a tu garaje.', [

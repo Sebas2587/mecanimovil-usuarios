@@ -10,6 +10,7 @@ import { NavigationContainer, useNavigationContainerRef, DarkTheme } from '@reac
 import { View, Text, StyleSheet, Linking, AppState, LogBox as RNLogBox, Alert, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
+import { useLastNotificationResponse } from 'expo-notifications';
 import AuthNavigator from './app/navigation/AuthNavigator';
 import AppNavigator from './app/navigation/AppNavigator';
 import { AuthProvider, useAuth } from './app/context/AuthContext';
@@ -409,6 +410,7 @@ class ErrorBoundary extends React.Component {
 const Main = () => {
   const { isAuthenticated, loading, registerSuccess } = useAuth();
   const navigationRef = useNavigationContainerRef();
+  const lastNotificationResponse = useLastNotificationResponse();
   /** Ficha pública invitado: capturar URL antes de que termine AuthContext.loading (iOS pierde getInitialURL si se lee tarde). */
   const pendingGuestPublicRef = useRef(null);
 
@@ -665,66 +667,89 @@ const Main = () => {
     };
   }, [isAuthenticated, loading, navigationRef, navigateToPaymentCallback]); // Incluir navigateToPaymentCallback en dependencias
 
+  const navigateByNotification = useCallback((data) => {
+    if (!data || !navigationRef.isReady()) return;
+    const { type, solicitud_id, vehicle_id, order_id } = data;
+
+    switch (type) {
+      case 'recordatorio_pago':
+      case 'cambio_estado':
+      case 'nueva_oferta':
+      case 'solicitud_adjudicada':
+      case 'new_offer':
+      case 'offer_accepted':
+      case 'solicitud_rechazada':
+        if (solicitud_id) {
+          navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+        }
+        break;
+
+      case 'status_update':
+      case 'order_completed':
+      case 'order_rejected':
+        if (solicitud_id) {
+          navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+        } else if (order_id) {
+          navigationRef.navigate(ROUTES.MIS_SOLICITUDES);
+        }
+        break;
+
+      case 'health_alert':
+      case 'global_health_alert':
+      case 'salud_actualizada':
+        if (vehicle_id) {
+          navigationRef.navigate(ROUTES.VEHICLE_HEALTH, { vehiculoId: vehicle_id });
+        } else {
+          navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
+        }
+        break;
+
+      case 'viaje_registrado':
+        if (vehicle_id) {
+          navigationRef.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: vehicle_id });
+        }
+        break;
+
+      case 'payment_reminder':
+        if (solicitud_id) {
+          navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+        }
+        break;
+
+      default:
+        navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
+        break;
+    }
+  }, [navigationRef]);
+
+  // Arranque en frío: el usuario tocó una push con la app cerrada
+  useEffect(() => {
+    if (!isAuthenticated || loading || !navigationRef.isReady()) return;
+    if (lastNotificationResponse === undefined || lastNotificationResponse === null) return;
+    if (lastNotificationResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+
+    const data = lastNotificationResponse.notification?.request?.content?.data;
+    if (!data || typeof data !== 'object') return;
+
+    navigateByNotification(data);
+    try {
+      Notifications.clearLastNotificationResponse();
+    } catch (e) {
+      logger.warn('clearLastNotificationResponse:', e?.message || e);
+    }
+  }, [
+    isAuthenticated,
+    loading,
+    navigationRef,
+    lastNotificationResponse,
+    navigateByNotification,
+  ]);
+
   // Listener para push notifications
   useEffect(() => {
     if (!isAuthenticated || !navigationRef.isReady()) {
       return;
     }
-
-    const navigateByNotification = (data) => {
-      if (!data || !navigationRef.isReady()) return;
-      const { type, solicitud_id, vehicle_id, order_id } = data;
-
-      switch (type) {
-        case 'recordatorio_pago':
-        case 'cambio_estado':
-        case 'nueva_oferta':
-        case 'solicitud_adjudicada':
-        case 'new_offer':
-        case 'offer_accepted':
-        case 'solicitud_rechazada':
-          if (solicitud_id) {
-            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
-          }
-          break;
-
-        case 'status_update':
-        case 'order_completed':
-        case 'order_rejected':
-          if (solicitud_id) {
-            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
-          } else if (order_id) {
-            navigationRef.navigate(ROUTES.MIS_SOLICITUDES);
-          }
-          break;
-
-        case 'health_alert':
-        case 'global_health_alert':
-        case 'salud_actualizada':
-          if (vehicle_id) {
-            navigationRef.navigate(ROUTES.VEHICLE_HEALTH, { vehiculoId: vehicle_id });
-          } else {
-            navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
-          }
-          break;
-
-        case 'viaje_registrado':
-          if (vehicle_id) {
-            navigationRef.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: vehicle_id });
-          }
-          break;
-
-        case 'payment_reminder':
-          if (solicitud_id) {
-            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
-          }
-          break;
-
-        default:
-          navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
-          break;
-      }
-    };
 
     const foregroundSubscription = Notifications.addNotificationReceivedListener(
       (notification) => {
@@ -755,7 +780,7 @@ const Main = () => {
         logger.warn('Error removiendo listeners de notificaciones:', error);
       }
     };
-  }, [navigationRef, isAuthenticated]);
+  }, [navigationRef, isAuthenticated, navigateByNotification]);
 
   // Procesar deep links pendientes cuando el NavigationContainer esté listo Y el usuario esté autenticado
   // IMPORTANTE: Este hook debe estar ANTES de cualquier return condicional

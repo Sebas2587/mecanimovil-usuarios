@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authService from '../services/auth';
 import * as userService from '../services/user';
@@ -100,6 +101,7 @@ export const AuthProvider = ({ children }) => {
       if (!user || !user.id) return;
 
       try {
+        await NotificationService.ensureInitialized();
         const hasPermission = await NotificationService.requestPermissions();
         if (hasPermission) {
           const pushToken = await NotificationService.obtenerPushToken();
@@ -114,7 +116,6 @@ export const AuthProvider = ({ children }) => {
     };
 
     if (user && token) {
-      // Pequeño delay para asegurar que el token esté disponible
       const timer = setTimeout(() => {
         registrarPushToken();
       }, 1000);
@@ -122,6 +123,36 @@ export const AuthProvider = ({ children }) => {
       return () => clearTimeout(timer);
     }
   }, [user, token]);
+
+  // Android 13+: si el usuario activa notificaciones en Ajustes después de instalar, volver a registrar token al foreground
+  const lastForegroundPushRegRef = useRef(0);
+  useEffect(() => {
+    if (!user?.id || !token) return undefined;
+
+    const syncPushOnResume = async () => {
+      try {
+        await NotificationService.ensureInitialized();
+        const hasPermission = await NotificationService.requestPermissions();
+        if (!hasPermission) return;
+        const pushToken = await NotificationService.obtenerPushToken();
+        if (pushToken) {
+          await NotificationService.registrarTokenEnBackend(pushToken, user.id);
+        }
+      } catch (e) {
+        logger.warn('⚠️ Push sync al volver a primer plano:', e?.message || e);
+      }
+    };
+
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') return;
+      const now = Date.now();
+      if (now - lastForegroundPushRegRef.current < 20000) return;
+      lastForegroundPushRegRef.current = now;
+      syncPushOnResume();
+    });
+
+    return () => sub.remove();
+  }, [user?.id, token]);
 
   /**
    * Iniciar sesión con credenciales
@@ -337,6 +368,7 @@ export const AuthProvider = ({ children }) => {
 
       // Registrar push token para notificaciones (en segundo plano, no bloquea el login)
       try {
+        await NotificationService.ensureInitialized();
         const hasPermission = await NotificationService.requestPermissions();
         if (hasPermission) {
           const pushToken = await NotificationService.obtenerPushToken();

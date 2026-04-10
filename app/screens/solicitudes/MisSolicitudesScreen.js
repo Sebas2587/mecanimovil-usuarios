@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,14 @@ const MisSolicitudesScreen = () => {
     return Number.isFinite(n) ? n : null;
   }, [route.params?.vehicleId]);
 
+  /** Vehículo del panel (mismo id que vehicleId) para prellenar Crear solicitud */
+  const vehicleForCrearSolicitud = useMemo(() => {
+    const v = route.params?.vehicle;
+    if (!v || v.id == null) return null;
+    if (selectedVehicleId != null && Number(v.id) !== selectedVehicleId) return null;
+    return v;
+  }, [route.params?.vehicle, selectedVehicleId]);
+
   const {
     solicitudes,
     solicitudesActivas,
@@ -41,14 +49,18 @@ const MisSolicitudesScreen = () => {
   } = useSolicitudes();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [filtroEstado, setFiltroEstado] = useState(route?.params?.initialFiltroEstado || 'todos');
+  const [filtroEstado, setFiltroEstado] = useState(() => {
+    const p = route?.params?.initialFiltroEstado;
+    if (p === 'historial') return 'canceladas';
+    return p || 'todos';
+  });
 
   const estadosDisponibles = [
     { key: 'todos', label: 'Todas', icon: 'list-outline' },
     { key: 'activas', label: 'Activas', icon: 'flash-outline' },
     { key: 'en_proceso', label: 'En Proceso', icon: 'construct-outline' },
     { key: 'completada', label: 'Completadas', icon: 'checkmark-done-circle-outline' },
-    { key: 'historial', label: 'Historial', icon: 'time-outline' },
+    { key: 'canceladas', label: 'Canceladas', icon: 'close-circle-outline' },
   ];
 
   const filtroAEstados = {
@@ -56,8 +68,12 @@ const MisSolicitudesScreen = () => {
     activas: ['publicada', 'con_ofertas', 'adjudicada', 'pendiente_pago', 'creada', 'seleccionando_servicios'],
     en_proceso: ['pagada', 'en_ejecucion'],
     completada: ['completada'],
-    historial: ['expirada', 'cancelada'],
+    canceladas: ['cancelada', 'expirada'],
   };
+
+  useEffect(() => {
+    if (filtroEstado === 'historial') setFiltroEstado('canceladas');
+  }, [filtroEstado]);
 
   useFocusEffect(
     useCallback(() => {
@@ -156,9 +172,11 @@ const MisSolicitudesScreen = () => {
           ? 'No hay solicitudes completadas para este vehículo aquí. El historial de servicios del auto (transferible al venderlo) está en Perfil del vehículo → Historial.'
           : 'Las solicitudes finalizadas aparecerán aquí con servicios y proveedores.',
       },
-      historial: {
-        titulo: 'No tienes historial',
-        subtitulo: 'Las solicitudes expiradas o canceladas aparecerán aquí',
+      canceladas: {
+        titulo: 'Sin solicitudes canceladas',
+        subtitulo: selectedVehicleId
+          ? 'No hay solicitudes canceladas o expiradas para este vehículo.'
+          : 'Las que canceles o que venzan sin oferta aparecerán aquí.',
       },
     }),
     [selectedVehicleId]
@@ -174,7 +192,18 @@ const MisSolicitudesScreen = () => {
         <Text style={styles.emptyTitle}>{mensajeActual.titulo}</Text>
         <Text style={styles.emptySubtitle}>{mensajeActual.subtitulo}</Text>
         {filtroEstado === 'todos' && (
-          <TouchableOpacity style={styles.createButton} onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={() =>
+              navigation.navigate(
+                ROUTES.CREAR_SOLICITUD,
+                vehicleForCrearSolicitud
+                  ? { vehicle: vehicleForCrearSolicitud, fromDashboard: true }
+                  : {}
+              )
+            }
+            activeOpacity={0.85}
+          >
             <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
             <Ionicons name="add-circle" size={20} color="#FFFFFF" />
             <Text style={styles.createButtonText}>Crear Solicitud</Text>

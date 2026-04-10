@@ -9,6 +9,11 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
 import { ROUTES } from '../../utils/constants';
+import {
+    loadRtRenewalDueISO,
+    getRevisionTecnicaUiState,
+    getRevisionTecnicaToneStyles,
+} from '../../utils/revisionTecnica';
 import { useAuth } from '../../context/AuthContext';
 
 // Updates for Marketplace Negotiation
@@ -55,6 +60,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const [checklistModalVisible, setChecklistModalVisible] = useState(false);
     const [selectedChecklistId, setSelectedChecklistId] = useState(null);
     const [selectedServiceName, setSelectedServiceName] = useState('');
+    const [rtRenewalDueISO, setRtRenewalDueISO] = useState(null);
 
     const styles = getStyles(insets);
     const skipNextFocusFetchRef = React.useRef(false);
@@ -137,6 +143,25 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
             }
             fetchVehicleDetails(true);
         }, [effectiveVehicleId, fetchVehicleDetails])
+    );
+
+    useFocusEffect(
+        React.useCallback(() => {
+            const sid =
+                fullVehicleData.user_id || fullVehicleData.seller?.id || fullVehicleData.cliente_id;
+            const owner = user?.id && sid && String(user.id) === String(sid);
+            if (!owner || !effectiveVehicleId) {
+                setRtRenewalDueISO(null);
+                return;
+            }
+            loadRtRenewalDueISO(effectiveVehicleId).then(setRtRenewalDueISO);
+        }, [
+            effectiveVehicleId,
+            user?.id,
+            fullVehicleData.user_id,
+            fullVehicleData.seller?.id,
+            fullVehicleData.cliente_id,
+        ])
     );
 
     const onRefresh = React.useCallback(() => {
@@ -250,9 +275,10 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const sellerId = fullVehicleData.user_id || fullVehicleData.seller?.id || fullVehicleData.cliente_id;
     const isOwner = user?.id && sellerId && (String(user.id) === String(sellerId));
     const isAnonymousViewer = !user;
-    const showPublicInstallCtas = Platform.OS === 'web' || isAnonymousViewer;
-    /** Ficha compartida / visitante: sin flecha atrás (landing limpia). */
-    const showBackButton = !isAnonymousViewer && Platform.OS !== 'web';
+    /** Solo visitantes sin cuenta: banner App Store / Google Play (no a usuarios logueados en web ni en app). */
+    const showPublicInstallCtas = isAnonymousViewer;
+    /** Con sesión: flecha atrás en web y en nativo. Visitante anónimo: sin atrás (ficha pública). */
+    const showBackButton = !isAnonymousViewer;
 
     const handleHeaderBack = () => {
         if (navigation.canGoBack()) {
@@ -302,6 +328,45 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     };
 
     // Helper for viewing checklist from history row
+    const renderRevisionTecnicaSpec = () => {
+        const mes = fullVehicleData.mes_revision_tecnica;
+        if (!mes) {
+            return (
+                <View style={styles.specItem}>
+                    <Text style={styles.specLabel}>Rev. Técnica</Text>
+                    <Text style={styles.specValue}>N/A</Text>
+                </View>
+            );
+        }
+        const ui = getRevisionTecnicaUiState(mes, isOwner ? rtRenewalDueISO : null, {
+            publicViewer: !isOwner,
+        });
+        if (!ui) {
+            return (
+                <View style={styles.specItem}>
+                    <Text style={styles.specLabel}>Rev. Técnica</Text>
+                    <Text style={styles.specValue}>{mes}</Text>
+                </View>
+            );
+        }
+        const t = getRevisionTecnicaToneStyles(ui.tone);
+        return (
+            <View
+                style={[
+                    styles.specItem,
+                    styles.specRtRow,
+                    { borderLeftColor: t.accent, backgroundColor: t.bg },
+                ]}
+            >
+                <Text style={styles.specLabel}>Rev. Técnica</Text>
+                <Text style={[styles.specValue, { color: t.accent }]}>{mes}</Text>
+                <Text style={[styles.specRtHint, { color: t.subtext }]} numberOfLines={4}>
+                    {ui.hint}
+                </Text>
+            </View>
+        );
+    };
+
     const handleViewChecklist = (item) => {
         // The backend expects an integer ID (Orden ID / SolicitudServicio ID), not the UUID of the public request.
         // We prioritize finding the integer ID from the offer details.
@@ -364,7 +429,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         style={styles.headerGradient}
                     />
 
-                    {/* Header: atrás solo en app con sesión; badge alineado a la derecha en ficha pública */}
+                    {/* Header: atrás con sesión (web y app); badge a la derecha; visitante sin atrás */}
                     <View style={styles.topBar}>
                         {showBackButton ? (
                             <TouchableOpacity
@@ -477,10 +542,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                 <Text style={styles.specLabel}>Color</Text>
                                 <Text style={styles.specValue}>{fullVehicleData.color || 'N/A'}</Text>
                             </View>
-                            <View style={styles.specItem}>
-                                <Text style={styles.specLabel}>Rev. Técnica</Text>
-                                <Text style={styles.specValue}>{fullVehicleData.mes_revision_tecnica || 'N/A'}</Text>
-                            </View>
+                            {renderRevisionTecnicaSpec()}
                             {/* Detailed Sensitive Info - Only for Owner */}
                             {isOwner && (
                                 <>
@@ -980,6 +1042,21 @@ const getStyles = (insets) => StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         color: '#F9FAFB',
+    },
+    specRtRow: {
+        width: '100%',
+        flexBasis: '100%',
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        marginBottom: 16,
+        borderLeftWidth: 3,
+        borderRadius: 12,
+    },
+    specRtHint: {
+        fontSize: 11,
+        lineHeight: 15,
+        marginTop: 6,
+        width: '100%',
     },
 
     // Timeline

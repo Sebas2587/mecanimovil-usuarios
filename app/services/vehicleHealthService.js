@@ -1,4 +1,4 @@
-import { get, post } from './api';
+import { get, post, withRetry } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // v2: backend incluye servicios_asociados en componentes (modal salud)
@@ -98,7 +98,8 @@ class VehicleHealthService {
    * Invalida cache local para que el próximo GET cargue datos frescos.
    */
   static async syncVehicleHealth(vehicleId) {
-    const data = await post(`/vehiculos/health/vehicle/${vehicleId}/sync/`, {});
+    const doSync = () => post(`/vehiculos/health/vehicle/${vehicleId}/sync/`, {});
+    const data = await withRetry(doSync, 1);
     await this.invalidateCache(vehicleId);
     return data;
   }

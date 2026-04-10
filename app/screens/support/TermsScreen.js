@@ -69,7 +69,7 @@ const TermsScreen = () => {
         <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
         <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
       </View>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -112,9 +112,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#030712',
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
+  /** Web: altura acotada para que el ScrollView no crezca con el contenido y permita scroll vertical. */
   scrollContainer: {
     flex: 1,
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
   scrollContent: {
     padding: 16,

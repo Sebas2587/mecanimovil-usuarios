@@ -50,7 +50,7 @@ export const useCreateVehicle = () => {
         mutationFn: vehicleService.createVehicle,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
-            // Invalidate categories as they depend on vehicle brands
+            queryClient.invalidateQueries({ queryKey: ['userVehicles'] });
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             logger.info('Vehicle created, cache invalidated');
         },
@@ -66,6 +66,7 @@ export const useUpdateVehicle = () => {
         mutationFn: ({ id, data }) => vehicleService.updateVehicle(id, data),
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+            queryClient.invalidateQueries({ queryKey: ['userVehicles'] });
             queryClient.invalidateQueries({ queryKey: ['vehicleHealth', variables.id] });
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             logger.info('Vehicle updated, cache invalidated');
@@ -106,9 +107,9 @@ export const useDeleteVehicle = () => {
             }
         },
         onSuccess: () => {
-            // Ya actualizamos optimísticamente, pero invalidamos para asegurar consistencia final
             logger.info('Vehicle deleted (optimistic update applied), invalidating cache');
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+            queryClient.invalidateQueries({ queryKey: ['userVehicles'] });
             queryClient.invalidateQueries({ queryKey: ['categories'] });
         },
     });

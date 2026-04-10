@@ -23,7 +23,8 @@ const ANDROID_CHANNELS = [
     id: 'salud',
     name: 'Salud del Vehículo',
     description: 'Alertas y actualizaciones de métricas de salud',
-    importance: Notifications.AndroidImportance.HIGH,
+    // MAX: banner / heads-up y sonido cuando el usuario no ha silenciado el canal (Android 8+)
+    importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#EF4444',
     sound: 'default',
@@ -51,7 +52,13 @@ const ANDROID_CHANNELS = [
 class NotificationService {
   constructor() {
     this.isInitialized = false;
-    this.initializeService();
+    /** @type {Promise<void>} */
+    this._initPromise = this.initializeService();
+  }
+
+  /** Esperar canales Android y setup nativo antes de pedir token (evita condiciones de carrera al abrir la app). */
+  async ensureInitialized() {
+    await this._initPromise;
   }
 
   async initializeService() {

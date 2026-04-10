@@ -30,6 +30,10 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# Firebase / GCP: clave de cuenta de servicio (FCM v1 para Expo). No commitear; subir solo en expo.dev o `eas credentials`.
+*firebase-adminsdk*.json
+*-service-account*.json
+
 # local env files
 .env*.local
 

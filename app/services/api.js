@@ -16,7 +16,7 @@ async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function withRetry(requestFn, retries = RETRY_CONFIG.maxRetries) {
+export async function withRetry(requestFn, retries = RETRY_CONFIG.maxRetries) {
   let lastError;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {

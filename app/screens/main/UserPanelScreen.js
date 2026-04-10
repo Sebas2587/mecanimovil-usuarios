@@ -685,7 +685,10 @@ const UserPanelScreen = () => {
           <GlassCard
             style={styles.quickCard}
             onPress={() =>
-              navigation.navigate(ROUTES.MIS_SOLICITUDES, selectedVehicle ? { vehicleId: selectedVehicle.id } : {})
+              navigation.navigate(
+                ROUTES.MIS_SOLICITUDES,
+                selectedVehicle ? { vehicleId: selectedVehicle.id, vehicle: selectedVehicle } : {}
+              )
             }
           >
             <LinearGradient colors={['rgba(16,185,129,0.25)', 'rgba(16,185,129,0.05)']} style={styles.quickIconWrap}>

@@ -25,6 +25,7 @@ import { ROUTES } from '../../utils/constants';
 
 // Services
 import * as vehicleService from '../../services/vehicle';
+import { loadRtRenewalDueISO } from '../../utils/revisionTecnica';
 import * as VehicleHealthService from '../../services/vehicleHealthService';
 import { useSolicitudes } from '../../context/SolicitudesContext'; // To get active requests
 
@@ -32,7 +33,7 @@ import { useSolicitudes } from '../../context/SolicitudesContext'; // To get act
 import ActiveRequestCard from '../../components/vehicle/ActiveRequestCard';
 import VehicleValuationCard from '../../components/vehicle/VehicleValuationCard';
 import QuickActionGrid from '../../components/vehicle/QuickActionGrid';
-import TechSpecsCard from '../../components/vehicle/TechSpecsCard';
+import TechSpecsCard, { RevisionTecnicaCard } from '../../components/vehicle/TechSpecsCard';
 
 // Temporary Mock for Valuation (Business Logic should eventually provide this)
 const MOCK_VALUATION = {
@@ -52,6 +53,9 @@ const VehicleProfileScreen = () => {
     const [servicesCount, setServicesCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [valuationModalVisible, setValuationModalVisible] = useState(false);
+    const [manualValuation, setManualValuation] = useState('');
+    const [revisionRenewalDueISO, setRevisionRenewalDueISO] = useState(null);
 
     const styles = getStyles(insets);
 
@@ -76,6 +80,11 @@ const VehicleProfileScreen = () => {
 
             if (freshVehicle) {
                 setVehicle(freshVehicle);
+                const rid = freshVehicle.id;
+                if (rid) {
+                    const iso = await loadRtRenewalDueISO(rid);
+                    setRevisionRenewalDueISO(iso);
+                }
             }
 
             setHealthData(health);
@@ -100,6 +109,20 @@ const VehicleProfileScreen = () => {
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    useEffect(() => {
+        let alive = true;
+        if (!vehicle?.id) {
+            setRevisionRenewalDueISO(null);
+            return undefined;
+        }
+        loadRtRenewalDueISO(vehicle.id).then((iso) => {
+            if (alive) setRevisionRenewalDueISO(iso);
+        });
+        return () => {
+            alive = false;
+        };
+    }, [vehicle?.id]);
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -228,9 +251,6 @@ const VehicleProfileScreen = () => {
 
     const imageUrl = vehicle.foto || null;
 
-    const [valuationModalVisible, setValuationModalVisible] = useState(false);
-    const [manualValuation, setManualValuation] = useState('');
-
     const handleSaveValuation = async () => {
         if (!manualValuation) return;
 
@@ -271,6 +291,7 @@ const VehicleProfileScreen = () => {
             <View style={styles.blobCyan} />
 
             <ScrollView
+                style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6EE7B7" />}
                 showsVerticalScrollIndicator={false}
@@ -347,10 +368,17 @@ const VehicleProfileScreen = () => {
                         }}
                     />
 
-                    {/* 4. Technical Specs */}
+                    {/* 4. Revisión técnica (sección aparte) */}
+                    <RevisionTecnicaCard
+                        vehicle={vehicle}
+                        revisionRenewalDueISO={revisionRenewalDueISO}
+                        onRevisionRenewalConfirmed={setRevisionRenewalDueISO}
+                    />
+
+                    {/* 5. Ficha técnica — grid 2 columnas */}
                     <TechSpecsCard vehicle={vehicle} />
 
-                    {/* 5. Valuation Explanation */}
+                    {/* 6. Valuation Explanation */}
                     <View style={styles.infoCard}>
                         {Platform.OS === 'ios' && (
                             <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
@@ -431,6 +459,12 @@ const getStyles = (insets) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#030712',
+        ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
+    },
+    /** Web: sin altura acotada el ScrollView crece con el contenido y no hay scroll (stack/tabs). */
+    scrollWeb: {
+        flex: 1,
+        minHeight: 0,
     },
     blobEmerald: {
         position: 'absolute',

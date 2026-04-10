@@ -1,12 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
 
 const CertifiedVehicleCard = ({ vehiculo }) => {
-    const theme = useTheme();
-    const colors = theme?.colors || {};
-
     if (!vehiculo) return null;
 
     return (
@@ -23,11 +19,6 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
                         <Text style={styles.vehicleBrand}>
                             {vehiculo.marca}
                         </Text>
-                        {/* Badge Certificado */}
-                        <View style={styles.certifiedBadge}>
-                            <Ionicons name="shield-checkmark" size={12} color="#10B981" />
-                            <Text style={styles.certifiedText}>Certificado</Text>
-                        </View>
                     </View>
 
                     <Text style={styles.vehicleModel}>
@@ -105,7 +96,6 @@ const styles = StyleSheet.create({
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
         marginBottom: 2,
     },
     vehicleBrand: {
