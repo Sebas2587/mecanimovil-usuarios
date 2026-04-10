@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, Alert, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
+import { confirmDestructive } from '../../utils/platformAlert';
 
 import MemberCard from '../../components/profile/MemberCard';
 import ProfileMenuSection from '../../components/profile/ProfileMenuSection';
@@ -33,23 +34,16 @@ const UserProfileScreen = () => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
+    confirmDestructive(
       '¿Estás seguro que deseas salir?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-            } catch (error) {
-              console.error('Logout error:', error);
-            }
-          }
+      async () => {
+        try {
+          await logout();
+        } catch (error) {
+          console.error('Logout error:', error);
         }
-      ]
+      },
+      { title: 'Cerrar Sesión', confirmText: 'Cerrar Sesión' }
     );
   };
 

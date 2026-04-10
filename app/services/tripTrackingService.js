@@ -126,6 +126,8 @@ try {
 }
 
 const shouldUseBackgroundTracking = () => {
+  // Web: no hay tareas en segundo plano ni permisos BG; solo watch en primer plano.
+  if (Platform.OS === 'web') return false;
   // Expo Go has strong background limitations; use foreground watcher there.
   if (Constants.appOwnership === 'expo') return false;
   // In native dev/prod builds, we can use background tracking.

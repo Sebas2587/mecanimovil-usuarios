@@ -8,12 +8,12 @@ import {
   StatusBar,
   Modal,
   FlatList,
-  Alert,
   RefreshControl,
   Dimensions,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
+import { showAlert } from '../../utils/platformAlert';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
@@ -299,7 +299,7 @@ const UserPanelScreen = () => {
   // ── Trip functions ──
   const startTrip = useCallback(async () => {
     if (!selectedVehicle) {
-      Alert.alert('Sin vehículo', 'Selecciona un vehículo para iniciar el viaje.');
+      showAlert('Sin vehículo', 'Selecciona un vehículo para iniciar el viaje.');
       return;
     }
     try {
@@ -311,7 +311,10 @@ const UserPanelScreen = () => {
       setTripCoords({ start: null, end: null });
       setTripActive(true);
     } catch (err) {
-      Alert.alert('Error GPS', err?.message || 'No se pudo iniciar el rastreo GPS en segundo plano.');
+      showAlert(
+        'Error GPS',
+        err?.message || 'No se pudo iniciar el rastreo de ubicación. Verifica permisos de ubicación en el navegador.'
+      );
       setTripActive(false);
     }
   }, [selectedVehicle]);
@@ -365,14 +368,14 @@ const UserPanelScreen = () => {
 
       const nuevoKm = result?.km_odometro_nuevo ?? result?.kilometraje_actual ?? Math.round(odometer + tripKm);
 
-      Alert.alert(
+      showAlert(
         'Viaje Registrado',
         `Se registraron ${tripKm.toFixed(1)} km. Nuevo odómetro: ${formatKm(nuevoKm)} km.\nLas métricas de salud se actualizarán automáticamente.`,
       );
     } catch (err) {
       const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
       if (isTimeout) {
-        Alert.alert(
+        showAlert(
           'Registro lento',
           'El servidor tardó en responder. Es posible que el viaje se haya registrado correctamente. Verifica el odómetro en unos segundos.',
         );
@@ -381,7 +384,7 @@ const UserPanelScreen = () => {
           || err?.response?.data?.km_recorridos?.[0]
           || err?.message
           || 'Error desconocido';
-        Alert.alert('Error al registrar', `No se pudo registrar el viaje: ${msg}`);
+        showAlert('Error al registrar', `No se pudo registrar el viaje: ${msg}`);
       }
     } finally {
       setRegistering(false);
