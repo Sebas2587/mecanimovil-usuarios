@@ -4,6 +4,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../config/serverConfig';
 import logger from '../utils/logger';
 
+// Callback invocado cuando se detecta un 401 real de autenticación.
+// AuthContext lo registra para sincronizar el estado de React (no solo AsyncStorage).
+let _onAuthExpired = null;
+export const setOnAuthExpired = (cb) => { _onAuthExpired = cb; };
+
 // Retry configuration: exponential backoff for transient failures
 const RETRY_CONFIG = {
   maxRetries: 2,
@@ -399,6 +404,9 @@ function setupInterceptors(apiInstance) {
             logger.info('🔒 Error 401 de autenticación: Token inválido o expirado, limpiando credenciales');
             AsyncStorage.removeItem('auth_token');
             AsyncStorage.removeItem('user');
+            if (_onAuthExpired) {
+              try { _onAuthExpired(); } catch (_e) { /* no-op */ }
+            }
           } else {
             // 401 por problemas de servidor/BD - NO limpiar credenciales para evitar desconexiones incorrectas
             logger.warn('⚠️ Error 401 posiblemente por problemas de servidor/BD/red. NO limpiando credenciales para evitar desconexiones incorrectas.');

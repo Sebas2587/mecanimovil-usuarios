@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authService from '../services/auth';
 import * as userService from '../services/user';
 import WebSocketService from '../services/websocketService';
-import { forceReconnect } from '../services/api';
+import { forceReconnect, setOnAuthExpired } from '../services/api';
 import logger from '../utils/logger';
 import NotificationService from '../services/notificationService';
 
@@ -21,6 +21,16 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [registerSuccess, setRegisterSuccess] = useState(false);
+
+  // Cuando el interceptor de api.js detecta un 401 real, sincronizar el estado de React
+  useEffect(() => {
+    setOnAuthExpired(() => {
+      setToken(null);
+      setUser(null);
+      WebSocketService.disconnect();
+    });
+    return () => setOnAuthExpired(null);
+  }, []);
 
   // Efecto para cargar el usuario y token desde AsyncStorage al iniciar la app
   useEffect(() => {
@@ -749,23 +759,38 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
-   * Cerrar sesión
+   * Cerrar sesión — limpieza completa:
+   * 1. Desconectar WebSocket explícitamente (antes de perder el token).
+   * 2. Desactivar push token en backend.
+   * 3. Invalidar token de auth en servidor (POST /logout/).
+   * 4. Limpiar AsyncStorage y estado de React.
+   * Todo envuelto en try/catch para que la limpieza local ocurra siempre.
    */
   const logout = async () => {
     try {
       setLoading(true);
 
-      // Eliminar datos de AsyncStorage
+      WebSocketService.disconnect();
+
+      try {
+        const pushToken = await NotificationService.obtenerPushToken();
+        if (pushToken) {
+          await NotificationService.desactivarTokenEnBackend(pushToken);
+        }
+      } catch (_pushErr) {
+        logger.warn('⚠️ No se pudo desactivar push token:', _pushErr?.message);
+      }
+
+      await authService.logoutFromServer();
+
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user');
 
-      // Limpiar estado
       setToken(null);
       setUser(null);
 
       return true;
     } catch (e) {
-      // Log solo en desarrollo (__DEV__), nunca en producción (APK)
       logger.error('Error al cerrar sesión:', e);
       return false;
     } finally {

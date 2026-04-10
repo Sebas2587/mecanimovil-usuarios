@@ -88,6 +88,20 @@ export const login = async (username, password) => {
 };
 
 /**
+ * Invalida el token de autenticación en el servidor.
+ * Falla silenciosamente si la red no está disponible — la limpieza local
+ * se realiza igualmente en AuthContext.
+ */
+export const logoutFromServer = async () => {
+  try {
+    await post('/usuarios/logout/');
+    logger.debug('✅ Token invalidado en el servidor');
+  } catch (error) {
+    logger.warn('⚠️ No se pudo invalidar el token en servidor:', error?.message || error);
+  }
+};
+
+/**
  * Servicio para registrar un nuevo usuario
  * @param {object} userData - Datos del usuario a registrar
  * @returns {Promise<object>} - Respuesta con token y datos de usuario
