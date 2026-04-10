@@ -11,6 +11,7 @@ import {
   ScrollView,
   StatusBar,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,7 +45,19 @@ const VehicleHealthScreen = ({ route }) => {
   const navigation = useNavigation();
   const { vehicleId, vehicle } = route.params;
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const styles = createStyles(insets);
+
+  /** Web: sin header del stack; altura explícita al viewport para que FlatList tenga scroll (como MarketplaceVehicleDetail). */
+  const webRootStyle =
+    Platform.OS === 'web'
+      ? {
+          minHeight: 0,
+          height: windowHeight,
+          maxHeight: windowHeight,
+          overflow: 'hidden',
+        }
+      : null;
 
   // Data State
   // Prefer fresh data from fetch, fallback to route params if available
@@ -289,7 +302,7 @@ const VehicleHealthScreen = ({ route }) => {
       : vehicleData?.health_report || [];
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, webRootStyle]}>
       <StatusBar barStyle="light-content" />
       <LinearGradient
         colors={['#030712', '#0a1628', '#030712']}
@@ -311,6 +324,7 @@ const VehicleHealthScreen = ({ route }) => {
 
       <FlatList
         style={styles.mainList}
+        removeClippedSubviews={Platform.OS !== 'web'}
         data={listData}
         keyExtractor={(item, index) => item.slug || item.componente || String(index)}
         contentContainerStyle={styles.listContent}

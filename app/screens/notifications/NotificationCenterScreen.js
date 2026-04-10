@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import {
     View,
     Text,
@@ -9,6 +10,7 @@ import {
     RefreshControl,
     StatusBar,
     Platform,
+    useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -30,6 +32,8 @@ const GLASS_BG = Platform.select({
 });
 
 export default function NotificationCenterScreen({ navigation }) {
+    const headerHeight = useHeaderHeight();
+    const { height: windowHeight } = useWindowDimensions();
     const { data, isLoading, isFetching, refetch } = useNotifications();
     const markAsRead = useMarkAsRead();
     const markAllAsRead = useMarkAllAsRead();
@@ -138,8 +142,19 @@ export default function NotificationCenterScreen({ navigation }) {
         );
     };
 
+    /** Web: el stack + flex no acota altura; forzamos alto = viewport − header para que FlatList haga scroll. */
+    const webRootStyle =
+        Platform.OS === 'web'
+            ? {
+                  minHeight: 0,
+                  height: Math.max(windowHeight - headerHeight, 0),
+                  maxHeight: Math.max(windowHeight - headerHeight, 0),
+                  overflow: 'hidden',
+              }
+            : null;
+
     return (
-        <View style={[styles.container, Platform.OS === 'web' && styles.containerWeb]}>
+        <View style={[styles.container, webRootStyle]}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
                 <View style={styles.blobA} />
@@ -170,6 +185,7 @@ export default function NotificationCenterScreen({ navigation }) {
 
             <FlatList
                 style={Platform.OS === 'web' ? styles.listWeb : styles.listFlex}
+                removeClippedSubviews={Platform.OS !== 'web'}
                 data={notifications}
                 renderItem={renderNotification}
                 keyExtractor={(item) => item.id.toString()}
@@ -201,10 +217,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#030712',
-    },
-    /** Web: permite que FlatList tenga altura acotada y haga scroll vertical */
-    containerWeb: {
-        minHeight: 0,
     },
     listFlex: {
         flex: 1,
