@@ -310,6 +310,7 @@ const VehicleHealthScreen = ({ route }) => {
       </View>
 
       <FlatList
+        style={styles.mainList}
         data={listData}
         keyExtractor={(item, index) => item.slug || item.componente || String(index)}
         contentContainerStyle={styles.listContent}
@@ -575,6 +576,12 @@ const createStyles = (insets) => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#030712',
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
+  },
+  /** Lista principal: web necesita minHeight 0 para scroll dentro del stack */
+  mainList: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
   screenHeader: {
     flexDirection: 'row',
@@ -757,6 +764,7 @@ const createStyles = (insets) => StyleSheet.create({
   },
   helpScrollView: {
     maxHeight: 320,
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
   helpScrollContent: {
     paddingBottom: 8,
@@ -820,6 +828,7 @@ const createStyles = (insets) => StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 24,
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
   modalCard: {
     backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.97)',
@@ -828,6 +837,7 @@ const createStyles = (insets) => StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
+    ...(Platform.OS === 'web' ? { maxHeight: '90vh', minHeight: 0 } : {}),
   },
   modalCardLarge: {
     backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.97)',
@@ -837,9 +847,11 @@ const createStyles = (insets) => StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
+    ...(Platform.OS === 'web' ? { maxHeight: '85vh', minHeight: 0 } : {}),
   },
   modalScroll: {
     maxHeight: 340,
+    ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
   modalScrollContent: {
     paddingBottom: 8,

@@ -139,7 +139,7 @@ export default function NotificationCenterScreen({ navigation }) {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, Platform.OS === 'web' && styles.containerWeb]}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
                 <View style={styles.blobA} />
@@ -169,6 +169,7 @@ export default function NotificationCenterScreen({ navigation }) {
             </View>
 
             <FlatList
+                style={Platform.OS === 'web' ? styles.listWeb : styles.listFlex}
                 data={notifications}
                 renderItem={renderNotification}
                 keyExtractor={(item) => item.id.toString()}
@@ -200,6 +201,17 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#030712',
+    },
+    /** Web: permite que FlatList tenga altura acotada y haga scroll vertical */
+    containerWeb: {
+        minHeight: 0,
+    },
+    listFlex: {
+        flex: 1,
+    },
+    listWeb: {
+        flex: 1,
+        minHeight: 0,
     },
     blobA: {
         position: 'absolute',
