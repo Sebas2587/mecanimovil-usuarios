@@ -50,17 +50,16 @@ class WebSocketService {
         throw new Error('No se pudo obtener la URL del servidor');
       }
       
-      // Obtener token de autenticación
+      // Obtener token de autenticación — sin token no intentar conexión
       const token = await this.getAuthToken();
-      console.log('🔗 [CLIENTE WS] Token obtenido:', token ? 'presente' : 'ausente');
+      if (!token || token === 'usuario_registrado_exitosamente') {
+        console.log('🔌 [CLIENTE WS] Sin token de auth, no se intenta conexión');
+        this.isConnecting = false;
+        return;
+      }
       
       let wsUrl = serverUrl.replace('http', 'ws').replace('/api', '') + '/ws/client_status/';
-      
-      // Agregar token si está disponible
-      if (token) {
-        wsUrl += `?token=${token}`;
-        console.log('🔗 [CLIENTE WS] Token agregado a la URL');
-      }
+      wsUrl += `?token=${token}`;
       
       console.log('🔗 [CLIENTE WS] Conectando a:', wsUrl.replace(/token=.+/, 'token=***'));
       
@@ -154,11 +153,19 @@ class WebSocketService {
   /**
    * Programa una reconexión con exponential backoff + jitter (sin límite de intentos).
    * Tras un deploy o caída temporal del server, la app siempre se reconecta.
+   * No programa reconexión si no hay token (usuario deslogueado).
    */
-  scheduleReconnect() {
+  async scheduleReconnect() {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
+
+    const token = await this.getAuthToken();
+    if (!token || token === 'usuario_registrado_exitosamente') {
+      console.log('🔌 [CLIENTE WS] Sin token, cancelando reconexión');
+      return;
+    }
+
     this.reconnectAttempts++;
     const exponential = Math.min(
       this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
