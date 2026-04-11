@@ -81,6 +81,7 @@ import { useUnreadCount } from '../../hooks/useNotifications';
 import { useUserAddresses } from '../../hooks/useAddress';
 import { getWeatherPrediction } from '../../services/weatherService';
 import { MapPin } from 'lucide-react-native';
+import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -192,6 +193,7 @@ const UserPanelScreen = () => {
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addressDropOpen, setAddressDropOpen] = useState(false);
+  const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
   const blobDrift = useRef(new Animated.Value(0)).current;
 
   // ── Data queries ──
@@ -975,7 +977,7 @@ const UserPanelScreen = () => {
                 style={styles.addressAddBtn}
                 onPress={() => {
                   setAddressDropOpen(false);
-                  navigation.navigate(ROUTES.ADD_ADDRESS);
+                  setAddAddressModalOpen(true);
                 }}
                 activeOpacity={0.8}
               >
@@ -1198,6 +1200,20 @@ const UserPanelScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* ─── Modal agregar nueva dirección (glassmorphism) ─── */}
+      <AddressSelectionModal
+        visible={addAddressModalOpen}
+        onClose={() => setAddAddressModalOpen(false)}
+        variant="darkGlass"
+        heroSubtitle="Detecta tu ubicación para ver el clima y riesgo de desgaste."
+        onSelectAddress={(savedAddr) => {
+          if (savedAddr?.id) {
+            setSelectedAddressId(savedAddr.id);
+          }
+          setAddAddressModalOpen(false);
+        }}
+      />
     </View>
   );
 };

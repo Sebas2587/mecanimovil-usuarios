@@ -80,16 +80,21 @@ const AddressSelectionModal = ({
             );
 
             if (addressInfo) {
-                // Format: "Street Number, District" like in AddAddressScreen
-                let formattedAddress = '';
+                // Format: "Street Number, District, City"
+                // Including district (comuna) and city ensures the weather API can resolve the station.
+                let parts = [];
                 if (addressInfo.street) {
-                    formattedAddress = `${addressInfo.street} ${addressInfo.streetNumber || ''}, ${addressInfo.district || ''}`;
-                } else {
-                    formattedAddress = `${addressInfo.latitude}, ${addressInfo.longitude}`;
+                    parts.push(`${addressInfo.street} ${addressInfo.streetNumber || ''}`.trim());
                 }
-
-                // Cleanup commas if empty parts
-                formattedAddress = formattedAddress.replace(' ,', ',');
+                if (addressInfo.district) {
+                    parts.push(addressInfo.district);
+                }
+                if (addressInfo.city && addressInfo.city !== addressInfo.district) {
+                    parts.push(addressInfo.city);
+                }
+                let formattedAddress = parts.length > 0
+                    ? parts.join(', ')
+                    : `${location.coords.latitude}, ${location.coords.longitude}`;
 
                 setDetectedAddress({
                     ...addressInfo,
@@ -131,10 +136,15 @@ const AddressSelectionModal = ({
 
         setIsSaving(true);
         try {
+            // Build detalles with commune + city so weather API can resolve the station
+            const comunaCity = [detectedAddress.district, detectedAddress.city]
+                .filter(Boolean)
+                .filter((v, i, a) => a.indexOf(v) === i)
+                .join(', ');
             const newAddress = {
                 direccion: addressToSave,
                 etiqueta: addressLabel,
-                detalles: detectedAddress.city || '',
+                detalles: comunaCity || detectedAddress.city || '',
                 latitude: detectedAddress.latitude,
                 longitude: detectedAddress.longitude,
                 es_principal: false // User can select it processing onSelectAddress
