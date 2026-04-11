@@ -12,6 +12,8 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { showAlert } from '../../utils/platformAlert';
 import { BlurView } from 'expo-blur';
@@ -39,12 +41,12 @@ import {
   TriangleAlert,
   X,
   Check,
-  Route,
-  Timer,
   Plus,
-  Activity,
-  CircleDot,
-  Zap
+  Zap,
+  CloudRain,
+  Disc,
+  Wind,
+  Droplets,
 } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
@@ -76,6 +78,9 @@ import {
   resetTripTracking,
 } from '../../services/tripTrackingService';
 import { useUnreadCount } from '../../hooks/useNotifications';
+import { useUserAddresses } from '../../hooks/useAddress';
+import { getWeatherPrediction } from '../../services/weatherService';
+import { MapPin } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -87,7 +92,7 @@ const GLASS_BG = Platform.select({
   android: 'rgba(255,255,255,0.10)',
   default: 'rgba(255,255,255,0.08)',
 });
-const BLUR_INTENSITY = Platform.OS === 'ios' ? 30 : 0;
+const BLUR_INTENSITY = 30;
 
 const formatCLP = (value) => {
   if (!value || value <= 0) return '--';
@@ -124,11 +129,11 @@ const formatKm = (km) => {
 // ─────────────────────────────────────────────
 // GlassCard — local helper, not a design-system export
 // ─────────────────────────────────────────────
-const GlassCard = ({ children, style, onPress }) => {
+const GlassCard = ({ children, style, onPress, innerStyle }) => {
   const inner = (
     <View style={[styles.glassOuter, style]}>
       <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
-      <View style={[styles.glassInner, { backgroundColor: GLASS_BG }]}>
+      <View style={[styles.glassInner, { backgroundColor: GLASS_BG }, innerStyle]}>
         {children}
       </View>
     </View>
@@ -138,6 +143,17 @@ const GlassCard = ({ children, style, onPress }) => {
   }
   return inner;
 };
+
+const GlassButton = ({ onPress, children, variant }) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.glassBtnWrap}>
+    <View style={[styles.glassBtnOuter, variant === 'stop' && styles.glassBtnOuterStop]}>
+      <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
+      <View style={[styles.glassBtnInner, variant === 'stop' && styles.glassBtnInnerStop]}>
+        {children}
+      </View>
+    </View>
+  </TouchableOpacity>
+);
 
 // ─────────────────────────────────────────────
 // Main Screen
@@ -173,6 +189,10 @@ const UserPanelScreen = () => {
 
   const [tripCoords, setTripCoords] = useState({ start: null, end: null });
   const elapsedRef = useRef(null);
+  const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [addressDropOpen, setAddressDropOpen] = useState(false);
+  const blobDrift = useRef(new Animated.Value(0)).current;
 
   // ── Data queries ──
   const {
@@ -255,6 +275,43 @@ const UserPanelScreen = () => {
     }).length;
   }, [solicitudesActivas, selectedVehicle]);
 
+  // ── User addresses ──
+  const { data: userAddresses } = useUserAddresses();
+  const addressList = useMemo(() => (Array.isArray(userAddresses) ? userAddresses : []), [userAddresses]);
+
+  useEffect(() => {
+    if (addressList.length > 0 && !selectedAddressId) {
+      const principal = addressList.find((a) => a.es_principal);
+      setSelectedAddressId(principal ? principal.id : addressList[0].id);
+    }
+  }, [addressList, selectedAddressId]);
+
+  const selectedAddress = useMemo(
+    () => addressList.find((a) => a.id === selectedAddressId) || null,
+    [addressList, selectedAddressId],
+  );
+
+  // ── Weather prediction ──
+  // Solo re-fetch al cambiar dirección, no al cambiar vehículo.
+  // staleTime alto para evitar saturar la API externa (backend cachea 15 min en Redis).
+  const {
+    data: weatherData,
+    isLoading: weatherLoading,
+    refetch: refetchWeather,
+  } = useQuery({
+    queryKey: ['weatherPrediction', selectedAddressId],
+    queryFn: () =>
+      getWeatherPrediction({
+        addressId: selectedAddressId,
+        vehicleId: selectedVehicle?.id,
+      }),
+    enabled: !!selectedAddressId,
+    staleTime: 1000 * 60 * 15,
+    gcTime: 1000 * 60 * 60,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
   // ── Trip elapsed timer ──
   useEffect(() => {
     if (tripActive && tripStartTime) {
@@ -266,6 +323,17 @@ const UserPanelScreen = () => {
       if (elapsedRef.current) clearInterval(elapsedRef.current);
     };
   }, [tripActive, tripStartTime]);
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blobDrift, { toValue: 1, duration: 7000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(blobDrift, { toValue: 0, duration: 7000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [blobDrift]);
 
   useEffect(() => {
     let poller = null;
@@ -408,11 +476,33 @@ const UserPanelScreen = () => {
 
   // ── Refresh ──
   const onRefresh = useCallback(async () => {
-    await Promise.all([refetchVehicles(), cargarSolicitudesActivas()]);
-  }, [refetchVehicles, cargarSolicitudesActivas]);
+    await Promise.all([refetchVehicles(), cargarSolicitudesActivas(), refetchWeather()]);
+  }, [refetchVehicles, cargarSolicitudesActivas, refetchWeather]);
 
   // ── Helpers ──
   const avgSpeed = tripElapsed > 0 ? (tripKm / (tripElapsed / 3600000)) : 0;
+
+  const weatherAvailable = weatherData?.available === true;
+  const weatherComponents = weatherData?.components || [];
+  const frenoComp = weatherComponents.find((c) => c.type === 'frenos');
+  const neumaComp = weatherComponents.find((c) => c.type === 'neumaticos');
+  const bateriaComp = weatherComponents.find((c) => c.type === 'bateria');
+  const refrigeranteComp = weatherComponents.find((c) => c.type === 'refrigerante');
+
+  const frenoWearPct = frenoComp?.wear_increase ?? 0;
+  const gomaWearPct = neumaComp?.wear_increase ?? 0;
+  const climateRiskPct = weatherData?.total_wear_risk ?? 0;
+  const weatherCondition = weatherData?.weather?.condition || '';
+  const weatherTemp = weatherData?.weather?.temperature;
+  const weatherHumidity = weatherData?.weather?.humidity;
+  const weatherCity = weatherData?.weather?.city || '';
+  const aiInsight = weatherData?.ai_insight || '';
+  const blobEmeraldTx = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 14] });
+  const blobEmeraldTy = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
+  const blobIndigoTx = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, -12] });
+  const blobIndigoTy = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 16] });
+  const blobCyanTx = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 8] });
+  const blobCyanTy = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 12] });
 
   // ─────────────────────────────────────────
   // RENDER
@@ -421,10 +511,10 @@ const UserPanelScreen = () => {
     <View style={styles.container}>
       {/* Background layer */}
       <View style={StyleSheet.absoluteFill}>
-        <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={styles.blobEmerald} />
-        <View style={styles.blobIndigo} />
-        <View style={styles.blobCyan} />
+        <LinearGradient colors={['#030712', '#020617', '#030712']} style={StyleSheet.absoluteFill} />
+        <Animated.View style={[styles.blobEmerald, { transform: [{ translateX: blobEmeraldTx }, { translateY: blobEmeraldTy }] }]} />
+        <Animated.View style={[styles.blobIndigo, { transform: [{ translateX: blobIndigoTx }, { translateY: blobIndigoTy }] }]} />
+        <Animated.View style={[styles.blobCyan, { transform: [{ translateX: blobCyanTx }, { translateY: blobCyanTy }] }]} />
       </View>
 
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -438,10 +528,24 @@ const UserPanelScreen = () => {
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>Hola, {user?.first_name || 'Conductor'}</Text>
-            <View style={styles.subtitleRow}>
-              <Sparkles size={14} color="#00A8E8" />
-              <Text style={styles.subtitle}>Dashboard Predictivo</Text>
-            </View>
+            {addressList.length > 0 ? (
+              <TouchableOpacity
+                style={styles.addressSelectorBtn}
+                onPress={() => setAddressDropOpen((p) => !p)}
+                activeOpacity={0.7}
+              >
+                <MapPin size={13} color="#22D3EE" />
+                <Text style={styles.addressSelectorText} numberOfLines={1}>
+                  {selectedAddress?.etiqueta || 'Dirección'}: {selectedAddress?.direccion || '—'}
+                </Text>
+                <ChevronDown size={14} color="rgba(255,255,255,0.4)" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.subtitleRow}>
+                <Sparkles size={14} color="#00A8E8" />
+                <Text style={styles.subtitle}>Dashboard Predictivo</Text>
+              </View>
+            )}
           </View>
           <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}>
             <Bell size={20} color="#E5E7EB" />
@@ -509,7 +613,55 @@ const UserPanelScreen = () => {
           </GlassCard>
         )}
 
-        {/* ── Valuation + Health Hero ── */}
+        {/* ── Trip Telemetry (pos. 1) ── */}
+        {selectedVehicle && (
+          <GlassCard style={styles.telemetryCard}>
+            <View style={styles.telemetryTopRow}>
+              <Text style={styles.telemetryConsoleLabel}>CAPTURA TELEMETRÍA</Text>
+            </View>
+
+            <View style={styles.telemetryMainRow}>
+              <View style={styles.telemetryKmBlock}>
+                <Text style={styles.telemetryKmHuge}>{tripKm.toFixed(1)}</Text>
+                <Text style={styles.telemetryKmUnit}>km</Text>
+                {tripActive && (
+                  <View style={styles.telemetrySubStats}>
+                    <Text style={styles.telemetrySubStatText}>{formatDuration(tripElapsed)}</Text>
+                    <Text style={styles.telemetrySubStatSep}>·</Text>
+                    <Text style={styles.telemetrySubStatText}>{currentSpeed} km/h</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.telemetryVSep} />
+              <View style={styles.telemetryAhorroBlock}>
+                <Text style={styles.telemetryAhorroLabel}>Ahorro</Text>
+                <Text style={styles.telemetryAhorroValue} numberOfLines={1}>
+                  {priceDelta > 0 ? formatCLP(priceDelta) : '—'}
+                </Text>
+              </View>
+            </View>
+
+            {!tripActive && (
+              <Text style={styles.tripHint}>
+                Rastrea kilómetros en tiempo real vía GPS para actualizar automáticamente la salud de tu vehículo.
+              </Text>
+            )}
+
+            {tripActive ? (
+              <GlassButton onPress={stopTrip} variant="stop">
+                <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.glassBtnTextStop}>Detener viaje</Text>
+              </GlassButton>
+            ) : (
+              <GlassButton onPress={startTrip}>
+                <Play size={16} color="#E0F2FE" fill="#E0F2FE" />
+                <Text style={styles.glassBtnText}>Iniciar viaje</Text>
+              </GlassButton>
+            )}
+          </GlassCard>
+        )}
+
+        {/* ── Valuation + Health Hero (debajo de telemetría) ── */}
         {selectedVehicle && (
           <GlassCard style={{ marginBottom: 16 }}>
             <View style={styles.heroRow}>
@@ -556,112 +708,153 @@ const UserPanelScreen = () => {
           </GlassCard>
         )}
 
-        {/* ── Trip Telemetry ── */}
+        {/* ── Grid 50/50: Entorno (clima) + Salud predictiva (donde estaba valor estimado) ── */}
         {selectedVehicle && (
-          <GlassCard style={{ marginBottom: 16 }}>
-            <View style={styles.cardHeader}>
-              <Route size={18} color="#06B6D4" />
-              <Text style={styles.cardTitle}>Telemetría de Viaje</Text>
-              {tripActive && <View style={styles.liveDot} />}
-            </View>
+          <View style={styles.predictiveGrid}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setIsWeatherModalOpen(true)}
+              style={styles.predictiveColFill}
+            >
+              <GlassCard style={styles.predictiveHalfGlass} innerStyle={styles.predictiveHalfInner}>
+                <View style={styles.predictiveHalfBody}>
+                  {weatherLoading ? (
+                    <View style={styles.weatherCardLoading}>
+                      <ActivityIndicator color="#22D3EE" size="small" />
+                      <Text style={styles.weatherCardLoadingText}>Consultando clima...</Text>
+                    </View>
+                  ) : !weatherAvailable ? (
+                    <View style={styles.weatherCardUnavailable}>
+                      <CloudRain size={24} color="rgba(255,255,255,0.25)" />
+                      <Text style={styles.weatherCardUnavailableText}>
+                        {weatherData?.reason || 'Clima no disponible para esta ubicación.'}
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <View style={styles.entornoHeader}>
+                        <CloudRain size={20} color="#22D3EE" />
+                        <Text style={styles.entornoRiskLabel}>Riesgo</Text>
+                      </View>
+                      <Text style={styles.entornoRiskPct}>{climateRiskPct}%</Text>
+                      {weatherCity !== '' && (
+                        <Text style={styles.entornoWeatherCity}>
+                          {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'}
+                        </Text>
+                      )}
+                      <View style={styles.microBarRow}>
+                        <Text style={styles.microBarLabel}>Frenos</Text>
+                        <View style={styles.microBarTrack}>
+                          <LinearGradient
+                            colors={['rgba(248,113,113,0.9)', 'rgba(239,68,68,0.75)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={[styles.microBarFill, { width: `${Math.min(frenoWearPct, 100)}%` }]}
+                          />
+                        </View>
+                        <Text style={styles.microBarPct}>{frenoWearPct}%</Text>
+                      </View>
+                      <View style={styles.microBarRow}>
+                        <Text style={styles.microBarLabel}>Gomas</Text>
+                        <View style={styles.microBarTrack}>
+                          <LinearGradient
+                            colors={['rgba(52,211,153,0.85)', 'rgba(16,185,129,0.7)']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={[styles.microBarFill, { width: `${Math.min(gomaWearPct, 100)}%` }]}
+                          />
+                        </View>
+                        <Text style={styles.microBarPct}>{gomaWearPct}%</Text>
+                      </View>
+                      <View style={styles.predictiveClimaTapRow}>
+                        <Droplets size={12} color="rgba(255,255,255,0.35)" />
+                        <Text style={styles.entornoTapText}>Toca para análisis IA</Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+              </GlassCard>
+            </TouchableOpacity>
 
-            {tripActive ? (
-              <>
-                <View style={styles.telemetryGrid}>
-                  <View style={styles.telemetryItem}>
-                    <Text style={styles.telemetryValue}>{tripKm.toFixed(1)}</Text>
-                    <Text style={styles.telemetryLabel}>km</Text>
+            <View style={styles.predictiveColFill}>
+              <GlassCard style={styles.predictiveHalfGlass} innerStyle={styles.predictiveHalfInner}>
+                <View style={styles.predictiveHealthColumn}>
+                  <View style={styles.compactHealthHeader}>
+                    <HeartPulse size={16} color="#F472B6" />
+                    <Text style={styles.compactHealthTitle} numberOfLines={1}>
+                      Salud predictiva
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.compactHealthLink}
+                      onPress={() =>
+                        navigation.navigate(ROUTES.VEHICLE_HEALTH, {
+                          vehicleId: selectedVehicle.id,
+                          vehicle: selectedVehicle,
+                        })
+                      }
+                      hitSlop={8}
+                    >
+                      <Text style={styles.compactHealthLinkText}>Ver</Text>
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.telemetrySep} />
-                  <View style={styles.telemetryItem}>
-                    <Text style={styles.telemetryValue}>{formatDuration(tripElapsed)}</Text>
-                    <Text style={styles.telemetryLabel}>duración</Text>
-                  </View>
-                  <View style={styles.telemetrySep} />
-                  <View style={styles.telemetryItem}>
-                    <Text style={styles.telemetryValue}>{currentSpeed}</Text>
-                    <Text style={styles.telemetryLabel}>km/h</Text>
+
+                  <View style={styles.predictiveHealthMain}>
+                    <View style={styles.predictiveHealthContent}>
+                      <View style={styles.compactProgressTrack}>
+                        <LinearGradient
+                          colors={[getHealthColor(healthScore), getHealthColor(Math.max(0, healthScore - 20))]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={[styles.compactProgressFill, { width: `${Math.min(healthScore, 100)}%` }]}
+                        />
+                      </View>
+                      <Text style={styles.compactProgressLabel}>{healthScore}% salud</Text>
+
+                      {criticalComponents.length > 0 ? (
+                        <View style={styles.compactAlertsList}>
+                          {criticalComponents.slice(0, 2).map((comp, idx) => {
+                            const name = resolveHealthComponentLabel(comp);
+                            const pct = comp.salud_porcentaje ?? comp.salud ?? 0;
+                            const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
+                            const level = comp.nivel_alerta || comp.status || 'ATENCION';
+                            const color =
+                              level === 'CRITICO' ? '#EF4444' : level === 'URGENTE' ? '#F97316' : '#F59E0B';
+                            return (
+                              <View key={idx} style={styles.compactAlertRow}>
+                                <TriangleAlert size={12} color={color} />
+                                <View style={{ flex: 1, marginLeft: 6, minWidth: 0 }}>
+                                  <Text style={styles.compactAlertName} numberOfLines={1}>
+                                    {name}
+                                  </Text>
+                                  {kmRest != null && (
+                                    <Text style={styles.compactAlertKm} numberOfLines={1}>
+                                      ~{formatKm(kmRest)} km
+                                    </Text>
+                                  )}
+                                </View>
+                                <Text style={[styles.compactAlertPct, { color }]}>{Math.round(pct)}%</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                      ) : healthReport.length > 0 ? (
+                        <View style={styles.compactAllGood}>
+                          <Check size={14} color="#10B981" />
+                          <Text style={styles.compactAllGoodText} numberOfLines={2}>
+                            Óptimo
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.compactSyncHint} numberOfLines={3}>
+                          Sincroniza salud para predicciones.
+                        </Text>
+                      )}
+                    </View>
                   </View>
                 </View>
-                <TouchableOpacity style={styles.tripStopBtn} onPress={stopTrip} activeOpacity={0.8}>
-                  <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
-                  <Text style={styles.tripStopText}>Detener Viaje</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <Text style={styles.tripHint}>
-                  Rastrea kilómetros en tiempo real vía GPS para actualizar automáticamente la salud de tu vehículo.
-                </Text>
-                <TouchableOpacity style={styles.tripStartBtn} onPress={startTrip} activeOpacity={0.8}>
-                  <Play size={16} color="#FFFFFF" fill="#FFFFFF" />
-                  <Text style={styles.tripStartText}>Iniciar Viaje</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </GlassCard>
-        )}
-
-        {/* ── Health Predictive ── */}
-        {selectedVehicle && (
-          <GlassCard style={{ marginBottom: 20 }}>
-            <View style={styles.cardHeader}>
-              <HeartPulse size={18} color="#F472B6" />
-              <Text style={styles.cardTitle}>Salud Predictiva</Text>
-              <TouchableOpacity
-                style={styles.detailLink}
-                onPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: selectedVehicle.id, vehicle: selectedVehicle })}
-              >
-                <Text style={styles.detailLinkText}>Ver detalle</Text>
-              </TouchableOpacity>
+              </GlassCard>
             </View>
-
-            {/* Progress bar */}
-            <View style={styles.progressTrack}>
-              <LinearGradient
-                colors={[getHealthColor(healthScore), getHealthColor(Math.max(0, healthScore - 20))]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.progressFill, { width: `${Math.min(healthScore, 100)}%` }]}
-              />
-            </View>
-            <Text style={styles.progressLabel}>{healthScore}% salud general</Text>
-
-            {/* Critical components */}
-            {criticalComponents.length > 0 ? (
-              <View style={styles.alertsList}>
-                {criticalComponents.map((comp, idx) => {
-                  const name = resolveHealthComponentLabel(comp);
-                  const pct = comp.salud_porcentaje ?? comp.salud ?? 0;
-                  const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
-                  const level = comp.nivel_alerta || comp.status || 'ATENCION';
-                  const color = level === 'CRITICO' ? '#EF4444' : level === 'URGENTE' ? '#F97316' : '#F59E0B';
-
-                  return (
-                    <View key={idx} style={styles.alertRow}>
-                      <TriangleAlert size={14} color={color} />
-                      <View style={{ flex: 1, marginLeft: 8 }}>
-                        <Text style={styles.alertName}>{name}</Text>
-                        {kmRest != null && (
-                          <Text style={styles.alertKm}>~{formatKm(kmRest)} km restantes</Text>
-                        )}
-                      </View>
-                      <Text style={[styles.alertPct, { color }]}>{Math.round(pct)}%</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ) : healthReport.length > 0 ? (
-              <View style={styles.allGoodRow}>
-                <Check size={16} color="#10B981" />
-                <Text style={styles.allGoodText}>Todos los componentes en estado óptimo</Text>
-              </View>
-            ) : (
-              <Text style={[styles.tripHint, { marginTop: 8 }]}>
-                Sincroniza la salud de tu vehículo para ver predicciones de mantenimiento.
-              </Text>
-            )}
-          </GlassCard>
+          </View>
         )}
 
         {/* ── Quick Actions 2×2 ── */}
@@ -732,6 +925,149 @@ const UserPanelScreen = () => {
           </GlassCard>
         </View>
       </ScrollView>
+
+      {/* ─── Modal selector de dirección (flotante) ─── */}
+      <Modal
+        visible={addressDropOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAddressDropOpen(false)}
+      >
+        <TouchableOpacity
+          style={styles.addressModalOverlay}
+          activeOpacity={1}
+          onPress={() => setAddressDropOpen(false)}
+        >
+          <View style={styles.addressModalFloat}>
+            <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
+            <View style={styles.addressModalTint} />
+            <View style={styles.addressModalContent}>
+              <Text style={styles.addressModalTitle}>Seleccionar ubicación</Text>
+              <ScrollView style={styles.addressModalScroll} showsVerticalScrollIndicator={false}>
+                {addressList.map((addr) => (
+                  <TouchableOpacity
+                    key={addr.id}
+                    style={[
+                      styles.addressDropItem,
+                      addr.id === selectedAddressId && styles.addressDropItemActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedAddressId(addr.id);
+                      setAddressDropOpen(false);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <MapPin size={14} color={addr.id === selectedAddressId ? '#22D3EE' : 'rgba(255,255,255,0.3)'} />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={styles.addressDropLabel}>{addr.etiqueta || 'Dirección'}</Text>
+                      <Text style={styles.addressDropDir} numberOfLines={1}>{addr.direccion}</Text>
+                    </View>
+                    {addr.es_principal && (
+                      <View style={styles.addressPrincipalBadge}>
+                        <Text style={styles.addressPrincipalText}>Principal</Text>
+                      </View>
+                    )}
+                    {addr.id === selectedAddressId && <Check size={16} color="#22D3EE" />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity
+                style={styles.addressAddBtn}
+                onPress={() => {
+                  setAddressDropOpen(false);
+                  navigation.navigate(ROUTES.ADD_ADDRESS);
+                }}
+                activeOpacity={0.8}
+              >
+                <Plus size={16} color="#22D3EE" />
+                <Text style={styles.addressAddBtnText}>Agregar nueva dirección</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* ─── Modal análisis clima / entorno ─── */}
+      <Modal
+        visible={isWeatherModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsWeatherModalOpen(false)}
+      >
+        <View style={styles.weatherModalOverlay}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setIsWeatherModalOpen(false)}
+          />
+          <View style={styles.weatherSheet}>
+            <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
+            <View style={styles.weatherSheetTint} />
+            <View style={styles.weatherSheetHandle} />
+            <View style={styles.weatherSheetContent}>
+              <View style={styles.weatherSheetHeader}>
+                <CloudRain size={40} color="#22D3EE" />
+                <Text style={styles.weatherSheetTitle}>Análisis IA Pro</Text>
+                {weatherAvailable && (
+                  <Text style={styles.weatherSheetSubtitle}>
+                    {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'} · Humedad {weatherHumidity ?? '—'}%
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.weatherWearBlock}>
+                {weatherComponents.map((comp) => {
+                  const iconMap = {
+                    frenos: <Disc size={18} color="#F87171" />,
+                    neumaticos: <Wind size={18} color="#6EE7B7" />,
+                    bateria: <Zap size={18} color="#FBBF24" />,
+                    refrigerante: <Droplets size={18} color="#22D3EE" />,
+                  };
+                  const colorMap = {
+                    frenos: ['rgba(248,113,113,0.95)', 'rgba(220,38,38,0.8)'],
+                    neumaticos: ['rgba(52,211,153,0.9)', 'rgba(16,185,129,0.75)'],
+                    bateria: ['rgba(251,191,36,0.9)', 'rgba(245,158,11,0.75)'],
+                    refrigerante: ['rgba(34,211,238,0.9)', 'rgba(6,182,212,0.75)'],
+                  };
+                  return (
+                    <View key={comp.type} style={styles.weatherWearRow}>
+                      {iconMap[comp.type] || <Disc size={18} color="#9CA3AF" />}
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text style={styles.weatherWearTitle}>{comp.name}</Text>
+                        <View style={styles.weatherBarTrack}>
+                          <LinearGradient
+                            colors={colorMap[comp.type] || colorMap.frenos}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 0 }}
+                            style={[styles.weatherBarFill, { width: `${Math.min(comp.wear_increase, 100)}%` }]}
+                          />
+                        </View>
+                        <Text style={styles.weatherWearReason} numberOfLines={2}>{comp.reason}</Text>
+                      </View>
+                      <Text style={styles.weatherWearPct}>+{comp.wear_increase}%</Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <View style={styles.weatherTipsBox}>
+                <Zap size={18} color="#34D399" />
+                <Text style={styles.weatherTipsText}>
+                  {aiInsight || 'Condiciones óptimas para conducir.'}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.weatherEntendidoBtn}
+                onPress={() => setIsWeatherModalOpen(false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.weatherEntendidoText}>Entendido</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ─── Vehicle Selector Modal ─── */}
       <Modal visible={selectorVisible} transparent animationType="slide" onRequestClose={() => setSelectorVisible(false)}>
@@ -912,10 +1248,54 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: 'rgba(255,255,255,0.2)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 32,
+      },
+      android: { elevation: 12 },
+    }),
   },
   glassInner: {
     padding: 18,
+  },
+  glassBtnWrap: {
+    marginTop: 4,
+  },
+  glassBtnOuter: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    position: 'relative',
+  },
+  glassBtnOuterStop: {
+    borderColor: 'rgba(248,113,113,0.45)',
+  },
+  glassBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  glassBtnInnerStop: {
+    backgroundColor: 'rgba(239,68,68,0.35)',
+  },
+  glassBtnText: {
+    color: '#E0F2FE',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  glassBtnTextStop: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
   },
 
   // Header
@@ -939,6 +1319,112 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.45)',
     fontWeight: '500',
+  },
+  addressSelectorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 5,
+    paddingVertical: 3,
+  },
+  addressSelectorText: {
+    flex: 1,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '500',
+  },
+  addressModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  addressModalFloat: {
+    width: '100%',
+    maxHeight: '60%',
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 24,
+      },
+      android: { elevation: 20 },
+    }),
+  },
+  addressModalTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(3,7,18,0.75)',
+  },
+  addressModalContent: {
+    paddingTop: 18,
+    paddingBottom: 14,
+  },
+  addressModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F9FAFB',
+    paddingHorizontal: 18,
+    marginBottom: 12,
+  },
+  addressModalScroll: {
+    maxHeight: 260,
+  },
+  addressDropItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  addressDropItemActive: {
+    backgroundColor: 'rgba(34,211,238,0.08)',
+  },
+  addressDropLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F9FAFB',
+  },
+  addressDropDir: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: 1,
+  },
+  addressPrincipalBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(34,211,238,0.15)',
+    marginLeft: 6,
+  },
+  addressPrincipalText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#22D3EE',
+  },
+  addressAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginHorizontal: 18,
+    marginTop: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(34,211,238,0.3)',
+    backgroundColor: 'rgba(34,211,238,0.08)',
+  },
+  addressAddBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#22D3EE',
   },
   headerIcon: {
     width: 40,
@@ -1151,124 +1637,430 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Trip telemetry
-  telemetryGrid: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  // Trip telemetry (glass dashboard)
+  telemetryCard: {
     marginBottom: 16,
   },
-  telemetryItem: {
-    flex: 1,
-    alignItems: 'center',
+  telemetryTopRow: {
+    marginBottom: 12,
   },
-  telemetryValue: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: '#F9FAFB',
-    letterSpacing: -0.5,
-  },
-  telemetryLabel: {
+  telemetryConsoleLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '500',
-    marginTop: 2,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: 'rgba(255,255,255,0.55)',
   },
-  telemetrySep: {
-    width: 1,
-    height: 32,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  telemetryMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  tripHint: {
+  telemetryKmBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  telemetryKmHuge: {
+    fontSize: 38,
+    fontWeight: '900',
+    color: '#F9FAFB',
+    letterSpacing: -1.2,
+    lineHeight: 42,
+  },
+  telemetryKmUnit: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
-    lineHeight: 19,
-    marginBottom: 14,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: -2,
   },
-  tripStartBtn: {
+  telemetrySubStats: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 6,
+    gap: 6,
+  },
+  telemetrySubStatText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
+    fontWeight: '500',
+  },
+  telemetrySubStatSep: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.25)',
+  },
+  telemetryVSep: {
+    width: 1,
+    alignSelf: 'stretch',
+    minHeight: 56,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginHorizontal: 14,
+  },
+  telemetryAhorroBlock: {
+    alignItems: 'flex-end',
     justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#007EA7',
-    paddingVertical: 14,
-    borderRadius: 14,
+    maxWidth: SCREEN_WIDTH * 0.32,
   },
-  tripStartText: {
-    color: '#FFFFFF',
+  telemetryAhorroLabel: {
+    fontSize: 11,
     fontWeight: '700',
-    fontSize: 15,
+    color: '#10B981',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
-  tripStopBtn: {
+  telemetryAhorroValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6EE7B7',
+  },
+  predictiveGrid: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: CARD_GAP,
+    marginBottom: 16,
+    width: '100%',
+  },
+  predictiveColFill: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    alignSelf: 'stretch',
+  },
+  predictiveHalfGlass: {
+    flex: 1,
+    width: '100%',
+    alignSelf: 'stretch',
+    marginBottom: 0,
+    minHeight: 0,
+  },
+  predictiveHalfInner: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  predictiveHalfBody: {
+    flex: 1,
+  },
+  predictiveHealthColumn: {
+    flex: 1,
+    minHeight: 0,
+  },
+  predictiveHealthMain: {
+    flex: 1,
+    minHeight: 0,
+    justifyContent: 'center',
+    paddingVertical: 6,
+  },
+  predictiveHealthContent: {
+    width: '100%',
+  },
+  predictiveClimaTapRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#EF4444',
-    paddingVertical: 14,
-    borderRadius: 14,
+    gap: 6,
+    marginTop: 'auto',
+    paddingTop: 8,
   },
-  tripStopText: {
-    color: '#FFFFFF',
+  compactHealthHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 0,
+    flexShrink: 0,
+  },
+  compactHealthTitle: {
+    flex: 1,
+    fontSize: 13,
     fontWeight: '700',
-    fontSize: 15,
+    color: '#F9FAFB',
   },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
+  compactHealthLink: {
+    paddingVertical: 2,
+    paddingLeft: 4,
   },
-
-  // Health predictive
-  progressTrack: {
+  compactHealthLinkText: {
+    fontSize: 11,
+    color: '#00A8E8',
+    fontWeight: '600',
+  },
+  compactProgressTrack: {
     height: 6,
     borderRadius: 3,
     backgroundColor: 'rgba(255,255,255,0.08)',
     overflow: 'hidden',
     marginBottom: 6,
   },
-  progressFill: {
+  compactProgressFill: {
     height: '100%',
     borderRadius: 3,
   },
-  progressLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '500',
-    marginBottom: 12,
+  compactProgressLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    fontWeight: '600',
+    marginBottom: 10,
   },
-  alertsList: {
-    gap: 10,
+  compactAlertsList: {
+    gap: 8,
   },
-  alertRow: {
+  compactAlertRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  alertName: {
-    fontSize: 14,
+  compactAlertName: {
+    fontSize: 11,
     fontWeight: '600',
     color: '#E5E7EB',
   },
-  alertKm: {
-    fontSize: 11,
+  compactAlertKm: {
+    fontSize: 9,
     color: 'rgba(255,255,255,0.35)',
     marginTop: 1,
   },
-  alertPct: {
-    fontSize: 14,
+  compactAlertPct: {
+    fontSize: 11,
     fontWeight: '700',
-    marginLeft: 8,
+    marginLeft: 4,
   },
-  allGoodRow: {
+  compactAllGood: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     paddingVertical: 4,
   },
-  allGoodText: {
-    fontSize: 14,
+  compactAllGoodText: {
+    fontSize: 12,
     color: '#10B981',
     fontWeight: '600',
+    flex: 1,
+  },
+  compactSyncHint: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.38)',
+    lineHeight: 14,
+  },
+  weatherCardLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  weatherCardLoadingText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '500',
+  },
+  weatherCardUnavailable: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  weatherCardUnavailableText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  entornoWeatherCity: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '500',
+    marginBottom: 8,
+    marginTop: -6,
+  },
+  entornoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  entornoRiskLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.45)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  entornoRiskPct: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#F87171',
+    marginBottom: 10,
+  },
+  microBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 6,
+  },
+  microBarLabel: {
+    width: 44,
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.5)',
+  },
+  microBarTrack: {
+    flex: 1,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  microBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  microBarPct: {
+    width: 32,
+    fontSize: 11,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.45)',
+    textAlign: 'right',
+  },
+  entornoTapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  entornoTapText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.38)',
+    fontStyle: 'italic',
+  },
+  weatherModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  weatherSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: 'hidden',
+    maxHeight: '78%',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -8 },
+        shadowOpacity: 0.35,
+        shadowRadius: 32,
+      },
+      android: { elevation: 24 },
+    }),
+  },
+  weatherSheetTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(3,7,18,0.65)',
+  },
+  weatherSheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  weatherSheetContent: {
+    paddingHorizontal: 22,
+    paddingBottom: 28,
+    paddingTop: 8,
+  },
+  weatherSheetHeader: {
+    alignItems: 'center',
+    marginBottom: 22,
+  },
+  weatherSheetTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#F9FAFB',
+    marginTop: 10,
+  },
+  weatherSheetSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '500',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  weatherWearBlock: {
+    gap: 16,
+    marginBottom: 20,
+  },
+  weatherWearRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weatherWearTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#E5E7EB',
+    marginBottom: 6,
+  },
+  weatherBarTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  weatherBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  weatherWearReason: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 3,
+    lineHeight: 14,
+  },
+  weatherWearPct: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#F9FAFB',
+    marginLeft: 8,
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  weatherTipsBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.25)',
+    marginBottom: 20,
+  },
+  weatherTipsText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#A7F3D0',
+    lineHeight: 20,
+  },
+  weatherEntendidoBtn: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  weatherEntendidoText: {
+    color: '#F9FAFB',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  tripHint: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
+    lineHeight: 19,
+    marginBottom: 14,
   },
 
   // Quick actions grid
