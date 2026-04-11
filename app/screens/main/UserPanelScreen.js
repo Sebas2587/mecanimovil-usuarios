@@ -190,7 +190,6 @@ const UserPanelScreen = () => {
   const elapsedRef = useRef(null);
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
-  const [addressDropOpen, setAddressDropOpen] = useState(false);
   const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
 
   // ── Data queries ──
@@ -509,7 +508,7 @@ const UserPanelScreen = () => {
             {addressList.length > 0 ? (
               <TouchableOpacity
                 style={styles.addressSelectorBtn}
-                onPress={() => setAddressDropOpen((p) => !p)}
+                onPress={() => setAddAddressModalOpen(true)}
                 activeOpacity={0.7}
               >
                 <MapPin size={13} color="#22D3EE" />
@@ -904,67 +903,6 @@ const UserPanelScreen = () => {
         </View>
       </ScrollView>
 
-      {/* ─── Modal selector de dirección (flotante) ─── */}
-      <Modal
-        visible={addressDropOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAddressDropOpen(false)}
-      >
-        <TouchableOpacity
-          style={styles.addressModalOverlay}
-          activeOpacity={1}
-          onPress={() => setAddressDropOpen(false)}
-        >
-          <View style={styles.addressModalFloat}>
-            <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
-            <View style={styles.addressModalTint} />
-            <View style={styles.addressModalContent}>
-              <Text style={styles.addressModalTitle}>Seleccionar ubicación</Text>
-              <ScrollView style={styles.addressModalScroll} showsVerticalScrollIndicator={false}>
-                {addressList.map((addr) => (
-                  <TouchableOpacity
-                    key={addr.id}
-                    style={[
-                      styles.addressDropItem,
-                      addr.id === selectedAddressId && styles.addressDropItemActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedAddressId(addr.id);
-                      setAddressDropOpen(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <MapPin size={14} color={addr.id === selectedAddressId ? '#22D3EE' : 'rgba(255,255,255,0.3)'} />
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.addressDropLabel}>{addr.etiqueta || 'Dirección'}</Text>
-                      <Text style={styles.addressDropDir} numberOfLines={1}>{addr.direccion}</Text>
-                    </View>
-                    {addr.es_principal && (
-                      <View style={styles.addressPrincipalBadge}>
-                        <Text style={styles.addressPrincipalText}>Principal</Text>
-                      </View>
-                    )}
-                    {addr.id === selectedAddressId && <Check size={16} color="#22D3EE" />}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <TouchableOpacity
-                style={styles.addressAddBtn}
-                onPress={() => {
-                  setAddressDropOpen(false);
-                  setAddAddressModalOpen(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <Plus size={16} color="#22D3EE" />
-                <Text style={styles.addressAddBtnText}>Agregar nueva dirección</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
       {/* ─── Modal análisis clima / entorno ─── */}
       <Modal
         visible={isWeatherModalOpen}
@@ -1183,6 +1121,7 @@ const UserPanelScreen = () => {
         onClose={() => setAddAddressModalOpen(false)}
         variant="darkGlass"
         heroSubtitle="Detecta tu ubicación para ver el clima y riesgo de desgaste."
+        currentAddress={selectedAddress}
         onSelectAddress={(savedAddr) => {
           if (savedAddr?.id) {
             setSelectedAddressId(savedAddr.id);
@@ -1295,99 +1234,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.5)',
     fontWeight: '500',
-  },
-  addressModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  addressModalFloat: {
-    width: '100%',
-    maxHeight: '60%',
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 24,
-      },
-      android: { elevation: 20 },
-    }),
-  },
-  addressModalTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(3,7,18,0.75)',
-  },
-  addressModalContent: {
-    paddingTop: 18,
-    paddingBottom: 14,
-  },
-  addressModalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F9FAFB',
-    paddingHorizontal: 18,
-    marginBottom: 12,
-  },
-  addressModalScroll: {
-    maxHeight: 260,
-  },
-  addressDropItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  addressDropItemActive: {
-    backgroundColor: 'rgba(34,211,238,0.08)',
-  },
-  addressDropLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#F9FAFB',
-  },
-  addressDropDir: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: 1,
-  },
-  addressPrincipalBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: 'rgba(34,211,238,0.15)',
-    marginLeft: 6,
-  },
-  addressPrincipalText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#22D3EE',
-  },
-  addressAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    marginHorizontal: 18,
-    marginTop: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(34,211,238,0.3)',
-    backgroundColor: 'rgba(34,211,238,0.08)',
-  },
-  addressAddBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#22D3EE',
   },
   headerIcon: {
     width: 40,
