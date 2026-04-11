@@ -292,14 +292,14 @@ const UserPanelScreen = () => {
   );
 
   // ── Weather prediction ──
-  // Solo re-fetch al cambiar dirección, no al cambiar vehículo.
+  // Re-fetch al cambiar dirección O vehículo (los datos de salud del vehículo afectan la predicción).
   // staleTime alto para evitar saturar la API externa (backend cachea 15 min en Redis).
   const {
     data: weatherData,
     isLoading: weatherLoading,
     refetch: refetchWeather,
   } = useQuery({
-    queryKey: ['weatherPrediction', selectedAddressId],
+    queryKey: ['weatherPrediction', selectedAddressId, selectedVehicle?.id],
     queryFn: () =>
       getWeatherPrediction({
         addressId: selectedAddressId,
