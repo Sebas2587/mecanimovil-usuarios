@@ -569,10 +569,6 @@ const MisVehiculosScreen = () => {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Decorative Blobs */}
-      <View style={styles.blobEmerald} />
-      <View style={styles.blobIndigo} />
-      <View style={styles.blobCyan} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -737,33 +733,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#030712',
-  },
-  blobEmerald: {
-    position: 'absolute',
-    top: -80,
-    right: -80,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: 'rgba(16,185,129,0.08)',
-  },
-  blobIndigo: {
-    position: 'absolute',
-    top: 300,
-    left: -100,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: 'rgba(99,102,241,0.06)',
-  },
-  blobCyan: {
-    position: 'absolute',
-    bottom: 100,
-    right: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(6,182,212,0.05)',
   },
   header: {
     flexDirection: 'row',

@@ -51,9 +51,6 @@ const UserProfileScreen = () => {
     <View style={[styles.root, webRootStyle]}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={styles.blobEmerald} />
-        <View style={styles.blobIndigo} />
-        <View style={styles.blobCyan} />
       </View>
 
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -132,33 +129,6 @@ const styles = StyleSheet.create({
   scrollWeb: {
     flex: 1,
     minHeight: 0,
-  },
-  blobEmerald: {
-    position: 'absolute',
-    top: -40,
-    right: -30,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(16,185,129,0.08)',
-  },
-  blobIndigo: {
-    position: 'absolute',
-    top: 280,
-    left: -50,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(99,102,241,0.07)',
-  },
-  blobCyan: {
-    position: 'absolute',
-    bottom: 120,
-    right: 20,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(6,182,212,0.06)',
   },
   scrollContent: {
     flexGrow: 1,

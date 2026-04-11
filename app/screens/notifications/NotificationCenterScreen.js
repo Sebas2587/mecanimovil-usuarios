@@ -157,8 +157,6 @@ export default function NotificationCenterScreen({ navigation }) {
         <View style={[styles.container, webRootStyle]}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-                <View style={styles.blobA} />
-                <View style={styles.blobB} />
             </View>
 
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -224,24 +222,6 @@ const styles = StyleSheet.create({
     listWeb: {
         flex: 1,
         minHeight: 0,
-    },
-    blobA: {
-        position: 'absolute',
-        top: 60,
-        right: -40,
-        width: 180,
-        height: 180,
-        borderRadius: 90,
-        backgroundColor: 'rgba(99,102,241,0.08)',
-    },
-    blobB: {
-        position: 'absolute',
-        bottom: 100,
-        left: -30,
-        width: 160,
-        height: 160,
-        borderRadius: 80,
-        backgroundColor: 'rgba(16,185,129,0.06)',
     },
     toolbar: {
         flexDirection: 'row',

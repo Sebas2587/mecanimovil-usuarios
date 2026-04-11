@@ -207,9 +207,6 @@ const LoginScreen = () => {
     <View style={styles.container}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={styles.blobEmerald} />
-        <View style={styles.blobIndigo} />
-        <View style={styles.blobCyan} />
       </View>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
@@ -364,9 +361,6 @@ const LoginScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#030712' },
-  blobEmerald: { position: 'absolute', top: -80, left: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.12)' },
-  blobIndigo: { position: 'absolute', bottom: 100, right: -50, width: 280, height: 280, borderRadius: 140, backgroundColor: 'rgba(99,102,241,0.10)' },
-  blobCyan: { position: 'absolute', top: 340, right: 30, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(6,182,212,0.08)' },
 
   scroll: { paddingHorizontal: 20 },
   headerSection: { alignItems: 'center', marginBottom: 32 },

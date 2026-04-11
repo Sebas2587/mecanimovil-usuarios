@@ -226,9 +226,6 @@ const MisSolicitudesScreen = () => {
       <View style={styles.root}>
         <StatusBar barStyle="light-content" />
         <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={styles.blob1} />
-        <View style={styles.blob2} />
-        <View style={styles.blob3} />
         <SafeAreaView style={styles.safeTop} edges={['top']}>
           <View style={styles.navRow}>
             <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
@@ -250,9 +247,6 @@ const MisSolicitudesScreen = () => {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
       <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-      <View style={styles.blob1} />
-      <View style={styles.blob2} />
-      <View style={styles.blob3} />
 
       <SafeAreaView style={styles.safeTop} edges={['top']}>
         <View style={styles.navRow}>
@@ -310,33 +304,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#030712' },
   safeTop: { zIndex: 2 },
   safeContent: { flex: 1 },
-  blob1: {
-    position: 'absolute',
-    top: -80,
-    right: -60,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(16,185,129,0.08)',
-  },
-  blob2: {
-    position: 'absolute',
-    top: 320,
-    left: -80,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(99,102,241,0.06)',
-  },
-  blob3: {
-    position: 'absolute',
-    bottom: 80,
-    right: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(6,182,212,0.05)',
-  },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -455,8 +455,6 @@ const ChatDetailScreen = () => {
         <View style={styles.container}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-                <View style={styles.blobA} />
-                <View style={styles.blobB} />
             </View>
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
             {renderHeader()}
@@ -559,24 +557,6 @@ const getStyles = () => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#030712',
-    },
-    blobA: {
-        position: 'absolute',
-        top: 120,
-        right: -40,
-        width: 160,
-        height: 160,
-        borderRadius: 80,
-        backgroundColor: 'rgba(99,102,241,0.08)',
-    },
-    blobB: {
-        position: 'absolute',
-        bottom: 200,
-        left: -30,
-        width: 140,
-        height: 140,
-        borderRadius: 70,
-        backgroundColor: 'rgba(16,185,129,0.06)',
     },
     centerContainer: {
         flex: 1,

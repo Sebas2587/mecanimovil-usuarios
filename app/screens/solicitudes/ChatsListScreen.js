@@ -139,8 +139,6 @@ const ChatsListScreen = () => {
     <View style={styles.root}>
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={styles.blobA} />
-        <View style={styles.blobB} />
       </View>
 
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -208,24 +206,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#030712',
-  },
-  blobA: {
-    position: 'absolute',
-    top: 40,
-    left: -50,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(244,114,182,0.07)',
-  },
-  blobB: {
-    position: 'absolute',
-    bottom: 80,
-    right: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(99,102,241,0.08)',
   },
   safe: {
     flex: 1,

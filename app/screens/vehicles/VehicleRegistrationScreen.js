@@ -411,9 +411,6 @@ const VehicleRegistrationScreen = () => {
         <View style={styles.container}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-                <View style={styles.blobEmerald} />
-                <View style={styles.blobIndigo} />
-                <View style={styles.blobCyan} />
             </View>
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
@@ -690,33 +687,6 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#030712',
-    },
-    blobEmerald: {
-        position: 'absolute',
-        top: -80,
-        left: -70,
-        width: 240,
-        height: 240,
-        borderRadius: 120,
-        backgroundColor: 'rgba(16,185,129,0.12)',
-    },
-    blobIndigo: {
-        position: 'absolute',
-        bottom: 90,
-        right: -40,
-        width: 260,
-        height: 260,
-        borderRadius: 130,
-        backgroundColor: 'rgba(99,102,241,0.10)',
-    },
-    blobCyan: {
-        position: 'absolute',
-        top: 280,
-        right: 36,
-        width: 150,
-        height: 150,
-        borderRadius: 75,
-        backgroundColor: 'rgba(6,182,212,0.08)',
     },
     glassOuter: {
         borderRadius: 20,

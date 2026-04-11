@@ -12,8 +12,6 @@ import {
   Dimensions,
   Platform,
   ActivityIndicator,
-  Animated,
-  Easing,
 } from 'react-native';
 import { showAlert } from '../../utils/platformAlert';
 import { BlurView } from 'expo-blur';
@@ -194,7 +192,6 @@ const UserPanelScreen = () => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addressDropOpen, setAddressDropOpen] = useState(false);
   const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
-  const blobDrift = useRef(new Animated.Value(0)).current;
 
   // ── Data queries ──
   const {
@@ -325,17 +322,6 @@ const UserPanelScreen = () => {
       if (elapsedRef.current) clearInterval(elapsedRef.current);
     };
   }, [tripActive, tripStartTime]);
-
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(blobDrift, { toValue: 1, duration: 7000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(blobDrift, { toValue: 0, duration: 7000, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
-    anim.start();
-    return () => anim.stop();
-  }, [blobDrift]);
 
   useEffect(() => {
     let poller = null;
@@ -499,13 +485,6 @@ const UserPanelScreen = () => {
   const weatherHumidity = weatherData?.weather?.humidity;
   const weatherCity = weatherData?.weather?.city || '';
   const aiInsight = weatherData?.ai_insight || '';
-  const blobEmeraldTx = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 14] });
-  const blobEmeraldTy = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, -10] });
-  const blobIndigoTx = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, -12] });
-  const blobIndigoTy = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 16] });
-  const blobCyanTx = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 8] });
-  const blobCyanTy = blobDrift.interpolate({ inputRange: [0, 1], outputRange: [0, 12] });
-
   // ─────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────
@@ -514,9 +493,6 @@ const UserPanelScreen = () => {
       {/* Background layer */}
       <View style={StyleSheet.absoluteFill}>
         <LinearGradient colors={['#030712', '#020617', '#030712']} style={StyleSheet.absoluteFill} />
-        <Animated.View style={[styles.blobEmerald, { transform: [{ translateX: blobEmeraldTx }, { translateY: blobEmeraldTy }] }]} />
-        <Animated.View style={[styles.blobIndigo, { transform: [{ translateX: blobIndigoTx }, { translateY: blobIndigoTy }] }]} />
-        <Animated.View style={[styles.blobCyan, { transform: [{ translateX: blobCyanTx }, { translateY: blobCyanTy }] }]} />
       </View>
 
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -778,7 +754,16 @@ const UserPanelScreen = () => {
               </GlassCard>
             </TouchableOpacity>
 
-            <View style={styles.predictiveColFill}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() =>
+                navigation.navigate(ROUTES.VEHICLE_HEALTH, {
+                  vehicleId: selectedVehicle.id,
+                  vehicle: selectedVehicle,
+                })
+              }
+              style={styles.predictiveColFill}
+            >
               <GlassCard style={styles.predictiveHalfGlass} innerStyle={styles.predictiveHalfInner}>
                 <View style={styles.predictiveHealthColumn}>
                   <View style={styles.compactHealthHeader}>
@@ -786,18 +771,9 @@ const UserPanelScreen = () => {
                     <Text style={styles.compactHealthTitle} numberOfLines={1}>
                       Salud predictiva
                     </Text>
-                    <TouchableOpacity
-                      style={styles.compactHealthLink}
-                      onPress={() =>
-                        navigation.navigate(ROUTES.VEHICLE_HEALTH, {
-                          vehicleId: selectedVehicle.id,
-                          vehicle: selectedVehicle,
-                        })
-                      }
-                      hitSlop={8}
-                    >
+                    <View style={styles.compactHealthLink}>
                       <Text style={styles.compactHealthLinkText}>Ver</Text>
-                    </TouchableOpacity>
+                    </View>
                   </View>
 
                   <View style={styles.predictiveHealthMain}>
@@ -855,7 +831,7 @@ const UserPanelScreen = () => {
                   </View>
                 </View>
               </GlassCard>
-            </View>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1228,35 +1204,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: H_PAD,
-  },
-
-  // Background blobs
-  blobEmerald: {
-    position: 'absolute',
-    top: -60,
-    left: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(16,185,129,0.12)',
-  },
-  blobIndigo: {
-    position: 'absolute',
-    bottom: 120,
-    right: -40,
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: 'rgba(99,102,241,0.10)',
-  },
-  blobCyan: {
-    position: 'absolute',
-    top: 320,
-    right: 40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: 'rgba(6,182,212,0.07)',
   },
 
   // Glass card base

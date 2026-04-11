@@ -398,9 +398,6 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         <View style={[styles.container, webRootStyle]}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-                <View style={styles.blobEmerald} />
-                <View style={styles.blobIndigo} />
-                <View style={styles.blobCyan} />
             </View>
 
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
@@ -776,33 +773,6 @@ const getStyles = (insets) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#030712',
-    },
-    blobEmerald: {
-        position: 'absolute',
-        top: 80,
-        left: -40,
-        width: 180,
-        height: 180,
-        borderRadius: 90,
-        backgroundColor: 'rgba(16,185,129,0.08)',
-    },
-    blobIndigo: {
-        position: 'absolute',
-        top: 400,
-        right: -60,
-        width: 240,
-        height: 240,
-        borderRadius: 120,
-        backgroundColor: 'rgba(99,102,241,0.07)',
-    },
-    blobCyan: {
-        position: 'absolute',
-        bottom: 200,
-        left: 30,
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: 'rgba(6,182,212,0.06)',
     },
     scrollView: {
         flex: 1,

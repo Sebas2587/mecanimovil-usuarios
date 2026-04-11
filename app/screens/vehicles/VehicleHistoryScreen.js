@@ -123,8 +123,6 @@ const VehicleHistoryScreen = () => {
       <View style={styles.root}>
         <StatusBar barStyle="light-content" />
         <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={styles.blob1} />
-        <View style={styles.blob2} />
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           <View style={styles.navHeader}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -146,8 +144,6 @@ const VehicleHistoryScreen = () => {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
       <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-      <View style={styles.blob1} />
-      <View style={styles.blob2} />
 
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <View style={styles.navHeader}>
@@ -183,24 +179,6 @@ const VehicleHistoryScreen = () => {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#030712' },
   flex: { flex: 1 },
-  blob1: {
-    position: 'absolute',
-    top: -60,
-    right: -40,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(16,185,129,0.08)',
-  },
-  blob2: {
-    position: 'absolute',
-    bottom: 120,
-    left: -60,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(99,102,241,0.06)',
-  },
   navHeader: {
     flexDirection: 'row',
     alignItems: 'center',

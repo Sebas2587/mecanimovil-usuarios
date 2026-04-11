@@ -285,10 +285,6 @@ const VehicleProfileScreen = () => {
                 style={StyleSheet.absoluteFill}
             />
 
-            {/* Decorative blurred blobs */}
-            <View style={styles.blobEmerald} />
-            <View style={styles.blobIndigo} />
-            <View style={styles.blobCyan} />
 
             <ScrollView
                 style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
@@ -465,33 +461,6 @@ const getStyles = (insets) => StyleSheet.create({
     scrollWeb: {
         flex: 1,
         minHeight: 0,
-    },
-    blobEmerald: {
-        position: 'absolute',
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-        backgroundColor: 'rgba(16,185,129,0.08)',
-        top: -80,
-        right: -100,
-    },
-    blobIndigo: {
-        position: 'absolute',
-        width: 250,
-        height: 250,
-        borderRadius: 125,
-        backgroundColor: 'rgba(99,102,241,0.06)',
-        top: 300,
-        left: -80,
-    },
-    blobCyan: {
-        position: 'absolute',
-        width: 200,
-        height: 200,
-        borderRadius: 100,
-        backgroundColor: 'rgba(6,182,212,0.05)',
-        bottom: 100,
-        right: -60,
     },
     scrollContent: {
         paddingBottom: insets.bottom,

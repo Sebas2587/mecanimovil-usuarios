@@ -421,9 +421,6 @@ const MarketplaceScreen = () => {
         <View style={styles.container}>
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
                 <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-                <View style={styles.blobEmerald} />
-                <View style={styles.blobIndigo} />
-                <View style={styles.blobCyan} />
             </View>
 
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
@@ -561,33 +558,6 @@ const getStyles = () => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#030712',
-    },
-    blobEmerald: {
-        position: 'absolute',
-        top: -40,
-        left: -50,
-        width: 200,
-        height: 200,
-        borderRadius: 100,
-        backgroundColor: 'rgba(16,185,129,0.10)',
-    },
-    blobIndigo: {
-        position: 'absolute',
-        top: 180,
-        right: -50,
-        width: 220,
-        height: 220,
-        borderRadius: 110,
-        backgroundColor: 'rgba(99,102,241,0.08)',
-    },
-    blobCyan: {
-        position: 'absolute',
-        bottom: 80,
-        left: 20,
-        width: 140,
-        height: 140,
-        borderRadius: 70,
-        backgroundColor: 'rgba(6,182,212,0.06)',
     },
     loadingContainer: {
         flex: 1,

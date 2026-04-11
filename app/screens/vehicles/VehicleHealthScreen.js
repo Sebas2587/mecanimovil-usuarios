@@ -309,9 +309,6 @@ const VehicleHealthScreen = ({ route }) => {
         style={StyleSheet.absoluteFill}
       />
 
-      <View style={styles.blob1} />
-      <View style={styles.blob2} />
-      <View style={styles.blob3} />
 
       {/* Glass header with back button */}
       <View style={[styles.screenHeader, { paddingTop: insets.top + 8 }]}>
@@ -619,33 +616,6 @@ const createStyles = (insets) => StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  blob1: {
-    position: 'absolute',
-    top: -80,
-    left: -80,
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: 'rgba(16,185,129,0.08)',
-  },
-  blob2: {
-    position: 'absolute',
-    top: 200,
-    right: -100,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(99,102,241,0.06)',
-  },
-  blob3: {
-    position: 'absolute',
-    bottom: 50,
-    left: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(6,182,212,0.05)',
   },
   listContent: {
     padding: 20,
