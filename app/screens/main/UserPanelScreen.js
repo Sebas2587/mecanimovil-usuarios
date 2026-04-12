@@ -304,10 +304,9 @@ const UserPanelScreen = () => {
         vehicleId: selectedVehicle?.id,
       }),
     enabled: !!selectedAddressId,
-    staleTime: 1000 * 60 * 15,
-    gcTime: 1000 * 60 * 60,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
   });
 
   // ── Trip elapsed timer ──
@@ -483,6 +482,8 @@ const UserPanelScreen = () => {
   const weatherTemp = weatherData?.weather?.temperature;
   const weatherHumidity = weatherData?.weather?.humidity;
   const weatherCity = weatherData?.weather?.city || '';
+  const weatherUpdatedAt = weatherData?.weather?.updated_at || '';
+  const weatherFetchedAt = weatherData?.fetched_at || '';
   const aiInsight = weatherData?.ai_insight || '';
   // ─────────────────────────────────────────
   // RENDER
@@ -717,6 +718,7 @@ const UserPanelScreen = () => {
                       {weatherCity !== '' && (
                         <Text style={styles.entornoWeatherCity}>
                           {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'}
+                          {weatherUpdatedAt ? ` · ${weatherUpdatedAt}` : ''}
                         </Text>
                       )}
                       <View style={styles.microBarRow}>
@@ -927,6 +929,7 @@ const UserPanelScreen = () => {
                 {weatherAvailable && (
                   <Text style={styles.weatherSheetSubtitle}>
                     {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'} · Humedad {weatherHumidity ?? '—'}%
+                    {weatherUpdatedAt ? `\nActualizado: ${weatherUpdatedAt}` : ''}
                   </Text>
                 )}
               </View>
