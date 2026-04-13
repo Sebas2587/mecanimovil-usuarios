@@ -290,8 +290,8 @@ const UserPanelScreen = () => {
   );
 
   // ── Weather prediction ──
-  // Re-fetch al cambiar dirección O vehículo (los datos de salud del vehículo afectan la predicción).
-  // staleTime alto para evitar saturar la API externa (backend cachea 15 min en Redis).
+  // Prioridad: GPS del dispositivo → dirección guardada.
+  // La query siempre está habilitada; el service intenta GPS primero y cae en addressId.
   const {
     data: weatherData,
     isLoading: weatherLoading,
@@ -302,8 +302,9 @@ const UserPanelScreen = () => {
       getWeatherPrediction({
         addressId: selectedAddressId,
         vehicleId: selectedVehicle?.id,
+        useGps: true,
       }),
-    enabled: !!selectedAddressId,
+    enabled: true,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: false,
@@ -482,8 +483,13 @@ const UserPanelScreen = () => {
   const weatherTemp = weatherData?.weather?.temperature;
   const weatherHumidity = weatherData?.weather?.humidity;
   const weatherCity = weatherData?.weather?.city || '';
-  const weatherUpdatedAt = weatherData?.weather?.updated_at || '';
   const weatherFetchedAt = weatherData?.fetched_at || '';
+  const weatherReportAgeMin = weatherData?.weather?.report_age_min ?? null;
+  const weatherAgeLabel = weatherReportAgeMin != null
+    ? weatherReportAgeMin < 60
+      ? `hace ${weatherReportAgeMin} min`
+      : `hace ${Math.round(weatherReportAgeMin / 60)}h`
+    : weatherFetchedAt ? weatherFetchedAt : '';
   const aiInsight = weatherData?.ai_insight || '';
   // ─────────────────────────────────────────
   // RENDER
@@ -718,7 +724,7 @@ const UserPanelScreen = () => {
                       {weatherCity !== '' && (
                         <Text style={styles.entornoWeatherCity}>
                           {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'}
-                          {weatherUpdatedAt ? ` · ${weatherUpdatedAt}` : ''}
+                          {weatherAgeLabel ? ` · ${weatherAgeLabel}` : ''}
                         </Text>
                       )}
                       <View style={styles.microBarRow}>
@@ -929,7 +935,7 @@ const UserPanelScreen = () => {
                 {weatherAvailable && (
                   <Text style={styles.weatherSheetSubtitle}>
                     {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'} · Humedad {weatherHumidity ?? '—'}%
-                    {weatherUpdatedAt ? `\nActualizado: ${weatherUpdatedAt}` : ''}
+                    {weatherAgeLabel ? `\nReporte: ${weatherAgeLabel}` : ''}
                   </Text>
                 )}
               </View>
