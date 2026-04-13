@@ -476,8 +476,8 @@ const UserPanelScreen = () => {
   const bateriaComp = weatherComponents.find((c) => c.type === 'bateria');
   const refrigeranteComp = weatherComponents.find((c) => c.type === 'refrigerante');
 
-  const frenoWearPct = frenoComp?.wear_increase ?? 0;
-  const gomaWearPct = neumaComp?.wear_increase ?? 0;
+  const frenoWearPct = frenoComp?.driving_risk ?? frenoComp?.wear_increase ?? 0;
+  const gomaWearPct = neumaComp?.driving_risk ?? neumaComp?.wear_increase ?? 0;
   const climateRiskPct = weatherData?.total_wear_risk ?? 0;
   const weatherCondition = weatherData?.weather?.condition || '';
   const weatherTemp = weatherData?.weather?.temperature;
@@ -958,18 +958,28 @@ const UserPanelScreen = () => {
                     <View key={comp.type} style={styles.weatherWearRow}>
                       {iconMap[comp.type] || <Disc size={18} color="#9CA3AF" />}
                       <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={styles.weatherWearTitle}>{comp.name}</Text>
+                        <Text style={styles.weatherWearTitle}>
+                          {comp.name}
+                          {comp.salud_actual != null ? ` · Salud ${comp.salud_actual}%` : ''}
+                        </Text>
                         <View style={styles.weatherBarTrack}>
                           <LinearGradient
                             colors={colorMap[comp.type] || colorMap.frenos}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
-                            style={[styles.weatherBarFill, { width: `${Math.min(comp.wear_increase, 100)}%` }]}
+                            style={[styles.weatherBarFill, { width: `${Math.min(comp.driving_risk ?? comp.wear_increase, 100)}%` }]}
                           />
                         </View>
                         <Text style={styles.weatherWearReason} numberOfLines={2}>{comp.reason}</Text>
                       </View>
-                      <Text style={styles.weatherWearPct}>+{comp.wear_increase}%</Text>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.weatherWearPct}>{comp.driving_risk ?? comp.wear_increase}%</Text>
+                        {(comp.wear_increase > 0) && (
+                          <Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '600' }}>
+                            +{comp.wear_increase}% clima
+                          </Text>
+                        )}
+                      </View>
                     </View>
                   );
                 })}
