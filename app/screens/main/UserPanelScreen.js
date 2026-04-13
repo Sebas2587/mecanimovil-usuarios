@@ -784,7 +784,7 @@ const UserPanelScreen = () => {
                       </View>
                       <View style={styles.predictiveClimaTapRow}>
                         <Droplets size={12} color="rgba(255,255,255,0.35)" />
-                        <Text style={styles.entornoTapText}>Toca para análisis IA</Text>
+                        <Text style={styles.entornoTapText}>Toca para análisis climático para conducir</Text>
                       </View>
                     </>
                   )}
@@ -962,7 +962,7 @@ const UserPanelScreen = () => {
             <View style={styles.weatherSheetContent}>
               <View style={styles.weatherSheetHeader}>
                 <CloudRain size={40} color="#22D3EE" />
-                <Text style={styles.weatherSheetTitle}>Análisis IA Pro</Text>
+                <Text style={styles.weatherSheetTitle}>Análisis climático para conducir</Text>
                 {weatherAvailable && (
                   <Text style={styles.weatherSheetSubtitle}>
                     {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'} · Humedad {weatherHumidity ?? '—'}%
