@@ -479,6 +479,16 @@ const UserPanelScreen = () => {
   const frenoWearPct = frenoComp?.driving_risk ?? frenoComp?.wear_increase ?? 0;
   const gomaWearPct = neumaComp?.driving_risk ?? neumaComp?.wear_increase ?? 0;
   const climateRiskPct = weatherData?.total_wear_risk ?? 0;
+  const overallRiskLevel = weatherData?.risk_level || 'optimo';
+  const overallRiskLabel = weatherData?.risk_label || '';
+
+  const riskColorMap = {
+    critico: '#EF4444',
+    alto: '#F97316',
+    moderado: '#F59E0B',
+    bajo: '#34D399',
+    optimo: '#22D3EE',
+  };
   const weatherCondition = weatherData?.weather?.condition || '';
   const weatherTemp = weatherData?.weather?.temperature;
   const weatherHumidity = weatherData?.weather?.humidity;
@@ -717,10 +727,17 @@ const UserPanelScreen = () => {
                   ) : (
                     <>
                       <View style={styles.entornoHeader}>
-                        <CloudRain size={20} color="#22D3EE" />
-                        <Text style={styles.entornoRiskLabel}>Riesgo</Text>
+                        <CloudRain size={20} color={riskColorMap[overallRiskLevel] || '#22D3EE'} />
+                        <Text style={styles.entornoRiskLabel}>Riesgo conducción</Text>
                       </View>
-                      <Text style={styles.entornoRiskPct}>{climateRiskPct}%</Text>
+                      <Text style={[styles.entornoRiskPct, { color: riskColorMap[overallRiskLevel] || '#F87171' }]}>
+                        {climateRiskPct}%
+                      </Text>
+                      {overallRiskLabel !== '' && (
+                        <Text style={{ color: riskColorMap[overallRiskLevel] || '#F87171', fontSize: 11, fontWeight: '700', marginBottom: 6 }}>
+                          {overallRiskLabel}
+                        </Text>
+                      )}
                       {weatherCity !== '' && (
                         <Text style={styles.entornoWeatherCity}>
                           {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'}
@@ -942,40 +959,50 @@ const UserPanelScreen = () => {
 
               <View style={styles.weatherWearBlock}>
                 {weatherComponents.map((comp) => {
+                  const lvl = comp.risk_level || 'optimo';
+                  const lvlColor = riskColorMap[lvl] || '#9CA3AF';
+                  const barGradient = {
+                    critico: ['rgba(239,68,68,0.95)', 'rgba(185,28,28,0.85)'],
+                    alto: ['rgba(249,115,22,0.9)', 'rgba(234,88,12,0.8)'],
+                    moderado: ['rgba(245,158,11,0.9)', 'rgba(217,119,6,0.8)'],
+                    bajo: ['rgba(52,211,153,0.85)', 'rgba(16,185,129,0.7)'],
+                    optimo: ['rgba(34,211,238,0.85)', 'rgba(6,182,212,0.7)'],
+                  };
                   const iconMap = {
-                    frenos: <Disc size={18} color="#F87171" />,
-                    neumaticos: <Wind size={18} color="#6EE7B7" />,
-                    bateria: <Zap size={18} color="#FBBF24" />,
-                    refrigerante: <Droplets size={18} color="#22D3EE" />,
+                    frenos: <Disc size={18} color={lvlColor} />,
+                    neumaticos: <Wind size={18} color={lvlColor} />,
+                    bateria: <Zap size={18} color={lvlColor} />,
+                    refrigerante: <Droplets size={18} color={lvlColor} />,
                   };
-                  const colorMap = {
-                    frenos: ['rgba(248,113,113,0.95)', 'rgba(220,38,38,0.8)'],
-                    neumaticos: ['rgba(52,211,153,0.9)', 'rgba(16,185,129,0.75)'],
-                    bateria: ['rgba(251,191,36,0.9)', 'rgba(245,158,11,0.75)'],
-                    refrigerante: ['rgba(34,211,238,0.9)', 'rgba(6,182,212,0.75)'],
-                  };
+                  const riskPct = comp.driving_risk ?? comp.wear_increase ?? 0;
                   return (
                     <View key={comp.type} style={styles.weatherWearRow}>
                       {iconMap[comp.type] || <Disc size={18} color="#9CA3AF" />}
                       <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={styles.weatherWearTitle}>
-                          {comp.name}
-                          {comp.salud_actual != null ? ` · Salud ${comp.salud_actual}%` : ''}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                          <Text style={styles.weatherWearTitle}>{comp.name}</Text>
+                          {comp.salud_actual != null && (
+                            <Text style={{ fontSize: 11, color: lvlColor, fontWeight: '600', marginLeft: 6 }}>
+                              Salud {comp.salud_actual}%
+                            </Text>
+                          )}
+                        </View>
                         <View style={styles.weatherBarTrack}>
                           <LinearGradient
-                            colors={colorMap[comp.type] || colorMap.frenos}
+                            colors={barGradient[lvl] || barGradient.optimo}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 0 }}
-                            style={[styles.weatherBarFill, { width: `${Math.min(comp.driving_risk ?? comp.wear_increase, 100)}%` }]}
+                            style={[styles.weatherBarFill, { width: `${Math.min(riskPct, 100)}%` }]}
                           />
                         </View>
-                        <Text style={styles.weatherWearReason} numberOfLines={2}>{comp.reason}</Text>
+                        <Text style={[styles.weatherWearReason, { color: lvlColor }]} numberOfLines={2}>
+                          {comp.risk_label || comp.reason}
+                        </Text>
                       </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.weatherWearPct}>{comp.driving_risk ?? comp.wear_increase}%</Text>
+                      <View style={{ alignItems: 'flex-end', minWidth: 50 }}>
+                        <Text style={[styles.weatherWearPct, { color: lvlColor }]}>{riskPct}%</Text>
                         {(comp.wear_increase > 0) && (
-                          <Text style={{ color: '#F59E0B', fontSize: 11, fontWeight: '600' }}>
+                          <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '600' }}>
                             +{comp.wear_increase}% clima
                           </Text>
                         )}
