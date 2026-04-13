@@ -15,20 +15,27 @@ export const getWeatherPrediction = async ({ addressId, vehicleId, useGps = true
   const params = {};
   if (vehicleId) params.vehicle_id = vehicleId;
 
+  // Si hay una dirección explícitamente seleccionada por el usuario, usarla.
+  // El backend usa las coordenadas guardadas del PointField de esa dirección.
+  if (addressId) {
+    params.address_id = addressId;
+    return get('/vehiculos/weather-prediction/', params);
+  }
+
+  // Sin dirección seleccionada: intentar GPS del dispositivo
   if (useGps) {
     try {
-      const location = await getCurrentLocation(false); // balanced accuracy, más rápido
+      const location = await getCurrentLocation(false);
       if (location?.coords?.latitude && location?.coords?.longitude) {
         params.lat = location.coords.latitude;
         params.lng = location.coords.longitude;
         return get('/vehiculos/weather-prediction/', params);
       }
     } catch (_) {
-      // GPS no disponible → fallback a dirección guardada
+      // GPS no disponible → backend usará dirección principal del usuario
     }
   }
 
-  if (addressId) params.address_id = addressId;
   return get('/vehiculos/weather-prediction/', params);
 };
 
