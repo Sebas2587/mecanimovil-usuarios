@@ -85,6 +85,9 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
 const H_PAD = 16;
 const GRID_CARD_W = (SCREEN_WIDTH - H_PAD * 2 - CARD_GAP) / 2;
+/** Alineado con GlassTabBar en AppNavigator (altura base 64 + safe area inferior) */
+const TAB_BAR_BASE_HEIGHT = 64;
+const SCROLL_BOTTOM_GAP = 10;
 
 const GLASS_BG = Platform.select({
   ios: 'rgba(255,255,255,0.06)',
@@ -191,6 +194,7 @@ const UserPanelScreen = () => {
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
+  const weatherForceRefreshRef = useRef(false);
 
   // ── Data queries ──
   const {
@@ -290,23 +294,27 @@ const UserPanelScreen = () => {
   );
 
   // ── Weather prediction ──
-  // Prioridad: GPS del dispositivo → dirección guardada.
-  // La query siempre está habilitada; el service intenta GPS primero y cae en addressId.
+  // Re-fetches immediately when selectedAddressId changes (staleTime: 0).
+  // Uses forceRefresh to bypass Django cache when user explicitly switches address.
   const {
     data: weatherData,
     isLoading: weatherLoading,
     refetch: refetchWeather,
   } = useQuery({
     queryKey: ['weatherPrediction', selectedAddressId, selectedVehicle?.id],
-    queryFn: () =>
-      getWeatherPrediction({
+    queryFn: () => {
+      const shouldForce = weatherForceRefreshRef.current;
+      weatherForceRefreshRef.current = false;
+      return getWeatherPrediction({
         addressId: selectedAddressId,
         vehicleId: selectedVehicle?.id,
-        useGps: true,
-      }),
+        useGps: !selectedAddressId,
+        forceRefresh: shouldForce,
+      });
+    },
     enabled: true,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 30,
+    staleTime: 0,
+    gcTime: 1000 * 60 * 10,
     refetchOnWindowFocus: false,
   });
 
@@ -514,7 +522,13 @@ const UserPanelScreen = () => {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            paddingTop: insets.top + 12,
+            paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + SCROLL_BOTTOM_GAP,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#10B981" />}
       >
@@ -1170,6 +1184,11 @@ const UserPanelScreen = () => {
         currentAddress={selectedAddress}
         onSelectAddress={(savedAddr) => {
           if (savedAddr?.id) {
+            const isNewAddress = savedAddr.id !== selectedAddressId;
+            if (isNewAddress) {
+              weatherForceRefreshRef.current = true;
+              queryClient.removeQueries({ queryKey: ['weatherPrediction'] });
+            }
             setSelectedAddressId(savedAddr.id);
           }
           setAddAddressModalOpen(false);

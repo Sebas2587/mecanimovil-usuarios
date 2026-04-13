@@ -11,12 +11,16 @@ import { getCurrentLocation } from './location';
  * @param {boolean} [params.useGps]   - Forzar uso de GPS (default: true)
  * @returns {Promise<Object>} Predicción con weather, components, ai_insight
  */
-export const getWeatherPrediction = async ({ addressId, vehicleId, useGps = true } = {}) => {
+export const getWeatherPrediction = async ({ addressId, vehicleId, useGps = true, forceRefresh = false } = {}) => {
   const params = {};
   if (vehicleId) params.vehicle_id = vehicleId;
+  if (forceRefresh) params.force_refresh = '1';
 
-  // Si hay una dirección explícitamente seleccionada por el usuario, usarla.
-  // El backend usa las coordenadas guardadas del PointField de esa dirección.
+  // Timestamp para forzar bypass de cualquier cache HTTP intermedio
+  params._t = Date.now();
+
+  // Si hay una dirección explícitamente seleccionada por el usuario, usarla
+  // directamente sin intentar GPS — el usuario eligió esta dirección a propósito.
   if (addressId) {
     params.address_id = addressId;
     return get('/vehiculos/weather-prediction/', params);
