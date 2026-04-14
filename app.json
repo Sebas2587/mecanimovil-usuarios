@@ -19,7 +19,8 @@
       "bundleIdentifier": "com.mecanimovil.app",
       "infoPlist": {
         "UIBackgroundModes": [
-          "location"
+          "location",
+          "remote-notification"
         ],
         "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicacion para iniciar y mostrar telemetria del viaje.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Necesitamos tu ubicacion en segundo plano para continuar registrando kilometros durante el viaje.",

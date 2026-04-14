@@ -684,63 +684,98 @@ const MainImpl = ({ lastNotificationResponse }) => {
   }, [isAuthenticated, loading, navigationRef, navigateToPaymentCallback]); // Incluir navigateToPaymentCallback en dependencias
 
   const navigateByNotification = useCallback((data) => {
-    if (!data || !navigationRef.isReady()) return;
-    const { type, solicitud_id, vehicle_id, order_id } = data;
+    if (!data || typeof data !== 'object') return;
 
-    switch (type) {
-      case 'recordatorio_pago':
-      case 'cambio_estado':
-      case 'nueva_oferta':
-      case 'solicitud_adjudicada':
-      case 'new_offer':
-      case 'offer_accepted':
-      case 'solicitud_rechazada':
-        if (solicitud_id) {
-          navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
-        }
-        break;
+    const run = () => {
+      if (!navigationRef.isReady()) return false;
+      const type = data.type;
+      const solicitud_id = data.solicitud_id;
+      const vehicle_id = data.vehicle_id;
+      const order_id = data.order_id;
+      const conversation_id = data.conversation_id;
+      const oferta_id = data.oferta_id;
 
-      case 'status_update':
-      case 'order_completed':
-      case 'order_rejected':
-        if (solicitud_id) {
-          navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
-        } else if (order_id) {
-          navigationRef.navigate(ROUTES.MIS_SOLICITUDES);
-        }
-        break;
+      switch (type) {
+        case 'chat_message':
+        case 'nuevo_mensaje_chat':
+          if (conversation_id) {
+            navigationRef.navigate(ROUTES.CHAT_DETAIL, {
+              conversationId: conversation_id,
+              solicitudId: solicitud_id || undefined,
+              ofertaId: oferta_id || undefined,
+            });
+          } else if (solicitud_id) {
+            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+          } else {
+            navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
+          }
+          break;
 
-      case 'health_alert':
-      case 'global_health_alert':
-      case 'salud_actualizada':
-        if (vehicle_id) {
-          navigationRef.navigate(ROUTES.VEHICLE_HEALTH, { vehiculoId: vehicle_id });
-        } else {
+        case 'recordatorio_pago':
+        case 'cambio_estado':
+        case 'nueva_oferta':
+        case 'solicitud_adjudicada':
+        case 'new_offer':
+        case 'offer_accepted':
+        case 'solicitud_rechazada':
+          if (solicitud_id) {
+            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+          }
+          break;
+
+        case 'status_update':
+        case 'order_completed':
+        case 'order_rejected':
+          if (solicitud_id) {
+            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+          } else if (order_id) {
+            navigationRef.navigate(ROUTES.MIS_SOLICITUDES);
+          }
+          break;
+
+        case 'health_alert':
+        case 'global_health_alert':
+        case 'salud_actualizada':
+          if (vehicle_id) {
+            navigationRef.navigate(ROUTES.VEHICLE_HEALTH, { vehiculoId: vehicle_id });
+          } else {
+            navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
+          }
+          break;
+
+        case 'viaje_registrado':
+          if (vehicle_id) {
+            navigationRef.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: vehicle_id });
+          }
+          break;
+
+        case 'payment_reminder':
+          if (solicitud_id) {
+            navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
+          }
+          break;
+
+        default:
           navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
-        }
-        break;
+          break;
+      }
+      return true;
+    };
 
-      case 'viaje_registrado':
-        if (vehicle_id) {
-          navigationRef.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: vehicle_id });
-        }
-        break;
-
-      case 'payment_reminder':
-        if (solicitud_id) {
-          navigationRef.navigate(ROUTES.DETALLE_SOLICITUD, { id: solicitud_id });
-        }
-        break;
-
-      default:
-        navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
-        break;
-    }
+    if (run()) return;
+    let attempts = 0;
+    const maxAttempts = 80;
+    const id = setInterval(() => {
+      attempts += 1;
+      if (run() || attempts >= maxAttempts) {
+        clearInterval(id);
+      }
+    }, 50);
   }, [navigationRef]);
 
   // Arranque en frío: el usuario tocó una push con la app cerrada
   useEffect(() => {
-    if (!isAuthenticated || loading || !navigationRef.isReady()) return;
+    if (!isAuthenticated || loading) return;
     if (lastNotificationResponse === undefined || lastNotificationResponse === null) return;
     if (lastNotificationResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
 
@@ -764,14 +799,14 @@ const MainImpl = ({ lastNotificationResponse }) => {
   // Listener para push notifications (no disponible en web; evita suscripciones innecesarias)
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    if (!isAuthenticated || !navigationRef.isReady()) {
+    if (!isAuthenticated || loading) {
       return;
     }
 
     const foregroundSubscription = Notifications.addNotificationReceivedListener(
       (notification) => {
         try {
-          logger.debug('Notificación recibida (foreground)');
+          logger.debug('Notificación recibida (foreground)', notification?.request?.content?.data);
         } catch (error) {
           logger.error('Error procesando notificación foreground:', error);
         }
@@ -797,7 +832,7 @@ const MainImpl = ({ lastNotificationResponse }) => {
         logger.warn('Error removiendo listeners de notificaciones:', error);
       }
     };
-  }, [navigationRef, isAuthenticated, navigateByNotification]);
+  }, [isAuthenticated, loading, navigateByNotification]);
 
   // Procesar deep links pendientes cuando el NavigationContainer esté listo Y el usuario esté autenticado
   // IMPORTANTE: Este hook debe estar ANTES de cualquier return condicional

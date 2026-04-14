@@ -47,6 +47,15 @@ const ANDROID_CHANNELS = [
     lightColor: '#3B82F6',
     sound: 'default',
   },
+  {
+    id: 'chat',
+    name: 'Chat',
+    description: 'Mensajes de negociación y chat con talleres',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 200, 200, 200],
+    lightColor: '#6366F1',
+    sound: 'default',
+  },
 ];
 
 class NotificationService {
