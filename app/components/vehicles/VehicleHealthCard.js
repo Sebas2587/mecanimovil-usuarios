@@ -14,6 +14,7 @@ import VehicleHealthService from '../../services/vehicleHealthService';
 import { getMediaURL } from '../../services/api';
 import * as userService from '../../services/user';
 import websocketService from '../../services/websocketService';
+import { normalizePct } from '../../utils/healthFormat';
 
 const VehicleHealthCard = ({ vehicle, navigation }) => {
   const [healthData, setHealthData] = useState(null);
@@ -139,7 +140,7 @@ const VehicleHealthCard = ({ vehicle, navigation }) => {
     (healthData?.componentes_urgentes > 0) || 
     (healthData?.componentes_criticos > 0);
 
-  const healthPercentage = healthData?.salud_general_porcentaje || 0;
+  const healthPercentage = normalizePct(healthData?.salud_general_porcentaje || 0);
   const healthColor = getHealthColor(healthPercentage);
 
   if (loading) {

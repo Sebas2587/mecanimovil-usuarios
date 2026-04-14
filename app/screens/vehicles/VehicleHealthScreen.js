@@ -38,6 +38,7 @@ import HealthMetricCard from '../../components/vehicles/HealthMetricCard';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
+import { normalizePct } from '../../utils/healthFormat';
 
 const { width } = Dimensions.get('window');
 
@@ -232,7 +233,7 @@ const VehicleHealthScreen = ({ route }) => {
   const renderHeader = () => {
     // Health Score - Use same source as MisVehiculosScreen for consistency
     // Priority: vehicleData.health_score (from vehicles list) > healthData.salud_general_porcentaje
-    const score = vehicleData?.health_score ?? healthData?.salud_general_porcentaje ?? 0;
+    const score = normalizePct(vehicleData?.health_score ?? healthData?.salud_general_porcentaje ?? 0);
     const scoreColor = getHealthColor(score);
 
     return (

@@ -80,6 +80,7 @@ import { useUserAddresses } from '../../hooks/useAddress';
 import { getWeatherPrediction } from '../../services/weatherService';
 import { MapPin } from 'lucide-react-native';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
+import { normalizeKmRemaining, normalizePct } from '../../utils/healthFormat';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -251,7 +252,7 @@ const UserPanelScreen = () => {
     });
   }, [selectedVehicle?.id]);
 
-  const healthScore = selectedVehicle?.health_score ?? 0;
+  const healthScore = normalizePct(selectedVehicle?.health_score ?? 0);
   const healthReport = useMemo(() => selectedVehicle?.health_report || [], [selectedVehicle]);
 
   const valuation = selectedVehicle?.precio_sugerido_final || selectedVehicle?.precio_mercado_promedio || 0;
@@ -265,7 +266,7 @@ const UserPanelScreen = () => {
         const level = c.nivel_alerta || c.status || 'OPTIMO';
         return level !== 'OPTIMO';
       })
-      .sort((a, b) => (a.salud_porcentaje ?? a.salud ?? 100) - (b.salud_porcentaje ?? b.salud ?? 100))
+      .sort((a, b) => normalizePct(a.salud_porcentaje ?? a.salud ?? 100) - normalizePct(b.salud_porcentaje ?? b.salud ?? 100))
       .slice(0, 3);
   }, [healthReport]);
 
@@ -830,8 +831,8 @@ const UserPanelScreen = () => {
                         <View style={styles.compactAlertsList}>
                           {criticalComponents.slice(0, 2).map((comp, idx) => {
                             const name = resolveHealthComponentLabel(comp);
-                            const pct = comp.salud_porcentaje ?? comp.salud ?? 0;
-                            const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
+                            const pct = normalizePct(comp.salud_porcentaje ?? comp.salud ?? 0);
+                            const kmRest = normalizeKmRemaining(comp);
                             const level = comp.nivel_alerta || comp.status || 'ATENCION';
                             const color =
                               level === 'CRITICO' ? '#EF4444' : level === 'URGENTE' ? '#F97316' : '#F59E0B';

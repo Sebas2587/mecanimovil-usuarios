@@ -413,6 +413,22 @@ const MainImpl = ({ lastNotificationResponse }) => {
   const navigationRef = useNavigationContainerRef();
   /** Ficha pública invitado: capturar URL antes de que termine AuthContext.loading (iOS pierde getInitialURL si se lee tarde). */
   const pendingGuestPublicRef = useRef(null);
+  const prevAuthRef = useRef(false);
+
+  // Login -> asegurar refetch inicial de queries críticas del dashboard (evita depender de pull-to-refresh/scroll)
+  useEffect(() => {
+    if (isAuthenticated && !prevAuthRef.current) {
+      try {
+        queryClient.invalidateQueries({ queryKey: ['userVehicles'] });
+        queryClient.invalidateQueries({ queryKey: ['userAddresses'] });
+        queryClient.invalidateQueries({ queryKey: ['mainAddress'] });
+        queryClient.invalidateQueries({ queryKey: ['weatherPrediction'] });
+      } catch (_e) {
+        // no-op: fallback a refetch natural de screens
+      }
+    }
+    prevAuthRef.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   // EAS Update: al volver de segundo plano, comprobar OTA (no en los primeros segundos de vida del proceso).
   // En el primer arranque Android suele pasar active↔inactive; un reload aquí parece “la app se cerró sola”.
