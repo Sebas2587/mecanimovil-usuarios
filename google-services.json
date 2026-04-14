@@ -1,0 +1,118 @@
+{
+  "project_info": {
+    "project_number": "85359766939",
+    "project_id": "mecanimovilapp",
+    "storage_bucket": "mecanimovilapp.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:85359766939:android:e08f2243c8131cd8bbc53e",
+        "android_client_info": {
+          "package_name": "com.mecanimovil.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "85359766939-vssgconihp7988pvn1v6patcc8f5nirs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWQw0-r4-dBcav5aDIvW10gr3YrVLkZ-c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "85359766939-vssgconihp7988pvn1v6patcc8f5nirs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "85359766939-hao600q8r2uijqjk7b03lprd8q8v52c5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mecanimovil.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:85359766939:android:63c08d1055a10deabbc53e",
+        "android_client_info": {
+          "package_name": "com.mycompany.mecanimovil"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "85359766939-vssgconihp7988pvn1v6patcc8f5nirs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWQw0-r4-dBcav5aDIvW10gr3YrVLkZ-c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "85359766939-vssgconihp7988pvn1v6patcc8f5nirs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "85359766939-hao600q8r2uijqjk7b03lprd8q8v52c5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mecanimovil.app"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:85359766939:android:3495733c4624fa29bbc53e",
+        "android_client_info": {
+          "package_name": "com.mycompany.mecanimovil1"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "85359766939-vssgconihp7988pvn1v6patcc8f5nirs.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWQw0-r4-dBcav5aDIvW10gr3YrVLkZ-c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "85359766939-vssgconihp7988pvn1v6patcc8f5nirs.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "85359766939-hao600q8r2uijqjk7b03lprd8q8v52c5.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mecanimovil.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
