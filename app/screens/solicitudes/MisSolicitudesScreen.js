@@ -19,6 +19,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
+import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 
 const MisSolicitudesScreen = () => {
   const navigation = useNavigation();
@@ -108,8 +109,7 @@ const MisSolicitudesScreen = () => {
 
   const solicitudesFiltradas = solicitudesFiltradasPorEstado.filter((s) => {
     if (!selectedVehicleId) return true;
-    const vehiculoId = s?.vehiculo?.id ?? s?.vehiculo_id ?? (typeof s?.vehiculo === 'number' ? s.vehiculo : null);
-    return vehiculoId === selectedVehicleId;
+    return solicitudVisibleParaVehiculoDashboard(s, selectedVehicleId);
   });
 
   const handleSolicitudPress = (solicitud) => {

@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
 import OfferNegotiationCard from '../../components/marketplace/OfferNegotiationCard';
 import MarketplaceFilterModal from '../../components/marketplace/MarketplaceFilterModal';
+import { useRequests } from '../../hooks/useRequests';
+import { tieneInspeccionPrecompraActivaParaVehiculo } from '../../utils/precompraInspection';
 
 const GLASS_BG = Platform.select({
     ios: 'rgba(255,255,255,0.06)',
@@ -83,6 +85,8 @@ const MarketplaceScreen = () => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [offers, setOffers] = useState([]);
+
+    const { data: todasSolicitudes = [], refetch: refetchSolicitudes } = useRequests();
 
     // Filter State
     const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -161,8 +165,9 @@ const MarketplaceScreen = () => {
     useEffect(() => {
         if (activeTab === 'deals') {
             fetchOffers();
+            refetchSolicitudes();
         }
-    }, [activeTab]);
+    }, [activeTab, refetchSolicitudes]);
 
     const fetchListings = async () => {
         try {
@@ -185,8 +190,9 @@ const MarketplaceScreen = () => {
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
+        refetchSolicitudes();
         fetchListings();
-    }, []);
+    }, [refetchSolicitudes]);
 
     const handleRespondOffer = async (offerId, status) => {
         try {
@@ -377,47 +383,57 @@ const MarketplaceScreen = () => {
         </TouchableOpacity>
     );
 
-    const renderOfferItem = ({ item }) => (
-        <OfferNegotiationCard
-            offer={item}
-            onAccept={() => handleRespondOffer(item.id, 'aceptada')}
-            onReject={() => handleRespondOffer(item.id, 'rechazada')}
-            onChat={() => {
-                if (!item.conversationId) {
-                    Alert.alert("Error", "La conversación aún no está lista. Intenta recargar.");
-                    return;
+    const renderOfferItem = ({ item }) => {
+        const inspectionBlocked =
+            item.type === 'sent' &&
+            item.status === 'accepted' &&
+            item.vehiculoId &&
+            tieneInspeccionPrecompraActivaParaVehiculo(todasSolicitudes, item.vehiculoId);
+
+        return (
+            <OfferNegotiationCard
+                offer={item}
+                onAccept={() => handleRespondOffer(item.id, 'aceptada')}
+                onReject={() => handleRespondOffer(item.id, 'rechazada')}
+                onChat={() => {
+                    if (!item.conversationId) {
+                        Alert.alert("Error", "La conversación aún no está lista. Intenta recargar.");
+                        return;
+                    }
+                    navigation.navigate(ROUTES.CHAT_DETAIL, {
+                        conversationId: item.conversationId,
+                        recipientId: item.counterpart.id,
+                        recipientName: item.counterpart.name,
+                        recipientImage: item.counterpart.avatar,
+                        context: {
+                            type: 'vehicle_offer',
+                            vehicleName: item.vehicle.name,
+                            price: item.amount
+                        }
+                    });
+                }}
+                onTransfer={() => {
+                    navigation.navigate(ROUTES.TRANSFERENCIA_VENDEDOR, { offerId: item.id });
+                }}
+                onReceive={() => {
+                    navigation.navigate(ROUTES.TRANSFERENCIA_COMPRADOR);
+                }}
+                inspectionDisabled={!!inspectionBlocked}
+                inspectionDisabledReason="Ya tienes una inspección pre-compra activa para este vehículo. Revisa Mis solicitudes o espera a que finalice o expire."
+                onRequestInspection={
+                    item.type === 'sent' && item.status === 'accepted' && item.vehiculoId
+                        ? () => {
+                            navigation.navigate(ROUTES.CREAR_SOLICITUD, {
+                                isPreCompra: true,
+                                targetVehicleId: item.vehiculoId,
+                                ofertaId: item.id,
+                            });
+                        }
+                        : undefined
                 }
-                navigation.navigate(ROUTES.CHAT_DETAIL, {
-                    conversationId: item.conversationId,
-                    recipientId: item.counterpart.id,
-                    recipientName: item.counterpart.name,
-                    recipientImage: item.counterpart.avatar,
-                    context: {
-                        type: 'vehicle_offer',
-                        vehicleName: item.vehicle.name,
-                        price: item.amount
-                    }
-                });
-            }}
-            onTransfer={() => {
-                navigation.navigate(ROUTES.TRANSFERENCIA_VENDEDOR, { offerId: item.id });
-            }}
-            onReceive={() => {
-                navigation.navigate(ROUTES.TRANSFERENCIA_COMPRADOR);
-            }}
-            onRequestInspection={
-                item.type === 'sent' && item.status === 'accepted' && item.vehiculoId
-                    ? () => {
-                        navigation.navigate(ROUTES.CREAR_SOLICITUD, {
-                            isPreCompra: true,
-                            targetVehicleId: item.vehiculoId,
-                            ofertaId: item.id,
-                        });
-                    }
-                    : undefined
-            }
-        />
-    );
+            />
+        );
+    };
 
     // --- Filter Logic ---
     const getFilteredOffers = () => {

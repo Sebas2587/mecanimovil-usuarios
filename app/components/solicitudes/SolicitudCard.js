@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import CountdownTimer from '../common/CountdownTimer';
+import { isSolicitudSinVehiculoEnCuenta } from '../../utils/solicitudVehicle';
 
 const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
 const BLUR_I = Platform.OS === 'ios' ? 30 : 0;
@@ -139,7 +140,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
           </View>
         </View>
 
-        {(solicitud.vehiculo_info?.marca || solicitud.vehiculo_detail?.marca_nombre) && (
+        {(solicitud.vehiculo_info?.marca || solicitud.vehiculo_detail?.marca_nombre) ? (
           <View style={styles.vehicleBadgeContainer}>
             <View style={styles.vehicleBadge}>
               <Ionicons name="car-sport" size={14} color="#93C5FD" />
@@ -151,7 +152,16 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
               </Text>
             </View>
           </View>
-        )}
+        ) : isSolicitudSinVehiculoEnCuenta(solicitud) ? (
+          <View style={styles.vehicleBadgeContainer}>
+            <View style={[styles.vehicleBadge, styles.vehicleBadgeMuted]}>
+              <Ionicons name="shield-checkmark-outline" size={14} color="#A5B4FC" />
+              <Text style={styles.vehicleBadgeText} numberOfLines={1}>
+                Sin vehículo en tu cuenta
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.infoRow}>
           <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.45)" />
@@ -297,6 +307,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(147,197,253,0.3)',
     backgroundColor: 'rgba(99,102,241,0.12)',
     maxWidth: 260,
+  },
+  vehicleBadgeMuted: {
+    borderColor: 'rgba(165,180,252,0.35)',
+    backgroundColor: 'rgba(99,102,241,0.08)',
   },
   vehicleBadgeText: {
     fontSize: 12,

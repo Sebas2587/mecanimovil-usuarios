@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../base/Avatar/Avatar';
@@ -23,6 +23,8 @@ const OfferNegotiationCard = ({
     onTransfer,
     onReceive,
     onRequestInspection,
+    inspectionDisabled = false,
+    inspectionDisabledReason,
 }) => {
     const {
         type = 'received',
@@ -174,11 +176,40 @@ const OfferNegotiationCard = ({
                                 <>
                                     {onRequestInspection && (
                                         <TouchableOpacity
-                                            style={[styles.button, styles.chatButton, styles.inspectionButton, { marginTop: 8 }]}
-                                            onPress={onRequestInspection}
+                                            style={[
+                                                styles.button,
+                                                styles.chatButton,
+                                                styles.inspectionButton,
+                                                inspectionDisabled && styles.inspectionButtonDisabled,
+                                                { marginTop: 8 },
+                                            ]}
+                                            activeOpacity={inspectionDisabled ? 1 : 0.7}
+                                            onPress={() => {
+                                                if (inspectionDisabled) {
+                                                    Alert.alert(
+                                                        'Inspección ya solicitada',
+                                                        inspectionDisabledReason ||
+                                                            'Ya tienes una inspección pre-compra activa para este vehículo. Revisa Mis solicitudes o espera a que finalice o expire.'
+                                                    );
+                                                    return;
+                                                }
+                                                onRequestInspection();
+                                            }}
                                         >
-                                            <Ionicons name="shield-checkmark-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                                            <Text style={[styles.buttonText, { color: '#FFF' }]}>Solicitar Inspección Pre-Compra</Text>
+                                            <Ionicons
+                                                name="shield-checkmark-outline"
+                                                size={18}
+                                                color={inspectionDisabled ? 'rgba(255,255,255,0.45)' : '#FFF'}
+                                                style={{ marginRight: 8 }}
+                                            />
+                                            <Text
+                                                style={[
+                                                    styles.buttonText,
+                                                    { color: inspectionDisabled ? 'rgba(255,255,255,0.55)' : '#FFF' },
+                                                ]}
+                                            >
+                                                Solicitar Inspección Pre-Compra
+                                            </Text>
                                         </TouchableOpacity>
                                     )}
                                     <TouchableOpacity
@@ -342,6 +373,10 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(16,185,129,0.85)',
         borderWidth: 1,
         borderColor: 'rgba(110,231,183,0.3)',
+    },
+    inspectionButtonDisabled: {
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderColor: 'rgba(255,255,255,0.12)',
     },
     chatButton: {
         width: '100%',

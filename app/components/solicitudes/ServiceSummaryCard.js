@@ -54,6 +54,40 @@ const ServiceSummaryCard = ({ solicitud }) => {
         return String(timeString).substring(0, 5);
     };
 
+    /** Abierta a todos vs dirigida a uno o varios proveedores (backend: global | dirigida) */
+    const getModoSolicitud = () => {
+        const tipo = String(solicitud.tipo_solicitud || 'global').toLowerCase();
+        const proveedores = Array.isArray(solicitud.proveedores_dirigidos_detail)
+            ? solicitud.proveedores_dirigidos_detail
+            : [];
+        if (tipo === 'dirigida') {
+            if (proveedores.length > 0) {
+                const nombres = proveedores.map((p) => {
+                    const n = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
+                    return n || p.username || (p.id != null ? `Proveedor #${p.id}` : 'Proveedor');
+                });
+                const lista = nombres.join(', ');
+                return {
+                    titulo:
+                        nombres.length === 1
+                            ? 'Dirigida a un proveedor'
+                            : `Dirigida a ${nombres.length} proveedores`,
+                    detalle: lista,
+                };
+            }
+            return {
+                titulo: 'Dirigida a proveedores específicos',
+                detalle: null,
+            };
+        }
+        return {
+            titulo: 'Abierta a todos los proveedores',
+            detalle: 'Cualquier taller o mecánico puede enviarte una oferta.',
+        };
+    };
+
+    const modoSolicitud = getModoSolicitud();
+
     // Mostrar fecha preferida (la que eligió el usuario), no la fecha de creación del sistema
     const fechaPreferida = solicitud.fecha_preferida || solicitud.fecha_creacion;
     const horaPreferida = solicitud.hora_preferida || solicitud.preferencia_horario;
@@ -123,6 +157,26 @@ const ServiceSummaryCard = ({ solicitud }) => {
                         </Text>
                     </View>
                 </View>
+
+                {/* Modo de creación: global vs dirigida */}
+                <View style={styles.gridItem}>
+                    <View style={styles.iconContainer}>
+                        <Ionicons
+                            name="git-network-outline"
+                            size={18}
+                            color={colors.text?.secondary || '#6B7280'}
+                        />
+                    </View>
+                    <View style={styles.gridItemTextWrap}>
+                        <Text style={styles.gridLabel}>Modo de solicitud</Text>
+                        <Text style={styles.gridValue}>{modoSolicitud.titulo}</Text>
+                        {modoSolicitud.detalle ? (
+                            <Text style={styles.gridValueSecondary} numberOfLines={4}>
+                                {modoSolicitud.detalle}
+                            </Text>
+                        ) : null}
+                    </View>
+                </View>
             </View>
         </View>
     );
@@ -187,8 +241,12 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     },
     gridItem: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: 12,
+    },
+    gridItemTextWrap: {
+        flex: 1,
+        minWidth: 0,
     },
     iconContainer: {
         width: 32,
@@ -211,6 +269,13 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         fontSize: 13,
         color: '#F9FAFB',
         fontWeight: '600',
+    },
+    gridValueSecondary: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.55)',
+        fontWeight: '500',
+        marginTop: 4,
+        lineHeight: 18,
     },
 });
 

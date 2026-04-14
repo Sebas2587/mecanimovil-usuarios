@@ -687,6 +687,12 @@ const CrearSolicitudScreen = () => {
       if (sinVehiculo) {
         solicitudData.sin_vehiculo_registrado = true;
         // No incluir vehiculo — el serializer lo deja en null
+        if (isPreCompra && targetVehicleId) {
+          const vid = Number(targetVehicleId);
+          if (!Number.isNaN(vid)) {
+            solicitudData.vehiculo_inspeccion_precompra = vid;
+          }
+        }
       } else {
         if (!formData.vehiculo || !formData.vehiculo.id) {
           Alert.alert('Error', 'Debes seleccionar un vehículo o usar el flujo de servicio sin vehículo registrado.');

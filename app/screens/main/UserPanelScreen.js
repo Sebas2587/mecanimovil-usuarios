@@ -81,6 +81,7 @@ import { getWeatherPrediction } from '../../services/weatherService';
 import { MapPin } from 'lucide-react-native';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 import { normalizeKmRemaining, normalizePct } from '../../utils/healthFormat';
+import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -271,12 +272,10 @@ const UserPanelScreen = () => {
   }, [healthReport]);
 
   const activeSolicitudesCount = useMemo(() => {
-    if (!solicitudesActivas || !selectedVehicle) return 0;
-    return solicitudesActivas.filter(s => {
-      const vehiculoId = s.vehiculo?.id || s.vehiculo_detail?.id || s.vehiculo;
-      return vehiculoId === selectedVehicle.id;
-    }).length;
-  }, [solicitudesActivas, selectedVehicle]);
+    if (!Array.isArray(solicitudesActivas)) return 0;
+    const vid = selectedVehicle?.id ?? null;
+    return solicitudesActivas.filter((s) => solicitudVisibleParaVehiculoDashboard(s, vid)).length;
+  }, [solicitudesActivas, selectedVehicle?.id]);
 
   // ── User addresses ──
   const { data: userAddresses } = useUserAddresses();
