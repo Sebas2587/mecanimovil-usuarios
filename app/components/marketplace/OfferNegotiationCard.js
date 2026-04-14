@@ -21,7 +21,8 @@ const OfferNegotiationCard = ({
     onReject,
     onChat,
     onTransfer,
-    onReceive
+    onReceive,
+    onRequestInspection,
 }) => {
     const {
         type = 'received',
@@ -170,13 +171,24 @@ const OfferNegotiationCard = ({
                                     <Text style={[styles.buttonText, { color: '#FFF' }]}>Entregar Vehículo (QR)</Text>
                                 </TouchableOpacity>
                             ) : (
-                                <TouchableOpacity
-                                    style={[styles.button, styles.chatButton, styles.secondaryCyan, { marginTop: 8 }]}
-                                    onPress={onReceive}
-                                >
-                                    <Ionicons name="scan-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                                    <Text style={[styles.buttonText, { color: '#FFF' }]}>Recibir Vehículo (Escanear)</Text>
-                                </TouchableOpacity>
+                                <>
+                                    {onRequestInspection && (
+                                        <TouchableOpacity
+                                            style={[styles.button, styles.chatButton, styles.inspectionButton, { marginTop: 8 }]}
+                                            onPress={onRequestInspection}
+                                        >
+                                            <Ionicons name="shield-checkmark-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                            <Text style={[styles.buttonText, { color: '#FFF' }]}>Solicitar Inspección Pre-Compra</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity
+                                        style={[styles.button, styles.chatButton, styles.secondaryCyan, { marginTop: 8 }]}
+                                        onPress={onReceive}
+                                    >
+                                        <Ionicons name="scan-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                        <Text style={[styles.buttonText, { color: '#FFF' }]}>Recibir Vehículo (Escanear)</Text>
+                                    </TouchableOpacity>
+                                </>
                             )}
                         </View>
                     )}
@@ -325,6 +337,11 @@ const styles = StyleSheet.create({
     },
     secondaryCyan: {
         backgroundColor: 'rgba(8,145,178,0.85)',
+    },
+    inspectionButton: {
+        backgroundColor: 'rgba(16,185,129,0.85)',
+        borderWidth: 1,
+        borderColor: 'rgba(110,231,183,0.3)',
     },
     chatButton: {
         width: '100%',

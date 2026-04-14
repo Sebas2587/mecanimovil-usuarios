@@ -117,8 +117,10 @@ const FormularioSolicitud = ({
   contentPaddingBottom = 0,
   onExit = null,
   bloquearCambioVehiculo = false,
+  isPreCompra = false,
 }) => {
-  const [pasoActual, setPasoActual] = useState(1);
+  // Pre-compra marketplace: skip vehicle selection (step 1), start at step 3
+  const [pasoActual, setPasoActual] = useState(isPreCompra ? 3 : 1);
   const [formData, setFormData] = useState({
     vehiculo: initialData?.vehiculo || null,
     servicios_seleccionados: Array.isArray(initialData?.servicios_seleccionados) ? initialData.servicios_seleccionados : [],
@@ -636,7 +638,8 @@ const FormularioSolicitud = ({
   // Si hay solo servicio preseleccionado: 5 pasos (saltamos el paso 2)
   // Si NO hay preselecciones: 6 pasos (flujo normal)
   // Always 5 steps (skip step 2); 4 when provider also preselected
-  const totalPasos = flujoCuatroPasos ? 4 : 5;
+  // Pre-compra marketplace: 4 steps (3→4→5→6, skip vehicle & service selection)
+  const totalPasos = isPreCompra ? 4 : flujoCuatroPasos ? 4 : 5;
 
   // Asegurar que cuando hay proveedor preseleccionado, tipo_solicitud permanezca como 'dirigida'
   // y los proveedores no cambien
@@ -718,6 +721,13 @@ const FormularioSolicitud = ({
   const handleNext = () => {
     if (!validarPaso(pasoActual)) return;
 
+    // Pre-compra marketplace: 3→4→5→6
+    if (isPreCompra) {
+      if (pasoActual === 6) { handleSubmit(); }
+      else { setPasoActual(pasoActual + 1); }
+      return;
+    }
+
     // flujoCuatroPasos: 1→3→5→6 (skip step 2 and 4)
     if (flujoCuatroPasos) {
       if (pasoActual === 1) { setPasoActual(3); }
@@ -778,7 +788,13 @@ const FormularioSolicitud = ({
   const handleBack = () => {
     if (pasoActual <= 1) return;
 
-    // Precompra sin vehículo: back from step 3 resets to normal
+    // Pre-compra marketplace: back from first visible step exits the form
+    if (isPreCompra && pasoActual === 3) {
+      onExit?.();
+      return;
+    }
+
+    // Precompra sin vehículo (generic): back from step 3 resets to normal
     if (formData.sin_vehiculo_registrado && pasoActual === 3) {
       setFormData(prev => ({
         ...prev,
@@ -2304,6 +2320,12 @@ const FormularioSolicitud = ({
   // Calcular el paso visual para mostrar en la barra de progreso
   // Cuando hay servicio y/o proveedor preseleccionado, mapear pasos reales a pasos visuales
   const getPasoVisual = () => {
+    // Pre-compra marketplace: 4 visual steps (3→4→5→6)
+    if (isPreCompra) {
+      const mapaPasos = { 3: 1, 4: 2, 5: 3, 6: 4 };
+      return mapaPasos[pasoActual] || pasoActual;
+    }
+
     // flujoCuatroPasos: 4 visual steps (1→3→5→6)
     if (flujoCuatroPasos) {
       const mapaPasos = { 1: 1, 3: 2, 5: 3, 6: 4 };

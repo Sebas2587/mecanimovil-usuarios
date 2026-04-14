@@ -112,6 +112,7 @@ const MarketplaceScreen = () => {
                 type: type, // 'sent' or 'received'
                 status: mapStatus(o.estado),
                 amount: o.monto,
+                vehiculoId: o.vehiculo_id || o.vehiculo,
                 vehicle: {
                     name: `${o.vehiculo_marca} ${o.vehiculo_modelo}`,
                     brand: o.vehiculo_marca,
@@ -299,10 +300,10 @@ const MarketplaceScreen = () => {
                 {/* Overlay Badges */}
                 {!item.is_reserved && (
                     <View style={styles.topBadges}>
-                        {item.health_score > 90 && (
+                        {item.is_certified_mecanimovil && (
                             <View style={styles.certifiedBadge}>
                                 <Ionicons name="shield-checkmark" size={14} color="#FFFFFF" />
-                                <Text style={styles.certifiedText}>Certificado</Text>
+                                <Text style={styles.certifiedText}>Verificado MecaniMóvil</Text>
                             </View>
                         )}
                     </View>
@@ -399,13 +400,22 @@ const MarketplaceScreen = () => {
                 });
             }}
             onTransfer={() => {
-                // Navigate to Seller Transfer Screen
                 navigation.navigate(ROUTES.TRANSFERENCIA_VENDEDOR, { offerId: item.id });
             }}
             onReceive={() => {
-                // Navigate to Buyer Transfer Screen (Camera)
                 navigation.navigate(ROUTES.TRANSFERENCIA_COMPRADOR);
             }}
+            onRequestInspection={
+                item.type === 'sent' && item.status === 'accepted' && item.vehiculoId
+                    ? () => {
+                        navigation.navigate(ROUTES.CREAR_SOLICITUD, {
+                            isPreCompra: true,
+                            targetVehicleId: item.vehiculoId,
+                            ofertaId: item.id,
+                        });
+                    }
+                    : undefined
+            }
         />
     );
 

@@ -439,10 +439,10 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                             </TouchableOpacity>
                         ) : null}
                         <View style={styles.topBarSpacer} />
-                        {healthScore > 90 ? (
+                        {fullVehicleData.is_certified_mecanimovil ? (
                             <View style={styles.certifiedBadge}>
                                 <Ionicons name="shield-checkmark" size={14} color="#FFFFFF" />
-                                <Text style={styles.certifiedText}>CERTIFICADO</Text>
+                                <Text style={styles.certifiedText}>VERIFICADO MECANIMÓVIL</Text>
                             </View>
                         ) : null}
                     </View>

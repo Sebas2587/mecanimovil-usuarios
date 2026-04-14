@@ -57,7 +57,10 @@ const CrearSolicitudScreen = () => {
     categoriaNombre,
     vehicle, // Vehículo preseleccionado (desde alertas)
     descripcionPrellenada, // Descripción pre-rellenada (desde alertas)
-    fromDashboard // Flag para flujo desde dashboard predictivo
+    fromDashboard, // Flag para flujo desde dashboard predictivo
+    isPreCompra, // Inspección pre-compra marketplace
+    targetVehicleId, // ID del vehículo del vendedor (pre-compra)
+    ofertaId, // ID de la oferta marketplace aceptada
   } = route.params || {};
 
   // Clave estable para useFocusEffect: `route.params` suele ser un objeto nuevo en cada render del
@@ -471,6 +474,64 @@ const CrearSolicitudScreen = () => {
       initialLoadDoneRef.current = true;
     }
   }, [isLoadingVehicles]);
+
+  // Inspección pre-compra: buscar servicio y preparar initialData
+  useEffect(() => {
+    if (!isPreCompra) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const servicios = await serviceService.buscarServicios('precompra');
+        if (cancelled) return;
+        const svc = Array.isArray(servicios)
+          ? servicios.find(s => {
+              const n = (s.nombre || '').toLowerCase();
+              return n.includes('precompra') || n.includes('pre-compra') || n.includes('pre compra');
+            })
+          : null;
+
+        if (!svc) {
+          Alert.alert('Error', 'No se encontró el servicio de inspección pre-compra.');
+          navigation.goBack();
+          return;
+        }
+
+        setInitialData({
+          servicios_seleccionados: [{
+            id: svc.id,
+            nombre: svc.nombre,
+            descripcion: svc.descripcion || '',
+            precio_referencia: svc.precio_referencia,
+            categoria_id: svc.categoria_id ?? svc.categoria,
+            tipo_servicio: svc.tipo_servicio,
+          }],
+          tipo_solicitud: 'global',
+          proveedores_dirigidos: [],
+          sin_vehiculo_registrado: true,
+          descripcion_problema: 'Inspección pre-compra marketplace',
+          urgencia: 'normal',
+          direccion_usuario: null,
+          direccion_servicio_texto: '',
+          detalles_ubicacion: '',
+          fecha_preferida: '',
+          hora_preferida: '',
+          ubicacion_servicio: null,
+          isPreCompra: true,
+          targetVehicleId,
+          ofertaId,
+        });
+        setInitialDataReady(true);
+      } catch (err) {
+        if (!cancelled) {
+          Alert.alert('Error', 'No se pudo cargar el servicio de inspección pre-compra.');
+          navigation.goBack();
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [isPreCompra, targetVehicleId, ofertaId]);
 
   useEffect(() => {
     cargarDatos();
@@ -966,6 +1027,7 @@ const CrearSolicitudScreen = () => {
         contentPaddingBottom={totalBottomPadding}
         onExit={() => navigation.goBack()}
         bloquearCambioVehiculo={!!(vehicle && fromDashboard)}
+        isPreCompra={!!isPreCompra}
       />
     </GlassShell>
   );

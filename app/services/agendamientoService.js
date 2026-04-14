@@ -297,15 +297,19 @@ class AgendamientoService {
    * Crea un nuevo carrito temporal para el cliente
    * NUEVA ARQUITECTURA: Elimina automáticamente carritos existentes
    */
-  async crearCarritoTemporal(vehiculoId) {
+  async crearCarritoTemporal(vehiculoId, { ofertaMarketplaceId } = {}) {
     try {
       console.log('🛒 Creando carrito temporal para vehículo:', vehiculoId);
       
-      const data = await post('/ordenes/carritos/', {
+      const payload = {
         vehiculo: vehiculoId,
-        activo: true
-        // El cliente se asigna automáticamente en el backend
-      });
+        activo: true,
+      };
+      if (ofertaMarketplaceId) {
+        payload.oferta_marketplace_id = ofertaMarketplaceId;
+      }
+
+      const data = await post('/ordenes/carritos/', payload);
       
       console.log('✅ Carrito temporal creado:', data);
       return data;
