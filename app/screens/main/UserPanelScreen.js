@@ -313,8 +313,10 @@ const UserPanelScreen = () => {
       });
     },
     enabled: true,
-    staleTime: 0,
-    gcTime: 1000 * 60 * 10,
+    // Alineado con WEATHER_CACHE_TTL del backend (15 min): no satura Open-Meteo ni la API.
+    staleTime: 1000 * 60 * 15,
+    gcTime: 1000 * 60 * 30,
+    refetchInterval: 1000 * 60 * 15,
     refetchOnWindowFocus: false,
   });
 

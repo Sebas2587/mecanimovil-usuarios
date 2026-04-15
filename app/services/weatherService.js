@@ -16,8 +16,10 @@ export const getWeatherPrediction = async ({ addressId, vehicleId, useGps = true
   if (vehicleId) params.vehicle_id = vehicleId;
   if (forceRefresh) params.force_refresh = '1';
 
-  // Timestamp para forzar bypass de cualquier cache HTTP intermedio
-  params._t = Date.now();
+  // Solo con refresh explícito: evita variar la URL en cada poll y reduce ruido en CDN/proxies.
+  if (forceRefresh) {
+    params._t = Date.now();
+  }
 
   // Si hay una dirección explícitamente seleccionada por el usuario, usarla
   // directamente sin intentar GPS — el usuario eligió esta dirección a propósito.
