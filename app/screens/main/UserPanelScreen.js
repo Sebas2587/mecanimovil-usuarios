@@ -82,6 +82,7 @@ import { MapPin } from 'lucide-react-native';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 import { normalizeKmRemaining, normalizePct } from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
+import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -202,8 +203,9 @@ const UserPanelScreen = () => {
   const {
     data: vehiclesRaw,
     isLoading: vehiclesLoading,
+    isFetching: vehiclesFetching,
     refetch: refetchVehicles,
-    isRefetching
+    isRefetching,
   } = useQuery({
     queryKey: ['userVehicles'],
     queryFn: getUserVehicles,
@@ -214,6 +216,14 @@ const UserPanelScreen = () => {
   });
 
   const vehicles = useMemo(() => vehiclesRaw || [], [vehiclesRaw]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      refetchVehicles();
+    }
+  }, [refetchVehicles]);
+
+  const showUserPanelSkeleton = vehiclesLoading || vehiclesFetching;
 
   // Auto-select first vehicle
   useEffect(() => {
@@ -514,6 +524,18 @@ const UserPanelScreen = () => {
   // ─────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────
+  if (showUserPanelSkeleton) {
+    return (
+      <View style={styles.container}>
+        <View style={StyleSheet.absoluteFill}>
+          <LinearGradient colors={['#030712', '#020617', '#030712']} style={StyleSheet.absoluteFill} />
+        </View>
+        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <UserPanelSkeleton tabBarHeight={TAB_BAR_BASE_HEIGHT + insets.bottom} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Background layer */}
@@ -524,6 +546,7 @@ const UserPanelScreen = () => {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       <ScrollView
+        style={styles.scrollViewFlex}
         contentContainerStyle={[
           styles.scroll,
           {
@@ -1207,6 +1230,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#030712',
+  },
+  scrollViewFlex: {
+    flex: 1,
   },
   scroll: {
     paddingHorizontal: H_PAD,

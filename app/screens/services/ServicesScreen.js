@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, Dimensions, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const SEARCH_BAR_HEIGHT = 60;
+const LIST_FLEX_WRAP = { flex: 1 };
 
 // MOCK DATA
 const MOCK_VEHICLES = [
@@ -106,10 +106,11 @@ const ServicesScreen = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
             <StatusBar barStyle="dark-content" backgroundColor={colors.background?.default} />
 
             <ScrollView
+                style={LIST_FLEX_WRAP}
                 contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
                 showsVerticalScrollIndicator={false}
             >
@@ -147,17 +148,20 @@ const ServicesScreen = () => {
                 </View>
 
                 {/* Categories Grid */}
-                <View style={styles.section}>
+                <View style={[styles.section, LIST_FLEX_WRAP]}>
                     <Text style={styles.sectionTitle}>Categorías</Text>
-                    <FlatList
-                        data={CATEGORIES}
-                        renderItem={renderCategoryItem}
-                        keyExtractor={item => item.id}
-                        numColumns={3}
-                        scrollEnabled={false}
-                        columnWrapperStyle={styles.gridRow}
-                        contentContainerStyle={styles.gridContainer}
-                    />
+                    <View style={LIST_FLEX_WRAP}>
+                        <FlatList
+                            data={CATEGORIES}
+                            renderItem={renderCategoryItem}
+                            keyExtractor={item => item.id}
+                            numColumns={3}
+                            scrollEnabled={false}
+                            nestedScrollEnabled
+                            columnWrapperStyle={styles.gridRow}
+                            contentContainerStyle={styles.gridContainer}
+                        />
+                    </View>
                 </View>
 
                 {/* Recent Requests */}
@@ -169,7 +173,7 @@ const ServicesScreen = () => {
                 </View>
 
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 };
 

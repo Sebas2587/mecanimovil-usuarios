@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
+  Platform,
   StatusBar
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, ROUTES } from '../../utils/constants';
@@ -17,13 +18,17 @@ import ServiceCard from '../../components/cards/ServiceCard';
 import Button from '../../components/base/Button/Button';
 import solicitudesService from '../../services/solicitudesService';
 
+const FOOTER_BTN_MIN = 52;
+
 /**
  * Pantalla para seleccionar servicios sugeridos para una solicitud
  */
 const SeleccionarServiciosScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { solicitudId } = route.params || {};
+  const footerReserve = SPACING.md * 2 + FOOTER_BTN_MIN + insets.bottom;
 
   const [serviciosSugeridos, setServiciosSugeridos] = useState([]);
   const [serviciosSeleccionados, setServiciosSeleccionados] = useState([]);
@@ -144,77 +149,80 @@ const SeleccionarServiciosScreen = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Cargando servicios sugeridos...</Text>
+        <View style={styles.flexFill}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.loadingText}>Cargando servicios sugeridos...</Text>
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
+
+      <View style={styles.flexFill}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Seleccionar Servicios</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        {/* Contador */}
+        <View style={styles.contadorContainer}>
+          <Text style={styles.contadorText}>
+            {serviciosSeleccionados.length} de {serviciosSugeridos.length} servicios seleccionados
+          </Text>
+        </View>
+
+        {/* Lista de servicios */}
+        <ScrollView
+          style={styles.flexFill}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: footerReserve }]}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Seleccionar Servicios</Text>
-        <View style={styles.placeholder} />
-      </View>
+          {serviciosSugeridos.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="construct-outline" size={64} color={COLORS.textLight} />
+              <Text style={styles.emptyTitle}>No hay servicios sugeridos</Text>
+              <Text style={styles.emptyText}>
+                No se encontraron servicios compatibles con tu vehículo y descripción
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.serviciosList}>
+              {serviciosSugeridos.map(servicio => renderServicio(servicio))}
+            </View>
+          )}
+        </ScrollView>
 
-      {/* Contador */}
-      <View style={styles.contadorContainer}>
-        <Text style={styles.contadorText}>
-          {serviciosSeleccionados.length} de {serviciosSugeridos.length} servicios seleccionados
-        </Text>
-      </View>
+        <View style={[styles.footerBar, { paddingBottom: SPACING.md + insets.bottom }]}>
+          <Button
+            title={`Confirmar (${serviciosSeleccionados.length})`}
+            onPress={handleConfirmar}
+            disabled={serviciosSeleccionados.length === 0 || procesando}
+            style={styles.confirmButton}
+            icon="checkmark-circle-outline"
+          />
+        </View>
 
-      {/* Lista de servicios */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {serviciosSugeridos.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="construct-outline" size={64} color={COLORS.textLight} />
-            <Text style={styles.emptyTitle}>No hay servicios sugeridos</Text>
-            <Text style={styles.emptyText}>
-              No se encontraron servicios compatibles con tu vehículo y descripción
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.serviciosList}>
-            {serviciosSugeridos.map(servicio => renderServicio(servicio))}
+        {procesando && (
+          <View style={styles.processingOverlay}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={styles.processingText}>Publicando solicitud...</Text>
           </View>
         )}
-      </ScrollView>
-
-      {/* Botón confirmar */}
-      <View style={styles.actionsContainer}>
-        <Button
-          title={`Confirmar (${serviciosSeleccionados.length})`}
-          onPress={handleConfirmar}
-          disabled={serviciosSeleccionados.length === 0 || procesando}
-          style={styles.confirmButton}
-          icon="checkmark-circle-outline"
-        />
       </View>
-
-      {procesando && (
-        <View style={styles.processingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.processingText}>Publicando solicitud...</Text>
-        </View>
-      )}
     </SafeAreaView>
   );
 };
@@ -223,6 +231,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background
+  },
+  flexFill: {
+    flex: 1,
+    minHeight: 0
   },
   header: {
     flexDirection: 'row',
@@ -260,11 +272,9 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     textAlign: 'center'
   },
-  scrollView: {
-    flex: 1
-  },
   scrollContent: {
-    padding: SPACING.md
+    padding: SPACING.md,
+    flexGrow: 1
   },
   loadingContainer: {
     flex: 1,
@@ -349,17 +359,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary
   },
-  actionsContainer: {
-    padding: SPACING.md,
+  footerBar: {
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
     backgroundColor: COLORS.white,
     borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight
+    borderTopColor: COLORS.borderLight,
+    zIndex: 20
   },
   confirmButton: {
     width: '100%'
   },
   processingOverlay: {
-    position: 'absolute',
+    position: Platform.OS === 'web' ? 'fixed' : 'absolute',
     top: 0,
     left: 0,
     right: 0,

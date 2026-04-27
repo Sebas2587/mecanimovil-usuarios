@@ -2349,6 +2349,9 @@ const FormularioSolicitud = ({
 
   const pasoVisual = getPasoVisual();
 
+  const navBarBottomPad = (contentPaddingBottom || 0) + 10;
+  const solicitudFooterClearance = 10 + 52 + navBarBottomPad;
+
   // Determinar si estamos en el último paso real
   const esUltimoPaso = () => {
     if (flujoCuatroPasos) {
@@ -2380,10 +2383,13 @@ const FormularioSolicitud = ({
 
       {/* Content */}
       <ScrollView
-        style={{ flex: 1 }}
+        style={styles.scrollMain}
         contentContainerStyle={{
           flexGrow: 1,
-          paddingBottom: 20 + (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? 12 : 0),
+          paddingBottom:
+            20 +
+            (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? 12 : 0) +
+            solicitudFooterClearance,
         }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -2392,7 +2398,18 @@ const FormularioSolicitud = ({
       </ScrollView>
 
       {/* Glass navigation bar */}
-      <View style={[styles.navBar, { paddingBottom: (contentPaddingBottom || 0) + 10 }]}>
+      <View
+        style={[
+          styles.navBar,
+          {
+            paddingBottom: navBarBottomPad,
+            position: Platform.OS === 'web' ? 'fixed' : 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+          },
+        ]}
+      >
         {pasoActual === 1 && onExit ? (
           <TouchableOpacity onPress={onExit} style={styles.navBackBtn} activeOpacity={0.8}>
             <Text style={styles.navBackText}>Salir</Text>
@@ -2504,6 +2521,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
+  scrollMain: {
+    flex: 1,
+    minHeight: 0,
+  },
   progressContainer: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -2533,6 +2554,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(255,255,255,0.06)',
     gap: 10,
+    zIndex: 30,
   },
   navBackBtn: {
     flex: 1,

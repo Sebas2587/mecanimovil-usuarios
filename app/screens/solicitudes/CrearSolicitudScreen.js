@@ -1065,7 +1065,7 @@ const GlassShell = ({ children, insetsTop, onBack }) => (
       </View>
       <View style={{ width: 40 }} />
     </View>
-    {children}
+    <View style={styles.shellBody}>{children}</View>
   </View>
 );
 
@@ -1074,6 +1074,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#030712',
+  },
+  shellBody: {
+    flex: 1,
+    minHeight: 0,
   },
   header: {
     flexDirection: 'row',
