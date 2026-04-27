@@ -2384,13 +2384,15 @@ const FormularioSolicitud = ({
       {/* Content */}
       <ScrollView
         style={styles.scrollMain}
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingBottom:
-            20 +
-            (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? 12 : 0) +
-            solicitudFooterClearance,
-        }}
+        contentContainerStyle={[
+          Platform.OS !== 'web' ? { flexGrow: 1 } : null,
+          {
+            paddingBottom:
+              20 +
+              (pasoActual === 4 && formData.proveedores_dirigidos.length > 0 ? 12 : 0) +
+              solicitudFooterClearance,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -2524,6 +2526,16 @@ const styles = StyleSheet.create({
   scrollMain: {
     flex: 1,
     minHeight: 0,
+    ...Platform.select({
+      web: {
+        flexBasis: 0,
+        flexGrow: 1,
+        flexShrink: 1,
+        height: 0,
+        overflow: 'auto',
+      },
+      default: {},
+    }),
   },
   progressContainer: {
     paddingHorizontal: 16,
