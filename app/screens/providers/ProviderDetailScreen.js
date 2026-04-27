@@ -175,7 +175,7 @@ const ProviderDetailScreen = () => {
       </View>
 
       <ScrollView
-        style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
+        style={styles.scrollArea}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={Platform.OS !== 'web'}
       >
@@ -368,10 +368,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#030712',
     ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
-  /** Web: sin altura máxima el ScrollView crece con el contenido y no hay scroll (sesión con tabs/stack). */
-  scrollWeb: {
+  /** Scroll con altura acotada en web (stack/tabs); si no, el ScrollView crece con el contenido y no hay scroll. */
+  scrollArea: {
     flex: 1,
     minHeight: 0,
+    ...Platform.select({
+      web: {
+        flexBasis: 0,
+        flexGrow: 1,
+        flexShrink: 1,
+        height: 0,
+        overflow: 'auto',
+      },
+      default: {},
+    }),
   },
   scrollContent: {
     paddingBottom: 30,

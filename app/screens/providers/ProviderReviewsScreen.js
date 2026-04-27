@@ -107,29 +107,32 @@ const ProviderReviewsScreen = () => {
         <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
       </View>
 
-      {/* Sticky Custom Header */}
-      <View style={styles.stickyHeader}>
-        {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color="#F9FAFB" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Opiniones</Text>
-      </View>
+      <View style={styles.body}>
+        {/* Sticky Custom Header */}
+        <View style={styles.stickyHeader}>
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={22} color="#F9FAFB" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Opiniones</Text>
+        </View>
 
-      <FlatList
-        data={data?.reviews || []}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => <ReviewCard review={item} />}
-        ListHeaderComponent={renderHeader}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={{ height: 16 }} />} // Space between cards
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>Aún no hay reseñas para este proveedor.</Text>
-          </View>
-        }
-      />
+        <FlatList
+          style={styles.listScroll}
+          data={data?.reviews || []}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={({ item }) => <ReviewCard review={item} />}
+          ListHeaderComponent={renderHeader}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Aún no hay reseñas para este proveedor.</Text>
+            </View>
+          }
+        />
+      </View>
     </SafeAreaView>
   );
 };
@@ -137,7 +140,26 @@ const ProviderReviewsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 0,
     backgroundColor: '#030712',
+  },
+  body: {
+    flex: 1,
+    minHeight: 0,
+  },
+  listScroll: {
+    flex: 1,
+    minHeight: 0,
+    ...Platform.select({
+      web: {
+        flexBasis: 0,
+        flexGrow: 1,
+        flexShrink: 1,
+        height: 0,
+        overflow: 'auto',
+      },
+      default: {},
+    }),
   },
   loadingContainer: {
     flex: 1,
