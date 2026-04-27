@@ -11,7 +11,8 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Dimensions
+  Dimensions,
+  Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -2436,10 +2437,25 @@ const FormularioSolicitud = ({
         </TouchableOpacity>
       </View>
 
-      {/* Description Modal */}
+      {/* Description Modal: backdrop con Pressable (no TouchableOpacity envolviendo el formulario) para que en web el TextInput no dispare cierre al enfocar/escribir */}
       <Modal visible={descriptionModalVisible} transparent animationType="fade" onRequestClose={() => setDescriptionModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setDescriptionModalVisible(false)}>
-          <View style={styles.descModal} onStartShouldSetResponder={() => true}>
+        <View style={styles.modalOverlay} pointerEvents="box-none">
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setDescriptionModalVisible(false)}
+            accessibilityLabel="Cerrar modal"
+          />
+          <View
+            style={styles.descModal}
+            onStartShouldSetResponder={() => true}
+            {...(Platform.OS === 'web'
+              ? {
+                  onPointerDown: (e) => {
+                    e?.stopPropagation?.();
+                  },
+                }
+              : {})}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
               <FileTextIcon size={22} color="#6EE7B7" />
               <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>Describe tu necesidad</Text>
@@ -2456,7 +2472,14 @@ const FormularioSolicitud = ({
               value={tempDescription}
               onChangeText={setTempDescription}
               textAlignVertical="top"
-              autoFocus
+              autoFocus={Platform.OS !== 'web'}
+              {...(Platform.OS === 'web'
+                ? {
+                    onPointerDown: (e) => {
+                      e?.stopPropagation?.();
+                    },
+                  }
+                : {})}
             />
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <TouchableOpacity style={styles.descModalCancelBtn} onPress={() => setDescriptionModalVisible(false)}>
@@ -2480,7 +2503,7 @@ const FormularioSolicitud = ({
               </TouchableOpacity>
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </View>
   );
@@ -2601,7 +2624,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
   descModal: {
+    zIndex: 1,
     backgroundColor: '#111827',
     borderRadius: 20,
     padding: 24,
