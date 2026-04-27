@@ -25,6 +25,39 @@ import * as userService from '../../services/user';
 import * as serviceService from '../../services/service';
 import solicitudesService from '../../services/solicitudesService';
 
+/** Vuelve al panel (misma UX que mobile). En web Alert no ejecuta onPress → alert nativo + reset. */
+function goToUserPanelDashboard(navigation) {
+  navigation.reset({
+    index: 0,
+    routes: [
+      {
+        name: 'TabNavigator',
+        state: {
+          index: 0,
+          routes: [
+            {
+              name: ROUTES.HOME,
+              state: {
+                index: 0,
+                routes: [{ name: ROUTES.USER_PANEL }],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+}
+
+function alertSuccessAndGoToPanel(navigation, title, message) {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    window.alert(message ? `${title}\n\n${message}` : title);
+    goToUserPanelDashboard(navigation);
+    return;
+  }
+  Alert.alert(title, message, [{ text: 'OK', onPress: () => goToUserPanelDashboard(navigation) }]);
+}
+
 /**
  * Pantalla para crear una nueva solicitud de servicio
  * Puede recibir un servicio preseleccionado desde la navegación
@@ -872,19 +905,10 @@ const CrearSolicitudScreen = () => {
 
           setSubmitCount(prev => prev + 1);
 
-          Alert.alert(
+          alertSuccessAndGoToPanel(
+            navigation,
             'Éxito',
-            'Solicitud creada y publicada con éxito. Los proveedores podrán ver tu solicitud y hacer ofertas.',
-            [
-              {
-                text: 'OK',
-                onPress: () =>
-                  navigation.navigate('TabNavigator', {
-                    screen: ROUTES.HOME,
-                    params: { screen: ROUTES.USER_PANEL },
-                  })
-              }
-            ]
+            'Solicitud creada y publicada con éxito. Los proveedores podrán ver tu solicitud y hacer ofertas.'
           );
         } catch (error) {
           console.error('CrearSolicitudScreen: ❌ Error publicando solicitud:', error);
@@ -921,19 +945,10 @@ const CrearSolicitudScreen = () => {
         try {
           await solicitudesService.publicarSolicitud(solicitudId);
           console.log('CrearSolicitudScreen: ✅ Solicitud publicada automáticamente (fallback)');
-          Alert.alert(
+          alertSuccessAndGoToPanel(
+            navigation,
             'Éxito',
-            'Solicitud creada y publicada con éxito. Los proveedores podrán ver tu solicitud y hacer ofertas.',
-            [
-              {
-                text: 'OK',
-                onPress: () =>
-                  navigation.navigate('TabNavigator', {
-                    screen: ROUTES.HOME,
-                    params: { screen: ROUTES.USER_PANEL },
-                  })
-              }
-            ]
+            'Solicitud creada y publicada con éxito. Los proveedores podrán ver tu solicitud y hacer ofertas.'
           );
         } catch (error) {
           console.error('CrearSolicitudScreen: ❌ Error publicando solicitud (fallback):', error);
