@@ -21,6 +21,7 @@ const ProviderHeader = ({
   onBack,
   showBackButton = true,
 }) => {
+    const showVerifiedBadge = !!(provider?.verificado);
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
 
@@ -79,9 +80,11 @@ const ProviderHeader = ({
                 <View style={styles.avatarRow}>
                     <View style={styles.avatarContainer}>
                         <Image source={{ uri: avatarImage }} style={styles.avatar} />
+                        {showVerifiedBadge ? (
                         <View style={styles.verifiedBadge}>
                             <Ionicons name="checkmark" size={12} color="white" />
                         </View>
+                        ) : null}
                     </View>
                     <View style={styles.statusBadge}>
                         <View style={styles.statusDot} />
