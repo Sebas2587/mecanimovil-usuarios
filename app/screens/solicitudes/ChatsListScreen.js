@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,9 +17,8 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { ROUTES } from '../../utils/constants';
-
-import chatService from '../../services/chatService';
-import { useQuery } from '@tanstack/react-query';
+import { useConversationsList } from '../../hooks/useChats';
+import ChatsListSkeleton from '../../components/utils/ChatsListSkeleton';
 
 const GLASS_BG = Platform.select({
   ios: 'rgba(255,255,255,0.06)',
@@ -30,110 +28,104 @@ const GLASS_BG = Platform.select({
 
 const ChatsListScreen = () => {
   const navigation = useNavigation();
-
   const [activeTab, setActiveTab] = useState('service');
 
   const {
     data: conversations = [],
-    isLoading: loading,
+    isLoading,
+    isFetching,
     refetch,
-    isRefetching,
-  } = useQuery({
-    queryKey: ['conversations', activeTab],
-    queryFn: async () => {
-      const data = await chatService.getConversations(activeTab);
-      if (!data) return [];
-      if (Array.isArray(data)) return data;
-      if (Array.isArray(data.results)) return data.results;
-      return [];
-    },
-    staleTime: 1000 * 30,
-    gcTime: 1000 * 60 * 5,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-  });
+  } = useConversationsList(activeTab);
 
   const onRefresh = useCallback(() => {
     refetch();
   }, [refetch]);
 
-  const handleTabChange = (tab) => {
-    if (activeTab !== tab) {
-      setActiveTab(tab);
-    }
-  };
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab((prev) => (prev !== tab ? tab : prev));
+  }, []);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
     }
-  };
+  }, [navigation]);
 
-  const renderItem = ({ item }) => {
-    const otherUser = item.other_participant;
-    const name = otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : 'Usuario desconocido';
+  const keyExtractor = useCallback((item) => item.id.toString(), []);
 
-    const serviceTitle = item.context_info?.subtitle || 'Consultas Generales';
-    const vehicleInfo = item.context_info?.title || 'Detalles no disponibles';
+  const renderItem = useCallback(
+    ({ item }) => {
+      const otherUser = item.other_participant;
+      const name = otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : 'Usuario desconocido';
+      const serviceTitle = item.context_info?.subtitle || 'Consultas Generales';
+      const vehicleInfo = item.context_info?.title || 'Detalles no disponibles';
+      const lastMsg = item.last_message?.content || 'Inicia la conversación';
+      const time = item.last_message?.timestamp
+        ? new Date(item.last_message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : '';
+      const unread = item.unread_count > 0;
 
-    const lastMsg = item.last_message?.content || 'Inicia la conversación';
-    const time = item.last_message?.timestamp
-      ? new Date(item.last_message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : '';
-    const unread = item.unread_count > 0;
-
-    return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate(ROUTES.CHAT_DETAIL, { conversationId: item.id })}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.serviceTitle} numberOfLines={1}>
-          {serviceTitle}
-        </Text>
-
-        <View style={styles.vehicleBadge}>
-          <Ionicons name="car-sport-outline" size={14} color="#93C5FD" />
-          <Text style={styles.vehicleText} numberOfLines={1}>
-            {vehicleInfo}
+      return (
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => navigation.navigate(ROUTES.CHAT_DETAIL, { conversationId: item.id })}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.serviceTitle} numberOfLines={1}>
+            {serviceTitle}
           </Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.providerContainer}>
-          <View style={styles.avatarWrapper}>
-            <Image
-              source={otherUser?.photo_url || 'https://via.placeholder.com/50'}
-              style={styles.avatar}
-              contentFit="cover"
-              transition={200}
-            />
+          <View style={styles.vehicleBadge}>
+            <Ionicons name="car-sport-outline" size={14} color="#93C5FD" />
+            <Text style={styles.vehicleText} numberOfLines={1}>
+              {vehicleInfo}
+            </Text>
           </View>
-
-          <View style={styles.infoColumn}>
-            <View style={styles.nameTimeRow}>
-              <Text style={styles.providerName} numberOfLines={1}>
-                {name}
-              </Text>
-              <Text style={styles.timeText}>{time}</Text>
+          <View style={styles.divider} />
+          <View style={styles.providerContainer}>
+            <View style={styles.avatarWrapper}>
+              <Image
+                source={otherUser?.photo_url || 'https://via.placeholder.com/50'}
+                style={styles.avatar}
+                contentFit="cover"
+                transition={200}
+              />
             </View>
-
-            <View style={styles.messageRow}>
-              <Text style={[styles.lastMessage, unread && styles.lastMessageUnread]} numberOfLines={1}>
-                {lastMsg}
-              </Text>
-              {unread ? (
-                <View style={styles.unreadBadge}>
-                  <Text style={styles.unreadText}>{item.unread_count}</Text>
-                </View>
-              ) : null}
+            <View style={styles.infoColumn}>
+              <View style={styles.nameTimeRow}>
+                <Text style={styles.providerName} numberOfLines={1}>
+                  {name}
+                </Text>
+                <Text style={styles.timeText}>{time}</Text>
+              </View>
+              <View style={styles.messageRow}>
+                <Text style={[styles.lastMessage, unread && styles.lastMessageUnread]} numberOfLines={1}>
+                  {lastMsg}
+                </Text>
+                {unread ? (
+                  <View style={styles.unreadBadge}>
+                    <Text style={styles.unreadText}>{item.unread_count}</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+        </TouchableOpacity>
+      );
+    },
+    [navigation]
+  );
+
+  const listEmpty = useMemo(
+    () => (
+      <View style={styles.emptyState}>
+        <MaterialCommunityIcons name="message-text-outline" size={64} color="rgba(255,255,255,0.2)" />
+        <Text style={styles.emptyText}>No tienes mensajes en esta sección</Text>
+      </View>
+    ),
+    []
+  );
+
+  const showSkeleton = isLoading;
 
   return (
     <View style={styles.root}>
@@ -175,26 +167,26 @@ const ChatsListScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {loading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#6EE7B7" />
-          </View>
+        {showSkeleton ? (
+          <ChatsListSkeleton />
         ) : (
           <FlatList
             data={conversations}
             renderItem={renderItem}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.listContent}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={[
+              styles.listContent,
+              conversations.length === 0 && styles.listContentEmpty,
+            ]}
             refreshControl={
-              <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#6EE7B7" />
+              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={onRefresh} tintColor="#6EE7B7" />
             }
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="message-text-outline" size={64} color="rgba(255,255,255,0.2)" />
-                <Text style={styles.emptyText}>No tienes mensajes en esta sección</Text>
-              </View>
-            }
+            ListEmptyComponent={conversations.length === 0 ? listEmpty : null}
             showsVerticalScrollIndicator={false}
+            initialNumToRender={8}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS !== 'web'}
           />
         )}
       </SafeAreaView>
@@ -268,6 +260,9 @@ const styles = StyleSheet.create({
   listContent: {
     padding: SPACING.lg,
     paddingBottom: 100,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
   },
   card: {
     backgroundColor: GLASS_BG,
@@ -369,11 +364,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   emptyState: {
     alignItems: 'center',

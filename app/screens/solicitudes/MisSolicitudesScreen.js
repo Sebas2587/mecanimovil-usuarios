@@ -6,13 +6,13 @@ import {
   FlatList,
   RefreshControl,
   TouchableOpacity,
-  ActivityIndicator,
   StatusBar,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ClipboardList } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,7 @@ import { ROUTES } from '../../utils/constants';
 import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
+import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesListSkeleton';
 
 const MisSolicitudesScreen = () => {
   const navigation = useNavigation();
@@ -32,7 +33,6 @@ const MisSolicitudesScreen = () => {
     return Number.isFinite(n) ? n : null;
   }, [route.params?.vehicleId]);
 
-  /** Vehículo del panel (mismo id que vehicleId) para prellenar Crear solicitud */
   const vehicleForCrearSolicitud = useMemo(() => {
     const v = route.params?.vehicle;
     if (!v || v.id == null) return null;
@@ -40,14 +40,7 @@ const MisSolicitudesScreen = () => {
     return v;
   }, [route.params?.vehicle, selectedVehicleId]);
 
-  const {
-    solicitudes,
-    solicitudesActivas,
-    loading,
-    error,
-    cargarSolicitudes,
-    cargarSolicitudesActivas,
-  } = useSolicitudes();
+  const { solicitudes, requestsIsLoading, error, cargarSolicitudes, cargarSolicitudesActivas } = useSolicitudes();
 
   const [refreshing, setRefreshing] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState(() => {
@@ -76,20 +69,13 @@ const MisSolicitudesScreen = () => {
     if (filtroEstado === 'historial') setFiltroEstado('canceladas');
   }, [filtroEstado]);
 
-  useFocusEffect(
-    useCallback(() => {
-      cargarDatos();
-    }, [])
-  );
-
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     try {
       await Promise.all([cargarSolicitudes(), cargarSolicitudesActivas()]);
     } catch (e) {
       console.error('Error cargando solicitudes:', e);
     }
-  };
-
+  }, [cargarSolicitudes, cargarSolicitudesActivas]);
 
   const solicitudesArray = Array.isArray(solicitudes) ? solicitudes : [];
 
@@ -112,14 +98,17 @@ const MisSolicitudesScreen = () => {
     return solicitudVisibleParaVehiculoDashboard(s, selectedVehicleId);
   });
 
-  const handleSolicitudPress = (solicitud) => {
-    const id = solicitud?.id || solicitud?.properties?.id;
-    if (!id) {
-      Alert.alert('Error', 'No se pudo identificar la solicitud');
-      return;
-    }
-    navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: id });
-  };
+  const handleSolicitudPress = useCallback(
+    (solicitud) => {
+      const id = solicitud?.id || solicitud?.properties?.id;
+      if (!id) {
+        Alert.alert('Error', 'No se pudo identificar la solicitud');
+        return;
+      }
+      navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: id });
+    },
+    [navigation]
+  );
 
   const renderFilters = () => (
     <View style={styles.filtersWrapper}>
@@ -143,13 +132,14 @@ const MisSolicitudesScreen = () => {
     </View>
   );
 
-  const renderListHeader = () => (
-    <View>
-      <View style={styles.controlsBlock}>
-        {renderFilters()}
+  const renderListHeader = useCallback(
+    () => (
+      <View>
+        <View style={styles.controlsBlock}>{renderFilters()}</View>
+        <View style={styles.headerToListSpacer} />
       </View>
-      <View style={styles.headerToListSpacer} />
-    </View>
+    ),
+    [filtroEstado]
   );
 
   const mensajesVacios = useMemo(
@@ -182,7 +172,7 @@ const MisSolicitudesScreen = () => {
     [selectedVehicleId]
   );
 
-  const renderEmptyState = () => {
+  const renderEmptyState = useCallback(() => {
     const mensajeActual = mensajesVacios[filtroEstado] || mensajesVacios.todos;
     return (
       <View style={styles.emptyContainer}>
@@ -197,9 +187,7 @@ const MisSolicitudesScreen = () => {
             onPress={() =>
               navigation.navigate(
                 ROUTES.CREAR_SOLICITUD,
-                vehicleForCrearSolicitud
-                  ? { vehicle: vehicleForCrearSolicitud, fromDashboard: true }
-                  : {}
+                vehicleForCrearSolicitud ? { vehicle: vehicleForCrearSolicitud, fromDashboard: true } : {}
               )
             }
             activeOpacity={0.85}
@@ -211,17 +199,24 @@ const MisSolicitudesScreen = () => {
         )}
       </View>
     );
-  };
+  }, [filtroEstado, mensajesVacios, navigation, vehicleForCrearSolicitud]);
 
-  const renderSolicitud = ({ item }) => (
-    <View style={styles.cardWrapper}>
-      <SolicitudCard solicitud={item} onPress={handleSolicitudPress} fullWidth />
-    </View>
+  const keyExtractor = useCallback((item, index) => `sol-${item.id ?? index}`, []);
+
+  const renderSolicitud = useCallback(
+    ({ item }) => (
+      <View style={styles.cardWrapper}>
+        <SolicitudCard solicitud={item} onPress={handleSolicitudPress} fullWidth />
+      </View>
+    ),
+    [handleSolicitudPress]
   );
 
-  const renderItemSeparator = () => <View style={styles.separator} />;
+  const renderItemSeparator = useCallback(() => <View style={styles.separator} />, []);
 
-  if (loading && !refreshing) {
+  const showInitialSkeleton = requestsIsLoading && !refreshing;
+
+  if (showInitialSkeleton) {
     return (
       <View style={styles.root}>
         <StatusBar barStyle="light-content" />
@@ -235,10 +230,7 @@ const MisSolicitudesScreen = () => {
             <View style={{ width: 40 }} />
           </View>
         </SafeAreaView>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6EE7B7" />
-          <Text style={styles.loadingText}>Cargando solicitudes...</Text>
-        </View>
+        <MisSolicitudesListSkeleton />
       </View>
     );
   }
@@ -261,11 +253,11 @@ const MisSolicitudesScreen = () => {
       <SafeAreaView style={styles.safeContent} edges={['left', 'right', 'bottom']}>
         <FlatList
           data={solicitudesFiltradas}
-          keyExtractor={(item, index) => `sol-${item.id ?? index}`}
+          keyExtractor={keyExtractor}
           renderItem={renderSolicitud}
           ItemSeparatorComponent={renderItemSeparator}
           ListHeaderComponent={renderListHeader}
-          ListEmptyComponent={!loading && renderEmptyState}
+          ListEmptyComponent={renderEmptyState}
           contentContainerStyle={[
             styles.listContent,
             solicitudesFiltradas.length === 0 && styles.listContentEmpty,
@@ -287,6 +279,10 @@ const MisSolicitudesScreen = () => {
             />
           }
           showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS !== 'web'}
         />
 
         {error && (
@@ -364,16 +360,6 @@ const styles = StyleSheet.create({
   listContentEmpty: { flexGrow: 1 },
   cardWrapper: { width: '100%', paddingHorizontal: 16 },
   separator: { height: 16 },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.45)',
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',

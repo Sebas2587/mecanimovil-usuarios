@@ -24,14 +24,18 @@ export function SolicitudesProvider({ children }) {
   // Queries
   const {
     data: solicitudes,
-    isLoading: loadingAll,
+    isPending: isRequestsPending,
+    isLoading: isRequestsLoading,
+    isFetching: isRequestsFetching,
     error: errorAll,
     refetch: refetchAll
   } = useRequests();
 
   const {
     data: solicitudesActivas,
-    isLoading: loadingActive,
+    isPending: isActivePending,
+    isLoading: isActiveLoading,
+    isFetching: isActiveFetching,
     error: errorActive,
     refetch: refetchActive
   } = useActiveRequests();
@@ -48,8 +52,7 @@ export function SolicitudesProvider({ children }) {
   const [ultimaOfertaRecibida, setUltimaOfertaRecibida] = useState(null);
   const [wsError, setWsError] = useState(null);
 
-  // Adapters for backwards compatibility
-  const loading = loadingAll || loadingActive;
+  const loading = isRequestsPending || isActivePending;
   const error = errorAll?.message || errorActive?.message || wsError;
 
   const cargarSolicitudes = useCallback(async () => {
@@ -155,6 +158,12 @@ export function SolicitudesProvider({ children }) {
     solicitudes: solicitudes || [],
     solicitudesActivas: solicitudesActivas || [],
     loading,
+    requestsIsPending: isRequestsPending,
+    activeRequestsIsPending: isActivePending,
+    requestsIsLoading,
+    activeRequestsIsLoading: isActiveLoading,
+    isRequestsFetching,
+    isActiveFetching,
     error,
     ofertasNuevas,
     ofertasNuevasPorSolicitud,
@@ -173,6 +182,12 @@ export function SolicitudesProvider({ children }) {
     solicitudes,
     solicitudesActivas,
     loading,
+    isRequestsPending,
+    isActivePending,
+    isRequestsLoading,
+    isActiveLoading,
+    isRequestsFetching,
+    isActiveFetching,
     error,
     ofertasNuevas,
     ofertasNuevasPorSolicitud,

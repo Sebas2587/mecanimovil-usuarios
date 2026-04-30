@@ -1,7 +1,15 @@
+import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import solicitudesService from '../services/solicitudesService';
 import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
+
+const CACHE = {
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    refetchOnWindowFocus: Platform.OS === 'web',
+    placeholderData: (previousData) => previousData,
+};
 
 export const useRequests = () => {
     const { user } = useAuth();
@@ -9,8 +17,8 @@ export const useRequests = () => {
         queryKey: ['requests'],
         queryFn: () => solicitudesService.obtenerMisSolicitudes(),
         enabled: !!user,
-        staleTime: 1000 * 60 * 5, // 5 min
-        select: (data) => Array.isArray(data) ? data : [],
+        select: (data) => (Array.isArray(data) ? data : []),
+        ...CACHE,
     });
 };
 
@@ -20,9 +28,8 @@ export const useActiveRequests = () => {
         queryKey: ['activeRequests'],
         queryFn: () => solicitudesService.obtenerSolicitudesActivas(),
         enabled: !!user,
-        staleTime: 1000 * 60 * 2, // 2 min
-        refetchOnWindowFocus: true, // Actualizar al volver a la app
-        select: (data) => Array.isArray(data) ? data : [],
+        select: (data) => (Array.isArray(data) ? data : []),
+        ...CACHE,
     });
 };
 
@@ -31,36 +38,29 @@ export const useCreateRequest = () => {
     return useMutation({
         mutationFn: solicitudesService.crearSolicitud,
         onMutate: async (newRequest) => {
-            // Cancelar refetches salientes (para que no sobrescriban nuestra actualización optimista)
             await queryClient.cancelQueries({ queryKey: ['activeRequests'] });
 
-            // Snapshot del valor anterior
             const previousRequests = queryClient.getQueryData(['activeRequests']);
 
-            // Crear un objeto temporal para la UI
             const optimisticRequest = {
                 id: 'temp-' + Date.now(),
                 ...newRequest,
-                estado: 'pendiente', // Estado inicial
+                estado: 'pendiente',
                 fecha_creacion: new Date().toISOString(),
                 isOptimistic: true
             };
 
-            // Actualizar optimísticamente la cache
             queryClient.setQueryData(['activeRequests'], (old) => {
                 const current = Array.isArray(old) ? old : [];
                 return [optimisticRequest, ...current];
             });
 
-            // Retornar contexto para rollback en caso de error
             return { previousRequests };
         },
         onError: (err, newRequest, context) => {
-            // Rollback a los datos anteriores si falla
             queryClient.setQueryData(['activeRequests'], context.previousRequests);
         },
         onSettled: () => {
-            // Invalidar queries para obtener datos reales del servidor
             queryClient.invalidateQueries({ queryKey: ['requests'] });
             queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
         }

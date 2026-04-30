@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, StatusBar } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, StatusBar, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -63,9 +63,14 @@ const OffersListScreen = () => {
     const spacing = theme?.spacing || {};
     const borders = theme?.borders || {};
 
-    const styles = getStyles(colors, typography, spacing, borders);
+    const styles = useMemo(
+        () => getStyles(colors, typography, spacing, borders),
+        [colors, typography, spacing, borders]
+    );
 
-    const renderOfferItem = ({ item }) => (
+    const keyExtractor = useCallback((item) => item.id, []);
+
+    const renderOfferItem = useCallback(({ item }) => (
         <View style={styles.offerCard}>
             {item.isBestPrice && (
                 <View style={styles.bestPriceBadge}>
@@ -119,7 +124,7 @@ const OffersListScreen = () => {
                 <Text style={styles.acceptButtonText}>Aceptar Oferta</Text>
             </TouchableOpacity>
         </View>
-    );
+    ), [colors, styles]);
 
     return (
         <View style={styles.container}>
@@ -139,9 +144,13 @@ const OffersListScreen = () => {
             <FlatList
                 data={OFFERS}
                 renderItem={renderOfferItem}
-                keyExtractor={item => item.id}
+                keyExtractor={keyExtractor}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
+                initialNumToRender={8}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                removeClippedSubviews={Platform.OS !== 'web'}
             />
         </View>
     );
