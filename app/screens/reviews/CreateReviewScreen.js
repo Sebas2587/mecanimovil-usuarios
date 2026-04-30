@@ -35,6 +35,19 @@ const CreateReviewScreen = () => {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const providerType = service?.provider?.provider_type || service?.provider?.tipo || null;
+  const isMecanicoDomicilio = String(providerType || '').toLowerCase().includes('mecanico');
+
+  const [aspects, setAspects] = useState({
+    puntualidad: 0,
+    recepcion_a_tiempo: 0,
+    limpieza_auto: 0,
+    zona_limpia: 0,
+    claridad_explicacion: 0,
+    informacion_relevante: 0,
+    trato: 0,
+    entrego_repuestos: null, // true/false/null
+  });
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -62,7 +75,17 @@ const CreateReviewScreen = () => {
       const reviewData = {
         service_order_id: service.service_order_id,
         rating: rating,
-        comment: comment.trim()
+        comment: comment.trim(),
+        aspects: {
+          puntualidad: aspects.puntualidad || null,
+          recepcion_a_tiempo: !isMecanicoDomicilio ? (aspects.recepcion_a_tiempo || null) : null,
+          limpieza_auto: !isMecanicoDomicilio ? (aspects.limpieza_auto || null) : null,
+          zona_limpia: isMecanicoDomicilio ? (aspects.zona_limpia || null) : null,
+          claridad_explicacion: aspects.claridad_explicacion || null,
+          informacion_relevante: aspects.informacion_relevante || null,
+          trato: aspects.trato || null,
+          entrego_repuestos: aspects.entrego_repuestos,
+        },
       };
 
       // Determinar el provider_id basado en el tipo de proveedor
@@ -110,6 +133,67 @@ const CreateReviewScreen = () => {
       </View>
     );
   };
+
+  const setAspectValue = (key, value) => {
+    setAspects((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const renderAspectRow = (label, key, helpText) => (
+    <View style={{ marginTop: 14 }}>
+      <Text style={styles.aspectLabel}>{label}</Text>
+      {helpText ? <Text style={styles.aspectHelp}>{helpText}</Text> : null}
+      <View style={styles.aspectStarsRow}>
+        {[1, 2, 3, 4, 5].map((v) => (
+          <TouchableOpacity
+            key={`${key}-${v}`}
+            style={styles.aspectStarBtn}
+            onPress={() => setAspectValue(key, v)}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={v <= (aspects[key] || 0) ? 'star' : 'star-outline'}
+              size={22}
+              color={v <= (aspects[key] || 0) ? '#60A5FA' : 'rgba(255,255,255,0.28)'}
+            />
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity
+          style={styles.aspectClearBtn}
+          onPress={() => setAspectValue(key, 0)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.aspectClearText}>Omitir</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderBinaryRow = (label, key) => (
+    <View style={{ marginTop: 14 }}>
+      <Text style={styles.aspectLabel}>{label}</Text>
+      <View style={styles.binaryRow}>
+        {[
+          { id: true, text: 'Sí' },
+          { id: false, text: 'No' },
+          { id: null, text: 'No aplica' },
+        ].map((opt) => {
+          const active = aspects[key] === opt.id;
+          return (
+            <TouchableOpacity
+              key={`${key}-${String(opt.id)}`}
+              style={[styles.binaryChip, active ? styles.binaryChipActive : styles.binaryChipIdle]}
+              onPress={() => setAspectValue(key, opt.id)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.binaryChipText, active ? styles.binaryChipTextActive : styles.binaryChipTextIdle]}>
+                {opt.text}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 
   const getRatingText = () => {
     const ratingTexts = {
@@ -201,6 +285,29 @@ const CreateReviewScreen = () => {
           <Text style={styles.characterCount}>
             {comment.length}/500 caracteres
           </Text>
+        </View>
+
+        {/* Aspectos (alimentan KPIs) */}
+        <View style={styles.card}>
+          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
+          <View style={styles.cardHeader}>
+            <Ionicons name="sparkles-outline" size={20} color="#93C5FD" style={{ marginRight: 8 }} />
+            <Text style={styles.cardTitle}>Aspectos del servicio</Text>
+          </View>
+          <Text style={styles.aspectIntro}>
+            Estos datos ayudan a que los mejores proveedores tengan más relevancia según su rendimiento reciente.
+          </Text>
+
+          {renderAspectRow('Puntualidad', 'puntualidad', '¿Llegó a tiempo?')}
+          {!isMecanicoDomicilio
+            ? renderAspectRow('Recepción / entrega a tiempo', 'recepcion_a_tiempo', 'Solo para talleres.')
+            : null}
+          {!isMecanicoDomicilio ? renderAspectRow('Auto limpio al entregar', 'limpieza_auto', 'Solo para talleres.') : null}
+          {isMecanicoDomicilio ? renderAspectRow('Dejó limpia la zona', 'zona_limpia', 'Solo para domicilio.') : null}
+          {renderBinaryRow('Entregó los repuestos al finalizar', 'entrego_repuestos')}
+          {renderAspectRow('Claridad al explicar fallas/solución', 'claridad_explicacion')}
+          {renderAspectRow('Información relevante y comunicación', 'informacion_relevante')}
+          {renderAspectRow('Trato y educación', 'trato')}
         </View>
       </ScrollView>
 
@@ -370,6 +477,78 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  aspectIntro: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  aspectLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F9FAFB',
+    marginBottom: 6,
+  },
+  aspectHelp: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.45)',
+    marginTop: -2,
+    marginBottom: 6,
+  },
+  aspectStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  aspectStarBtn: {
+    padding: 4,
+    borderRadius: 10,
+  },
+  aspectClearBtn: {
+    marginLeft: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  aspectClearText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.55)',
+  },
+  binaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 2,
+  },
+  binaryChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  binaryChipActive: {
+    backgroundColor: 'rgba(147,197,253,0.18)',
+    borderColor: 'rgba(147,197,253,0.35)',
+  },
+  binaryChipIdle: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  binaryChipText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  binaryChipTextActive: {
+    color: '#93C5FD',
+  },
+  binaryChipTextIdle: {
+    color: 'rgba(255,255,255,0.6)',
   },
 });
 
