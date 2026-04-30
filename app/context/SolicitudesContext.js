@@ -160,7 +160,7 @@ export function SolicitudesProvider({ children }) {
     loading,
     requestsIsPending: isRequestsPending,
     activeRequestsIsPending: isActivePending,
-    requestsIsLoading,
+    requestsIsLoading: isRequestsLoading,
     activeRequestsIsLoading: isActiveLoading,
     isRequestsFetching,
     isActiveFetching,
