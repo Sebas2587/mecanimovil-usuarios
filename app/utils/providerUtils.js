@@ -6,6 +6,7 @@
 
 import Constants from 'expo-constants';
 import serverConfig from '../config/serverConfig';
+import { getAxiosMediaBaseSync } from '../services/api';
 
 /**
  * Convierte rutas relativas del backend (/media/..., proveedores/...) en URL absoluta
@@ -27,7 +28,8 @@ export const resolveToAbsoluteMediaUrl = (raw) => {
         return api.replace(/\/api\/?$/i, '').replace(/\/$/, '');
       }
       return null;
-    })();
+    })() ||
+    getAxiosMediaBaseSync();
 
   if (!base) return s.startsWith('/') ? s : null;
 
@@ -80,16 +82,97 @@ const KPI_CODE_DISPLAY = {
 };
 
 /**
+ * Paleta por código KPI (mismos umbrales y hex que `kpi_badge_utils.py` en backend).
+ */
+export const KPI_TIER_PALETTE = {
+  ELITE: { bg_color: '#7C3AED', text_color: '#FFFFFF', border_color: '#A78BFA' },
+  MASTER: { bg_color: '#2563EB', text_color: '#FFFFFF', border_color: '#93C5FD' },
+  PRO: { bg_color: '#059669', text_color: '#FFFFFF', border_color: '#6EE7B7' },
+  ASCENSO: { bg_color: '#F59E0B', text_color: '#111827', border_color: '#FCD34D' },
+  EN_PROGRESO: { bg_color: '#0F172A', text_color: '#E2E8F0', border_color: '#1F2937' },
+  SIN_ACTIVIDAD: { bg_color: '#334155', text_color: '#F8FAFC', border_color: '#475569' },
+};
+
+function parseKpiScore(value) {
+  if (value == null || value === '') return null;
+  const n = typeof value === 'number' ? value : parseInt(String(value), 10);
+  if (Number.isNaN(n)) return null;
+  return Math.max(0, Math.min(100, n));
+}
+
+/** Misma escala que backend: ≥90 Elite, ≥75 Máster, ≥55 Pro, si no En ascenso. */
+export function kpiTierCodeFromScore(score) {
+  if (score == null || Number.isNaN(score)) return null;
+  if (score >= 90) return 'ELITE';
+  if (score >= 75) return 'MASTER';
+  if (score >= 55) return 'PRO';
+  return 'ASCENSO';
+}
+
+function isValidHexColor(s) {
+  return typeof s === 'string' && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(s.trim());
+}
+
+/**
  * Texto corto de etiqueta de nivel (sin % ni métricas). Alineado con kpi_badge del backend.
  */
 export const getProviderTierLabel = (kpiBadge) => {
   if (!kpiBadge) return null;
   const short = kpiBadge.short_label != null ? String(kpiBadge.short_label).trim() : '';
   if (short) return short;
-  const code = kpiBadge.code;
-  if (code && KPI_CODE_DISPLAY[code]) return KPI_CODE_DISPLAY[code];
+  const codeKey = kpiBadge.code != null ? String(kpiBadge.code).trim().toUpperCase() : '';
+  if (codeKey && KPI_CODE_DISPLAY[codeKey]) return KPI_CODE_DISPLAY[codeKey];
   const lab = (kpiBadge.label || '').replace(/^KPI\s+/i, '').trim();
   return lab || null;
+};
+
+/**
+ * Etiqueta + colores para pills KPI en cards (prioriza API; infiere tier por score si falta code).
+ * @returns {{ label: string, bg_color: string, text_color: string, border_color: string, styleCode: string } | null}
+ */
+export const getKpiTierPresentation = (kpiBadge) => {
+  if (!kpiBadge || typeof kpiBadge !== 'object') return null;
+
+  const apiCode = kpiBadge.code != null ? String(kpiBadge.code).trim().toUpperCase() : '';
+  const score = parseKpiScore(kpiBadge.score);
+  const staticSample = apiCode === 'EN_PROGRESO' || apiCode === 'SIN_ACTIVIDAD';
+  const knownTier = apiCode === 'ELITE' || apiCode === 'MASTER' || apiCode === 'PRO' || apiCode === 'ASCENSO';
+
+  let styleCode = null;
+  if (staticSample) styleCode = apiCode;
+  else if (knownTier) styleCode = apiCode;
+  else if (score != null) styleCode = kpiTierCodeFromScore(score);
+  else if (apiCode && KPI_CODE_DISPLAY[apiCode]) styleCode = apiCode;
+
+  let label = getProviderTierLabel(kpiBadge);
+  if (!label && styleCode && KPI_CODE_DISPLAY[styleCode]) {
+    label = KPI_CODE_DISPLAY[styleCode];
+  }
+  if (!label && score != null) {
+    const inferred = kpiTierCodeFromScore(score);
+    if (inferred && KPI_CODE_DISPLAY[inferred]) label = KPI_CODE_DISPLAY[inferred];
+  }
+  if (!label) return null;
+  if (!styleCode) {
+    if (score != null) {
+      styleCode = kpiTierCodeFromScore(score);
+    } else {
+      const sl = kpiBadge.short_label != null ? String(kpiBadge.short_label).trim() : '';
+      const fromShort =
+        sl &&
+        Object.keys(KPI_CODE_DISPLAY).find(
+          (c) => KPI_CODE_DISPLAY[c].toLowerCase() === sl.toLowerCase()
+        );
+      styleCode = fromShort || 'EN_PROGRESO';
+    }
+  }
+
+  const palette = KPI_TIER_PALETTE[styleCode] || KPI_TIER_PALETTE.EN_PROGRESO;
+  const bg_color = isValidHexColor(kpiBadge.bg_color) ? kpiBadge.bg_color.trim() : palette.bg_color;
+  const text_color = isValidHexColor(kpiBadge.text_color) ? kpiBadge.text_color.trim() : palette.text_color;
+  const border_color = isValidHexColor(kpiBadge.border_color) ? kpiBadge.border_color.trim() : palette.border_color;
+
+  return { label, bg_color, text_color, border_color, styleCode };
 };
 
 /**

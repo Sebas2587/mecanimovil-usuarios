@@ -222,6 +222,23 @@ async function createApiInstance() {
 let api = null;
 
 /**
+ * Base URL del cliente axios si ya existe (sin await). Útil para armar URLs de media en UI.
+ */
+export function getAxiosApiBaseSync() {
+  if (!api?.defaults?.baseURL) return null;
+  return String(api.defaults.baseURL).replace(/\/$/, '');
+}
+
+/**
+ * Origen del sitio sin `/api` (ej. http://192.168.x.x:8000) derivado del baseURL de axios.
+ */
+export function getAxiosMediaBaseSync() {
+  const b = getAxiosApiBaseSync();
+  if (!b) return null;
+  return b.replace(/\/api\/?$/i, '').replace(/\/$/, '');
+}
+
+/**
  * Obtiene la instancia de API, creándola si es necesario
  */
 async function getApiInstance() {

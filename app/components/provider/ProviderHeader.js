@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
-import { buildProviderAvatarUri, getProviderTierLabel } from '../../utils/providerUtils';
+import { buildProviderAvatarUri, getKpiTierPresentation } from '../../utils/providerUtils';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -24,7 +24,7 @@ const ProviderHeader = ({
 }) => {
     const showVerifiedBadge = !!(provider?.verificado);
     const kpiBadge = provider?.kpi_badge || null;
-    const tierLabel = getProviderTierLabel(kpiBadge);
+    const kpiPresentation = getKpiTierPresentation(kpiBadge);
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
 
@@ -100,28 +100,28 @@ const ProviderHeader = ({
                 <Text style={styles.name}>{name}</Text>
                 <Text style={styles.type}>{[type, location].filter(Boolean).join(' • ') || type}</Text>
 
-                {/* Etiqueta de nivel (Elite, Pro, Máster, …) — sin porcentaje */}
-                {tierLabel ? (
+                {/* Etiqueta de nivel (Elite, Pro, Máster, …) — misma lógica que cards / score backend */}
+                {kpiPresentation ? (
                     <View style={styles.badgesRow}>
                         <View
                             style={[
                                 styles.kpiBadge,
                                 {
-                                    backgroundColor: kpiBadge.bg_color || 'rgba(0,0,0,0.25)',
-                                    borderColor: kpiBadge.border_color || 'rgba(255,255,255,0.18)',
+                                    backgroundColor: kpiPresentation.bg_color,
+                                    borderColor: kpiPresentation.border_color,
                                 },
                             ]}
                         >
                             <Ionicons
                                 name="ribbon-outline"
                                 size={14}
-                                color={kpiBadge.text_color || '#FFFFFF'}
+                                color={kpiPresentation.text_color}
                             />
                             <Text
-                                style={[styles.kpiBadgeText, { color: kpiBadge.text_color || '#FFFFFF' }]}
+                                style={[styles.kpiBadgeText, { color: kpiPresentation.text_color }]}
                                 numberOfLines={1}
                             >
-                                {tierLabel}
+                                {kpiPresentation.label}
                             </Text>
                         </View>
                     </View>

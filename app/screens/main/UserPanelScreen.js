@@ -1065,6 +1065,7 @@ const UserPanelScreen = () => {
                         <ProviderPreviewCard
                           key={`${p._panelKind}-${p.id}`}
                           {...card}
+                          provider={p}
                           typeLabel={kindLabel}
                           specialty={card.specialty || 'Servicios y diagnóstico'}
                           kpiBadge={p.kpi_badge || null}
