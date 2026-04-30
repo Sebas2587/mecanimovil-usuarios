@@ -22,6 +22,7 @@ const ProviderHeader = ({
   showBackButton = true,
 }) => {
     const showVerifiedBadge = !!(provider?.verificado);
+    const kpiBadge = provider?.kpi_badge || null;
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
 
@@ -94,6 +95,34 @@ const ProviderHeader = ({
 
                 <Text style={styles.name}>{name}</Text>
                 <Text style={styles.type}>{[type, location].filter(Boolean).join(' • ') || type}</Text>
+
+                {/* KPI Badge (visible a usuarios) */}
+                {kpiBadge?.label ? (
+                    <View style={styles.badgesRow}>
+                        <View
+                            style={[
+                                styles.kpiBadge,
+                                {
+                                    backgroundColor: kpiBadge.bg_color || 'rgba(0,0,0,0.25)',
+                                    borderColor: kpiBadge.border_color || 'rgba(255,255,255,0.18)',
+                                },
+                            ]}
+                        >
+                            <Ionicons
+                                name="speedometer-outline"
+                                size={14}
+                                color={kpiBadge.text_color || '#FFFFFF'}
+                            />
+                            <Text
+                                style={[styles.kpiBadgeText, { color: kpiBadge.text_color || '#FFFFFF' }]}
+                                numberOfLines={1}
+                            >
+                                {kpiBadge.short_label || kpiBadge.label}
+                                {typeof kpiBadge.score === 'number' ? ` · ${kpiBadge.score}%` : ''}
+                            </Text>
+                        </View>
+                    </View>
+                ) : null}
 
                 {/* Stats Row */}
                 <View style={styles.statsRow}>
@@ -233,7 +262,28 @@ const styles = StyleSheet.create({
     type: {
         fontSize: 14,
         color: 'rgba(255,255,255,0.55)',
-        marginBottom: 16,
+        marginBottom: 12,
+    },
+    badgesRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 12,
+    },
+    kpiBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        borderWidth: 1,
+        maxWidth: '100%',
+    },
+    kpiBadgeText: {
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.2,
     },
     statsRow: {
         flexDirection: 'row',
