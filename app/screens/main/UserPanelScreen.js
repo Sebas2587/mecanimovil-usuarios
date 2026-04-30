@@ -26,7 +26,6 @@ import {
   Play,
   Square,
   Gauge,
-  HeartPulse,
   Shield,
   TrendingUp,
   Wrench,
@@ -36,7 +35,6 @@ import {
   Bell,
   User,
   Sparkles,
-  TriangleAlert,
   X,
   Check,
   Plus,
@@ -51,21 +49,6 @@ import {
 
 import { ROUTES } from '../../utils/constants';
 
-function resolveHealthComponentLabel(comp) {
-  if (!comp) return 'Componente';
-  if (typeof comp.nombre === 'string' && comp.nombre.trim()) return comp.nombre.trim();
-  if (comp.componente_detail?.nombre) return String(comp.componente_detail.nombre).trim();
-  const nested = comp.componente;
-  if (nested && typeof nested === 'object' && nested.nombre) return String(nested.nombre).trim();
-  if (typeof comp.componente_nombre === 'string' && comp.componente_nombre.trim()) {
-    return comp.componente_nombre.trim();
-  }
-  if (typeof nested === 'string' && nested.trim() && Number.isNaN(Number(nested))) {
-    return nested.replace(/_/g, ' ');
-  }
-  if (typeof comp.slug === 'string' && comp.slug.trim()) return comp.slug.replace(/_/g, ' ');
-  return 'Componente';
-}
 import { useAuth } from '../../context/AuthContext';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { getUserVehicles } from '../../services/vehicle';
@@ -85,7 +68,7 @@ import { getActividadMercadoVehiculo } from '../../services/user';
 import { geocodeAddress } from '../../services/location';
 import { MapPin } from 'lucide-react-native';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
-import { normalizeKmRemaining, normalizePct } from '../../utils/healthFormat';
+import { normalizePct } from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
@@ -95,6 +78,9 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
 const H_PAD = 16;
 const GRID_CARD_W = (SCREEN_WIDTH - H_PAD * 2 - CARD_GAP) / 2;
+/** Mismo ancho que una card de “Gestión del Taller” en prov `index.tsx` (mitad de fila con gap 12). */
+const QUICK_ACTION_CARD_W = GRID_CARD_W;
+const QUICK_ACTION_SNAP_INTERVAL = QUICK_ACTION_CARD_W + CARD_GAP;
 /** Alineado con GlassTabBar en AppNavigator (altura base 64 + safe area inferior) */
 const TAB_BAR_BASE_HEIGHT = 64;
 const SCROLL_BOTTOM_GAP = 10;
@@ -290,28 +276,69 @@ const UserPanelScreen = () => {
   }, [selectedVehicle?.id]);
 
   const healthScore = normalizePct(selectedVehicle?.health_score ?? 0);
-  const healthReport = useMemo(() => selectedVehicle?.health_report || [], [selectedVehicle]);
 
   const valuation = selectedVehicle?.precio_sugerido_final || selectedVehicle?.precio_mercado_promedio || 0;
   const marketPrice = selectedVehicle?.precio_mercado_promedio || 0;
   const priceDelta = valuation && marketPrice ? valuation - marketPrice : 0;
   const odometer = selectedVehicle?.kilometraje || 0;
 
-  const criticalComponents = useMemo(() => {
-    return [...healthReport]
-      .filter((c) => {
-        const level = c.nivel_alerta || c.status || 'OPTIMO';
-        return level !== 'OPTIMO';
-      })
-      .sort((a, b) => normalizePct(a.salud_porcentaje ?? a.salud ?? 100) - normalizePct(b.salud_porcentaje ?? b.salud ?? 100))
-      .slice(0, 3);
-  }, [healthReport]);
-
   const activeSolicitudesCount = useMemo(() => {
     if (!Array.isArray(solicitudesActivas)) return 0;
     const vid = selectedVehicle?.id ?? null;
     return solicitudesActivas.filter((s) => solicitudVisibleParaVehiculoDashboard(s, vid)).length;
   }, [solicitudesActivas, selectedVehicle?.id]);
+
+  const quickActionItems = useMemo(
+    () => [
+      {
+        key: 'servicios',
+        title: 'Servicios',
+        sub: 'Pedir servicio',
+        iconBg: 'rgba(99,102,241,0.28)',
+        icon: <Wrench size={22} color="#A5B4FC" />,
+        onPress: () =>
+          navigation.navigate(
+            ROUTES.CREAR_SOLICITUD,
+            selectedVehicle ? { vehicle: selectedVehicle, fromDashboard: true } : {},
+          ),
+      },
+      {
+        key: 'solicitudes',
+        title: 'Solicitudes',
+        sub:
+          activeSolicitudesCount > 0
+            ? `${activeSolicitudesCount} activa${activeSolicitudesCount > 1 ? 's' : ''}`
+            : 'Mis solicitudes',
+        iconBg: 'rgba(16,185,129,0.22)',
+        icon: <ClipboardList size={22} color="#6EE7B7" />,
+        onPress: () =>
+          navigation.navigate(
+            ROUTES.MIS_SOLICITUDES,
+            selectedVehicle ? { vehicleId: selectedVehicle.id, vehicle: selectedVehicle } : {},
+          ),
+      },
+      {
+        key: 'venta',
+        title: 'Gestionar venta',
+        sub: 'Vende tu vehículo',
+        iconBg: 'rgba(245,158,11,0.22)',
+        icon: <Store size={22} color="#FCD34D" />,
+        onPress: () =>
+          selectedVehicle
+            ? navigation.navigate(ROUTES.SELL_VEHICLE, { vehicle: selectedVehicle, vehicleId: selectedVehicle.id })
+            : navigation.navigate(ROUTES.MARKETPLACE),
+      },
+      {
+        key: 'mensajes',
+        title: 'Mensajes',
+        sub: 'Chats con proveedores',
+        iconBg: 'rgba(236,72,153,0.22)',
+        icon: <MessageCircle size={22} color="#F9A8D4" />,
+        onPress: () => navigation.navigate(ROUTES.CHATS_LIST),
+      },
+    ],
+    [navigation, selectedVehicle, activeSolicitudesCount],
+  );
 
   // ── User addresses ──
   const { data: userAddresses } = useUserAddresses();
@@ -745,55 +772,41 @@ const UserPanelScreen = () => {
           </GlassCard>
         )}
 
-        {/* ── Trip Telemetry (pos. 1) ── */}
-        {selectedVehicle && (
-          <GlassCard style={styles.telemetryCard}>
-            <View style={styles.telemetryTopRow}>
-              <Text style={styles.telemetryConsoleLabel}>CAPTURA TELEMETRÍA</Text>
-            </View>
-
-            <View style={styles.telemetryMainRow}>
-              <View style={styles.telemetryKmBlock}>
-                <Text style={styles.telemetryKmHuge}>{tripKm.toFixed(1)}</Text>
-                <Text style={styles.telemetryKmUnit}>km</Text>
-                {tripActive && (
-                  <View style={styles.telemetrySubStats}>
-                    <Text style={styles.telemetrySubStatText}>{formatDuration(tripElapsed)}</Text>
-                    <Text style={styles.telemetrySubStatSep}>·</Text>
-                    <Text style={styles.telemetrySubStatText}>{currentSpeed} km/h</Text>
-                  </View>
-                )}
-              </View>
-              <View style={styles.telemetryVSep} />
-              <View style={styles.telemetryAhorroBlock}>
-                <Text style={styles.telemetryAhorroLabel}>Ahorro</Text>
-                <Text style={styles.telemetryAhorroValue} numberOfLines={1}>
-                  {priceDelta > 0 ? formatCLP(priceDelta) : '—'}
+        {/* ── Acciones rápidas: tarjetas ancho fijo + scroll horizontal con snap ── */}
+        
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          snapToInterval={QUICK_ACTION_SNAP_INTERVAL}
+          snapToAlignment="start"
+          disableIntervalMomentum
+          contentContainerStyle={styles.quickScrollContent}
+          style={styles.quickScrollOuter}
+          keyboardShouldPersistTaps="handled"
+        >
+          {quickActionItems.map((it) => (
+            <GlassCard
+              key={it.key}
+              style={[styles.quickMgmtCardScroll, { width: QUICK_ACTION_CARD_W }]}
+              innerStyle={styles.quickMgmtInner}
+              onPress={it.onPress}
+            >
+              <View style={[styles.quickMgmtIconBox, { backgroundColor: it.iconBg }]}>{it.icon}</View>
+              <View style={styles.quickMgmtTextCol}>
+                <Text style={styles.quickMgmtTitle} numberOfLines={1}>
+                  {it.title}
+                </Text>
+                <Text style={styles.quickMgmtSub} numberOfLines={2}>
+                  {it.sub}
                 </Text>
               </View>
-            </View>
+            </GlassCard>
+          ))}
+        </ScrollView>
 
-            {!tripActive && (
-              <Text style={styles.tripHint}>
-                Rastrea kilómetros en tiempo real vía GPS para actualizar automáticamente la salud de tu vehículo.
-              </Text>
-            )}
-
-            {tripActive ? (
-              <GlassButton onPress={stopTrip} variant="stop">
-                <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
-                <Text style={styles.glassBtnTextStop}>Detener viaje</Text>
-              </GlassButton>
-            ) : (
-              <GlassButton onPress={startTrip}>
-                <Play size={16} color="#E0F2FE" fill="#E0F2FE" />
-                <Text style={styles.glassBtnText}>Iniciar viaje</Text>
-              </GlassButton>
-            )}
-          </GlassCard>
-        )}
-
-        {/* ── Valuation + Health Hero (debajo de telemetría) ── */}
+        {/* ── Valuation + Health Hero ── */}
         {selectedVehicle && (
           <GlassCard style={{ marginBottom: 16 }}>
             <View style={styles.heroRow}>
@@ -840,48 +853,101 @@ const UserPanelScreen = () => {
           </GlassCard>
         )}
 
-        {/* ── Grid 50/50: Entorno (clima) + Salud predictiva (donde estaba valor estimado) ── */}
+        {/* ── Captura telemetría (debajo de valor estimado) ── */}
         {selectedVehicle && (
-          <View style={styles.predictiveGrid}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setIsWeatherModalOpen(true)}
-              style={styles.predictiveColFill}
-            >
-              <GlassCard style={styles.predictiveHalfGlass} innerStyle={styles.predictiveHalfInner}>
-                <View style={styles.predictiveHalfBody}>
-                  {weatherLoading ? (
-                    <View style={styles.weatherCardLoading}>
-                      <ActivityIndicator color="#22D3EE" size="small" />
-                      <Text style={styles.weatherCardLoadingText}>Consultando clima...</Text>
+          <GlassCard style={styles.telemetryCard} innerStyle={styles.telemetryGlassInner}>
+            <View style={styles.telemetryTopRow}>
+              <Text style={styles.telemetryConsoleLabel}>CAPTURA TELEMETRÍA</Text>
+            </View>
+
+            <View style={styles.telemetryMainRow}>
+              <View style={styles.telemetryKmBlock}>
+                <Text style={styles.telemetryKmHuge}>{tripKm.toFixed(1)}</Text>
+                <Text style={styles.telemetryKmUnit}>km</Text>
+                {tripActive && (
+                  <View style={styles.telemetrySubStats}>
+                    <Text style={styles.telemetrySubStatText}>{formatDuration(tripElapsed)}</Text>
+                    <Text style={styles.telemetrySubStatSep}>·</Text>
+                    <Text style={styles.telemetrySubStatText}>{currentSpeed} km/h</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.telemetryVSep} />
+              <View style={styles.telemetryAhorroBlock}>
+                <Text style={styles.telemetryAhorroLabel}>Ahorro</Text>
+                <Text style={styles.telemetryAhorroValue} numberOfLines={1}>
+                  {priceDelta > 0 ? formatCLP(priceDelta) : '—'}
+                </Text>
+              </View>
+            </View>
+
+            {!tripActive && (
+              <Text style={styles.tripHint}>
+                Rastrea kilómetros en tiempo real vía GPS para actualizar automáticamente la salud de tu vehículo.
+              </Text>
+            )}
+
+            {tripActive ? (
+              <GlassButton onPress={stopTrip} variant="stop">
+                <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
+                <Text style={styles.glassBtnTextStop}>Detener viaje</Text>
+              </GlassButton>
+            ) : (
+              <GlassButton onPress={startTrip}>
+                <Play size={16} color="#E0F2FE" fill="#E0F2FE" />
+                <Text style={styles.glassBtnText}>Iniciar viaje</Text>
+              </GlassButton>
+            )}
+          </GlassCard>
+        )}
+
+        {/* ── Clima / entorno (una columna, ancho completo) ── */}
+        {selectedVehicle && (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setIsWeatherModalOpen(true)}
+            style={styles.weatherCardWrap}
+          >
+            <GlassCard style={styles.weatherFullGlass} innerStyle={styles.weatherFullInner}>
+              <View style={styles.weatherFullBody}>
+                {weatherLoading ? (
+                  <View style={styles.weatherCardLoading}>
+                    <ActivityIndicator color="#22D3EE" size="small" />
+                    <Text style={styles.weatherCardLoadingText}>Consultando clima...</Text>
+                  </View>
+                ) : !weatherAvailable ? (
+                  <View style={styles.weatherCardUnavailable}>
+                    <CloudRain size={24} color="rgba(255,255,255,0.25)" />
+                    <Text style={styles.weatherCardUnavailableText}>
+                      {weatherData?.reason || 'Clima no disponible para esta ubicación.'}
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.entornoHeader}>
+                      <CloudRain size={20} color={riskColorMap[overallRiskLevel] || '#22D3EE'} />
+                      <Text style={styles.entornoRiskLabel}>Riesgo conducción</Text>
                     </View>
-                  ) : !weatherAvailable ? (
-                    <View style={styles.weatherCardUnavailable}>
-                      <CloudRain size={24} color="rgba(255,255,255,0.25)" />
-                      <Text style={styles.weatherCardUnavailableText}>
-                        {weatherData?.reason || 'Clima no disponible para esta ubicación.'}
+                    <Text style={[styles.entornoRiskPct, { color: riskColorMap[overallRiskLevel] || '#F87171' }]}>
+                      {climateRiskPct}%
+                    </Text>
+                    {overallRiskLabel !== '' && (
+                      <Text
+                        style={[
+                          styles.entornoRiskBandLabel,
+                          { color: riskColorMap[overallRiskLevel] || '#F87171' },
+                        ]}
+                      >
+                        {overallRiskLabel}
                       </Text>
-                    </View>
-                  ) : (
-                    <>
-                      <View style={styles.entornoHeader}>
-                        <CloudRain size={20} color={riskColorMap[overallRiskLevel] || '#22D3EE'} />
-                        <Text style={styles.entornoRiskLabel}>Riesgo conducción</Text>
-                      </View>
-                      <Text style={[styles.entornoRiskPct, { color: riskColorMap[overallRiskLevel] || '#F87171' }]}>
-                        {climateRiskPct}%
+                    )}
+                    {weatherCity !== '' && (
+                      <Text style={styles.entornoWeatherCity}>
+                        {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'}
+                        {weatherAgeLabel ? ` · ${weatherAgeLabel}` : ''}
                       </Text>
-                      {overallRiskLabel !== '' && (
-                        <Text style={{ color: riskColorMap[overallRiskLevel] || '#F87171', fontSize: 11, fontWeight: '700', marginBottom: 6 }}>
-                          {overallRiskLabel}
-                        </Text>
-                      )}
-                      {weatherCity !== '' && (
-                        <Text style={styles.entornoWeatherCity}>
-                          {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'}
-                          {weatherAgeLabel ? ` · ${weatherAgeLabel}` : ''}
-                        </Text>
-                      )}
+                    )}
+                    <View style={styles.weatherBarsGroup}>
                       <View style={styles.microBarRow}>
                         <Text style={styles.microBarLabel}>Frenos</Text>
                         <View style={styles.microBarTrack}>
@@ -906,95 +972,16 @@ const UserPanelScreen = () => {
                         </View>
                         <Text style={styles.microBarPct}>{gomaWearPct}%</Text>
                       </View>
-                      <View style={styles.predictiveClimaTapRow}>
-                        <Droplets size={12} color="rgba(255,255,255,0.35)" />
-                        <Text style={styles.entornoTapText}>Toca para análisis climático para conducir</Text>
-                      </View>
-                    </>
-                  )}
-                </View>
-              </GlassCard>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() =>
-                navigation.navigate(ROUTES.VEHICLE_HEALTH, {
-                  vehicleId: selectedVehicle.id,
-                  vehicle: selectedVehicle,
-                })
-              }
-              style={styles.predictiveColFill}
-            >
-              <GlassCard style={styles.predictiveHalfGlass} innerStyle={styles.predictiveHalfInner}>
-                <View style={styles.predictiveHealthColumn}>
-                  <View style={styles.compactHealthHeader}>
-                    <HeartPulse size={16} color="#F472B6" />
-                    <Text style={styles.compactHealthTitle} numberOfLines={1}>
-                      Salud predictiva
-                    </Text>
-                    <View style={styles.compactHealthLink}>
-                      <Text style={styles.compactHealthLinkText}>Ver</Text>
                     </View>
-                  </View>
-
-                  <View style={styles.predictiveHealthMain}>
-                    <View style={styles.predictiveHealthContent}>
-                      <View style={styles.compactProgressTrack}>
-                        <LinearGradient
-                          colors={[getHealthColor(healthScore), getHealthColor(Math.max(0, healthScore - 20))]}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 0 }}
-                          style={[styles.compactProgressFill, { width: `${Math.min(healthScore, 100)}%` }]}
-                        />
-                      </View>
-                      <Text style={styles.compactProgressLabel}>{healthScore}% salud</Text>
-
-                      {criticalComponents.length > 0 ? (
-                        <View style={styles.compactAlertsList}>
-                          {criticalComponents.slice(0, 2).map((comp, idx) => {
-                            const name = resolveHealthComponentLabel(comp);
-                            const pct = normalizePct(comp.salud_porcentaje ?? comp.salud ?? 0);
-                            const kmRest = normalizeKmRemaining(comp);
-                            const level = comp.nivel_alerta || comp.status || 'ATENCION';
-                            const color =
-                              level === 'CRITICO' ? '#EF4444' : level === 'URGENTE' ? '#F97316' : '#F59E0B';
-                            return (
-                              <View key={idx} style={styles.compactAlertRow}>
-                                <TriangleAlert size={12} color={color} />
-                                <View style={{ flex: 1, marginLeft: 6, minWidth: 0 }}>
-                                  <Text style={styles.compactAlertName} numberOfLines={1}>
-                                    {name}
-                                  </Text>
-                                  {kmRest != null && (
-                                    <Text style={styles.compactAlertKm} numberOfLines={1}>
-                                      ~{formatKm(kmRest)} km
-                                    </Text>
-                                  )}
-                                </View>
-                                <Text style={[styles.compactAlertPct, { color }]}>{Math.round(pct)}%</Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      ) : healthReport.length > 0 ? (
-                        <View style={styles.compactAllGood}>
-                          <Check size={14} color="#10B981" />
-                          <Text style={styles.compactAllGoodText} numberOfLines={2}>
-                            Óptimo
-                          </Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.compactSyncHint} numberOfLines={3}>
-                          Sincroniza salud para predicciones.
-                        </Text>
-                      )}
+                    <View style={styles.weatherTapFooter}>
+                      <Droplets size={12} color="rgba(255,255,255,0.35)" />
+                      <Text style={styles.entornoTapText}>Toca para análisis climático para conducir</Text>
                     </View>
-                  </View>
-                </View>
-              </GlassCard>
-            </TouchableOpacity>
-          </View>
+                  </>
+                )}
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
         )}
 
         {/* ── Cerca de ti (proveedores según vehículo + dirección) ── */}
@@ -1071,7 +1058,7 @@ const UserPanelScreen = () => {
           </View>
         )}
 
-        {/* ── Demanda anónima: mismo modelo (no es tu historial) ── */}
+        {/* ── Demanda: servicios por marca/modelo (lista simple) ── */}
         {selectedVehicle && (
           <View style={{ marginBottom: 18 }}>
             <View style={styles.panelSectionHeader}>
@@ -1079,8 +1066,8 @@ const UserPanelScreen = () => {
               <Text style={styles.sectionLabelInline}>Qué piden otros con tu mismo auto</Text>
             </View>
             <Text style={styles.panelSectionHint}>
-              Misma marca y modelo que tu vehículo ({selectedVehicle.marca_nombre || '—'}{' '}
-              {selectedVehicle.modelo_nombre || ''}). A la derecha: personas distintas que pidieron ese servicio.
+              Misma marca y modelo ({selectedVehicle.marca_nombre || '—'} {selectedVehicle.modelo_nombre || ''}). A la
+              derecha: personas distintas que pidieron cada servicio.
             </Text>
             {panelActivityLoading ? (
               <GlassCard style={{ paddingVertical: 20, alignItems: 'center' }}>
@@ -1089,8 +1076,8 @@ const UserPanelScreen = () => {
             ) : !panelMarketActivity?.items?.length ? (
               <GlassCard style={{ paddingVertical: 16 }}>
                 <Text style={styles.panelEmptyText}>
-                  Aún no hay datos de servicios para esta marca y modelo. Cuando otros usuarios soliciten servicios
-                  con un auto como el tuyo, aparecerán aquí.
+                  Aún no hay datos para esta marca y modelo. Cuando otros usuarios soliciten servicios con un auto como
+                  el tuyo, aparecerán aquí.
                 </Text>
               </GlassCard>
             ) : (
@@ -1116,74 +1103,6 @@ const UserPanelScreen = () => {
             )}
           </View>
         )}
-
-        {/* ── Quick Actions 2×2 ── */}
-        <Text style={styles.sectionLabel}>Acciones Rápidas</Text>
-        <View style={styles.quickGrid}>
-          {/* Servicios */}
-          <GlassCard
-            style={styles.quickCard}
-            onPress={() =>
-              navigation.navigate(
-                ROUTES.CREAR_SOLICITUD,
-                selectedVehicle ? { vehicle: selectedVehicle, fromDashboard: true } : {}
-              )
-            }
-          >
-            <LinearGradient colors={['rgba(99,102,241,0.25)', 'rgba(99,102,241,0.05)']} style={styles.quickIconWrap}>
-              <Wrench size={22} color="#A5B4FC" />
-            </LinearGradient>
-            <Text style={styles.quickTitle}>Servicios</Text>
-            <Text style={styles.quickSub}>Pedir servicio</Text>
-          </GlassCard>
-
-          {/* Mis Solicitudes */}
-          <GlassCard
-            style={styles.quickCard}
-            onPress={() =>
-              navigation.navigate(
-                ROUTES.MIS_SOLICITUDES,
-                selectedVehicle ? { vehicleId: selectedVehicle.id, vehicle: selectedVehicle } : {}
-              )
-            }
-          >
-            <LinearGradient colors={['rgba(16,185,129,0.25)', 'rgba(16,185,129,0.05)']} style={styles.quickIconWrap}>
-              <ClipboardList size={22} color="#6EE7B7" />
-            </LinearGradient>
-            <Text style={styles.quickTitle}>Solicitudes</Text>
-            <Text style={styles.quickSub}>
-              {activeSolicitudesCount > 0 ? `${activeSolicitudesCount} activa${activeSolicitudesCount > 1 ? 's' : ''}` : 'Mis solicitudes'}
-            </Text>
-          </GlassCard>
-
-          {/* Gestionar venta */}
-          <GlassCard
-            style={styles.quickCard}
-            onPress={() =>
-              selectedVehicle
-                ? navigation.navigate(ROUTES.SELL_VEHICLE, { vehicle: selectedVehicle, vehicleId: selectedVehicle.id })
-                : navigation.navigate(ROUTES.MARKETPLACE)
-            }
-          >
-            <LinearGradient colors={['rgba(245,158,11,0.25)', 'rgba(245,158,11,0.05)']} style={styles.quickIconWrap}>
-              <Store size={22} color="#FCD34D" />
-            </LinearGradient>
-            <Text style={styles.quickTitle}>Gestionar venta</Text>
-            <Text style={styles.quickSub}>Vende tu vehículo</Text>
-          </GlassCard>
-
-          {/* Mensajes */}
-          <GlassCard
-            style={styles.quickCard}
-            onPress={() => navigation.navigate(ROUTES.CHATS_LIST)}
-          >
-            <LinearGradient colors={['rgba(236,72,153,0.25)', 'rgba(236,72,153,0.05)']} style={styles.quickIconWrap}>
-              <MessageCircle size={22} color="#F9A8D4" />
-            </LinearGradient>
-            <Text style={styles.quickTitle}>Mensajes</Text>
-            <Text style={styles.quickSub}>Chats con proveedores</Text>
-          </GlassCard>
-        </View>
       </ScrollView>
 
       {/* ─── Modal análisis clima / entorno ─── */}
@@ -1477,7 +1396,7 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   glassBtnWrap: {
-    marginTop: 4,
+    marginTop: 2,
   },
   glassBtnOuter: {
     borderRadius: 16,
@@ -1493,9 +1412,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   glassBtnInnerStop: {
@@ -1504,12 +1423,12 @@ const styles = StyleSheet.create({
   glassBtnText: {
     color: '#E0F2FE',
     fontWeight: '800',
-    fontSize: 15,
+    fontSize: 14,
   },
   glassBtnTextStop: {
     color: '#FFFFFF',
     fontWeight: '800',
-    fontSize: 15,
+    fontSize: 14,
   },
 
   // Header
@@ -1760,60 +1679,63 @@ const styles = StyleSheet.create({
 
   // Trip telemetry (glass dashboard)
   telemetryCard: {
-    marginBottom: 16,
-  },
-  telemetryTopRow: {
     marginBottom: 12,
   },
+  telemetryGlassInner: {
+    padding: 12,
+  },
+  telemetryTopRow: {
+    marginBottom: 6,
+  },
   telemetryConsoleLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1.2,
+    letterSpacing: 1,
     color: 'rgba(255,255,255,0.55)',
   },
   telemetryMainRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   telemetryKmBlock: {
     flex: 1,
     minWidth: 0,
   },
   telemetryKmHuge: {
-    fontSize: 38,
+    fontSize: 30,
     fontWeight: '900',
     color: '#F9FAFB',
-    letterSpacing: -1.2,
-    lineHeight: 42,
+    letterSpacing: -1,
+    lineHeight: 32,
   },
   telemetryKmUnit: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.45)',
-    marginTop: -2,
+    marginTop: -4,
   },
   telemetrySubStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
-    gap: 6,
+    marginTop: 2,
+    gap: 4,
   },
   telemetrySubStatText: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.45)',
     fontWeight: '500',
   },
   telemetrySubStatSep: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.25)',
   },
   telemetryVSep: {
     width: 1,
     alignSelf: 'stretch',
-    minHeight: 56,
+    minHeight: 44,
     backgroundColor: 'rgba(255,255,255,0.15)',
-    marginHorizontal: 14,
+    marginHorizontal: 10,
   },
   telemetryAhorroBlock: {
     alignItems: 'flex-end',
@@ -1821,149 +1743,51 @@ const styles = StyleSheet.create({
     maxWidth: SCREEN_WIDTH * 0.32,
   },
   telemetryAhorroLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#10B981',
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    letterSpacing: 0.4,
+    marginBottom: 2,
   },
   telemetryAhorroValue: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: '#6EE7B7',
   },
-  predictiveGrid: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: CARD_GAP,
+  weatherCardWrap: {
+    width: '100%',
     marginBottom: 16,
+  },
+  weatherFullGlass: {
     width: '100%',
   },
-  predictiveColFill: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-    alignSelf: 'stretch',
+  weatherFullInner: {
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
-  predictiveHalfGlass: {
-    flex: 1,
-    width: '100%',
-    alignSelf: 'stretch',
-    marginBottom: 0,
-    minHeight: 0,
-  },
-  predictiveHalfInner: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-  },
-  predictiveHalfBody: {
-    flex: 1,
-  },
-  predictiveHealthColumn: {
-    flex: 1,
-    minHeight: 0,
-  },
-  predictiveHealthMain: {
-    flex: 1,
-    minHeight: 0,
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  predictiveHealthContent: {
+  weatherFullBody: {
     width: '100%',
   },
-  predictiveClimaTapRow: {
+  weatherBarsGroup: {
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  weatherTapFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 'auto',
-    paddingTop: 8,
-  },
-  compactHealthHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 0,
-    flexShrink: 0,
-  },
-  compactHealthTitle: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#F9FAFB',
-  },
-  compactHealthLink: {
-    paddingVertical: 2,
-    paddingLeft: 4,
-  },
-  compactHealthLinkText: {
-    fontSize: 11,
-    color: '#00A8E8',
-    fontWeight: '600',
-  },
-  compactProgressTrack: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  compactProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  compactProgressLabel: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  compactAlertsList: {
     gap: 8,
-  },
-  compactAlertRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  compactAlertName: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#E5E7EB',
-  },
-  compactAlertKm: {
-    fontSize: 9,
-    color: 'rgba(255,255,255,0.35)',
-    marginTop: 1,
-  },
-  compactAlertPct: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginLeft: 4,
-  },
-  compactAllGood: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-  },
-  compactAllGoodText: {
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
-    flex: 1,
-  },
-  compactSyncHint: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.38)',
-    lineHeight: 14,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   weatherCardLoading: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 20,
     gap: 8,
+    minHeight: 100,
   },
   weatherCardLoadingText: {
     fontSize: 11,
@@ -1971,11 +1795,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   weatherCardUnavailable: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 20,
     gap: 8,
+    minHeight: 100,
   },
   weatherCardUnavailableText: {
     fontSize: 11,
@@ -1984,19 +1808,21 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   entornoWeatherCity: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.42)',
     fontWeight: '500',
-    marginBottom: 8,
-    marginTop: -6,
+    lineHeight: 15,
+    marginTop: 2,
+    marginBottom: 10,
   },
   entornoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
+    gap: 10,
+    marginBottom: 8,
   },
   entornoRiskLabel: {
+    flexShrink: 1,
     fontSize: 11,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.45)',
@@ -2004,15 +1830,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   entornoRiskPct: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '900',
     color: '#F87171',
-    marginBottom: 10,
+    marginBottom: 4,
+    letterSpacing: -0.5,
+  },
+  entornoRiskBandLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginBottom: 6,
   },
   microBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 0,
     gap: 6,
   },
   microBarLabel: {
@@ -2039,17 +1871,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     textAlign: 'right',
   },
-  entornoTapRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
   entornoTapText: {
+    flex: 1,
     fontSize: 11,
     fontWeight: '500',
     color: 'rgba(255,255,255,0.38)',
     fontStyle: 'italic',
+    lineHeight: 15,
   },
   weatherModalOverlay: {
     flex: 1,
@@ -2178,10 +2006,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   tripHint: {
-    fontSize: 13,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.4)',
-    lineHeight: 19,
-    marginBottom: 14,
+    lineHeight: 17,
+    marginBottom: 8,
   },
 
   panelSectionHeader: {
@@ -2245,38 +2073,54 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Quick actions grid
+  // Acciones rápidas (fila horizontal tipo gestión taller; ancho fijo para no romper layout)
   sectionLabel: {
     fontSize: 16,
     fontWeight: '700',
     color: '#F9FAFB',
     marginBottom: 12,
   },
-  quickGrid: {
+  quickScrollOuter: {
+    marginBottom: 16,
+    marginHorizontal: -2,
+  },
+  quickScrollContent: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'stretch',
     gap: CARD_GAP,
+    paddingVertical: 2,
+    paddingRight: 12,
   },
-  quickCard: {
-    width: GRID_CARD_W,
+  quickMgmtCardScroll: {
+    borderRadius: 16,
   },
-  quickIconWrap: {
+  quickMgmtInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    minHeight: 76,
+  },
+  quickMgmtIconBox: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  quickTitle: {
-    fontSize: 15,
+  quickMgmtTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  quickMgmtTitle: {
+    fontSize: 14,
     fontWeight: '700',
     color: '#F9FAFB',
-    marginBottom: 2,
   },
-  quickSub: {
+  quickMgmtSub: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    color: 'rgba(255,255,255,0.42)',
+    marginTop: 1,
   },
 
   // Vehicle selector modal
