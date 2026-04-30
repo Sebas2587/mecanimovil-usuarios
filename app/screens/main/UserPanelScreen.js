@@ -45,6 +45,8 @@ import {
   Disc,
   Wind,
   Droplets,
+  Users,
+  Navigation,
 } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
@@ -78,6 +80,9 @@ import {
 import { useUnreadCount } from '../../hooks/useNotifications';
 import { useUserAddresses } from '../../hooks/useAddress';
 import { getWeatherPrediction } from '../../services/weatherService';
+import { getNearbyProvidersForPanel } from '../../services/providers';
+import { getActividadMercadoVehiculo } from '../../services/user';
+import { geocodeAddress } from '../../services/location';
 import { MapPin } from 'lucide-react-native';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 import { normalizeKmRemaining, normalizePct } from '../../utils/healthFormat';
@@ -130,6 +135,36 @@ const formatKm = (km) => {
   if (km == null) return '0';
   return Math.round(km).toLocaleString('es-CL');
 };
+
+function resolveVehicleMarcaId(vehicle) {
+  if (!vehicle) return null;
+  if (typeof vehicle.marca === 'number') return vehicle.marca;
+  if (vehicle.marca && typeof vehicle.marca === 'object' && vehicle.marca.id != null) {
+    return Number(vehicle.marca.id);
+  }
+  if (vehicle.marca_id != null) return Number(vehicle.marca_id);
+  return null;
+}
+
+function coordsFromSavedAddress(addr) {
+  if (!addr?.ubicacion?.coordinates || addr.ubicacion.coordinates.length < 2) return null;
+  const [lng, lat] = addr.ubicacion.coordinates;
+  const la = Number(lat);
+  const lo = Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
+  return { lat: la, lng: lo };
+}
+
+function formatPanelActivityDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
+  } catch {
+    return '';
+  }
+}
 
 // ─────────────────────────────────────────────
 // GlassCard — local helper, not a design-system export
@@ -301,6 +336,56 @@ const UserPanelScreen = () => {
   const selectedAddress = useMemo(
     () => addressList.find((a) => a.id === selectedAddressId) || null,
     [addressList, selectedAddressId],
+  );
+
+  const marcaIdForPanel = resolveVehicleMarcaId(selectedVehicle);
+
+  const {
+    data: panelNearbyProviders = [],
+    isLoading: panelNearbyLoading,
+    refetch: refetchPanelNearby,
+  } = useQuery({
+    queryKey: ['userPanelNearbyProviders', selectedVehicle?.id, selectedAddressId, marcaIdForPanel],
+    enabled: !!selectedVehicle?.id && !!selectedAddress,
+    staleTime: 1000 * 60 * 3,
+    gcTime: 1000 * 60 * 15,
+    queryFn: async () => {
+      let coords = coordsFromSavedAddress(selectedAddress);
+      if (!coords && selectedAddress?.direccion) {
+        const g = await geocodeAddress(selectedAddress.direccion);
+        if (g?.latitude != null && g?.longitude != null) {
+          coords = { lat: g.latitude, lng: g.longitude };
+        }
+      }
+      if (!coords) return [];
+      return getNearbyProvidersForPanel(coords.lat, coords.lng, marcaIdForPanel);
+    },
+  });
+
+  const {
+    data: panelMarketActivity,
+    isLoading: panelActivityLoading,
+    refetch: refetchPanelActivity,
+  } = useQuery({
+    queryKey: ['userPanelMarketActivity', selectedVehicle?.id],
+    enabled: !!selectedVehicle?.id,
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 15,
+    queryFn: () => getActividadMercadoVehiculo(selectedVehicle.id, 20),
+  });
+
+  const openProviderFromPanel = useCallback(
+    (item) => {
+      if (!item?.id) return;
+      const tipo = item._panelKind === 'taller' ? 'taller' : 'mecanico';
+      navigation.navigate(ROUTES.PROVIDER_DETAIL, {
+        providerId: item.id,
+        type: tipo,
+        providerType: tipo,
+        provider: item,
+      });
+    },
+    [navigation],
   );
 
   // ── Weather prediction ──
@@ -483,8 +568,19 @@ const UserPanelScreen = () => {
 
   // ── Refresh ──
   const onRefresh = useCallback(async () => {
-    await Promise.all([refetchVehicles(), cargarSolicitudesActivas(), refetchWeather()]);
-  }, [refetchVehicles, cargarSolicitudesActivas, refetchWeather]);
+    const extras = [];
+    if (selectedVehicle?.id) {
+      extras.push(refetchPanelNearby(), refetchPanelActivity());
+    }
+    await Promise.all([refetchVehicles(), cargarSolicitudesActivas(), refetchWeather(), ...extras]);
+  }, [
+    refetchVehicles,
+    cargarSolicitudesActivas,
+    refetchWeather,
+    selectedVehicle?.id,
+    refetchPanelNearby,
+    refetchPanelActivity,
+  ]);
 
   // ── Helpers ──
   const avgSpeed = tripElapsed > 0 ? (tripKm / (tripElapsed / 3600000)) : 0;
@@ -895,6 +991,126 @@ const UserPanelScreen = () => {
                 </View>
               </GlassCard>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Cerca de ti (proveedores según vehículo + dirección) ── */}
+        {selectedVehicle && (
+          <View style={{ marginBottom: 18 }}>
+            <View style={styles.panelSectionHeader}>
+              <Navigation size={16} color="#22D3EE" />
+              <Text style={styles.sectionLabelInline}>Cerca de ti</Text>
+            </View>
+            <Text style={styles.panelSectionHint}>
+              Talleres y mecánicos compatibles con tu {selectedVehicle.marca_nombre || 'marca'}{' '}
+              {selectedVehicle.modelo_nombre || ''}, ordenados por distancia desde tu dirección.
+            </Text>
+            {!selectedAddress ? (
+              <GlassCard style={{ paddingVertical: 16 }}>
+                <Text style={styles.panelEmptyText}>
+                  Agrega y selecciona una dirección para ver proveedores cercanos.
+                </Text>
+              </GlassCard>
+            ) : panelNearbyLoading ? (
+              <GlassCard style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator color="#22D3EE" />
+              </GlassCard>
+            ) : panelNearbyProviders.length === 0 ? (
+              <GlassCard style={{ paddingVertical: 16 }}>
+                <Text style={styles.panelEmptyText}>
+                  No hay proveedores verificados en este radio para tu marca. Prueba ampliar dirección o crear una
+                  solicitud desde Servicios.
+                </Text>
+              </GlassCard>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.panelHScrollContent}
+              >
+                {panelNearbyProviders.map((p) => {
+                  const uri = p.foto_perfil_url || p.foto_perfil || p.foto || null;
+                  const distLabel =
+                    p.distance != null && Number.isFinite(Number(p.distance))
+                      ? `${Number(p.distance).toFixed(1)} km`
+                      : '';
+                  const kindLabel = p._panelKind === 'taller' ? 'Taller' : 'Domicilio';
+                  return (
+                    <TouchableOpacity
+                      key={`${p._panelKind}-${p.id}`}
+                      activeOpacity={0.85}
+                      style={styles.panelNearbyCard}
+                      onPress={() => openProviderFromPanel(p)}
+                    >
+                      <View style={styles.panelNearbyThumbWrap}>
+                        {uri ? (
+                          <Image source={{ uri }} style={styles.panelNearbyThumb} contentFit="cover" />
+                        ) : (
+                          <View style={[styles.panelNearbyThumb, styles.panelNearbyThumbFallback]}>
+                            <Store size={20} color="#94A3B8" />
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.panelNearbyName} numberOfLines={2}>
+                        {p.nombre || 'Proveedor'}
+                      </Text>
+                      <Text style={styles.panelNearbyMeta} numberOfLines={1}>
+                        {kindLabel}
+                        {distLabel ? ` · ${distLabel}` : ''}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        )}
+
+        {/* ── Actividad reciente (misma marca/modelo, anonimizada) ── */}
+        {selectedVehicle && (
+          <View style={{ marginBottom: 18 }}>
+            <View style={styles.panelSectionHeader}>
+              <Users size={16} color="#A78BFA" />
+              <Text style={styles.sectionLabelInline}>Actividad para tu auto</Text>
+            </View>
+            <Text style={styles.panelSectionHint}>
+              Últimos servicios solicitados por otros conductores con {selectedVehicle.marca_nombre || 'tu marca'}{' '}
+              {selectedVehicle.modelo_nombre || ''}. Datos agregados, sin identificar personas.
+            </Text>
+            {panelActivityLoading ? (
+              <GlassCard style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator color="#A78BFA" />
+              </GlassCard>
+            ) : !panelMarketActivity?.items?.length ? (
+              <GlassCard style={{ paddingVertical: 16 }}>
+                <Text style={styles.panelEmptyText}>
+                  Aún no hay actividad reciente visible para esta combinación marca/modelo.
+                </Text>
+              </GlassCard>
+            ) : (
+              <GlassCard innerStyle={{ paddingVertical: 4 }}>
+                {panelMarketActivity.items.map((row, idx) => (
+                  <View
+                    key={`${row.cuando}-${idx}`}
+                    style={[
+                      styles.panelActivityRow,
+                      idx < panelMarketActivity.items.length - 1 && styles.panelActivityRowBorder,
+                    ]}
+                  >
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.panelActivityTitle} numberOfLines={2}>
+                        {row.servicio_resumen}
+                      </Text>
+                      <Text style={styles.panelActivitySub} numberOfLines={1}>
+                        {row.estado_display}
+                        {row.tipo_servicio ? ` · ${row.tipo_servicio === 'domicilio' ? 'A domicilio' : 'Taller'}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.panelActivityDate}>{formatPanelActivityDate(row.cuando)}</Text>
+                  </View>
+                ))}
+              </GlassCard>
+            )}
           </View>
         )}
 
@@ -1963,6 +2179,93 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.4)',
     lineHeight: 19,
     marginBottom: 14,
+  },
+
+  panelSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  sectionLabelInline: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#F9FAFB',
+  },
+  panelSectionHint: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.38)',
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  panelEmptyText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.45)',
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  panelHScrollContent: {
+    paddingRight: 8,
+  },
+  panelNearbyCard: {
+    width: 118,
+    marginRight: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  panelNearbyThumbWrap: {
+    marginBottom: 8,
+  },
+  panelNearbyThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  panelNearbyThumbFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  panelNearbyName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#F9FAFB',
+    minHeight: 34,
+  },
+  panelNearbyMeta: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.38)',
+    marginTop: 2,
+  },
+  panelActivityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+  },
+  panelActivityRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  panelActivityTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#F9FAFB',
+  },
+  panelActivitySub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.38)',
+    marginTop: 3,
+  },
+  panelActivityDate: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.45)',
+    marginLeft: 10,
   },
 
   // Quick actions grid

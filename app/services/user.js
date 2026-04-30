@@ -315,6 +315,28 @@ export const getServicesHistory = async (filtros = {}) => {
 };
 
 /**
+ * Actividad de mercado anonimizada: otras solicitudes con la misma marca/modelo que tu vehículo.
+ * @param {number} vehiculoId
+ * @param {number} [limit=20]
+ * @returns {Promise<{ marca: string|null, modelo: string|null, items: Array }>}
+ */
+export const getActividadMercadoVehiculo = async (vehiculoId, limit = 20) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('vehiculo_id', String(vehiculoId));
+    params.append('limit', String(limit));
+    return await api.get(`/ordenes/solicitudes/actividad_mercado/?${params.toString()}`);
+  } catch (error) {
+    logger.error('Error al obtener actividad de mercado:', error);
+    const status = error.status ?? error.response?.status;
+    if (status === 404 || status === 400) {
+      return { marca: null, modelo: null, items: [] };
+    }
+    throw error;
+  }
+};
+
+/**
  * Cancelar una solicitud de servicio
  * @param {number} solicitudId - ID de la solicitud a cancelar
  * @param {object} datos - Datos de cancelación (motivo, comentario)

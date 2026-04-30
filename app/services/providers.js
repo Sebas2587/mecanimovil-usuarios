@@ -874,6 +874,37 @@ export const getNearbyMechanics = async (lat, lng, radius = 10) => {
 };
 
 /**
+ * Talleres y mecánicos cercanos, opcionalmente filtrados por marca atendida (mismo parámetro `marca` que los endpoints cerca).
+ * Devuelve una lista unificada ordenada por distancia (más cercano primero).
+ */
+export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}) => {
+  const distTaller = options.distTaller ?? 12;
+  const distMecanico = options.distMecanico ?? 15;
+  try {
+    const paramsTaller = { lat, lng, dist: distTaller, ordenar_por: 'distancia' };
+    const paramsMec = { lat, lng, dist: distMecanico, ordenar_por: 'distancia' };
+    if (marcaId != null && marcaId !== '') {
+      paramsTaller.marca = marcaId;
+      paramsMec.marca = marcaId;
+    }
+    const [tRes, mRes] = await Promise.all([
+      get('/usuarios/talleres/cerca/', paramsTaller),
+      get('/usuarios/mecanicos-domicilio/cerca/', paramsMec),
+    ]);
+    const talleres = tRes.results || tRes || [];
+    const mecanicos = mRes.results || mRes || [];
+    const withKind = (arr, kind) =>
+      (Array.isArray(arr) ? arr : []).map((p) => ({ ...p, _panelKind: kind }));
+    const merged = [...withKind(talleres, 'taller'), ...withKind(mecanicos, 'mecanico')];
+    merged.sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9));
+    return merged.slice(0, 18);
+  } catch (error) {
+    console.error('Error obteniendo proveedores cercanos para panel:', error);
+    return [];
+  }
+};
+
+/**
  * Obtiene talleres por modelo de vehículo
  * @param {number} modeloId - ID del modelo
  * @returns {Promise<Array>} Lista de talleres compatibles
