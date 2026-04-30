@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../design-system/tokens/colors';
+import { buildProviderAvatarUri, getProviderTierLabel } from '../../utils/providerUtils';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -23,6 +24,7 @@ const ProviderHeader = ({
 }) => {
     const showVerifiedBadge = !!(provider?.verificado);
     const kpiBadge = provider?.kpi_badge || null;
+    const tierLabel = getProviderTierLabel(kpiBadge);
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
 
@@ -36,7 +38,9 @@ const ProviderHeader = ({
 
     // Cover & Avatar fallbacks
     const coverImage = provider?.foto_portada || 'https://images.unsplash.com/photo-1487754180451-c456f719a1fc?q=80&w=1000&auto=format&fit=crop';
-    const avatarImage = provider?.foto_perfil || provider?.usuario?.foto_perfil || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=256&auto=format&fit=crop';
+    const avatarImage =
+        buildProviderAvatarUri(provider) ||
+        'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=256&auto=format&fit=crop';
 
     return (
         <View style={styles.container}>
@@ -96,8 +100,8 @@ const ProviderHeader = ({
                 <Text style={styles.name}>{name}</Text>
                 <Text style={styles.type}>{[type, location].filter(Boolean).join(' • ') || type}</Text>
 
-                {/* KPI Badge (visible a usuarios) */}
-                {kpiBadge?.label ? (
+                {/* Etiqueta de nivel (Elite, Pro, Máster, …) — sin porcentaje */}
+                {tierLabel ? (
                     <View style={styles.badgesRow}>
                         <View
                             style={[
@@ -109,7 +113,7 @@ const ProviderHeader = ({
                             ]}
                         >
                             <Ionicons
-                                name="speedometer-outline"
+                                name="ribbon-outline"
                                 size={14}
                                 color={kpiBadge.text_color || '#FFFFFF'}
                             />
@@ -117,8 +121,7 @@ const ProviderHeader = ({
                                 style={[styles.kpiBadgeText, { color: kpiBadge.text_color || '#FFFFFF' }]}
                                 numberOfLines={1}
                             >
-                                {kpiBadge.short_label || kpiBadge.label}
-                                {typeof kpiBadge.score === 'number' ? ` · ${kpiBadge.score}%` : ''}
+                                {tierLabel}
                             </Text>
                         </View>
                     </View>

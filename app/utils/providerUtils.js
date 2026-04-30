@@ -36,16 +36,61 @@ export const resolveToAbsoluteMediaUrl = (raw) => {
   return `${base}/media/${s.replace(/^\//, '')}`;
 };
 
-const rawPhotoCandidates = (provider) =>
-  [
-    provider?.foto_perfil_url,
+/**
+ * Misma prioridad que ProviderHeader (perfil proveedor): foto del proveedor, luego usuario, luego *_url.
+ */
+function buildProfileOrderedRawPhotos(provider) {
+  const seq = [
     provider?.foto_perfil,
-    provider?.usuario?.foto_perfil_url,
     provider?.usuario?.foto_perfil,
+    provider?.foto_perfil_url,
+    provider?.usuario?.foto_perfil_url,
     provider?.imagen,
-  ]
-    .filter((x) => x != null && String(x).trim() !== '')
-    .map((x) => String(x).trim());
+  ];
+  const out = [];
+  const seen = new Set();
+  for (const x of seq) {
+    if (x == null) continue;
+    const s = String(x).trim();
+    if (!s || seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out;
+}
+
+/**
+ * URL absoluta principal para avatar (perfil / cards). Misma lógica de origen que ProviderHeader + resolución media.
+ */
+export const buildProviderAvatarUri = (provider) => {
+  for (const raw of buildProfileOrderedRawPhotos(provider)) {
+    const abs = resolveToAbsoluteMediaUrl(raw);
+    if (abs) return abs;
+  }
+  return null;
+};
+
+const KPI_CODE_DISPLAY = {
+  ELITE: 'Elite',
+  MASTER: 'Máster',
+  PRO: 'Pro',
+  ASCENSO: 'En ascenso',
+  EN_PROGRESO: 'En progreso',
+  SIN_ACTIVIDAD: 'Sin actividad',
+};
+
+/**
+ * Texto corto de etiqueta de nivel (sin % ni métricas). Alineado con kpi_badge del backend.
+ */
+export const getProviderTierLabel = (kpiBadge) => {
+  if (!kpiBadge) return null;
+  const short = kpiBadge.short_label != null ? String(kpiBadge.short_label).trim() : '';
+  if (short) return short;
+  const code = kpiBadge.code;
+  if (code && KPI_CODE_DISPLAY[code]) return KPI_CODE_DISPLAY[code];
+  const lab = (kpiBadge.label || '').replace(/^KPI\s+/i, '').trim();
+  return lab || null;
+};
 
 /**
  * Devuelve la cadena de especialidad/marcas de un proveedor.
@@ -92,12 +137,9 @@ export const getProviderReviews = (provider) =>
   0;
 
 /**
- * Devuelve la URL de foto del proveedor (prioriza imagen del perfil de taller/mecánico), ya absoluta si es posible.
+ * Devuelve la URL de foto del proveedor (misma prioridad que perfil), ya absoluta si es posible.
  */
-export const getProviderImage = (provider) => {
-  const first = rawPhotoCandidates(provider)[0];
-  return resolveToAbsoluteMediaUrl(first);
-};
+export const getProviderImage = (provider) => buildProviderAvatarUri(provider);
 
 /**
  * Lista de URLs absolutas candidatas (para fallback si la primera falla al cargar).
@@ -105,7 +147,7 @@ export const getProviderImage = (provider) => {
 export const getProviderImageCandidatesResolved = (provider) => {
   const seen = new Set();
   const out = [];
-  for (const raw of rawPhotoCandidates(provider)) {
+  for (const raw of buildProfileOrderedRawPhotos(provider)) {
     const abs = resolveToAbsoluteMediaUrl(raw);
     if (abs && !seen.has(abs)) {
       seen.add(abs);

@@ -3,13 +3,15 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
+import { getProviderTierLabel } from '../../utils/providerUtils';
 
 /**
  * Card compacta de proveedor (lista horizontal / grid).
  * @param {'light'|'dark'} appearance — `dark` para paneles con fondo oscuro (ej. UserPanel).
  * @param {string|null} typeLabel — "Taller" o "A domicilio" (chip sobre la foto).
- * @param {object|null} kpiBadge — payload backend (suscripción activa); incluye label, short_label, score, reason.
+ * @param {object|null} kpiBadge — payload backend; solo se muestra etiqueta de nivel (Elite, Pro…), sin %.
  * @param {string[]} [imageCandidates] — URLs absolutas en orden; si la primera falla, se prueba la siguiente.
+ * @param {boolean} [omitRightMargin] — en grillas de 2 columnas, sin margen derecho extra.
  */
 const ProviderPreviewCard = ({
     image,
@@ -25,6 +27,7 @@ const ProviderPreviewCard = ({
     kpiBadge = null,
     appearance = 'light',
     typeLabel = null,
+    omitRightMargin = false,
 }) => {
     const theme = useTheme();
     const colors = theme?.colors || {};
@@ -33,7 +36,8 @@ const ProviderPreviewCard = ({
     const borders = theme?.borders || {};
 
     const isDark = appearance === 'dark';
-    const styles = getStyles(colors, typography, spacing, borders, width, isDark);
+    const imageHeight = Math.max(96, Math.round(width * 0.54));
+    const styles = getStyles(colors, typography, spacing, borders, width, isDark, omitRightMargin, imageHeight);
     const distanceIconColor = isDark ? 'rgba(255,255,255,0.45)' : (colors.text?.tertiary || '#6B7280');
 
     const uris = useMemo(() => {
@@ -64,7 +68,8 @@ const ProviderPreviewCard = ({
     const ratingLabel = rating != null && rating !== '' ? String(rating) : '—';
     const distanceLabel = distance != null && distance !== '' ? String(distance) : '—';
 
-    const hasKpi = !!(kpiBadge && (kpiBadge.label || kpiBadge.short_label));
+    const tierLabel = getProviderTierLabel(kpiBadge);
+    const showTier = !!tierLabel;
 
     return (
         <TouchableOpacity
@@ -113,11 +118,11 @@ const ProviderPreviewCard = ({
                 <Text style={styles.nameText} numberOfLines={1}>{name}</Text>
                 <Text style={styles.specialtyText} numberOfLines={2}>{specialty}</Text>
 
-                {hasKpi ? (
-                    <View style={styles.kpiBlock}>
+                {showTier ? (
+                    <View style={styles.tierRow}>
                         <View
                             style={[
-                                styles.kpiPill,
+                                styles.tierPill,
                                 {
                                     backgroundColor: kpiBadge.bg_color || 'rgba(0,0,0,0.25)',
                                     borderColor: kpiBadge.border_color || 'rgba(255,255,255,0.18)',
@@ -130,20 +135,13 @@ const ProviderPreviewCard = ({
                                 color={kpiBadge.text_color || '#FFFFFF'}
                                 style={{ marginRight: 5 }}
                             />
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                                <Text
-                                    style={[styles.kpiPillTitle, { color: kpiBadge.text_color || '#FFFFFF' }]}
-                                    numberOfLines={2}
-                                >
-                                    {kpiBadge.label || kpiBadge.short_label}
-                                    {typeof kpiBadge.score === 'number' ? ` · ${kpiBadge.score}%` : ''}
-                                </Text>
-                            </View>
+                            <Text
+                                style={[styles.tierPillText, { color: kpiBadge.text_color || '#FFFFFF' }]}
+                                numberOfLines={1}
+                            >
+                                {tierLabel}
+                            </Text>
                         </View>
-                        <Text style={styles.kpiCaption} numberOfLines={2}>
-                            Nivel de rendimiento en la plataforma (últimos {kpiBadge.window_days || 30} días). Solo se
-                            muestra a proveedores con suscripción mensual activa.
-                        </Text>
                     </View>
                 ) : null}
 
@@ -161,7 +159,7 @@ const ProviderPreviewCard = ({
     );
 };
 
-const getStyles = (colors, typography, spacing, borders, width, isDark) => {
+const getStyles = (colors, typography, spacing, borders, width, isDark, omitRightMargin, imageHeight) => {
     const paper = colors.background?.paper || '#FFFFFF';
     const primaryText = colors.text?.primary || '#111827';
     const tertiary = colors.text?.tertiary || '#6B7280';
@@ -171,7 +169,7 @@ const getStyles = (colors, typography, spacing, borders, width, isDark) => {
             width: width,
             backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : paper,
             borderRadius: borders.radius?.lg || 12,
-            marginRight: spacing.md || 16,
+            marginRight: omitRightMargin ? 0 : (spacing.md || 16),
             overflow: 'hidden',
             borderWidth: 1,
             borderColor: isDark ? 'rgba(255,255,255,0.12)' : (colors.border?.light || '#E5E7EB'),
@@ -187,7 +185,7 @@ const getStyles = (colors, typography, spacing, borders, width, isDark) => {
             }),
         },
         imageContainer: {
-            height: 100,
+            height: imageHeight,
             width: '100%',
             backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : (colors.neutral?.gray?.[100] || '#F3F4F6'),
             position: 'relative',
@@ -268,27 +266,24 @@ const getStyles = (colors, typography, spacing, borders, width, isDark) => {
             marginBottom: 6,
             minHeight: 28,
         },
-        kpiBlock: {
+        tierRow: {
             marginBottom: 8,
         },
-        kpiPill: {
+        tierPill: {
             flexDirection: 'row',
             alignItems: 'center',
-            alignSelf: 'stretch',
-            paddingHorizontal: 8,
-            paddingVertical: 6,
+            alignSelf: 'flex-start',
+            maxWidth: '100%',
+            paddingHorizontal: 10,
+            paddingVertical: 5,
             borderRadius: 8,
             borderWidth: 1,
         },
-        kpiPillTitle: {
+        tierPillText: {
             fontSize: 11,
             fontWeight: '800',
-        },
-        kpiCaption: {
-            marginTop: 4,
-            fontSize: 9,
-            lineHeight: 12,
-            color: isDark ? 'rgba(255,255,255,0.42)' : tertiary,
+            letterSpacing: 0.3,
+            textTransform: 'none',
         },
         footer: {
             flexDirection: 'row',

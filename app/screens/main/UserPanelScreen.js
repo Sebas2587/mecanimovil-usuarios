@@ -390,6 +390,20 @@ const UserPanelScreen = () => {
     [navigation],
   );
 
+  /** Cerca de ti: parejas de proveedores por “página” (2 columnas), scroll horizontal entre páginas */
+  const NEARBY_PAIR_GAP = 10;
+  const nearbyPageWidth = SCREEN_WIDTH;
+  const nearbyInnerW = nearbyPageWidth - H_PAD * 2;
+  const nearbyCardW = (nearbyInnerW - NEARBY_PAIR_GAP) / 2;
+  const nearbyPages = useMemo(() => {
+    const list = panelNearbyProviders;
+    const pages = [];
+    for (let i = 0; i < list.length; i += 2) {
+      pages.push(list.slice(i, i + 2));
+    }
+    return pages;
+  }, [panelNearbyProviders]);
+
   // ── Weather prediction ──
   // Re-fetches immediately when selectedAddressId changes (staleTime: 0).
   // Uses forceRefresh to bypass Django cache when user explicitly switches address.
@@ -1027,25 +1041,43 @@ const UserPanelScreen = () => {
             ) : (
               <ScrollView
                 horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.panelHScrollContent}
+                pagingEnabled
+                decelerationRate="fast"
+                snapToInterval={nearbyPageWidth}
+                snapToAlignment="start"
+                showsHorizontalScrollIndicator
+                keyboardShouldPersistTaps="handled"
               >
-                {panelNearbyProviders.map((p) => {
-                  const { id: _pid, ...card } = formatProviderForCard(p);
-                  const kindLabel = p._panelKind === 'taller' ? 'Taller' : 'A domicilio';
-                  return (
-                    <ProviderPreviewCard
-                      key={`${p._panelKind}-${p.id}`}
-                      {...card}
-                      typeLabel={kindLabel}
-                      specialty={card.specialty || 'Servicios y diagnóstico'}
-                      kpiBadge={p.kpi_badge || null}
-                      appearance="dark"
-                      width={158}
-                      onPress={() => openProviderFromPanel(p)}
-                    />
-                  );
-                })}
+                {nearbyPages.map((pair, pageIdx) => (
+                  <View
+                    key={`nearby-page-${pageIdx}`}
+                    style={{
+                      width: nearbyPageWidth,
+                      paddingHorizontal: H_PAD,
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    {pair.map((p) => {
+                      const { id: _pid, ...card } = formatProviderForCard(p);
+                      const kindLabel = p._panelKind === 'taller' ? 'Taller' : 'A domicilio';
+                      return (
+                        <ProviderPreviewCard
+                          key={`${p._panelKind}-${p.id}`}
+                          {...card}
+                          typeLabel={kindLabel}
+                          specialty={card.specialty || 'Servicios y diagnóstico'}
+                          kpiBadge={p.kpi_badge || null}
+                          appearance="dark"
+                          width={nearbyCardW}
+                          omitRightMargin
+                          onPress={() => openProviderFromPanel(p)}
+                        />
+                      );
+                    })}
+                    {pair.length === 1 ? <View style={{ width: nearbyCardW }} /> : null}
+                  </View>
+                ))}
               </ScrollView>
             )}
           </View>
@@ -2190,9 +2222,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
     lineHeight: 19,
-  },
-  panelHScrollContent: {
-    paddingRight: 8,
   },
   panelActivityRow: {
     flexDirection: 'row',
