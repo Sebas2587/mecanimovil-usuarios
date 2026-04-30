@@ -1033,12 +1033,12 @@ const UserPanelScreen = () => {
                 {panelNearbyProviders.map((p) => {
                   const { id: _pid, ...card } = formatProviderForCard(p);
                   const kindLabel = p._panelKind === 'taller' ? 'Taller' : 'A domicilio';
-                  const specialtyLine = card.specialty ? `${kindLabel} · ${card.specialty}` : kindLabel;
                   return (
                     <ProviderPreviewCard
                       key={`${p._panelKind}-${p.id}`}
                       {...card}
-                      specialty={specialtyLine}
+                      typeLabel={kindLabel}
+                      specialty={card.specialty || 'Servicios y diagnóstico'}
                       kpiBadge={p.kpi_badge || null}
                       appearance="dark"
                       width={158}
@@ -1051,16 +1051,17 @@ const UserPanelScreen = () => {
           </View>
         )}
 
-        {/* ── Actividad reciente (misma marca/modelo, anonimizada) ── */}
+        {/* ── Demanda anónima: mismo modelo (no es tu historial) ── */}
         {selectedVehicle && (
           <View style={{ marginBottom: 18 }}>
             <View style={styles.panelSectionHeader}>
               <Users size={16} color="#A78BFA" />
-              <Text style={styles.sectionLabelInline}>Actividad para tu auto</Text>
+              <Text style={styles.sectionLabelInline}>Qué piden otros con tu mismo auto</Text>
             </View>
             <Text style={styles.panelSectionHint}>
-              Últimos servicios solicitados por otros conductores con {selectedVehicle.marca_nombre || 'tu marca'}{' '}
-              {selectedVehicle.modelo_nombre || ''}. Datos agregados, sin identificar personas.
+              Ejemplos anónimos de solicitudes recientes en la plataforma con la misma marca y modelo que seleccionaste (
+              {selectedVehicle.marca_nombre || '—'} {selectedVehicle.modelo_nombre || ''}). Sirve para ver demanda y
+              servicios frecuentes; no muestra nombres ni datos de otras personas.
             </Text>
             {panelActivityLoading ? (
               <GlassCard style={{ paddingVertical: 20, alignItems: 'center' }}>
@@ -1069,7 +1070,8 @@ const UserPanelScreen = () => {
             ) : !panelMarketActivity?.items?.length ? (
               <GlassCard style={{ paddingVertical: 16 }}>
                 <Text style={styles.panelEmptyText}>
-                  Aún no hay actividad reciente visible para esta combinación marca/modelo.
+                  Aún no hay suficientes solicitudes públicas recientes para esta marca y modelo. Cuando haya más
+                  movimiento en la plataforma, verás ejemplos aquí.
                 </Text>
               </GlassCard>
             ) : (

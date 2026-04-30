@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,10 +7,13 @@ import { useTheme } from '../../design-system/theme/useTheme';
 /**
  * Card compacta de proveedor (lista horizontal / grid).
  * @param {'light'|'dark'} appearance — `dark` para paneles con fondo oscuro (ej. UserPanel).
- * @param {object|null} kpiBadge — payload del backend (solo si suscripción activa); ver ProviderHeader.
+ * @param {string|null} typeLabel — "Taller" o "A domicilio" (chip sobre la foto).
+ * @param {object|null} kpiBadge — payload backend (suscripción activa); incluye label, short_label, score, reason.
+ * @param {string[]} [imageCandidates] — URLs absolutas en orden; si la primera falla, se prueba la siguiente.
  */
 const ProviderPreviewCard = ({
     image,
+    imageCandidates,
     name,
     rating,
     reviews,
@@ -21,6 +24,7 @@ const ProviderPreviewCard = ({
     onPress,
     kpiBadge = null,
     appearance = 'light',
+    typeLabel = null,
 }) => {
     const theme = useTheme();
     const colors = theme?.colors || {};
@@ -32,8 +36,35 @@ const ProviderPreviewCard = ({
     const styles = getStyles(colors, typography, spacing, borders, width, isDark);
     const distanceIconColor = isDark ? 'rgba(255,255,255,0.45)' : (colors.text?.tertiary || '#6B7280');
 
+    const uris = useMemo(() => {
+        if (Array.isArray(imageCandidates) && imageCandidates.length > 0) {
+            return [...new Set(imageCandidates.filter(Boolean))];
+        }
+        if (image) return [image];
+        return [];
+    }, [image, imageCandidates]);
+
+    const [uriIndex, setUriIndex] = useState(0);
+    const [loadDead, setLoadDead] = useState(false);
+    useEffect(() => {
+        setUriIndex(0);
+        setLoadDead(false);
+    }, [uris.join('|')]);
+
+    const activeUri = !loadDead && uris.length ? uris[Math.min(uriIndex, uris.length - 1)] : null;
+
+    const onImageError = useCallback(() => {
+        setUriIndex((i) => {
+            if (i + 1 < uris.length) return i + 1;
+            setLoadDead(true);
+            return i;
+        });
+    }, [uris.length]);
+
     const ratingLabel = rating != null && rating !== '' ? String(rating) : '—';
     const distanceLabel = distance != null && distance !== '' ? String(distance) : '—';
+
+    const hasKpi = !!(kpiBadge && (kpiBadge.label || kpiBadge.short_label));
 
     return (
         <TouchableOpacity
@@ -41,40 +72,49 @@ const ProviderPreviewCard = ({
             activeOpacity={0.8}
             onPress={onPress}
         >
-            {/* Image Section */}
             <View style={styles.imageContainer}>
-                <Image
-                    source={image ? { uri: image } : null}
-                    style={styles.image}
-                    contentFit="cover"
-                />
-                {!image && (
+                {activeUri ? (
+                    <Image
+                        source={{ uri: activeUri }}
+                        style={styles.image}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                        transition={200}
+                        onError={onImageError}
+                    />
+                ) : null}
+                {!activeUri ? (
                     <View style={styles.placeholderImage}>
                         <Ionicons name="person" size={32} color={isDark ? 'rgba(255,255,255,0.35)' : (colors.neutral?.gray?.[400] || '#9CA3AF')} />
                     </View>
-                )}
+                ) : null}
 
-                {/* Verified Badge Overlay */}
+                {typeLabel ? (
+                    <View style={[styles.typeChip, isDark && styles.typeChipDark]}>
+                        <Text style={[styles.typeChipText, isDark && styles.typeChipTextDark]} numberOfLines={1}>
+                            {typeLabel}
+                        </Text>
+                    </View>
+                ) : null}
+
                 {verified && (
                     <View style={styles.verifiedBadge}>
                         <Ionicons name="checkmark-circle" size={16} color={colors.primary?.[500] || '#003459'} />
                     </View>
                 )}
 
-                {/* Rating Badge Overlay */}
                 <View style={styles.ratingBadge}>
                     <Ionicons name="star" size={10} color="#F59E0B" />
                     <Text style={styles.ratingText}>{ratingLabel}</Text>
                 </View>
             </View>
 
-            {/* Content Section */}
             <View style={styles.content}>
                 <Text style={styles.nameText} numberOfLines={1}>{name}</Text>
                 <Text style={styles.specialtyText} numberOfLines={2}>{specialty}</Text>
 
-                {kpiBadge?.label ? (
-                    <View style={styles.kpiRow}>
+                {hasKpi ? (
+                    <View style={styles.kpiBlock}>
                         <View
                             style={[
                                 styles.kpiPill,
@@ -85,19 +125,25 @@ const ProviderPreviewCard = ({
                             ]}
                         >
                             <Ionicons
-                                name="speedometer-outline"
-                                size={11}
+                                name="ribbon-outline"
+                                size={12}
                                 color={kpiBadge.text_color || '#FFFFFF'}
-                                style={{ marginRight: 4 }}
+                                style={{ marginRight: 5 }}
                             />
-                            <Text
-                                style={[styles.kpiPillText, { color: kpiBadge.text_color || '#FFFFFF' }]}
-                                numberOfLines={1}
-                            >
-                                {kpiBadge.short_label || kpiBadge.label}
-                                {typeof kpiBadge.score === 'number' ? ` · ${kpiBadge.score}%` : ''}
-                            </Text>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                                <Text
+                                    style={[styles.kpiPillTitle, { color: kpiBadge.text_color || '#FFFFFF' }]}
+                                    numberOfLines={2}
+                                >
+                                    {kpiBadge.label || kpiBadge.short_label}
+                                    {typeof kpiBadge.score === 'number' ? ` · ${kpiBadge.score}%` : ''}
+                                </Text>
+                            </View>
                         </View>
+                        <Text style={styles.kpiCaption} numberOfLines={2}>
+                            Nivel de rendimiento en la plataforma (últimos {kpiBadge.window_days || 30} días). Solo se
+                            muestra a proveedores con suscripción mensual activa.
+                        </Text>
                     </View>
                 ) : null}
 
@@ -151,10 +197,30 @@ const getStyles = (colors, typography, spacing, borders, width, isDark) => {
             height: '100%',
         },
         placeholderImage: {
-            width: '100%',
-            height: '100%',
+            ...StyleSheet.absoluteFillObject,
             justifyContent: 'center',
             alignItems: 'center',
+        },
+        typeChip: {
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            backgroundColor: 'rgba(255,255,255,0.92)',
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 8,
+            maxWidth: '72%',
+        },
+        typeChipDark: {
+            backgroundColor: 'rgba(15,23,42,0.88)',
+        },
+        typeChipText: {
+            fontSize: 10,
+            fontWeight: '800',
+            color: primaryText,
+        },
+        typeChipTextDark: {
+            color: '#F9FAFB',
         },
         verifiedBadge: {
             position: 'absolute',
@@ -202,34 +268,38 @@ const getStyles = (colors, typography, spacing, borders, width, isDark) => {
             marginBottom: 6,
             minHeight: 28,
         },
-        kpiRow: {
+        kpiBlock: {
             marginBottom: 8,
         },
         kpiPill: {
             flexDirection: 'row',
             alignItems: 'center',
-            alignSelf: 'flex-start',
+            alignSelf: 'stretch',
             paddingHorizontal: 8,
-            paddingVertical: 4,
+            paddingVertical: 6,
             borderRadius: 8,
             borderWidth: 1,
-            maxWidth: '100%',
         },
-        kpiPillText: {
-            fontSize: 10,
-            fontWeight: '700',
-            flexShrink: 1,
+        kpiPillTitle: {
+            fontSize: 11,
+            fontWeight: '800',
+        },
+        kpiCaption: {
+            marginTop: 4,
+            fontSize: 9,
+            lineHeight: 12,
+            color: isDark ? 'rgba(255,255,255,0.42)' : tertiary,
         },
         footer: {
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: 4,
         },
         distanceContainer: {
             flexDirection: 'row',
             alignItems: 'center',
+            flexShrink: 1,
         },
         distanceText: {
             fontSize: 11,
@@ -239,6 +309,7 @@ const getStyles = (colors, typography, spacing, borders, width, isDark) => {
         reviewsHint: {
             fontSize: 10,
             color: isDark ? 'rgba(255,255,255,0.38)' : tertiary,
+            marginLeft: 8,
         },
     });
 };

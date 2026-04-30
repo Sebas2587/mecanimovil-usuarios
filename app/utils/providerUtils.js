@@ -4,6 +4,49 @@
  * para garantizar información consistente sin excepciones.
  */
 
+import Constants from 'expo-constants';
+import serverConfig from '../config/serverConfig';
+
+/**
+ * Convierte rutas relativas del backend (/media/..., proveedores/...) en URL absoluta
+ * para que expo-image cargue bien en dispositivo (el API puede devolver solo path).
+ */
+export const resolveToAbsoluteMediaUrl = (raw) => {
+  if (raw == null || raw === '') return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (s.startsWith('http://') || s.startsWith('https://')) return s;
+  if (s.startsWith('file://') || s.startsWith('content://')) return s;
+
+  const fromConfig = serverConfig.getMediaURL && serverConfig.getMediaURL();
+  const base =
+    (fromConfig && String(fromConfig).replace(/\/$/, '')) ||
+    (() => {
+      const api = Constants.expoConfig?.extra?.apiUrl || Constants.expoConfig?.extra?.API_URL;
+      if (api && typeof api === 'string') {
+        return api.replace(/\/api\/?$/i, '').replace(/\/$/, '');
+      }
+      return null;
+    })();
+
+  if (!base) return s.startsWith('/') ? s : null;
+
+  if (s.startsWith('/media/')) return `${base}${s}`;
+  if (s.startsWith('/')) return `${base}${s}`;
+  return `${base}/media/${s.replace(/^\//, '')}`;
+};
+
+const rawPhotoCandidates = (provider) =>
+  [
+    provider?.foto_perfil_url,
+    provider?.foto_perfil,
+    provider?.usuario?.foto_perfil_url,
+    provider?.usuario?.foto_perfil,
+    provider?.imagen,
+  ]
+    .filter((x) => x != null && String(x).trim() !== '')
+    .map((x) => String(x).trim());
+
 /**
  * Devuelve la cadena de especialidad/marcas de un proveedor.
  * Prioridad: marcas_atendidas_nombres → especialidades_nombres → especialidades[].nombre → fallback
@@ -49,15 +92,28 @@ export const getProviderReviews = (provider) =>
   0;
 
 /**
- * Devuelve la URL de foto del proveedor (prioriza imagen del perfil de taller/mecánico).
+ * Devuelve la URL de foto del proveedor (prioriza imagen del perfil de taller/mecánico), ya absoluta si es posible.
  */
-export const getProviderImage = (provider) =>
-  provider?.foto_perfil_url ||
-  provider?.foto_perfil ||
-  provider?.usuario?.foto_perfil_url ||
-  provider?.usuario?.foto_perfil ||
-  provider?.imagen ||
-  null;
+export const getProviderImage = (provider) => {
+  const first = rawPhotoCandidates(provider)[0];
+  return resolveToAbsoluteMediaUrl(first);
+};
+
+/**
+ * Lista de URLs absolutas candidatas (para fallback si la primera falla al cargar).
+ */
+export const getProviderImageCandidatesResolved = (provider) => {
+  const seen = new Set();
+  const out = [];
+  for (const raw of rawPhotoCandidates(provider)) {
+    const abs = resolveToAbsoluteMediaUrl(raw);
+    if (abs && !seen.has(abs)) {
+      seen.add(abs);
+      out.push(abs);
+    }
+  }
+  return out;
+};
 
 /**
  * Devuelve la distancia formateada del proveedor o null.
@@ -82,13 +138,17 @@ export const getProviderDistance = (provider) => {
  * Usar esta función en UserPanelScreen, TalleresScreen, MecanicosScreen
  * y cualquier otra pantalla que muestre ProviderPreviewCard.
  */
-export const formatProviderForCard = (provider) => ({
-  id: provider?.id,
-  name: provider?.nombre || 'Proveedor',
-  specialty: getProviderSpecialty(provider),
-  rating: getProviderRating(provider),
-  reviews: getProviderReviews(provider),
-  distance: getProviderDistance(provider),
-  verified: provider?.verificado ?? false,
-  image: getProviderImage(provider),
-});
+export const formatProviderForCard = (provider) => {
+  const candidates = getProviderImageCandidatesResolved(provider);
+  return {
+    id: provider?.id,
+    name: provider?.nombre || 'Proveedor',
+    specialty: getProviderSpecialty(provider),
+    rating: getProviderRating(provider),
+    reviews: getProviderReviews(provider),
+    distance: getProviderDistance(provider),
+    verified: provider?.verificado ?? false,
+    image: candidates[0] || null,
+    imageCandidates: candidates,
+  };
+};
