@@ -157,17 +157,6 @@ function coordsFromSavedAddress(addr) {
   return { lat: la, lng: lo };
 }
 
-function formatPanelActivityDate(iso) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
-  } catch {
-    return '';
-  }
-}
-
 // ─────────────────────────────────────────────
 // GlassCard — local helper, not a design-system export
 // ─────────────────────────────────────────────
@@ -390,11 +379,9 @@ const UserPanelScreen = () => {
     [navigation],
   );
 
-  /** Cerca de ti: parejas de proveedores por “página” (2 columnas), scroll horizontal entre páginas */
-  const NEARBY_PAIR_GAP = 10;
+  /** Cerca de ti: parejas por página; mismo ancho de card que el grid del panel (`GRID_CARD_W`). */
   const nearbyPageWidth = SCREEN_WIDTH;
-  const nearbyInnerW = nearbyPageWidth - H_PAD * 2;
-  const nearbyCardW = (nearbyInnerW - NEARBY_PAIR_GAP) / 2;
+  const nearbyCardW = GRID_CARD_W;
   const nearbyPages = useMemo(() => {
     const list = panelNearbyProviders;
     const pages = [];
@@ -1055,7 +1042,7 @@ const UserPanelScreen = () => {
                       width: nearbyPageWidth,
                       paddingHorizontal: H_PAD,
                       flexDirection: 'row',
-                      justifyContent: 'space-between',
+                      gap: CARD_GAP,
                     }}
                   >
                     {pair.map((p) => {
@@ -1092,9 +1079,8 @@ const UserPanelScreen = () => {
               <Text style={styles.sectionLabelInline}>Qué piden otros con tu mismo auto</Text>
             </View>
             <Text style={styles.panelSectionHint}>
-              Ejemplos anónimos de solicitudes recientes en la plataforma con la misma marca y modelo que seleccionaste (
-              {selectedVehicle.marca_nombre || '—'} {selectedVehicle.modelo_nombre || ''}). Sirve para ver demanda y
-              servicios frecuentes; no muestra nombres ni datos de otras personas.
+              Misma marca y modelo que tu vehículo ({selectedVehicle.marca_nombre || '—'}{' '}
+              {selectedVehicle.modelo_nombre || ''}). A la derecha: personas distintas que pidieron ese servicio.
             </Text>
             {panelActivityLoading ? (
               <GlassCard style={{ paddingVertical: 20, alignItems: 'center' }}>
@@ -1103,30 +1089,27 @@ const UserPanelScreen = () => {
             ) : !panelMarketActivity?.items?.length ? (
               <GlassCard style={{ paddingVertical: 16 }}>
                 <Text style={styles.panelEmptyText}>
-                  Aún no hay suficientes solicitudes públicas recientes para esta marca y modelo. Cuando haya más
-                  movimiento en la plataforma, verás ejemplos aquí.
+                  Aún no hay datos de servicios para esta marca y modelo. Cuando otros usuarios soliciten servicios
+                  con un auto como el tuyo, aparecerán aquí.
                 </Text>
               </GlassCard>
             ) : (
-              <GlassCard innerStyle={{ paddingVertical: 4 }}>
+              <GlassCard innerStyle={{ paddingVertical: 6, paddingHorizontal: 0 }}>
                 {panelMarketActivity.items.map((row, idx) => (
                   <View
-                    key={`${row.cuando}-${idx}`}
+                    key={`svc-${row.servicio_id ?? idx}`}
                     style={[
-                      styles.panelActivityRow,
-                      idx < panelMarketActivity.items.length - 1 && styles.panelActivityRowBorder,
+                      styles.marketServicioRow,
+                      idx < panelMarketActivity.items.length - 1 && styles.marketServicioRowBorder,
                     ]}
                   >
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.panelActivityTitle} numberOfLines={2}>
-                        {row.servicio_resumen}
-                      </Text>
-                      <Text style={styles.panelActivitySub} numberOfLines={1}>
-                        {row.estado_display}
-                        {row.tipo_servicio ? ` · ${row.tipo_servicio === 'domicilio' ? 'A domicilio' : 'Taller'}` : ''}
-                      </Text>
+                    <Text style={styles.marketServicioName} numberOfLines={2}>
+                      {row.servicio_nombre || 'Servicio'}
+                    </Text>
+                    <View style={styles.marketPersonasCol}>
+                      <Text style={styles.marketPersonasNum}>{Number(row.personas ?? 0)}</Text>
+                      <Text style={styles.marketPersonasLbl}>personas</Text>
                     </View>
-                    <Text style={styles.panelActivityDate}>{formatPanelActivityDate(row.cuando)}</Text>
                   </View>
                 ))}
               </GlassCard>
@@ -2224,31 +2207,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 19,
   },
-  panelActivityRow: {
+  marketServicioRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
-    paddingHorizontal: 4,
+    paddingHorizontal: 14,
   },
-  panelActivityRowBorder: {
+  marketServicioRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: 'rgba(255,255,255,0.07)',
   },
-  panelActivityTitle: {
-    fontSize: 14,
+  marketServicioName: {
+    flex: 1,
+    marginRight: 12,
+    fontSize: 15,
     fontWeight: '600',
     color: '#F9FAFB',
+    lineHeight: 20,
   },
-  panelActivitySub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.38)',
-    marginTop: 3,
+  marketPersonasCol: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+    minWidth: 56,
   },
-  panelActivityDate: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
-    marginLeft: 10,
+  marketPersonasNum: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#E9D5FF',
+  },
+  marketPersonasLbl: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.42)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
 
   // Quick actions grid

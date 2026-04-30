@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
+import { withOpacity } from '../../design-system/tokens/colors';
 import { getKpiTierPresentation, getProviderImageCandidatesResolved } from '../../utils/providerUtils';
 import { getAxiosMediaBaseSync } from '../../services/api';
 
@@ -9,7 +10,7 @@ import { getAxiosMediaBaseSync } from '../../services/api';
  * Card compacta de proveedor (lista horizontal / grid).
  * @param {'light'|'dark'} appearance — `dark` para paneles con fondo oscuro (ej. UserPanel).
  * @param {string|null} typeLabel — "Taller" o "A domicilio" (chip sobre la foto).
- * @param {object|null} kpiBadge — payload backend (`kpi_badge_utils`); etiqueta y colores por score / code.
+ * @param {object|null} kpiBadge — pill flotante arriba-derecha en la foto (semi-transparente).
  * @param {string[]} [imageCandidates] — URLs absolutas en orden; si la primera falla, se prueba la siguiente.
  * @param {boolean} [omitRightMargin] — en grillas de 2 columnas, sin margen derecho extra.
  * @param {object} [provider] — objeto proveedor crudo del API; si viene, se recalculan URIs (misma lógica que ProviderDetail/Header).
@@ -39,7 +40,10 @@ const ProviderPreviewCard = ({
     const isDark = appearance === 'dark';
     const imageHeight = Math.max(96, Math.round(width * 0.54));
     const cardPad = spacing.cardPadding ?? spacing.sm ?? 12;
-    const cardGap = spacing.cardGap ?? spacing.xs ?? 8;
+    const containerRadius = isDark ? 20 : borders.radius?.card?.md ?? borders.radius?.lg ?? 12;
+    const contentPadH = isDark ? 10 : Math.min(cardPad, 14);
+    const contentPadV = isDark ? 8 : Math.min(cardPad, 14);
+    const stackGap = isDark ? 4 : 6;
     const styles = getStyles(
         colors,
         typography,
@@ -49,8 +53,10 @@ const ProviderPreviewCard = ({
         isDark,
         omitRightMargin,
         imageHeight,
-        cardPad,
-        cardGap
+        contentPadH,
+        contentPadV,
+        stackGap,
+        containerRadius
     );
     const distanceIconColor = isDark ? 'rgba(255,255,255,0.45)' : (colors.text?.tertiary || '#6B7280');
     // Tras el primer request, axios tiene baseURL; sin esto el memo no se invalida si solo cambia la resolución de /media/...
@@ -92,6 +98,12 @@ const ProviderPreviewCard = ({
 
     const kpiPresentation = getKpiTierPresentation(kpiBadge);
     const showTier = !!kpiPresentation;
+    const kpiFloatBg = kpiPresentation
+        ? withOpacity(kpiPresentation.bg_color, isDark ? 0.88 : 0.9)
+        : undefined;
+    const kpiFloatBorder = kpiPresentation
+        ? withOpacity(kpiPresentation.border_color, isDark ? 0.92 : 0.95)
+        : undefined;
     const verifiedColor = isDark
         ? colors.base?.freshSky || colors.secondary?.[400] || '#38BDF8'
         : colors.primary?.[500] || '#003459';
@@ -125,10 +137,36 @@ const ProviderPreviewCard = ({
                     </View>
                 ) : null}
 
-                <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={10} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{ratingLabel}</Text>
-                </View>
+                {showTier ? (
+                    <View
+                        style={[styles.kpiFloating, isDark && styles.kpiFloatingDark]}
+                        pointerEvents="none"
+                        accessibilityLabel={`Nivel ${kpiPresentation.label}`}
+                    >
+                        <View
+                            style={[
+                                styles.kpiFloatingInner,
+                                {
+                                    backgroundColor: kpiFloatBg,
+                                    borderColor: kpiFloatBorder,
+                                },
+                            ]}
+                        >
+                            <Ionicons
+                                name="ribbon-outline"
+                                size={11}
+                                color={kpiPresentation.text_color}
+                                style={styles.kpiFloatingIcon}
+                            />
+                            <Text
+                                style={[styles.kpiFloatingText, { color: kpiPresentation.text_color }]}
+                                numberOfLines={1}
+                            >
+                                {kpiPresentation.label}
+                            </Text>
+                        </View>
+                    </View>
+                ) : null}
             </View>
 
             <View style={styles.content}>
@@ -150,32 +188,12 @@ const ProviderPreviewCard = ({
                     {specialty}
                 </Text>
 
-                {showTier ? (
-                    <View style={styles.tierRow}>
-                        <View
-                            style={[
-                                styles.tierPill,
-                                {
-                                    backgroundColor: kpiPresentation.bg_color,
-                                    borderColor: kpiPresentation.border_color,
-                                },
-                            ]}
-                        >
-                            <Ionicons
-                                name="ribbon-outline"
-                                size={12}
-                                color={kpiPresentation.text_color}
-                                style={styles.tierPillIcon}
-                            />
-                            <Text
-                                style={[styles.tierPillText, { color: kpiPresentation.text_color }]}
-                                numberOfLines={1}
-                            >
-                                {kpiPresentation.label}
-                            </Text>
-                        </View>
+                <View style={styles.ratingRow}>
+                    <View style={[styles.ratingPill, isDark && styles.ratingPillDark]}>
+                        <Ionicons name="star" size={11} color="#F59E0B" />
+                        <Text style={[styles.ratingPillText, isDark && styles.ratingPillTextDark]}>{ratingLabel}</Text>
                     </View>
-                ) : null}
+                </View>
 
                 <View style={styles.footer}>
                     <View style={styles.distanceContainer}>
@@ -199,20 +217,21 @@ const getStyles = (
     isDark,
     omitRightMargin,
     imageHeight,
-    cardPad,
-    cardGap
+    contentPadH,
+    contentPadV,
+    stackGap,
+    containerRadius
 ) => {
     const paper = colors.background?.paper || '#FFFFFF';
     const primaryText = colors.text?.primary || '#111827';
     const tertiary = colors.text?.tertiary || '#6B7280';
-    const radiusCard = borders.radius?.card?.md ?? borders.radius?.lg ?? 12;
     const radiusPill = borders.radius?.badge?.md ?? 8;
 
     return StyleSheet.create({
         container: {
             width: width,
             backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : paper,
-            borderRadius: radiusCard,
+            borderRadius: containerRadius,
             marginRight: omitRightMargin ? 0 : (spacing.md || 16),
             overflow: 'hidden',
             borderWidth: 1,
@@ -264,33 +283,53 @@ const getStyles = (
         typeChipTextDark: {
             color: '#F9FAFB',
         },
-        ratingBadge: {
+        kpiFloating: {
             position: 'absolute',
             top: 8,
             right: 8,
+            zIndex: 4,
+            maxWidth: '56%',
+            alignItems: 'flex-end',
+        },
+        kpiFloatingDark: {
+            ...Platform.select({
+                ios: {
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.35,
+                    shadowRadius: 6,
+                },
+                android: { elevation: 4 },
+                default: {},
+            }),
+        },
+        kpiFloatingInner: {
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: isDark ? 'rgba(15,23,42,0.88)' : 'rgba(255,255,255,0.9)',
-            borderRadius: 8,
-            paddingHorizontal: 6,
-            paddingVertical: 2,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 10,
+            borderWidth: 1,
         },
-        ratingText: {
+        kpiFloatingIcon: {
+            marginRight: 4,
+        },
+        kpiFloatingText: {
             fontSize: 10,
-            fontWeight: '700',
-            color: isDark ? '#F9FAFB' : primaryText,
-            marginLeft: 2,
+            fontWeight: '800',
+            letterSpacing: 0.2,
+            flexShrink: 1,
         },
         content: {
-            paddingHorizontal: cardPad,
-            paddingTop: cardPad,
-            paddingBottom: Math.max(cardGap, cardPad - 2),
+            paddingHorizontal: contentPadH,
+            paddingTop: contentPadV,
+            paddingBottom: contentPadV,
         },
         nameRow: {
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
-            marginBottom: spacing.xs ?? 4,
+            marginBottom: stackGap,
         },
         nameText: {
             flex: 1,
@@ -305,32 +344,36 @@ const getStyles = (
         },
         specialtyText: {
             fontSize: typography.fontSize?.xs || 11,
-            lineHeight: Math.round((typography.fontSize?.xs || 11) * 1.35),
+            lineHeight: Math.round((typography.fontSize?.xs || 11) * 1.32),
             color: isDark ? 'rgba(255,255,255,0.55)' : tertiary,
-            marginBottom: cardGap,
-            minHeight: Math.round((typography.fontSize?.xs || 11) * 1.35) * 2,
+            marginBottom: stackGap,
         },
-        tierRow: {
-            marginBottom: cardGap,
+        ratingRow: {
+            marginBottom: stackGap,
         },
-        tierPill: {
+        ratingPill: {
             flexDirection: 'row',
             alignItems: 'center',
             alignSelf: 'flex-start',
-            maxWidth: '100%',
-            paddingHorizontal: spacing.sm ?? 10,
-            paddingVertical: spacing.xs ?? 5,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
             borderRadius: radiusPill,
             borderWidth: borders.width?.thin ?? 1,
+            borderColor: colors.border?.light || '#E5E7EB',
+            backgroundColor: 'rgba(255,255,255,0.92)',
         },
-        tierPillIcon: {
-            marginRight: 5,
+        ratingPillDark: {
+            backgroundColor: 'rgba(15,23,42,0.88)',
+            borderColor: 'rgba(255,255,255,0.14)',
         },
-        tierPillText: {
+        ratingPillText: {
+            marginLeft: 4,
             fontSize: typography.fontSize?.xs || 11,
             fontWeight: typography.fontWeight?.bold || '700',
-            letterSpacing: 0.2,
-            textTransform: 'none',
+            color: primaryText,
+        },
+        ratingPillTextDark: {
+            color: '#F9FAFB',
         },
         footer: {
             flexDirection: 'row',

@@ -318,7 +318,7 @@ export const getServicesHistory = async (filtros = {}) => {
  * Actividad de mercado anonimizada: otras solicitudes con la misma marca/modelo que tu vehículo.
  * @param {number} vehiculoId
  * @param {number} [limit=20]
- * @returns {Promise<{ marca: string|null, modelo: string|null, items: Array }>}
+ * @returns {Promise<{ marca: string|null, modelo: string|null, items: Array<{ servicio_id, servicio_nombre, personas, ultima_solicitud }> }>}
  */
 export const getActividadMercadoVehiculo = async (vehiculoId, limit = 20) => {
   try {
