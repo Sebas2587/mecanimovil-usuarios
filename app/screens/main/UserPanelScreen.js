@@ -88,6 +88,8 @@ import AddressSelectionModal from '../../components/location/AddressSelectionMod
 import { normalizeKmRemaining, normalizePct } from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
+import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
+import { formatProviderForCard } from '../../utils/providerUtils';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
@@ -1029,36 +1031,19 @@ const UserPanelScreen = () => {
                 contentContainerStyle={styles.panelHScrollContent}
               >
                 {panelNearbyProviders.map((p) => {
-                  const uri = p.foto_perfil_url || p.foto_perfil || p.foto || null;
-                  const distLabel =
-                    p.distance != null && Number.isFinite(Number(p.distance))
-                      ? `${Number(p.distance).toFixed(1)} km`
-                      : '';
-                  const kindLabel = p._panelKind === 'taller' ? 'Taller' : 'Domicilio';
+                  const { id: _pid, ...card } = formatProviderForCard(p);
+                  const kindLabel = p._panelKind === 'taller' ? 'Taller' : 'A domicilio';
+                  const specialtyLine = card.specialty ? `${kindLabel} · ${card.specialty}` : kindLabel;
                   return (
-                    <TouchableOpacity
+                    <ProviderPreviewCard
                       key={`${p._panelKind}-${p.id}`}
-                      activeOpacity={0.85}
-                      style={styles.panelNearbyCard}
+                      {...card}
+                      specialty={specialtyLine}
+                      kpiBadge={p.kpi_badge || null}
+                      appearance="dark"
+                      width={158}
                       onPress={() => openProviderFromPanel(p)}
-                    >
-                      <View style={styles.panelNearbyThumbWrap}>
-                        {uri ? (
-                          <Image source={{ uri }} style={styles.panelNearbyThumb} contentFit="cover" />
-                        ) : (
-                          <View style={[styles.panelNearbyThumb, styles.panelNearbyThumbFallback]}>
-                            <Store size={20} color="#94A3B8" />
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.panelNearbyName} numberOfLines={2}>
-                        {p.nombre || 'Proveedor'}
-                      </Text>
-                      <Text style={styles.panelNearbyMeta} numberOfLines={1}>
-                        {kindLabel}
-                        {distLabel ? ` · ${distLabel}` : ''}
-                      </Text>
-                    </TouchableOpacity>
+                    />
                   );
                 })}
               </ScrollView>
@@ -2206,40 +2191,6 @@ const styles = StyleSheet.create({
   },
   panelHScrollContent: {
     paddingRight: 8,
-  },
-  panelNearbyCard: {
-    width: 118,
-    marginRight: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  panelNearbyThumbWrap: {
-    marginBottom: 8,
-  },
-  panelNearbyThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  panelNearbyThumbFallback: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  panelNearbyName: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#F9FAFB',
-    minHeight: 34,
-  },
-  panelNearbyMeta: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.38)',
-    marginTop: 2,
   },
   panelActivityRow: {
     flexDirection: 'row',

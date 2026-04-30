@@ -49,13 +49,13 @@ export const getProviderReviews = (provider) =>
   0;
 
 /**
- * Devuelve la URL de foto del proveedor.
+ * Devuelve la URL de foto del proveedor (prioriza imagen del perfil de taller/mecánico).
  */
 export const getProviderImage = (provider) =>
-  provider?.usuario?.foto_perfil ||
-  provider?.usuario?.foto_perfil_url ||
-  provider?.foto_perfil ||
   provider?.foto_perfil_url ||
+  provider?.foto_perfil ||
+  provider?.usuario?.foto_perfil_url ||
+  provider?.usuario?.foto_perfil ||
   provider?.imagen ||
   null;
 
