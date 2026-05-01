@@ -130,6 +130,15 @@ const DetalleSolicitudScreen = () => {
               setProcesando(true);
               const resultado = await seleccionarOferta(solicitudId, oferta.id);
 
+              if (resultado?.estado_resultado === 'esperando_creditos_proveedor') {
+                Alert.alert(
+                  'Proveedor elegido',
+                  'El proveedor debe confirmar la adjudicación con créditos en su app antes de que puedas pagar. Podés seguir el estado de la solicitud aquí.',
+                  [{ text: 'Entendido', onPress: () => cargarDatos() }]
+                );
+                return;
+              }
+
               // Con carrito (flujo tradicional) o sin carrito (precompra / sin vehículo) → mismo destino de pago
               if (resultado?.carrito || resultado?.sin_carrito) {
                 if (oferta.es_oferta_secundaria) {

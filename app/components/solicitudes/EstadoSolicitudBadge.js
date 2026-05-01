@@ -28,6 +28,11 @@ const EstadoSolicitudBadge = ({ estado }) => {
         backgroundColor: '#FFF3E0',
         texto: 'Con Ofertas'
       },
+      esperando_creditos_proveedor: {
+        color: COLORS.warning,
+        backgroundColor: '#FEF3C7',
+        texto: 'Esperando confirmación proveedor'
+      },
       adjudicada: {
         color: COLORS.success,
         backgroundColor: '#E8F5E9',

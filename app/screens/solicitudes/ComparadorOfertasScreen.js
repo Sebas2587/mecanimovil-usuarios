@@ -127,10 +127,17 @@ const ComparadorOfertasScreen = () => {
       return;
     }
 
-    if (solicitud && solicitud.estado === 'adjudicada') {
+    if (
+      solicitud &&
+      (solicitud.estado === 'adjudicada' || solicitud.estado === 'esperando_creditos_proveedor')
+    ) {
       Alert.alert(
-        'Solicitud ya adjudicada',
-        'Esta solicitud ya tiene una oferta aceptada.',
+        solicitud.estado === 'esperando_creditos_proveedor'
+          ? 'Elección en curso'
+          : 'Solicitud ya adjudicada',
+        solicitud.estado === 'esperando_creditos_proveedor'
+          ? 'Ya elegiste un proveedor; está pendiente que confirme con créditos antes de pagar.'
+          : 'Esta solicitud ya tiene una oferta aceptada.',
         [{ text: 'Entendido' }]
       );
       return;
@@ -148,6 +155,15 @@ const ComparadorOfertasScreen = () => {
             setProcesando(true);
             try {
               const resultado = await seleccionarOferta(solicitudId, oferta.id);
+
+              if (resultado?.estado_resultado === 'esperando_creditos_proveedor') {
+                Alert.alert(
+                  'Proveedor elegido',
+                  'El proveedor debe confirmar con créditos antes de que puedas pagar. Actualizamos tu solicitud en la lista.',
+                  [{ text: 'Entendido', onPress: () => navigation.goBack() }]
+                );
+                return;
+              }
 
               if (resultado && (resultado.carrito || resultado.sin_carrito)) {
                 try {

@@ -16,6 +16,12 @@ const getEstadoGlassConfig = (estadoEfectivo) => {
     seleccionando_servicios: { color: '#93C5FD', bg: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.35)', texto: 'Seleccionando' },
     publicada: { color: '#93C5FD', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.35)', texto: 'Publicada' },
     con_ofertas: { color: '#FCD34D', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', texto: 'Con Ofertas' },
+    esperando_creditos_proveedor: {
+      color: '#FBBF24',
+      bg: 'rgba(245,158,11,0.14)',
+      border: 'rgba(217,119,6,0.4)',
+      texto: 'Esperando proveedor',
+    },
     adjudicada: { color: '#6EE7B7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)', texto: 'Adjudicada' },
     pagada: { color: '#6EE7B7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)', texto: 'Pagada' },
     pagada_parcialmente: { color: '#FBBF24', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', texto: 'Pagada Parcialmente' },
@@ -98,6 +104,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       seleccionando_servicios: 'list',
       publicada: 'megaphone',
       con_ofertas: 'pricetags',
+      esperando_creditos_proveedor: 'hourglass-outline',
       adjudicada: 'checkmark-circle',
       ofertas_adicionales_pendientes: 'mail-unread',
       en_ejecucion: 'construct',
@@ -170,6 +177,18 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
             {horaFormateada && ` a las ${horaFormateada}`}
           </Text>
         </View>
+
+        {solicitud.estado === 'esperando_creditos_proveedor' &&
+          solicitud.fecha_limite_confirmacion_creditos && (
+            <View style={styles.countdownContainer}>
+              <CountdownTimer
+                targetDate={solicitud.fecha_limite_confirmacion_creditos}
+                type="solicitud"
+                size="small"
+                dark
+              />
+            </View>
+          )}
 
         {solicitud.estado === 'publicada' &&
           solicitud.total_ofertas === 0 &&

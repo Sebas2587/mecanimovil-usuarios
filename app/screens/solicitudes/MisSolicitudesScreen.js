@@ -59,7 +59,15 @@ const MisSolicitudesScreen = () => {
 
   const filtroAEstados = {
     todos: null,
-    activas: ['publicada', 'con_ofertas', 'adjudicada', 'pendiente_pago', 'creada', 'seleccionando_servicios'],
+    activas: [
+      'publicada',
+      'con_ofertas',
+      'esperando_creditos_proveedor',
+      'adjudicada',
+      'pendiente_pago',
+      'creada',
+      'seleccionando_servicios',
+    ],
     en_proceso: ['pagada', 'en_ejecucion'],
     completada: ['completada'],
     canceladas: ['cancelada', 'expirada'],
