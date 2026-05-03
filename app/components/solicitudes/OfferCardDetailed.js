@@ -69,6 +69,23 @@ const OfferCardDetailed = ({
     const costoRepuestos = parseFloat(oferta.costo_repuestos || 0);
     const costoGestion = parseFloat(oferta.costo_gestion_compra || 0);
     const precioTotal = parseFloat(oferta.precio_total_ofrecido || 0);
+    const tieneDesgloseMontos =
+        costoManoObra > 0 || costoRepuestos > 0 || costoGestion > 0;
+    const subSinIva = tieneDesgloseMontos
+        ? costoManoObra + costoRepuestos + costoGestion
+        : precioTotal > 0
+            ? precioTotal / 1.19
+            : 0;
+    const ivaMonto = tieneDesgloseMontos
+        ? subSinIva * 0.19
+        : precioTotal > 0
+            ? precioTotal - subSinIva
+            : 0;
+    const mostrarLineasProveedor =
+        costoManoObra > 0 ||
+        costoRepuestos > 0 ||
+        oferta.incluye_repuestos ||
+        costoGestion > 0;
 
     // Rating
     const rating = oferta.rating_proveedor || 0;
@@ -138,26 +155,44 @@ const OfferCardDetailed = ({
 
             {/* 3. Desglose de Costos (Container Gris) */}
             <View style={styles.costContainer}>
-                {/* Detalles - Solo mostrar si hay desglose > 0 */}
-                {costoManoObra > 0 && (
-                    <View style={styles.costRow}>
-                        <Text style={styles.costLabel}>Mano de Obra</Text>
-                        <Text style={styles.costValue}>${Math.round(costoManoObra).toLocaleString()}</Text>
-                    </View>
+                {mostrarLineasProveedor && (
+                    <>
+                        {costoManoObra > 0 && (
+                            <View style={styles.costRow}>
+                                <Text style={styles.costLabel}>Mano de obra (sin IVA)</Text>
+                                <Text style={styles.costValue}>${Math.round(costoManoObra).toLocaleString()}</Text>
+                            </View>
+                        )}
+                        {costoRepuestos > 0 && (
+                            <View style={styles.costRow}>
+                                <Text style={styles.costLabel}>
+                                    Repuestos (sin IVA){oferta.incluye_repuestos ? ' · incluidos' : ''}
+                                </Text>
+                                <Text style={styles.costValue}>${Math.round(costoRepuestos).toLocaleString()}</Text>
+                            </View>
+                        )}
+                        {(oferta.incluye_repuestos || costoGestion > 0) && (
+                            <View style={styles.costRow}>
+                                <Text style={[styles.costLabel, styles.costLabelGestion]}>Gestión de compra (sin IVA)</Text>
+                                <Text style={[styles.costValue, styles.costValueGestion]}>
+                                    ${Math.round(costoGestion).toLocaleString()}
+                                </Text>
+                            </View>
+                        )}
+                        <View style={styles.divider} />
+                    </>
                 )}
-
-                {costoRepuestos > 0 && (
-                    <View style={styles.costRow}>
-                        <Text style={styles.costLabel}>Repuestos {oferta.incluye_repuestos ? '(Incluidos)' : '(No incl.)'}</Text>
-                        <Text style={styles.costValue}>${Math.round(costoRepuestos).toLocaleString()}</Text>
-                    </View>
-                )}
-
-                {(costoManoObra > 0 || costoRepuestos > 0) && <View style={styles.divider} />}
-
-                {/* TOTAL */}
+                <View style={styles.costRow}>
+                    <Text style={styles.costLabel}>Subtotal (sin IVA)</Text>
+                    <Text style={styles.costValue}>${Math.round(subSinIva).toLocaleString()}</Text>
+                </View>
+                <View style={styles.costRow}>
+                    <Text style={styles.costLabel}>IVA (19%)</Text>
+                    <Text style={styles.costValue}>${Math.round(ivaMonto).toLocaleString()}</Text>
+                </View>
+                <View style={styles.divider} />
                 <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>TOTAL</Text>
+                    <Text style={styles.totalLabel}>Total a pagar</Text>
                     <Text style={styles.totalValue}>${Math.round(precioTotal).toLocaleString()}</Text>
                 </View>
             </View>
@@ -380,6 +415,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#F9FAFB',
         fontWeight: '600',
+    },
+    costLabelGestion: {
+        color: 'rgba(253, 224, 71, 0.75)',
+    },
+    costValueGestion: {
+        color: '#FDE047',
     },
     divider: {
         height: 1,

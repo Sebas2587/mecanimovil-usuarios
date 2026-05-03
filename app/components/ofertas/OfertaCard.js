@@ -271,8 +271,9 @@ const OfertaCard = ({
     // El precio total ya viene calculado con IVA desde el proveedor
     const precioTotal = parseFloat(oferta.precio_total_ofrecido || 0);
 
-    // Verificar si hay desglose específico enviado por el proveedor
-    const tieneDesglose = costoRepuestos > 0 || costoManoObra > 0;
+    // Incluir gestión de compra: si solo faltaba en la condición, no se mostraban IVA/subtotal/total coherentes con repuestos.
+    const tieneDesglose =
+      costoRepuestos > 0 || costoManoObra > 0 || costoGestionCompra > 0;
 
     // Calcular subtotal e IVA solo si hay desglose
     let subtotalSinIva = 0;
@@ -610,8 +611,8 @@ const OfertaCard = ({
                       </View>
                     )}
 
-                    {/* Gestión de compra */}
-                    {desglose.costoGestionCompra > 0 && (
+                    {/* Gestión de compra (visible si la oferta incluye repuestos o hay monto) */}
+                    {(oferta.incluye_repuestos || desglose.costoGestionCompra > 0) && (
                       <View style={styles.desgloseProveedorRow}>
                         <View style={styles.desgloseProveedorLeft}>
                           <Ionicons name="car-outline" size={16} color="#FF9800" />
