@@ -621,6 +621,13 @@ const FormularioSolicitud = ({
         })
       });
     } else {
+      if (proveedor.esta_conectado === false) {
+        Alert.alert(
+          'Proveedor no disponible ahora',
+          'Este taller o mecánico no tiene activa la recepción de oportunidades en este momento. Puedes elegir otro proveedor o crear una solicitud global.'
+        );
+        return;
+      }
       // Limitar a 3 proveedores
       if (proveedores.length >= 3) {
         Alert.alert('Límite alcanzado', 'Solo puedes seleccionar hasta 3 proveedores');
@@ -1808,6 +1815,13 @@ const FormularioSolicitud = ({
               {tipo === 'taller' ? 'Taller' : 'A domicilio'}
             </Text>
           </View>
+          {proveedor.esta_conectado === false && (
+            <View style={{ position: 'absolute', bottom: 8, left: 8, right: 8, backgroundColor: 'rgba(127,29,29,0.92)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+              <Text style={{ color: '#FEE2E2', fontSize: 11, fontWeight: '700', textAlign: 'center' }}>
+                No disponible para oportunidades ahora
+              </Text>
+            </View>
+          )}
           {/* Selection indicator */}
           {estaSeleccionado && (
             <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#10B981', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
