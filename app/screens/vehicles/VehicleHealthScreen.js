@@ -31,8 +31,7 @@ import { ROUTES } from '../../utils/constants';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { getVehicleById } from '../../services/vehicle';
-import HealthMetricCard from '../../components/vehicles/HealthMetricCard';
-import SmartPredictionsCard from '../../components/vehicles/SmartPredictionsCard';
+import UnifiedComponentCard, { SectionHeader } from '../../components/vehicles/UnifiedComponentCard';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
@@ -325,12 +324,53 @@ const VehicleHealthScreen = ({ route }) => {
     );
   };
 
-  // Fuente de la lista: priorizar siempre componentes del endpoint de salud tras cargar
-  // (evita health_report embebido en vehículo quedarse obsoleto tras sync)
-  const listData =
-    healthData && Array.isArray(healthData.componentes)
-      ? healthData.componentes
-      : vehicleData?.health_report || [];
+  /**
+   * Fusión health + predicciones → array listo para FlatList con secciones.
+   * Cada item de componente lleva `_prediction` con los datos del predictor.
+   * Se añaden items `{ type: 'section', ... }` como cabeceras de sección.
+   */
+  const flatListData = useMemo(() => {
+    const rawComponents =
+      healthData && Array.isArray(healthData.componentes)
+        ? healthData.componentes
+        : vehicleData?.health_report || [];
+
+    // Mapa slug → predicción para O(1) lookup
+    const predMap = new Map();
+    if (predictionsData?.predicciones) {
+      for (const p of predictionsData.predicciones) {
+        const key = p.slug || p.componente_slug || p.componente_id;
+        if (key) predMap.set(String(key), p);
+      }
+    }
+
+    // Fusionar y enriquecer
+    const merged = rawComponents.map((c) => {
+      const slug = c.slug || c.componente_detail?.slug || c.icon_slug || '';
+      const pred = predMap.get(slug) || null;
+      return { ...c, _prediction: pred };
+    });
+
+    // Ordenar por urgencia (salud asc) dentro de cada sección
+    const urgentes = merged
+      .filter((c) => (c.salud_porcentaje ?? 0) < 70)
+      .sort((a, b) => (a.salud_porcentaje ?? 0) - (b.salud_porcentaje ?? 0));
+
+    const optimos = merged
+      .filter((c) => (c.salud_porcentaje ?? 0) >= 70)
+      .sort((a, b) => (a.salud_porcentaje ?? 0) - (b.salud_porcentaje ?? 0));
+
+    const result = [];
+    if (urgentes.length > 0) {
+      result.push({ type: 'section', title: 'Requieren atención', count: urgentes.length, key: 'sec_urgent' });
+      result.push(...urgentes.map((c) => ({ ...c, type: 'component' })));
+    }
+    if (optimos.length > 0) {
+      result.push({ type: 'section', title: 'En buen estado', count: optimos.length, key: 'sec_ok' });
+      result.push(...optimos.map((c) => ({ ...c, type: 'component' })));
+    }
+    return result;
+  }, [healthData, vehicleData, predictionsData]);
 
   return (
     <View style={[styles.screen, webRootStyle]}>
@@ -347,8 +387,10 @@ const VehicleHealthScreen = ({ route }) => {
       <FlatList
         style={styles.mainList}
         removeClippedSubviews={Platform.OS !== 'web'}
-        data={listData}
-        keyExtractor={(item, index) => item.slug || item.componente || String(index)}
+        data={flatListData}
+        keyExtractor={(item, index) =>
+          item.type === 'section' ? item.key : (item.slug || item.componente || String(index))
+        }
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -362,22 +404,9 @@ const VehicleHealthScreen = ({ route }) => {
           <>
             {renderHeader()}
             {renderSummary()}
-            <SmartPredictionsCard
-              predicciones={predictionsData?.predicciones}
-              resumen={predictionsData?.resumen}
-              loading={predictionsLoading && !predictionsData}
-              kilometrajeActual={predictionsData?.kilometraje_actual ?? vehicleData?.kilometraje}
-              onItemPress={(p) => {
-                const matched = (healthData?.componentes || []).find(
-                  c => c.componente === p.componente_id
-                    || c.componente_detail?.id === p.componente_id
-                    || c.componente_detail?.slug === p.slug
-                );
-                if (matched) handleMetricPress(matched);
-              }}
-            />
+            {/* Barra de acciones: título + botón sincronizar */}
             <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>Estado de Componentes</Text>
+              <Text style={styles.sectionTitle}>Componentes</Text>
               <TouchableOpacity
                 style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
                 onPress={handleSync}
@@ -390,21 +419,29 @@ const VehicleHealthScreen = ({ route }) => {
                   <RefreshCw size={18} color={COLORS.primary[500]} />
                 )}
                 <Text style={[styles.syncButtonText, syncing && styles.syncButtonTextDisabled]}>
-                  {syncing ? '…' : 'Sincronizar'}
+                  {syncing ? 'Actualizando…' : 'Sincronizar'}
                 </Text>
               </TouchableOpacity>
             </View>
           </>
         }
-        renderItem={({ item }) => (
-          <HealthMetricCard item={item} onPress={() => handleMetricPress(item)} />
-        )}
+        renderItem={({ item }) => {
+          if (item.type === 'section') {
+            return <SectionHeader title={item.title} count={item.count} />;
+          }
+          return (
+            <UnifiedComponentCard
+              item={item}
+              onPress={() => handleMetricPress(item)}
+            />
+          );
+        }}
         ListEmptyComponent={
           loading ? (
             <View style={{ gap: 12 }}>
-              <Skeleton height={80} width={'100%'} borderRadius={12} />
-              <Skeleton height={80} width={'100%'} borderRadius={12} />
-              <Skeleton height={80} width={'100%'} borderRadius={12} />
+              <Skeleton height={90} width={'100%'} borderRadius={12} />
+              <Skeleton height={90} width={'100%'} borderRadius={12} />
+              <Skeleton height={90} width={'100%'} borderRadius={12} />
             </View>
           ) : (
             <View style={styles.emptyState}>
@@ -510,19 +547,57 @@ const VehicleHealthScreen = ({ route }) => {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              <View style={styles.infoRow}>
-                <Gauge size={20} color={COLORS.text.tertiary} />
-                <Text style={styles.infoText}>
-                  Próx. revisión en:{' '}
-                  <Text style={styles.bold}>{selectedMetric?.vida_util}</Text>
-                </Text>
-              </View>
+              {/* Salud actual */}
               {selectedMetric?.salud_porcentaje != null && (
                 <View style={styles.infoRow}>
                   <Heart size={20} color={COLORS.text.tertiary} />
                   <Text style={styles.infoText}>
-                    Salud del componente:{' '}
-                    <Text style={styles.bold}>{Math.round(selectedMetric.salud_porcentaje)}%</Text>
+                    Salud:{' '}
+                    <Text style={[styles.bold, { color: getHealthColor(selectedMetric.salud_porcentaje) }]}>
+                      {Math.round(selectedMetric.salud_porcentaje)}%
+                    </Text>
+                    {selectedMetric.historial_conocido === false && (
+                      <Text style={styles.estimadoInline}> · Estimado</Text>
+                    )}
+                  </Text>
+                </View>
+              )}
+
+              {/* Próximo servicio */}
+              <View style={styles.infoRow}>
+                <Gauge size={20} color={COLORS.text.tertiary} />
+                <Text style={styles.infoText}>
+                  Próx. revisión en:{' '}
+                  <Text style={styles.bold}>
+                    {selectedMetric?._prediction?.km_hasta_servicio != null
+                      ? `~${Math.round(selectedMetric._prediction.km_hasta_servicio).toLocaleString('es-CL')} km`
+                      : selectedMetric?.vida_util}
+                  </Text>
+                  {selectedMetric?._prediction?.dias_hasta_atencion != null && (
+                    <Text style={styles.infoTextMuted}>
+                      {' · '}
+                      {selectedMetric._prediction.dias_hasta_atencion <= 0
+                        ? 'Inmediato'
+                        : selectedMetric._prediction.dias_hasta_atencion < 30
+                          ? `${selectedMetric._prediction.dias_hasta_atencion} días`
+                          : `${Math.round(selectedMetric._prediction.dias_hasta_atencion / 30)} meses`}
+                    </Text>
+                  )}
+                </Text>
+              </View>
+
+              {/* Riesgo predictivo */}
+              {selectedMetric?._prediction?.probabilidad_falla_30 != null && (
+                <View style={styles.infoRow}>
+                  <Wrench size={20} color={COLORS.text.tertiary} />
+                  <Text style={styles.infoText}>
+                    Probabilidad de falla (30 d):{' '}
+                    <Text style={[
+                      styles.bold,
+                      { color: selectedMetric._prediction.probabilidad_falla_30 >= 50 ? COLORS.error[600] : COLORS.warning[700] },
+                    ]}>
+                      {Math.round(selectedMetric._prediction.probabilidad_falla_30)}%
+                    </Text>
                   </Text>
                 </View>
               )}
@@ -531,6 +606,16 @@ const VehicleHealthScreen = ({ route }) => {
                 <Text style={styles.infoBoxLabel}>Observaciones</Text>
                 <Text style={styles.infoBoxText}>{selectedMetric?.mensaje}</Text>
               </View>
+
+              {/* Recomendación IA */}
+              {!!selectedMetric?._prediction?.recomendacion && (
+                <View style={[styles.infoBox, { borderColor: COLORS.primary[100], backgroundColor: COLORS.primary[50] }]}>
+                  <Text style={[styles.infoBoxLabel, { color: COLORS.primary[600] }]}>Recomendación IA</Text>
+                  <Text style={[styles.infoBoxText, { color: COLORS.primary[700] }]}>
+                    {selectedMetric._prediction.recomendacion}
+                  </Text>
+                </View>
+              )}
 
               {serviciosDelComponente.length > 0 ? (
                 <>
@@ -980,11 +1065,21 @@ const createStyles = (_insets) => StyleSheet.create({
     borderRadius: BORDERS.radius.input.md,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
+    marginBottom: SPACING.sm,
   },
   infoBoxText: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.secondary,
     lineHeight: 20,
+  },
+  infoTextMuted: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.tertiary,
+  },
+  estimadoInline: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.neutral.gray[400],
+    fontStyle: 'italic',
   },
 });
 
