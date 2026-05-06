@@ -19,14 +19,43 @@ const DEFAULT_CONFIG = {
   forcedServerIP: null
 };
 
+/** Render free tier puede tardar >30s en despertar; un probe de 2s marcaba prod como caída. */
+const PRODUCTION_PROBE_TIMEOUT_MS = 45000;
+
+function extraString(value) {
+  if (value == null) return null;
+  if (typeof value === 'string') {
+    const t = value.trim();
+    return t.length ? t : null;
+  }
+  return null;
+}
+
+function extraPort(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 && n < 65536 ? n : DEFAULT_CONFIG.port;
+}
+
+/**
+ * hostUri de Expo puede ser "192.168.x.x:8081" o "exp://192.168.x.x:8081".
+ * split(':')[0] sobre lo segundo devolvía "exp" y rompía el discovery.
+ */
+function hostFromExpoHostUri(hostUri) {
+  const s = extraString(hostUri);
+  if (!s) return null;
+  const noScheme = s.replace(/^exp:\/\//i, '').replace(/^https?:\/\//i, '');
+  const host = noScheme.split(':')[0]?.trim();
+  return host && host !== 'exp' ? host : null;
+}
+
 // Variables de entorno (pueden ser configuradas en .env o expo-constants)
 const ENV_CONFIG = {
-  SERVER_HOST: Constants.expoConfig?.extra?.serverHost,
-  SERVER_PORT: Constants.expoConfig?.extra?.serverPort,
-  API_URL: Constants.expoConfig?.extra?.apiUrl,
+  SERVER_HOST: extraString(Constants.expoConfig?.extra?.serverHost),
+  SERVER_PORT: extraPort(Constants.expoConfig?.extra?.serverPort),
+  API_URL: extraString(Constants.expoConfig?.extra?.apiUrl),
   FORCE_LOCALHOST: Constants.expoConfig?.extra?.forceLocalhost,
   USE_NGROK: Constants.expoConfig?.extra?.useNgrok || false,
-  NGROK_URL: Constants.expoConfig?.extra?.ngrokUrl || null
+  NGROK_URL: extraString(Constants.expoConfig?.extra?.ngrokUrl)
 };
 
 /**
@@ -50,18 +79,18 @@ async function getLocalNetworkInfo() {
 function detectServerIPs() {
   const possibleIPs = [];
 
+  const pushHost = (h) => {
+    const host = extraString(h);
+    if (host) possibleIPs.push(host);
+  };
+
   // 1. Variables de entorno (prioridad máxima)
-  if (ENV_CONFIG.SERVER_HOST) {
-    possibleIPs.push(ENV_CONFIG.SERVER_HOST);
-  }
+  pushHost(ENV_CONFIG.SERVER_HOST);
 
   // 2. Configuración según plataforma
   if (Platform.OS === 'android') {
     // Android físico: IP del host de desarrollo de Expo
-    if (Constants.expoConfig?.hostUri) {
-      const hostIP = Constants.expoConfig.hostUri.split(':')[0];
-      possibleIPs.push(hostIP);
-    }
+    pushHost(hostFromExpoHostUri(Constants.expoConfig?.hostUri));
 
     // Android emulador: IP especial para localhost
     possibleIPs.push('10.0.2.2');
@@ -71,10 +100,7 @@ function detectServerIPs() {
     possibleIPs.push('localhost', '127.0.0.1');
 
     // iOS físico: IP del host de desarrollo de Expo
-    if (Constants.expoConfig?.hostUri) {
-      const hostIP = Constants.expoConfig.hostUri.split(':')[0];
-      possibleIPs.push(hostIP);
-    }
+    pushHost(hostFromExpoHostUri(Constants.expoConfig?.hostUri));
 
   } else if (Platform.OS === 'web') {
     // Web: usar localhost
@@ -92,8 +118,8 @@ function detectServerIPs() {
   // 4. Fallbacks universales (prioridad baja)
   possibleIPs.push('localhost', '127.0.0.1');
 
-  // Eliminar duplicados manteniendo orden
-  return [...new Set(possibleIPs)];
+  // Eliminar duplicados manteniendo orden (solo strings válidos)
+  return [...new Set(possibleIPs.filter((x) => typeof x === 'string' && x.length > 0))];
 }
 
 /**
@@ -159,8 +185,7 @@ async function discoverServerURL() {
   // 1. PRIORIDAD MÁXIMA: URL de Producción (Configurada manualmente)
   if (ENV_CONFIG.API_URL) {
     console.log('🌐 Probando URL de producción (Prioridad 1):', ENV_CONFIG.API_URL);
-    // Timeout corto para producción (2s) para fallar rápido si no hay internet o está caído
-    if (await testConnection(ENV_CONFIG.API_URL, 2000)) {
+    if (await testConnection(ENV_CONFIG.API_URL, PRODUCTION_PROBE_TIMEOUT_MS)) {
       console.log(`✅ Conectado a producción: ${ENV_CONFIG.API_URL}`);
       return ENV_CONFIG.API_URL;
     }
@@ -216,6 +241,13 @@ async function discoverServerURL() {
   }
 
   // 4. Fallback final
+  if (ENV_CONFIG.API_URL && /^https?:\/\//i.test(ENV_CONFIG.API_URL)) {
+    console.warn(
+      '⚠️ No hay backend local; usando API_URL del manifest como último recurso:',
+      ENV_CONFIG.API_URL
+    );
+    return ENV_CONFIG.API_URL;
+  }
   console.log('⚠️ No se pudo conectar a ningún servidor (Prod/Local). Usando fallback localhost.');
   const fallbackPort = ENV_CONFIG.SERVER_PORT || DEFAULT_CONFIG.port;
   return `${DEFAULT_CONFIG.protocol}://localhost:${fallbackPort}${DEFAULT_CONFIG.apiPath}`;
@@ -258,10 +290,14 @@ class ServerConfig {
       console.error('❌ Error inicializando configuración del servidor:', error);
       this.isConnected = false;
 
-      // Usar configuración fallback
-      const fallbackPort = ENV_CONFIG.SERVER_PORT || DEFAULT_CONFIG.port;
-      this.baseURL = `${DEFAULT_CONFIG.protocol}://localhost:${fallbackPort}${DEFAULT_CONFIG.apiPath}`;
-      this.mediaURL = `${DEFAULT_CONFIG.protocol}://localhost:${fallbackPort}`;
+      if (ENV_CONFIG.API_URL && /^https?:\/\//i.test(ENV_CONFIG.API_URL)) {
+        this.baseURL = ENV_CONFIG.API_URL;
+        this.mediaURL = ENV_CONFIG.API_URL.replace(/\/api\/?$/i, '');
+      } else {
+        const fallbackPort = ENV_CONFIG.SERVER_PORT || DEFAULT_CONFIG.port;
+        this.baseURL = `${DEFAULT_CONFIG.protocol}://localhost:${fallbackPort}${DEFAULT_CONFIG.apiPath}`;
+        this.mediaURL = `${DEFAULT_CONFIG.protocol}://localhost:${fallbackPort}`;
+      }
 
       return false;
     }
