@@ -11,6 +11,8 @@ import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
 import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
+import ServicePhotosCarousel from '../../components/provider/ServicePhotosCarousel';
+import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
 import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
 
 import { fetchPublicProviderFicha } from '../../services/providers';
@@ -303,6 +305,8 @@ const PublicProviderDetailScreen = () => {
           </View>
         </View>
 
+        <ProviderScheduleSection horarios={details?.horarios_semanales || []} />
+
         <TrustSection documents={documents || []} />
 
         {/* --- SECCIÓN DE SERVICIOS PÚBLICA --- */}
@@ -316,6 +320,12 @@ const PublicProviderDetailScreen = () => {
               {provider.servicios.map((servicio, idx) => {
                 return (
                   <GlassCard key={`${servicio.id || idx}`} style={styles.serviceCardOuter}>
+                    {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
+                      <View style={{ marginBottom: 10 }}>
+                        <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
+                      </View>
+                    ) : null}
+
                     <Text style={styles.serviceName} numberOfLines={2}>
                       {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
                     </Text>

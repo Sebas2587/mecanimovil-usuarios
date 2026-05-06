@@ -212,6 +212,27 @@ export const useProviderServices = (id, type, providerName) => {
     });
 };
 
+export const useProviderWeeklySchedule = (id, type) => {
+    return useQuery({
+        queryKey: ['providerSchedule', type, id],
+        queryFn: async () => {
+            const safeId = typeof id === 'number' ? id : parseInt(String(id), 10);
+            const endpoint =
+                type === 'taller'
+                    ? `/usuarios/talleres/${safeId}/horarios_semanales/`
+                    : `/usuarios/mecanicos-domicilio/${safeId}/horarios_semanales/`;
+
+            const response = await get(endpoint, {}, { requiresAuth: false, forceRefresh: true });
+            return Array.isArray(response) ? response : (response?.horarios || response?.results || []);
+        },
+        enabled: !!id && !!type,
+        staleTime: 1000 * 60 * 30,
+        gcTime: 1000 * 60 * 60,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
+};
+
 export const useProviderDocuments = (id, type) => {
     return useQuery({
         queryKey: ['providerDocuments', type, id],

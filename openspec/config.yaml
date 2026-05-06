@@ -1,0 +1,24 @@
+schema: spec-driven
+
+context: |
+  Tech stack: React Native, Expo (managed workflow), TypeScript
+  Deploy: EAS Build → APK/IPA; distribución interna y stores; Vercel para web (si aplica)
+  Domain: App Usuarios de Mecanimovil — usuarios finales solicitan servicios mecánicos, gestionan vehículos, siguen órdenes y pagan
+  Backend: Django REST Framework en Render; WebSockets vía Django Channels
+  Navegación: Stack/Tab navigators existentes en app/navigation/
+  Estado: hooks locales y contextos en app/context/
+  Design System: tokens en app/design-system/ (en proceso de implementación)
+  Convenciones: PascalCase componentes, camelCase variables, lowercase-hyphenated directorios
+
+rules:
+  proposal:
+    - Indicar qué pantallas se crean o modifican
+    - Especificar si el flujo requiere autenticación (usuario_final)
+    - Mencionar si requiere cambios en el backend (Django)
+  tasks:
+    - Máximo 3 horas por tarea
+    - Cada tarea debe indicar el archivo de pantalla o componente afectado
+    - Indicar si requiere actualizar el design system
+  spec:
+    - Describir el flujo completo del usuario final (pasos en la UI)
+    - Incluir estados de carga, error y datos vacíos en los escenarios

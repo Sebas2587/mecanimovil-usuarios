@@ -1121,11 +1121,16 @@ export const fetchPublicProviderFicha = async (providerId, providerType) => {
     type === 'taller'
       ? `/servicios/ofertas/por_taller/?taller=${id}`
       : `/servicios/ofertas/por_mecanico/?mecanico=${id}`;
+  const scheduleUrl =
+    type === 'taller'
+      ? `/usuarios/talleres/${id}/horarios_semanales/`
+      : `/usuarios/mecanicos-domicilio/${id}/horarios_semanales/`;
   const docsUrl = `/usuarios/documentos-onboarding/proveedor_documentos/?provider_id=${id}&provider_type=${type}`;
 
-  const [detail, ofertasResponse, documentsRaw] = await Promise.all([
+  const [detail, ofertasResponse, scheduleRaw, documentsRaw] = await Promise.all([
     get(detailUrl, {}, opt),
     get(ofertasUrl, {}, opt),
+    get(scheduleUrl, {}, opt).catch(() => []),
     get(docsUrl, {}, opt).catch(() => []),
   ]);
 
@@ -1157,9 +1162,10 @@ export const fetchPublicProviderFicha = async (providerId, providerType) => {
     ? ofertasResponse
     : ofertasResponse?.results || [];
   const servicios = mapOfertasToServicios(ofertas, type, id, nombreProveedor);
+  const horarios_semanales = Array.isArray(scheduleRaw) ? scheduleRaw : (scheduleRaw?.results || []);
   const documents = Array.isArray(documentsRaw) ? documentsRaw : [];
 
-  return { detail, servicios, documents };
+  return { detail: { ...detail, horarios_semanales }, servicios, documents };
 };
 
 export default {

@@ -312,6 +312,15 @@ class NotificationService {
    */
   async registrarTokenEnBackend(token, userId) {
     try {
+      // Guardrail: no intentar registrar si no hay sesión (evita 401 spam al boot).
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const authToken = await AsyncStorage.getItem('auth_token');
+        if (!authToken) return null;
+      } catch (_e) {
+        // Si AsyncStorage falla por alguna razón, igual evitar romper el flujo.
+      }
+
       const { post } = require('./api');
       const platform = Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'unknown';
 

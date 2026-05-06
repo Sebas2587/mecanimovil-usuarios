@@ -20,8 +20,10 @@ import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
 import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
+import ServicePhotosCarousel from '../../components/provider/ServicePhotosCarousel';
+import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
 
-import { useProviderDetails, useProviderServices, useProviderDocuments, useProviderReviews, useProviderCompletedJobs } from '../../hooks/useProviders';
+import { useProviderDetails, useProviderServices, useProviderWeeklySchedule, useProviderDocuments, useProviderReviews, useProviderCompletedJobs } from '../../hooks/useProviders';
 import { getPublicProviderFromWebPath } from '../../utils/publicListingRoute';
 import { useAuth } from '../../context/AuthContext';
 import { useFavorites } from '../../context/FavoritesContext';
@@ -83,6 +85,7 @@ const ProviderDetailScreen = () => {
 
   const { data: details, isLoading: loadingDetails } = useProviderDetails(idToLoad, providerType);
   const { data: services } = useProviderServices(idToLoad, providerType);
+  const { data: schedule } = useProviderWeeklySchedule(idToLoad, providerType);
   const { data: documents } = useProviderDocuments(idToLoad, providerType);
   const { data: reviewsData } = useProviderReviews(idToLoad, providerType);
   const { data: completedJobs = [] } = useProviderCompletedJobs(idToLoad, providerType);
@@ -266,6 +269,8 @@ const ProviderDetailScreen = () => {
           </View>
         </View>
 
+        <ProviderScheduleSection horarios={schedule || []} />
+
         {/* Reviews */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -329,6 +334,12 @@ const ProviderDetailScreen = () => {
                 
                 return (
                   <GlassCard key={`${servicio.id || idx}`} style={styles.serviceCardOuter}>
+                    {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
+                      <View style={{ marginBottom: 10 }}>
+                        <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
+                      </View>
+                    ) : null}
+
                     <Text style={styles.serviceName} numberOfLines={2}>
                       {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
                     </Text>

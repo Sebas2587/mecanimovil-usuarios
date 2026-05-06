@@ -64,6 +64,25 @@ export const AuthProvider = ({ children }) => {
             is_client: parsedUser.is_client || false,
           };
 
+          // Validación temprana: si el token es inválido/expirado, limpiar antes de restaurar sesión.
+          // Esto evita cascada de requests 401 al boot.
+          try {
+            // Guardar token en memoria antes del ping (el interceptor lee auth_token desde storage).
+            // No seteamos user/token todavía para no disparar efectos dependientes.
+            await userService.getUserProfile(normalizedUser?.id || null);
+          } catch (e) {
+            const status = e?.status || e?.response?.status;
+            const msg = (e?.message || '').toLowerCase();
+            if (status === 401 && (msg.includes('token') || msg.includes('no autorizado') || msg.includes('inicia sesión'))) {
+              logger.info('🔒 Token inválido al restaurar sesión. Limpiando credenciales antes de continuar.');
+              await AsyncStorage.removeItem('auth_token');
+              await AsyncStorage.removeItem('user');
+              setToken(null);
+              setUser(null);
+              return;
+            }
+          }
+
           setToken(storedToken);
           setUser(normalizedUser);
           logger.info('Sesión restaurada exitosamente');
@@ -111,6 +130,10 @@ export const AuthProvider = ({ children }) => {
       if (!user || !user.id) return;
 
       try {
+        // Guardrail: si se limpió sesión por 401 entre que se programó y se ejecutó, no registrar.
+        const currentToken = await AsyncStorage.getItem('auth_token');
+        if (!currentToken) return;
+
         await NotificationService.ensureInitialized();
         const hasPermission = await NotificationService.requestPermissions();
         if (hasPermission) {
