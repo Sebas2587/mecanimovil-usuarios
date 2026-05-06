@@ -105,6 +105,15 @@ class VehicleHealthService {
   }
 
   /**
+   * Obtiene predicciones inteligentes (bootstrap + scikit-learn + similares).
+   * Backend cachea 30 min; pasar force=true para refrescar tras un sync manual.
+   */
+  static async getVehiclePredictions(vehicleId, force = false) {
+    const url = `/vehiculos/health/vehicle/${vehicleId}/predicciones/${force ? '?force=1' : ''}`;
+    return await get(url);
+  }
+
+  /**
    * Invalida el cache de un vehículo
    * @param {number} vehicleId - ID del vehículo
    */

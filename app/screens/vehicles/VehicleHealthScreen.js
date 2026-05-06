@@ -32,6 +32,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { getVehicleById } from '../../services/vehicle';
 import HealthMetricCard from '../../components/vehicles/HealthMetricCard';
+import SmartPredictionsCard from '../../components/vehicles/SmartPredictionsCard';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
@@ -70,6 +71,9 @@ const VehicleHealthScreen = ({ route }) => {
   const [selectedMetric, setSelectedMetric] = useState(null); // For Modal
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  // Predicciones inteligentes (scikit-learn + bootstrap + similares)
+  const [predictionsData, setPredictionsData] = useState(null);
+  const [predictionsLoading, setPredictionsLoading] = useState(false);
 
   const pollingIntervalRef = useRef(null);
   const wsHandlerRef = useRef(null);
@@ -82,6 +86,20 @@ const VehicleHealthScreen = ({ route }) => {
       clearInterval(pollingIntervalRef.current);
       clearTimeout(syncTimerRef.current);
     };
+  }, [vehicleId]);
+
+  const loadPredictions = useCallback(async (force = false) => {
+    if (!vehicleId) return;
+    setPredictionsLoading(true);
+    try {
+      const data = await VehicleHealthService.getVehiclePredictions(vehicleId, force);
+      setPredictionsData(data);
+    } catch (e) {
+      // No bloquear la pantalla por error de predicciones (feature opcional).
+      console.warn('No se pudieron cargar predicciones:', e?.message);
+    } finally {
+      setPredictionsLoading(false);
+    }
   }, [vehicleId]);
 
   const loadData = async (force = false) => {
@@ -97,6 +115,8 @@ const VehicleHealthScreen = ({ route }) => {
       // But we keep it if it returns 'alertas' or 'costo_estimado'.
       const hData = await VehicleHealthService.getVehicleHealth(vehicleId, force);
       setHealthData(hData);
+      // Predicciones inteligentes en paralelo (no bloquea la UI principal)
+      loadPredictions(force);
     } catch (e) {
       console.error("Error loading health:", e);
     } finally {
@@ -342,6 +362,20 @@ const VehicleHealthScreen = ({ route }) => {
           <>
             {renderHeader()}
             {renderSummary()}
+            <SmartPredictionsCard
+              predicciones={predictionsData?.predicciones}
+              resumen={predictionsData?.resumen}
+              loading={predictionsLoading && !predictionsData}
+              kilometrajeActual={predictionsData?.kilometraje_actual ?? vehicleData?.kilometraje}
+              onItemPress={(p) => {
+                const matched = (healthData?.componentes || []).find(
+                  c => c.componente === p.componente_id
+                    || c.componente_detail?.id === p.componente_id
+                    || c.componente_detail?.slug === p.slug
+                );
+                if (matched) handleMetricPress(matched);
+              }}
+            />
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>Estado de Componentes</Text>
               <TouchableOpacity
