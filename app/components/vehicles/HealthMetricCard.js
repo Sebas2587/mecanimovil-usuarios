@@ -10,32 +10,37 @@ import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 const ICON_MAP = {
-    'aceite-motor': { lib: 'MaterialCommunityIcons', name: 'oil' },
-    'filtro-aceite': { lib: 'MaterialCommunityIcons', name: 'filter' },
-    'filtro-aire': { lib: 'MaterialCommunityIcons', name: 'air-filter' },
-    'filtro-cabina': { lib: 'MaterialCommunityIcons', name: 'air-conditioner' },
-    'refrigerante': { lib: 'MaterialCommunityIcons', name: 'car-coolant-level' },
-    'adblue': { lib: 'MaterialCommunityIcons', name: 'water-plus' },
-    'pastillas-freno': { lib: 'MaterialCommunityIcons', name: 'car-brake-pad' },
-    'discos-freno': { lib: 'MaterialCommunityIcons', name: 'disc' },
-    'liquido-frenos': { lib: 'MaterialCommunityIcons', name: 'car-brake-fluid-level' },
-    'neumaticos': { lib: 'MaterialCommunityIcons', name: 'car-tire-alert' },
-    'bujias': { lib: 'MaterialCommunityIcons', name: 'spark-plug' },
-    'bateria': { lib: 'MaterialCommunityIcons', name: 'car-battery' },
+    'aceite-motor':        { lib: 'MaterialCommunityIcons', name: 'oil' },
+    'filtro-aceite':       { lib: 'MaterialCommunityIcons', name: 'filter' },
+    'filtro-aire':         { lib: 'MaterialCommunityIcons', name: 'air-filter' },
+    'filtro-cabina':       { lib: 'MaterialCommunityIcons', name: 'air-conditioner' },
+    'refrigerante':        { lib: 'MaterialCommunityIcons', name: 'car-coolant-level' },
+    'adblue':              { lib: 'MaterialCommunityIcons', name: 'water-plus' },
+    'pastillas-freno':     { lib: 'MaterialCommunityIcons', name: 'car-brake-pad' },
+    'discos-freno':        { lib: 'MaterialCommunityIcons', name: 'disc' },
+    'liquido-frenos':      { lib: 'MaterialCommunityIcons', name: 'car-brake-fluid-level' },
+    'neumaticos':          { lib: 'MaterialCommunityIcons', name: 'car-tire-alert' },
+    'bujias':              { lib: 'MaterialCommunityIcons', name: 'spark-plug' },
+    'bateria':             { lib: 'MaterialCommunityIcons', name: 'car-battery' },
     'correa-distribucion': { lib: 'MaterialCommunityIcons', name: 'link-variant' },
-    'amortiguadores': { lib: 'MaterialCommunityIcons', name: 'car-shocks' },
-    'dpf': { lib: 'MaterialCommunityIcons', name: 'exhaust' },
-    'default': { lib: 'Ionicons', name: 'construct-outline' },
+    'amortiguadores':      { lib: 'MaterialCommunityIcons', name: 'car-shocks' },
+    'dpf':                 { lib: 'MaterialCommunityIcons', name: 'exhaust' },
+    'default':             { lib: 'Ionicons',               name: 'construct-outline' },
 };
 
 const HealthMetricCard = ({ item, onPress }) => {
-    const name = item.nombre || (typeof item.componente === 'string' ? item.componente : item.name) || 'Componente';
+    const name       = item.nombre || (typeof item.componente === 'string' ? item.componente : item.name) || 'Componente';
     const percentage = item.salud_porcentaje ?? item.salud ?? item.percentage ?? 0;
-    const slug = item.slug || item.componente_detail?.slug || item.icon_slug || '';
-    const status = item.nivel_alerta_display || item.status || 'NORMAL';
+    const slug       = item.slug || item.componente_detail?.slug || item.icon_slug || '';
+    const status     = item.nivel_alerta_display || item.status || 'NORMAL';
     const remainingKm = item.km_estimados_restantes ?? item.vida_util_restante_km ?? item.remaining_km;
 
-    const color = getHealthColorToken(COLORS, percentage);
+    // historial_conocido=false → datos estimados (sin historial real de servicio)
+    const esEstimado = item.historial_conocido === false;
+
+    const color = esEstimado
+        ? COLORS.neutral.gray[400]   // gris suave para estimados
+        : getHealthColorToken(COLORS, percentage);
 
     const getIcon = () => {
         const iconConfig = ICON_MAP[slug] || ICON_MAP['default'];
@@ -58,18 +63,38 @@ const HealthMetricCard = ({ item, onPress }) => {
 
             <View style={styles.contentContainer}>
                 <View style={styles.headerRow}>
-                    <Text style={styles.title} numberOfLines={1}>{name}</Text>
+                    <View style={styles.titleRow}>
+                        <Text style={styles.title} numberOfLines={1}>{name}</Text>
+                        {esEstimado && (
+                            <View style={styles.estimadoBadge}>
+                                <Text style={styles.estimadoText}>Estimado</Text>
+                            </View>
+                        )}
+                    </View>
                     <Text style={[styles.percentage, { color }]}>{Math.round(percentage)}%</Text>
                 </View>
 
                 <View style={styles.progressContainer}>
-                    <View style={[styles.progressBar, { width: `${percentage}%`, backgroundColor: color }]} />
+                    <View style={[
+                        styles.progressBar,
+                        {
+                            width: `${percentage}%`,
+                            backgroundColor: color,
+                            // línea discontinua visual para estimados (opacity)
+                            opacity: esEstimado ? 0.55 : 1,
+                        }
+                    ]} />
                 </View>
 
                 <View style={styles.footerRow}>
-                    <Text style={styles.statusText}>{status}</Text>
-                    {remainingKm != null && (
+                    <Text style={[styles.statusText, esEstimado && { color: COLORS.neutral.gray[400] }]}>
+                        {esEstimado ? 'Sin historial' : status}
+                    </Text>
+                    {!esEstimado && remainingKm != null && (
                         <Text style={styles.remainingText}>Restan {remainingKm.toLocaleString()} km</Text>
+                    )}
+                    {esEstimado && (
+                        <Text style={styles.estimadoHint}>Actualiza el km de servicio</Text>
                     )}
                 </View>
             </View>
@@ -109,12 +134,31 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.xs,
         alignItems: 'center',
     },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        marginRight: SPACING.xs,
+        gap: 6,
+    },
     title: {
         fontSize: 15,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.text.primary,
-        flex: 1,
-        marginRight: SPACING.xs,
+        flexShrink: 1,
+    },
+    estimadoBadge: {
+        backgroundColor: COLORS.neutral.gray[200],
+        borderRadius: 4,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+    },
+    estimadoText: {
+        fontSize: 9,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.neutral.gray[500],
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
     },
     percentage: {
         fontSize: TYPOGRAPHY.fontSize.base,
@@ -144,6 +188,11 @@ const styles = StyleSheet.create({
     remainingText: {
         fontSize: 11,
         color: COLORS.text.secondary,
+    },
+    estimadoHint: {
+        fontSize: 10,
+        color: COLORS.neutral.gray[400],
+        fontStyle: 'italic',
     },
 });
 
