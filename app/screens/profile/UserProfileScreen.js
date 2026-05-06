@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import { confirmDestructive } from '../../utils/platformAlert';
+import { COLORS, SPACING, BORDERS } from '../../design-system/tokens';
 
 import MemberCard from '../../components/profile/MemberCard';
 import ProfileMenuSection from '../../components/profile/ProfileMenuSection';
@@ -49,11 +49,7 @@ const UserProfileScreen = () => {
 
   return (
     <View style={[styles.root, webRootStyle]}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-      </View>
-
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
         style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
@@ -68,22 +64,22 @@ const UserProfileScreen = () => {
             <ProfileMenuItem
               icon="receipt-outline"
               label="Historial de Pagos"
-              iconBgColor="rgba(56,189,248,0.15)"
-              iconColor="#38BDF8"
+              iconBgColor={COLORS.primary[50]}
+              iconColor={COLORS.primary[600]}
               onPress={() => navigation.navigate(ROUTES.HISTORIAL_PAGOS)}
             />
             <ProfileMenuItem
               icon="star-outline"
               label="Calificaciones Pendientes"
-              iconBgColor="rgba(245,158,11,0.18)"
-              iconColor="#FBBF24"
+              iconBgColor={COLORS.warning[50]}
+              iconColor={COLORS.warning[600]}
               onPress={() => navigation.navigate(ROUTES.PENDING_REVIEWS)}
             />
             <ProfileMenuItem
               icon="heart-outline"
               label="Favoritos"
-              iconBgColor="rgba(248,113,113,0.15)"
-              iconColor="#F87171"
+              iconBgColor={COLORS.error.light}
+              iconColor={COLORS.error.main}
               isLast
               onPress={() => navigation.navigate(ROUTES.FAVORITE_PROVIDERS)}
             />
@@ -93,22 +89,22 @@ const UserProfileScreen = () => {
             <ProfileMenuItem
               icon="headset-outline"
               label="Ayuda y Chat"
-              iconBgColor="rgba(16,185,129,0.18)"
-              iconColor="#6EE7B7"
+              iconBgColor={COLORS.success.light}
+              iconColor={COLORS.success[700]}
               onPress={() => navigation.navigate(ROUTES.SUPPORT)}
             />
             <ProfileMenuItem
               icon="document-text-outline"
               label="Términos Legales"
-              iconBgColor="rgba(148,163,184,0.2)"
-              iconColor="#CBD5E1"
+              iconBgColor={COLORS.neutral.gray[100]}
+              iconColor={COLORS.text.secondary}
               isLast
               onPress={() => navigation.navigate(ROUTES.TERMS)}
             />
           </ProfileMenuSection>
 
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.75}>
-            <Ionicons name="log-out-outline" size={20} color="#FCA5A5" />
+            <Ionicons name="log-out-outline" size={20} color={COLORS.error[500]} />
             <Text style={styles.logoutText}>Cerrar Sesión</Text>
           </TouchableOpacity>
 
@@ -124,7 +120,7 @@ const UserProfileScreen = () => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   scrollWeb: {
     flex: 1,
@@ -135,7 +131,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 32 : 24,
   },
   content: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.container.horizontal,
     marginTop: 8,
     paddingBottom: 40,
   },
@@ -144,17 +140,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(248,113,113,0.35)',
+    borderColor: COLORS.error[500],
     marginTop: 8,
-    backgroundColor: 'rgba(248,113,113,0.08)',
+    backgroundColor: COLORS.error.light,
     gap: 8,
   },
   logoutText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FCA5A5',
+    color: COLORS.text.primary,
   },
   versionContainer: {
     marginTop: 28,
@@ -162,7 +158,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.35)',
+    color: COLORS.text.tertiary,
     fontWeight: '500',
   },
 });

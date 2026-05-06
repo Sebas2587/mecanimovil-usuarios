@@ -20,7 +20,7 @@ const GlassmorphicContainer = ({
   backgroundImage,
   style,
   scrollable = false,
-  statusBarStyle = 'light-content',
+  statusBarStyle = 'dark-content',
   keyboardAware = true,
   refreshControl,
   onScroll,
@@ -29,7 +29,8 @@ const GlassmorphicContainer = ({
   // Fondo por defecto si no se proporciona una imagen - usando nueva paleta
   const defaultBackground = (
     <LinearGradient
-      colors={DESIGN_COLORS.gradients.dark} // Ink Black → Deep Space Blue
+      // Coinbase-style: canvas blanco (mantener LinearGradient por compatibilidad)
+      colors={[DESIGN_COLORS.background.default, DESIGN_COLORS.background.default]}
       style={styles.gradient}
     />
   );
@@ -72,6 +73,7 @@ const GlassmorphicContainer = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: DESIGN_COLORS.background.default,
   },
   gradient: {
     position: 'absolute',

@@ -2,18 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, StatusBar, TouchableOpacity, Platform } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProviderReviews } from '../../services/providers';
 import ReviewCard from '../../components/reviews/ReviewCard';
-
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const GLASS_BORDER = 'rgba(255,255,255,0.12)';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 
 const ProviderReviewsScreen = () => {
   const route = useRoute();
@@ -49,7 +41,6 @@ const ProviderReviewsScreen = () => {
 
     return (
       <View style={styles.summaryCard}>
-        {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
         {/* Left: Big Rating */}
         <View style={styles.ratingLeft}>
           <Text style={styles.bigRating}>{data.rating_average}</Text>
@@ -57,9 +48,9 @@ const ProviderReviewsScreen = () => {
             {[1, 2, 3, 4, 5].map((star) => (
               <Ionicons
                 key={star}
-                name={star <= Math.round(data.rating_average) ? "star" : "star-outline"}
+                name={star <= Math.round(data.rating_average) ? 'star' : 'star-outline'}
                 size={14}
-                color="#F59E0B" // Yellow-500
+                color={COLORS.warning.main}
               />
             ))}
           </View>
@@ -75,7 +66,7 @@ const ProviderReviewsScreen = () => {
             return (
               <View key={star} style={styles.barRow}>
                 <Text style={styles.starLabel}>{star}</Text>
-                <Ionicons name="star" size={10} color="rgba(255,255,255,0.45)" style={{ marginRight: 6 }} />
+                <Ionicons name="star" size={10} color={COLORS.text.tertiary} style={{ marginRight: 6 }} />
                 <View style={styles.track}>
                   <View style={[styles.progress, { width: `${percentage}%` }]} />
                 </View>
@@ -90,29 +81,21 @@ const ProviderReviewsScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#030712" />
-        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-        <ActivityIndicator size="large" color="#6EE7B7" />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
+        <ActivityIndicator size="large" color={COLORS.primary[500]} />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#030712" />
-      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-        <View style={{ position: 'absolute', top: 340, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-      </View>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       <View style={styles.body}>
         {/* Sticky Custom Header */}
         <View style={styles.stickyHeader}>
-          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#F9FAFB" />
+            <Ionicons name="arrow-back" size={22} color={COLORS.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Opiniones</Text>
         </View>
@@ -141,7 +124,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   body: {
     flex: 1,
@@ -165,20 +148,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   // Sticky Header Styling
   stickyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
+    marginHorizontal: SPACING.container.horizontal,
     marginTop: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    backgroundColor: COLORS.background.paper,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    borderRadius: 16,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
     overflow: 'hidden',
     zIndex: 10,
   },
@@ -186,30 +169,33 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: COLORS.neutral.gray[100],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    letterSpacing: -0.25,
+    color: COLORS.text.primary,
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.container.horizontal,
     paddingTop: 16,
     paddingBottom: 40,
   },
   // Summary Card Styling (Light Yellow)
   summaryCard: {
     flexDirection: 'row',
-    backgroundColor: GLASS_BG,
-    borderRadius: 16,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
     padding: 24,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    borderColor: COLORS.border.light,
     overflow: 'hidden',
   },
   ratingLeft: {
@@ -217,12 +203,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingRight: 24,
     borderRightWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.08)',
+    borderRightColor: COLORS.border.light,
   },
   bigRating: {
     fontSize: 42,
-    fontWeight: '800', // Extra bold
-    color: '#F9FAFB',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    letterSpacing: -0.5,
+    color: COLORS.text.primary,
     lineHeight: 48,
   },
   starsRow: {
@@ -231,9 +218,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   totalReviewsText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   barsRight: {
     flex: 1,
@@ -246,22 +233,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   starLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
     width: 14,
     textAlign: 'left',
-    fontWeight: '600',
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   track: {
     flex: 1,
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: COLORS.neutral.gray[100],
     borderRadius: 3,
     overflow: 'hidden',
   },
   progress: {
     height: '100%',
-    backgroundColor: '#F59E0B', // Amber-500
+    backgroundColor: COLORS.warning.main,
     borderRadius: 3,
   },
   emptyContainer: {
@@ -269,8 +256,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.55)',
-    fontSize: 14,
+    color: COLORS.text.secondary,
+    fontSize: TYPOGRAPHY.fontSize.base,
   },
 });
 

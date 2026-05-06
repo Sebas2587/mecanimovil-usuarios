@@ -4,8 +4,6 @@ import {
     Switch, ActivityIndicator, Alert, Modal, TextInput, RefreshControl, Platform, Share,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +15,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as vehicleService from '../../services/vehicle';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import { buildPublicListingUrl, buildDeepLinkListingUrl } from '../../config/publicListing';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 
 const SellVehicleScreen = () => {
     const navigation = useNavigation();
@@ -231,27 +232,18 @@ const SellVehicleScreen = () => {
     );
     const styles = getStyles(insets, safeTop);
 
-    const Background = () => (
-        <>
-            <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-            <View style={{ position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-            <View style={{ position: 'absolute', bottom: 100, left: -50, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-        </>
-    );
-
     if (isLoading) {
         return (
             <View style={styles.container}>
-                <Background />
-                <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+                <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
                 {/* Header Skeleton */}
-                <View style={{ height: 228, backgroundColor: '#0a1628' }}>
+                <View style={{ height: 228, backgroundColor: COLORS.neutral.gray[200] }}>
                     <View style={{ position: 'absolute', top: insets.top + 10, left: 20 }}>
-                        <Skeleton width={40} height={40} borderRadius={20} style={{ opacity: 0.2 }} />
+                        <Skeleton width={40} height={40} borderRadius={20} style={{ opacity: 0.35 }} />
                     </View>
                     <View style={{ position: 'absolute', bottom: 20, left: 20 }}>
-                        <Skeleton width={200} height={32} style={{ marginBottom: 8, opacity: 0.2 }} />
-                        <Skeleton width={120} height={20} style={{ opacity: 0.2 }} />
+                        <Skeleton width={200} height={32} style={{ marginBottom: 8, opacity: 0.35 }} />
+                        <Skeleton width={120} height={20} style={{ opacity: 0.35 }} />
                     </View>
                 </View>
 
@@ -274,7 +266,7 @@ const SellVehicleScreen = () => {
                             <Skeleton width={120} height={20} />
                             <Skeleton width={50} height={28} borderRadius={14} />
                         </View>
-                        <View style={{ height: 1, backgroundColor: '#F3F4F6', marginVertical: 12 }} />
+                        <View style={{ height: 1, backgroundColor: COLORS.border.light, marginVertical: 12 }} />
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <Skeleton width={140} height={20} />
                             <Skeleton width={50} height={28} borderRadius={14} />
@@ -287,14 +279,15 @@ const SellVehicleScreen = () => {
 
     return (
         <View style={styles.container}>
-            <Background />
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
             <ScrollView
                 style={styles.scrollView}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#FFF" />}
+                refreshControl={
+                    <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />
+                }
             >
                 {/* 1. Immersive Header (sin topBar aquí: va fijo encima para que nada se solape) */}
                 <View style={styles.headerContainer}>
@@ -306,12 +299,11 @@ const SellVehicleScreen = () => {
                                 contentFit="cover"
                             />
                         ) : (
-                            <View style={[styles.headerImage, { backgroundColor: '#1F2937' }]} />
+                            <View style={[styles.headerImage, { backgroundColor: COLORS.neutral.gray[300] }]} />
                         )}
-                        <View style={styles.overlay} />
+                        <View style={styles.headerScrim} pointerEvents="none" />
                     </View>
 
-                    {/* Bandas oscuras bajo la zona del back: los textos solo en la parte baja del header */}
                     <View style={styles.headerTextSafeZone} pointerEvents="none">
                         <View style={styles.headerInfo}>
                             <Text style={styles.headerSubtitle}>Gestión de Venta</Text>
@@ -337,7 +329,7 @@ const SellVehicleScreen = () => {
                         <View style={styles.cardHeader}>
                             <Text style={styles.cardTitle}>Precio de Venta</Text>
                             <TouchableOpacity style={styles.editButton} onPress={openPriceModal}>
-                                <Ionicons name="pencil" size={16} color="#93C5FD" />
+                                <Ionicons name="pencil" size={16} color={COLORS.primary[500]} />
                                 <Text style={styles.editButtonText}>Editar</Text>
                             </TouchableOpacity>
                         </View>
@@ -374,16 +366,16 @@ const SellVehicleScreen = () => {
                     {/* Visibility Card */}
                     <View style={styles.card}>
                         <View style={styles.cardHeaderRow}>
-                            <Ionicons name="eye-outline" size={20} color="#E5E7EB" />
+                            <Ionicons name="eye-outline" size={20} color={COLORS.text.primary} />
                             <Text style={[styles.cardTitle, { marginLeft: 8 }]}>Visibilidad en Marketplace</Text>
                         </View>
 
                         <View style={styles.toggleRow}>
                             <Text style={styles.toggleLabel}>Publicar Vehículo</Text>
                             <Switch
-                                trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#10B981' }}
-                                thumbColor={'#FFFFFF'}
-                                ios_backgroundColor="rgba(255,255,255,0.15)"
+                                trackColor={{ false: COLORS.neutral.gray[200], true: COLORS.success[500] }}
+                                thumbColor={COLORS.base.white}
+                                ios_backgroundColor={COLORS.neutral.gray[200]}
                                 onValueChange={togglePublish}
                                 value={isPublished}
                             />
@@ -394,23 +386,19 @@ const SellVehicleScreen = () => {
                         <View style={styles.toggleRow}>
                             <Text style={[styles.toggleLabel, styles.toggleLabelDisabled]}>Destacar Publicación</Text>
                             <Switch
-                                trackColor={{ false: '#E5E7EB', true: '#E5E7EB' }}
-                                thumbColor={'#F3F4F6'}
+                                trackColor={{ false: COLORS.neutral.gray[200], true: COLORS.neutral.gray[200] }}
+                                thumbColor={COLORS.neutral.gray[100]}
                                 value={false}
                                 disabled={true}
                             />
                         </View>
                     </View>
 
-                    {/* Performance Card (Dark) - Only show if published or has stats */}
                     {(isPublished || stats.views > 0 || offersCount > 0) && (
-                        <View style={styles.darkCard}>
-                            {/* Decorative Circle */}
-                            <View style={styles.decorativeCircle} />
-
+                        <View style={styles.statsCard}>
                             <View style={styles.cardHeaderRow}>
-                                <Ionicons name="stats-chart-outline" size={20} color="#38BDF8" />
-                                <Text style={styles.darkCardTitle}>Rendimiento</Text>
+                                <Ionicons name="stats-chart-outline" size={20} color={COLORS.primary[500]} />
+                                <Text style={styles.statsCardTitle}>Rendimiento</Text>
                             </View>
 
                             <View style={styles.statsGrid}>
@@ -443,7 +431,7 @@ const SellVehicleScreen = () => {
                         onPress={() => navigation.goBack()}
                         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     >
-                        <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                        <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
                     </TouchableOpacity>
                     <View
                         style={[
@@ -475,7 +463,7 @@ const SellVehicleScreen = () => {
                     style={styles.outlineButton}
                     onPress={handleShareFicha}
                 >
-                    <Ionicons name="share-outline" size={20} color="rgba(255,255,255,0.85)" />
+                    <Ionicons name="share-outline" size={20} color={COLORS.primary[500]} />
                     <Text style={styles.outlineButtonText}>Compartir Ficha</Text>
                 </TouchableOpacity>
             </View>
@@ -488,17 +476,12 @@ const SellVehicleScreen = () => {
                 onRequestClose={() => setPriceModalVisible(false)}
             >
                 <View style={styles.modalOverlay}>
-                    <BlurView intensity={Platform.OS === 'ios' ? 40 : 90} tint="dark" style={StyleSheet.absoluteFill} />
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.7)' }]} />
                     <TouchableOpacity
                         style={StyleSheet.absoluteFill}
                         activeOpacity={1}
                         onPress={() => setPriceModalVisible(false)}
                     />
-                    
                     <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-                        {Platform.OS === 'ios' && <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />}
-                        <View style={styles.modalGlassFill} pointerEvents="none" />
                         <Text style={styles.modalTitle}>Editar Precio de Venta</Text>
                         <Text style={styles.modalSubtitle}>
                             Define el precio al que quieres vender tu vehículo.
@@ -507,7 +490,7 @@ const SellVehicleScreen = () => {
                         <TextInput
                             style={styles.input}
                             placeholder="Ej: 8000000"
-                            placeholderTextColor="rgba(255,255,255,0.35)"
+                            placeholderTextColor={COLORS.text.disabled}
                             keyboardType="numeric"
                             value={newPriceInput}
                             onChangeText={setNewPriceInput}
@@ -535,12 +518,10 @@ const SellVehicleScreen = () => {
     );
 };
 
-const GLASS = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
-
 const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#030712',
+        backgroundColor: COLORS.background.default,
     },
     scrollView: {
         flex: 1,
@@ -548,27 +529,25 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     scrollContent: {
         paddingBottom: 0,
     },
-    // Header (más alto para que la zona de textos no quede comprimida bajo el overlay)
     headerContainer: {
         height: 228,
         width: '100%',
         position: 'relative',
-        backgroundColor: '#000',
+        backgroundColor: COLORS.neutral.gray[200],
         overflow: 'hidden',
     },
     imageWrapper: {
         width: '100%',
         height: '100%',
-        backgroundColor: '#000', // Adjusted: ensure black bg behind image
+        backgroundColor: COLORS.neutral.gray[200],
     },
     headerImage: {
         width: '100%',
         height: '100%',
-        opacity: 0.6, // Adjusted opacity for legibility
     },
-    overlay: {
+    headerScrim: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
         zIndex: 0,
     },
     // Overlay fijo encima del ScrollView (back + badge)
@@ -592,12 +571,12 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: withOpacity(COLORS.base.white, 0.94),
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
-        backdropFilter: 'blur(10px)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
     },
     statusBadge: {
         flexDirection: 'row',
@@ -607,14 +586,14 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         borderRadius: 20,
     },
     statusPublished: {
-        backgroundColor: 'rgba(16, 185, 129, 0.9)',
-        borderWidth: 1,
-        borderColor: '#10B981',
+        backgroundColor: COLORS.success.light,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.success[300],
     },
     statusDraft: {
-        backgroundColor: 'rgba(75, 85, 99, 0.8)',
-        borderWidth: 1,
-        borderColor: '#9CA3AF',
+        backgroundColor: COLORS.neutral.gray[200],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     statusDot: {
         width: 6,
@@ -623,10 +602,10 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         marginRight: 6,
     },
     dotPublished: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: COLORS.success[600],
     },
     dotDraft: {
-        backgroundColor: '#D1D5DB',
+        backgroundColor: COLORS.text.tertiary,
     },
     statusText: {
         fontSize: 10,
@@ -634,10 +613,10 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         letterSpacing: 0.5,
     },
     textPublished: {
-        color: '#FFFFFF',
+        color: COLORS.success[800],
     },
     textDraft: {
-        color: '#FFFFFF',
+        color: COLORS.text.secondary,
     },
     // Solo esta banda puede mostrar textos; overflow hidden recorta cualquier cosa que suba
     // safeTop + fila back (~56) + margen extra para que nunca toque el botón
@@ -657,36 +636,37 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         width: '100%',
     },
     headerTitle: {
-        color: '#FFFFFF',
+        color: COLORS.text.inverse,
         fontSize: 24,
         fontWeight: '800',
         marginBottom: 2,
-        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowColor: withOpacity(COLORS.base.inkBlack, 0.35),
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 3,
     },
     headerSubtitle: {
-        color: 'rgba(255,255,255,0.9)',
+        color: withOpacity(COLORS.base.white, 0.9),
         fontSize: 14,
         fontWeight: '500',
     },
     bodyContainer: {
         marginTop: -16,
-        backgroundColor: '#030712',
+        backgroundColor: COLORS.background.default,
         zIndex: 0,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        borderTopLeftRadius: BORDERS.radius.xl,
+        borderTopRightRadius: BORDERS.radius.xl,
         paddingHorizontal: 20,
         paddingTop: 32,
     },
     card: {
-        backgroundColor: GLASS,
-        borderRadius: 16,
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.lg,
         padding: 20,
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         overflow: 'hidden',
+        ...SHADOWS.sm,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -702,7 +682,7 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     cardTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#FFFFFF',
+        color: COLORS.text.primary,
     },
     editButton: {
         flexDirection: 'row',
@@ -710,7 +690,7 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         padding: 4,
     },
     editButtonText: {
-        color: '#93C5FD',
+        color: COLORS.primary[600],
         fontWeight: '600',
         fontSize: 14,
         marginLeft: 4,
@@ -724,26 +704,26 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     priceSymbol: {
         fontSize: 20,
         fontWeight: '600',
-        color: 'rgba(255,255,255,0.85)',
+        color: COLORS.text.secondary,
         marginTop: 6,
         marginRight: 2,
     },
     priceValue: {
         fontSize: 32,
         fontWeight: '800',
-        color: '#FFFFFF',
+        color: COLORS.text.primary,
     },
     suggestedPrice: {
         textAlign: 'center',
         fontSize: 13,
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
         marginBottom: 20,
     },
     insightBox: {
-        backgroundColor: 'rgba(59,130,246,0.12)',
-        borderWidth: 1,
-        borderColor: 'rgba(147,197,253,0.25)',
-        borderRadius: 12,
+        backgroundColor: COLORS.primary[50],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[200],
+        borderRadius: BORDERS.radius.md,
         padding: 16,
     },
     insightHeader: {
@@ -754,27 +734,27 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     insightTitle: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#93C5FD',
+        color: COLORS.primary[700],
     },
     insightValue: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#6EE7B7',
+        color: COLORS.success[700],
     },
     progressBarBackground: {
         height: 6,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: COLORS.neutral.gray[200],
         borderRadius: 3,
         marginBottom: 8,
     },
     progressBarFill: {
         height: 6,
-        backgroundColor: '#007EA7',
+        backgroundColor: COLORS.primary[500],
         borderRadius: 3,
     },
     insightDescription: {
         fontSize: 11,
-        color: 'rgba(147,197,253,0.9)',
+        color: COLORS.text.secondary,
     },
     // Visibility
     toggleRow: {
@@ -786,41 +766,30 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     toggleLabel: {
         fontSize: 14,
         fontWeight: '500',
-        color: 'rgba(255,255,255,0.9)',
+        color: COLORS.text.primary,
     },
     toggleLabelDisabled: {
-        color: 'rgba(255,255,255,0.35)',
+        color: COLORS.text.disabled,
     },
     separator: {
         height: 1,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: COLORS.border.light,
         marginVertical: 12,
     },
-    // Performance Card
-    darkCard: {
-        backgroundColor: 'rgba(15,23,42,0.85)',
-        borderRadius: 16,
+    statsCard: {
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.lg,
         padding: 20,
         marginBottom: 20,
-        position: 'relative',
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
     },
-    decorativeCircle: {
-        position: 'absolute',
-        top: -20,
-        right: -20,
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: 'rgba(56, 189, 248, 0.1)',
-        zIndex: 0,
-    },
-    darkCardTitle: {
+    statsCardTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#FFFFFF',
+        color: COLORS.text.primary,
         marginLeft: 8,
     },
     statsGrid: {
@@ -835,13 +804,13 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     statValue: {
         fontSize: 24,
         fontWeight: '800',
-        color: '#FFFFFF',
+        color: COLORS.text.primary,
         marginBottom: 4,
     },
     statLabel: {
         fontSize: 10,
         fontWeight: '600',
-        color: '#9CA3AF',
+        color: COLORS.text.tertiary,
         letterSpacing: 0.5,
     },
     footerContainer: {
@@ -852,76 +821,71 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         paddingHorizontal: 20,
         paddingTop: 16,
         paddingBottom: insets.bottom + 16,
-        backgroundColor: 'rgba(3,7,18,0.92)',
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: COLORS.background.paper,
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.border.light,
         zIndex: 5,
+        ...SHADOWS.sm,
     },
     outlineButton: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         paddingVertical: 14,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
-        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderRadius: BORDERS.radius.md,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[500],
+        backgroundColor: COLORS.background.paper,
     },
     outlineButtonText: {
         marginLeft: 8,
         fontSize: 16,
         fontWeight: '600',
-        color: 'rgba(255,255,255,0.9)',
+        color: COLORS.primary[600],
     },
     // Modal
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        backgroundColor: COLORS.background.overlay,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 24,
     },
     modalContent: {
-        borderRadius: 24,
+        borderRadius: BORDERS.radius.xl,
         padding: 24,
         width: '100%',
         alignItems: 'center',
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        backgroundColor: GLASS,
-    },
-    modalGlassFill: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: GLASS,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        backgroundColor: COLORS.background.paper,
+        ...SHADOWS.lg,
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: '700',
         marginBottom: 8,
-        color: '#FFFFFF',
-        zIndex: 1,
+        color: COLORS.text.primary,
     },
     modalSubtitle: {
         fontSize: 14,
-        color: 'rgba(255,255,255,0.5)',
+        color: COLORS.text.secondary,
         textAlign: 'center',
         marginBottom: 20,
-        zIndex: 1,
     },
     input: {
         width: '100%',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderRadius: 12,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.md,
         padding: 16,
         fontSize: 18,
         fontWeight: '600',
         marginBottom: 24,
         textAlign: 'center',
-        color: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        zIndex: 1,
+        color: COLORS.text.primary,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     modalButtons: {
         flexDirection: 'row',
@@ -936,19 +900,19 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         alignItems: 'center',
     },
     cancelButton: {
-        backgroundColor: '#F3F4F6',
+        backgroundColor: COLORS.neutral.gray[100],
     },
     saveButton: {
-        backgroundColor: '#007EA7',
+        backgroundColor: COLORS.primary[500],
     },
     cancelButtonText: {
         fontWeight: '600',
-        color: '#4B5563',
+        color: COLORS.text.secondary,
     },
     saveButtonText: {
         fontWeight: '600',
-        color: 'white',
-    }
+        color: COLORS.text.onPrimary,
+    },
 });
 
 export default SellVehicleScreen;

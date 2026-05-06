@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { ArrowLeft, ClipboardList } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
@@ -21,6 +20,7 @@ import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesListSkeleton';
+import { COLORS, SPACING, BORDERS } from '../../design-system/tokens';
 
 const MisSolicitudesScreen = () => {
   const navigation = useNavigation();
@@ -227,12 +227,11 @@ const MisSolicitudesScreen = () => {
   if (showInitialSkeleton) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="light-content" />
-        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <StatusBar barStyle="dark-content" />
         <SafeAreaView style={styles.safeTop} edges={['top']}>
           <View style={styles.navRow}>
             <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-              <ArrowLeft size={22} color="#FFF" />
+              <ArrowLeft size={22} color={COLORS.text.primary} />
             </TouchableOpacity>
             <Text style={styles.navTitle}>Mis Solicitudes</Text>
             <View style={{ width: 40 }} />
@@ -245,13 +244,12 @@ const MisSolicitudesScreen = () => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <StatusBar barStyle="dark-content" />
 
       <SafeAreaView style={styles.safeTop} edges={['top']}>
         <View style={styles.navRow}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={22} color="#FFF" />
+            <ArrowLeft size={22} color={COLORS.text.primary} />
           </TouchableOpacity>
           <Text style={styles.navTitle}>Mis Solicitudes</Text>
           <View style={{ width: 40 }} />
@@ -283,7 +281,7 @@ const MisSolicitudesScreen = () => {
                   setRefreshing(false);
                 }
               }}
-              tintColor="#6EE7B7"
+              tintColor={COLORS.primary[500]}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -295,7 +293,7 @@ const MisSolicitudesScreen = () => {
 
         {error && (
           <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle-outline" size={20} color="#FCA5A5" />
+            <Ionicons name="alert-circle-outline" size={20} color={COLORS.error[500]} />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -305,24 +303,24 @@ const MisSolicitudesScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030712' },
+  root: { flex: 1, backgroundColor: COLORS.background.default },
   safeTop: { zIndex: 2 },
   safeContent: { flex: 1 },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.container.horizontal,
     paddingBottom: 12,
   },
-  navTitle: { fontSize: 18, fontWeight: '700', color: '#FFF' },
+  navTitle: { fontSize: 18, fontWeight: '600', color: COLORS.text.primary },
   iconBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[100],
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -333,7 +331,7 @@ const styles = StyleSheet.create({
   filtersWrapper: {
     paddingTop: 6,
     paddingBottom: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.container.horizontal,
   },
   tabScrollContent: {
     flexDirection: 'row',
@@ -344,21 +342,21 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.neutral.gray[100],
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: COLORS.border.light,
   },
   tabActive: {
-    backgroundColor: 'rgba(110,231,183,0.12)',
-    borderColor: 'rgba(110,231,183,0.35)',
+    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.primary[100],
   },
   tabText: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.tertiary,
   },
   tabTextActive: {
-    color: '#6EE7B7',
+    color: COLORS.primary[500],
     fontWeight: '700',
   },
   listContent: {
@@ -366,7 +364,7 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   listContentEmpty: { flexGrow: 1 },
-  cardWrapper: { width: '100%', paddingHorizontal: 16 },
+  cardWrapper: { width: '100%', paddingHorizontal: SPACING.container.horizontal },
   separator: { height: 16 },
   emptyContainer: {
     flex: 1,
@@ -379,23 +377,23 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.neutral.gray[100],
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text.primary,
     marginTop: 20,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 15,
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.secondary,
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
@@ -405,31 +403,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
     gap: 8,
     overflow: 'hidden',
+    backgroundColor: COLORS.primary[500],
   },
   createButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
   errorContainer: {
     position: 'absolute',
     bottom: 24,
-    left: 16,
-    right: 16,
-    backgroundColor: 'rgba(239,68,68,0.12)',
+    left: SPACING.container.horizontal,
+    right: SPACING.container.horizontal,
+    backgroundColor: COLORS.error.light,
     padding: 14,
     borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.25)',
+    borderColor: COLORS.error[500],
   },
   errorText: {
-    color: '#FCA5A5',
+    color: COLORS.text.primary,
     fontSize: 14,
     flex: 1,
   },

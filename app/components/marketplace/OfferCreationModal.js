@@ -12,15 +12,9 @@ import {
     Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-
-const GLASS_BG = Platform.select({
-    ios: 'rgba(255,255,255,0.06)',
-    android: 'rgba(255,255,255,0.10)',
-    default: 'rgba(255,255,255,0.08)',
-});
-const BLUR_I = Platform.OS === 'ios' ? 45 : 0;
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 
 /**
  * OfferCreationModal
@@ -120,10 +114,6 @@ const OfferCreationModal = ({
                         style={styles.keyboardAvoidingView}
                     >
                         <View style={styles.modalOuter}>
-                            <View style={styles.modalBase} pointerEvents="none" />
-                            {Platform.OS === 'ios' && (
-                                <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />
-                            )}
                             <View style={styles.handleContainer}>
                                 <View style={styles.handleBar} />
                             </View>
@@ -171,7 +161,7 @@ const OfferCreationModal = ({
                                                 onChangeText={handleCustomAmountChange}
                                                 keyboardType="numeric"
                                                 placeholder="0"
-                                                placeholderTextColor="rgba(255,255,255,0.35)"
+                                                placeholderTextColor={COLORS.text.disabled}
                                                 autoFocus
                                             />
                                         </View>
@@ -190,19 +180,12 @@ const OfferCreationModal = ({
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
-                                        style={[styles.btn, styles.primaryBtnWrap]}
+                                        style={[styles.btn, styles.primaryBtn]}
                                         onPress={handleSubmit}
                                         activeOpacity={0.85}
                                     >
-                                        <LinearGradient
-                                            colors={['#007EA7', '#00A8E8']}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                            style={styles.primaryGradient}
-                                        >
-                                            <Text style={styles.primaryBtnText}>Enviar Oferta</Text>
-                                            <Ionicons name="send" size={16} color="#FFF" style={{ marginLeft: 8 }} />
-                                        </LinearGradient>
+                                        <Text style={styles.primaryBtnText}>Enviar Oferta</Text>
+                                        <Ionicons name="send" size={16} color={COLORS.text.onPrimary} style={{ marginLeft: 8 }} />
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -217,7 +200,7 @@ const OfferCreationModal = ({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.55)',
+        backgroundColor: COLORS.background.overlay,
         justifyContent: 'flex-end',
     },
     keyboardAvoidingView: {
@@ -226,18 +209,13 @@ const styles = StyleSheet.create({
     modalOuter: {
         width: '100%',
         paddingTop: 12,
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
+        borderTopLeftRadius: BORDERS.radius.lg,
+        borderTopRightRadius: BORDERS.radius.lg,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        backgroundColor: '#0a0f1a',
-    },
-    modalBase: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(10,15,26,0.94)',
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        backgroundColor: COLORS.background.paper,
+        ...SHADOWS.lg,
     },
     handleContainer: {
         alignItems: 'center',
@@ -248,7 +226,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 4,
         borderRadius: 2,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: COLORS.neutral.gray[300],
     },
     content: {
         paddingHorizontal: 20,
@@ -263,30 +241,30 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         marginBottom: 4,
         fontSize: 20,
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     subtitle: {
         textAlign: 'center',
         fontSize: 14,
-        color: 'rgba(255,255,255,0.5)',
+        color: COLORS.text.secondary,
     },
     priceBox: {
         padding: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: GLASS_BG,
-        borderRadius: 14,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.md,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     priceLabel: {
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
         fontSize: 12,
         marginBottom: 4,
     },
     priceValue: {
-        color: '#93C5FD',
+        color: COLORS.primary[600],
         fontSize: 24,
         fontWeight: '800',
     },
@@ -294,14 +272,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        borderRadius: 14,
-        backgroundColor: GLASS_BG,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.background.paper,
     },
     radioCardSelected: {
-        borderColor: 'rgba(147,197,253,0.45)',
-        backgroundColor: 'rgba(147,197,253,0.08)',
+        borderColor: COLORS.primary[400],
+        backgroundColor: COLORS.primary[50],
     },
     radioContainer: {
         marginRight: 12,
@@ -311,18 +289,18 @@ const styles = StyleSheet.create({
         height: 20,
         borderRadius: 10,
         borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.35)',
+        borderColor: COLORS.neutral.gray[400],
         justifyContent: 'center',
         alignItems: 'center',
     },
     radioOuterSelected: {
-        borderColor: '#93C5FD',
+        borderColor: COLORS.primary[500],
     },
     radioInner: {
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: '#00A8E8',
+        backgroundColor: COLORS.primary[500],
     },
     radioContent: {
         flex: 1,
@@ -331,37 +309,37 @@ const styles = StyleSheet.create({
         marginBottom: 2,
         fontSize: 16,
         fontWeight: '500',
-        color: 'rgba(255,255,255,0.85)',
+        color: COLORS.text.secondary,
     },
     radioTitleSelected: {
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
         fontWeight: '700',
     },
     radioSubtitle: {
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
         fontSize: 14,
     },
     inputLabel: {
         marginBottom: 8,
         fontWeight: '600',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 12,
         height: 52,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
-        borderRadius: 12,
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.neutral.gray[100],
     },
     inputContainerError: {
-        borderColor: 'rgba(248,113,113,0.8)',
+        borderColor: COLORS.error[400],
     },
     inputPrefix: {
         fontSize: 18,
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
         marginRight: 8,
     },
     input: {
@@ -369,10 +347,10 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         height: '100%',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     errorText: {
-        color: '#FCA5A5',
+        color: COLORS.error[600],
         fontSize: 12,
         marginTop: 4,
     },
@@ -386,35 +364,27 @@ const styles = StyleSheet.create({
         height: 50,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 12,
+        borderRadius: BORDERS.radius.md,
     },
     ghostBtn: {
         width: '30%',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        backgroundColor: COLORS.neutral.gray[100],
     },
     ghostBtnText: {
-        color: 'rgba(255,255,255,0.65)',
+        color: COLORS.text.secondary,
         fontWeight: '600',
     },
-    primaryBtnWrap: {
+    primaryBtn: {
         width: '65%',
-        overflow: 'hidden',
-        borderRadius: 12,
         minHeight: 50,
-    },
-    primaryGradient: {
-        minHeight: 50,
-        width: '100%',
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        backgroundColor: COLORS.primary[500],
         paddingHorizontal: 12,
-        borderRadius: 12,
     },
     primaryBtnText: {
-        color: '#FFF',
+        color: COLORS.text.onPrimary,
         fontWeight: '700',
     },
 });

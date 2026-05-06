@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Image, Platform } from 'react-native';
+import { COLORS, BORDERS } from '../../design-system/tokens';
 
 /**
  * Carrusel liviano para fotos asociadas a un servicio/oferta.
@@ -52,14 +53,14 @@ export default function ServicePhotosCarousel({ photos, height = 120 }) {
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
-    borderRadius: 12,
+    borderRadius: BORDERS.radius.md,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.06)',
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   image: {
-    width: 260, // será sobreescrito al medir el contenedor en cada card (ver uso)
+    width: 260,
   },
   dots: {
     position: 'absolute',
@@ -74,12 +75,13 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: COLORS.background.paper,
+    opacity: 0.85,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
   },
-  /** En web, deja el scroll vertical para el contenedor padre. */
   horizontalScrollWeb: {
     touchAction: 'pan-x',
     overscrollBehaviorX: 'contain',
   },
 });
-

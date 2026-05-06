@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 
 const CertifiedVehicleCard = ({ vehiculo }) => {
     if (!vehiculo) return null;
@@ -8,12 +9,10 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
     return (
         <View style={styles.card}>
             <View style={styles.content}>
-                {/* Icono de Vehículo */}
                 <View style={styles.iconWrapper}>
-                    <Ionicons name="car-sport" size={24} color="#3B82F6" />
+                    <Ionicons name="car-sport" size={24} color={COLORS.primary[500]} />
                 </View>
 
-                {/* Info Vehículo */}
                 <View style={styles.infoContainer}>
                     <View style={styles.headerRow}>
                         <Text style={styles.vehicleBrand}>
@@ -27,7 +26,7 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
 
                     <View style={styles.detailsRow}>
                         <View style={styles.detailItem}>
-                            <Ionicons name="calendar-outline" size={14} color="#94A3B8" />
+                            <Ionicons name="calendar-outline" size={14} color={COLORS.text.secondary} />
                             <Text style={styles.detailText}>
                                 {vehiculo.year || vehiculo.anio || vehiculo.año || '----'}
                             </Text>
@@ -37,7 +36,7 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
                             <>
                                 <View style={styles.detailDivider} />
                                 <View style={styles.detailItem}>
-                                    <Ionicons name="hardware-chip-outline" size={14} color="#94A3B8" />
+                                    <Ionicons name="hardware-chip-outline" size={14} color={COLORS.text.secondary} />
                                     <Text style={styles.detailText}>{vehiculo.cilindraje}L</Text>
                                 </View>
                             </>
@@ -46,49 +45,42 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
                         <View style={styles.detailDivider} />
 
                         <View style={styles.detailItem}>
-                            <Ionicons name="car-outline" size={14} color="#94A3B8" />
+                            <Ionicons name="car-outline" size={14} color={COLORS.text.secondary} />
                             <Text style={styles.detailText}>{vehiculo.patente || 'Sin Patente'}</Text>
                         </View>
                     </View>
                 </View>
             </View>
-
-            {/* Decoración de fondo (opcional, para dar textura) */}
-            <View style={styles.decorationCircle} />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: '#0F172A', // Slate-900
-        borderRadius: 24,
-        padding: 16,
-        marginBottom: 24,
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.card.lg,
+        padding: SPACING.md,
+        marginBottom: SPACING.lg,
         overflow: 'hidden',
         position: 'relative',
-        // Sombra oscura
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
     },
     content: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16,
-        zIndex: 2,
+        gap: SPACING.md,
     },
     iconWrapper: {
         width: 48,
         height: 48,
-        borderRadius: 16,
-        backgroundColor: 'rgba(59, 130, 246, 0.15)', // Blue-500 transparent
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.primary[50],
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(59, 130, 246, 0.3)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[100],
     },
     infoContainer: {
         flex: 1,
@@ -99,30 +91,30 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     vehicleBrand: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#94A3B8', // Slate-400
-        letterSpacing: 1,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.secondary,
+        letterSpacing: 0.5,
         textTransform: 'uppercase',
     },
     vehicleModel: {
-        fontSize: 20,
-        fontWeight: '800', // Black
-        color: '#F8FAFC', // Slate-50
-        marginBottom: 8,
-        letterSpacing: -0.5,
+        fontSize: TYPOGRAPHY.fontSize.xl,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.xs,
+        letterSpacing: TYPOGRAPHY.letterSpacing.tight,
     },
     detailsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(30, 41, 59, 0.5)', // Slate-800 translucent
+        backgroundColor: COLORS.neutral.gray[100],
         alignSelf: 'flex-start',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 8,
-        gap: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(51, 65, 85, 0.5)', // Slate-700
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: SPACING.xxs,
+        borderRadius: BORDERS.radius.sm,
+        gap: SPACING.sm,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     detailItem: {
         flexDirection: 'row',
@@ -130,31 +122,15 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     detailText: {
-        fontSize: 14,
-        color: '#E2E8F0', // Slate-200
-        fontWeight: '500',
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.primary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
         fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
     },
     detailDivider: {
-        width: 1,
+        width: BORDERS.width.thin,
         height: 12,
-        backgroundColor: '#475569', // Slate-600
-    },
-    namesText: {
-        fontSize: 14,
-        color: '#CBD5E1', // Slate-300
-        fontWeight: '400',
-        marginBottom: 4,
-    },
-    decorationCircle: {
-        position: 'absolute',
-        right: -20,
-        bottom: -20,
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: 'rgba(255, 255, 255, 0.03)',
-        zIndex: 1,
+        backgroundColor: COLORS.border.light,
     },
 });
 

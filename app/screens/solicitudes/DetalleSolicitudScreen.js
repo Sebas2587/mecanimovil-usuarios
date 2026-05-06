@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
   Alert,
@@ -13,10 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useTheme } from '../../design-system/theme/useTheme';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 
 // Services & Context
@@ -35,13 +31,6 @@ import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 const TAB_PRINCIPALES = 'principales';
 const TAB_ADICIONALES = 'adicionales';
 
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const BLUR_I = Platform.OS === 'ios' ? 40 : 0;
-
 const ESTADOS_OFERTA_YA_RESUELTA = ['aceptada', 'pendiente_pago', 'pagada', 'en_ejecucion', 'completada', 'rechazada', 'expirada', 'retirada'];
 const ESTADOS_OFERTA_ACEPTADA = ['aceptada', 'pendiente_pago', 'pagada', 'en_ejecucion', 'completada'];
 const ESTADOS_OFERTA_PAGAR = ['aceptada', 'pendiente_pago'];
@@ -49,6 +38,9 @@ const ESTADOS_OFERTA_PAGAR = ['aceptada', 'pendiente_pago'];
 const ESTADOS_SOLICITUD_CON_CHECKLIST = ['checklist_en_progreso', 'en_proceso', 'checklist_completado', 'completada', 'finalizada', 'calificada'];
 // Estados de la oferta que indican que ya tiene orden y el servicio avanzó (equivalente a orden creada)
 const ESTADOS_OFERTA_CON_ORDEN = ['pagada', 'en_ejecucion', 'completada', 'finalizada', 'calificada'];
+
+/** Altura fija del bloque de botones del header (debajo del safe area). */
+const HEADER_CONTENT_HEIGHT = 60;
 
 const DetalleSolicitudScreen = () => {
   const navigation = useNavigation();
@@ -66,10 +58,6 @@ const DetalleSolicitudScreen = () => {
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [tabActivo, setTabActivo] = useState(TAB_PRINCIPALES);
   const [checklistOrdenId, setChecklistOrdenId] = useState(null);
-  const theme = useTheme();
-  const colors = theme?.colors || COLORS || {};
-  const spacing = theme?.spacing || SPACING || {};
-  const borders = theme?.borders || BORDERS || {};
 
   // Cargar datos
   const cargarDatos = useCallback(async () => {
@@ -215,7 +203,7 @@ const DetalleSolicitudScreen = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007EA7" />
+        <ActivityIndicator size="large" color={COLORS.primary[500]} />
         <Text style={styles.loadingText}>Cargando detalles...</Text>
       </View>
     );
@@ -225,21 +213,16 @@ const DetalleSolicitudScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-      </View>
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
-      {/* Sticky Header with Blur */}
-      <BlurView intensity={BLUR_I} tint="dark" style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="arrow-back" size={24} color="#F9FAFB" />
+            <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Detalle de Solicitud</Text>
@@ -247,12 +230,12 @@ const DetalleSolicitudScreen = () => {
           </View>
           <View style={{ width: 40 }} />
         </View>
-      </BlurView>
+      </View>
 
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingTop: insets.top + 60 } // Compensate for absolute header
+          { paddingTop: insets.top + HEADER_CONTENT_HEIGHT },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -266,7 +249,7 @@ const DetalleSolicitudScreen = () => {
 
         {/* C. Tabs: Ofertas recibidas | Ofertas adicionales */}
         <View style={styles.tabSection}>
-          <View style={[styles.segmentContainer, { marginHorizontal: spacing.lg ?? 16, marginTop: spacing.md ?? 12 }]}>
+          <View style={styles.segmentContainer}>
             <TouchableOpacity
               style={[styles.segmentButton, tabActivo === TAB_PRINCIPALES && styles.segmentActive]}
               onPress={() => setTabActivo(TAB_PRINCIPALES)}
@@ -311,7 +294,7 @@ const DetalleSolicitudScreen = () => {
                           style={styles.compareButton}
                           onPress={handleCompararOfertas}
                         >
-                          <Ionicons name="git-compare-outline" size={16} color="#007EA7" />
+                          <Ionicons name="git-compare-outline" size={16} color={COLORS.primary[500]} />
                           <Text style={styles.compareButtonText}>Comparar</Text>
                         </TouchableOpacity>
                       </View>
@@ -338,7 +321,7 @@ const DetalleSolicitudScreen = () => {
                 </>
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="documents-outline" size={48} color="#CBD5E1" />
+                  <Ionicons name="documents-outline" size={48} color={COLORS.text.disabled} />
                   <Text style={styles.emptyStateText}>Aún no hay ofertas para esta solicitud.</Text>
                   <Text style={styles.emptyStateSubtext}>Te notificaremos cuando los proveedores respondan.</Text>
                 </View>
@@ -369,7 +352,7 @@ const DetalleSolicitudScreen = () => {
                 return (
                   <View key={oferta.id} style={styles.ofertaSecundariaWrapper}>
                     <View style={styles.referenciaSolicitudBar}>
-                      <Ionicons name="link-outline" size={14} color="#64748B" />
+                      <Ionicons name="link-outline" size={14} color={COLORS.text.tertiary} />
                       <Text style={styles.referenciaSolicitudText}>
                         Oferta adicional para esta solicitud ({nombreServicio})
                         {fechaOriginal ? ` · Alternativa a la oferta del ${fechaOriginal}` : ''}
@@ -430,7 +413,7 @@ const DetalleSolicitudScreen = () => {
                   }}
                   disabled={procesando}
                 >
-                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={20} color={COLORS.error.main} />
                   <Text style={styles.cancelButtonText}>Cancelar Solicitud</Text>
                 </TouchableOpacity>
               )}
@@ -440,7 +423,7 @@ const DetalleSolicitudScreen = () => {
                   onPress={() => navigation.navigate('OpcionesPago', { solicitudId, origen: 'solicitud_publica' })}
                 >
                   <Text style={styles.primaryButtonText}>Ir a Pagar</Text>
-                  <Ionicons name="card-outline" size={20} color="#FFFFFF" />
+                  <Ionicons name="card-outline" size={20} color={COLORS.text.onPrimary} />
                 </TouchableOpacity>
               )}
               {(() => {
@@ -456,13 +439,13 @@ const DetalleSolicitudScreen = () => {
                     }}
                   >
                     <Text style={styles.primaryButtonText}>Ver Checklist</Text>
-                    <Ionicons name="clipboard-outline" size={20} color="#FFFFFF" />
+                    <Ionicons name="clipboard-outline" size={20} color={COLORS.text.onPrimary} />
                   </TouchableOpacity>
                 );
               })()}
               {!['publicada', 'pendiente_pago', 'adjudicada', 'checklist_en_progreso', 'en_proceso', 'checklist_completado', 'completada', 'finalizada', 'calificada'].includes(solicitud.estado) && (
                 <View style={styles.statusFooter}>
-                  <Ionicons name="information-circle-outline" size={20} color="#64748B" />
+                  <Ionicons name="information-circle-outline" size={20} color={COLORS.text.tertiary} />
                   <Text style={styles.statusFooterText}>
                     Estado: {solicitud.estado_display_efectivo || solicitud.estado_display || solicitud.estado}
                   </Text>
@@ -492,7 +475,7 @@ const DetalleSolicitudScreen = () => {
                     })}
                   >
                     <Text style={styles.primaryButtonText}>Ir a Pagar</Text>
-                    <Ionicons name="card-outline" size={20} color="#FFFFFF" />
+                    <Ionicons name="card-outline" size={20} color={COLORS.text.onPrimary} />
                   </TouchableOpacity>
                 )}
                 {ofertaConChecklist && (
@@ -504,12 +487,12 @@ const DetalleSolicitudScreen = () => {
                     }}
                   >
                     <Text style={styles.primaryButtonText}>Ver Checklist</Text>
-                    <Ionicons name="clipboard-outline" size={20} color="#FFFFFF" />
+                    <Ionicons name="clipboard-outline" size={20} color={COLORS.text.onPrimary} />
                   </TouchableOpacity>
                 )}
                 {!hayAcciones && (
                   <View style={styles.statusFooter}>
-                    <Ionicons name="information-circle-outline" size={20} color="#64748B" />
+                    <Ionicons name="information-circle-outline" size={20} color={COLORS.text.tertiary} />
                     <Text style={styles.statusFooterText}>
                       Acepta una oferta adicional para poder pagar y ver su checklist.
                     </Text>
@@ -525,7 +508,7 @@ const DetalleSolicitudScreen = () => {
       {
         procesando && (
           <View style={styles.processingOverlay}>
-            <ActivityIndicator size="large" color="#FFFFFF" />
+            <ActivityIndicator size="large" color={COLORS.primary[500]} />
             <Text style={styles.processingText}>Procesando...</Text>
           </View>
         )
@@ -550,17 +533,17 @@ const DetalleSolicitudScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   loadingText: {
     marginTop: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: COLORS.text.secondary,
     fontSize: 16,
   },
   header: {
@@ -569,16 +552,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 100,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(3,7,18,0.55)' : 'rgba(3,7,18,0.92)',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.background.paper,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   headerContent: {
-    height: 60,
+    height: HEADER_CONTENT_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.container.horizontal,
   },
   backButton: {
     width: 40,
@@ -592,27 +576,28 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.tertiary,
     fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingBottom: SPACING.section + SPACING.lg,
   },
   tabSection: {
-    marginTop: 8,
+    marginTop: SPACING.sm,
   },
   segmentContainer: {
     flexDirection: 'row',
-    backgroundColor: GLASS_BG,
+    backgroundColor: COLORS.neutral.gray[100],
     borderRadius: 14,
     padding: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    marginTop: SPACING.md,
   },
   segmentButton: {
     flex: 1,
@@ -624,21 +609,22 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS?.radius?.md ?? 8,
   },
   segmentActive: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   segmentText: {
     fontSize: TYPOGRAPHY?.fontSize?.sm ?? 14,
     fontWeight: TYPOGRAPHY?.fontWeight?.medium ?? '500',
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.tertiary,
   },
   segmentTextActive: {
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
     fontWeight: TYPOGRAPHY?.fontWeight?.semibold ?? '600',
   },
   segmentBadge: {
-    backgroundColor: 'rgba(147,197,253,0.25)',
+    backgroundColor: COLORS.primary[100],
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 99,
@@ -646,10 +632,10 @@ const styles = StyleSheet.create({
   segmentBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#F9FAFB',
+    color: COLORS.primary[700],
   },
   offersSection: {
-    marginTop: 8,
+    marginTop: SPACING.sm,
   },
   accionSecundariaButton: {
     flexDirection: 'row',
@@ -659,13 +645,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#007EA7',
-    borderRadius: 12,
+    backgroundColor: COLORS.primary[500],
+    borderRadius: BORDERS.radius.md,
   },
   accionSecundariaButtonTextPrimary: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.text.onPrimary,
   },
   verChecklistSecundarioButton: {
     flexDirection: 'row',
@@ -675,30 +661,30 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+    backgroundColor: COLORS.primary[50],
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
   },
   verChecklistSecundarioText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#007EA7',
+    color: COLORS.primary[700],
   },
   ofertasAdicionalesSection: {
     marginTop: 24,
     paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: COLORS.border.light,
   },
   offersHeader: {
     marginBottom: 16,
   },
   offersTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#F9FAFB',
-    marginBottom: 4,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.xxs,
   },
   offersTitleRow: {
     flexDirection: 'row',
@@ -708,22 +694,22 @@ const styles = StyleSheet.create({
   compareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(147,197,253,0.12)',
+    backgroundColor: COLORS.primary[50],
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 99,
     gap: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(147,197,253,0.35)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
   },
   compareButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#93C5FD',
+    color: COLORS.primary[700],
   },
   offersSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
   },
   ofertaSecundariaWrapper: {
     marginBottom: 20,
@@ -735,64 +721,60 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 8,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.sm,
     borderLeftWidth: 3,
-    borderLeftColor: 'rgba(255,255,255,0.25)',
+    borderLeftColor: COLORS.primary[300],
   },
   referenciaSolicitudText: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
+    color: COLORS.text.secondary,
     flex: 1,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    backgroundColor: GLASS_BG,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.xl,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     borderStyle: 'dashed',
   },
   emptyStateText: {
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.65)',
+    color: COLORS.text.primary,
   },
   emptyStateSubtext: {
     marginTop: 8,
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.secondary,
     textAlign: 'center',
     paddingHorizontal: 32,
   },
   processingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    backgroundColor: COLORS.background.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 999,
   },
   processingText: {
     marginTop: 16,
-    color: '#FFFFFF',
+    color: COLORS.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
   footer: {
     width: '100%',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(3,7,18,0.7)' : 'rgba(3,7,18,0.95)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: COLORS.background.paper,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: COLORS.border.light,
     paddingTop: 16,
     paddingHorizontal: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-    elevation: 16,
+    ...SHADOWS.sm,
   },
   footerContent: {
     width: '100%',
@@ -801,15 +783,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(248,113,113,0.10)',
+    backgroundColor: COLORS.error[50],
     paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(248,113,113,0.35)',
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.error[200],
     gap: 8,
   },
   cancelButtonText: {
-    color: '#FCA5A5',
+    color: COLORS.error[600],
     fontWeight: '700',
     fontSize: 16,
   },
@@ -817,15 +799,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: BORDERS.radius.md,
     gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(110,231,183,0.35)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[600],
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.text.onPrimary,
     fontWeight: '700',
     fontSize: 16,
   },
@@ -833,16 +815,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: GLASS_BG,
+    backgroundColor: COLORS.neutral.gray[100],
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: BORDERS.radius.md,
     gap: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   statusFooterText: {
-    color: 'rgba(255,255,255,0.55)',
+    color: COLORS.text.secondary,
     fontWeight: '500',
     fontSize: 13,
     flex: 1,

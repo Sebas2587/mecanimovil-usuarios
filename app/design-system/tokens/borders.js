@@ -6,13 +6,13 @@
 // Definir valores de radio base primero para evitar problemas de inicialización
 const RADIUS_BASE = {
   none: 0,
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  '2xl': 20,
-  '3xl': 24,
-  full: 9999, // Para círculos completos
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  pill: 100,
+  full: 9999,
 };
 
 const WIDTH_BASE = {
@@ -27,30 +27,30 @@ const radius = {
   ...RADIUS_BASE,
   // Radios para botones
   button: {
-    sm: 8,
-    md: 12,
-    lg: 16,
+    sm: 9999,
+    md: 9999,
+    lg: 9999,
     full: 9999,
   },
   // Radios para inputs
   input: {
-    sm: 8,
-    md: 12,
-    lg: 16,
+    sm: RADIUS_BASE.sm,
+    md: RADIUS_BASE.md,
+    lg: RADIUS_BASE.lg,
   },
   // Radios para cards
   card: {
-    sm: 8,
-    md: 12,
-    lg: 16,
-    xl: 20,
+    sm: RADIUS_BASE.sm,
+    md: RADIUS_BASE.md,
+    lg: RADIUS_BASE.lg,
+    xl: RADIUS_BASE.xl,
   },
   // Radios para modales
   modal: {
-    sm: 12,
-    md: 16,
-    lg: 20,
-    xl: 24,
+    sm: RADIUS_BASE.md,
+    md: RADIUS_BASE.lg,
+    lg: RADIUS_BASE.xl,
+    xl: RADIUS_BASE.xl,
   },
   // Radios para avatares
   avatar: {
@@ -61,9 +61,9 @@ const radius = {
   },
   // Radios para badges
   badge: {
-    sm: 4,
-    md: 8,
-    lg: 12,
+    sm: RADIUS_BASE.pill,
+    md: RADIUS_BASE.pill,
+    lg: RADIUS_BASE.pill,
     full: 9999,
   },
 };

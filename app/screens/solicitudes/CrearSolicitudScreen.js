@@ -13,9 +13,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { ArrowLeft, Car, Plus, Sparkles } from 'lucide-react-native';
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import FormularioSolicitud from '../../components/solicitudes/FormularioSolicitud';
 import { useSolicitudes } from '../../context/SolicitudesContext';
@@ -1000,7 +1001,7 @@ const CrearSolicitudScreen = () => {
     return (
     <GlassShell {...glassShellProps}>
         <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color="#6EE7B7" />
+          <ActivityIndicator size="large" color={COLORS.primary[500]} />
           <Text style={styles.stateText}>
             {needsPreloadServicios && !initialDataReady ? 'Preparando servicio...' : 'Cargando datos...'}
           </Text>
@@ -1015,12 +1016,12 @@ const CrearSolicitudScreen = () => {
     <GlassShell {...glassShellProps}>
         <View style={styles.centeredState}>
           <View style={styles.emptyIconWrap}>
-            <Car size={40} color="rgba(255,255,255,0.5)" />
+            <Car size={40} color={COLORS.text.tertiary} />
           </View>
           <Text style={styles.emptyTitle}>Sin vehículos registrados</Text>
           <Text style={styles.stateText}>Necesitas al menos un vehículo para crear una solicitud</Text>
           <TouchableOpacity style={styles.addVehicleBtn} onPress={() => navigation.navigate(ROUTES.MIS_VEHICULOS)} activeOpacity={0.8}>
-            <Plus size={18} color="#FFF" />
+            <Plus size={18} color={COLORS.text.onPrimary} />
             <Text style={styles.addVehicleBtnText}>Agregar vehículo</Text>
           </TouchableOpacity>
         </View>
@@ -1034,7 +1035,7 @@ const CrearSolicitudScreen = () => {
     <GlassShell {...glassShellProps}>
       {creando && (
         <View style={styles.creatingOverlay}>
-          <ActivityIndicator size="large" color="#6EE7B7" />
+          <ActivityIndicator size="large" color={COLORS.primary[500]} />
           <Text style={styles.creatingText}>Creando solicitud...</Text>
         </View>
       )}
@@ -1055,27 +1056,18 @@ const CrearSolicitudScreen = () => {
 };
 
 /**
- * GlassShell: contenedor visual con gradiente y header.
- * Definido FUERA del componente para que React mantenga la misma identidad de tipo
- * entre renders. Si se define dentro, cada re-render crea un tipo nuevo y React
- * desmonta/remonta todo el subárbol (FormularioSolicitud pierde estado).
+ * Shell de pantalla (canvas claro + header). Definido FUERA del componente para
+ * mantener identidad de tipo entre renders (FormularioSolicitud no se remonta).
  */
 const GlassShell = ({ children, insetsTop, onBack }) => (
   <View style={styles.container}>
-    <StatusBar barStyle="light-content" />
-    <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-      <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-      <View style={{ position: 'absolute', top: 300, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-      <View style={{ position: 'absolute', bottom: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-    </View>
-    {/* Header */}
+    <StatusBar barStyle="dark-content" />
     <View style={[styles.header, { paddingTop: (insetsTop || 0) + 8 }]}>
       <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-        <ArrowLeft size={22} color="#FFF" />
+        <ArrowLeft size={22} color={COLORS.text.primary} />
       </TouchableOpacity>
       <View style={styles.headerCenter}>
-        <Sparkles size={16} color="#6EE7B7" />
+        <Sparkles size={16} color={COLORS.primary[500]} />
         <Text style={styles.headerTitle}>Nueva Solicitud</Text>
       </View>
       <View style={{ width: 40 }} />
@@ -1088,7 +1080,7 @@ const GlassShell = ({ children, insetsTop, onBack }) => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   shellBody: {
     flex: 1,
@@ -1099,16 +1091,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 12,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     alignItems: 'center',
     justifyContent: 'center',
+    ...SHADOWS.sm,
   },
   headerCenter: {
     flex: 1,
@@ -1120,7 +1116,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.text.primary,
     letterSpacing: 0.3,
   },
   centeredState: {
@@ -1132,7 +1128,7 @@ const styles = StyleSheet.create({
   stateText: {
     marginTop: 16,
     fontSize: 15,
-    color: 'rgba(255,255,255,0.5)',
+    color: COLORS.text.secondary,
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -1140,9 +1136,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
@@ -1150,7 +1146,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: COLORS.text.primary,
     marginTop: 16,
     marginBottom: 8,
     textAlign: 'center',
@@ -1162,19 +1158,19 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: 'rgba(16,185,129,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.4)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.success.light,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.success[200],
   },
   addVehicleBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#6EE7B7',
+    color: COLORS.success[700],
   },
   creatingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(3,7,18,0.85)',
+    backgroundColor: COLORS.background.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
@@ -1182,7 +1178,7 @@ const styles = StyleSheet.create({
   creatingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#FFFFFF',
+    color: COLORS.text.primary,
     fontWeight: '600',
   },
 });

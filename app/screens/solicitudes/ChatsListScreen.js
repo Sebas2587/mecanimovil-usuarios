@@ -12,19 +12,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import { useConversationsList } from '../../hooks/useChats';
 import ChatsListSkeleton from '../../components/utils/ChatsListSkeleton';
-
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
 
 const ChatsListScreen = () => {
   const navigation = useNavigation();
@@ -75,7 +70,7 @@ const ChatsListScreen = () => {
             {serviceTitle}
           </Text>
           <View style={styles.vehicleBadge}>
-            <Ionicons name="car-sport-outline" size={14} color="#93C5FD" />
+            <Ionicons name="car-sport-outline" size={14} color={COLORS.primary[500]} />
             <Text style={styles.vehicleText} numberOfLines={1}>
               {vehicleInfo}
             </Text>
@@ -118,7 +113,7 @@ const ChatsListScreen = () => {
   const listEmpty = useMemo(
     () => (
       <View style={styles.emptyState}>
-        <MaterialCommunityIcons name="message-text-outline" size={64} color="rgba(255,255,255,0.2)" />
+        <MaterialCommunityIcons name="message-text-outline" size={64} color={COLORS.neutral.gray[300]} />
         <Text style={styles.emptyText}>No tienes mensajes en esta sección</Text>
       </View>
     ),
@@ -129,11 +124,7 @@ const ChatsListScreen = () => {
 
   return (
     <View style={styles.root}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-      </View>
-
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <View style={styles.topBar}>
@@ -144,7 +135,7 @@ const ChatsListScreen = () => {
             accessibilityRole="button"
             accessibilityLabel="Volver"
           >
-            <Ionicons name="chevron-back" size={26} color="#F9FAFB" />
+            <Ionicons name="chevron-back" size={26} color={COLORS.text.primary} />
           </TouchableOpacity>
           <Text style={styles.screenTitle}>Mensajes</Text>
           <View style={styles.backBtnPlaceholder} />
@@ -179,7 +170,7 @@ const ChatsListScreen = () => {
               conversations.length === 0 && styles.listContentEmpty,
             ]}
             refreshControl={
-              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={onRefresh} tintColor="#6EE7B7" />
+              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />
             }
             ListEmptyComponent={conversations.length === 0 ? listEmpty : null}
             showsVerticalScrollIndicator={false}
@@ -197,7 +188,7 @@ const ChatsListScreen = () => {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   safe: {
     flex: 1,
@@ -208,6 +199,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
     paddingBottom: 12,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   backBtn: {
     width: 44,
@@ -215,9 +209,10 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   backBtnPlaceholder: {
     width: 44,
@@ -226,17 +221,18 @@ const styles = StyleSheet.create({
   screenTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
   },
   segmentContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.neutral.gray[100],
     borderRadius: 14,
     padding: 4,
     marginHorizontal: SPACING.lg,
     marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    marginTop: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   segmentButton: {
     flex: 1,
@@ -245,17 +241,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   segmentActive: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   segmentText: {
     fontSize: 14,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.tertiary,
   },
   segmentTextActive: {
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
   },
   listContent: {
     padding: SPACING.lg,
@@ -265,39 +262,40 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    backgroundColor: GLASS_BG,
+    backgroundColor: COLORS.background.paper,
     padding: SPACING.md,
     borderRadius: BORDERS.radius.lg,
     marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   serviceTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#93C5FD',
+    color: COLORS.primary[700],
     marginBottom: 6,
   },
   vehicleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: COLORS.neutral.gray[100],
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
     alignSelf: 'flex-start',
     marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   vehicleText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: COLORS.text.secondary,
     marginLeft: 4,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.border.light,
     marginBottom: 10,
   },
   providerContainer: {
@@ -311,9 +309,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.neutral.gray[200],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   infoColumn: {
     flex: 1,
@@ -328,13 +326,13 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
     flex: 1,
     marginRight: 8,
   },
   timeText: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: COLORS.text.tertiary,
   },
   messageRow: {
     flexDirection: 'row',
@@ -343,16 +341,16 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: COLORS.text.secondary,
     flex: 1,
     marginRight: 8,
   },
   lastMessageUnread: {
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
     fontWeight: '600',
   },
   unreadBadge: {
-    backgroundColor: 'rgba(16,185,129,0.85)',
+    backgroundColor: COLORS.success[500],
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -361,7 +359,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   unreadText: {
-    color: '#fff',
+    color: COLORS.text.inverse,
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -373,7 +371,7 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: SPACING.md,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.secondary,
     textAlign: 'center',
     paddingHorizontal: 24,
   },

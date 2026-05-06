@@ -8,20 +8,20 @@ import {
   TouchableOpacity,
   RefreshControl,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { ArrowLeft, ClipboardList, Plus } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
 import * as vehicleService from '../../services/vehicle';
 import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
-
-const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
-const BLUR_I = Platform.OS === 'ios' ? 30 : 0;
+import { COLORS } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import Button from '../../components/base/Button/Button';
 
 const VehicleHistoryScreen = () => {
   const navigation = useNavigation();
@@ -81,25 +81,23 @@ const VehicleHistoryScreen = () => {
   const EmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconWrap}>
-        <ClipboardList size={40} color="rgba(255,255,255,0.25)" />
+        <ClipboardList size={40} color={COLORS.text.tertiary} />
       </View>
       <Text style={styles.emptyTitle}>Sin servicios completados</Text>
       <Text style={styles.emptySubtitle}>
         Cuando este vehículo tenga servicios completados, aparecerán aquí.
       </Text>
-      <TouchableOpacity style={styles.emptyButton} activeOpacity={0.85} onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)}>
-        <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-        <Plus size={18} color="#FFF" />
-        <Text style={styles.emptyButtonText}>Crear solicitud</Text>
-      </TouchableOpacity>
+      <Button
+        title="Crear solicitud"
+        onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)}
+        icon="add"
+      />
     </View>
   );
 
   const ListHeader = () => (
     <View style={styles.listHeader}>
       <View style={styles.headerCard}>
-        {Platform.OS === 'ios' && <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: GLASS_BG }]} />
         <Text style={styles.vehicleTitle}>
           {vehicle?.marca_nombre || vehicle?.marca || ''} {vehicle?.modelo_nombre || vehicle?.modelo || ''} • {vehicle?.patente || ''}
         </Text>
@@ -114,25 +112,24 @@ const VehicleHistoryScreen = () => {
 
   const renderHistoryItem = ({ item }) => (
     <View style={styles.cardWrapper}>
-      <VehicleServiceHistoryRow item={item} onViewChecklist={() => handleViewChecklist(item)} variant="dark" />
+      <VehicleServiceHistoryRow item={item} onViewChecklist={() => handleViewChecklist(item)} variant="light" />
     </View>
   );
 
   if (loading) {
     return (
       <View style={styles.root}>
-        <StatusBar barStyle="light-content" />
-        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           <View style={styles.navHeader}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <ArrowLeft size={22} color="#FFF" />
+              <ArrowLeft size={22} color={COLORS.text.primary} />
             </TouchableOpacity>
             <Text style={styles.navTitle}>Historial</Text>
             <View style={{ width: 40 }} />
           </View>
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#6EE7B7" />
+            <ActivityIndicator size="large" color={COLORS.primary[500]} />
             <Text style={styles.loadingText}>Cargando historial...</Text>
           </View>
         </SafeAreaView>
@@ -142,13 +139,12 @@ const VehicleHistoryScreen = () => {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <View style={styles.navHeader}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={22} color="#FFF" />
+            <ArrowLeft size={22} color={COLORS.text.primary} />
           </TouchableOpacity>
           <Text style={styles.navTitle}>Historial</Text>
           <View style={{ width: 40 }} />
@@ -161,7 +157,14 @@ const VehicleHistoryScreen = () => {
           ListHeaderComponent={<ListHeader />}
           ListEmptyComponent={<EmptyState />}
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6EE7B7" />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={COLORS.primary[500]}
+              colors={[COLORS.primary[500]]}
+            />
+          }
           showsVerticalScrollIndicator={false}
         />
       </SafeAreaView>
@@ -177,29 +180,29 @@ const VehicleHistoryScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#030712' },
+  root: { flex: 1, backgroundColor: COLORS.background.default },
   flex: { flex: 1 },
   navHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingBottom: SPACING.sm,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
   },
   navTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   loadingContainer: {
     flex: 1,
@@ -207,84 +210,72 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.45)',
+    marginTop: SPACING.md,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.secondary,
   },
   listContent: {
-    paddingBottom: 32,
+    paddingBottom: SPACING.xl,
   },
   listHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.sm,
   },
   headerCard: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    padding: 16,
+    borderRadius: BORDERS.radius.card.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    padding: SPACING.md,
     overflow: 'hidden',
+    backgroundColor: COLORS.background.paper,
+    ...SHADOWS.sm,
   },
   vehicleTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#FFF',
-    marginBottom: 4,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.xxs,
   },
   sectionSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
   },
   cardWrapper: {
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingHorizontal: SPACING.container.horizontal,
+    marginBottom: SPACING.sm,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING['2xl'],
     minHeight: 280,
   },
   emptyIconWrap: {
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 21,
-    marginBottom: 24,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 8,
-    overflow: 'hidden',
-  },
-  emptyButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    marginBottom: SPACING.lg,
   },
 });
 

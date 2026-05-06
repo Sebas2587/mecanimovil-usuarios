@@ -13,30 +13,20 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
+import { COLORS, BORDERS, SPACING } from '../../design-system/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
 
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const BLUR_INTENSITY = Platform.OS === 'ios' ? 30 : 0;
-
 const GlassCard = ({ children, style }) => (
-  <View style={[styles.glassOuter, style]}>
-    <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
-    <View style={[styles.glassInner, { backgroundColor: GLASS_BG }]}>{children}</View>
-  </View>
+  <View style={[styles.card, style]}>{children}</View>
 );
 
 const RegisterScreen = () => {
@@ -191,10 +181,7 @@ const RegisterScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-      </View>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40 }]}
@@ -227,13 +214,13 @@ const RegisterScreen = () => {
               <Input label="Nombre" placeholder="Juan" value={firstName}
                 onChangeText={(t) => { setFirstName(t); if (errors.firstName) setErrors(p => ({ ...p, firstName: undefined })); }}
                 autoCapitalize="words" autoCorrect={false} returnKeyType="next" blurOnSubmit={false}
-                error={errors.firstName} leftIcon="person-outline" appearance="darkGlass" />
+                error={errors.firstName} leftIcon="person-outline" appearance="light" />
             </View>
             <View style={styles.nameInput}>
               <Input label="Apellido" placeholder="Pérez" value={lastName}
                 onChangeText={(t) => { setLastName(t); if (errors.lastName) setErrors(p => ({ ...p, lastName: undefined })); }}
                 autoCapitalize="words" autoCorrect={false} returnKeyType="next" blurOnSubmit={false}
-                error={errors.lastName} leftIcon="person-outline" appearance="darkGlass" />
+                error={errors.lastName} leftIcon="person-outline" appearance="light" />
             </View>
           </View>
 
@@ -241,7 +228,7 @@ const RegisterScreen = () => {
             <Input label="Correo Electrónico" placeholder="ejemplo@correo.com" value={email}
               onChangeText={(t) => { setEmail(t); if (errors.email) setErrors(p => ({ ...p, email: undefined })); }}
               keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
-              returnKeyType="next" blurOnSubmit={false} error={errors.email} leftIcon="mail-outline" appearance="darkGlass" />
+              returnKeyType="next" blurOnSubmit={false} error={errors.email} leftIcon="mail-outline" appearance="light" />
           </View>
 
           <View style={styles.inputWrapper}>
@@ -252,20 +239,20 @@ const RegisterScreen = () => {
                 if (t === confirmPassword && errors.confirmPassword) setErrors(p => ({ ...p, confirmPassword: undefined }));
               }}
               secureTextEntry autoCorrect={false} returnKeyType="next" blurOnSubmit={false}
-              error={errors.password} leftIcon="lock-closed-outline" appearance="darkGlass" />
+              error={errors.password} leftIcon="lock-closed-outline" appearance="light" />
           </View>
 
           <View style={styles.inputWrapper}>
             <Input label="Confirmar Contraseña" placeholder="••••••••" value={confirmPassword}
               onChangeText={(t) => { setConfirmPassword(t); if (errors.confirmPassword) setErrors(p => ({ ...p, confirmPassword: undefined })); }}
               secureTextEntry autoCorrect={false} returnKeyType="done"
-              error={errors.confirmPassword} leftIcon="lock-closed-outline" appearance="darkGlass" />
+              error={errors.confirmPassword} leftIcon="lock-closed-outline" appearance="light" />
           </View>
 
           {/* Terms */}
           <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(!acceptTerms)}>
             <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
-              {acceptTerms && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+              {acceptTerms && <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />}
             </View>
             <Text style={styles.termsText}>
               Acepto los <Text style={styles.termsLink}>términos y condiciones</Text>
@@ -275,9 +262,7 @@ const RegisterScreen = () => {
 
           {/* Submit */}
           <TouchableOpacity onPress={handleRegister} disabled={loading} style={styles.submitBtn} activeOpacity={0.85}>
-            <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
-              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Crear Cuenta</Text>}
-            </LinearGradient>
+            {loading ? <ActivityIndicator color={COLORS.text.inverse} /> : <Text style={styles.submitText}>Crear Cuenta</Text>}
           </TouchableOpacity>
         </GlassCard>
       </ScrollView>
@@ -286,22 +271,27 @@ const RegisterScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#030712' },
+  container: { flex: 1, backgroundColor: COLORS.background.default },
 
-  scroll: { paddingHorizontal: 20 },
+  scroll: { paddingHorizontal: SPACING.container.horizontal },
   headerSection: { alignItems: 'center', marginBottom: 24 },
-  logo: { width: 180, height: 60, marginBottom: 16, tintColor: '#F9FAFB' },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: '#F9FAFB', marginBottom: 6 },
-  headerSub: { fontSize: 16, color: 'rgba(255,255,255,0.55)', textAlign: 'center' },
+  logo: { width: 180, height: 60, marginBottom: 16 },
+  headerTitle: { fontSize: 28, fontWeight: '600', color: COLORS.text.primary, marginBottom: 6 },
+  headerSub: { fontSize: 16, color: COLORS.text.secondary, textAlign: 'center' },
 
-  tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)' },
+  tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border.light },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', position: 'relative' },
-  tabTextActive: { fontSize: 16, fontWeight: '700', color: '#F9FAFB' },
-  tabTextInactive: { fontSize: 16, fontWeight: '600', color: 'rgba(255,255,255,0.40)' },
-  tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: '#00A8E8' },
+  tabTextActive: { fontSize: 16, fontWeight: '600', color: COLORS.text.primary },
+  tabTextInactive: { fontSize: 16, fontWeight: '500', color: COLORS.text.tertiary },
+  tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: COLORS.primary[500] },
 
-  glassOuter: { borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  glassInner: { padding: 20 },
+  card: {
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+    padding: 20,
+  },
 
   formCard: { marginBottom: 20 },
   inputWrapper: { marginBottom: 16 },
@@ -309,15 +299,14 @@ const styles = StyleSheet.create({
   nameInput: { flex: 1 },
 
   termsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 8 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: 'rgba(255,255,255,0.30)', marginRight: 10, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { backgroundColor: '#007EA7', borderColor: '#007EA7' },
-  termsText: { fontSize: 14, color: 'rgba(255,255,255,0.55)', flex: 1 },
-  termsLink: { color: '#67E8F9', fontWeight: '500' },
-  errorText: { color: '#EF4444', fontSize: 12, marginBottom: 8 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border.dark, marginRight: 10, alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
+  termsText: { fontSize: 14, color: COLORS.text.secondary, flex: 1 },
+  termsLink: { color: COLORS.primary[500], fontWeight: '500' },
+  errorText: { color: COLORS.error[500], fontSize: 12, marginBottom: 8 },
 
-  submitBtn: { borderRadius: 16, overflow: 'hidden', marginTop: 8 },
-  submitGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 16 },
-  submitText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  submitBtn: { borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full, overflow: 'hidden', marginTop: 8, backgroundColor: COLORS.primary[500], paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  submitText: { color: COLORS.text.inverse, fontSize: 16, fontWeight: '600' },
 });
 
 export default RegisterScreen;

@@ -3,6 +3,8 @@
  * Punto único de entrada para todos los tokens del sistema de diseño
  */
 
+import { BORDERS } from './borders';
+
 export { COLORS, withOpacity, getColorWithOpacity } from './colors';
 export { default as COLORS_DEFAULT } from './colors';
 
@@ -23,7 +25,7 @@ export { default as ANIMATIONS_DEFAULT } from './animations';
 
 // Exportación de todos los tokens en un objeto único
 // Importar con manejo defensivo de errores usando nombres diferentes para evitar conflictos
-let COLORS_LOCAL, TYPOGRAPHY_LOCAL, SPACING_LOCAL, SHADOWS_LOCAL, BORDERS_LOCAL, ANIMATIONS_LOCAL;
+let COLORS_LOCAL, TYPOGRAPHY_LOCAL, SPACING_LOCAL, SHADOWS_LOCAL, ANIMATIONS_LOCAL;
 
 try {
   const colorsModule = require('./colors');
@@ -58,14 +60,6 @@ try {
 }
 
 try {
-  const bordersModule = require('./borders');
-  BORDERS_LOCAL = bordersModule.BORDERS || bordersModule.default || {};
-} catch (e) {
-  console.error('❌ Error importing BORDERS:', e);
-  BORDERS_LOCAL = {};
-}
-
-try {
   const animationsModule = require('./animations');
   ANIMATIONS_LOCAL = animationsModule.ANIMATIONS || animationsModule.default || {};
 } catch (e) {
@@ -78,7 +72,8 @@ export const TOKENS = {
   typography: TYPOGRAPHY_LOCAL || {},
   spacing: SPACING_LOCAL || {},
   shadows: SHADOWS_LOCAL || {},
-  borders: BORDERS_LOCAL || {},
+  // Siempre el objeto completo (width + radius); require() podía dejar {} en algunos ciclos de carga.
+  borders: BORDERS,
   animations: ANIMATIONS_LOCAL || {},
 };
 

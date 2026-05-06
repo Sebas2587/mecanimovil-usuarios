@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, ScrollView, Platform, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const BLUR_I = Platform.OS === 'ios' ? 40 : 0;
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 
 const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) => {
     const insets = useSafeAreaInsets();
@@ -89,13 +89,9 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     style={styles.modalContent}
                 >
-                    <View style={styles.sheetBase} pointerEvents="none" />
-                    {Platform.OS === 'ios' && (
-                        <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />
-                    )}
                     <View style={styles.header}>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <Ionicons name="close" size={24} color="#F9FAFB" />
+                            <Ionicons name="close" size={24} color={COLORS.text.primary} />
                         </TouchableOpacity>
                         <Text style={styles.title}>Filtros</Text>
                         <TouchableOpacity onPress={handleClear}>
@@ -112,7 +108,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="0"
-                                        placeholderTextColor="rgba(255,255,255,0.35)"
+                                        placeholderTextColor={COLORS.text.disabled}
                                         keyboardType="numeric"
                                         value={filters.priceMin}
                                         onChangeText={handlePriceMinChange}
@@ -124,7 +120,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Sin límite"
-                                        placeholderTextColor="rgba(255,255,255,0.35)"
+                                        placeholderTextColor={COLORS.text.disabled}
                                         keyboardType="numeric"
                                         value={filters.priceMax}
                                         onChangeText={handlePriceMaxChange}
@@ -142,7 +138,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="ej. 2015"
-                                        placeholderTextColor="rgba(255,255,255,0.35)"
+                                        placeholderTextColor={COLORS.text.disabled}
                                         keyboardType="numeric"
                                         maxLength={4}
                                         value={filters.yearMin}
@@ -154,7 +150,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="ej. 2024"
-                                        placeholderTextColor="rgba(255,255,255,0.35)"
+                                        placeholderTextColor={COLORS.text.disabled}
                                         keyboardType="numeric"
                                         maxLength={4}
                                         value={filters.yearMax}
@@ -172,7 +168,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="0"
-                                        placeholderTextColor="rgba(255,255,255,0.35)"
+                                        placeholderTextColor={COLORS.text.disabled}
                                         keyboardType="numeric"
                                         value={filters.kmMin}
                                         onChangeText={(t) => setFilters(prev => ({ ...prev, kmMin: t }))}
@@ -183,7 +179,7 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Sin límite"
-                                        placeholderTextColor="rgba(255,255,255,0.35)"
+                                        placeholderTextColor={COLORS.text.disabled}
                                         keyboardType="numeric"
                                         value={filters.kmMax}
                                         onChangeText={(t) => setFilters(prev => ({ ...prev, kmMax: t }))}
@@ -209,25 +205,20 @@ const MarketplaceFilterModal = ({ visible, onClose, onApply, currentFilters }) =
 const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.55)',
+        backgroundColor: COLORS.background.overlay,
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: '#0a0f1a',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        backgroundColor: COLORS.background.paper,
+        borderTopLeftRadius: BORDERS.radius.xl,
+        borderTopRightRadius: BORDERS.radius.xl,
         maxHeight: '90%',
         minHeight: '50%',
         width: '100%',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         overflow: 'hidden',
-    },
-    sheetBase: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(10,15,26,0.94)',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        ...SHADOWS.lg,
     },
     header: {
         flexDirection: 'row',
@@ -235,8 +226,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.08)',
+        borderBottomWidth: BORDERS.width.thin,
+        borderBottomColor: COLORS.border.light,
         zIndex: 2,
     },
     closeButton: {
@@ -245,11 +236,11 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     clearText: {
         fontSize: 14,
-        color: '#93C5FD',
+        color: COLORS.primary[600],
         fontWeight: '600',
     },
     scrollContent: {
@@ -262,7 +253,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
         marginBottom: 12,
     },
     row: {
@@ -274,36 +265,34 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 12,
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
         marginBottom: 6,
     },
     input: {
         height: 48,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        borderRadius: 12,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        borderRadius: BORDERS.radius.md,
         paddingHorizontal: 12,
-        backgroundColor: 'rgba(255,255,255,0.05)',
+        backgroundColor: COLORS.neutral.gray[100],
         fontSize: 14,
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     footer: {
         padding: 20,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.08)',
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.border.light,
         zIndex: 2,
     },
     applyButton: {
-        backgroundColor: 'rgba(16,185,129,0.85)',
+        backgroundColor: COLORS.primary[500],
         height: 50,
-        borderRadius: 12,
+        borderRadius: BORDERS.radius.md,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
     },
     applyButtonText: {
-        color: '#FFFFFF',
+        color: COLORS.text.onPrimary,
         fontSize: 16,
         fontWeight: 'bold',
     },

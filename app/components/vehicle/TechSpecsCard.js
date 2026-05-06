@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity, Alert } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
     getRevisionTecnicaUiState,
@@ -8,9 +7,11 @@ import {
     parseMesRevisionTecnica,
     saveRtRenewalAfterConfirm,
 } from '../../utils/revisionTecnica';
-
-const GLASS_FILL =
-    Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
+import { COLORS } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 /**
  * Sección aparte (perfil vehículo): revisión técnica con reglas de vencimiento y confirmación.
@@ -25,8 +26,6 @@ export function RevisionTecnicaCard({ vehicle, revisionRenewalDueISO = null, onR
         <View style={styles.rtSection}>
             <Text style={styles.rtSectionTitle}>Revisión técnica</Text>
             <View style={styles.rtOuterCard}>
-                {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: GLASS_FILL }]} pointerEvents="none" />
                 {rtParsed !== null ? (
                     <RevisionTecnicaInner
                         vehicle={vehicle}
@@ -37,7 +36,7 @@ export function RevisionTecnicaCard({ vehicle, revisionRenewalDueISO = null, onR
                 ) : (
                     <View style={styles.rtFallbackInner}>
                         <View style={styles.labelContainer}>
-                            <Ionicons name="checkmark-circle-outline" size={18} color="rgba(255,255,255,0.45)" />
+                            <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.text.tertiary} />
                             <Text style={styles.rtFallbackLabel}>Mes indicado</Text>
                         </View>
                         <Text style={styles.rtFallbackValue}>{mesRaw}</Text>
@@ -90,7 +89,7 @@ const RevisionTecnicaInner = ({ vehicle, mesRaw, renewalDueISO, onRenewalSaved }
             <View style={styles.rtHeaderRow}>
                 <View style={styles.labelContainer}>
                     <Ionicons name="checkmark-circle-outline" size={18} color={toneStyles.accent} />
-                    <Text style={[styles.rtInnerLabel, { color: 'rgba(255,255,255,0.75)' }]}>Mes de revisión</Text>
+                    <Text style={[styles.rtInnerLabel, { color: COLORS.text.secondary }]}>Mes de revisión</Text>
                 </View>
                 <Text style={[styles.rtInnerValue, { color: toneStyles.accent }]} numberOfLines={2}>
                     {mesRaw}
@@ -115,11 +114,9 @@ const RevisionTecnicaInner = ({ vehicle, mesRaw, renewalDueISO, onRenewalSaved }
 
 const SpecGridCell = ({ label, value, icon }) => (
     <View style={styles.specCell}>
-        {Platform.OS === 'ios' && <BlurView intensity={22} tint="dark" style={StyleSheet.absoluteFill} />}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: GLASS_FILL }]} pointerEvents="none" />
         <View style={styles.specCellContent}>
             <View style={styles.specCellIconWrap}>
-                <Ionicons name={icon} size={16} color="rgba(147,197,253,0.85)" />
+                <Ionicons name={icon} size={16} color={COLORS.primary[500]} />
             </View>
             <Text style={styles.specCellLabel} numberOfLines={2}>
                 {label}
@@ -172,14 +169,14 @@ const TechSpecsCard = ({ vehicle }) => {
 
 const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: 16,
-        marginBottom: 24,
+        paddingHorizontal: SPACING.container.horizontal,
+        marginBottom: SPACING.lg,
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 12,
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.sm,
     },
     grid: {
         flexDirection: 'row',
@@ -189,54 +186,58 @@ const styles = StyleSheet.create({
     specCell: {
         width: '48%',
         minHeight: 108,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        marginBottom: 12,
+        borderRadius: BORDERS.radius.card.md,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        marginBottom: SPACING.sm,
         overflow: 'hidden',
+        backgroundColor: COLORS.background.paper,
+        ...SHADOWS.sm,
     },
     specCellContent: {
-        padding: 12,
+        padding: SPACING.sm,
         paddingTop: 10,
     },
     specCellIconWrap: {
         width: 28,
         height: 28,
-        borderRadius: 8,
-        backgroundColor: 'rgba(147,197,253,0.12)',
+        borderRadius: BORDERS.radius.sm,
+        backgroundColor: COLORS.primary[50],
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 8,
+        marginBottom: SPACING.xs,
     },
     specCellLabel: {
         fontSize: 11,
-        fontWeight: '600',
-        color: 'rgba(255,255,255,0.45)',
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.tertiary,
         textTransform: 'uppercase',
         letterSpacing: 0.4,
-        marginBottom: 4,
+        marginBottom: SPACING.xxs,
     },
     specCellValue: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#F9FAFB',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
         lineHeight: 19,
     },
     rtSection: {
-        paddingHorizontal: 16,
+        paddingHorizontal: SPACING.container.horizontal,
         marginBottom: 20,
     },
     rtSectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 12,
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.sm,
     },
     rtOuterCard: {
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderRadius: BORDERS.radius.card.lg,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         overflow: 'hidden',
+        backgroundColor: COLORS.background.paper,
+        ...SHADOWS.sm,
     },
     rtInner: {
         padding: 14,
@@ -246,31 +247,31 @@ const styles = StyleSheet.create({
         padding: 14,
     },
     rtFallbackLabel: {
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.5)',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        color: COLORS.text.secondary,
         marginLeft: 10,
     },
     rtFallbackValue: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#FFF',
-        marginTop: 8,
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
+        marginTop: SPACING.xs,
         marginLeft: 28,
     },
     rtFallbackHint: {
-        fontSize: 12,
-        color: 'rgba(255,255,255,0.4)',
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.tertiary,
         marginTop: 10,
         marginLeft: 28,
         lineHeight: 17,
     },
     rtInnerLabel: {
-        fontSize: 14,
+        fontSize: TYPOGRAPHY.fontSize.base,
         marginLeft: 10,
     },
     rtInnerValue: {
-        fontSize: 14,
-        fontWeight: '600',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
         maxWidth: '52%',
         textAlign: 'right',
     },
@@ -285,7 +286,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     rtHint: {
-        fontSize: 12,
+        fontSize: TYPOGRAPHY.fontSize.sm,
         lineHeight: 17,
         marginTop: 10,
         marginLeft: 28,
@@ -298,13 +299,13 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         paddingVertical: 10,
         paddingHorizontal: 14,
-        borderRadius: 12,
-        borderWidth: 1,
-        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderRadius: BORDERS.radius.input.md,
+        borderWidth: BORDERS.width.thin,
+        backgroundColor: COLORS.background.paper,
     },
     rtButtonText: {
         fontSize: 13,
-        fontWeight: '600',
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
 });
 

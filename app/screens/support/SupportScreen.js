@@ -1,21 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Linking, StatusBar } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const GLASS_BORDER = 'rgba(255,255,255,0.12)';
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS, SPACING, SHADOWS } from '../../design-system/tokens';
 
 const SupportScreen = () => {
-  const navigation = useNavigation();
-
   const supportOptions = [
     {
       id: 'contact',
@@ -41,29 +31,17 @@ const SupportScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#030712" />
-      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-        <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-      </View>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Sección de bienvenida */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.welcomeCard}>
-          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
-          <Ionicons name="headset-outline" size={60} color="#93C5FD" />
+          <Ionicons name="headset-outline" size={60} color={COLORS.primary[500]} />
           <Text style={styles.welcomeTitle}>¿Necesitas ayuda?</Text>
           <Text style={styles.welcomeText}>
             Estamos aquí para ayudarte. Selecciona una opción para obtener la asistencia que necesitas.
           </Text>
         </View>
 
-        {/* Opciones de soporte */}
         <View style={styles.optionsContainer}>
           {supportOptions.map((option) => (
             <TouchableOpacity
@@ -73,18 +51,16 @@ const SupportScreen = () => {
               activeOpacity={0.8}
             >
               <View style={styles.optionIcon}>
-                {Platform.OS === 'ios' && <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
-                <Ionicons name={option.icon} size={22} color="#6EE7B7" />
+                <Ionicons name={option.icon} size={22} color={COLORS.primary[600]} />
               </View>
               <View style={styles.optionContent}>
                 <Text style={styles.optionTitle}>{option.title}</Text>
                 <Text style={styles.optionDescription}>{option.description}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.35)" />
+              <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
             </TouchableOpacity>
           ))}
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -93,32 +69,32 @@ const SupportScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   scrollContent: {
-    padding: 16,
+    padding: SPACING.md,
     paddingBottom: 40,
   },
   welcomeCard: {
     alignItems: 'center',
-    backgroundColor: GLASS_BG,
-    borderRadius: 16,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
     padding: 24,
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    overflow: 'hidden',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   welcomeTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#F9FAFB',
+    fontWeight: '700',
+    color: COLORS.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   welcomeText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -128,25 +104,24 @@ const styles = StyleSheet.create({
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: GLASS_BG,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.md,
+    padding: SPACING.md,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    overflow: 'hidden',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   optionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(147,197,253,0.14)' : 'rgba(147,197,253,0.18)',
+    backgroundColor: COLORS.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(147,197,253,0.22)',
-    overflow: 'hidden',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
   },
   optionContent: {
     flex: 1,
@@ -154,14 +129,14 @@ const styles = StyleSheet.create({
   optionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
     marginBottom: 4,
   },
   optionDescription: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.text.secondary,
     lineHeight: 18,
   },
 });
 
-export default SupportScreen; 
+export default SupportScreen;

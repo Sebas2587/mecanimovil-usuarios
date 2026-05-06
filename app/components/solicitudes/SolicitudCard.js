@@ -1,40 +1,99 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import CountdownTimer from '../common/CountdownTimer';
 import { isSolicitudSinVehiculoEnCuenta } from '../../utils/solicitudVehicle';
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 
-const GLASS_BG = Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)';
-const BLUR_I = Platform.OS === 'ios' ? 30 : 0;
-
-/** Estado → colores para tema oscuro glass */
-const getEstadoGlassConfig = (estadoEfectivo) => {
+/** Estado → superficie legible sobre canvas claro */
+const getEstadoSurfaceConfig = (estadoEfectivo) => {
   const configs = {
-    creada: { color: 'rgba(255,255,255,0.6)', bg: 'rgba(255,255,255,0.08)', border: 'rgba(255,255,255,0.15)', texto: 'Creada' },
-    seleccionando_servicios: { color: '#93C5FD', bg: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.35)', texto: 'Seleccionando' },
-    publicada: { color: '#93C5FD', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.35)', texto: 'Publicada' },
-    con_ofertas: { color: '#FCD34D', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', texto: 'Con Ofertas' },
+    creada: {
+      color: COLORS.text.secondary,
+      bg: COLORS.neutral.gray[100],
+      border: COLORS.border.light,
+      texto: 'Creada',
+    },
+    seleccionando_servicios: {
+      color: COLORS.primary[700],
+      bg: COLORS.primary[50],
+      border: COLORS.primary[200],
+      texto: 'Seleccionando',
+    },
+    publicada: {
+      color: COLORS.primary[700],
+      bg: COLORS.primary[50],
+      border: COLORS.primary[200],
+      texto: 'Publicada',
+    },
+    con_ofertas: {
+      color: COLORS.warning[800],
+      bg: COLORS.warning[50],
+      border: COLORS.warning[200],
+      texto: 'Con Ofertas',
+    },
     esperando_creditos_proveedor: {
-      color: '#FBBF24',
-      bg: 'rgba(245,158,11,0.14)',
-      border: 'rgba(217,119,6,0.4)',
+      color: COLORS.warning[800],
+      bg: COLORS.warning[50],
+      border: COLORS.warning[300],
       texto: 'Esperando proveedor',
     },
-    adjudicada: { color: '#6EE7B7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)', texto: 'Adjudicada' },
-    pagada: { color: '#6EE7B7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)', texto: 'Pagada' },
-    pagada_parcialmente: { color: '#FBBF24', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', texto: 'Pagada Parcialmente' },
-    expirada: { color: '#FCA5A5', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.35)', texto: 'Expirada' },
-    cancelada: { color: '#FCA5A5', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.35)', texto: 'Cancelada' },
-    ofertas_adicionales_pendientes: { color: '#FBBF24', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', texto: 'Ofertas adicionales' },
-    en_ejecucion: { color: '#93C5FD', bg: 'rgba(99,102,241,0.12)', border: 'rgba(99,102,241,0.35)', texto: 'En Progreso' },
-    completada: { color: '#6EE7B7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)', texto: 'Completada' },
+    adjudicada: {
+      color: COLORS.success[800],
+      bg: COLORS.success.light,
+      border: COLORS.success[200],
+      texto: 'Adjudicada',
+    },
+    pagada: {
+      color: COLORS.success[800],
+      bg: COLORS.success.light,
+      border: COLORS.success[200],
+      texto: 'Pagada',
+    },
+    pagada_parcialmente: {
+      color: COLORS.warning[800],
+      bg: COLORS.warning[50],
+      border: COLORS.warning[200],
+      texto: 'Pagada Parcialmente',
+    },
+    expirada: {
+      color: COLORS.error[700],
+      bg: COLORS.error[50],
+      border: COLORS.error[200],
+      texto: 'Expirada',
+    },
+    cancelada: {
+      color: COLORS.error[700],
+      bg: COLORS.error[50],
+      border: COLORS.error[200],
+      texto: 'Cancelada',
+    },
+    ofertas_adicionales_pendientes: {
+      color: COLORS.warning[800],
+      bg: COLORS.warning[50],
+      border: COLORS.warning[200],
+      texto: 'Ofertas adicionales',
+    },
+    en_ejecucion: {
+      color: COLORS.primary[700],
+      bg: COLORS.primary[50],
+      border: COLORS.primary[200],
+      texto: 'En Progreso',
+    },
+    completada: {
+      color: COLORS.success[800],
+      bg: COLORS.success.light,
+      border: COLORS.success[200],
+      texto: 'Completada',
+    },
   };
   return configs[estadoEfectivo] || {
-    color: 'rgba(255,255,255,0.6)',
-    bg: 'rgba(255,255,255,0.08)',
-    border: 'rgba(255,255,255,0.15)',
+    color: COLORS.text.secondary,
+    bg: COLORS.neutral.gray[100],
+    border: COLORS.border.light,
     texto: estadoEfectivo,
   };
 };
@@ -45,8 +104,6 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
-    // Si el string está en formato YYYY-MM-DD, parsearlo manualmente para evitar
-    // desfase de zona horaria (new Date('2026-03-31') → UTC midnight → día anterior en UTC-3).
     const match = String(dateString).match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (match) {
       const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
@@ -84,7 +141,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       estadoEfectivo = 'pagada_parcialmente';
     }
 
-    const base = getEstadoGlassConfig(estadoEfectivo);
+    const base = getEstadoSurfaceConfig(estadoEfectivo);
     if (estadoEfectivo === 'ofertas_adicionales_pendientes' && solicitud.estado_display_efectivo) {
       return { ...base, texto: solicitud.estado_display_efectivo };
     }
@@ -121,9 +178,6 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       onPress={handlePress}
       activeOpacity={0.85}
     >
-      {Platform.OS === 'ios' && <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: GLASS_BG }]} pointerEvents="none" />
-
       <View style={[styles.estadoBadge, { backgroundColor: estadoConfig.bg, borderColor: estadoConfig.border }]}>
         <Text style={[styles.estadoBadgeText, { color: estadoConfig.color }]}>{estadoConfig.texto}</Text>
       </View>
@@ -140,7 +194,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
             </Text>
             {ofertasNuevasCount > 0 && (
               <View style={styles.ofertasNuevasBadge}>
-                <Ionicons name="notifications" size={12} color="#FFFFFF" />
+                <Ionicons name="notifications" size={12} color={COLORS.text.inverse} />
                 <Text style={styles.ofertasNuevasBadgeText}>{ofertasNuevasCount}</Text>
               </View>
             )}
@@ -150,7 +204,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         {(solicitud.vehiculo_info?.marca || solicitud.vehiculo_detail?.marca_nombre) ? (
           <View style={styles.vehicleBadgeContainer}>
             <View style={styles.vehicleBadge}>
-              <Ionicons name="car-sport" size={14} color="#93C5FD" />
+              <Ionicons name="car-sport" size={14} color={COLORS.primary[600]} />
               <Text style={styles.vehicleBadgeText} numberOfLines={1}>
                 {solicitud.vehiculo_info?.marca || solicitud.vehiculo_detail?.marca_nombre}{' '}
                 {solicitud.vehiculo_info?.modelo || solicitud.vehiculo_detail?.modelo_nombre || ''}
@@ -162,7 +216,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         ) : isSolicitudSinVehiculoEnCuenta(solicitud) ? (
           <View style={styles.vehicleBadgeContainer}>
             <View style={[styles.vehicleBadge, styles.vehicleBadgeMuted]}>
-              <Ionicons name="shield-checkmark-outline" size={14} color="#A5B4FC" />
+              <Ionicons name="shield-checkmark-outline" size={14} color={COLORS.primary[600]} />
               <Text style={styles.vehicleBadgeText} numberOfLines={1}>
                 Sin vehículo en tu cuenta
               </Text>
@@ -171,7 +225,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         ) : null}
 
         <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={14} color="rgba(255,255,255,0.45)" />
+          <Ionicons name="calendar-outline" size={14} color={COLORS.text.tertiary} />
           <Text style={styles.infoText} numberOfLines={2}>
             {fechaFormateada}
             {horaFormateada && ` a las ${horaFormateada}`}
@@ -185,7 +239,6 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
                 targetDate={solicitud.fecha_limite_confirmacion_creditos}
                 type="solicitud"
                 size="small"
-                dark
               />
             </View>
           )}
@@ -198,7 +251,6 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
                 targetDate={solicitud.fecha_expiracion}
                 type="solicitud"
                 size="small"
-                dark
               />
             </View>
           )}
@@ -210,7 +262,6 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
                 targetDate={solicitud.fecha_limite_pago}
                 type="pago"
                 size="small"
-                dark
               />
             </View>
           )}
@@ -218,7 +269,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
         {solicitud.total_ofertas > 0 && (
           <View style={styles.footer}>
             <View style={styles.infoBadge}>
-              <Ionicons name="pricetags" size={14} color="rgba(255,255,255,0.5)" />
+              <Ionicons name="pricetags" size={14} color={COLORS.text.tertiary} />
               <Text style={styles.infoText} numberOfLines={1}>
                 {solicitud.total_ofertas} oferta{solicitud.total_ofertas !== 1 ? 's' : ''}
               </Text>
@@ -234,11 +285,13 @@ const styles = StyleSheet.create({
   card: {
     width: 280,
     minHeight: 200,
-    borderRadius: 16,
+    borderRadius: BORDERS.radius.lg,
     overflow: 'hidden',
     position: 'relative',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+    ...SHADOWS.sm,
   },
   cardFullWidth: {
     width: '100%',
@@ -250,9 +303,9 @@ const styles = StyleSheet.create({
     right: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: BORDERS.radius.sm,
     zIndex: 10,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
   },
   estadoBadgeText: {
     fontSize: 10,
@@ -278,8 +331,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
   },
   titleContainer: {
     flex: 1,
@@ -292,7 +345,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 4,
     lineHeight: 24,
-    color: '#FFFFFF',
+    color: COLORS.text.primary,
   },
   ofertasNuevasBadge: {
     position: 'absolute',
@@ -300,14 +353,14 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EF4444',
+    backgroundColor: COLORS.error.main,
     borderRadius: 12,
     paddingHorizontal: 6,
     paddingVertical: 2,
     gap: 4,
   },
   ofertasNuevasBadgeText: {
-    color: '#FFFFFF',
+    color: COLORS.text.inverse,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -320,21 +373,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: BORDERS.radius.sm,
     gap: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(147,197,253,0.3)',
-    backgroundColor: 'rgba(99,102,241,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.primary[50],
     maxWidth: 260,
   },
   vehicleBadgeMuted: {
-    borderColor: 'rgba(165,180,252,0.35)',
-    backgroundColor: 'rgba(99,102,241,0.08)',
+    borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.neutral.gray[100],
   },
   vehicleBadgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#E0E7FF',
+    color: COLORS.primary[800],
     flexShrink: 1,
   },
   infoRow: {
@@ -345,7 +398,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
+    color: COLORS.text.secondary,
     fontWeight: '400',
     flex: 1,
     lineHeight: 20,
@@ -368,13 +421,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: BORDERS.radius.sm,
     gap: 4,
     flexShrink: 1,
     maxWidth: '45%',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
 });
 

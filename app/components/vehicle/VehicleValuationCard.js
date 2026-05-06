@@ -1,8 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { DollarSign, ChevronRight, Pencil } from 'lucide-react-native';
+import { COLORS } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEditPress }) => {
     const formatCurrency = (value) =>
@@ -10,10 +13,9 @@ const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEdit
 
     return (
         <View style={styles.container}>
-            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
             <View style={styles.header}>
                 <View style={styles.iconContainer}>
-                    <DollarSign size={18} color="#6EE7B7" />
+                    <DollarSign size={18} color={COLORS.primary[500]} />
                 </View>
                 <Text style={styles.title}>Gestión de Activo</Text>
             </View>
@@ -24,9 +26,9 @@ const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEdit
                     <View style={{ alignItems: 'flex-end' }}>
                         <Text style={styles.valueText}>{formatCurrency(marketValue)}</Text>
                         {(marketValue === 0 || marketValue === '0') && onEditPress && (
-                            <TouchableOpacity onPress={onEditPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                                <Pencil size={12} color="#93C5FD" />
-                                <Text style={{ color: '#93C5FD', fontSize: 12, fontWeight: '600' }}>Establecer Valor</Text>
+                            <TouchableOpacity onPress={onEditPress} style={styles.editLink}>
+                                <Pencil size={12} color={COLORS.primary[500]} />
+                                <Text style={styles.editLinkText}>Establecer Valor</Text>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -45,16 +47,9 @@ const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEdit
                 </View>
             </View>
 
-            <TouchableOpacity onPress={onSellPress} activeOpacity={0.8}>
-                <LinearGradient
-                    colors={['#007EA7', '#00A8E8']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.actionButton}
-                >
-                    <Text style={styles.actionButtonText}>Gestionar Venta</Text>
-                    <ChevronRight size={16} color="#FFF" />
-                </LinearGradient>
+            <TouchableOpacity onPress={onSellPress} activeOpacity={0.8} style={styles.actionButton}>
+                <Text style={styles.actionButtonText}>Gestionar Venta</Text>
+                <ChevronRight size={16} color={COLORS.text.inverse} />
             </TouchableOpacity>
         </View>
     );
@@ -62,87 +57,100 @@ const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEdit
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-        borderRadius: 16,
-        padding: 16,
-        marginHorizontal: 16,
-        marginBottom: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.card.lg,
+        padding: SPACING.md,
+        marginHorizontal: SPACING.container.horizontal,
+        marginBottom: SPACING.lg,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         overflow: 'hidden',
+        ...SHADOWS.sm,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: SPACING.md,
     },
     iconContainer: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: 'rgba(16,185,129,0.15)',
+        backgroundColor: COLORS.primary[50],
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 10,
     },
     title: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#FFFFFF',
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
     },
     valuesContainer: {
-        marginBottom: 16,
+        marginBottom: SPACING.md,
     },
     valueRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginVertical: 4,
+        marginVertical: SPACING.xxs,
     },
     valueLabel: {
         fontSize: 13,
-        color: 'rgba(255,255,255,0.5)',
+        color: COLORS.text.secondary,
     },
     valueText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#FFFFFF',
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
     },
     highlightValue: {
-        color: '#6EE7B7',
-        fontWeight: '700',
+        color: COLORS.primary[600],
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
     divider: {
         height: 1,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: COLORS.neutral.gray[200],
         marginVertical: 10,
     },
     badge: {
-        backgroundColor: 'rgba(16,185,129,0.15)',
+        backgroundColor: COLORS.success[50],
         alignSelf: 'flex-start',
-        paddingHorizontal: 8,
+        paddingHorizontal: SPACING.xs,
         paddingVertical: 3,
-        borderRadius: 6,
-        marginTop: 4,
+        borderRadius: BORDERS.radius.xs,
+        marginTop: SPACING.xxs,
     },
     badgeText: {
         fontSize: 10,
-        fontWeight: '600',
-        color: '#6EE7B7',
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.success[700],
+    },
+    editLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xxs,
+        marginTop: SPACING.xxs,
+    },
+    editLinkText: {
+        color: COLORS.primary[600],
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     actionButton: {
-        borderRadius: 12,
+        borderRadius: BORDERS.radius.button.md,
         paddingVertical: 13,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: COLORS.primary[500],
     },
     actionButtonText: {
-        color: '#FFF',
-        fontWeight: '600',
-        fontSize: 14,
+        color: COLORS.text.inverse,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        fontSize: TYPOGRAPHY.fontSize.base,
         marginRight: 6,
-    }
+    },
 });
 
 export default VehicleValuationCard;

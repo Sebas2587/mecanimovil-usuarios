@@ -46,16 +46,16 @@ const TYPOGRAPHY = Object.freeze({
   }),
   styles: Object.freeze({
     h1: Object.freeze({
-      fontSize: 28,
-      fontWeight: '700',
+      fontSize: 32,
+      fontWeight: '400',
       lineHeight: 1.2,
-      letterSpacing: -0.25,
+      letterSpacing: -0.5,
     }),
     h2: Object.freeze({
-      fontSize: 24,
-      fontWeight: '700',
+      fontSize: 28,
+      fontWeight: '400',
       lineHeight: 1.2,
-      letterSpacing: -0.25,
+      letterSpacing: -0.5,
     }),
     h3: Object.freeze({
       fontSize: 20,
@@ -103,7 +103,7 @@ const TYPOGRAPHY = Object.freeze({
       fontSize: 16,
       fontWeight: '600',
       lineHeight: 1.2,
-      letterSpacing: 0.25,
+      letterSpacing: 0,
     }),
     label: Object.freeze({
       fontSize: 14,

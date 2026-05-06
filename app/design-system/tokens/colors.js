@@ -1,13 +1,11 @@
 /**
- * Sistema de Colores MecaniMóvil
- * Basado en paleta de transparencia, calma, confianza, profesionalismo y claridad
- * 
- * Paleta Base:
- * - White: #FFFFFF
- * - Ink Black: #00171F
- * - Deep Space Blue: #003459
- * - Cerulean: #007EA7
- * - Fresh Sky: #00A8E8
+ * Sistema de Colores MecaniMóvil (Coinbase-style)
+ *
+ * Basado en `DESIGN-coinbase.md`:
+ * - Canvas: #ffffff
+ * - Ink: #0a0b0d (texto principal y “surface dark”)
+ * - Brand Blue: #0052ff (único voltaje de marca, usado con moderación)
+ * - Hairlines / Surfaces: grises muy suaves (dee1e6 / eef0f3 / f7f7f7)
  */
 
 /**
@@ -51,61 +49,58 @@ export const COLORS = {
 
   base: {
     white: '#FFFFFF',
-    inkBlack: '#00171F',      // Ultra-dark con hint de azul
-    deepSpaceBlue: '#003459', // Azul oscuro profundo, cosmos
-    cerulean: '#007EA7',      // Azul-verde vibrante, vida y libertad
-    freshSky: '#00A8E8',      // Cian brillante, optimismo y frescura
+    inkBlack: '#0A0B0D',      // Coinbase Ink
+    deepSpaceBlue: '#0A0B0D', // Mantener alias legacy apuntando a Ink
+    cerulean: '#0052FF',      // Legacy alias → Brand Blue
+    freshSky: '#0052FF',      // Legacy alias → Brand Blue
   },
 
   // ============================================
-  // COLORES PRIMARIOS (Deep Space Blue)
-  // Inspiración: cosmos, ambición, misterio estrellado
+  // COLORES PRIMARIOS (Coinbase Blue)
   // ============================================
   primary: {
-    50: '#E6F2F7',   // Muy claro, casi blanco con tinte azul
-    100: '#CCE5EF',
-    200: '#99CBE0',
-    300: '#66B1D0',
-    400: '#3397C1',
-    500: '#003459',  // Color principal - Deep Space Blue
-    600: '#002A47',
-    700: '#002035',
-    800: '#001524',
-    900: '#000B12',
+    50: '#E6EEFF',
+    100: '#CCDDFE',
+    200: '#99BBFE',
+    300: '#6699FD',
+    400: '#3377FD',
+    500: '#0052FF',  // Brand Blue
+    600: '#0046DD',
+    700: '#003ECC',  // primary-active
+    800: '#002A88',
+    900: '#001544',
   },
 
   // ============================================
-  // COLORES SECUNDARIOS (Cerulean)
-  // Inspiración: vida, libertad, conocimiento
+  // COLORES SECUNDARIOS (compatibilidad)
   // ============================================
   secondary: {
-    50: '#E6F5F9',
-    100: '#CCEBF3',
-    200: '#99D7E7',
-    300: '#66C3DB',
-    400: '#33AFCF',
-    500: '#007EA7',  // Color secundario principal - Cerulean
-    600: '#006586',
-    700: '#004C65',
-    800: '#003344',
-    900: '#001A23',
+    50: '#E6EEFF',
+    100: '#CCDDFE',
+    200: '#99BBFE',
+    300: '#6699FD',
+    400: '#3377FD',
+    500: '#0052FF',
+    600: '#0046DD',
+    700: '#003ECC',
+    800: '#002A88',
+    900: '#001544',
   },
 
   // ============================================
-  // COLORES DE ACENTO (Fresh Sky)
-  // Inspiración: optimismo, frescura, cielos abiertos
+  // COLORES DE ACENTO (compatibilidad)
   // ============================================
   accent: {
-    50: '#E6F7FC',
-    100: '#CCEFF9',
-    200: '#99DFF3',
-    300: '#66CFED',
-    400: '#33BFE7',
-    500: '#00A8E8',  // Color de acento principal - Fresh Sky
-    600: '#0086BA',
-    700: '#00648B',
-    800: '#00425D',
-    900: '#00212E',
+    50: '#E6EEFF',
+    100: '#CCDDFE',
+    200: '#99BBFE',
+    300: '#6699FD',
+    400: '#3377FD',
+    500: '#0052FF',
+    600: '#0046DD',
+    700: '#003ECC',
+    800: '#002A88',
+    900: '#001544',
   },
 
   // ============================================
@@ -113,20 +108,19 @@ export const COLORS = {
   // ============================================
   neutral: {
     white: '#FFFFFF',
-    inkBlack: '#00171F',
+    inkBlack: '#0A0B0D',
     gray: {
-      50: '#F5F7F8',   // Casi blanco con tinte azul muy sutil
-      100: '#EBEFF1',
-      200: '#D7DFE3',
-      300: '#C3CFD5',
-      400: '#AFBFC7',
-      500: '#9BAFB9',  // Gris medio
-      600: '#7C8F97',
-      700: '#5D6F75',
-      800: '#3E4F53',
-      850: '#2A3B40',  // Added for patrimony gradient (dark slate)
-      900: '#1F2F31',
-      950: '#00171F',  // Ink Black
+      50: '#FFFFFF',   // canvas
+      100: '#F7F7F7',  // surface-soft
+      200: '#EEF0F3',  // surface-strong / hairline-soft
+      300: '#DEE1E6',  // hairline
+      400: '#A8ACB3',  // muted-soft
+      500: '#7C828A',  // muted
+      600: '#5B616E',  // body
+      700: '#2B2F38',
+      800: '#16181C',  // surface-dark-elevated
+      900: '#0A0B0D',  // ink / surface-dark
+      950: '#0A0B0D',
     },
   },
 
@@ -137,64 +131,61 @@ export const COLORS = {
 
   // SUCCESS - Verde esmeralda/turquesa que complementa los azules
   success: {
-    light: '#E6F7F4',      // Fondo muy claro
-    main: '#00C9A7',       // Verde turquesa vibrante
-    dark: '#00997A',       // Verde más oscuro
-    darker: '#006B57',     // Verde muy oscuro
-    text: '#003D32',       // Texto sobre success
-    badge: '#D1FAE5',      // Badge background (light green)
-    badgeText: '#065F46',  // Badge text (dark green)
-    // Variaciones completas
-    50: '#E6F7F4',
-    100: '#CCEFE9',
-    200: '#99DFD3',
-    300: '#66CFBD',
-    400: '#33BFA7',
-    500: '#00C9A7',  // Principal
-    600: '#00A186',
-    700: '#007965',
-    800: '#005144',
-    900: '#002923',
+    light: '#E9FBF2',
+    main: '#05B169',      // semantic-up
+    dark: '#049356',
+    darker: '#037446',
+    text: '#0A0B0D',
+    badge: '#E9FBF2',
+    badgeText: '#05B169',
+    50: '#E9FBF2',
+    100: '#CFF7E3',
+    200: '#9FEFC7',
+    300: '#6FE7AB',
+    400: '#3FDF8F',
+    500: '#05B169',
+    600: '#049356',
+    700: '#037446',
+    800: '#025536',
+    900: '#013726',
   },
 
   // WARNING - Amarillo suave con tinte dorado que no rompe la armonía
   warning: {
-    light: '#FFF8E6',      // Fondo muy claro
-    main: '#FFB84D',       // Amarillo dorado suave
-    dark: '#E6A044',       // Amarillo más oscuro
-    darker: '#CC883B',     // Amarillo muy oscuro
-    text: '#664422',       // Texto sobre warning
-    // Variaciones completas
-    50: '#FFF8E6',
-    100: '#FFF1CC',
-    200: '#FFE399',
-    300: '#FFD566',
-    400: '#FFC733',
-    500: '#FFB84D',  // Principal
-    600: '#E6A044',
-    700: '#CC883B',
-    800: '#B37032',
-    900: '#995829',
+    light: '#FFF7E6',
+    main: '#F4B000',      // accent-yellow
+    dark: '#C98F00',
+    darker: '#9E6F00',
+    text: '#0A0B0D',
+    50: '#FFF7E6',
+    100: '#FFEDC2',
+    200: '#FFDB85',
+    300: '#FFC947',
+    400: '#FFB709',
+    500: '#F4B000',
+    600: '#C98F00',
+    700: '#9E6F00',
+    800: '#734F00',
+    900: '#493000',
   },
 
   // ERROR - Rojo coral suave con toque azulado para armonía
   error: {
-    light: '#FFEBEE',      // Fondo muy claro
-    main: '#FF6B6B',       // Rojo coral suave
-    dark: '#E64A4A',       // Rojo más oscuro
-    darker: '#CC3939',     // Rojo muy oscuro
-    text: '#8B1A1A',       // Texto sobre error
-    // Variaciones completas
-    50: '#FFEBEE',
-    100: '#FFD7D7',
-    200: '#FFAFAF',
-    300: '#FF8787',
-    400: '#FF5F5F',
-    500: '#FF6B6B',  // Principal
-    600: '#E64A4A',
-    700: '#CC3939',
-    800: '#B32828',
-    900: '#991717',
+    light: '#FFECEE',
+    main: '#CF202F',      // semantic-down
+    dark: '#A81824',
+    darker: '#80111A',
+    text: '#0A0B0D',
+    50: '#FFECEE',
+    100: '#FFD1D6',
+    200: '#FFA3AD',
+    300: '#FF7485',
+    400: '#FF465C',
+    500: '#CF202F',
+    600: '#A81824',
+    700: '#80111A',
+    800: '#590B11',
+    900: '#310508',
   },
 
   // INFO - Usa directamente Cerulean para consistencia
@@ -223,49 +214,49 @@ export const COLORS = {
   // COLORES DE TEXTO
   // ============================================
   text: {
-    primary: '#00171F',        // Ink Black - máximo contraste
-    secondary: '#3E4F53',      // Gris oscuro - neutral.gray[800]
-    tertiary: '#5D6F75',       // Gris medio - neutral.gray[700]
-    disabled: '#9BAFB9',      // Gris claro - neutral.gray[500]
-    inverse: '#FFFFFF',        // Blanco para fondos oscuros
-    hint: '#7C8F97',          // Gris para hints - neutral.gray[600]
+    primary: '#0A0B0D',        // ink
+    secondary: '#5B616E',      // body
+    tertiary: '#7C828A',       // muted
+    disabled: '#A8ACB3',       // muted-soft
+    inverse: '#FFFFFF',
+    hint: '#7C828A',
     // Colores semánticos de texto
     onPrimary: '#FFFFFF',      // Texto sobre primary
     onSecondary: '#FFFFFF',     // Texto sobre secondary
     onAccent: '#FFFFFF',       // Texto sobre accent
-    onSuccess: '#003D32',      // Texto sobre success
-    onWarning: '#664422',      // Texto sobre warning
-    onError: '#8B1A1A',        // Texto sobre error
-    onInfo: '#003344',         // Texto sobre info
+    onSuccess: '#0A0B0D',
+    onWarning: '#0A0B0D',
+    onError: '#FFFFFF',
+    onInfo: '#0A0B0D',
   },
 
   // ============================================
   // COLORES DE FONDO
   // ============================================
   background: {
-    default: '#F5F7F8',        // neutral.gray[50] - fondo principal
-    paper: '#FFFFFF',          // Blanco para cards y superficies
-    elevated: '#FFFFFF',       // Blanco para elementos elevados
-    overlay: 'rgba(0, 23, 31, 0.6)',  // Ink Black con opacidad
-    glass: 'rgba(255, 255, 255, 0.7)', // Glassmorphism
-    glassDark: 'rgba(0, 52, 89, 0.7)', // Glassmorphism oscuro
+    default: '#FFFFFF',        // canvas
+    paper: '#FFFFFF',
+    elevated: '#FFFFFF',
+    overlay: 'rgba(10, 11, 13, 0.6)',
+    glass: 'rgba(255, 255, 255, 0.7)',
+    glassDark: 'rgba(10, 11, 13, 0.7)',
     // Fondos semánticos
-    success: '#E6F7F4',
-    warning: '#FFF8E6',
-    error: '#FFEBEE',
-    info: '#E6F5F9',
+    success: '#E9FBF2',
+    warning: '#FFF7E6',
+    error: '#FFECEE',
+    info: '#EEF0F3',
   },
 
   // ============================================
   // COLORES DE BORDE
   // ============================================
   border: {
-    light: '#D7DFE3',          // neutral.gray[200] - bordes sutiles
-    main: '#C3CFD5',          // neutral.gray[300] - bordes estándar
-    dark: '#9BAFB9',          // neutral.gray[500] - bordes destacados
-    focus: '#00A8E8',         // accent[500] - borde de foco
-    error: '#FF6B6B',         // error[500] - borde de error
-    success: '#00C9A7',       // success[500] - borde de éxito
+    light: '#DEE1E6',          // hairline
+    main: '#DEE1E6',
+    dark: '#A8ACB3',
+    focus: '#0052FF',
+    error: '#CF202F',
+    success: '#05B169',
   },
 
   // ============================================
@@ -322,14 +313,15 @@ export const COLORS = {
   // Para efectos visuales que mantienen la armonía
   // ============================================
   gradients: {
-    primary: ['#007EA7', '#00A8E8'],           // Cerulean → Fresh Sky (CTA principal)
-    secondary: ['#003459', '#007EA7'],          // Deep Space Blue → Cerulean
-    accent: ['#00A8E8', '#00C9A7'],             // Fresh Sky → Success
-    ocean: ['#003459', '#007EA7', '#00A8E8'],   // Tríptico azul
-    sunset: ['#00A8E8', '#FFB84D'],             // Fresh Sky → Warning
-    calm: ['#E6F5F9', '#FFFFFF'],              // Fondo suave
-    dark: ['#00171F', '#003459'],               // Ink Black → Deep Space Blue
-    button: ['#007EA7', '#00A8E8'],             // Gradiente estándar para botones primarios
+    // Coinbase: preferir sólidos; se deja por compatibilidad (si algún lugar usa gradient)
+    primary: ['#0052FF', '#003ECC'],
+    secondary: ['#EEF0F3', '#FFFFFF'],
+    accent: ['#0052FF', '#003ECC'],
+    ocean: ['#FFFFFF', '#F7F7F7', '#EEF0F3'],
+    sunset: ['#FFF7E6', '#FFFFFF'],
+    calm: ['#F7F7F7', '#FFFFFF'],
+    dark: ['#0A0B0D', '#16181C'],
+    button: ['#0052FF', '#003ECC'],
   },
 
   // ============================================
@@ -337,22 +329,22 @@ export const COLORS = {
   // ============================================
   states: {
     hover: {
-      primary: '#002A47',      // primary[600]
-      secondary: '#006586',    // secondary[600]
-      accent: '#0086BA',      // accent[600]
+      primary: '#003ECC',
+      secondary: '#003ECC',
+      accent: '#003ECC',
     },
     pressed: {
-      primary: '#002035',      // primary[700]
-      secondary: '#004C65',    // secondary[700]
-      accent: '#00648B',      // accent[700]
+      primary: '#003ECC',
+      secondary: '#003ECC',
+      accent: '#003ECC',
     },
     disabled: {
-      background: '#EBEFF1',   // neutral.gray[100]
-      text: '#9BAFB9',        // neutral.gray[500]
-      border: '#D7DFE3',      // neutral.gray[200]
+      background: '#EEF0F3',
+      text: '#A8B8CC',        // primary-disabled per spec
+      border: '#DEE1E6',
     },
     focus: {
-      ring: '#00A8E8',        // accent[500]
+      ring: '#0052FF',
       ringOpacity: 0.3,
     },
   },

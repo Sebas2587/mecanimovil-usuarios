@@ -1,14 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../base/Avatar/Avatar';
-
-const GLASS_BG = Platform.select({
-    ios: 'rgba(255,255,255,0.06)',
-    android: 'rgba(255,255,255,0.10)',
-    default: 'rgba(255,255,255,0.08)',
-});
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 
 /**
  * OfferNegotiationCard
@@ -47,29 +44,29 @@ const OfferNegotiationCard = ({
             case 'accepted':
                 return {
                     label: 'ACEPTADA',
-                    bgColor: 'rgba(16,185,129,0.18)',
-                    textColor: '#6EE7B7',
+                    bgColor: COLORS.success[100],
+                    textColor: COLORS.success[700],
                     icon: 'checkmark-circle'
                 };
             case 'rejected':
                 return {
                     label: 'RECHAZADA',
-                    bgColor: 'rgba(248,113,113,0.15)',
-                    textColor: '#FCA5A5',
+                    bgColor: COLORS.error[100],
+                    textColor: COLORS.error[600],
                     icon: 'close-circle'
                 };
             case 'completed':
                 return {
                     label: isReceived ? 'VENDIDO' : 'COMPRADO',
-                    bgColor: 'rgba(147,197,253,0.15)',
-                    textColor: '#93C5FD',
+                    bgColor: COLORS.primary[100],
+                    textColor: COLORS.primary[700],
                     icon: isReceived ? 'pricetag' : 'car'
                 };
             default:
                 return {
                     label: 'PENDIENTE',
-                    bgColor: 'rgba(245,158,11,0.18)',
-                    textColor: '#FCD34D',
+                    bgColor: COLORS.warning[100],
+                    textColor: COLORS.warning[800],
                     icon: 'time'
                 };
         }
@@ -78,8 +75,8 @@ const OfferNegotiationCard = ({
     const statusConfig = getStatusConfig();
 
     const headerBgColor = isReceived
-        ? 'rgba(255,255,255,0.04)'
-        : 'rgba(147,197,253,0.08)';
+        ? COLORS.neutral.gray[100]
+        : COLORS.primary[50];
 
     const headerLabel = isReceived ? 'Oferta Recibida' : 'Oferta Enviada';
 
@@ -90,7 +87,7 @@ const OfferNegotiationCard = ({
                     <Ionicons
                         name={isReceived ? 'arrow-down-circle-outline' : 'arrow-up-circle-outline'}
                         size={16}
-                        color="rgba(255,255,255,0.55)"
+                        color={COLORS.text.tertiary}
                     />
                     <Text style={styles.offerTypeLabel}>{headerLabel}</Text>
                 </View>
@@ -149,7 +146,7 @@ const OfferNegotiationCard = ({
                                 style={[styles.button, styles.acceptButton]}
                                 onPress={onAccept}
                             >
-                                <Text style={[styles.buttonText, { color: '#FFF' }]}>Aceptar</Text>
+                                <Text style={[styles.buttonText, { color: COLORS.text.onPrimary }]}>Aceptar</Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -160,8 +157,8 @@ const OfferNegotiationCard = ({
                                 style={[styles.button, styles.chatButton, styles.primaryBlue]}
                                 onPress={onChat}
                             >
-                                <Ionicons name="chatbubbles-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                                <Text style={[styles.buttonText, { color: '#FFF' }]}>Ir al Chat de Negocios</Text>
+                                <Ionicons name="chatbubbles-outline" size={18} color={COLORS.text.onPrimary} style={{ marginRight: 8 }} />
+                                <Text style={[styles.buttonText, { color: COLORS.text.onPrimary }]}>Ir al Chat de Negocios</Text>
                             </TouchableOpacity>
 
                             {isReceived ? (
@@ -169,8 +166,8 @@ const OfferNegotiationCard = ({
                                     style={[styles.button, styles.chatButton, styles.secondaryCyan, { marginTop: 8 }]}
                                     onPress={onTransfer}
                                 >
-                                    <Ionicons name="qr-code-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                                    <Text style={[styles.buttonText, { color: '#FFF' }]}>Entregar Vehículo (QR)</Text>
+                                    <Ionicons name="qr-code-outline" size={18} color={COLORS.text.onPrimary} style={{ marginRight: 8 }} />
+                                    <Text style={[styles.buttonText, { color: COLORS.text.onPrimary }]}>Entregar Vehículo (QR)</Text>
                                 </TouchableOpacity>
                             ) : (
                                 <>
@@ -199,13 +196,15 @@ const OfferNegotiationCard = ({
                                             <Ionicons
                                                 name="shield-checkmark-outline"
                                                 size={18}
-                                                color={inspectionDisabled ? 'rgba(255,255,255,0.45)' : '#FFF'}
+                                                color={inspectionDisabled ? COLORS.text.disabled : COLORS.text.onPrimary}
                                                 style={{ marginRight: 8 }}
                                             />
                                             <Text
                                                 style={[
                                                     styles.buttonText,
-                                                    { color: inspectionDisabled ? 'rgba(255,255,255,0.55)' : '#FFF' },
+                                                    {
+                                                        color: inspectionDisabled ? COLORS.text.disabled : COLORS.text.onPrimary,
+                                                    },
                                                 ]}
                                             >
                                                 Solicitar Inspección Pre-Compra
@@ -216,8 +215,8 @@ const OfferNegotiationCard = ({
                                         style={[styles.button, styles.chatButton, styles.secondaryCyan, { marginTop: 8 }]}
                                         onPress={onReceive}
                                     >
-                                        <Ionicons name="scan-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                                        <Text style={[styles.buttonText, { color: '#FFF' }]}>Recibir Vehículo (Escanear)</Text>
+                                        <Ionicons name="scan-outline" size={18} color={COLORS.text.onPrimary} style={{ marginRight: 8 }} />
+                                        <Text style={[styles.buttonText, { color: COLORS.text.onPrimary }]}>Recibir Vehículo (Escanear)</Text>
                                     </TouchableOpacity>
                                 </>
                             )}
@@ -239,12 +238,13 @@ const OfferNegotiationCard = ({
 
 const styles = StyleSheet.create({
     card: {
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        backgroundColor: GLASS_BG,
-        borderRadius: 16,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.lg,
         marginBottom: 16,
         overflow: 'hidden',
+        ...SHADOWS.sm,
     },
     header: {
         flexDirection: 'row',
@@ -252,8 +252,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.08)',
+        borderBottomWidth: BORDERS.width.thin,
+        borderBottomColor: COLORS.border.light,
     },
     offerTypeContainer: {
         flexDirection: 'row',
@@ -263,14 +263,14 @@ const styles = StyleSheet.create({
         marginLeft: 6,
         fontWeight: '500',
         fontSize: 12,
-        color: 'rgba(255,255,255,0.55)',
+        color: COLORS.text.secondary,
     },
     statusBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: 12,
+        borderRadius: BORDERS.radius.badge.sm,
     },
     statusText: {
         fontSize: 12,
@@ -288,8 +288,8 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         marginRight: 12,
-        borderRadius: 10,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.neutral.gray[200],
     },
     vehicleInfo: {
         flex: 1,
@@ -299,36 +299,36 @@ const styles = StyleSheet.create({
         marginBottom: 4,
         fontSize: 16,
         fontWeight: '600',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     counterpartContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     counterpartName: {
-        color: 'rgba(255,255,255,0.55)',
+        color: COLORS.text.secondary,
         fontSize: 14,
     },
     amountContainer: {
         padding: 12,
         alignItems: 'center',
-        borderWidth: 1,
+        borderWidth: BORDERS.width.thin,
         borderStyle: 'dashed',
-        borderColor: 'rgba(147,197,253,0.35)',
-        borderRadius: 12,
-        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderColor: COLORS.primary[200],
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.primary[50],
     },
     amountLabel: {
         marginBottom: 4,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
         fontSize: 12,
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
     },
     amountValue: {
         fontSize: 20,
         fontWeight: '800',
-        color: '#93C5FD',
+        color: COLORS.primary[700],
     },
     footer: {
         padding: 16,
@@ -344,39 +344,39 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         height: 46,
-        borderRadius: 12,
+        borderRadius: BORDERS.radius.md,
         justifyContent: 'center',
         alignItems: 'center',
     },
     rejectButton: {
         backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: 'rgba(248,113,113,0.55)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.error[300],
     },
     rejectButtonText: {
-        color: '#FCA5A5',
+        color: COLORS.error[600],
         fontSize: 14,
         fontWeight: '600',
     },
     acceptButton: {
-        backgroundColor: 'rgba(16,185,129,0.85)',
+        backgroundColor: COLORS.success[500],
     },
     primaryBlue: {
-        backgroundColor: 'rgba(30,58,138,0.9)',
-        borderWidth: 1,
-        borderColor: 'rgba(147,197,253,0.25)',
+        backgroundColor: COLORS.primary[500],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[600],
     },
     secondaryCyan: {
-        backgroundColor: 'rgba(8,145,178,0.85)',
+        backgroundColor: COLORS.primary[600],
     },
     inspectionButton: {
-        backgroundColor: 'rgba(16,185,129,0.85)',
-        borderWidth: 1,
-        borderColor: 'rgba(110,231,183,0.3)',
+        backgroundColor: COLORS.success[500],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.success[600],
     },
     inspectionButtonDisabled: {
-        backgroundColor: 'rgba(255,255,255,0.06)',
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: COLORS.neutral.gray[100],
+        borderColor: COLORS.border.light,
     },
     chatButton: {
         width: '100%',
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
     },
     waitingText: {
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
         fontSize: 13,
         fontStyle: 'italic',
     },

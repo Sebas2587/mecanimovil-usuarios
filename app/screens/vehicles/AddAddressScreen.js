@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,21 +8,20 @@ import {
   Alert,
   ScrollView,
   StatusBar,
-  Modal,
-  Platform,
-  TextInput as RNTextInput
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { debounce } from 'lodash';
 
 import { COLORS } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import * as locationService from '../../services/location';
 
-// Components
-import Input from '../../components/base/Input/Input'; // Assuming this exists from previous steps
+import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
 import Card from '../../components/base/Card/Card';
 
@@ -31,11 +30,9 @@ const AddAddressScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
-  // Callbacks
   const onAddressAddedCallback = route.params?.onAddressAdded;
   const onGoBackCallback = route.params?.onGoBack;
 
-  // State
   const [direccion, setDireccion] = useState('');
   const [etiqueta, setEtiqueta] = useState('Casa');
   const [detalles, setDetalles] = useState('');
@@ -44,20 +41,12 @@ const AddAddressScreen = () => {
   const [coords, setCoords] = useState(null);
   const [isPreciseLocation, setIsPreciseLocation] = useState(true);
 
-  // Suggestions State
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Modal State
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [tempLatitude, setTempLatitude] = useState('');
-  const [tempLongitude, setTempLongitude] = useState('');
-
   const etiquetaOptions = ['Casa', 'Trabajo', 'Otro'];
   const isNavigatingRef = useRef(false);
-
-  // --- Logic Reuse (Identical to original but cleaned up) ---
 
   const handleGoBack = useCallback(() => {
     if (isNavigatingRef.current) return;
@@ -102,10 +91,8 @@ const AddAddressScreen = () => {
   };
 
   const handleSelectSuggestion = (suggestion) => {
-    // ... (Same logic for parsing suggestion)
-    const { mainText, details } = suggestion;
-    // Simplified Logic for brevity in plan, will adapt full logic in code
-    let direccionMostrada = mainText; // Placeholder for full logic
+    const { mainText } = suggestion;
+    let direccionMostrada = mainText;
     if (direccionMostrada.endsWith(', Chile')) direccionMostrada = direccionMostrada.replace(', Chile', '');
 
     setDireccion(direccionMostrada);
@@ -136,14 +123,10 @@ const AddAddressScreen = () => {
 
       if (accuracy > 200) {
         setIsPreciseLocation(false);
-        // Prompt logic would go here
       }
-      // Reverse geocode logic
       const addressInfo = await locationService.reverseGeocode(latitude, longitude);
-      // ... (Full reverse geocode parsing logic reused)
-      // For now assuming success
       if (addressInfo.street) setDireccion(`${addressInfo.street} ${addressInfo.streetNumber || ''}, ${addressInfo.district || ''}`);
-      else setDireccion(`${latitude}, ${longitude}`); // Fallback
+      else setDireccion(`${latitude}, ${longitude}`);
 
     } catch (e) {
       Alert.alert('Error', 'No se pudo obtener la ubicación.');
@@ -156,8 +139,6 @@ const AddAddressScreen = () => {
     if (!direccion.trim()) return Alert.alert('Error', 'La dirección es obligatoria');
     setLoading(true);
     try {
-      // Save Logic (Geocoding if needed, then API call)
-      // ...
       Alert.alert('Éxito', 'Dirección guardada.');
       setTimeout(handleGoBack, 100);
     } catch (e) {
@@ -167,29 +148,19 @@ const AddAddressScreen = () => {
     }
   };
 
-  // --- Render ---
-
   return (
     <View style={styles.container}>
-      <View style={[styles.headerGradientContainer, { paddingTop: insets.top }]}>
-        <LinearGradient
-          colors={['#0F172A', '#1E293B']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        />
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Nueva Dirección</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Nueva Dirección</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
-        {/* Location Actions Card */}
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Ubicación</Text>
           <TouchableOpacity
@@ -213,7 +184,6 @@ const AddAddressScreen = () => {
           )}
         </Card>
 
-        {/* Form Card */}
         <Card style={styles.card}>
           <Text style={styles.sectionTitle}>Detalles</Text>
 
@@ -226,7 +196,6 @@ const AddAddressScreen = () => {
               leftIcon="map-outline"
               multiline
             />
-            {/* Suggestions Dropdown would be absolutely positioned here or rendered below */}
             {showSuggestions && (
               <View style={styles.suggestionsList}>
                 {suggestions.map((s, i) => (
@@ -250,7 +219,7 @@ const AddAddressScreen = () => {
                 <Ionicons
                   name={opt === 'Casa' ? 'home' : opt === 'Trabajo' ? 'briefcase' : 'bookmark'}
                   size={14}
-                  color={etiqueta === opt ? 'white' : COLORS.text.secondary}
+                  color={etiqueta === opt ? COLORS.text.inverse : COLORS.text.secondary}
                 />
                 <Text style={[styles.tagText, etiqueta === opt && styles.tagTextActive]}>{opt}</Text>
               </TouchableOpacity>
@@ -279,7 +248,7 @@ const AddAddressScreen = () => {
             title="Guardar Dirección"
             onPress={handleSaveAddress}
             isLoading={loading}
-            style={{ marginTop: 16 }}
+            style={{ marginTop: SPACING.md }}
           />
         </Card>
 
@@ -291,18 +260,17 @@ const AddAddressScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.background.default,
   },
-  headerGradientContainer: {
-    paddingBottom: 40,
-    minHeight: 120, // Ensure header has height to be "under" the card
-  },
-  headerContent: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: 60,
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.border.light,
+    backgroundColor: COLORS.background.default,
   },
   backButton: {
     width: 40,
@@ -310,67 +278,66 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
+  headerSpacer: {
+    width: 40,
+  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: 'white',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    marginTop: -30, // Pull up to overlap
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING['2xl'],
   },
   card: {
-    backgroundColor: COLORS.base.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: COLORS.neutral.gray[100],
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    ...SHADOWS.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.base.inkBlack,
-    marginBottom: 16,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.md,
   },
   locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDERS.radius.input.md,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.primary[100],
     backgroundColor: COLORS.primary[50],
-    gap: 8,
+    gap: SPACING.xs,
   },
   locationButtonText: {
     color: COLORS.primary[600],
-    fontWeight: '600',
-    fontSize: 14,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.fontSize.base,
   },
   warningBox: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.warning[50],
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    gap: 8,
+    padding: SPACING.sm,
+    borderRadius: BORDERS.radius.sm,
+    marginTop: SPACING.sm,
+    gap: SPACING.xs,
   },
   warningText: {
-    color: COLORS.warning[700],
-    fontSize: 12,
+    color: COLORS.warning[800],
+    fontSize: TYPOGRAPHY.fontSize.sm,
     flex: 1,
   },
   inputWrapper: {
-    marginBottom: 16,
+    marginBottom: SPACING.md,
     position: 'relative',
     zIndex: 10,
   },
@@ -379,54 +346,50 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
-    borderWidth: 1,
-    borderColor: COLORS.neutral.gray[100],
-    marginTop: 4,
-    paddingVertical: 4,
-    zIndex: 100, // Higher zIndex for suggestions
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.input.md,
+    ...SHADOWS.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    marginTop: SPACING.xxs,
+    paddingVertical: SPACING.xxs,
+    zIndex: 100,
   },
   suggestionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral.gray[50],
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.neutral.gray[200],
     gap: 10,
   },
   suggestionText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.primary,
     flex: 1,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
-    marginBottom: 8,
-    marginLeft: 4,
+    marginBottom: SPACING.xs,
+    marginLeft: SPACING.xxs,
   },
   tagsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 24,
+    gap: SPACING.xs,
+    marginBottom: SPACING.lg,
   },
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDERS.radius.badge.md,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.neutral.gray[200],
-    backgroundColor: COLORS.base.white,
+    backgroundColor: COLORS.background.paper,
     gap: 6,
   },
   tagActive: {
@@ -434,22 +397,22 @@ const styles = StyleSheet.create({
     borderColor: COLORS.primary[500],
   },
   tagText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.secondary,
   },
   tagTextActive: {
-    color: 'white',
+    color: COLORS.text.inverse,
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-    marginTop: 8,
+    marginBottom: SPACING.lg,
+    marginTop: SPACING.xs,
     gap: 10,
   },
   checkboxText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.primary,
   },
 });

@@ -11,24 +11,24 @@ import { TOKENS, withOpacity } from '../../../design-system/tokens';
 
 // Fallback values in case tokens are not ready
 const SAFE_COLORS = TOKENS?.colors || {
-  primary: { 500: '#003459' },
-  secondary: { 500: '#007EA7' },
-  accent: { 500: '#00A8E8' },
-  error: { 500: '#EF4444', 600: '#DC2626', 700: '#B91C1C' },
-  success: { 500: '#10B981', 600: '#059669', 700: '#047857' },
-  warning: { 500: '#F59E0B', 600: '#D97706', 700: '#B45309' },
-  info: { 500: '#007EA7', 600: '#006586', 700: '#004C65' },
+  primary: { 500: '#0052FF', 700: '#003ECC' },
+  secondary: { 500: '#0052FF', 700: '#003ECC' },
+  accent: { 500: '#0052FF', 700: '#003ECC' },
+  error: { 500: '#CF202F', 600: '#A81824', 700: '#80111A' },
+  success: { 500: '#05B169', 600: '#049356', 700: '#037446' },
+  warning: { 500: '#F4B000', 600: '#C98F00', 700: '#9E6F00' },
+  info: { 500: '#EEF0F3', 600: '#DEE1E6', 700: '#A8ACB3' },
   text: { onPrimary: '#FFFFFF', onSecondary: '#FFFFFF', onAccent: '#FFFFFF', onError: '#FFFFFF', onSuccess: '#FFFFFF', onWarning: '#FFFFFF', onInfo: '#FFFFFF' },
   states: {
-    hover: { primary: '#006586', secondary: '#006586', accent: '#0086BA' },
-    pressed: { primary: '#004C65', secondary: '#004C65', accent: '#00648B' },
-    disabled: { background: '#E5E7EB', text: '#9CA3AF', border: '#D1D5DB' }
+    hover: { primary: '#003ECC', secondary: '#003ECC', accent: '#003ECC' },
+    pressed: { primary: '#003ECC', secondary: '#003ECC', accent: '#003ECC' },
+    disabled: { background: '#EEF0F3', text: '#A8B8CC', border: '#DEE1E6' }
   },
   gradients: {
-    primary: ['#007EA7', '#00A8E8'],
-    secondary: ['#003459', '#007EA7'],
-    accent: ['#00A8E8', '#00C9A7'],
-    button: ['#007EA7', '#00A8E8'],
+    primary: ['#0052FF', '#003ECC'],
+    secondary: ['#EEF0F3', '#FFFFFF'],
+    accent: ['#0052FF', '#003ECC'],
+    button: ['#0052FF', '#003ECC'],
   },
   opacity: { 10: '#0000001A' }
 };
@@ -120,10 +120,10 @@ const Button = ({
         };
       default: // primary
         return {
-          background: SAFE_COLORS.secondary?.[500] || '#007EA7',
+          background: SAFE_COLORS.primary?.[500] || '#0052FF',
           text: SAFE_COLORS.text?.onPrimary || '#FFF',
           hover: SAFE_COLORS.states?.hover?.primary || '#006586',
-          pressed: SAFE_COLORS.states?.pressed?.primary || '#004C65',
+          pressed: SAFE_COLORS.states?.pressed?.primary || '#003ECC',
         };
     }
   };
@@ -136,21 +136,21 @@ const Button = ({
           paddingHorizontal: (SAFE_SPACING.buttonPadding?.horizontal || 16) * 0.75,
           paddingVertical: (SAFE_SPACING.buttonPadding?.vertical || 12) * 0.75,
           fontSize: SAFE_TYPOGRAPHY.fontSize?.sm || 14,
-          minHeight: 36,
+          minHeight: 40,
         };
       case 'lg':
         return {
           paddingHorizontal: (SAFE_SPACING.buttonPadding?.horizontal || 16) * 1.25,
           paddingVertical: (SAFE_SPACING.buttonPadding?.vertical || 12) * 1.25,
           fontSize: SAFE_TYPOGRAPHY.fontSize?.lg || 18,
-          minHeight: 56,
+          minHeight: 52,
         };
       default: // md
         return {
           paddingHorizontal: SAFE_SPACING.buttonPadding?.horizontal || 16,
           paddingVertical: SAFE_SPACING.buttonPadding?.vertical || 12,
           fontSize: SAFE_TYPOGRAPHY.fontSize?.md || 16,
-          minHeight: 48,
+          minHeight: 44,
         };
     }
   };
@@ -244,7 +244,7 @@ const Button = ({
               paddingHorizontal: sizeStyles.paddingHorizontal,
               paddingVertical: sizeStyles.paddingVertical,
               minHeight: sizeStyles.minHeight,
-              borderRadius: SAFE_BORDERS.radius?.button?.md || 8,
+              borderRadius: SAFE_BORDERS.radius?.button?.md || 9999,
             },
           ]}
         >
@@ -299,7 +299,7 @@ const Button = ({
           paddingHorizontal: sizeStyles.paddingHorizontal,
           paddingVertical: sizeStyles.paddingVertical,
           minHeight: sizeStyles.minHeight,
-          borderRadius: SAFE_BORDERS.radius?.button?.md || 8,
+          borderRadius: SAFE_BORDERS.radius?.button?.md || 9999,
           width: fullWidth ? '100%' : 'auto',
           ...(variant === 'solid' && !disabled ? (SAFE_SHADOWS.button || {}) : (SAFE_SHADOWS.none || {})),
         },

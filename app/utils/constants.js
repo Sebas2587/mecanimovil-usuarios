@@ -115,20 +115,22 @@ export const SPACING = {
   xxl: safeSpacing['2xl'] ?? 48,
 };
 
-// Bordes y espaciado
-// Alineado con design-system pero manteniendo estructura existente
-// Protección contra acceso a propiedades undefined
-const safeBorders = DESIGN_BORDERS?.radius ? DESIGN_BORDERS : {
-  radius: { sm: 4, md: 8, lg: 12, xl: 16, full: 9999 }
+// Bordes: mismo objeto que el design-system (radius anidado + width) para que
+// `import { BORDERS } from 'utils/constants'` admita `BORDERS.width.thin`.
+// Se añade `radius.round` como alias de `radius.full` por compatibilidad legacy.
+const FALLBACK_BORDERS = {
+  radius: { sm: 4, md: 8, lg: 12, xl: 16, full: 9999 },
+  width: { none: 0, thin: 1, medium: 2, thick: 4 },
 };
 
+const dsBorders =
+  DESIGN_BORDERS?.radius && DESIGN_BORDERS?.width ? DESIGN_BORDERS : FALLBACK_BORDERS;
+
 export const BORDERS = {
+  ...dsBorders,
   radius: {
-    sm: safeBorders.radius?.sm ?? 4,
-    md: safeBorders.radius?.md ?? 8,
-    lg: safeBorders.radius?.lg ?? 12,
-    xl: safeBorders.radius?.xl ?? 16,
-    round: safeBorders.radius?.full ?? 9999,
+    ...dsBorders.radius,
+    round: dsBorders.radius?.full ?? 9999,
   },
 };
 

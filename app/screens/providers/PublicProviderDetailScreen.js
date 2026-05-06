@@ -1,9 +1,18 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, Platform, TouchableOpacity, Linking, Share } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  StatusBar,
+  Platform,
+  TouchableOpacity,
+  Linking,
+  Share,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { MapPin, Award } from 'lucide-react-native';
+
 import { ROUTES } from '../../utils/constants';
 import { buildPublicProviderUrl, buildDeepLinkProviderUrl } from '../../config/publicListing';
 
@@ -22,21 +31,9 @@ import {
   parsePublicProviderFromUrl,
 } from '../../utils/publicListingRoute';
 
-const GlassCard = ({ children, style }) => (
-  <View style={[glassBase, style]}>
-    {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
-    {children}
-  </View>
-);
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 
-const glassBase = {
-  backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.12)',
-  overflow: 'hidden',
-  padding: 16,
-};
+const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
 
 const PublicProviderDetailScreen = () => {
   const navigation = useNavigation();
@@ -50,7 +47,6 @@ const PublicProviderDetailScreen = () => {
 
   const [fromLink, setFromLink] = useState(null);
 
-  /** Web (Vercel / WhatsApp → navegador): la URL es la fuente de verdad; linking a veces deja params vacíos. */
   const webFromLocation = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
 
   useLayoutEffect(() => {
@@ -182,15 +178,14 @@ const PublicProviderDetailScreen = () => {
 
   if (providerId == null || providerId === '' || !providerType) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
-        <Text style={{ color: 'white', textAlign: 'center' }}>
-          Enlace de perfil no válido o incompleto.
-        </Text>
+      <View style={[styles.container, styles.centerContent]}>
+        <StatusBar barStyle="dark-content" />
+        <Text style={styles.errorText}>Enlace de perfil no válido o incompleto.</Text>
         <TouchableOpacity
           style={styles.fallbackPrimaryButton}
           onPress={() => navigation.navigate(ROUTES.LOGIN)}
         >
-          <Text style={styles.ctaButtonText}>Ir a iniciar sesión</Text>
+          <Text style={styles.fallbackPrimaryText}>Ir a iniciar sesión</Text>
         </TouchableOpacity>
       </View>
     );
@@ -198,24 +193,26 @@ const PublicProviderDetailScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: 'white' }}>Cargando información del especialista...</Text>
+      <View style={[styles.container, styles.centerContent]}>
+        <StatusBar barStyle="dark-content" />
+        <Text style={styles.bodyText}>Cargando información del especialista...</Text>
       </View>
     );
   }
 
   if (loadError || !details) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
-        <Text style={{ color: 'rgba(255,255,255,0.85)', textAlign: 'center', marginBottom: 16 }}>
+      <View style={[styles.container, styles.centerContent]}>
+        <StatusBar barStyle="dark-content" />
+        <Text style={styles.errorText}>
           {loadError ||
             'No se pudo cargar la ficha del especialista. Comprueba tu conexión e inténtalo de nuevo.'}
         </Text>
         <TouchableOpacity style={styles.fallbackPrimaryButton} onPress={() => reload()}>
-          <Text style={styles.ctaButtonText}>Reintentar</Text>
+          <Text style={styles.fallbackPrimaryText}>Reintentar</Text>
         </TouchableOpacity>
         <TouchableOpacity style={{ marginTop: 16 }} onPress={() => navigation.navigate(ROUTES.LOGIN)}>
-          <Text style={{ color: '#93C5FD' }}>Iniciar sesión</Text>
+          <Text style={styles.linkText}>Iniciar sesión</Text>
         </TouchableOpacity>
       </View>
     );
@@ -223,159 +220,148 @@ const PublicProviderDetailScreen = () => {
 
   const profileBody = (
     <>
-        <ProviderHeader
-          provider={provider}
-          providerType={providerType}
-          showBackButton={false}
-          onShare={handleShare}
-        />
+      <ProviderHeader
+        provider={provider}
+        providerType={providerType}
+        showBackButton={false}
+        onShare={handleShare}
+      />
 
-        <View style={styles.bannerWrap}>
-          <MarketplaceDownloadBanner forPublicProfile />
-        </View>
+      <View style={styles.bannerWrap}>
+        <MarketplaceDownloadBanner forPublicProfile />
+      </View>
 
-        {/* Cobertura / Dirección */}
-        {(() => {
-          const isTaller = providerType === 'taller';
+      {/* Cobertura / Dirección */}
+      {(() => {
+        const isTaller = providerType === 'taller';
 
-          if (!isTaller) {
-            const zonasComunas = provider?.zonas_servicio ? provider.zonas_servicio.flatMap(z => z.comunas || []) : [];
-            const comunasRaw = zonasComunas.length > 0 ? zonasComunas : (
-              provider.comunas_cobertura_nombres || provider.comunas_cobertura?.map(c => c?.nombre || c) || []
-            );
-
-            const comunas = Array.isArray(comunasRaw) ? comunasRaw.filter(Boolean) : [];
-
-            return (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Comunas de Cobertura</Text>
-                {comunas.length > 0 ? (
-                  <View style={styles.tagsRow}>
-                    {comunas.map((c, i) => (
-                      <View key={`${c}-${i}`} style={styles.tagBadge}>
-                        {Platform.OS === 'ios' && <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />}
-                        <MapPin size={12} color="rgba(255,255,255,0.5)" style={{ marginRight: 4 }} />
-                        <Text style={styles.tagText}>{String(c)}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <GlassCard style={{ marginTop: 10 }}>
-                    <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 18 }}>
-                      Cobertura no disponible.
-                    </Text>
-                  </GlassCard>
-                )}
-              </View>
-            );
-          }
-
-          const addr = provider.direccion_fisica?.direccion_completa || provider.direccion_taller || null;
-          const comuna = provider.direccion_fisica?.comuna || provider.comuna || '';
-          const display = [addr, comuna].filter(Boolean).join(', ') || 'Dirección no disponible.';
+        if (!isTaller) {
+          const zonasComunas = provider?.zonas_servicio
+            ? provider.zonas_servicio.flatMap((z) => z.comunas || [])
+            : [];
+          const comunasRaw =
+            zonasComunas.length > 0
+              ? zonasComunas
+              : provider.comunas_cobertura_nombres ||
+                provider.comunas_cobertura?.map((c) => c?.nombre || c) ||
+                [];
+          const comunas = Array.isArray(comunasRaw) ? comunasRaw.filter(Boolean) : [];
 
           return (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Dirección del Taller</Text>
-              <GlassCard style={{ marginTop: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <MapPin size={18} color="#93C5FD" />
-                  <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', flex: 1, lineHeight: 20 }}>
-                    {display}
-                  </Text>
+              <Text style={styles.sectionTitle}>Comunas de Cobertura</Text>
+              {comunas.length > 0 ? (
+                <View style={styles.tagsRow}>
+                  {comunas.map((c, i) => (
+                    <View key={`${c}-${i}`} style={styles.tagBadge}>
+                      <MapPin size={12} color={COLORS.text.secondary} style={{ marginRight: 4 }} />
+                      <Text style={styles.tagText}>{String(c)}</Text>
+                    </View>
+                  ))}
                 </View>
-              </GlassCard>
+              ) : (
+                <Card style={{ marginTop: 10 }}>
+                  <Text style={styles.bodyMutedText}>Cobertura no disponible.</Text>
+                </Card>
+              )}
             </View>
           );
-        })()}
+        }
 
-        {/* Brands */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Especialidad en Marcas</Text>
-          <View style={styles.tagsRow}>
-            {(provider.marcas_atendidas_nombres?.length > 0
-              ? provider.marcas_atendidas_nombres
-              : ['Multimarca']
-            ).map((brand, i) => (
-              <View key={i} style={styles.tagBadge}>
-                {Platform.OS === 'ios' && <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />}
-                <Text style={styles.tagText}>{brand}</Text>
+        const addr =
+          provider.direccion_fisica?.direccion_completa ||
+          provider.direccion_taller ||
+          null;
+        const comuna = provider.direccion_fisica?.comuna || provider.comuna || '';
+        const display = [addr, comuna].filter(Boolean).join(', ') || 'Dirección no disponible.';
+
+        return (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Dirección del Taller</Text>
+            <Card style={{ marginTop: 10 }}>
+              <View style={styles.iconRow}>
+                <MapPin size={18} color={COLORS.primary[500]} />
+                <Text style={styles.bodyText}>{display}</Text>
               </View>
+            </Card>
+          </View>
+        );
+      })()}
+
+      {/* Brands */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Especialidad en Marcas</Text>
+        <View style={styles.tagsRow}>
+          {(provider.marcas_atendidas_nombres?.length > 0
+            ? provider.marcas_atendidas_nombres
+            : ['Multimarca']
+          ).map((brand, i) => (
+            <View key={i} style={styles.tagBadge}>
+              <Text style={styles.tagText}>{brand}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <ProviderScheduleSection horarios={details?.horarios_semanales || []} />
+
+      <TrustSection documents={documents || []} />
+
+      {/* SECCIÓN DE SERVICIOS PÚBLICA */}
+      {provider.servicios && provider.servicios.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.iconTitleRow}>
+            <Award size={18} color={COLORS.primary[500]} />
+            <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
+          </View>
+          <View style={styles.servicesGrid}>
+            {provider.servicios.map((servicio, idx) => (
+              <Card key={`${servicio.id || idx}`} style={styles.serviceCardOuter}>
+                {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
+                  <View style={{ marginBottom: 10 }}>
+                    <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
+                  </View>
+                ) : null}
+                <Text style={styles.serviceName} numberOfLines={2}>
+                  {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
+                </Text>
+                {servicio.categoria && (
+                  <Text style={styles.serviceCategory} numberOfLines={1}>
+                    {servicio.categoria}
+                  </Text>
+                )}
+              </Card>
             ))}
           </View>
         </View>
+      )}
 
-        <ProviderScheduleSection horarios={details?.horarios_semanales || []} />
+      <ProviderCompletedJobsSection jobs={completedJobs} />
+      <PortfolioCarousel portfolio={provider.portafolio || []} />
 
-        <TrustSection documents={documents || []} />
-
-        {/* --- SECCIÓN DE SERVICIOS PÚBLICA --- */}
-        {provider.servicios && provider.servicios.length > 0 && (
-          <View style={styles.section}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <Award size={18} color="#A78BFA" />
-              <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
-            </View>
-            <View style={styles.servicesGrid}>
-              {provider.servicios.map((servicio, idx) => {
-                return (
-                  <GlassCard key={`${servicio.id || idx}`} style={styles.serviceCardOuter}>
-                    {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
-                      <View style={{ marginBottom: 10 }}>
-                        <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
-                      </View>
-                    ) : null}
-
-                    <Text style={styles.serviceName} numberOfLines={2}>
-                      {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
-                    </Text>
-                    {servicio.categoria && (
-                      <Text style={styles.serviceCategory} numberOfLines={1}>
-                        {servicio.categoria}
-                      </Text>
-                    )}
-                  </GlassCard>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        <ProviderCompletedJobsSection jobs={completedJobs} />
-        <PortfolioCarousel portfolio={provider.portafolio || []} />
-
-        {/* --- Call to Action para Login (solo si el app se usa sin sesión) --- */}
-        <View style={[styles.section, { marginTop: 20, marginBottom: 40 }]}>
-            <GlassCard style={styles.ctaCard}>
-                <LinearGradient
-                    colors={['rgba(59, 130, 246, 0.1)', 'rgba(147, 197, 253, 0.05)']}
-                    style={StyleSheet.absoluteFill}
-                />
-                <Text style={styles.ctaTitle}>¿Necesitas un servicio?</Text>
-                <Text style={styles.ctaText}>
-                    Inicia sesión para solicitar presupuestos, chatear con este especialista y agendar tu atención.
-                </Text>
-                <TouchableOpacity 
-                    style={styles.ctaButton}
-                    onPress={() => navigation.navigate(ROUTES.LOGIN)}
-                >
-                    <LinearGradient
-                        colors={['#007EA7', '#00A8E8']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.ctaGradient}
-                    >
-                        <Text style={styles.ctaButtonText}>Iniciar Sesión</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
-            </GlassCard>
-        </View>
+      {/* CTA Login */}
+      <View style={[styles.section, { marginTop: 20, marginBottom: 40 }]}>
+        <Card style={styles.ctaCard}>
+          <Text style={styles.ctaTitle}>¿Necesitas un servicio?</Text>
+          <Text style={styles.ctaText}>
+            Inicia sesión para solicitar presupuestos, chatear con este especialista y agendar tu
+            atención.
+          </Text>
+          <TouchableOpacity
+            style={styles.ctaButton}
+            onPress={() => navigation.navigate(ROUTES.LOGIN)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.ctaButtonText}>Iniciar Sesión</Text>
+          </TouchableOpacity>
+        </Card>
+      </View>
     </>
   );
 
   return (
     <View style={[styles.container, Platform.OS === 'web' && styles.containerWebFlow]}>
-      <StatusBar barStyle="light-content" backgroundColor="#030712" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
       {Platform.OS === 'web' ? (
         <View style={styles.scrollContent}>{profileBody}</View>
       ) : (
@@ -394,9 +380,8 @@ const PublicProviderDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
-  /** Web: sin flex:1 — la altura la define el contenido; el scroll lo hace cardStyle del Stack (overflowY auto). */
   containerWebFlow: {
     flexGrow: 0,
     flexShrink: 0,
@@ -404,23 +389,61 @@ const styles = StyleSheet.create({
     minHeight: '100%',
     alignSelf: 'stretch',
   },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
   scrollContent: {
     paddingBottom: 40,
   },
   bannerWrap: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.container.horizontal,
     marginTop: -36,
     marginBottom: 8,
   },
   section: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.container.horizontal,
     marginBottom: 20,
   },
+  iconTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    letterSpacing: -0.25,
+    color: COLORS.text.primary,
     marginBottom: 0,
+  },
+  card: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    overflow: 'hidden',
+    padding: 16,
+  },
+  bodyText: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.primary,
+    flex: 1,
+    lineHeight: 22,
+    marginLeft: 10,
+  },
+  bodyMutedText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    lineHeight: 20,
+    marginLeft: 10,
+    flex: 1,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   tagsRow: {
     flexDirection: 'row',
@@ -431,18 +454,18 @@ const styles = StyleSheet.create({
   tagBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    backgroundColor: COLORS.neutral.gray[100],
     paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingVertical: 6,
+    borderRadius: BORDERS.radius.full,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: COLORS.border.light,
     overflow: 'hidden',
   },
   tagText: {
-    color: '#F9FAFB',
-    fontSize: 13,
-    fontWeight: '500',
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   servicesGrid: {
     flexDirection: 'row',
@@ -456,61 +479,76 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   serviceName: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     marginBottom: 4,
   },
   serviceCategory: {
-    color: '#93C5FD',
-    fontSize: 11,
-    fontWeight: '500',
+    color: COLORS.primary[500],
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     marginBottom: 0,
   },
   // CTA Styles
   ctaCard: {
     padding: 24,
     alignItems: 'center',
-    textAlign: 'center',
   },
   ctaTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    letterSpacing: -0.25,
+    color: COLORS.text.primary,
     marginBottom: 8,
+    textAlign: 'center',
   },
   ctaText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
     marginBottom: 20,
+  },
+  ctaButton: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
+    backgroundColor: COLORS.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ctaButtonText: {
+    color: COLORS.text.inverse,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   fallbackPrimaryButton: {
     marginTop: 20,
     width: '85%',
     maxWidth: 320,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#007EA7',
+    paddingVertical: 14,
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
+    backgroundColor: COLORS.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
   },
-  ctaButton: {
-    width: '100%',
-    height: 48,
-    borderRadius: 12,
-    overflow: 'hidden',
+  fallbackPrimaryText: {
+    color: COLORS.text.inverse,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
-  ctaGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  errorText: {
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginBottom: 16,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    lineHeight: 22,
   },
-  ctaButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+  linkText: {
+    color: COLORS.primary[500],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.fontSize.base,
   },
 });
 

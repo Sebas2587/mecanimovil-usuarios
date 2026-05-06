@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { COLORS, withOpacity } from '../design-system/tokens/colors';
 
 const STORAGE_PREFIX = '@mecanimovil/rt_renewal_due_';
 
@@ -148,40 +149,40 @@ export async function saveRtRenewalAfterConfirm(vehicleId, mesRaw) {
 export function getRevisionTecnicaToneStyles(tone) {
   const map = {
     calm: {
-      border: 'rgba(6,182,212,0.35)',
-      accent: '#22D3EE',
-      subtext: 'rgba(165,243,252,0.85)',
-      bg: 'rgba(6,182,212,0.08)',
+      border: COLORS.primary[200],
+      accent: COLORS.primary[600],
+      subtext: COLORS.text.secondary,
+      bg: COLORS.primary[50],
     },
     soon: {
-      border: 'rgba(245,158,11,0.45)',
-      accent: '#FBBF24',
-      subtext: 'rgba(253,230,138,0.9)',
-      bg: 'rgba(245,158,11,0.1)',
+      border: COLORS.warning[200],
+      accent: COLORS.warning[700],
+      subtext: COLORS.text.secondary,
+      bg: COLORS.warning[50],
     },
     urgent: {
-      border: 'rgba(249,115,22,0.55)',
-      accent: '#FB923C',
-      subtext: 'rgba(254,215,170,0.95)',
-      bg: 'rgba(249,115,22,0.12)',
+      border: withOpacity(COLORS.warning[500], 0.35),
+      accent: COLORS.warning[800],
+      subtext: COLORS.text.secondary,
+      bg: COLORS.warning[50],
     },
     expiry_month: {
-      border: 'rgba(250,204,21,0.5)',
-      accent: '#FDE047',
-      subtext: 'rgba(254,249,195,0.92)',
-      bg: 'rgba(250,204,21,0.12)',
+      border: COLORS.warning[300],
+      accent: COLORS.warning[800],
+      subtext: COLORS.text.secondary,
+      bg: COLORS.warning[50],
     },
     renewed: {
-      border: 'rgba(16,185,129,0.45)',
-      accent: '#6EE7B7',
-      subtext: 'rgba(167,243,208,0.9)',
-      bg: 'rgba(16,185,129,0.1)',
+      border: COLORS.success[200],
+      accent: COLORS.success[700],
+      subtext: COLORS.text.secondary,
+      bg: COLORS.success[50],
     },
     overdue: {
-      border: 'rgba(239,68,68,0.5)',
-      accent: '#FCA5A5',
-      subtext: 'rgba(254,202,202,0.95)',
-      bg: 'rgba(239,68,68,0.1)',
+      border: COLORS.error[200],
+      accent: COLORS.error[600],
+      subtext: COLORS.text.secondary,
+      bg: COLORS.error[50],
     },
   };
   return map[tone] || map.calm;

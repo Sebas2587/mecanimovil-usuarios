@@ -7,6 +7,7 @@ import MarketplaceVehicleDetailScreen from '../screens/marketplace/MarketplaceVe
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
 import { ROUTES } from '../utils/constants';
 import { getMarketplaceVehicleIdFromWebPath, getPublicProviderFromWebPath } from '../utils/publicListingRoute';
+import { COLORS } from '../design-system/tokens';
 
 const Stack = createStackNavigator();
 
@@ -34,7 +35,7 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
         headerShown: false,
         // No usar opacity: progress en la card inicial: en Android release el progress puede
         // quedar en 0 un tiempo → pantalla “gris” (fondo nativo) y sin UI.
-        cardStyle: { backgroundColor: '#030712' },
+        cardStyle: { backgroundColor: COLORS.background.default },
       }}
     >
       <Stack.Screen name={ROUTES.LOGIN} component={LoginScreen} />
@@ -59,7 +60,7 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
             ? {
                 /** La escena hace scroll; ScrollView interno + stack overflow:hidden rompe el wheel en Chrome normal. */
                 cardStyle: {
-                  backgroundColor: '#030712',
+                  backgroundColor: COLORS.background.default,
                   flex: 1,
                   maxHeight: '100vh',
                   overflowY: 'auto',

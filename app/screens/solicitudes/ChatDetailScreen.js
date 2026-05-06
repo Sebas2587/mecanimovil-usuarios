@@ -6,8 +6,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -17,12 +18,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../../config/serverConfig';
 import { ROUTES } from '../../utils/constants';
 import { useChats } from '../../context/ChatsContext';
-
-const GLASS_BG = Platform.select({
-    ios: 'rgba(255,255,255,0.06)',
-    android: 'rgba(255,255,255,0.10)',
-    default: 'rgba(255,255,255,0.08)',
-});
 
 const ChatDetailScreen = () => {
     const route = useRoute();
@@ -322,7 +317,7 @@ const ChatDetailScreen = () => {
             <View style={[styles.header, { paddingTop: insets.top }]}>
                 <View style={styles.headerTop}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#F9FAFB" />
+                        <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
                     </TouchableOpacity>
 
                     <Image
@@ -366,10 +361,10 @@ const ChatDetailScreen = () => {
                     }}
                 >
                     <View style={styles.contextIcon}>
-                        <Ionicons name="car" size={16} color="#6EE7B7" />
+                        <Ionicons name="car" size={16} color={COLORS.primary[500]} />
                     </View>
                     <Text style={styles.contextText}>{contextText}</Text>
-                    <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.45)" />
+                    <Feather name="chevron-right" size={16} color={COLORS.text.tertiary} />
                 </TouchableOpacity>
             </View>
         );
@@ -418,8 +413,8 @@ const ChatDetailScreen = () => {
                                 } else {
                                     return (
                                         <View style={styles.documentAttachment}>
-                                            <Ionicons name="document-text" size={24} color={isMe ? '#FFF' : '#93C5FD'} />
-                                            <Text style={[styles.documentText, isMe ? { color: '#FFF' } : { color: '#F9FAFB' }]} numberOfLines={1}>
+                                            <Ionicons name="document-text" size={24} color={isMe ? COLORS.text.onPrimary : COLORS.primary[600]} />
+                                            <Text style={[styles.documentText, isMe ? { color: COLORS.text.onPrimary } : { color: COLORS.text.primary }]} numberOfLines={1}>
                                                 {typeof item.attachment === 'string' ? item.attachment.split('/').pop() : 'Documento'}
                                             </Text>
                                         </View>
@@ -453,10 +448,7 @@ const ChatDetailScreen = () => {
 
     return (
         <View style={styles.container}>
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-            </View>
-            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
             {renderHeader()}
 
             <KeyboardAvoidingView
@@ -466,7 +458,7 @@ const ChatDetailScreen = () => {
             >
                 {loading ? (
                     <View style={styles.centerContainer}>
-                        <ActivityIndicator size="large" color="#6EE7B7" />
+                        <ActivityIndicator size="large" color={COLORS.primary[500]} />
                     </View>
                 ) : (
                     <FlatList
@@ -487,14 +479,14 @@ const ChatDetailScreen = () => {
                         <View style={styles.previewWrapper}>
                             {attachment.type === 'document' ? (
                                 <View style={styles.docPreview}>
-                                    <Ionicons name="document-text" size={24} color="rgba(255,255,255,0.55)" />
+                                    <Ionicons name="document-text" size={24} color={COLORS.text.secondary} />
                                     <Text style={styles.previewName} numberOfLines={1}>{attachment.name}</Text>
                                 </View>
                             ) : (
                                 <Image source={{ uri: attachment.uri }} style={styles.imagePreview} contentFit="cover" />
                             )}
                             <TouchableOpacity style={styles.removePreviewButton} onPress={() => setAttachment(null)}>
-                                <Ionicons name="close-circle" size={24} color="#EF4444" />
+                                <Ionicons name="close-circle" size={24} color={COLORS.error.main} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -502,14 +494,14 @@ const ChatDetailScreen = () => {
 
                 <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
                     <TouchableOpacity style={styles.iconButton} onPress={handlePickAttachment}>
-                        <Feather name="paperclip" size={24} color="#93C5FD" />
+                        <Feather name="paperclip" size={24} color={COLORS.primary[500]} />
                     </TouchableOpacity>
 
                     <View style={styles.inputWrapper}>
                         <TextInput
                             style={styles.input}
                             placeholder="Escribe un mensaje..."
-                            placeholderTextColor="rgba(255,255,255,0.35)"
+                            placeholderTextColor={COLORS.text.disabled}
                             value={inputText}
                             onChangeText={setInputText}
                             multiline
@@ -521,7 +513,11 @@ const ChatDetailScreen = () => {
                         onPress={sendMessage}
                         disabled={!inputText.trim() && !attachment} // Disable only if BOTH are empty
                     >
-                        <Ionicons name="send" size={20} color="#fff" />
+                        <Ionicons
+                            name="send"
+                            size={20}
+                            color={(!inputText.trim() && !attachment) ? COLORS.text.disabled : COLORS.text.onPrimary}
+                        />
                     </TouchableOpacity>
                 </View>
             </KeyboardAvoidingView>
@@ -537,7 +533,7 @@ const ChatDetailScreen = () => {
                         style={[styles.modalCloseButton, { top: insets.top + 20 }]}
                         onPress={() => setSelectedImage(null)}
                     >
-                        <Ionicons name="close" size={30} color="#FFF" />
+                        <Ionicons name="close" size={30} color={COLORS.text.inverse} />
                     </TouchableOpacity>
 
                     {selectedImage && (
@@ -556,7 +552,7 @@ const ChatDetailScreen = () => {
 const getStyles = () => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#030712',
+        backgroundColor: COLORS.background.default,
     },
     centerContainer: {
         flex: 1,
@@ -565,9 +561,9 @@ const getStyles = () => StyleSheet.create({
         backgroundColor: 'transparent',
     },
     header: {
-        backgroundColor: 'rgba(3,7,18,0.92)',
-        borderBottomWidth: StyleSheet.hairlineWidth,
-        borderBottomColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: COLORS.background.paper,
+        borderBottomWidth: BORDERS.width.thin,
+        borderBottomColor: COLORS.border.light,
         zIndex: 10,
     },
     headerTop: {
@@ -584,18 +580,18 @@ const getStyles = () => StyleSheet.create({
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     headerAvatar: {
         width: 40,
         height: 40,
         borderRadius: 20,
         marginRight: 12,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: COLORS.neutral.gray[200],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     headerInfo: {
         flex: 1,
@@ -603,22 +599,22 @@ const getStyles = () => StyleSheet.create({
     headerName: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
         lineHeight: 20,
     },
     headerRole: {
         fontSize: 12,
-        color: '#6EE7B7',
+        color: COLORS.text.secondary,
         fontWeight: '500',
     },
     contextBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: GLASS_BG,
+        backgroundColor: COLORS.neutral.gray[100],
         paddingVertical: 10,
         paddingHorizontal: 16,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: 'rgba(255,255,255,0.08)',
+        borderTopColor: COLORS.border.light,
     },
     contextIcon: {
         marginRight: 8,
@@ -626,7 +622,7 @@ const getStyles = () => StyleSheet.create({
     contextText: {
         flex: 1,
         fontSize: 12,
-        color: '#93C5FD',
+        color: COLORS.primary[700],
         fontWeight: '600',
     },
     listContent: {
@@ -655,16 +651,16 @@ const getStyles = () => StyleSheet.create({
         maxWidth: '100%',
     },
     bubbleRight: {
-        backgroundColor: '#007EA7',
+        backgroundColor: COLORS.primary[500],
         borderBottomRightRadius: 4,
-        borderWidth: 1,
-        borderColor: 'rgba(0,168,232,0.35)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[600],
     },
     bubbleLeft: {
-        backgroundColor: GLASS_BG,
+        backgroundColor: COLORS.neutral.gray[100],
         borderBottomLeftRadius: 4,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     messageText: {
         fontSize: 14,
@@ -682,10 +678,10 @@ const getStyles = () => StyleSheet.create({
         alignSelf: 'flex-end',
     },
     timeRight: {
-        color: 'rgba(255,255,255,0.75)',
+        color: 'rgba(255,255,255,0.85)',
     },
     timeLeft: {
-        color: 'rgba(255,255,255,0.4)',
+        color: COLORS.text.tertiary,
     },
     messageImage: {
         width: 200,
@@ -708,9 +704,9 @@ const getStyles = () => StyleSheet.create({
         alignItems: 'flex-end',
         paddingHorizontal: 16,
         paddingTop: 12,
-        backgroundColor: 'rgba(3,7,18,0.96)',
+        backgroundColor: COLORS.background.paper,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: 'rgba(255,255,255,0.1)',
+        borderTopColor: COLORS.border.light,
     },
     iconButton: {
         padding: 10,
@@ -722,10 +718,10 @@ const getStyles = () => StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: COLORS.neutral.gray[100],
         borderRadius: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         marginHorizontal: 8,
         paddingHorizontal: 12,
         marginBottom: 8,
@@ -737,7 +733,7 @@ const getStyles = () => StyleSheet.create({
         paddingVertical: 10,
         paddingRight: 8,
         fontSize: 14,
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     clipButton: {
         padding: 4,
@@ -746,35 +742,35 @@ const getStyles = () => StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#007EA7',
+        backgroundColor: COLORS.primary[500],
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 8,
         marginLeft: 4,
-        borderWidth: 1,
-        borderColor: 'rgba(0,168,232,0.4)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[600],
     },
     sendButtonDisabled: {
-        backgroundColor: 'rgba(255,255,255,0.12)',
-        borderColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: COLORS.neutral.gray[200],
+        borderColor: COLORS.border.light,
     },
     previewContainer: {
         paddingHorizontal: 16,
         paddingBottom: 8,
         paddingTop: 4,
-        backgroundColor: 'rgba(3,7,18,0.96)',
+        backgroundColor: COLORS.background.paper,
         borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: 'rgba(255,255,255,0.06)',
+        borderTopColor: COLORS.border.light,
     },
     previewWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: GLASS_BG,
-        borderRadius: 12,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.md,
         padding: 8,
         alignSelf: 'flex-start',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     imagePreview: {
         width: 40,
@@ -790,7 +786,7 @@ const getStyles = () => StyleSheet.create({
     },
     previewName: {
         fontSize: 12,
-        color: 'rgba(255,255,255,0.65)',
+        color: COLORS.text.secondary,
         maxWidth: 150,
     },
     removePreviewButton: {

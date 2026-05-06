@@ -1,6 +1,6 @@
 /**
  * Sistema de Sombras y Elevaciones MecaniMóvil
- * Sombras consistentes basadas en Ink Black
+ * Coinbase-style: sombras muy sutiles (sin “decorative shadows”)
  */
 
 export const SHADOWS = {
@@ -20,9 +20,9 @@ export const SHADOWS = {
   // Para elementos ligeramente elevados
   // ============================================
   sm: {
-    shadowColor: '#00171F', // Ink Black
+    shadowColor: '#0A0B0D',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
   },
@@ -32,11 +32,11 @@ export const SHADOWS = {
   // Para cards y elementos elevados estándar
   // ============================================
   md: {
-    shadowColor: '#00171F', // Ink Black
+    shadowColor: '#0A0B0D',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
 
   // ============================================
@@ -44,11 +44,11 @@ export const SHADOWS = {
   // Para modales y elementos muy elevados
   // ============================================
   lg: {
-    shadowColor: '#00171F', // Ink Black
+    shadowColor: '#0A0B0D',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
 
   // ============================================
@@ -56,11 +56,11 @@ export const SHADOWS = {
   // Para overlays y elementos flotantes
   // ============================================
   xl: {
-    shadowColor: '#00171F', // Ink Black
+    shadowColor: '#0A0B0D',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOpacity: 0.10,
+    shadowRadius: 24,
+    elevation: 4,
   },
 
   // ============================================
@@ -69,47 +69,47 @@ export const SHADOWS = {
   // ============================================
   // Sombra para inputs enfocados
   inputFocus: {
-    shadowColor: '#00A8E8', // Fresh Sky (accent)
+    shadowColor: '#0052FF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.18,
     shadowRadius: 4,
     elevation: 2,
   },
 
   // Sombra para botones
   button: {
-    shadowColor: '#00171F', // Ink Black
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowColor: '#0A0B0D',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
 
   // Sombra para cards elevadas
   cardElevated: {
-    shadowColor: '#00171F', // Ink Black
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
+    shadowColor: '#0A0B0D',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 2,
   },
 
   // Sombra para modales
   modal: {
-    shadowColor: '#00171F', // Ink Black
+    shadowColor: '#0A0B0D',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.12,
     shadowRadius: 24,
-    elevation: 10,
+    elevation: 4,
   },
 
   // Sombra para tooltips
   tooltip: {
-    shadowColor: '#00171F', // Ink Black
+    shadowColor: '#0A0B0D',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.10,
     shadowRadius: 6,
-    elevation: 4,
+    elevation: 3,
   },
 };
 

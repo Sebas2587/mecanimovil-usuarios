@@ -1,175 +1,171 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS } from '../../design-system/tokens/borders';
-import SPACING from '../../design-system/tokens/spacing';
-
-const GLASS_BG = Platform.select({
-    ios: 'rgba(255,255,255,0.06)',
-    android: 'rgba(255,255,255,0.10)',
-    default: 'rgba(255,255,255,0.08)',
-});
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 
 const ServicesList = ({ services, onServicePress }) => {
-    if (!services || services.length === 0) return null;
+  if (!services || services.length === 0) return null;
 
-    const formatPrice = (price) => {
-        if (price == null || price === '' || isNaN(Number(price))) return null;
-        return `$${Number(price).toLocaleString('es-CL')}`;
-    };
+  const formatPrice = (price) => {
+    if (price == null || price === '' || isNaN(Number(price))) return null;
+    return `$${Number(price).toLocaleString('es-CL')}`;
+  };
 
-    return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <View style={styles.iconContainer}>
-                    <Ionicons name="construct" size={18} color={COLORS.primary[500]} />
-                </View>
-                <Text style={styles.title}>Servicios Principales</Text>
-            </View>
-
-            <View style={styles.listContainer}>
-                {services.map((service, index) => {
-                    const price = service.precio_desde ?? service.precio_publicado_cliente ?? service.price;
-                    const formattedPrice = formatPrice(price);
-                    return (
-                        <View key={service.id || index} style={styles.serviceCard}>
-                            <View style={styles.cardHeader}>
-                                <View style={styles.iconBox}>
-                                    <Ionicons name="construct-outline" size={20} color={COLORS.primary[500]} />
-                                </View>
-                                <View style={styles.headerTextContainer}>
-                                    <Text style={styles.serviceName}>{service.nombre || service.name}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.cardFooter}>
-                                {formattedPrice ? (
-                                    <View style={styles.priceRow}>
-                                        <Text style={styles.startLabel}>Desde</Text>
-                                        <Text style={styles.priceText}>{formattedPrice}</Text>
-                                    </View>
-                                ) : null}
-                                <TouchableOpacity
-                                    style={styles.agendarButton}
-                                    onPress={() => onServicePress?.(service)}
-                                    activeOpacity={0.8}
-                                >
-                                    <Ionicons name="calendar-outline" size={16} color={COLORS.base.white} style={styles.agendarIcon} />
-                                    <Text style={styles.agendarButtonText}>Agendar</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    );
-                })}
-            </View>
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="construct" size={18} color={COLORS.primary[500]} />
         </View>
-    );
+        <Text style={styles.title}>Servicios Principales</Text>
+      </View>
+
+      <View style={styles.listContainer}>
+        {services.map((service, index) => {
+          const price = service.precio_desde ?? service.precio_publicado_cliente ?? service.price;
+          const formattedPrice = formatPrice(price);
+          return (
+            <View key={service.id || index} style={styles.serviceCard}>
+              <View style={styles.cardHeader}>
+                <View style={styles.iconBox}>
+                  <Ionicons name="construct-outline" size={20} color={COLORS.primary[500]} />
+                </View>
+                <View style={styles.headerTextContainer}>
+                  <Text style={styles.serviceName}>{service.nombre || service.name}</Text>
+                </View>
+              </View>
+
+              <View style={styles.cardFooter}>
+                {formattedPrice ? (
+                  <View style={styles.priceRow}>
+                    <Text style={styles.startLabel}>Desde</Text>
+                    <Text style={styles.priceText}>{formattedPrice}</Text>
+                  </View>
+                ) : null}
+                <TouchableOpacity
+                  style={styles.agendarButton}
+                  onPress={() => onServicePress?.(service)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={16}
+                    color={COLORS.text.inverse}
+                    style={styles.agendarIcon}
+                  />
+                  <Text style={styles.agendarButtonText}>Agendar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        paddingHorizontal: 16,
-        marginBottom: 24,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    iconContainer: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: 'rgba(147,197,253,0.15)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#F9FAFB',
-    },
-    listContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    serviceCard: {
-        width: '48%', // Approx half with gap
-        backgroundColor: GLASS_BG,
-        borderRadius: 16,
-        padding: 12, // Reduced padding for compact card
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        marginBottom: 4, // Slight bottom margin if wrapping issues occur
-    },
-    cardHeader: {
-        flexDirection: 'column', // Stack icon and text for better space usage in grid
-        alignItems: 'flex-start',
-        marginBottom: 10,
-    },
-    iconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        backgroundColor: 'rgba(255,255,255,0.06)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 8, // Separator from text since we stacked them
-    },
-    headerTextContainer: {
-        width: '100%',
-    },
-    serviceName: {
-        fontSize: 14, // Slightly smaller font for compact grid
-        fontWeight: '600',
-        color: '#F9FAFB',
-        marginBottom: 2,
-        lineHeight: 18,
-    },
-    cardFooter: {
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        paddingTop: 10,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.08)',
-    },
-    priceRow: {
-        marginBottom: 10,
-    },
-    startLabel: {
-        fontSize: 11,
-        color: 'rgba(255,255,255,0.45)',
-        marginBottom: 2,
-    },
-    priceText: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#93C5FD',
-    },
-    agendarButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#007EA7',
-        borderRadius: BORDERS.radius.button?.md ?? 12,
-        paddingHorizontal: SPACING.buttonPadding?.horizontal ?? 20,
-        paddingVertical: SPACING.buttonPadding?.vertical ?? 14,
-        borderWidth: 1,
-        borderColor: 'rgba(110,231,183,0.35)',
-    },
-    agendarIcon: {
-        marginRight: 6,
-    },
-    agendarButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.base.white,
-    },
+  container: {
+    paddingHorizontal: SPACING.container.horizontal,
+    marginBottom: 24,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  title: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    letterSpacing: -0.25,
+    color: COLORS.text.primary,
+  },
+  listContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  serviceCard: {
+    width: '48%',
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    marginBottom: 4,
+  },
+  cardHeader: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  headerTextContainer: {
+    width: '100%',
+  },
+  serviceName: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    marginBottom: 2,
+    lineHeight: 18,
+  },
+  cardFooter: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border.light,
+  },
+  priceRow: {
+    marginBottom: 10,
+  },
+  startLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
+    marginBottom: 2,
+  },
+  priceText: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  agendarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary[500],
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
+    paddingHorizontal: SPACING.buttonPadding?.horizontal ?? 20,
+    paddingVertical: SPACING.buttonPadding?.vertical ?? 14,
+  },
+  agendarIcon: {
+    marginRight: 6,
+  },
+  agendarButtonText: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.inverse,
+  },
 });
 
 export default ServicesList;

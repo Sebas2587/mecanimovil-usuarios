@@ -18,11 +18,13 @@ import {
 import { useNavigation } from '@react-navigation/native';
  
 import { Ionicons } from '@expo/vector-icons'; // Lucide substitute
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { COLORS } from '../../design-system/tokens/colors';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import * as vehicleService from '../../services/vehicle';
 import { useQuery } from '@tanstack/react-query';
 import Button from '../../components/base/Button/Button';
@@ -36,26 +38,10 @@ const formatPatente = (text) => {
     return text.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
 };
 
-const GLASS_BG = Platform.select({
-    ios: 'rgba(255,255,255,0.06)',
-    android: 'rgba(255,255,255,0.10)',
-    default: 'rgba(255,255,255,0.08)',
-});
-const BLUR_INTENSITY = Platform.OS === 'ios' ? 30 : 0;
 const ENGINE_OPTIONS = ['GASOLINA', 'DIESEL', 'HIBRIDO', 'ELECTRICO'];
 
-const GlassCard = ({ children, style }) => (
-    <View style={[styles.glassOuter, style]}>
-        <BlurView
-            intensity={BLUR_INTENSITY}
-            tint="dark"
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-        />
-        <View style={[styles.glassInner, { backgroundColor: GLASS_BG }]}>
-            {children}
-        </View>
-    </View>
+const PaperCard = ({ children, style }) => (
+    <View style={[styles.paperCard, style]}>{children}</View>
 );
 
 const VehicleRegistrationScreen = () => {
@@ -409,16 +395,13 @@ const VehicleRegistrationScreen = () => {
 
     return (
         <View style={styles.container}>
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-            </View>
-            <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
             {/* Header */}
             <View style={[styles.headerSafeArea, { paddingTop: insets.top }]}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBackPress} style={styles.closeButton}>
-                        <Ionicons name="chevron-back" size={22} color="#E5E7EB" />
+                        <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Nuevo Vehículo</Text>
                     <View style={styles.headerSpacer} />
@@ -447,7 +430,7 @@ const VehicleRegistrationScreen = () => {
                                             ref={patenteInputRef}
                                             style={styles.patenteInput}
                                             placeholder="AB-CD-12"
-                                            placeholderTextColor="#CBD5E1"
+                                            placeholderTextColor={COLORS.text.tertiary}
                                             value={patente}
                                             onChangeText={t => setPatente(formatPatente(t))}
                                             maxLength={6}
@@ -464,9 +447,9 @@ const VehicleRegistrationScreen = () => {
                                         disabled={loading}
                                     >
                                         {loading ? (
-                                            <ActivityIndicator color="white" />
+                                            <ActivityIndicator color={COLORS.text.inverse} />
                                         ) : (
-                                            <Ionicons name="search" size={24} color="white" />
+                                            <Ionicons name="search" size={24} color={COLORS.text.inverse} />
                                         )}
                                     </TouchableOpacity>
                                 </View>
@@ -484,13 +467,13 @@ const VehicleRegistrationScreen = () => {
                         >
                             <View style={styles.successHeader}>
                                 <View style={styles.successBadge}>
-                                    <Ionicons name="checkmark-circle" size={16} color="white" />
+                                    <Ionicons name="checkmark-circle" size={16} color={COLORS.success[600]} />
                                     <Text style={styles.successBadgeText}>Vehículo Identificado</Text>
                                 </View>
                             </View>
 
                             {/* Data Card */}
-                            <GlassCard style={styles.vehicleCard}>
+                            <PaperCard style={styles.vehicleCard}>
                                 <View style={styles.cardHeader}>
                                     <View>
                                         <Text style={styles.brandText}>{vehicleData.marca_nombre || 'Marca'}</Text>
@@ -498,7 +481,7 @@ const VehicleRegistrationScreen = () => {
                                         <Text style={styles.yearText}>{vehicleData.year || vehicleData.anio || '----'}</Text>
                                     </View>
                                     <View style={styles.carIconContainer}>
-                                        <Ionicons name="car-sport" size={48} color={COLORS.primary[100]} />
+                                        <Ionicons name="car-sport" size={48} color={COLORS.primary[500]} />
                                     </View>
                                 </View>
 
@@ -530,10 +513,10 @@ const VehicleRegistrationScreen = () => {
                                         <Text style={[styles.gridValue, styles.monospace]}>{vehicleData.vin || 'N/A'}</Text>
                                     </View>
                                 </View>
-                            </GlassCard>
+                            </PaperCard>
 
                             {/* Kilometraje Input */}
-                            <GlassCard style={styles.kilometerSection}>
+                            <PaperCard style={styles.kilometerSection}>
                                 <Text style={styles.sectionLabel}>Kilometraje Actual</Text>
                                 <View style={styles.kmInputWrapper}>
                                     <TextInput
@@ -542,29 +525,29 @@ const VehicleRegistrationScreen = () => {
                                         onChangeText={text => setKilometraje(text.replace(/[^0-9]/g, ''))}
                                         placeholder="0"
                                         keyboardType="numeric"
-                                        placeholderTextColor="#94A3B8"
+                                        placeholderTextColor={COLORS.text.tertiary}
                                     />
                                     <Text style={styles.kmSuffix}>km</Text>
                                 </View>
-                            </GlassCard>
+                            </PaperCard>
 
                             {/* Valor Mercado (Condicional) */}
                             {(!vehicleData.precio_mercado_promedio || Number(vehicleData.precio_mercado_promedio) === 0) && (
                                 <>
                                     {showValorMercadoAlert && (
-                                        <View style={[styles.warningCard, { backgroundColor: 'rgba(245, 158, 11, 0.15)', borderColor: 'rgba(245, 158, 11, 0.3)', flexDirection: 'row', alignItems: 'flex-start' }]}>
-                                            <Ionicons name="information-circle-outline" size={22} color="#F59E0B" style={{ marginRight: 8, marginTop: 2 }} />
+                                        <View style={[styles.warningCard, styles.warningCardRow]}>
+                                            <Ionicons name="information-circle-outline" size={22} color={COLORS.warning[600]} style={{ marginRight: SPACING.xs, marginTop: 2 }} />
                                             <View style={{ flex: 1 }}>
-                                                <Text style={[styles.warningText, { color: '#FDE68A' }]}>
-                                                    <Text style={[styles.warningTextStrong, { color: '#F59E0B' }]}>Aviso:</Text> No pudimos obtener el valor de mercado para este vehículo por defecto. Por favor ingresa el valor de mercado manualmente.
+                                                <Text style={styles.warningText}>
+                                                    <Text style={styles.warningTextStrong}>Aviso:</Text> No pudimos obtener el valor de mercado para este vehículo por defecto. Por favor ingresa el valor de mercado manualmente.
                                                 </Text>
                                             </View>
                                             <TouchableOpacity onPress={() => setShowValorMercadoAlert(false)} style={{ padding: 4 }}>
-                                                <Ionicons name="close" size={20} color="#F59E0B" />
+                                                <Ionicons name="close" size={20} color={COLORS.warning[600]} />
                                             </TouchableOpacity>
                                         </View>
                                     )}
-                                    <GlassCard style={[styles.kilometerSection, { marginTop: 16 }]}>
+                                    <PaperCard style={[styles.kilometerSection, { marginTop: SPACING.md }]}>
                                         <Text style={styles.sectionLabel}>Valor de Mercado Referencial</Text>
                                         <View style={styles.kmInputWrapper}>
                                             <Text style={[styles.kmSuffix, { marginRight: 8, marginLeft: 0 }]}>$</Text>
@@ -574,15 +557,15 @@ const VehicleRegistrationScreen = () => {
                                                 onChangeText={text => setValorMercado(text.replace(/[^0-9]/g, ''))}
                                                 placeholder="0"
                                                 keyboardType="numeric"
-                                                placeholderTextColor="#94A3B8"
+                                                placeholderTextColor={COLORS.text.tertiary}
                                             />
                                         </View>
-                                    </GlassCard>
+                                    </PaperCard>
                                 </>
                             )}
 
                             {/* Mantenimientos Recientes (Opcional) */}
-                            <GlassCard style={styles.maintenanceSection}>
+                            <PaperCard style={styles.maintenanceSection}>
                                 <TouchableOpacity
                                     style={styles.maintenanceHeader}
                                     onPress={() => setMaintenanceExpanded(!maintenanceExpanded)}
@@ -592,7 +575,7 @@ const VehicleRegistrationScreen = () => {
                                         <Text style={styles.sectionLabel}>Mantenimientos Recientes (Opcional)</Text>
                                         <Text style={styles.maintenanceSubtitle}>Indica los km que tenía el auto cuando cambiaste cada pieza.</Text>
                                     </View>
-                                    <Ionicons name={maintenanceExpanded ? 'chevron-up' : 'chevron-down'} size={24} color="rgba(255,255,255,0.6)" />
+                                    <Ionicons name={maintenanceExpanded ? 'chevron-up' : 'chevron-down'} size={24} color={COLORS.text.tertiary} />
                                 </TouchableOpacity>
                                 {maintenanceExpanded && checklistItems.length > 0 && (
                                     <View style={styles.maintenanceList}>
@@ -608,7 +591,7 @@ const VehicleRegistrationScreen = () => {
                                                         style={[styles.checkbox, isChecked && styles.checkboxChecked]}
                                                         onPress={() => toggleMaintenanceCheck(item.id)}
                                                     >
-                                                        {isChecked && <Ionicons name="checkmark" size={16} color="white" />}
+                                                        {isChecked && <Ionicons name="checkmark" size={16} color={COLORS.text.inverse} />}
                                                     </TouchableOpacity>
                                                     <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
                                                     {isChecked && (
@@ -619,7 +602,7 @@ const VehicleRegistrationScreen = () => {
                                                                 onChangeText={t => setMaintenanceKm(item.id, t)}
                                                                 placeholder="Ej: 125000"
                                                                 keyboardType="numeric"
-                                                                placeholderTextColor="#94A3B8"
+                                                                placeholderTextColor={COLORS.text.tertiary}
                                                             />
                                                             <Text style={styles.kmSuffixSmall}>km</Text>
                                                         </View>
@@ -632,10 +615,10 @@ const VehicleRegistrationScreen = () => {
                                         </TouchableOpacity>
                                     </View>
                                 )}
-                            </GlassCard>
+                            </PaperCard>
 
                             {/* Photo Upload Section */}
-                            <GlassCard style={styles.photoSection}>
+                            <PaperCard style={styles.photoSection}>
                                 <Text style={styles.sectionLabel}>Foto del Vehículo (Opcional)</Text>
                                 <TouchableOpacity style={styles.photoUpload} onPress={pickImage}>
                                     {image ? (
@@ -648,15 +631,15 @@ const VehicleRegistrationScreen = () => {
                                     )}
                                     {image && (
                                         <View style={styles.editPhotoBadge}>
-                                            <Ionicons name="pencil" size={16} color="white" />
+                                            <Ionicons name="pencil" size={16} color={COLORS.text.inverse} />
                                         </View>
                                     )}
                                 </TouchableOpacity>
-                            </GlassCard>
+                            </PaperCard>
 
                             {/* Warning Message */}
                             <View style={styles.warningCard}>
-                                <Ionicons name="alert-circle-outline" size={22} color="#F59E0B" style={{ marginRight: 8 }} />
+                                <Ionicons name="alert-circle-outline" size={22} color={COLORS.warning[600]} style={{ marginRight: SPACING.xs }} />
                                 <Text style={styles.warningText}>
                                     <Text style={styles.warningTextStrong}>Importante:</Text> Para garantizar la veracidad de la información, los datos del vehículo no podrán ser editados después del registro.
                                 </Text>
@@ -686,38 +669,40 @@ const VehicleRegistrationScreen = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#030712',
+        backgroundColor: COLORS.background.default,
     },
-    glassOuter: {
-        borderRadius: 20,
+    paperCard: {
+        borderRadius: BORDERS.radius.card.lg,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-    },
-    glassInner: {
-        padding: 16,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        backgroundColor: COLORS.background.paper,
+        padding: SPACING.md,
+        ...SHADOWS.sm,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
+        paddingHorizontal: SPACING.container.horizontal,
         height: 56,
         zIndex: 2,
     },
     headerSafeArea: {
-        backgroundColor: 'transparent',
+        backgroundColor: COLORS.background.default,
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#F9FAFB',
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
     },
     closeButton: {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -730,47 +715,42 @@ const styles = StyleSheet.create({
     },
     contentContainer: {
         flex: 1,
-        paddingHorizontal: 16,
-        paddingBottom: 32,
+        paddingHorizontal: SPACING.container.horizontal,
+        paddingBottom: SPACING.xl,
     },
-    // SEARCH STYLES
     centerWrapper: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: -10, // Ajuste para evitar superposición con el header
+        marginTop: -10,
     },
     instructionText: {
-        fontSize: 16,
-        color: 'rgba(255,255,255,0.65)',
+        fontSize: TYPOGRAPHY.fontSize.md,
+        color: COLORS.text.secondary,
         textAlign: 'center',
-        marginBottom: 32,
+        marginBottom: SPACING.xl,
         maxWidth: '90%',
     },
     searchCardShell: {
         flexDirection: 'row',
-        backgroundColor: 'rgba(255,255,255,0.10)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.16)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.18,
-        shadowRadius: 14,
-        elevation: 4,
+        backgroundColor: COLORS.background.paper,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.md,
         width: '100%',
         alignItems: 'center',
-        padding: 8,
-        borderRadius: 24,
+        padding: SPACING.xs,
+        borderRadius: BORDERS.radius.xl,
     },
     patenteInputContainer: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingLeft: 12,
-        backgroundColor: 'rgba(2,6,23,0.52)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.20)',
-        borderRadius: 16,
+        paddingLeft: SPACING.sm,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        borderRadius: BORDERS.radius.lg,
         height: 56,
     },
     patenteDecorator: {
@@ -787,132 +767,141 @@ const styles = StyleSheet.create({
     },
     patenteInput: {
         fontSize: 22,
-        fontWeight: '800',
-        color: '#F9FAFB',
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
         letterSpacing: 3,
         flex: 1,
         textTransform: 'uppercase',
     },
     searchButton: {
-        backgroundColor: '#007EA7',
+        backgroundColor: COLORS.primary[500],
         width: 56,
         height: 56,
-        borderRadius: 20,
+        borderRadius: BORDERS.radius.lg,
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 8,
+        marginLeft: SPACING.xs,
     },
     disabledButton: {
         opacity: 0.7,
     },
 
-    // SUCCESS STYLES
     successScroll: {
         flexGrow: 1,
         paddingBottom: 40,
     },
     successHeader: {
         alignItems: 'center',
-        marginBottom: 24,
-        marginTop: 12,
+        marginBottom: SPACING.lg,
+        marginTop: SPACING.sm,
     },
     successBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(16,185,129,0.22)',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        gap: 8,
+        backgroundColor: COLORS.success[50],
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.xs,
+        borderRadius: BORDERS.radius.badge.md,
+        gap: SPACING.xs,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.success[200],
     },
     successBadgeText: {
-        color: '#6EE7B7',
-        fontWeight: '700',
-        fontSize: 14,
+        color: COLORS.success[700],
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        fontSize: TYPOGRAPHY.fontSize.base,
     },
     vehicleCard: {
-        marginBottom: 32,
+        marginBottom: SPACING.xl,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.08)',
-        paddingBottom: 20,
-        marginBottom: 20,
+        borderBottomWidth: BORDERS.width.thin,
+        borderBottomColor: COLORS.neutral.gray[200],
+        paddingBottom: SPACING.lg,
+        marginBottom: SPACING.lg,
     },
     brandText: {
-        fontSize: 14,
+        fontSize: TYPOGRAPHY.fontSize.base,
         textTransform: 'uppercase',
-        color: 'rgba(255,255,255,0.55)',
-        fontWeight: '700',
+        color: COLORS.text.tertiary,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
         letterSpacing: 1,
     },
     modelText: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#F9FAFB',
-        marginTop: 4,
+        fontSize: TYPOGRAPHY.fontSize['3xl'],
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+        marginTop: SPACING.xxs,
     },
     yearText: {
-        fontSize: 18,
-        color: 'rgba(255,255,255,0.6)',
-        marginTop: 4,
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        color: COLORS.text.secondary,
+        marginTop: SPACING.xxs,
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 20,
     },
+    carIconContainer: {
+        width: 56,
+        height: 56,
+        borderRadius: BORDERS.radius.lg,
+        backgroundColor: COLORS.primary[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     gridItem: {
         width: '45%',
     },
     gridLabel: {
-        fontSize: 12,
-        color: 'rgba(255,255,255,0.45)',
-        marginBottom: 4,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.tertiary,
+        marginBottom: SPACING.xxs,
     },
     gridValue: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#E5E7EB',
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
     },
     fuelChips: {
         flexDirection: 'row',
         gap: 6,
         flexWrap: 'wrap',
-        marginTop: 4,
+        marginTop: SPACING.xxs,
     },
     fuelChip: {
         paddingHorizontal: 10,
         paddingVertical: 6,
-        borderRadius: 10,
-        backgroundColor: 'rgba(255,255,255,0.06)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.16)',
+        borderRadius: BORDERS.radius.sm,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     fuelChipActive: {
-        backgroundColor: COLORS.primary[600],
+        backgroundColor: COLORS.primary[500],
         borderColor: COLORS.primary[500],
     },
     fuelChipText: {
-        color: 'rgba(255,255,255,0.65)',
-        fontWeight: '700',
+        color: COLORS.text.secondary,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
         fontSize: 10,
     },
     fuelChipTextActive: {
-        color: '#FFFFFF',
+        color: COLORS.text.inverse,
     },
     monospace: {
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
         fontSize: 14,
     },
     kilometerSection: {
-        marginBottom: 32,
+        marginBottom: SPACING.xl,
     },
     maintenanceSection: {
-        marginBottom: 32,
+        marginBottom: SPACING.xl,
     },
     maintenanceHeader: {
         flexDirection: 'row',
@@ -921,25 +910,25 @@ const styles = StyleSheet.create({
     },
     maintenanceSubtitle: {
         fontSize: 13,
-        color: 'rgba(255,255,255,0.5)',
-        marginTop: 4,
+        color: COLORS.text.secondary,
+        marginTop: SPACING.xxs,
     },
     maintenanceList: {
-        marginTop: 16,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255,255,255,0.08)',
+        marginTop: SPACING.md,
+        paddingTop: SPACING.md,
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.neutral.gray[200],
     },
     maintenanceQuestion: {
-        fontSize: 14,
-        color: '#E5E7EB',
-        marginBottom: 8,
+        fontSize: TYPOGRAPHY.fontSize.base,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.xs,
     },
     maintenanceHint: {
-        fontSize: 12,
-        color: 'rgba(255,255,255,0.45)',
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.tertiary,
         lineHeight: 18,
-        marginBottom: 12,
+        marginBottom: SPACING.sm,
         fontStyle: 'italic',
     },
     maintenanceRow: {
@@ -951,9 +940,9 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
         borderRadius: 6,
-        borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.35)',
-        marginRight: 12,
+        borderWidth: BORDERS.width.medium,
+        borderColor: COLORS.border.light,
+        marginRight: SPACING.sm,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -964,91 +953,87 @@ const styles = StyleSheet.create({
     maintenanceLabel: {
         flex: 1,
         fontSize: 15,
-        color: '#E5E7EB',
+        color: COLORS.text.primary,
     },
     kmInputInline: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.06)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.16)',
-        borderRadius: 8,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        borderRadius: BORDERS.radius.sm,
         paddingHorizontal: 10,
         width: 100,
     },
     kmInputSmall: {
         flex: 1,
-        fontSize: 14,
-        color: '#F9FAFB',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        color: COLORS.text.primary,
         paddingVertical: 6,
     },
     kmSuffixSmall: {
-        fontSize: 12,
-        color: 'rgba(255,255,255,0.45)',
-        marginLeft: 4,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.tertiary,
+        marginLeft: SPACING.xxs,
     },
     skipLink: {
-        marginTop: 8,
-        paddingVertical: 8,
+        marginTop: SPACING.xs,
+        paddingVertical: SPACING.xs,
     },
     skipLinkText: {
-        fontSize: 14,
-        color: '#A5B4FC',
-        fontWeight: '600',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        color: COLORS.primary[600],
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     sectionLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#F9FAFB',
-        marginBottom: 12,
+        fontSize: TYPOGRAPHY.fontSize.md,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.sm,
     },
     kmInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.06)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.18)',
-        borderRadius: 16,
-        paddingHorizontal: 20,
-        paddingVertical: 4,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        borderRadius: BORDERS.radius.lg,
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.xxs,
         height: 64,
     },
     kmInput: {
         flex: 1,
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#F9FAFB',
+        fontSize: TYPOGRAPHY.fontSize['2xl'],
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
     },
     kmSuffix: {
-        fontSize: 16,
-        color: 'rgba(255,255,255,0.45)',
-        fontWeight: '500',
+        fontSize: TYPOGRAPHY.fontSize.md,
+        color: COLORS.text.tertiary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     saveButton: {
-        backgroundColor: '#007EA7',
-        borderRadius: 16,
-        height: 56,
-        marginBottom: 16,
+        marginBottom: SPACING.md,
     },
     retryLink: {
         alignItems: 'center',
-        padding: 12,
+        padding: SPACING.sm,
     },
     retryText: {
-        color: 'rgba(255,255,255,0.55)',
-        fontWeight: '600',
+        color: COLORS.text.secondary,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
-    // PHOTO STYLES
     photoSection: {
-        marginBottom: 32,
+        marginBottom: SPACING.xl,
     },
     photoUpload: {
         width: '100%',
         height: 200,
-        backgroundColor: 'rgba(255,255,255,0.04)',
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.20)',
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.xl,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         borderStyle: 'dashed',
         overflow: 'hidden',
         justifyContent: 'center',
@@ -1065,43 +1050,46 @@ const styles = StyleSheet.create({
         gap: 12,
     },
     photoText: {
-        color: '#A5B4FC',
-        fontWeight: '600',
-        fontSize: 16,
+        color: COLORS.primary[600],
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        fontSize: TYPOGRAPHY.fontSize.md,
     },
     editPhotoBadge: {
         position: 'absolute',
-        bottom: 16,
-        right: 16,
-        backgroundColor: 'rgba(2,6,23,0.75)',
+        bottom: SPACING.md,
+        right: SPACING.md,
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.65),
         width: 36,
         height: 36,
         borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        ...SHADOWS.sm,
     },
     warningCard: {
         flexDirection: 'row',
-        backgroundColor: 'rgba(245,158,11,0.12)',
-        padding: 12,
-        borderRadius: 12,
-        marginBottom: 24,
+        backgroundColor: COLORS.warning[50],
+        padding: SPACING.sm,
+        borderRadius: BORDERS.radius.input.md,
+        marginBottom: SPACING.lg,
         borderLeftWidth: 4,
-        borderLeftColor: '#F59E0B',
+        borderLeftColor: COLORS.warning[500],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.warning[100],
+    },
+    warningCardRow: {
+        alignItems: 'flex-start',
     },
     warningText: {
         flex: 1,
-        color: '#FCD34D',
-        fontSize: 13,
+        color: COLORS.text.primary,
+        fontSize: TYPOGRAPHY.fontSize.sm,
         lineHeight: 18,
     },
     warningTextStrong: {
-        fontWeight: '700',
-    }
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.warning[700],
+    },
 });
 
 export default VehicleRegistrationScreen;

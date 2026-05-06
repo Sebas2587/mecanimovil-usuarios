@@ -15,14 +15,13 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
-import { COLORS } from '../../design-system/tokens/colors';
+import { COLORS, BORDERS, SPACING } from '../../design-system/tokens';
 import logger from '../../utils/logger';
 import * as authService from '../../services/auth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -35,18 +34,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
 
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const BLUR_INTENSITY = Platform.OS === 'ios' ? 30 : 0;
-
 const GlassCard = ({ children, style }) => (
-  <View style={[styles.glassOuter, style]}>
-    <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
-    <View style={[styles.glassInner, { backgroundColor: GLASS_BG }]}>{children}</View>
-  </View>
+  <View style={[styles.card, style]}>{children}</View>
 );
 
 const LoginScreen = () => {
@@ -205,10 +194,7 @@ const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-      </View>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40 }]}
@@ -248,7 +234,7 @@ const LoginScreen = () => {
               blurOnSubmit={false}
               error={errors.email}
               leftIcon="mail-outline"
-              appearance="darkGlass"
+              appearance="light"
             />
           </View>
           <View style={styles.inputWrapper}>
@@ -262,7 +248,7 @@ const LoginScreen = () => {
               returnKeyType="done"
               error={errors.password}
               leftIcon="lock-closed-outline"
-              appearance="darkGlass"
+              appearance="light"
             />
           </View>
 
@@ -270,7 +256,7 @@ const LoginScreen = () => {
           <View style={styles.optionsRow}>
             <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe(!rememberMe)}>
               <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                {rememberMe && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                {rememberMe && <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />}
               </View>
               <Text style={styles.rememberText}>Recordarme</Text>
             </TouchableOpacity>
@@ -281,9 +267,7 @@ const LoginScreen = () => {
 
           {/* Submit */}
           <TouchableOpacity onPress={handleLogin} disabled={loading} style={styles.submitBtn} activeOpacity={0.85}>
-            <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
-              {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Iniciar Sesión</Text>}
-            </LinearGradient>
+            {loading ? <ActivityIndicator color={COLORS.text.inverse} /> : <Text style={styles.submitText}>Iniciar Sesión</Text>}
           </TouchableOpacity>
         </GlassCard>
       </ScrollView>
@@ -360,35 +344,39 @@ const LoginScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#030712' },
+  container: { flex: 1, backgroundColor: COLORS.background.default },
 
-  scroll: { paddingHorizontal: 20 },
+  scroll: { paddingHorizontal: SPACING.container.horizontal },
   headerSection: { alignItems: 'center', marginBottom: 32 },
-  logo: { width: 180, height: 60, marginBottom: 16, tintColor: '#F9FAFB' },
-  subtitle: { fontSize: 15, color: 'rgba(255,255,255,0.55)', textAlign: 'center', lineHeight: 22, paddingHorizontal: 16 },
+  logo: { width: 180, height: 60, marginBottom: 16 },
+  subtitle: { fontSize: 15, color: COLORS.text.secondary, textAlign: 'center', lineHeight: 22, paddingHorizontal: 16 },
 
-  tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.10)' },
+  tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border.light },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', position: 'relative' },
-  tabTextActive: { fontSize: 16, fontWeight: '700', color: '#F9FAFB' },
-  tabTextInactive: { fontSize: 16, fontWeight: '600', color: 'rgba(255,255,255,0.40)' },
-  tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: '#00A8E8' },
+  tabTextActive: { fontSize: 16, fontWeight: '600', color: COLORS.text.primary },
+  tabTextInactive: { fontSize: 16, fontWeight: '500', color: COLORS.text.tertiary },
+  tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: COLORS.primary[500] },
 
-  glassOuter: { borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  glassInner: { padding: 20 },
+  card: {
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+    padding: 20,
+  },
 
   formCard: { marginBottom: 20 },
   inputWrapper: { marginBottom: 16 },
 
   optionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 24 },
   rememberRow: { flexDirection: 'row', alignItems: 'center' },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: 'rgba(255,255,255,0.30)', marginRight: 8, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { backgroundColor: '#007EA7', borderColor: '#007EA7' },
-  rememberText: { fontSize: 14, color: 'rgba(255,255,255,0.55)' },
-  forgotText: { fontSize: 14, fontWeight: '500', color: '#67E8F9' },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border.dark, marginRight: 8, alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
+  rememberText: { fontSize: 14, color: COLORS.text.secondary },
+  forgotText: { fontSize: 14, fontWeight: '500', color: COLORS.primary[500] },
 
-  submitBtn: { borderRadius: 16, overflow: 'hidden' },
-  submitGradient: { paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 16 },
-  submitText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  submitBtn: { borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full, overflow: 'hidden', backgroundColor: COLORS.primary[500], paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  submitText: { color: COLORS.text.inverse, fontSize: 16, fontWeight: '600' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalCard: { width: '100%', maxWidth: 420, maxHeight: '85%', borderRadius: 24, overflow: 'hidden' },

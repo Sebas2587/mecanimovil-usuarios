@@ -14,8 +14,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { showAlert } from '../../utils/platformAlert';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -45,6 +43,7 @@ import {
   Droplets,
   Users,
   Navigation,
+  MapPin,
 } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
@@ -66,7 +65,6 @@ import { getWeatherPrediction } from '../../services/weatherService';
 import { getNearbyProvidersForPanel } from '../../services/providers';
 import { getActividadMercadoVehiculo } from '../../services/user';
 import { geocodeAddress } from '../../services/location';
-import { MapPin } from 'lucide-react-native';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 import { normalizePct } from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
@@ -74,23 +72,16 @@ import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
 import { formatProviderForCard } from '../../utils/providerUtils';
 
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
-const H_PAD = 16;
+const H_PAD = SPACING.container.horizontal;
 const GRID_CARD_W = (SCREEN_WIDTH - H_PAD * 2 - CARD_GAP) / 2;
-/** Mismo ancho que una card de “Gestión del Taller” en prov `index.tsx` (mitad de fila con gap 12). */
 const QUICK_ACTION_CARD_W = GRID_CARD_W;
 const QUICK_ACTION_SNAP_INTERVAL = QUICK_ACTION_CARD_W + CARD_GAP;
-/** Alineado con GlassTabBar en AppNavigator (altura base 64 + safe area inferior) */
 const TAB_BAR_BASE_HEIGHT = 64;
 const SCROLL_BOTTOM_GAP = 10;
-
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const BLUR_INTENSITY = 30;
 
 const formatCLP = (value) => {
   if (!value || value <= 0) return '--';
@@ -99,9 +90,9 @@ const formatCLP = (value) => {
 };
 
 const getHealthColor = (score) => {
-  if (score >= 70) return '#10B981';
-  if (score >= 40) return '#F59E0B';
-  return '#EF4444';
+  if (score >= 70) return COLORS.success.main;
+  if (score >= 40) return COLORS.warning.main;
+  return COLORS.error.main;
 };
 
 const getHealthLabel = (score) => {
@@ -144,37 +135,46 @@ function coordsFromSavedAddress(addr) {
 }
 
 // ─────────────────────────────────────────────
-// GlassCard — local helper, not a design-system export
+// Card local (paper + hairline + sm shadow)
 // ─────────────────────────────────────────────
-const GlassCard = ({ children, style, onPress, innerStyle }) => {
+const Card = ({ children, style, onPress, innerStyle }) => {
   const inner = (
-    <View style={[styles.glassOuter, style]}>
-      <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
-      <View style={[styles.glassInner, { backgroundColor: GLASS_BG }, innerStyle]}>
-        {children}
-      </View>
+    <View style={[styles.card, style]}>
+      <View style={[styles.cardInner, innerStyle]}>{children}</View>
     </View>
   );
   if (onPress) {
-    return <TouchableOpacity activeOpacity={0.75} onPress={onPress}>{inner}</TouchableOpacity>;
+    return (
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
+        {inner}
+      </TouchableOpacity>
+    );
   }
   return inner;
 };
 
-const GlassButton = ({ onPress, children, variant }) => (
-  <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.glassBtnWrap}>
-    <View style={[styles.glassBtnOuter, variant === 'stop' && styles.glassBtnOuterStop]}>
-      <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
-      <View style={[styles.glassBtnInner, variant === 'stop' && styles.glassBtnInnerStop]}>
-        {children}
-      </View>
+const SoftButton = ({ onPress, children, variant }) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.softBtnWrap}>
+    <View
+      style={[
+        styles.softBtnInner,
+        variant === 'stop' ? styles.softBtnInnerStop : styles.softBtnInnerPrimary,
+      ]}
+    >
+      {children}
     </View>
   </TouchableOpacity>
 );
 
-// ─────────────────────────────────────────────
-// Main Screen
-// ─────────────────────────────────────────────
+// Risk colors → tokens
+const riskColorMap = {
+  critico: COLORS.error.main,
+  alto: COLORS.warning.dark,
+  moderado: COLORS.warning.main,
+  bajo: COLORS.success.main,
+  optimo: COLORS.primary[500],
+};
+
 const UserPanelScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -184,7 +184,6 @@ const UserPanelScreen = () => {
   const { data: unreadData } = useUnreadCount();
   const unreadCount = typeof unreadData === 'number' ? unreadData : (unreadData?.count || 0);
 
-  // Auto-refetch solicitudes activas (y por tanto el contador) cuando volvemos a la pantalla
   useFocusEffect(
     useCallback(() => {
       cargarSolicitudesActivas();
@@ -237,7 +236,6 @@ const UserPanelScreen = () => {
 
   const showUserPanelSkeleton = vehiclesLoading || vehiclesFetching;
 
-  // Auto-select first vehicle
   useEffect(() => {
     if (vehicles.length > 0 && !selectedVehicleId) {
       setSelectedVehicleId(vehicles[0].id);
@@ -248,13 +246,11 @@ const UserPanelScreen = () => {
     }
   }, [vehicles, selectedVehicleId]);
 
-  // ── Derived data ──
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId) || null,
     [vehicles, selectedVehicleId]
   );
 
-  // Prefetch services, categories, and health for selected vehicle so CrearSolicitud loads instantly
   useEffect(() => {
     if (!selectedVehicle?.id) return;
     const vid = selectedVehicle.id;
@@ -277,7 +273,8 @@ const UserPanelScreen = () => {
 
   const healthScore = normalizePct(selectedVehicle?.health_score ?? 0);
 
-  const valuation = selectedVehicle?.precio_sugerido_final || selectedVehicle?.precio_mercado_promedio || 0;
+  const valuation =
+    selectedVehicle?.precio_sugerido_final || selectedVehicle?.precio_mercado_promedio || 0;
   const marketPrice = selectedVehicle?.precio_mercado_promedio || 0;
   const priceDelta = valuation && marketPrice ? valuation - marketPrice : 0;
   const odometer = selectedVehicle?.kilometraje || 0;
@@ -294,8 +291,8 @@ const UserPanelScreen = () => {
         key: 'servicios',
         title: 'Servicios',
         sub: 'Pedir servicio',
-        iconBg: 'rgba(99,102,241,0.28)',
-        icon: <Wrench size={22} color="#A5B4FC" />,
+        iconBg: COLORS.primary[50],
+        icon: <Wrench size={22} color={COLORS.primary[500]} />,
         onPress: () =>
           navigation.navigate(
             ROUTES.CREAR_SOLICITUD,
@@ -309,8 +306,8 @@ const UserPanelScreen = () => {
           activeSolicitudesCount > 0
             ? `${activeSolicitudesCount} activa${activeSolicitudesCount > 1 ? 's' : ''}`
             : 'Mis solicitudes',
-        iconBg: 'rgba(16,185,129,0.22)',
-        icon: <ClipboardList size={22} color="#6EE7B7" />,
+        iconBg: COLORS.success.light,
+        icon: <ClipboardList size={22} color={COLORS.success.main} />,
         onPress: () =>
           navigation.navigate(
             ROUTES.MIS_SOLICITUDES,
@@ -321,26 +318,28 @@ const UserPanelScreen = () => {
         key: 'venta',
         title: 'Gestionar venta',
         sub: 'Vende tu vehículo',
-        iconBg: 'rgba(245,158,11,0.22)',
-        icon: <Store size={22} color="#FCD34D" />,
+        iconBg: COLORS.warning.light,
+        icon: <Store size={22} color={COLORS.warning.main} />,
         onPress: () =>
           selectedVehicle
-            ? navigation.navigate(ROUTES.SELL_VEHICLE, { vehicle: selectedVehicle, vehicleId: selectedVehicle.id })
+            ? navigation.navigate(ROUTES.SELL_VEHICLE, {
+                vehicle: selectedVehicle,
+                vehicleId: selectedVehicle.id,
+              })
             : navigation.navigate(ROUTES.MARKETPLACE),
       },
       {
         key: 'mensajes',
         title: 'Mensajes',
         sub: 'Chats con proveedores',
-        iconBg: 'rgba(236,72,153,0.22)',
-        icon: <MessageCircle size={22} color="#F9A8D4" />,
+        iconBg: COLORS.neutral.gray[200],
+        icon: <MessageCircle size={22} color={COLORS.text.primary} />,
         onPress: () => navigation.navigate(ROUTES.CHATS_LIST),
       },
     ],
     [navigation, selectedVehicle, activeSolicitudesCount],
   );
 
-  // ── User addresses ──
   const { data: userAddresses } = useUserAddresses();
   const addressList = useMemo(() => (Array.isArray(userAddresses) ? userAddresses : []), [userAddresses]);
 
@@ -406,7 +405,6 @@ const UserPanelScreen = () => {
     [navigation],
   );
 
-  /** Cerca de ti: parejas por página; mismo ancho de card que el grid del panel (`GRID_CARD_W`). */
   const nearbyPageWidth = SCREEN_WIDTH;
   const nearbyCardW = GRID_CARD_W;
   const nearbyPages = useMemo(() => {
@@ -418,9 +416,7 @@ const UserPanelScreen = () => {
     return pages;
   }, [panelNearbyProviders]);
 
-  // ── Weather prediction ──
-  // Re-fetches immediately when selectedAddressId changes (staleTime: 0).
-  // Uses forceRefresh to bypass Django cache when user explicitly switches address.
+  // ── Weather ──
   const {
     data: weatherData,
     isLoading: weatherLoading,
@@ -438,7 +434,6 @@ const UserPanelScreen = () => {
       });
     },
     enabled: true,
-    // Alineado con WEATHER_CACHE_TTL del backend (15 min): no satura Open-Meteo ni la API.
     staleTime: 1000 * 60 * 15,
     gcTime: 1000 * 60 * 30,
     refetchInterval: 1000 * 60 * 15,
@@ -503,7 +498,8 @@ const UserPanelScreen = () => {
     } catch (err) {
       showAlert(
         'Error GPS',
-        err?.message || 'No se pudo iniciar el rastreo de ubicación. Verifica permisos de ubicación en el navegador.'
+        err?.message ||
+          'No se pudo iniciar el rastreo de ubicación. Verifica permisos de ubicación en el navegador.'
       );
       setTripActive(false);
     }
@@ -541,7 +537,7 @@ const UserPanelScreen = () => {
     setRegistering(true);
     try {
       const durationSec = tripElapsed ? Math.round(tripElapsed / 1000) : 0;
-      const avgSpd = durationSec > 0 ? (tripKm / (durationSec / 3600)) : 0;
+      const avgSpd = durationSec > 0 ? tripKm / (durationSec / 3600) : 0;
 
       const result = await registrarViaje(selectedVehicle.id, {
         km_recorridos: parseFloat(tripKm.toFixed(2)),
@@ -556,24 +552,28 @@ const UserPanelScreen = () => {
       queryClient.invalidateQueries({ queryKey: ['vehicleHealth', selectedVehicle.id] });
       queryClient.invalidateQueries({ queryKey: ['vehicleHealthComponents', selectedVehicle.id] });
 
-      const nuevoKm = result?.km_odometro_nuevo ?? result?.kilometraje_actual ?? Math.round(odometer + tripKm);
+      const nuevoKm =
+        result?.km_odometro_nuevo ?? result?.kilometraje_actual ?? Math.round(odometer + tripKm);
 
       showAlert(
         'Viaje Registrado',
-        `Se registraron ${tripKm.toFixed(1)} km. Nuevo odómetro: ${formatKm(nuevoKm)} km.\nLas métricas de salud se actualizarán automáticamente.`,
+        `Se registraron ${tripKm.toFixed(1)} km. Nuevo odómetro: ${formatKm(
+          nuevoKm
+        )} km.\nLas métricas de salud se actualizarán automáticamente.`,
       );
     } catch (err) {
       const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
       if (isTimeout) {
         showAlert(
           'Registro lento',
-          'El servidor tardó en responder. Es posible que el viaje se haya registrado correctamente. Verifica el odómetro en unos segundos.',
+          'El servidor tardó en responder. Es posible que el viaje se haya registrado correctamente. Verifica el odómetro en unos segundos.'
         );
       } else {
-        const msg = err?.response?.data?.detail
-          || err?.response?.data?.km_recorridos?.[0]
-          || err?.message
-          || 'Error desconocido';
+        const msg =
+          err?.response?.data?.detail ||
+          err?.response?.data?.km_recorridos?.[0] ||
+          err?.message ||
+          'Error desconocido';
         showAlert('Error al registrar', `No se pudo registrar el viaje: ${msg}`);
       }
     } finally {
@@ -602,7 +602,12 @@ const UserPanelScreen = () => {
     if (selectedVehicle?.id) {
       extras.push(refetchPanelNearby(), refetchPanelActivity());
     }
-    await Promise.all([refetchVehicles(), cargarSolicitudesActivas(), refetchWeather(), ...extras]);
+    await Promise.all([
+      refetchVehicles(),
+      cargarSolicitudesActivas(),
+      refetchWeather(),
+      ...extras,
+    ]);
   }, [
     refetchVehicles,
     cargarSolicitudesActivas,
@@ -612,15 +617,12 @@ const UserPanelScreen = () => {
     refetchPanelActivity,
   ]);
 
-  // ── Helpers ──
-  const avgSpeed = tripElapsed > 0 ? (tripKm / (tripElapsed / 3600000)) : 0;
+  const avgSpeed = tripElapsed > 0 ? tripKm / (tripElapsed / 3600000) : 0;
 
   const weatherAvailable = weatherData?.available === true;
   const weatherComponents = weatherData?.components || [];
   const frenoComp = weatherComponents.find((c) => c.type === 'frenos');
   const neumaComp = weatherComponents.find((c) => c.type === 'neumaticos');
-  const bateriaComp = weatherComponents.find((c) => c.type === 'bateria');
-  const refrigeranteComp = weatherComponents.find((c) => c.type === 'refrigerante');
 
   const frenoWearPct = frenoComp?.driving_risk ?? frenoComp?.wear_increase ?? 0;
   const gomaWearPct = neumaComp?.driving_risk ?? neumaComp?.wear_increase ?? 0;
@@ -628,35 +630,26 @@ const UserPanelScreen = () => {
   const overallRiskLevel = weatherData?.risk_level || 'optimo';
   const overallRiskLabel = weatherData?.risk_label || '';
 
-  const riskColorMap = {
-    critico: '#EF4444',
-    alto: '#F97316',
-    moderado: '#F59E0B',
-    bajo: '#34D399',
-    optimo: '#22D3EE',
-  };
   const weatherCondition = weatherData?.weather?.condition || '';
   const weatherTemp = weatherData?.weather?.temperature;
   const weatherHumidity = weatherData?.weather?.humidity;
   const weatherCity = weatherData?.weather?.city || '';
   const weatherFetchedAt = weatherData?.fetched_at || '';
   const weatherReportAgeMin = weatherData?.weather?.report_age_min ?? null;
-  const weatherAgeLabel = weatherReportAgeMin != null
-    ? weatherReportAgeMin < 60
-      ? `hace ${weatherReportAgeMin} min`
-      : `hace ${Math.round(weatherReportAgeMin / 60)}h`
-    : weatherFetchedAt ? weatherFetchedAt : '';
+  const weatherAgeLabel =
+    weatherReportAgeMin != null
+      ? weatherReportAgeMin < 60
+        ? `hace ${weatherReportAgeMin} min`
+        : `hace ${Math.round(weatherReportAgeMin / 60)}h`
+      : weatherFetchedAt
+      ? weatherFetchedAt
+      : '';
   const aiInsight = weatherData?.ai_insight || '';
-  // ─────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────
+
   if (showUserPanelSkeleton) {
     return (
       <View style={styles.container}>
-        <View style={StyleSheet.absoluteFill}>
-          <LinearGradient colors={['#030712', '#020617', '#030712']} style={StyleSheet.absoluteFill} />
-        </View>
-        <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+        <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
         <UserPanelSkeleton tabBarHeight={TAB_BAR_BASE_HEIGHT + insets.bottom} />
       </View>
     );
@@ -664,12 +657,7 @@ const UserPanelScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Background layer */}
-      <View style={StyleSheet.absoluteFill}>
-        <LinearGradient colors={['#030712', '#020617', '#030712']} style={StyleSheet.absoluteFill} />
-      </View>
-
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
         style={styles.scrollViewFlex}
@@ -681,9 +669,15 @@ const UserPanelScreen = () => {
           },
         ]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor="#10B981" />}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary[500]}
+          />
+        }
       >
-        {/* ── Header ── */}
+        {/* Header */}
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
             <Text style={styles.greeting}>Hola, {user?.first_name || 'Conductor'}</Text>
@@ -693,47 +687,65 @@ const UserPanelScreen = () => {
                 onPress={() => setAddAddressModalOpen(true)}
                 activeOpacity={0.7}
               >
-                <MapPin size={13} color="#22D3EE" />
+                <MapPin size={13} color={COLORS.primary[500]} />
                 <Text style={styles.addressSelectorText} numberOfLines={1}>
                   {selectedAddress?.etiqueta || 'Dirección'}: {selectedAddress?.direccion || '—'}
                 </Text>
-                <ChevronDown size={14} color="rgba(255,255,255,0.4)" />
+                <ChevronDown size={14} color={COLORS.text.tertiary} />
               </TouchableOpacity>
             ) : (
               <View style={styles.subtitleRow}>
-                <Sparkles size={14} color="#00A8E8" />
+                <Sparkles size={14} color={COLORS.primary[500]} />
                 <Text style={styles.subtitle}>Dashboard Predictivo</Text>
               </View>
             )}
           </View>
-          <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}>
-            <Bell size={20} color="#E5E7EB" />
+          <TouchableOpacity
+            style={styles.headerIcon}
+            onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
+            activeOpacity={0.85}
+          >
+            <Bell size={20} color={COLORS.text.primary} />
             {unreadCount > 0 && (
               <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                <Text style={styles.bellBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerAvatar} onPress={() => navigation.navigate(ROUTES.PROFILE)}>
+          <TouchableOpacity
+            style={styles.headerAvatar}
+            onPress={() => navigation.navigate(ROUTES.PROFILE)}
+            activeOpacity={0.85}
+          >
             {user?.foto_perfil_url || user?.foto_perfil ? (
-              <Image source={{ uri: user.foto_perfil_url || user.foto_perfil }} style={styles.avatarImg} contentFit="cover" />
+              <Image
+                source={{ uri: user.foto_perfil_url || user.foto_perfil }}
+                style={styles.avatarImg}
+                contentFit="cover"
+              />
             ) : (
               <View style={[styles.avatarImg, styles.avatarFallback]}>
-                <User size={18} color="#A5B4FC" />
+                <User size={18} color={COLORS.primary[500]} />
               </View>
             )}
           </TouchableOpacity>
         </View>
 
-        {/* ── Vehicle Selector ── */}
+        {/* Vehicle Selector */}
         {vehicles.length > 0 ? (
-          <GlassCard onPress={() => setSelectorVisible(true)} style={{ marginBottom: 16 }}>
+          <Card onPress={() => setSelectorVisible(true)} style={{ marginBottom: 16 }}>
             <View style={styles.selectorRow}>
               {selectedVehicle?.foto ? (
-                <Image source={{ uri: selectedVehicle.foto }} style={styles.selectorThumb} contentFit="cover" />
+                <Image
+                  source={{ uri: selectedVehicle.foto }}
+                  style={styles.selectorThumb}
+                  contentFit="cover"
+                />
               ) : (
                 <View style={[styles.selectorThumb, styles.selectorThumbFallback]}>
-                  <Car size={22} color="#007EA7" />
+                  <Car size={22} color={COLORS.primary[500]} />
                 </View>
               )}
               <View style={{ flex: 1, marginLeft: 12 }}>
@@ -745,35 +757,38 @@ const UserPanelScreen = () => {
                   {selectedVehicle?.year || ''} · {selectedVehicle?.patente || ''}
                 </Text>
               </View>
-              <ChevronDown size={20} color="rgba(255,255,255,0.5)" />
+              <ChevronDown size={20} color={COLORS.text.tertiary} />
             </View>
-          </GlassCard>
+          </Card>
         ) : vehiclesLoading ? (
-          <GlassCard style={{ marginBottom: 16, alignItems: 'center', paddingVertical: 32 }}>
-            <ActivityIndicator color="#00A8E8" size="large" />
+          <Card style={{ marginBottom: 16, alignItems: 'center', paddingVertical: 32 }}>
+            <ActivityIndicator color={COLORS.primary[500]} size="large" />
             <Text style={[styles.emptyText, { marginTop: 12 }]}>Cargando vehículos...</Text>
-          </GlassCard>
+          </Card>
         ) : (
-          /* Empty state: no vehicles */
-          <GlassCard style={{ marginBottom: 16 }}>
+          <Card style={{ marginBottom: 16 }}>
             <View style={{ alignItems: 'center', paddingVertical: 24 }}>
               <View style={styles.emptyIconWrap}>
-                <Car size={32} color="#007EA7" />
+                <Car size={32} color={COLORS.primary[500]} />
               </View>
               <Text style={styles.emptyTitle}>Sin vehículos registrados</Text>
               <Text style={styles.emptyText}>
-                Registra tu primer vehículo para desbloquear el dashboard predictivo, telemetría y salud IA.
+                Registra tu primer vehículo para desbloquear el dashboard predictivo, telemetría y
+                salud IA.
               </Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}>
-                <Plus size={18} color="#FFFFFF" />
+              <TouchableOpacity
+                style={styles.emptyBtn}
+                onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
+                activeOpacity={0.85}
+              >
+                <Plus size={18} color={COLORS.text.inverse} />
                 <Text style={styles.emptyBtnText}>Agregar Vehículo</Text>
               </TouchableOpacity>
             </View>
-          </GlassCard>
+          </Card>
         )}
 
-        {/* ── Acciones rápidas: tarjetas ancho fijo + scroll horizontal con snap ── */}
-        
+        {/* Quick Actions */}
         <ScrollView
           horizontal
           nestedScrollEnabled
@@ -787,13 +802,15 @@ const UserPanelScreen = () => {
           keyboardShouldPersistTaps="handled"
         >
           {quickActionItems.map((it) => (
-            <GlassCard
+            <Card
               key={it.key}
               style={[styles.quickMgmtCardScroll, { width: QUICK_ACTION_CARD_W }]}
               innerStyle={styles.quickMgmtInner}
               onPress={it.onPress}
             >
-              <View style={[styles.quickMgmtIconBox, { backgroundColor: it.iconBg }]}>{it.icon}</View>
+              <View style={[styles.quickMgmtIconBox, { backgroundColor: it.iconBg }]}>
+                {it.icon}
+              </View>
               <View style={styles.quickMgmtTextCol}>
                 <Text style={styles.quickMgmtTitle} numberOfLines={1}>
                   {it.title}
@@ -802,60 +819,74 @@ const UserPanelScreen = () => {
                   {it.sub}
                 </Text>
               </View>
-            </GlassCard>
+            </Card>
           ))}
         </ScrollView>
 
-        {/* ── Valuation + Health Hero ── */}
+        {/* Hero (valuation + health) */}
         {selectedVehicle && (
-          <GlassCard style={{ marginBottom: 16 }}>
+          <Card style={{ marginBottom: 16 }}>
             <View style={styles.heroRow}>
-              {/* Valuation */}
               <View style={{ flex: 1 }}>
                 <View style={styles.labelRow}>
-                  <TrendingUp size={14} color="#10B981" />
+                  <TrendingUp size={14} color={COLORS.success.main} />
                   <Text style={styles.labelText}>Valor Estimado</Text>
                 </View>
                 <Text style={styles.heroPrice}>{formatCLP(valuation)}</Text>
                 {priceDelta !== 0 && (
-                  <Text style={[styles.heroDelta, { color: priceDelta >= 0 ? '#10B981' : '#EF4444' }]}>
-                    {priceDelta >= 0 ? '+' : ''}{formatCLP(Math.abs(priceDelta))} vs mercado
+                  <Text
+                    style={[
+                      styles.heroDelta,
+                      { color: priceDelta >= 0 ? COLORS.success.main : COLORS.error.main },
+                    ]}
+                  >
+                    {priceDelta >= 0 ? '+' : ''}
+                    {formatCLP(Math.abs(priceDelta))} vs mercado
                   </Text>
                 )}
               </View>
 
-              {/* Health Circle */}
               <TouchableOpacity
                 style={styles.healthCircleWrap}
-                onPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: selectedVehicle.id, vehicle: selectedVehicle })}
-                activeOpacity={0.7}
+                onPress={() =>
+                  navigation.navigate(ROUTES.VEHICLE_HEALTH, {
+                    vehicleId: selectedVehicle.id,
+                    vehicle: selectedVehicle,
+                  })
+                }
+                activeOpacity={0.85}
               >
-                <View style={[styles.healthCircle, { borderColor: getHealthColor(healthScore) }]}>
-                  <Text style={[styles.healthCircleValue, { color: getHealthColor(healthScore) }]}>
+                <View
+                  style={[styles.healthCircle, { borderColor: getHealthColor(healthScore) }]}
+                >
+                  <Text
+                    style={[styles.healthCircleValue, { color: getHealthColor(healthScore) }]}
+                  >
                     {healthScore}
                   </Text>
                   <Text style={styles.healthCircleUnit}>%</Text>
                 </View>
-                <Text style={[styles.healthCircleLabel, { color: getHealthColor(healthScore) }]}>
+                <Text
+                  style={[styles.healthCircleLabel, { color: getHealthColor(healthScore) }]}
+                >
                   {getHealthLabel(healthScore)}
                 </Text>
               </TouchableOpacity>
             </View>
 
-            {/* Odometer row */}
             <View style={styles.odometerRow}>
-              <Gauge size={14} color="rgba(255,255,255,0.4)" />
+              <Gauge size={14} color={COLORS.text.tertiary} />
               <Text style={styles.odometerText}>{formatKm(odometer)} km</Text>
               <View style={styles.odometerDot} />
-              <Shield size={14} color="rgba(255,255,255,0.4)" />
+              <Shield size={14} color={COLORS.text.tertiary} />
               <Text style={styles.odometerText}>{selectedVehicle?.tipo_motor || 'Motor'}</Text>
             </View>
-          </GlassCard>
+          </Card>
         )}
 
-        {/* ── Captura telemetría (debajo de valor estimado) ── */}
+        {/* Telemetry */}
         {selectedVehicle && (
-          <GlassCard style={styles.telemetryCard} innerStyle={styles.telemetryGlassInner}>
+          <Card style={styles.telemetryCard} innerStyle={styles.telemetryInner}>
             <View style={styles.telemetryTopRow}>
               <Text style={styles.telemetryConsoleLabel}>CAPTURA TELEMETRÍA</Text>
             </View>
@@ -866,7 +897,9 @@ const UserPanelScreen = () => {
                 <Text style={styles.telemetryKmUnit}>km</Text>
                 {tripActive && (
                   <View style={styles.telemetrySubStats}>
-                    <Text style={styles.telemetrySubStatText}>{formatDuration(tripElapsed)}</Text>
+                    <Text style={styles.telemetrySubStatText}>
+                      {formatDuration(tripElapsed)}
+                    </Text>
                     <Text style={styles.telemetrySubStatSep}>·</Text>
                     <Text style={styles.telemetrySubStatText}>{currentSpeed} km/h</Text>
                   </View>
@@ -883,41 +916,42 @@ const UserPanelScreen = () => {
 
             {!tripActive && (
               <Text style={styles.tripHint}>
-                Rastrea kilómetros en tiempo real vía GPS para actualizar automáticamente la salud de tu vehículo.
+                Rastrea kilómetros en tiempo real vía GPS para actualizar automáticamente la salud
+                de tu vehículo.
               </Text>
             )}
 
             {tripActive ? (
-              <GlassButton onPress={stopTrip} variant="stop">
-                <Square size={16} color="#FFFFFF" fill="#FFFFFF" />
-                <Text style={styles.glassBtnTextStop}>Detener viaje</Text>
-              </GlassButton>
+              <SoftButton onPress={stopTrip} variant="stop">
+                <Square size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
+                <Text style={styles.softBtnTextStop}>Detener viaje</Text>
+              </SoftButton>
             ) : (
-              <GlassButton onPress={startTrip}>
-                <Play size={16} color="#E0F2FE" fill="#E0F2FE" />
-                <Text style={styles.glassBtnText}>Iniciar viaje</Text>
-              </GlassButton>
+              <SoftButton onPress={startTrip}>
+                <Play size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
+                <Text style={styles.softBtnTextPrimary}>Iniciar viaje</Text>
+              </SoftButton>
             )}
-          </GlassCard>
+          </Card>
         )}
 
-        {/* ── Clima / entorno (una columna, ancho completo) ── */}
+        {/* Weather */}
         {selectedVehicle && (
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => setIsWeatherModalOpen(true)}
             style={styles.weatherCardWrap}
           >
-            <GlassCard style={styles.weatherFullGlass} innerStyle={styles.weatherFullInner}>
+            <Card style={styles.weatherFullGlass} innerStyle={styles.weatherFullInner}>
               <View style={styles.weatherFullBody}>
                 {weatherLoading ? (
                   <View style={styles.weatherCardLoading}>
-                    <ActivityIndicator color="#22D3EE" size="small" />
+                    <ActivityIndicator color={COLORS.primary[500]} size="small" />
                     <Text style={styles.weatherCardLoadingText}>Consultando clima...</Text>
                   </View>
                 ) : !weatherAvailable ? (
                   <View style={styles.weatherCardUnavailable}>
-                    <CloudRain size={24} color="rgba(255,255,255,0.25)" />
+                    <CloudRain size={24} color={COLORS.text.tertiary} />
                     <Text style={styles.weatherCardUnavailableText}>
                       {weatherData?.reason || 'Clima no disponible para esta ubicación.'}
                     </Text>
@@ -925,17 +959,25 @@ const UserPanelScreen = () => {
                 ) : (
                   <>
                     <View style={styles.entornoHeader}>
-                      <CloudRain size={20} color={riskColorMap[overallRiskLevel] || '#22D3EE'} />
+                      <CloudRain
+                        size={20}
+                        color={riskColorMap[overallRiskLevel] || COLORS.primary[500]}
+                      />
                       <Text style={styles.entornoRiskLabel}>Riesgo conducción</Text>
                     </View>
-                    <Text style={[styles.entornoRiskPct, { color: riskColorMap[overallRiskLevel] || '#F87171' }]}>
+                    <Text
+                      style={[
+                        styles.entornoRiskPct,
+                        { color: riskColorMap[overallRiskLevel] || COLORS.text.primary },
+                      ]}
+                    >
                       {climateRiskPct}%
                     </Text>
                     {overallRiskLabel !== '' && (
                       <Text
                         style={[
                           styles.entornoRiskBandLabel,
-                          { color: riskColorMap[overallRiskLevel] || '#F87171' },
+                          { color: riskColorMap[overallRiskLevel] || COLORS.text.primary },
                         ]}
                       >
                         {overallRiskLabel}
@@ -943,7 +985,8 @@ const UserPanelScreen = () => {
                     )}
                     {weatherCity !== '' && (
                       <Text style={styles.entornoWeatherCity}>
-                        {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'}
+                        {weatherCity} · {weatherCondition} ·{' '}
+                        {weatherTemp != null ? `${weatherTemp}°C` : '—'}
                         {weatherAgeLabel ? ` · ${weatherAgeLabel}` : ''}
                       </Text>
                     )}
@@ -951,11 +994,14 @@ const UserPanelScreen = () => {
                       <View style={styles.microBarRow}>
                         <Text style={styles.microBarLabel}>Frenos</Text>
                         <View style={styles.microBarTrack}>
-                          <LinearGradient
-                            colors={['rgba(248,113,113,0.9)', 'rgba(239,68,68,0.75)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={[styles.microBarFill, { width: `${Math.min(frenoWearPct, 100)}%` }]}
+                          <View
+                            style={[
+                              styles.microBarFill,
+                              {
+                                width: `${Math.min(frenoWearPct, 100)}%`,
+                                backgroundColor: COLORS.error.main,
+                              },
+                            ]}
                           />
                         </View>
                         <Text style={styles.microBarPct}>{frenoWearPct}%</Text>
@@ -963,32 +1009,37 @@ const UserPanelScreen = () => {
                       <View style={styles.microBarRow}>
                         <Text style={styles.microBarLabel}>Gomas</Text>
                         <View style={styles.microBarTrack}>
-                          <LinearGradient
-                            colors={['rgba(52,211,153,0.85)', 'rgba(16,185,129,0.7)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={[styles.microBarFill, { width: `${Math.min(gomaWearPct, 100)}%` }]}
+                          <View
+                            style={[
+                              styles.microBarFill,
+                              {
+                                width: `${Math.min(gomaWearPct, 100)}%`,
+                                backgroundColor: COLORS.success.main,
+                              },
+                            ]}
                           />
                         </View>
                         <Text style={styles.microBarPct}>{gomaWearPct}%</Text>
                       </View>
                     </View>
                     <View style={styles.weatherTapFooter}>
-                      <Droplets size={12} color="rgba(255,255,255,0.35)" />
-                      <Text style={styles.entornoTapText}>Toca para análisis climático para conducir</Text>
+                      <Droplets size={12} color={COLORS.text.tertiary} />
+                      <Text style={styles.entornoTapText}>
+                        Toca para análisis climático para conducir
+                      </Text>
                     </View>
                   </>
                 )}
               </View>
-            </GlassCard>
+            </Card>
           </TouchableOpacity>
         )}
 
-        {/* ── Cerca de ti (proveedores según vehículo + dirección) ── */}
+        {/* Cerca de ti */}
         {selectedVehicle && (
           <View style={{ marginBottom: 18 }}>
             <View style={styles.panelSectionHeader}>
-              <Navigation size={16} color="#22D3EE" />
+              <Navigation size={16} color={COLORS.primary[500]} />
               <Text style={styles.sectionLabelInline}>Cerca de ti</Text>
             </View>
             <Text style={styles.panelSectionHint}>
@@ -996,22 +1047,22 @@ const UserPanelScreen = () => {
               {selectedVehicle.modelo_nombre || ''}, ordenados por distancia desde tu dirección.
             </Text>
             {!selectedAddress ? (
-              <GlassCard style={{ paddingVertical: 16 }}>
+              <Card style={{ paddingVertical: 16 }}>
                 <Text style={styles.panelEmptyText}>
                   Agrega y selecciona una dirección para ver proveedores cercanos.
                 </Text>
-              </GlassCard>
+              </Card>
             ) : panelNearbyLoading ? (
-              <GlassCard style={{ paddingVertical: 20, alignItems: 'center' }}>
-                <ActivityIndicator color="#22D3EE" />
-              </GlassCard>
+              <Card style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator color={COLORS.primary[500]} />
+              </Card>
             ) : panelNearbyProviders.length === 0 ? (
-              <GlassCard style={{ paddingVertical: 16 }}>
+              <Card style={{ paddingVertical: 16 }}>
                 <Text style={styles.panelEmptyText}>
-                  No hay proveedores verificados en este radio para tu marca. Prueba ampliar dirección o crear una
-                  solicitud desde Servicios.
+                  No hay proveedores verificados en este radio para tu marca. Prueba ampliar
+                  dirección o crear una solicitud desde Servicios.
                 </Text>
-              </GlassCard>
+              </Card>
             ) : (
               <ScrollView
                 horizontal
@@ -1043,7 +1094,7 @@ const UserPanelScreen = () => {
                           typeLabel={kindLabel}
                           specialty={card.specialty || 'Servicios y diagnóstico'}
                           kpiBadge={p.kpi_badge || null}
-                          appearance="dark"
+                          appearance="light"
                           width={nearbyCardW}
                           omitRightMargin
                           onPress={() => openProviderFromPanel(p)}
@@ -1058,30 +1109,31 @@ const UserPanelScreen = () => {
           </View>
         )}
 
-        {/* ── Demanda: servicios por marca/modelo (lista simple) ── */}
+        {/* Demanda */}
         {selectedVehicle && (
           <View style={{ marginBottom: 18 }}>
             <View style={styles.panelSectionHeader}>
-              <Users size={16} color="#A78BFA" />
+              <Users size={16} color={COLORS.primary[500]} />
               <Text style={styles.sectionLabelInline}>Qué piden otros con tu mismo auto</Text>
             </View>
             <Text style={styles.panelSectionHint}>
-              Misma marca y modelo ({selectedVehicle.marca_nombre || '—'} {selectedVehicle.modelo_nombre || ''}). A la
-              derecha: personas distintas que pidieron cada servicio.
+              Misma marca y modelo ({selectedVehicle.marca_nombre || '—'}{' '}
+              {selectedVehicle.modelo_nombre || ''}). A la derecha: personas distintas que pidieron
+              cada servicio.
             </Text>
             {panelActivityLoading ? (
-              <GlassCard style={{ paddingVertical: 20, alignItems: 'center' }}>
-                <ActivityIndicator color="#A78BFA" />
-              </GlassCard>
+              <Card style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <ActivityIndicator color={COLORS.primary[500]} />
+              </Card>
             ) : !panelMarketActivity?.items?.length ? (
-              <GlassCard style={{ paddingVertical: 16 }}>
+              <Card style={{ paddingVertical: 16 }}>
                 <Text style={styles.panelEmptyText}>
-                  Aún no hay datos para esta marca y modelo. Cuando otros usuarios soliciten servicios con un auto como
-                  el tuyo, aparecerán aquí.
+                  Aún no hay datos para esta marca y modelo. Cuando otros usuarios soliciten
+                  servicios con un auto como el tuyo, aparecerán aquí.
                 </Text>
-              </GlassCard>
+              </Card>
             ) : (
-              <GlassCard innerStyle={{ paddingVertical: 6, paddingHorizontal: 0 }}>
+              <Card innerStyle={{ paddingVertical: 6, paddingHorizontal: 0 }}>
                 {panelMarketActivity.items.map((row, idx) => (
                   <View
                     key={`svc-${row.servicio_id ?? idx}`}
@@ -1094,18 +1146,20 @@ const UserPanelScreen = () => {
                       {row.servicio_nombre || 'Servicio'}
                     </Text>
                     <View style={styles.marketPersonasCol}>
-                      <Text style={styles.marketPersonasNum}>{Number(row.personas ?? 0)}</Text>
+                      <Text style={styles.marketPersonasNum}>
+                        {Number(row.personas ?? 0)}
+                      </Text>
                       <Text style={styles.marketPersonasLbl}>personas</Text>
                     </View>
                   </View>
                 ))}
-              </GlassCard>
+              </Card>
             )}
           </View>
         )}
       </ScrollView>
 
-      {/* ─── Modal análisis clima / entorno ─── */}
+      {/* ─── Weather modal ─── */}
       <Modal
         visible={isWeatherModalOpen}
         transparent
@@ -1119,16 +1173,16 @@ const UserPanelScreen = () => {
             onPress={() => setIsWeatherModalOpen(false)}
           />
           <View style={styles.weatherSheet}>
-            <BlurView intensity={BLUR_INTENSITY} tint="dark" style={StyleSheet.absoluteFill} />
-            <View style={styles.weatherSheetTint} />
             <View style={styles.weatherSheetHandle} />
             <View style={styles.weatherSheetContent}>
               <View style={styles.weatherSheetHeader}>
-                <CloudRain size={40} color="#22D3EE" />
+                <CloudRain size={32} color={COLORS.primary[500]} />
                 <Text style={styles.weatherSheetTitle}>Análisis climático para conducir</Text>
                 {weatherAvailable && (
                   <Text style={styles.weatherSheetSubtitle}>
-                    {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'} · Humedad {weatherHumidity ?? '—'}%
+                    {weatherCity} · {weatherCondition} ·{' '}
+                    {weatherTemp != null ? `${weatherTemp}°C` : '—'} · Humedad{' '}
+                    {weatherHumidity ?? '—'}%
                     {weatherAgeLabel ? `\nReporte: ${weatherAgeLabel}` : ''}
                   </Text>
                 )}
@@ -1137,14 +1191,7 @@ const UserPanelScreen = () => {
               <View style={styles.weatherWearBlock}>
                 {weatherComponents.map((comp) => {
                   const lvl = comp.risk_level || 'optimo';
-                  const lvlColor = riskColorMap[lvl] || '#9CA3AF';
-                  const barGradient = {
-                    critico: ['rgba(239,68,68,0.95)', 'rgba(185,28,28,0.85)'],
-                    alto: ['rgba(249,115,22,0.9)', 'rgba(234,88,12,0.8)'],
-                    moderado: ['rgba(245,158,11,0.9)', 'rgba(217,119,6,0.8)'],
-                    bajo: ['rgba(52,211,153,0.85)', 'rgba(16,185,129,0.7)'],
-                    optimo: ['rgba(34,211,238,0.85)', 'rgba(6,182,212,0.7)'],
-                  };
+                  const lvlColor = riskColorMap[lvl] || COLORS.text.tertiary;
                   const iconMap = {
                     frenos: <Disc size={18} color={lvlColor} />,
                     neumaticos: <Wind size={18} color={lvlColor} />,
@@ -1154,32 +1201,54 @@ const UserPanelScreen = () => {
                   const riskPct = comp.driving_risk ?? comp.wear_increase ?? 0;
                   return (
                     <View key={comp.type} style={styles.weatherWearRow}>
-                      {iconMap[comp.type] || <Disc size={18} color="#9CA3AF" />}
+                      {iconMap[comp.type] || <Disc size={18} color={COLORS.text.tertiary} />}
                       <View style={{ flex: 1, marginLeft: 10 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            marginBottom: 4,
+                          }}
+                        >
                           <Text style={styles.weatherWearTitle}>{comp.name}</Text>
                           {comp.salud_actual != null && (
-                            <Text style={{ fontSize: 11, color: lvlColor, fontWeight: '600', marginLeft: 6 }}>
+                            <Text
+                              style={{
+                                fontSize: TYPOGRAPHY.fontSize.sm,
+                                color: lvlColor,
+                                fontWeight: TYPOGRAPHY.fontWeight.semibold,
+                                marginLeft: 6,
+                              }}
+                            >
                               Salud {comp.salud_actual}%
                             </Text>
                           )}
                         </View>
                         <View style={styles.weatherBarTrack}>
-                          <LinearGradient
-                            colors={barGradient[lvl] || barGradient.optimo}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={[styles.weatherBarFill, { width: `${Math.min(riskPct, 100)}%` }]}
+                          <View
+                            style={[
+                              styles.weatherBarFill,
+                              { width: `${Math.min(riskPct, 100)}%`, backgroundColor: lvlColor },
+                            ]}
                           />
                         </View>
-                        <Text style={[styles.weatherWearReason, { color: lvlColor }]} numberOfLines={2}>
+                        <Text
+                          style={[styles.weatherWearReason, { color: COLORS.text.secondary }]}
+                          numberOfLines={2}
+                        >
                           {comp.risk_label || comp.reason}
                         </Text>
                       </View>
                       <View style={{ alignItems: 'flex-end', minWidth: 50 }}>
                         <Text style={[styles.weatherWearPct, { color: lvlColor }]}>{riskPct}%</Text>
-                        {(comp.wear_increase > 0) && (
-                          <Text style={{ color: '#F59E0B', fontSize: 10, fontWeight: '600' }}>
+                        {comp.wear_increase > 0 && (
+                          <Text
+                            style={{
+                              color: COLORS.warning.main,
+                              fontSize: TYPOGRAPHY.fontSize.sm,
+                              fontWeight: TYPOGRAPHY.fontWeight.semibold,
+                            }}
+                          >
                             +{comp.wear_increase}% clima
                           </Text>
                         )}
@@ -1190,7 +1259,7 @@ const UserPanelScreen = () => {
               </View>
 
               <View style={styles.weatherTipsBox}>
-                <Zap size={18} color="#34D399" />
+                <Zap size={18} color={COLORS.success.main} />
                 <Text style={styles.weatherTipsText}>
                   {aiInsight || 'Condiciones óptimas para conducir.'}
                 </Text>
@@ -1208,18 +1277,24 @@ const UserPanelScreen = () => {
         </View>
       </Modal>
 
-      {/* ─── Vehicle Selector Modal ─── */}
-      <Modal visible={selectorVisible} transparent animationType="slide" onRequestClose={() => setSelectorVisible(false)}>
+      {/* ─── Vehicle Selector modal ─── */}
+      <Modal
+        visible={selectorVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectorVisible(false)}
+      >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setSelectorVisible(false)} activeOpacity={1} />
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={() => setSelectorVisible(false)}
+            activeOpacity={1}
+          />
           <View style={styles.selectorModal}>
-            <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.85)' }]} />
-
             <View style={styles.selectorModalHeader}>
               <Text style={styles.selectorModalTitle}>Seleccionar Vehículo</Text>
               <TouchableOpacity onPress={() => setSelectorVisible(false)} hitSlop={12}>
-                <X size={22} color="#9CA3AF" />
+                <X size={22} color={COLORS.text.tertiary} />
               </TouchableOpacity>
             </View>
 
@@ -1231,7 +1306,10 @@ const UserPanelScreen = () => {
                 const isActive = item.id === selectedVehicleId;
                 return (
                   <TouchableOpacity
-                    style={[styles.selectorListItem, isActive && styles.selectorListItemActive]}
+                    style={[
+                      styles.selectorListItem,
+                      isActive && styles.selectorListItemActive,
+                    ]}
                     onPress={() => {
                       setSelectedVehicleId(item.id);
                       setSelectorVisible(false);
@@ -1239,21 +1317,27 @@ const UserPanelScreen = () => {
                     activeOpacity={0.7}
                   >
                     {item.foto ? (
-                      <Image source={{ uri: item.foto }} style={styles.selectorListThumb} contentFit="cover" />
+                      <Image
+                        source={{ uri: item.foto }}
+                        style={styles.selectorListThumb}
+                        contentFit="cover"
+                      />
                     ) : (
                       <View style={[styles.selectorListThumb, styles.selectorThumbFallback]}>
-                        <Car size={18} color="#007EA7" />
+                        <Car size={18} color={COLORS.primary[500]} />
                       </View>
                     )}
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={styles.selectorListTitle} numberOfLines={1}>
-                        {item.marca_nombre || item.marca || ''} {item.modelo_nombre || item.modelo || ''}
+                        {item.marca_nombre || item.marca || ''}{' '}
+                        {item.modelo_nombre || item.modelo || ''}
                       </Text>
                       <Text style={styles.selectorListSub}>
-                        {item.year || ''} · {formatKm(item.kilometraje)} km · Salud {item.health_score ?? 0}%
+                        {item.year || ''} · {formatKm(item.kilometraje)} km · Salud{' '}
+                        {item.health_score ?? 0}%
                       </Text>
                     </View>
-                    {isActive && <Check size={18} color="#10B981" />}
+                    {isActive && <Check size={18} color={COLORS.success.main} />}
                   </TouchableOpacity>
                 );
               }}
@@ -1270,25 +1354,22 @@ const UserPanelScreen = () => {
                 setSelectorVisible(false);
                 navigation.navigate(ROUTES.CREAR_VEHICULO);
               }}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              <Plus size={18} color="#A5B4FC" />
+              <Plus size={18} color={COLORS.text.inverse} />
               <Text style={styles.selectorAddText}>Agregar Vehículo</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* ─── Trip Completion Modal ─── */}
+      {/* ─── Trip completion modal ─── */}
       <Modal visible={tripCompletionVisible} transparent animationType="fade" onRequestClose={dismissTrip}>
         <View style={[styles.modalOverlay, { justifyContent: 'center' }]}>
           <View style={styles.tripModal}>
-            <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.9)' }]} />
-
             <View style={styles.tripModalContent}>
               <View style={styles.tripModalIcon}>
-                <Check size={32} color="#10B981" />
+                <Check size={32} color={COLORS.success.main} />
               </View>
               <Text style={styles.tripModalTitle}>Viaje Completado</Text>
               <Text style={styles.tripModalSub}>
@@ -1321,10 +1402,10 @@ const UserPanelScreen = () => {
                 disabled={registering}
               >
                 {registering ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <ActivityIndicator color={COLORS.text.inverse} size="small" />
                 ) : (
                   <>
-                    <Check size={18} color="#FFFFFF" />
+                    <Check size={18} color={COLORS.text.inverse} />
                     <Text style={styles.tripConfirmText}>Registrar Kilometraje</Text>
                   </>
                 )}
@@ -1338,11 +1419,11 @@ const UserPanelScreen = () => {
         </View>
       </Modal>
 
-      {/* ─── Modal agregar nueva dirección (glassmorphism) ─── */}
+      {/* Modal agregar nueva dirección */}
       <AddressSelectionModal
         visible={addAddressModalOpen}
         onClose={() => setAddAddressModalOpen(false)}
-        variant="darkGlass"
+        variant="default"
         heroSubtitle="Detecta tu ubicación para ver el clima y riesgo de desgaste."
         currentAddress={selectedAddress}
         onSelectAddress={(savedAddr) => {
@@ -1361,13 +1442,10 @@ const UserPanelScreen = () => {
   );
 };
 
-// ──────────────────────────────────────────
-// Styles
-// ──────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   scrollViewFlex: {
     flex: 1,
@@ -1376,59 +1454,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: H_PAD,
   },
 
-  // Glass card base
-  glassOuter: {
-    borderRadius: 20,
+  // Card base
+  card: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 32,
-      },
-      android: { elevation: 12 },
-    }),
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
-  glassInner: {
-    padding: 18,
+  cardInner: {
+    padding: 16,
   },
-  glassBtnWrap: {
-    marginTop: 2,
+
+  // Soft button (filled, in cards)
+  softBtnWrap: {
+    marginTop: 6,
   },
-  glassBtnOuter: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    position: 'relative',
-  },
-  glassBtnOuterStop: {
-    borderColor: 'rgba(248,113,113,0.45)',
-  },
-  glassBtnInner: {
+  softBtnInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 11,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
   },
-  glassBtnInnerStop: {
-    backgroundColor: 'rgba(239,68,68,0.35)',
+  softBtnInnerPrimary: {
+    backgroundColor: COLORS.primary[500],
   },
-  glassBtnText: {
-    color: '#E0F2FE',
-    fontWeight: '800',
-    fontSize: 14,
+  softBtnInnerStop: {
+    backgroundColor: COLORS.error.main,
   },
-  glassBtnTextStop: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 14,
+  softBtnTextPrimary: {
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.fontSize.base,
+  },
+  softBtnTextStop: {
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.fontSize.base,
   },
 
   // Header
@@ -1438,9 +1504,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   greeting: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.styles.h3.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
+    color: COLORS.text.primary,
   },
   subtitleRow: {
     flexDirection: 'row',
@@ -1449,9 +1516,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   subtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   addressSelectorBtn: {
     flexDirection: 'row',
@@ -1462,18 +1529,21 @@ const styles = StyleSheet.create({
   },
   addressSelectorText: {
     flex: 1,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   headerIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+    ...SHADOWS.sm,
   },
   headerAvatar: {
     marginLeft: 8,
@@ -1481,32 +1551,32 @@ const styles = StyleSheet.create({
   avatarImg: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   avatarFallback: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(99,102,241,0.2)',
+    backgroundColor: COLORS.primary[50],
   },
   bellBadge: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
+    top: -2,
+    right: -2,
+    backgroundColor: COLORS.error.main,
+    borderRadius: BORDERS.radius.full,
     minWidth: 18,
     height: 18,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
     borderWidth: 2,
-    borderColor: '#030712',
+    borderColor: COLORS.background.paper,
   },
   bellBadgeText: {
-    color: '#FFF',
+    color: COLORS.text.inverse,
     fontSize: 9,
-    fontWeight: 'bold',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 
   // Vehicle selector
@@ -1517,22 +1587,22 @@ const styles = StyleSheet.create({
   selectorThumb: {
     width: 48,
     height: 48,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   selectorThumbFallback: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(99,102,241,0.15)',
+    backgroundColor: COLORS.primary[50],
   },
   selectorTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
   selectorSub: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
 
@@ -1540,22 +1610,22 @@ const styles = StyleSheet.create({
   emptyIconWrap: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(99,102,241,0.15)',
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
     marginBottom: 8,
     textAlign: 'center',
   },
   emptyText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -1563,19 +1633,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
     marginTop: 20,
   },
   emptyBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 15,
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.fontSize.base,
   },
 
-  // Hero card
+  // Hero
   heroRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1587,21 +1657,21 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   labelText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   heroPrice: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#F9FAFB',
-    letterSpacing: -0.5,
+    fontSize: TYPOGRAPHY.styles.h2.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h2.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.h2.letterSpacing,
+    color: COLORS.text.primary,
   },
   heroDelta: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     marginTop: 2,
   },
   healthCircleWrap: {
@@ -1611,25 +1681,25 @@ const styles = StyleSheet.create({
   healthCircle: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: BORDERS.radius.full,
     borderWidth: 3,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: COLORS.neutral.gray[100],
   },
   healthCircleValue: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   healthCircleUnit: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     marginTop: -2,
   },
   healthCircleLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     marginTop: 4,
   },
   odometerRow: {
@@ -1638,60 +1708,38 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: COLORS.border.light,
     gap: 6,
   },
   odometerText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   odometerDot: {
     width: 3,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: COLORS.text.tertiary,
     marginHorizontal: 4,
   },
 
-  // Card headers
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F9FAFB',
-    flex: 1,
-  },
-  detailLink: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-  },
-  detailLinkText: {
-    fontSize: 12,
-    color: '#00A8E8',
-    fontWeight: '600',
-  },
-
-  // Trip telemetry (glass dashboard)
+  // Telemetry
   telemetryCard: {
     marginBottom: 12,
   },
-  telemetryGlassInner: {
+  telemetryInner: {
     padding: 12,
   },
   telemetryTopRow: {
     marginBottom: 6,
   },
   telemetryConsoleLabel: {
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     letterSpacing: 1,
-    color: 'rgba(255,255,255,0.55)',
+    color: COLORS.text.tertiary,
+    textTransform: 'uppercase',
   },
   telemetryMainRow: {
     flexDirection: 'row',
@@ -1704,15 +1752,15 @@ const styles = StyleSheet.create({
   },
   telemetryKmHuge: {
     fontSize: 30,
-    fontWeight: '900',
-    color: '#F9FAFB',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
     letterSpacing: -1,
     lineHeight: 32,
   },
   telemetryKmUnit: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.tertiary,
     marginTop: -4,
   },
   telemetrySubStats: {
@@ -1722,19 +1770,19 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   telemetrySubStatText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   telemetrySubStatSep: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.25)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
   },
   telemetryVSep: {
     width: 1,
     alignSelf: 'stretch',
     minHeight: 44,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: COLORS.border.light,
     marginHorizontal: 10,
   },
   telemetryAhorroBlock: {
@@ -1743,17 +1791,19 @@ const styles = StyleSheet.create({
     maxWidth: SCREEN_WIDTH * 0.32,
   },
   telemetryAhorroLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#10B981',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.success.main,
     letterSpacing: 0.4,
     marginBottom: 2,
+    textTransform: 'uppercase',
   },
   telemetryAhorroValue: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6EE7B7',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
+
   weatherCardWrap: {
     width: '100%',
     marginBottom: 16,
@@ -1780,7 +1830,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    borderTopColor: COLORS.border.light,
   },
   weatherCardLoading: {
     alignItems: 'center',
@@ -1790,9 +1840,9 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   weatherCardLoadingText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   weatherCardUnavailable: {
     alignItems: 'center',
@@ -1802,15 +1852,15 @@ const styles = StyleSheet.create({
     minHeight: 100,
   },
   weatherCardUnavailableText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
     textAlign: 'center',
     lineHeight: 16,
   },
   entornoWeatherCity: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.42)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     lineHeight: 15,
     marginTop: 2,
     marginBottom: 10,
@@ -1823,22 +1873,21 @@ const styles = StyleSheet.create({
   },
   entornoRiskLabel: {
     flexShrink: 1,
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   entornoRiskPct: {
     fontSize: 28,
-    fontWeight: '900',
-    color: '#F87171',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
     marginBottom: 4,
     letterSpacing: -0.5,
   },
   entornoRiskBandLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     marginBottom: 6,
   },
   microBarRow: {
@@ -1849,15 +1898,15 @@ const styles = StyleSheet.create({
   },
   microBarLabel: {
     width: 44,
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
   },
   microBarTrack: {
     flex: 1,
     height: 5,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[200],
     overflow: 'hidden',
   },
   microBarFill: {
@@ -1866,51 +1915,40 @@ const styles = StyleSheet.create({
   },
   microBarPct: {
     width: 32,
-    fontSize: 11,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.tertiary,
     textAlign: 'right',
   },
   entornoTapText: {
     flex: 1,
-    fontSize: 11,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.38)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
     fontStyle: 'italic',
     lineHeight: 15,
   },
+
+  // Weather modal
   weatherModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(10,11,13,0.45)',
     justifyContent: 'flex-end',
   },
   weatherSheet: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: BORDERS.radius.xl,
+    borderTopRightRadius: BORDERS.radius.xl,
     overflow: 'hidden',
     maxHeight: '78%',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -8 },
-        shadowOpacity: 0.35,
-        shadowRadius: 32,
-      },
-      android: { elevation: 24 },
-    }),
-  },
-  weatherSheetTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(3,7,18,0.65)',
+    backgroundColor: COLORS.background.paper,
+    ...SHADOWS.lg,
   },
   weatherSheetHandle: {
     alignSelf: 'center',
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: COLORS.neutral.gray[300],
     marginTop: 10,
     marginBottom: 4,
   },
@@ -1924,15 +1962,17 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   weatherSheetTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.styles.h3.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
+    color: COLORS.text.primary,
     marginTop: 10,
+    textAlign: 'center',
   },
   weatherSheetSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     marginTop: 6,
     textAlign: 'center',
   },
@@ -1945,15 +1985,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   weatherWearTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#E5E7EB',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
     marginBottom: 6,
   },
   weatherBarTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[200],
     overflow: 'hidden',
   },
   weatherBarFill: {
@@ -1961,15 +2001,13 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   weatherWearReason: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
     marginTop: 3,
     lineHeight: 14,
   },
   weatherWearPct: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
     marginLeft: 8,
     minWidth: 40,
     textAlign: 'right',
@@ -1979,35 +2017,34 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
     padding: 14,
-    borderRadius: 14,
-    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    backgroundColor: COLORS.success.light,
     borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.25)',
+    borderColor: COLORS.success.main,
     marginBottom: 20,
   },
   weatherTipsText: {
     flex: 1,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#A7F3D0',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.primary,
     lineHeight: 20,
   },
   weatherEntendidoBtn: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 14,
+    backgroundColor: COLORS.primary[500],
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
     paddingVertical: 14,
     alignItems: 'center',
   },
   weatherEntendidoText: {
-    color: '#F9FAFB',
-    fontWeight: '800',
-    fontSize: 16,
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
   },
+
   tripHint: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     lineHeight: 17,
     marginBottom: 8,
   },
@@ -2019,19 +2056,20 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   sectionLabelInline: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    letterSpacing: -0.25,
+    color: COLORS.text.primary,
   },
   panelSectionHint: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.38)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     lineHeight: 17,
     marginBottom: 12,
   },
   panelEmptyText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 19,
   },
@@ -2044,14 +2082,14 @@ const styles = StyleSheet.create({
   },
   marketServicioRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.07)',
+    borderBottomColor: COLORS.border.light,
   },
   marketServicioName: {
     flex: 1,
     marginRight: 12,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.primary,
     lineHeight: 20,
   },
   marketPersonasCol: {
@@ -2060,26 +2098,20 @@ const styles = StyleSheet.create({
     minWidth: 56,
   },
   marketPersonasNum: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#E9D5FF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.primary[500],
   },
   marketPersonasLbl: {
     marginTop: 2,
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.42)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.tertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
 
-  // Acciones rápidas (fila horizontal tipo gestión taller; ancho fijo para no romper layout)
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F9FAFB',
-    marginBottom: 12,
-  },
+  // Quick actions
   quickScrollOuter: {
     marginBottom: 16,
     marginHorizontal: -2,
@@ -2092,7 +2124,7 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   quickMgmtCardScroll: {
-    borderRadius: 16,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
   },
   quickMgmtInner: {
     flexDirection: 'row',
@@ -2104,7 +2136,7 @@ const styles = StyleSheet.create({
   quickMgmtIconBox: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: BORDERS.radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -2113,27 +2145,29 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   quickMgmtTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
   quickMgmtSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.42)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     marginTop: 1,
   },
 
   // Vehicle selector modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(10,11,13,0.45)',
     justifyContent: 'flex-end',
   },
   selectorModal: {
     maxHeight: '70%',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: BORDERS.radius.xl,
+    borderTopRightRadius: BORDERS.radius.xl,
     overflow: 'hidden',
+    backgroundColor: COLORS.background.paper,
+    ...SHADOWS.lg,
   },
   selectorModalHeader: {
     flexDirection: 'row',
@@ -2144,9 +2178,10 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   selectorModalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.styles.h3.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
+    color: COLORS.text.primary,
   },
   selectorListItem: {
     flexDirection: 'row',
@@ -2154,25 +2189,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: COLORS.border.light,
   },
   selectorListItemActive: {
-    backgroundColor: 'rgba(99,102,241,0.1)',
+    backgroundColor: COLORS.primary[50],
   },
   selectorListThumb: {
     width: 44,
     height: 44,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   selectorListTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
   selectorListSub: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   selectorAddBtn: {
@@ -2182,30 +2217,24 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopColor: COLORS.border.light,
+    backgroundColor: COLORS.primary[500],
   },
   selectorAddText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#A5B4FC',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.inverse,
   },
 
   // Trip completion modal
   tripModal: {
     marginHorizontal: 20,
-    borderRadius: 24,
+    borderRadius: BORDERS.radius.xl,
     overflow: 'hidden',
     alignSelf: 'center',
     width: SCREEN_WIDTH - 40,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 24,
-      },
-      android: { elevation: 16 },
-    }),
+    backgroundColor: COLORS.background.paper,
+    ...SHADOWS.lg,
   },
   tripModalContent: {
     padding: 28,
@@ -2214,48 +2243,52 @@ const styles = StyleSheet.create({
   tripModalIcon: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(16,185,129,0.15)',
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.success.light,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   tripModalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.styles.h3.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
+    color: COLORS.text.primary,
     marginBottom: 4,
   },
   tripModalSub: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
     marginBottom: 20,
   },
   tripModalStats: {
     flexDirection: 'row',
-    gap: 24,
+    gap: 12,
     marginBottom: 16,
   },
   tripModalStat: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
     paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    borderRadius: BORDERS.radius.md,
+    minWidth: 92,
   },
   tripModalStatValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   tripModalStatLabel: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
     marginTop: 2,
   },
   tripModalHint: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     marginBottom: 20,
   },
   tripConfirmBtn: {
@@ -2263,25 +2296,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
     paddingVertical: 14,
     paddingHorizontal: 32,
-    borderRadius: 14,
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
     width: '100%',
     marginBottom: 10,
   },
   tripConfirmText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
   },
   tripDismissBtn: {
     paddingVertical: 10,
   },
   tripDismissText: {
-    color: 'rgba(255,255,255,0.4)',
-    fontSize: 14,
-    fontWeight: '500',
+    color: COLORS.text.tertiary,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
 });
 

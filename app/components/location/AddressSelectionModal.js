@@ -494,9 +494,9 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     heroButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#EFF6FF', // blue-50 hardcoded match
+        backgroundColor: colors.neutral.gray[100],
         borderWidth: 1,
-        borderColor: '#DBEAFE', // blue-100
+        borderColor: colors.border.light,
         borderRadius: borders.radius.lg,
         padding: spacing.md,
         marginBottom: spacing.lg,
@@ -505,7 +505,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#DBEAFE',
+        backgroundColor: colors.primary[50],
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: spacing.md,
@@ -516,22 +516,22 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     heroTitle: {
         fontSize: typography.fontSize.base,
         fontWeight: typography.fontWeight.semibold,
-        color: '#1E40AF', // blue-800
+        color: colors.text.primary,
         marginBottom: 2,
     },
     heroSubtitle: {
         fontSize: typography.fontSize.xs,
-        color: '#60A5FA', // blue-400
+        color: colors.text.secondary,
     },
 
     // Save Form
     saveForm: {
-        backgroundColor: '#F0FDF4', // green-50
+        backgroundColor: colors.success.light,
         borderRadius: borders.radius.lg,
         padding: spacing.md,
         marginBottom: spacing.lg,
         borderWidth: 1,
-        borderColor: '#DCFCE7',
+        borderColor: colors.border.light,
     },
     detectedHeader: {
         flexDirection: 'row',
@@ -543,13 +543,13 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     },
     detectedText: {
         fontSize: typography.fontSize.sm,
-        color: '#166534', // green-800
+        color: colors.text.primary,
         fontWeight: typography.fontWeight.medium,
         flex: 1,
     },
     detectedLabel: {
         fontSize: typography.fontSize.sm,
-        color: '#166534',
+        color: colors.text.primary,
         fontWeight: typography.fontWeight.medium,
         flex: 1,
         marginBottom: 0,
@@ -617,8 +617,8 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         borderColor: 'transparent',
     },
     addressItemSelected: {
-        backgroundColor: '#EFF6FF',
-        borderColor: '#DBEAFE',
+        backgroundColor: colors.primary[50],
+        borderColor: colors.primary[100],
     },
     itemIcon: {
         width: 32,
@@ -630,7 +630,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         marginRight: spacing.md,
     },
     itemIconSelected: {
-        backgroundColor: '#DBEAFE',
+        backgroundColor: colors.primary[100],
     },
     itemContent: {
         flex: 1,
@@ -643,7 +643,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         marginBottom: 2,
     },
     itemLabelSelected: {
-        color: '#1E40AF',
+        color: colors.text.primary,
     },
     itemAddress: {
         fontSize: typography.fontSize.sm,

@@ -8,24 +8,14 @@ import {
   ActivityIndicator,
   StatusBar,
   RefreshControl,
-  Alert,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { get, post } from '../../services/api';
-import { COLORS } from '../../utils/constants';
-
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const GLASS_BORDER = 'rgba(255,255,255,0.12)';
+import { get } from '../../services/api';
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS, SPACING, SHADOWS } from '../../design-system/tokens';
 
 const PendingReviewsScreen = () => {
   const navigation = useNavigation();
@@ -40,7 +30,7 @@ const PendingReviewsScreen = () => {
 
   const loadServicesWithoutReview = async () => {
     try {
-      setLoading(true);
+      if (!refreshing) setLoading(true);
       setError(null);
       const response = await get('/usuarios/servicios-completados-sin-resena/');
       setServices(response.services_without_review || []);
@@ -74,7 +64,7 @@ const PendingReviewsScreen = () => {
             />
           ) : (
             <View style={styles.providerPhotoPlaceholder}>
-              <Ionicons name="person" size={24} color={COLORS.textLight} />
+              <Ionicons name="person" size={24} color={COLORS.text.tertiary} />
             </View>
           )}
           <View style={styles.providerDetails}>
@@ -83,10 +73,8 @@ const PendingReviewsScreen = () => {
           </View>
         </View>
         <View style={styles.vehicleInfo}>
-          <Ionicons name="car" size={16} color={COLORS.textLight} />
-          <Text style={styles.vehicleText}>
-            {item.vehicle.full_name}
-          </Text>
+          <Ionicons name="car" size={16} color={COLORS.text.secondary} />
+          <Text style={styles.vehicleText}>{item.vehicle.full_name}</Text>
         </View>
       </View>
 
@@ -94,11 +82,8 @@ const PendingReviewsScreen = () => {
         <Text style={styles.completionDate}>
           Completado: {new Date(item.completion_date).toLocaleDateString()}
         </Text>
-        <TouchableOpacity
-          style={styles.reviewButton}
-          onPress={() => handleCreateReview(item)}
-        >
-          <Ionicons name="star-outline" size={16} color="white" />
+        <TouchableOpacity style={styles.reviewButton} onPress={() => handleCreateReview(item)}>
+          <Ionicons name="star-outline" size={16} color={COLORS.text.onPrimary} />
           <Text style={styles.reviewButtonText}>Dejar Reseña</Text>
         </TouchableOpacity>
       </View>
@@ -107,20 +92,17 @@ const PendingReviewsScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="checkmark-circle-outline" size={80} color={COLORS.textLight} />
+      <Ionicons name="checkmark-circle-outline" size={80} color={COLORS.success[400]} />
       <Text style={styles.emptyTitle}>¡Excelente!</Text>
-      <Text style={styles.emptyText}>
-        Ya has dejado reseñas para todos tus servicios completados.
-      </Text>
+      <Text style={styles.emptyText}>Ya has dejado reseñas para todos tus servicios completados.</Text>
     </View>
   );
 
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#030712" />
-        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-        <ActivityIndicator size="large" color="#6EE7B7" />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
+        <ActivityIndicator size="large" color={COLORS.primary[500]} />
         <Text style={styles.loadingText}>Cargando servicios...</Text>
       </View>
     );
@@ -128,13 +110,7 @@ const PendingReviewsScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#030712" />
-      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-        <View style={{ position: 'absolute', top: 340, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-      </View>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       <FlatList
         data={services}
@@ -146,8 +122,7 @@ const PendingReviewsScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#6EE7B7']}
-            tintColor={'#6EE7B7'}
+            tintColor={COLORS.primary[500]}
           />
         }
       />
@@ -167,45 +142,21 @@ const PendingReviewsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: GLASS_BG,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  backButton: {
-    marginRight: 15,
-    padding: 5,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: COLORS.text,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.textLight,
-    marginTop: 2,
+    backgroundColor: COLORS.background.default,
   },
   listContent: {
-    padding: 16,
+    padding: SPACING.md,
     paddingBottom: 40,
   },
   serviceCard: {
-    backgroundColor: GLASS_BG,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.md + 4,
+    marginBottom: SPACING.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     overflow: 'hidden',
+    ...SHADOWS.sm,
   },
   serviceHeader: {
     marginBottom: 12,
@@ -220,13 +171,13 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     marginRight: 14,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[100],
   },
   providerPhotoPlaceholder: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[100],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -236,13 +187,13 @@ const styles = StyleSheet.create({
   },
   providerName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#F9FAFB',
+    fontWeight: '700',
+    color: COLORS.text.primary,
     marginBottom: 2,
   },
   serviceName: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.62)',
+    color: COLORS.text.secondary,
   },
   vehicleInfo: {
     flexDirection: 'row',
@@ -250,7 +201,7 @@ const styles = StyleSheet.create({
   },
   vehicleText: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.62)',
+    color: COLORS.text.secondary,
     marginLeft: 4,
   },
   serviceFooter: {
@@ -260,23 +211,21 @@ const styles = StyleSheet.create({
   },
   completionDate: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.tertiary,
   },
   reviewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(110,231,183,0.25)',
+    borderRadius: BORDERS.radius.pill,
+    gap: 6,
   },
   reviewButtonText: {
-    color: 'white',
+    color: COLORS.text.onPrimary,
     fontSize: 14,
     fontWeight: '600',
-    marginLeft: 6,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -285,14 +234,14 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#F9FAFB',
+    fontWeight: '700',
+    color: COLORS.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -300,36 +249,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.text.secondary,
   },
   errorContainer: {
     padding: 16,
     alignItems: 'center',
   },
   errorText: {
-    color: '#FCA5A5',
+    color: COLORS.error.main,
     fontSize: 15,
     marginBottom: 12,
     textAlign: 'center',
   },
   retryButton: {
-    backgroundColor: 'rgba(239,68,68,0.25)',
+    backgroundColor: COLORS.error.light,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.25)',
+    borderRadius: BORDERS.radius.pill,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.error[200],
   },
   retryButtonText: {
-    color: 'white',
+    color: COLORS.error.dark,
     fontSize: 14,
     fontWeight: '600',
   },
 });
 
-export default PendingReviewsScreen; 
+export default PendingReviewsScreen;

@@ -1,20 +1,15 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { Clock } from 'lucide-react-native';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 
-const glassBase = {
-  backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.12)',
-  overflow: 'hidden',
-  padding: 16,
-};
-
-const GlassCard = ({ children, style }) => (
-  <View style={[glassBase, style]}>
-    {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
+const Card = ({ children, style }) => (
+  <View
+    style={[
+      styles.card,
+      style,
+    ]}
+  >
     {children}
   </View>
 );
@@ -90,11 +85,11 @@ export default function ProviderScheduleSection({ horarios }) {
   return (
     <View style={styles.section}>
       <View style={styles.headerRow}>
-        <Clock size={18} color="#93C5FD" />
+        <Clock size={18} color={COLORS.primary[500]} />
         <Text style={styles.sectionTitle}>Horarios disponibles</Text>
       </View>
 
-      <GlassCard>
+      <Card>
         {hasAny ? (
           <View style={styles.list}>
             {grouped.map((g, idx) => (
@@ -111,14 +106,14 @@ export default function ProviderScheduleSection({ horarios }) {
         ) : (
           <Text style={styles.emptyText}>Horarios no disponibles.</Text>
         )}
-      </GlassCard>
+      </Card>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   section: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.container.horizontal,
     marginBottom: 20,
   },
   headerRow: {
@@ -129,8 +124,16 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  card: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    overflow: 'hidden',
+    padding: 16,
   },
   list: {
     gap: 10,
@@ -141,22 +144,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   day: {
-    color: 'rgba(255,255,255,0.8)',
+    color: COLORS.text.primary,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   hours: {
-    color: '#6EE7B7',
+    color: COLORS.text.primary,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   closed: {
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.tertiary,
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: TYPOGRAPHY.fontWeight.regular,
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.55)',
+    color: COLORS.text.secondary,
     fontSize: 13,
     lineHeight: 18,
   },

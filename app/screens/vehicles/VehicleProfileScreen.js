@@ -9,19 +9,22 @@ import {
     Alert,
     ActivityIndicator,
     RefreshControl,
-    Modal,
     TextInput,
     Platform
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { Camera, Trash2, Info, ArrowLeft } from 'lucide-react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ROUTES } from '../../utils/constants';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import Button from '../../components/base/Button/Button';
 
 // Services
 import * as vehicleService from '../../services/vehicle';
@@ -34,12 +37,6 @@ import ActiveRequestCard from '../../components/vehicle/ActiveRequestCard';
 import VehicleValuationCard from '../../components/vehicle/VehicleValuationCard';
 import QuickActionGrid from '../../components/vehicle/QuickActionGrid';
 import TechSpecsCard, { RevisionTecnicaCard } from '../../components/vehicle/TechSpecsCard';
-
-// Temporary Mock for Valuation (Business Logic should eventually provide this)
-const MOCK_VALUATION = {
-    marketValue: 12500000,
-    suggestedValue: 13125000
-};
 
 const VehicleProfileScreen = () => {
     const navigation = useNavigation();
@@ -247,7 +244,14 @@ const VehicleProfileScreen = () => {
         }
     };
 
-    if (!vehicle) return <ActivityIndicator style={{ flex: 1, backgroundColor: '#030712' }} color="#6EE7B7" />;
+    if (!vehicle) {
+        return (
+            <ActivityIndicator
+                style={{ flex: 1, backgroundColor: COLORS.background.default }}
+                color={COLORS.primary[500]}
+            />
+        );
+    }
 
     const imageUrl = vehicle.foto || null;
 
@@ -277,36 +281,35 @@ const VehicleProfileScreen = () => {
 
     return (
         <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-
-            {/* Dark gradient background */}
-            <LinearGradient
-                colors={['#030712', '#0a1628', '#030712']}
-                style={StyleSheet.absoluteFill}
-            />
-
+            <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
             <ScrollView
                 style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6EE7B7" />}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={COLORS.primary[500]}
+                    />
+                }
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.headerImageContainer}>
 
                     <View style={[styles.scrollableHeaderControls, { top: insets.top }]}>
-                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
                             <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
-                                <ArrowLeft size={22} color="#FFF" />
+                                <ArrowLeft size={22} color={COLORS.text.inverse} />
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.iconButton} onPress={handleChangePhoto}>
-                                <Camera size={22} color="#FFF" />
+                                <Camera size={22} color={COLORS.text.inverse} />
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.rightButtons}>
                             <TouchableOpacity style={styles.iconButton} onPress={handleDelete}>
-                                <Trash2 size={22} color="#FFF" />
+                                <Trash2 size={22} color={COLORS.text.inverse} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -316,22 +319,18 @@ const VehicleProfileScreen = () => {
                         <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
                     ) : (
                         <View style={styles.placeholderHeader}>
-                            <Ionicons name="car-sport" size={80} color="rgba(255,255,255,0.15)" />
+                            <Ionicons name="car-sport" size={80} color={COLORS.neutral.gray[300]} />
                         </View>
                     )}
 
-                    {/* Gradient Overlay */}
-                    <LinearGradient
-                        colors={['transparent', 'rgba(3,7,18,0.9)']}
-                        style={styles.gradientOverlay}
-                    >
+                    <View style={styles.gradientOverlay}>
                         <View style={styles.headerInfo}>
                             <Text style={styles.headerSubtitle}>{vehicle.year} • {vehicle.patente}</Text>
                             <Text style={styles.headerTitle}>
                                 {vehicle.marca_nombre || vehicle.marca} {vehicle.modelo_nombre || vehicle.modelo}
                             </Text>
                         </View>
-                    </LinearGradient>
+                    </View>
                 </View>
 
                 {/* Scrollable Content overlapping Header */}
@@ -376,15 +375,12 @@ const VehicleProfileScreen = () => {
 
                     {/* 6. Valuation Explanation */}
                     <View style={styles.infoCard}>
-                        {Platform.OS === 'ios' && (
-                            <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-                        )}
                         <View style={styles.infoHeader}>
-                            <Info size={20} color="#93C5FD" />
+                            <Info size={20} color={COLORS.primary[500]} />
                             <Text style={styles.infoTitle}>¿Cómo calculamos tu valor?</Text>
                         </View>
                         <Text style={styles.infoText}>
-                            Usamos el <Text style={{ fontWeight: '700', color: '#FFF' }}>Precio de Mercado</Text> real como base y sumamos valor adicional por tu <Text style={{ fontWeight: '700', color: '#FFF' }}>Salud Certificada</Text> y <Text style={{ fontWeight: '700', color: '#FFF' }}>Kilometraje</Text>. ¡Sin castigos injustos!
+                            Usamos el <Text style={styles.infoEmphasis}>Precio de Mercado</Text> real como base y sumamos valor adicional por tu <Text style={styles.infoEmphasis}>Salud Certificada</Text> y <Text style={styles.infoEmphasis}>Kilometraje</Text>. ¡Sin castigos injustos!
                         </Text>
                     </View>
 
@@ -404,9 +400,6 @@ const VehicleProfileScreen = () => {
                             onPress={() => setValuationModalVisible(false)}
                         >
                             <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
-                                {Platform.OS === 'ios' && (
-                                    <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-                                )}
                                 <Text style={styles.modalTitle}>Establecer Valor</Text>
                                 <Text style={styles.modalSubtitle}>
                                     No pudimos obtener la tasación automática. Ingresa tu estimación.
@@ -415,7 +408,7 @@ const VehicleProfileScreen = () => {
                                 <TextInput
                                     style={styles.input}
                                     placeholder="Ej: 8000000"
-                                    placeholderTextColor="rgba(255,255,255,0.35)"
+                                    placeholderTextColor={COLORS.text.tertiary}
                                     keyboardType="numeric"
                                     value={manualValuation}
                                     onChangeText={setManualValuation}
@@ -429,18 +422,9 @@ const VehicleProfileScreen = () => {
                                     >
                                         <Text style={styles.cancelButtonText}>Cancelar</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.modalButton, styles.saveButton]}
-                                        onPress={handleSaveValuation}
-                                    >
-                                        <LinearGradient
-                                            colors={['#007EA7', '#00A8E8']}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 0 }}
-                                            style={StyleSheet.absoluteFill}
-                                        />
-                                        <Text style={styles.saveButtonText}>Guardar</Text>
-                                    </TouchableOpacity>
+                                    <View style={[styles.modalButton, styles.saveButtonWrap]}>
+                                        <Button title="Guardar" onPress={handleSaveValuation} />
+                                    </View>
                                 </View>
                             </View>
                         </TouchableOpacity>
@@ -454,7 +438,7 @@ const VehicleProfileScreen = () => {
 const getStyles = (insets) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#030712',
+        backgroundColor: COLORS.background.default,
         ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
     },
     /** Web: sin altura acotada el ScrollView crece con el contenido y no hay scroll (stack/tabs). */
@@ -469,7 +453,7 @@ const getStyles = (insets) => StyleSheet.create({
         height: 340,
         width: '100%',
         position: 'relative',
-        backgroundColor: '#0a1628',
+        backgroundColor: COLORS.neutral.gray[100],
     },
     headerImage: {
         width: '100%',
@@ -480,7 +464,7 @@ const getStyles = (insets) => StyleSheet.create({
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#0a1628',
+        backgroundColor: COLORS.neutral.gray[100],
     },
     gradientOverlay: {
         position: 'absolute',
@@ -489,32 +473,30 @@ const getStyles = (insets) => StyleSheet.create({
         right: 0,
         height: 160,
         justifyContent: 'flex-end',
-        padding: 16,
-        paddingBottom: 48,
+        padding: SPACING.md,
+        paddingBottom: SPACING['2xl'],
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.5),
     },
     headerInfo: {
         marginBottom: 8,
     },
     headerTitle: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 4,
+        fontSize: TYPOGRAPHY.fontSize['3xl'],
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.inverse,
     },
     headerSubtitle: {
-        fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.7)',
-        marginBottom: 4,
-        fontWeight: '500',
+        fontSize: TYPOGRAPHY.fontSize.md,
+        color: withOpacity(COLORS.text.inverse, 0.85),
+        marginBottom: SPACING.xxs,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     contentBody: {
-        marginTop: -32,
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        backgroundColor: '#030712',
-        paddingTop: 24,
+        marginTop: -SPACING.xl,
+        borderTopLeftRadius: BORDERS.radius.modal.lg,
+        borderTopRightRadius: BORDERS.radius.modal.lg,
+        backgroundColor: COLORS.background.default,
+        paddingTop: SPACING.lg,
     },
     scrollableHeaderControls: {
         position: 'absolute',
@@ -524,16 +506,16 @@ const getStyles = (insets) => StyleSheet.create({
         zIndex: 10,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingTop: 16,
+        paddingHorizontal: SPACING.container.horizontal,
+        paddingTop: SPACING.md,
     },
     backButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
+        borderWidth: BORDERS.width.thin,
+        borderColor: withOpacity(COLORS.base.white, 0.2),
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -544,110 +526,112 @@ const getStyles = (insets) => StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(0,0,0,0.4)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
+        borderWidth: BORDERS.width.thin,
+        borderColor: withOpacity(COLORS.base.white, 0.2),
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: 8,
+        marginLeft: SPACING.xs,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        backgroundColor: COLORS.background.overlay,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 24,
+        padding: SPACING.lg,
     },
     modalContent: {
-        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        padding: 24,
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.modal.lg,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        padding: SPACING.lg,
         width: '100%',
         alignItems: 'center',
         overflow: 'hidden',
+        ...SHADOWS.lg,
     },
     modalTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 8,
-        color: '#FFFFFF',
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        marginBottom: SPACING.xs,
+        color: COLORS.text.primary,
     },
     modalSubtitle: {
-        fontSize: 14,
-        color: 'rgba(255,255,255,0.5)',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        color: COLORS.text.secondary,
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: SPACING.lg,
     },
     input: {
         width: '100%',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        padding: 16,
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#FFFFFF',
-        marginBottom: 24,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.input.md,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        padding: SPACING.md,
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.lg,
         textAlign: 'center',
     },
     modalButtons: {
         flexDirection: 'row',
         width: '100%',
-        gap: 12,
+        gap: SPACING.sm,
     },
     modalButton: {
         flex: 1,
-        paddingVertical: 14,
-        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         overflow: 'hidden',
     },
     cancelButton: {
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        borderRadius: BORDERS.radius.button.md,
+        paddingVertical: SPACING.md,
     },
-    saveButton: {
-        // LinearGradient fills via absoluteFill
+    saveButtonWrap: {
+        minHeight: 48,
     },
     cancelButtonText: {
-        fontWeight: '600',
-        color: 'rgba(255,255,255,0.5)',
-    },
-    saveButtonText: {
-        fontWeight: '600',
-        color: '#FFFFFF',
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.secondary,
     },
     infoCard: {
-        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-        marginHorizontal: 16,
-        marginTop: 16,
-        padding: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: COLORS.background.paper,
+        marginHorizontal: SPACING.container.horizontal,
+        marginTop: SPACING.md,
+        padding: SPACING.md,
+        borderRadius: BORDERS.radius.card.lg,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         overflow: 'hidden',
+        ...SHADOWS.sm,
     },
     infoHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 8,
-        gap: 8,
+        marginBottom: SPACING.xs,
+        gap: SPACING.xs,
     },
     infoTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#FFFFFF',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
     },
     infoText: {
-        fontSize: 13,
-        color: 'rgba(255,255,255,0.5)',
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
         lineHeight: 20,
-    }
+    },
+    infoEmphasis: {
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+    },
 });
 
 export default VehicleProfileScreen;

@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -18,21 +17,13 @@ import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { useAgendamiento } from '../../context/AgendamientoContext';
 import ofertasService from '../../services/ofertasService';
-import solicitudesService from '../../services/solicitudesService';
 import chatService from '../../services/chatService';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const GLASS_BORDER = 'rgba(255,255,255,0.12)';
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 
 /**
  * Pantalla para comparar múltiples ofertas lado a lado
- * Aplicando sistema de diseño MecaniMóvil
  */
 const ComparadorOfertasScreen = () => {
   const navigation = useNavigation();
@@ -59,7 +50,6 @@ const ComparadorOfertasScreen = () => {
       setLoading(true);
       setErrorValidacion(null);
 
-      // Cargar solicitud si tenemos solicitudId
       if (solicitudId) {
         try {
           const solicitudesService = (await import('../../services/solicitudesService')).default;
@@ -80,7 +70,6 @@ const ComparadorOfertasScreen = () => {
         );
         ofertasData = await Promise.all(promesas);
 
-        // Validación: Verificar que todas las ofertas pertenezcan a la misma solicitud
         if (solicitudId) {
           const ofertasInvalidas = ofertasData.filter(o => {
             const ofertaSolicitudId = o.solicitud || (typeof o.solicitud === 'object' ? o.solicitud.id : null);
@@ -186,11 +175,10 @@ const ComparadorOfertasScreen = () => {
                     {
                       text: 'Pagar Ahora',
                       onPress: async () => {
-                        // Siempre navegar a OpcionesPago, que maneja ambos casos (con o sin desglose)
                         navigation.navigate('OpcionesPago', {
                           solicitudId: solicitudId,
                           origen: 'solicitud_publica',
-                          ofertaId: oferta.id // Pasar oferta explícita si es necesario
+                          ofertaId: oferta.id
                         });
                       }
                     }
@@ -221,7 +209,7 @@ const ComparadorOfertasScreen = () => {
     try {
       const conversationId = await chatService.getOrCreateConversation({
         ofertaId: oferta.id,
-        solicitudId: solicitudId,
+        solicitudId,
         type: 'service'
       });
 
@@ -237,17 +225,10 @@ const ComparadorOfertasScreen = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#030712" />
-        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-          <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-          <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-          <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-        </View>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
         <View style={styles.loadingContainer}>
           <View style={styles.loadingCard}>
-            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
-            <ActivityIndicator size="large" color="#6EE7B7" />
+            <ActivityIndicator size="large" color={COLORS.primary[500]} />
             <Text style={styles.loadingTitle}>Cargando ofertas</Text>
             <Text style={styles.loadingSubtitle}>Preparando la comparación...</Text>
           </View>
@@ -259,16 +240,10 @@ const ComparadorOfertasScreen = () => {
   if (errorValidacion) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#030712" />
-        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-          <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-          <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-          <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-        </View>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
         <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIconContainer, { backgroundColor: 'rgba(239,68,68,0.12)', borderColor: 'rgba(239,68,68,0.20)' }]}>
-            <Ionicons name="alert-circle" size={48} color="#FCA5A5" />
+          <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.error[50], borderColor: COLORS.error[200] }]}>
+            <Ionicons name="alert-circle" size={48} color={COLORS.error.main} />
           </View>
           <Text style={styles.emptyTitle}>Error de Validación</Text>
           <Text style={styles.emptyText}>{errorValidacion}</Text>
@@ -287,16 +262,10 @@ const ComparadorOfertasScreen = () => {
   if (ofertas.length < 2) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#030712" />
-        <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-        <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-          <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-          <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-          <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-        </View>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
         <View style={styles.emptyContainer}>
-          <View style={[styles.emptyIconContainer, { backgroundColor: 'rgba(245,158,11,0.12)', borderColor: 'rgba(245,158,11,0.22)' }]}>
-            <MaterialIcons name="compare-arrows" size={48} color="#FBBF24" />
+          <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.warning[50], borderColor: COLORS.warning[200] }]}>
+            <MaterialIcons name="compare-arrows" size={48} color={COLORS.warning.main} />
           </View>
           <Text style={styles.emptyTitle}>Ofertas Insuficientes</Text>
           <Text style={styles.emptyText}>
@@ -316,13 +285,7 @@ const ComparadorOfertasScreen = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#030712" />
-      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-        <View style={{ position: 'absolute', top: 360, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-      </View>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       <ScrollView
         style={styles.scrollView}
@@ -345,8 +308,7 @@ const ComparadorOfertasScreen = () => {
       {procesando && (
         <View style={styles.processingOverlay}>
           <View style={styles.processingCard}>
-            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
-            <ActivityIndicator size="large" color="#6EE7B7" />
+            <ActivityIndicator size="large" color={COLORS.primary[500]} />
             <Text style={styles.processingText}>Procesando oferta...</Text>
           </View>
         </View>
@@ -358,16 +320,14 @@ const ComparadorOfertasScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
-  // Scroll
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   scrollContent: {
-    padding: 16
+    padding: 16,
   },
-  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -375,26 +335,25 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   loadingCard: {
-    borderRadius: 24,
+    borderRadius: BORDERS.radius.xl,
     padding: 32,
     alignItems: 'center',
-    backgroundColor: GLASS_BG,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    overflow: 'hidden',
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   loadingTitle: {
     marginTop: 16,
     fontSize: 16,
     fontWeight: '600',
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
   },
   loadingSubtitle: {
     marginTop: 4,
     fontSize: 12,
-    color: 'rgba(255,255,255,0.55)',
+    color: COLORS.text.secondary,
   },
-  // Empty states
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -408,14 +367,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 8,
     textAlign: 'center',
-    color: '#F9FAFB',
+    color: COLORS.text.primary,
   },
   emptyText: {
     fontSize: 14,
@@ -423,49 +382,48 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 22,
     paddingHorizontal: 16,
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.text.secondary,
   },
   emptyButton: {
     paddingVertical: 12,
     paddingHorizontal: 32,
-    borderRadius: 12,
-    backgroundColor: '#007EA7',
-    borderWidth: 1,
-    borderColor: 'rgba(0,168,232,0.25)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[500],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[600],
   },
   emptyButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.text.onPrimary,
     fontSize: 14,
     fontWeight: '600',
   },
-  // Processing overlay
   processingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: COLORS.background.overlay,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000
+    zIndex: 1000,
   },
   processingCard: {
-    borderRadius: 16,
+    borderRadius: BORDERS.radius.lg,
     padding: 24,
     alignItems: 'center',
     minWidth: 180,
-    backgroundColor: GLASS_BG,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    overflow: 'hidden',
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.md,
   },
   processingText: {
     marginTop: 16,
     fontSize: 14,
     fontWeight: '600',
-    color: '#F9FAFB',
-  }
+    color: COLORS.text.primary,
+  },
 });
 
 export default ComparadorOfertasScreen;

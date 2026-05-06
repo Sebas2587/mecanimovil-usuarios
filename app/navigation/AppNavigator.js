@@ -9,6 +9,7 @@ import { BlurView } from 'expo-blur';
 import { Home, Car, ShoppingBag } from 'lucide-react-native';
 import CustomHeader from '../components/navigation/Header/Header';
 import { useTheme } from '../design-system/theme/useTheme';
+import { COLORS } from '../design-system/tokens';
 
 import UserPanelScreen from '../screens/main/UserPanelScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
@@ -86,8 +87,9 @@ const getHeaderOptions = (title, options = {}) => ({
 });
 
 const DARK_GLASS_HEADER = {
-  backgroundColor: '#030712',
-  titleColor: '#F9FAFB',
+  // Mantener nombre por compatibilidad de opciones, pero ahora es Coinbase light.
+  backgroundColor: COLORS.background.default,
+  titleColor: COLORS.text.primary,
 };
 
 const PROFILE_HEADER_NO_DIVIDER = {
@@ -151,7 +153,7 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
 
   return (
     <View style={[tabStyles.container, { paddingBottom: Math.max(insets.bottom, 8), height: 64 + Math.max(insets.bottom, 0) }]}>
-      {Platform.OS === 'ios' && <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />}
+      {Platform.OS === 'ios' && <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />}
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = options.tabBarLabel ?? options.title ?? route.name;
@@ -166,7 +168,7 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
         if (route.name === ROUTES.MIS_VEHICULOS) IconComponent = Car;
         else if (route.name === ROUTES.MARKETPLACE) IconComponent = ShoppingBag;
 
-        const color = isFocused ? '#00A8E8' : 'rgba(255,255,255,0.35)';
+        const color = isFocused ? COLORS.primary[500] : COLORS.text.tertiary;
 
         return (
           <TouchableOpacity key={route.key} onPress={onPress} style={tabStyles.tab} activeOpacity={0.7}>
@@ -183,9 +185,9 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
 const tabStyles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(3,7,18,0.85)' : 'rgba(3,7,18,0.95)',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.92)' : '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: COLORS.border.light,
     overflow: 'hidden',
   },
   tab: {
@@ -201,7 +203,7 @@ const tabStyles = StyleSheet.create({
     width: 24,
     height: 2,
     borderRadius: 1,
-    backgroundColor: '#00A8E8',
+    backgroundColor: COLORS.primary[500],
   },
   label: {
     fontSize: 10,
