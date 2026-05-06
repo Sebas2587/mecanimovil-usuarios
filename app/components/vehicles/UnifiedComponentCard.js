@@ -103,17 +103,15 @@ const UnifiedComponentCard = memo(({ item, onPress }) => {
   const needsAttention = percentage < 70;
 
   // Datos predictivos para mostrar
-  const kmHasta    = pred?.km_hasta_servicio ?? item.km_estimados_restantes ?? item.vida_util_restante_km;
-  const diasHasta  = pred?.dias_hasta_atencion;
-  const riesgo30   = pred?.probabilidad_falla_30;
+  const kmHasta     = pred?.km_hasta_servicio ?? item.km_estimados_restantes ?? item.vida_util_restante_km;
+  const diasHasta   = pred?.dias_hasta_atencion;
+  const riesgo30    = pred?.probabilidad_falla_30;
   const factorClima = pred?.factor_clima ?? 1.0;
-  const recomendacion = pred?.recomendacion;
 
   const kmLabel   = fmtKm(kmHasta);
   const diasLabel = fmtDays(diasHasta);
   const showRisk  = riesgo30 != null && riesgo30 >= 25;
   const showClima = factorClima > 1.08;
-  const showRec   = !!recomendacion && needsAttention;
 
   return (
     <TouchableOpacity style={s.card} activeOpacity={0.75} onPress={onPress}>
@@ -149,11 +147,6 @@ const UnifiedComponentCard = memo(({ item, onPress }) => {
               {diasLabel ? ` · ${esEstimado ? '~' : ''}${diasLabel}` : ''}
             </Text>
           </View>
-        )}
-
-        {/* Recomendación (solo componentes con atención pendiente) */}
-        {showRec && (
-          <Text style={s.rec} numberOfLines={2}>{recomendacion}</Text>
         )}
 
         {/* Chips: riesgo / clima / estimado */}
@@ -280,12 +273,6 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: COLORS.text.secondary,
     flex: 1,
-  },
-  rec: {
-    fontSize: 11,
-    color: COLORS.text.secondary,
-    lineHeight: 15,
-    marginBottom: 5,
   },
   chips: {
     flexDirection: 'row',

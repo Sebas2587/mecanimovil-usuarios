@@ -25,6 +25,7 @@ import {
   ChevronRight,
   ArrowLeft,
   Hourglass,
+  AlertTriangle,
 } from 'lucide-react-native';
 import * as Animatable from 'react-native-animatable';
 import { ROUTES } from '../../utils/constants';
@@ -547,73 +548,91 @@ const VehicleHealthScreen = ({ route }) => {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {/* Salud actual */}
-              {selectedMetric?.salud_porcentaje != null && (
-                <View style={styles.infoRow}>
-                  <Heart size={20} color={COLORS.text.tertiary} />
-                  <Text style={styles.infoText}>
-                    Salud:{' '}
-                    <Text style={[styles.bold, { color: getHealthColor(selectedMetric.salud_porcentaje) }]}>
-                      {Math.round(selectedMetric.salud_porcentaje)}%
-                    </Text>
-                    {selectedMetric.historial_conocido === false && (
-                      <Text style={styles.estimadoInline}> · Estimado</Text>
+              {/* ── 1. Estado de salud ──────────────────────────── */}
+              {selectedMetric?.salud_porcentaje != null && (() => {
+                const pct   = Math.round(selectedMetric.salud_porcentaje);
+                const hc    = getHealthColor(pct);
+                const nivel = selectedMetric.nivel_alerta_display || selectedMetric.nivel_alerta || '';
+                return (
+                  <View style={styles.healthBlock}>
+                    <View style={styles.healthBlockRow}>
+                      <Text style={styles.healthBlockLabel}>Estado actual</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {selectedMetric.historial_conocido === false && (
+                          <Text style={styles.estimadoInline}>Estimado</Text>
+                        )}
+                        <Text style={[styles.healthBlockPct, { color: hc }]}>{pct}%</Text>
+                      </View>
+                    </View>
+                    <View style={styles.modalBarTrack}>
+                      <View style={[styles.modalBarFill, { width: `${pct}%`, backgroundColor: hc }]} />
+                    </View>
+                    {!!nivel && (
+                      <Text style={[styles.healthBlockNivel, { color: hc }]}>{nivel}</Text>
                     )}
-                  </Text>
-                </View>
-              )}
+                  </View>
+                );
+              })()}
 
-              {/* Próximo servicio */}
-              <View style={styles.infoRow}>
-                <Gauge size={20} color={COLORS.text.tertiary} />
-                <Text style={styles.infoText}>
-                  Próx. revisión en:{' '}
-                  <Text style={styles.bold}>
-                    {selectedMetric?._prediction?.km_hasta_servicio != null
-                      ? `~${Math.round(selectedMetric._prediction.km_hasta_servicio).toLocaleString('es-CL')} km`
-                      : selectedMetric?.vida_util}
-                  </Text>
-                  {selectedMetric?._prediction?.dias_hasta_atencion != null && (
-                    <Text style={styles.infoTextMuted}>
-                      {' · '}
-                      {selectedMetric._prediction.dias_hasta_atencion <= 0
-                        ? 'Inmediato'
-                        : selectedMetric._prediction.dias_hasta_atencion < 30
-                          ? `${selectedMetric._prediction.dias_hasta_atencion} días`
-                          : `${Math.round(selectedMetric._prediction.dias_hasta_atencion / 30)} meses`}
+              {/* ── 2. Cuándo actuar ────────────────────────────── */}
+              {(() => {
+                const pred      = selectedMetric?._prediction;
+                const km        = pred?.km_hasta_servicio ?? null;
+                const dias      = pred?.dias_hasta_atencion ?? null;
+                const fallback  = selectedMetric?.vida_util;
+                const immediate = km != null && km <= 0;
+                const clima     = pred?.factor_clima ?? 1.0;
+
+                if (!km && !fallback) return null;
+                return (
+                  <View style={styles.actionBlock}>
+                    <Text style={styles.actionBlockLabel}>Cuándo actuar</Text>
+                    {immediate ? (
+                      <Text style={[styles.actionBlockValue, { color: COLORS.error[600] }]}>
+                        Atención inmediata requerida
+                      </Text>
+                    ) : (
+                      <Text style={styles.actionBlockValue}>
+                        {km != null
+                          ? `~${Math.round(km).toLocaleString('es-CL')} km`
+                          : fallback}
+                        {dias != null && dias > 0 && (
+                          ` · ~${dias < 30 ? `${dias} días` : `${Math.round(dias / 30)} ${Math.round(dias / 30) === 1 ? 'mes' : 'meses'}`}`
+                        )}
+                      </Text>
+                    )}
+                    {clima > 1.08 && (
+                      <Text style={styles.actionBlockClima}>
+                        El clima en tu zona acelera el desgaste un {Math.round((clima - 1) * 100)}%,
+                        considera adelantar la revisión.
+                      </Text>
+                    )}
+                  </View>
+                );
+              })()}
+
+              {/* ── 3. Riesgo (solo si es relevante ≥ 25 %) ──────── */}
+              {selectedMetric?._prediction?.probabilidad_falla_30 >= 25 && (() => {
+                const r  = Math.round(selectedMetric._prediction.probabilidad_falla_30);
+                const rc = r >= 50 ? COLORS.error[600] : COLORS.warning[700];
+                const rb = r >= 50 ? COLORS.error[50]  : COLORS.warning[50];
+                return (
+                  <View style={[styles.riskBlock, { backgroundColor: rb }]}>
+                    <AlertTriangle size={16} color={rc} />
+                    <Text style={[styles.riskBlockText, { color: rc }]}>
+                      {r >= 50
+                        ? `Alta probabilidad de falla en los próximos 30 días (${r}%)`
+                        : `Probabilidad de falla en 30 días: ${r}%`}
                     </Text>
-                  )}
-                </Text>
-              </View>
+                  </View>
+                );
+              })()}
 
-              {/* Riesgo predictivo */}
-              {selectedMetric?._prediction?.probabilidad_falla_30 != null && (
-                <View style={styles.infoRow}>
-                  <Wrench size={20} color={COLORS.text.tertiary} />
-                  <Text style={styles.infoText}>
-                    Probabilidad de falla (30 d):{' '}
-                    <Text style={[
-                      styles.bold,
-                      { color: selectedMetric._prediction.probabilidad_falla_30 >= 50 ? COLORS.error[600] : COLORS.warning[700] },
-                    ]}>
-                      {Math.round(selectedMetric._prediction.probabilidad_falla_30)}%
-                    </Text>
-                  </Text>
-                </View>
-              )}
-
-              <View style={styles.infoBox}>
-                <Text style={styles.infoBoxLabel}>Observaciones</Text>
-                <Text style={styles.infoBoxText}>{selectedMetric?.mensaje}</Text>
-              </View>
-
-              {/* Recomendación IA */}
-              {!!selectedMetric?._prediction?.recomendacion && (
-                <View style={[styles.infoBox, { borderColor: COLORS.primary[100], backgroundColor: COLORS.primary[50] }]}>
-                  <Text style={[styles.infoBoxLabel, { color: COLORS.primary[600] }]}>Recomendación IA</Text>
-                  <Text style={[styles.infoBoxText, { color: COLORS.primary[700] }]}>
-                    {selectedMetric._prediction.recomendacion}
-                  </Text>
+              {/* ── 4. Diagnóstico del motor ────────────────────── */}
+              {!!selectedMetric?.mensaje && (
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoBoxLabel}>Diagnóstico</Text>
+                  <Text style={styles.infoBoxText}>{selectedMetric.mensaje}</Text>
                 </View>
               )}
 
@@ -1077,9 +1096,93 @@ const createStyles = (_insets) => StyleSheet.create({
     color: COLORS.text.tertiary,
   },
   estimadoInline: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontSize: 10,
     color: COLORS.neutral.gray[400],
     fontStyle: 'italic',
+  },
+  // Modal: bloque de salud visual
+  healthBlock: {
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.card.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+  },
+  healthBlockRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+  },
+  healthBlockLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  healthBlockPct: {
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  healthBlockNivel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    marginTop: 4,
+  },
+  modalBarTrack: {
+    height: 6,
+    backgroundColor: COLORS.neutral.gray[300],
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  modalBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  // Modal: bloque "Cuándo actuar"
+  actionBlock: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+  },
+  actionBlockLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  actionBlockValue: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+  },
+  actionBlockClima: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.warning[700],
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  // Modal: bloque de riesgo
+  riskBlock: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.xs,
+    borderRadius: BORDERS.radius.card.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  riskBlockText: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    flex: 1,
+    lineHeight: 20,
   },
 });
 
