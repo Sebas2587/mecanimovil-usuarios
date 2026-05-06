@@ -17,9 +17,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
+import { COLORS, getColorWithOpacity } from '../../design-system/tokens/colors';
+import { getHealthColorToken } from '../../utils/healthFormat';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import VehicleSelector from '../vehicles/VehicleSelector';
 import AddressSelector from '../forms/AddressSelector';
@@ -59,9 +61,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GlassCard = ({ children, style, onPress, activeOpacity = 0.8 }) => {
   const content = (
     <View style={[glassCardBase, style]}>
-      {Platform.OS === 'ios' ? (
-        <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-      ) : null}
       {children}
     </View>
   );
@@ -76,12 +75,13 @@ const GlassCard = ({ children, style, onPress, activeOpacity = 0.8 }) => {
 };
 
 const glassCardBase = {
-  backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-  borderRadius: 16,
-  borderWidth: 1,
-  borderColor: 'rgba(255,255,255,0.12)',
+  backgroundColor: COLORS.background.paper,
+  borderRadius: BORDERS.radius.lg,
+  borderWidth: BORDERS.width.thin,
+  borderColor: COLORS.border.light,
   overflow: 'hidden',
   padding: 16,
+  ...SHADOWS.sm,
 };
 
 /**
@@ -1156,16 +1156,11 @@ const FormularioSolicitud = ({
     const vehicle = formData.vehiculo;
     const vehiculosDisponibles = vehiculos && vehiculos.length > 0 ? vehiculos : [];
 
-    const getScoreColor = (s) => {
-      if (s >= 80) return '#10B981';
-      if (s >= 60) return '#F59E0B';
-      if (s >= 40) return '#F97316';
-      return '#EF4444';
-    };
+    const getScoreColor = (s) => getHealthColorToken(COLORS, s);
     const getLevelColor = (level) => {
-      if (level === 'CRITICO') return '#EF4444';
-      if (level === 'URGENTE') return '#F97316';
-      return '#F59E0B';
+      if (level === 'CRITICO') return COLORS.error.main;
+      if (level === 'URGENTE') return COLORS.warning[600];
+      return COLORS.warning[500];
     };
 
     const categoriasConServicios = categorias.filter((cat) =>
@@ -1198,22 +1193,22 @@ const FormularioSolicitud = ({
                 style={{ marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}
                 onPress={() => handleVehiculoToggle(v)}
               >
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                  <CarIcon size={22} color="#60A5FA" />
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+                  <CarIcon size={22} color={COLORS.primary[500]} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>{v.marca_nombre} {v.modelo_nombre}</Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>
+                  <Text style={{ color: COLORS.text.primary, fontSize: 15, fontWeight: '600' }}>{v.marca_nombre} {v.modelo_nombre}</Text>
+                  <Text style={{ color: COLORS.text.secondary, fontSize: 12, marginTop: 2 }}>
                     {v.year} · {v.patente} · {(v.kilometraje || 0).toLocaleString()} km
                   </Text>
                 </View>
-                <ChevronRightIcon size={18} color="rgba(255,255,255,0.3)" />
+                <ChevronRightIcon size={18} color={COLORS.neutral.gray[400]} />
               </GlassCard>
             ))}
 
             {vehiculosDisponibles.length > 0 && (
-              <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
-                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginBottom: 8 }}>
+              <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: COLORS.border.light }}>
+                <Text style={{ color: COLORS.text.secondary, fontSize: 13, marginBottom: 8 }}>
                   ¿Comprando un auto? Pide inspección precompra sin vehículo registrado.
                 </Text>
                 <GlassCard
@@ -1221,11 +1216,11 @@ const FormularioSolicitud = ({
                   onPress={activarPrecompraSinVehiculo}
                 >
                   {cargandoPrecompra ? (
-                    <ActivityIndicator color="#6EE7B7" />
+                    <ActivityIndicator color={COLORS.success[600]} />
                   ) : (
                     <>
-                      <Search size={20} color="#6EE7B7" />
-                      <Text style={{ color: '#6EE7B7', fontSize: 14, fontWeight: '600' }}>Inspección precompra</Text>
+                      <Search size={20} color={COLORS.success[600]} />
+                      <Text style={{ color: COLORS.success[700], fontSize: 14, fontWeight: '600' }}>Inspección precompra</Text>
                     </>
                   )}
                 </GlassCard>
@@ -1235,15 +1230,15 @@ const FormularioSolicitud = ({
         ) : (
           <>
             {/* Vehicle Tag */}
-            <GlassCard style={{ marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(96,165,250,0.08)', borderColor: 'rgba(96,165,250,0.2)' }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                <CarIcon size={22} color="#60A5FA" />
+            <GlassCard style={{ marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.primary[50], borderColor: COLORS.primary[200] }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+                <CarIcon size={22} color={COLORS.primary[500]} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>
+                <Text style={{ color: COLORS.text.primary, fontSize: 15, fontWeight: '700' }}>
                   {vehicle.marca_nombre} {vehicle.modelo_nombre}
                 </Text>
-                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>
+                <Text style={{ color: COLORS.text.secondary, fontSize: 12, marginTop: 2 }}>
                   {vehicle.year} · {vehicle.patente} · {(vehicle.kilometraje || 0).toLocaleString()} km
                 </Text>
               </View>
@@ -1254,7 +1249,7 @@ const FormularioSolicitud = ({
               </View>
               {vehiculosDisponibles.length > 1 && !bloquearCambioVehiculo && (
                 <TouchableOpacity onPress={handleDeseleccionarVehiculo} style={{ padding: 4 }}>
-                  <Ionicons name="swap-horizontal" size={18} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="swap-horizontal" size={18} color={COLORS.text.tertiary} />
                 </TouchableOpacity>
               )}
             </GlassCard>
@@ -1262,13 +1257,13 @@ const FormularioSolicitud = ({
             {/* ── Recommendations (Horizontal Scroll) ── */}
             {loadingHealth && healthRecommendations.length === 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, paddingVertical: 12 }}>
-                <ActivityIndicator size="small" color="#6EE7B7" />
-                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>Analizando estado del vehículo...</Text>
+                <ActivityIndicator size="small" color={COLORS.success[600]} />
+                <Text style={{ color: COLORS.text.secondary, fontSize: 13 }}>Analizando estado del vehículo...</Text>
               </View>
             ) : healthRecommendations.length > 0 ? (
               <View style={{ marginBottom: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <ShieldAlertIcon size={18} color="#F59E0B" />
+                  <ShieldAlertIcon size={18} color={COLORS.warning[500]} />
                   <Text style={gs.sectionTitle}>Recomendaciones según desgaste</Text>
                 </View>
                 <Text style={[gs.sectionSub, { marginBottom: 12 }]}>Servicios sugeridos según el estado de tu vehículo</Text>
@@ -1292,13 +1287,13 @@ const FormularioSolicitud = ({
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                           <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getLevelColor(rec.componentLevel) }} />
-                          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={2}>
+                          <Text style={{ color: COLORS.text.primary, fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={2}>
                             {svc?.nombre?.trim() ||
                               `Revisión sugerida (${rec.componentName})`}
                           </Text>
-                          {isSelected && <CheckCircle2Icon size={18} color="#10B981" />}
+                          {isSelected && <CheckCircle2Icon size={18} color={COLORS.success[500]} />}
                         </View>
-                        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginBottom: 10, lineHeight: 17 }} numberOfLines={3}>
+                        <Text style={{ color: COLORS.text.secondary, fontSize: 12, marginBottom: 10, lineHeight: 17 }} numberOfLines={3}>
                           Desgaste estimado en «{rec.componentName}»: {Math.round(rec.componentHealth)}% de vida útil
                           {rec.kmRestantes != null
                             ? ` · ~${rec.kmRestantes.toLocaleString()} km hasta próx. revisión`
@@ -1306,14 +1301,14 @@ const FormularioSolicitud = ({
                         </Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
                           {svc?.precio_referencia != null && (
-                            <Text style={{ color: '#6EE7B7', fontSize: 13, fontWeight: '700' }}>
+                            <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '700' }}>
                               ~${Number(svc.precio_referencia).toLocaleString('es-CL')}
                             </Text>
                           )}
                           {svc?.duracion_estimada && (
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <ClockIcon size={11} color="rgba(255,255,255,0.4)" />
-                              <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>{svc.duracion_estimada}</Text>
+                              <ClockIcon size={11} color={COLORS.text.tertiary} />
+                              <Text style={{ color: COLORS.text.tertiary, fontSize: 11 }}>{svc.duracion_estimada}</Text>
                             </View>
                           )}
                         </View>
@@ -1355,8 +1350,8 @@ const FormularioSolicitud = ({
               {/* Service Cards */}
               {serviciosQueryPending ? (
                 <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color="#6EE7B7" />
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Cargando servicios...</Text>
+                  <ActivityIndicator size="large" color={COLORS.success[600]} />
+                  <Text style={{ color: COLORS.text.secondary, marginTop: 10, fontSize: 13 }}>Cargando servicios...</Text>
                 </View>
               ) : serviciosFiltrados.length > 0 ? (
                 <View style={{ gap: 10 }}>
@@ -1366,18 +1361,18 @@ const FormularioSolicitud = ({
                     return (
                       <GlassCard
                         key={servicio.id}
-                        style={[{ gap: 6 }, isSelected && { borderColor: 'rgba(16,185,129,0.5)', backgroundColor: 'rgba(16,185,129,0.08)' }]}
+                        style={[{ gap: 6 }, isSelected && { borderColor: COLORS.success[400], backgroundColor: COLORS.success.light }]}
                         onPress={() => toggleServicioSeleccionado(servicio)}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={2}>{servicio.nombre}</Text>
-                          {isSelected && <CheckCircle2Icon size={20} color="#10B981" />}
+                          <Text style={{ color: COLORS.text.primary, fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={2}>{servicio.nombre}</Text>
+                          {isSelected && <CheckCircle2Icon size={20} color={COLORS.success[500]} />}
                         </View>
                         {servicio.descripcion ? (
-                          <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, lineHeight: 17 }} numberOfLines={2}>{servicio.descripcion}</Text>
+                          <Text style={{ color: COLORS.text.tertiary, fontSize: 12, lineHeight: 17 }} numberOfLines={2}>{servicio.descripcion}</Text>
                         ) : null}
                         {servicio.precio_referencia != null ? (
-                          <Text style={{ color: '#6EE7B7', fontSize: 13, fontWeight: '600' }}>
+                          <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '600' }}>
                             Desde ${Number(servicio.precio_referencia).toLocaleString('es-CL')}
                           </Text>
                         ) : null}
@@ -1387,8 +1382,8 @@ const FormularioSolicitud = ({
                 </View>
               ) : (
                 <GlassCard style={{ alignItems: 'center', paddingVertical: 24 }}>
-                  <Wrench size={28} color="rgba(255,255,255,0.3)" />
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 8, fontSize: 13 }}>No hay servicios disponibles para este vehículo</Text>
+                  <Wrench size={28} color={COLORS.neutral.gray[400]} />
+                  <Text style={{ color: COLORS.text.secondary, marginTop: 8, fontSize: 13 }}>No hay servicios disponibles para este vehículo</Text>
                 </GlassCard>
               )}
             </View>
@@ -1396,8 +1391,8 @@ const FormularioSolicitud = ({
             {/* ── Selected Counter ── */}
             {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0 && (
               <View style={gs.selectedBadge}>
-                <CheckCircle2Icon size={16} color="#10B981" />
-                <Text style={{ color: '#6EE7B7', fontSize: 13, fontWeight: '600' }}>
+                <CheckCircle2Icon size={16} color={COLORS.success[500]} />
+                <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '600' }}>
                   {formData.servicios_seleccionados.length} servicio{formData.servicios_seleccionados.length !== 1 ? 's' : ''} seleccionado{formData.servicios_seleccionados.length !== 1 ? 's' : ''}
                 </Text>
               </View>
@@ -1452,7 +1447,7 @@ const FormularioSolicitud = ({
                 <View style={styles.vehiculoCardContent}>
                   <CarIcon
                     size={22}
-                    color={formData.vehiculo?.id === vehiculo.id ? '#93C5FD' : 'rgba(255,255,255,0.4)'}
+                    color={formData.vehiculo?.id === vehiculo.id ? COLORS.primary[400] : COLORS.text.tertiary}
                   />
                   <View style={styles.vehiculoCardInfo}>
                     <Text style={[
@@ -1466,7 +1461,7 @@ const FormularioSolicitud = ({
                     </Text>
                   </View>
                   {formData.vehiculo?.id === vehiculo.id && (
-                    <CheckCircle2Icon size={20} color="#6EE7B7" />
+                    <CheckCircle2Icon size={20} color={COLORS.success[600]} />
                   )}
                 </View>
               </TouchableOpacity>
@@ -1488,7 +1483,7 @@ const FormularioSolicitud = ({
 
         {/* Quien ya tiene autos registrados pero quiere precompra de OTRO auto no registrado */}
         {vehiculosDisponibles.length > 0 && !formData.sin_vehiculo_registrado && (
-          <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
+          <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: COLORS.border.light }}>
             <Text style={[styles.pasoDescripcion, { marginBottom: 8 }]}>
               ¿Vas a comprar un auto y aún no lo tienes en la app? Puedes pedir inspección precompra sin elegir un vehículo tuyo.
             </Text>
@@ -1499,10 +1494,10 @@ const FormularioSolicitud = ({
               activeOpacity={0.7}
             >
               {cargandoPrecompra ? (
-                <ActivityIndicator color="#6EE7B7" />
+                <ActivityIndicator color={COLORS.success[600]} />
               ) : (
                 <>
-                  <Search size={22} color="#93C5FD" />
+                  <Search size={22} color={COLORS.primary[400]} />
                   <View style={styles.opcionContent}>
                     <Text style={styles.opcionTitle}>Inspección precompra (auto no registrado)</Text>
                     <Text style={styles.opcionDescripcion}>
@@ -1518,12 +1513,12 @@ const FormularioSolicitud = ({
         {formData.vehiculo && (
           <View style={styles.vehiculoSeleccionado}>
             <View style={styles.vehiculoSeleccionadoContent}>
-              <CheckCircle2Icon size={18} color="#6EE7B7" />
+              <CheckCircle2Icon size={18} color={COLORS.success[600]} />
               <Text style={styles.vehiculoText}>
                 {formData.vehiculo.marca_nombre} {formData.vehiculo.modelo_nombre} ({formData.vehiculo.year})
               </Text>
               <TouchableOpacity onPress={handleDeseleccionarVehiculo} style={styles.deseleccionarVehiculoButton} activeOpacity={0.7}>
-                <Ionicons name="close-circle" size={20} color="#EF4444" />
+                <Ionicons name="close-circle" size={20} color={COLORS.error.main} />
               </TouchableOpacity>
             </View>
           </View>
@@ -1549,7 +1544,7 @@ const FormularioSolicitud = ({
 
           {formData.proveedores_dirigidos.length > 0 && (
             <View style={[styles.infoBox, { marginBottom: 14 }]}>
-              <Ionicons name="information-circle" size={20} color="#60A5FA" style={{ marginRight: 8 }} />
+              <Ionicons name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor seleccionado'}</Text>
               </View>
@@ -1565,21 +1560,21 @@ const FormularioSolicitud = ({
                   onPress={() => handleVehiculoToggle(vehiculo)}
                 >
                   <View style={styles.vehiculoCardContent}>
-                    <CarIcon size={22} color={formData.vehiculo?.id === vehiculo.id ? '#60A5FA' : 'rgba(255,255,255,0.3)'} />
+                    <CarIcon size={22} color={formData.vehiculo?.id === vehiculo.id ? COLORS.primary[500] : COLORS.neutral.gray[400]} />
                     <View style={styles.vehiculoCardInfo}>
                       <Text style={[styles.vehiculoCardNombre, formData.vehiculo?.id === vehiculo.id && styles.vehiculoCardNombreSeleccionado]}>
                         {vehiculo.marca_nombre} {vehiculo.modelo_nombre}
                       </Text>
                       <Text style={styles.vehiculoCardDetalles}>{vehiculo.year} · {vehiculo.patente}</Text>
                     </View>
-                    {formData.vehiculo?.id === vehiculo.id && <CheckCircle2Icon size={22} color="#60A5FA" />}
+                    {formData.vehiculo?.id === vehiculo.id && <CheckCircle2Icon size={22} color={COLORS.primary[500]} />}
                   </View>
                 </TouchableOpacity>
               ))}
             </View>
           ) : (
             <GlassCard style={{ alignItems: 'center', paddingVertical: 24 }}>
-              <CarIcon size={32} color="rgba(255,255,255,0.3)" />
+              <CarIcon size={32} color={COLORS.neutral.gray[400]} />
               <Text style={styles.emptyText}>No tienes vehículos registrados</Text>
             </GlassCard>
           )}
@@ -1594,7 +1589,7 @@ const FormularioSolicitud = ({
 
         {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
           <View style={[styles.infoBox, { marginBottom: 14 }]}>
-            <Ionicons name="information-circle" size={20} color="#60A5FA" style={{ marginRight: 8 }} />
+            <Ionicons name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
             <View style={{ flex: 1 }}>
               <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor'}</Text>
             </View>
@@ -1603,32 +1598,32 @@ const FormularioSolicitud = ({
 
         <GlassCard
           style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-            formData.urgencia === 'normal' && { borderColor: 'rgba(16,185,129,0.5)', backgroundColor: 'rgba(16,185,129,0.08)' }]}
+            formData.urgencia === 'normal' && { borderColor: COLORS.success[400], backgroundColor: COLORS.success.light }]}
           onPress={() => setFormData(prev => ({ ...prev, urgencia: 'normal' }))}
         >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(16,185,129,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-            <ClockIcon size={20} color="#6EE7B7" />
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.success[100], alignItems: 'center', justifyContent: 'center' }}>
+            <ClockIcon size={20} color={COLORS.success[600]} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.opcionTitle}>Normal</Text>
             <Text style={styles.opcionDescripcion}>Puede esperar unos días</Text>
           </View>
-          {formData.urgencia === 'normal' && <CheckCircle2Icon size={22} color="#6EE7B7" />}
+          {formData.urgencia === 'normal' && <CheckCircle2Icon size={22} color={COLORS.success[600]} />}
         </GlassCard>
 
         <GlassCard
           style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-            formData.urgencia === 'urgente' && { borderColor: 'rgba(245,158,11,0.5)', backgroundColor: 'rgba(245,158,11,0.08)' }]}
+            formData.urgencia === 'urgente' && { borderColor: COLORS.warning[400], backgroundColor: COLORS.warning[50] }]}
           onPress={() => setFormData(prev => ({ ...prev, urgencia: 'urgente' }))}
         >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(245,158,11,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-            <Zap size={20} color="#F59E0B" />
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.warning[100], alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={20} color={COLORS.warning[500]} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.opcionTitle}>Urgente</Text>
             <Text style={styles.opcionDescripcion}>Necesito el servicio lo antes posible</Text>
           </View>
-          {formData.urgencia === 'urgente' && <CheckCircle2Icon size={22} color="#F59E0B" />}
+          {formData.urgencia === 'urgente' && <CheckCircle2Icon size={22} color={COLORS.warning[500]} />}
         </GlassCard>
 
         {/* Precompra sin vehículo: comentario obligatorio para detallar el auto a inspeccionar */}
@@ -1737,32 +1732,32 @@ const FormularioSolicitud = ({
 
               <GlassCard
                 style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-                  formData.requiere_repuestos === true && { borderColor: 'rgba(96,165,250,0.5)', backgroundColor: 'rgba(96,165,250,0.08)' }]}
+                  formData.requiere_repuestos === true && { borderColor: COLORS.primary[400], backgroundColor: COLORS.primary[50] }]}
                 onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: true }))}
               >
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Package size={20} color="#60A5FA" />
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+                  <Package size={20} color={COLORS.primary[500]} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.opcionTitle}>Con Repuestos</Text>
                   <Text style={styles.opcionDescripcion}>El servicio incluye repuestos y mano de obra</Text>
                 </View>
-                {formData.requiere_repuestos === true && <CheckCircle2Icon size={22} color="#60A5FA" />}
+                {formData.requiere_repuestos === true && <CheckCircle2Icon size={22} color={COLORS.primary[500]} />}
               </GlassCard>
 
               <GlassCard
                 style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-                  formData.requiere_repuestos === false && { borderColor: 'rgba(168,85,247,0.5)', backgroundColor: 'rgba(168,85,247,0.08)' }]}
+                  formData.requiere_repuestos === false && { borderColor: COLORS.neutral.gray[600], backgroundColor: COLORS.neutral.gray[100] }]}
                 onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: false }))}
               >
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Wrench size={20} color="#A855F7" />
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.neutral.gray[200], alignItems: 'center', justifyContent: 'center' }}>
+                  <Wrench size={20} color={COLORS.primary[700]} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.opcionTitle}>Sin Repuestos</Text>
                   <Text style={styles.opcionDescripcion}>Solo necesito mano de obra</Text>
                 </View>
-                {formData.requiere_repuestos === false && <CheckCircle2Icon size={22} color="#A855F7" />}
+                {formData.requiere_repuestos === false && <CheckCircle2Icon size={22} color={COLORS.primary[700]} />}
               </GlassCard>
             </>
           );
@@ -1797,63 +1792,63 @@ const FormularioSolicitud = ({
     return (
       <GlassCard
         key={`${tipo}-${proveedor.id}`}
-        style={[{ padding: 0, overflow: 'hidden' }, estaSeleccionado && { borderColor: 'rgba(16,185,129,0.5)', backgroundColor: 'rgba(16,185,129,0.06)' }]}
+        style={[{ padding: 0, overflow: 'hidden' }, estaSeleccionado && { borderColor: COLORS.success[400], backgroundColor: COLORS.success.light }]}
         onPress={() => toggleProveedorSeleccionado(proveedor, tipo)}
       >
         {/* Image Section (4:3 aspect) */}
-        <View style={{ width: '100%', aspectRatio: 16 / 7, backgroundColor: 'rgba(255,255,255,0.04)' }}>
+        <View style={{ width: '100%', aspectRatio: 16 / 7, backgroundColor: COLORS.neutral.gray[100] }}>
           {hasPhoto ? (
             <Image source={{ uri: fotoUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={200} cachePolicy="memory-disk" />
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              {tipo === 'taller' ? <Building2 size={32} color="rgba(255,255,255,0.2)" /> : <UserIcon size={32} color="rgba(255,255,255,0.2)" />}
+              {tipo === 'taller' ? <Building2 size={32} color={COLORS.neutral.gray[300]} /> : <UserIcon size={32} color={COLORS.neutral.gray[300]} />}
             </View>
           )}
           {/* Type badge */}
-          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '600' }}>
+          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: getColorWithOpacity(COLORS.base.inkBlack, 0.65), borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ color: COLORS.text.primary, fontSize: 10, fontWeight: '600' }}>
               {tipo === 'taller' ? 'Taller' : 'A domicilio'}
             </Text>
           </View>
           {proveedor.esta_conectado === false && (
-            <View style={{ position: 'absolute', bottom: 8, left: 8, right: 8, backgroundColor: 'rgba(127,29,29,0.92)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
-              <Text style={{ color: '#FEE2E2', fontSize: 11, fontWeight: '700', textAlign: 'center' }}>
+            <View style={{ position: 'absolute', bottom: 8, left: 8, right: 8, backgroundColor: getColorWithOpacity(COLORS.error.dark, 0.95), borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+              <Text style={{ color: COLORS.error[100], fontSize: 11, fontWeight: '700', textAlign: 'center' }}>
                 No disponible para oportunidades ahora
               </Text>
             </View>
           )}
           {/* Selection indicator */}
           {estaSeleccionado && (
-            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#10B981', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
-              <CheckIcon size={14} color="#FFF" />
+            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: COLORS.success[500], borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+              <CheckIcon size={14} color={COLORS.text.inverse} />
             </View>
           )}
         </View>
 
         {/* Info */}
         <View style={{ padding: 14, gap: 4 }}>
-          <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }} numberOfLines={1}>
+          <Text style={{ color: COLORS.text.primary, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>
             {proveedor.nombre || (tipo === 'taller' ? 'Taller' : 'Mecánico')}
           </Text>
           {specialtyText && (
-            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }} numberOfLines={1}>{specialtyText}</Text>
+            <Text style={{ color: COLORS.text.tertiary, fontSize: 11 }} numberOfLines={1}>{specialtyText}</Text>
           )}
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
             {direccion ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
-                <MapPin size={12} color="rgba(255,255,255,0.4)" />
-                <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, flex: 1 }} numberOfLines={1}>{String(direccion)}</Text>
+                <MapPin size={12} color={COLORS.text.tertiary} />
+                <Text style={{ color: COLORS.text.tertiary, fontSize: 11, flex: 1 }} numberOfLines={1}>{String(direccion)}</Text>
               </View>
             ) : <View />}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8 }}>
               {calificacion > 0 ? (
                 <>
-                  <Star size={13} color="#F59E0B" fill="#F59E0B" />
-                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '600' }}>{calificacion.toFixed(1)}</Text>
-                  {totalResenas > 0 && <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>({totalResenas})</Text>}
+                  <Star size={13} color={COLORS.warning[500]} fill={COLORS.warning[500]} />
+                  <Text style={{ color: COLORS.text.primary, fontSize: 12, fontWeight: '600' }}>{calificacion.toFixed(1)}</Text>
+                  {totalResenas > 0 && <Text style={{ color: COLORS.text.tertiary, fontSize: 10 }}>({totalResenas})</Text>}
                 </>
               ) : (
-                <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11, fontStyle: 'italic' }}>Nuevo</Text>
+                <Text style={{ color: COLORS.text.disabled, fontSize: 11, fontStyle: 'italic' }}>Nuevo</Text>
               )}
             </View>
           </View>
@@ -1864,8 +1859,8 @@ const FormularioSolicitud = ({
             onPress={() => navigateToProviderProfile(proveedor, tipo)}
             activeOpacity={0.7}
           >
-            <Eye size={14} color="#60A5FA" />
-            <Text style={{ color: '#60A5FA', fontSize: 12, fontWeight: '600' }}>Ver perfil</Text>
+            <Eye size={14} color={COLORS.primary[500]} />
+            <Text style={{ color: COLORS.primary[500], fontSize: 12, fontWeight: '600' }}>Ver perfil</Text>
           </TouchableOpacity>
         </View>
       </GlassCard>
@@ -1878,7 +1873,7 @@ const FormularioSolicitud = ({
     if (!formData.vehiculo && !formData.sin_vehiculo_registrado) {
       return (
         <View style={{ flex: 1, paddingHorizontal: 16 }}>
-          <Text style={{ color: '#EF4444', fontSize: 14, textAlign: 'center', marginTop: 20 }}>Primero debes seleccionar un vehículo</Text>
+          <Text style={{ color: COLORS.error.main, fontSize: 14, textAlign: 'center', marginTop: 20 }}>Primero debes seleccionar un vehículo</Text>
         </View>
       );
     }
@@ -1893,37 +1888,37 @@ const FormularioSolicitud = ({
         {/* Global option */}
         <GlassCard
           style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-            formData.tipo_solicitud === 'global' && { borderColor: 'rgba(96,165,250,0.5)', backgroundColor: 'rgba(96,165,250,0.08)' }]}
+            formData.tipo_solicitud === 'global' && { borderColor: COLORS.primary[400], backgroundColor: COLORS.primary[50] }]}
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'global', proveedores_dirigidos: [] }))}
         >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-            <Globe size={20} color="#60A5FA" />
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+            <Globe size={20} color={COLORS.primary[500]} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>Abierta a Todos</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>
+            <Text style={{ color: COLORS.text.primary, fontSize: 15, fontWeight: '600' }}>Abierta a Todos</Text>
+            <Text style={{ color: COLORS.text.tertiary, fontSize: 12, marginTop: 2 }}>
               {formData.sin_vehiculo_registrado || !formData.vehiculo
                 ? 'Todos los proveedores que ofrezcan el servicio'
                 : `Todos los proveedores que atienden tu ${formData.vehiculo.marca_nombre}`}
             </Text>
           </View>
-          {formData.tipo_solicitud === 'global' && <CheckCircle2Icon size={22} color="#60A5FA" />}
+          {formData.tipo_solicitud === 'global' && <CheckCircle2Icon size={22} color={COLORS.primary[500]} />}
         </GlassCard>
 
         {/* Directed option */}
         <GlassCard
           style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
-            formData.tipo_solicitud === 'dirigida' && { borderColor: 'rgba(168,85,247,0.5)', backgroundColor: 'rgba(168,85,247,0.08)' }]}
+            formData.tipo_solicitud === 'dirigida' && { borderColor: COLORS.neutral.gray[600], backgroundColor: COLORS.neutral.gray[100] }]}
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'dirigida' }))}
         >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-            <Users size={20} color="#A855F7" />
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.neutral.gray[200], alignItems: 'center', justifyContent: 'center' }}>
+            <Users size={20} color={COLORS.primary[700]} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>Solo Proveedores Específicos</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 }}>Selecciona hasta 3 proveedores</Text>
+            <Text style={{ color: COLORS.text.primary, fontSize: 15, fontWeight: '600' }}>Solo Proveedores Específicos</Text>
+            <Text style={{ color: COLORS.text.tertiary, fontSize: 12, marginTop: 2 }}>Selecciona hasta 3 proveedores</Text>
           </View>
-          {formData.tipo_solicitud === 'dirigida' && <CheckCircle2Icon size={22} color="#A855F7" />}
+          {formData.tipo_solicitud === 'dirigida' && <CheckCircle2Icon size={22} color={COLORS.primary[700]} />}
         </GlassCard>
 
         {/* Provider list */}
@@ -1939,13 +1934,13 @@ const FormularioSolicitud = ({
 
             {cargandoProveedores ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#6EE7B7" />
-                <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13 }}>Cargando proveedores...</Text>
+                <ActivityIndicator size="large" color={COLORS.success[600]} />
+                <Text style={{ color: COLORS.text.secondary, marginTop: 10, fontSize: 13 }}>Cargando proveedores...</Text>
               </View>
             ) : todosProveedores.length === 0 ? (
               <GlassCard style={{ alignItems: 'center', paddingVertical: 24 }}>
-                <Building2 size={32} color="rgba(255,255,255,0.3)" />
-                <Text style={{ color: 'rgba(255,255,255,0.5)', marginTop: 10, fontSize: 13, textAlign: 'center' }}>
+                <Building2 size={32} color={COLORS.neutral.gray[400]} />
+                <Text style={{ color: COLORS.text.secondary, marginTop: 10, fontSize: 13, textAlign: 'center' }}>
                   No hay proveedores disponibles. Prueba solicitud abierta a todos.
                 </Text>
               </GlassCard>
@@ -1954,8 +1949,8 @@ const FormularioSolicitud = ({
                 {proveedoresDisponibles.talleres.length > 0 && (
                   <>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <Building2 size={16} color="rgba(255,255,255,0.5)" />
-                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' }}>
+                      <Building2 size={16} color={COLORS.neutral.gray[500]} />
+                      <Text style={{ color: COLORS.text.secondary, fontSize: 13, fontWeight: '600' }}>
                         Talleres ({proveedoresDisponibles.talleres.length})
                       </Text>
                     </View>
@@ -1966,8 +1961,8 @@ const FormularioSolicitud = ({
                 {proveedoresDisponibles.mecanicos.length > 0 && (
                   <>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 4 }}>
-                      <Wrench size={16} color="rgba(255,255,255,0.5)" />
-                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600' }}>
+                      <Wrench size={16} color={COLORS.neutral.gray[500]} />
+                      <Text style={{ color: COLORS.text.secondary, fontSize: 13, fontWeight: '600' }}>
                         Mecánicos a Domicilio ({proveedoresDisponibles.mecanicos.length})
                       </Text>
                     </View>
@@ -1979,8 +1974,8 @@ const FormularioSolicitud = ({
 
             {formData.proveedores_dirigidos.length > 0 && (
               <View style={[gs.selectedBadge, { marginTop: 14 }]}>
-                <CheckCircle2Icon size={16} color="#A855F7" />
-                <Text style={{ color: '#C084FC', fontSize: 13, fontWeight: '600' }}>
+                <CheckCircle2Icon size={16} color={COLORS.primary[700]} />
+                <Text style={{ color: COLORS.primary[600], fontSize: 13, fontWeight: '600' }}>
                   {formData.proveedores_dirigidos.length} de 3 proveedores seleccionados
                 </Text>
               </View>
@@ -1994,14 +1989,14 @@ const FormularioSolicitud = ({
   const renderPaso5 = () => (
     <View style={styles.pasoContainer}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <MapPinned size={20} color="#6EE7B7" />
+        <MapPinned size={20} color={COLORS.success[600]} />
         <Text style={styles.pasoTitle}>Ubicación del servicio</Text>
       </View>
       <Text style={styles.pasoDescripcion}>Selecciona una dirección registrada o ingresa una nueva</Text>
 
       {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
         <View style={[styles.infoBox, { marginBottom: 14 }]}>
-          <Ionicons name="information-circle" size={20} color="#60A5FA" style={{ marginRight: 8 }} />
+          <Ionicons name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
           <View style={{ flex: 1 }}>
             <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor'}</Text>
           </View>
@@ -2022,13 +2017,13 @@ const FormularioSolicitud = ({
       />
 
       {formData.direccion_usuario && (
-        <GlassCard style={{ marginTop: 12, borderColor: 'rgba(16,185,129,0.3)', backgroundColor: 'rgba(16,185,129,0.06)' }}>
+        <GlassCard style={{ marginTop: 12, borderColor: COLORS.success[200], backgroundColor: COLORS.success.light }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <MapPin size={16} color="#6EE7B7" />
-            <Text style={{ color: '#6EE7B7', fontSize: 14, fontWeight: '600', flex: 1 }}>{formData.direccion_usuario.direccion}</Text>
+            <MapPin size={16} color={COLORS.success[600]} />
+            <Text style={{ color: COLORS.success[700], fontSize: 14, fontWeight: '600', flex: 1 }}>{formData.direccion_usuario.direccion}</Text>
           </View>
           {formData.direccion_usuario.detalles && (
-            <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 12, marginLeft: 24 }}>{formData.direccion_usuario.detalles}</Text>
+            <Text style={{ color: COLORS.text.tertiary, fontSize: 12, marginLeft: 24 }}>{formData.direccion_usuario.detalles}</Text>
           )}
         </GlassCard>
       )}
@@ -2038,7 +2033,7 @@ const FormularioSolicitud = ({
         placeholder="Detalles adicionales (opcional)"
         value={formData.detalles_ubicacion}
         onChangeText={(text) => setFormData(prev => ({ ...prev, detalles_ubicacion: text }))}
-        placeholderTextColor="rgba(255,255,255,0.25)"
+        placeholderTextColor={COLORS.text.disabled}
       />
     </View>
   );
@@ -2179,23 +2174,23 @@ const FormularioSolicitud = ({
     return (
       <View style={styles.pasoContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <CalendarDays size={20} color="#6EE7B7" />
+          <CalendarDays size={20} color={COLORS.success[600]} />
           <Text style={styles.pasoTitle}>Fecha y hora preferida</Text>
         </View>
         <Text style={styles.pasoDescripcion}>¿Cuándo te gustaría recibir el servicio?</Text>
 
         {/* Date picker button */}
         <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }} onPress={() => setMostrarCalendario(true)}>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(96,165,250,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-            <CalendarDays size={20} color="#60A5FA" />
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+            <CalendarDays size={20} color={COLORS.primary[500]} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Fecha</Text>
-            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>
+            <Text style={{ color: COLORS.text.secondary, fontSize: 12 }}>Fecha</Text>
+            <Text style={{ color: COLORS.text.primary, fontSize: 15, fontWeight: '600' }}>
               {formData.fecha_preferida ? formatDate(formData.fecha_preferida) : 'Seleccionar fecha'}
             </Text>
           </View>
-          <ChevronRightIcon size={18} color="rgba(255,255,255,0.3)" />
+          <ChevronRightIcon size={18} color={COLORS.neutral.gray[400]} />
         </GlassCard>
 
         {/* Time picker button */}
@@ -2210,23 +2205,23 @@ const FormularioSolicitud = ({
             setMostrarSelectorHora(true);
           }}
         >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(168,85,247,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-            <ClockIcon size={20} color="#A855F7" />
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.neutral.gray[200], alignItems: 'center', justifyContent: 'center' }}>
+            <ClockIcon size={20} color={COLORS.primary[700]} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>Hora (Opcional)</Text>
-            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>
+            <Text style={{ color: COLORS.text.secondary, fontSize: 12 }}>Hora (Opcional)</Text>
+            <Text style={{ color: COLORS.text.primary, fontSize: 15, fontWeight: '600' }}>
               {formData.hora_preferida ? formatTime(formData.hora_preferida) : 'Seleccionar hora'}
             </Text>
           </View>
-          <ChevronRightIcon size={18} color="rgba(255,255,255,0.3)" />
+          <ChevronRightIcon size={18} color={COLORS.neutral.gray[400]} />
         </GlassCard>
 
         {/* Preview */}
         {formData.fecha_preferida && validarFecha(formData.fecha_preferida) && (
           <View style={[gs.selectedBadge, { marginTop: 4, marginBottom: 0 }]}>
-            <CheckCircle2Icon size={16} color="#10B981" />
-            <Text style={{ color: '#6EE7B7', fontSize: 13, fontWeight: '600' }}>
+            <CheckCircle2Icon size={16} color={COLORS.success[500]} />
+            <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '600' }}>
               {formatDate(formData.fecha_preferida)}
               {formData.hora_preferida && validarHora(formData.hora_preferida) && ` a las ${formatTime(formData.hora_preferida)}`}
             </Text>
@@ -2238,19 +2233,19 @@ const FormularioSolicitud = ({
           <View style={styles.modalOverlay}>
             <View style={styles.descModal}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>Seleccionar Fecha</Text>
+                <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Seleccionar Fecha</Text>
                 <TouchableOpacity onPress={() => setMostrarCalendario(false)} style={{ padding: 4 }}>
-                  <Ionicons name="close" size={24} color="rgba(255,255,255,0.6)" />
+                  <Ionicons name="close" size={24} color={COLORS.text.secondary} />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.calendarHeader}>
                 <TouchableOpacity onPress={() => cambiarMes(-1)} style={styles.calendarNavButton}>
-                  <Ionicons name="chevron-back" size={20} color="#60A5FA" />
+                  <Ionicons name="chevron-back" size={20} color={COLORS.primary[500]} />
                 </TouchableOpacity>
                 <Text style={styles.calendarTitle}>{mesesNombres[mesCalendario.getMonth()]} {mesCalendario.getFullYear()}</Text>
                 <TouchableOpacity onPress={() => cambiarMes(1)} style={styles.calendarNavButton}>
-                  <Ionicons name="chevron-forward" size={20} color="#60A5FA" />
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.primary[500]} />
                 </TouchableOpacity>
               </View>
 
@@ -2288,9 +2283,9 @@ const FormularioSolicitud = ({
           <View style={styles.modalOverlay}>
             <View style={styles.descModal}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>Seleccionar Hora</Text>
+                <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Seleccionar Hora</Text>
                 <TouchableOpacity onPress={() => setMostrarSelectorHora(false)} style={{ padding: 4 }}>
-                  <Ionicons name="close" size={24} color="rgba(255,255,255,0.6)" />
+                  <Ionicons name="close" size={24} color={COLORS.text.secondary} />
                 </TouchableOpacity>
               </View>
 
@@ -2311,7 +2306,7 @@ const FormularioSolicitud = ({
                 style={[styles.descModalCancelBtn, { marginTop: 12 }]}
                 onPress={() => { setFormData(prev => ({ ...prev, hora_preferida: '' })); setMostrarSelectorHora(false); }}
               >
-                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '600' }}>Limpiar hora</Text>
+                <Text style={{ color: COLORS.text.secondary, fontSize: 14, fontWeight: '600' }}>Limpiar hora</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2387,11 +2382,14 @@ const FormularioSolicitud = ({
       <View style={styles.progressContainer}>
         <Text style={styles.progressText}>Paso {pasoVisual} de {totalPasos}</Text>
         <View style={styles.progressBar}>
-          <LinearGradient
-            colors={['#007EA7', '#00A8E8']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={[styles.progressFill, { width: `${(pasoVisual / totalPasos) * 100}%` }]}
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${(pasoVisual / totalPasos) * 100}%`,
+                backgroundColor: COLORS.primary[500],
+              },
+            ]}
           />
         </View>
       </View>
@@ -2439,15 +2437,10 @@ const FormularioSolicitud = ({
           <View style={{ flex: 1 }} />
         )}
         <TouchableOpacity onPress={handleNext} style={{ flex: 2 }} activeOpacity={0.8}>
-          <LinearGradient
-            colors={['#007EA7', '#00A8E8']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.navNextBtn}
-          >
-            {esUltimoPaso() && <Send size={16} color="#FFF" style={{ marginRight: 6 }} />}
+          <View style={[styles.navNextBtn, { backgroundColor: COLORS.primary[500] }]}>
+            {esUltimoPaso() && <Send size={16} color={COLORS.text.onPrimary} style={{ marginRight: 6 }} />}
             <Text style={styles.navNextText}>{esUltimoPaso() ? 'Crear Solicitud' : 'Siguiente'}</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -2471,10 +2464,10 @@ const FormularioSolicitud = ({
               : {})}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <FileTextIcon size={22} color="#6EE7B7" />
-              <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>Describe tu necesidad</Text>
+              <FileTextIcon size={22} color={COLORS.primary[500]} />
+              <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Describe tu necesidad</Text>
             </View>
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
+            <Text style={{ color: COLORS.text.secondary, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
               Cuéntanos qué problema tienes para que los proveedores entiendan tu solicitud.
             </Text>
             <TextInput
@@ -2482,7 +2475,7 @@ const FormularioSolicitud = ({
               multiline
               numberOfLines={5}
               placeholder="Ej: Mi auto hace un ruido al frenar..."
-              placeholderTextColor="rgba(255,255,255,0.25)"
+              placeholderTextColor={COLORS.text.disabled}
               value={tempDescription}
               onChangeText={setTempDescription}
               textAlignVertical="top"
@@ -2497,7 +2490,7 @@ const FormularioSolicitud = ({
             />
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <TouchableOpacity style={styles.descModalCancelBtn} onPress={() => setDescriptionModalVisible(false)}>
-                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '600' }}>Cancelar</Text>
+                <Text style={{ color: COLORS.text.secondary, fontSize: 15, fontWeight: '600' }}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={{ flex: 1, opacity: tempDescription.trim() ? 1 : 0.4 }}
@@ -2510,10 +2503,10 @@ const FormularioSolicitud = ({
                 }}
                 disabled={!tempDescription.trim()}
               >
-                <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>Continuar</Text>
-                  <ChevronRightIcon size={18} color="#FFF" />
-                </LinearGradient>
+                <View style={{ borderRadius: BORDERS.radius.md, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.primary[500] }}>
+                  <Text style={{ color: COLORS.text.onPrimary, fontSize: 15, fontWeight: '700' }}>Continuar</Text>
+                  <ChevronRightIcon size={18} color={COLORS.text.onPrimary} />
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -2523,35 +2516,36 @@ const FormularioSolicitud = ({
   );
 };
 
-// ── Glassmorphism shared styles ──
+// ── Estilos compartidos (superficie clara) ──
 const gs = StyleSheet.create({
-  sectionTitle: { color: '#FFF', fontSize: 17, fontWeight: '700', letterSpacing: 0.2 },
-  sectionSub: { color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 19, marginTop: 4 },
+  sectionTitle: { color: COLORS.text.primary, fontSize: 17, fontWeight: '700', letterSpacing: 0.2 },
+  sectionSub: { color: COLORS.text.secondary, fontSize: 13, lineHeight: 19, marginTop: 4 },
   recCard: {
     width: SCREEN_WIDTH * 0.7,
     marginRight: 12,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     padding: 14,
+    ...SHADOWS.sm,
   },
-  recCardSelected: { borderColor: 'rgba(16,185,129,0.5)', backgroundColor: 'rgba(16,185,129,0.08)' },
+  recCardSelected: { borderColor: COLORS.success[400], backgroundColor: COLORS.success.light },
   catTab: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
-  catTabActive: { backgroundColor: 'rgba(96,165,250,0.15)', borderColor: 'rgba(96,165,250,0.4)' },
-  catTabText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '500' },
-  catTabTextActive: { color: '#93C5FD', fontWeight: '600' },
+  catTabActive: { backgroundColor: COLORS.primary[50], borderColor: COLORS.primary[300] },
+  catTabText: { color: COLORS.text.secondary, fontSize: 13, fontWeight: '500' },
+  catTabTextActive: { color: COLORS.primary[700], fontWeight: '600' },
   selectedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(16,185,129,0.1)', borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)',
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginTop: 12,
+    backgroundColor: COLORS.success.light, borderWidth: BORDERS.width.thin, borderColor: COLORS.success[200],
+    borderRadius: BORDERS.radius.md, paddingHorizontal: 14, paddingVertical: 10, marginTop: 12,
   },
 });
 
@@ -2577,9 +2571,10 @@ const styles = StyleSheet.create({
   progressContainer: {
     paddingHorizontal: 16,
     paddingVertical: 10,
+    backgroundColor: COLORS.background.default,
   },
   progressText: {
-    color: 'rgba(255,255,255,0.5)',
+    color: COLORS.text.secondary,
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 6,
@@ -2587,7 +2582,7 @@ const styles = StyleSheet.create({
   progressBar: {
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[200],
     overflow: 'hidden',
   },
   progressFill: {
@@ -2599,24 +2594,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 10,
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(3,7,18,0.9)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.background.paper,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: COLORS.border.light,
     gap: 10,
     zIndex: 30,
+    ...SHADOWS.sm,
   },
   navBackBtn: {
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   navBackText: {
-    color: 'rgba(255,255,255,0.7)',
+    color: COLORS.text.secondary,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -2625,16 +2621,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    borderRadius: 14,
+    borderRadius: BORDERS.radius.md,
   },
   navNextText: {
-    color: '#FFF',
+    color: COLORS.text.onPrimary,
     fontSize: 15,
     fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: COLORS.background.overlay,
     justifyContent: 'center',
     paddingHorizontal: 20,
   },
@@ -2644,19 +2640,20 @@ const styles = StyleSheet.create({
   },
   descModal: {
     zIndex: 1,
-    backgroundColor: '#111827',
-    borderRadius: 20,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.xl,
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.lg,
   },
   descModalInput: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     padding: 14,
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 14,
     minHeight: 120,
     textAlignVertical: 'top',
@@ -2665,72 +2662,71 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
 
-  // ── Step container & text ──
   pasoContainer: {
     flex: 1,
     paddingHorizontal: 16,
   },
   pasoTitle: {
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.2,
     marginBottom: 4,
   },
   pasoDescripcion: {
-    color: 'rgba(255,255,255,0.5)',
+    color: COLORS.text.secondary,
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 16,
   },
 
-  // ── Option cards (urgency, repuestos, etc.) ──
   opcionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     padding: 16,
-    borderRadius: 16,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BORDERS.radius.lg,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     marginBottom: 10,
+    ...SHADOWS.sm,
   },
   opcionSeleccionada: {
-    borderColor: 'rgba(96,165,250,0.5)',
-    backgroundColor: 'rgba(96,165,250,0.08)',
+    borderColor: COLORS.primary[400],
+    backgroundColor: COLORS.primary[50],
   },
   opcionContent: { flex: 1 },
   opcionTitle: {
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 15,
     fontWeight: '600',
     marginBottom: 2,
   },
   opcionDescripcion: {
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.tertiary,
     fontSize: 12,
     lineHeight: 17,
   },
 
-  // ── Vehicle cards ──
   vehiculosList: { gap: 10, marginBottom: 12 },
   vehiculoCard: {
     padding: 16,
-    borderRadius: 16,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BORDERS.radius.lg,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   vehiculoCardSeleccionado: {
-    borderColor: 'rgba(96,165,250,0.5)',
-    backgroundColor: 'rgba(96,165,250,0.08)',
+    borderColor: COLORS.primary[400],
+    backgroundColor: COLORS.primary[50],
   },
   vehiculoCardContent: {
     flexDirection: 'row',
@@ -2739,65 +2735,62 @@ const styles = StyleSheet.create({
   },
   vehiculoCardInfo: { flex: 1 },
   vehiculoCardNombre: {
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 15,
     fontWeight: '600',
   },
-  vehiculoCardNombreSeleccionado: { color: '#93C5FD' },
+  vehiculoCardNombreSeleccionado: { color: COLORS.primary[700] },
   vehiculoCardDetalles: {
-    color: 'rgba(255,255,255,0.45)',
+    color: COLORS.text.tertiary,
     fontSize: 12,
     marginTop: 2,
   },
 
-  // ── Text inputs ──
   descripcionContainer: { marginTop: 16 },
   descripcionLabel: {
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.text.secondary,
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 8,
   },
   textArea: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     padding: 14,
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 14,
     minHeight: 100,
     textAlignVertical: 'top',
   },
 
-  // ── Info box ──
   infoBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: BORDERS.radius.md,
     borderLeftWidth: 3,
-    backgroundColor: 'rgba(96,165,250,0.1)',
-    borderLeftColor: '#60A5FA',
+    backgroundColor: COLORS.primary[50],
+    borderLeftColor: COLORS.primary[500],
   },
   infoBoxText: {
-    color: '#93C5FD',
+    color: COLORS.primary[700],
     fontSize: 13,
     fontWeight: '600',
   },
   infoBoxSubtext: {
-    color: 'rgba(147,197,253,0.7)',
+    color: COLORS.text.secondary,
     fontSize: 12,
     marginTop: 2,
   },
 
-  // ── Loading & empty ──
   loadingContainer: {
     paddingVertical: 24,
     alignItems: 'center',
   },
   loadingText: {
-    color: 'rgba(255,255,255,0.5)',
+    color: COLORS.text.secondary,
     marginTop: 10,
     fontSize: 13,
   },
@@ -2806,51 +2799,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: 'rgba(255,255,255,0.5)',
+    color: COLORS.text.secondary,
     fontSize: 13,
     textAlign: 'center',
     marginTop: 8,
   },
   emptySubtext: {
-    color: 'rgba(255,255,255,0.35)',
+    color: COLORS.text.tertiary,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 4,
   },
   errorText: {
-    color: '#EF4444',
+    color: COLORS.error.main,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 20,
   },
 
-  // ── Address selector ──
   addressContainer: { gap: 12 },
   inputContainer: { marginBottom: 12 },
   inputLabel: {
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.text.secondary,
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 6,
   },
   textInput: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     padding: 14,
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 14,
   },
 
-  // ── Vehicle selected badge ──
   vehiculoSeleccionado: {
-    backgroundColor: 'rgba(16,185,129,0.1)',
-    borderRadius: 12,
+    backgroundColor: COLORS.success.light,
+    borderRadius: BORDERS.radius.md,
     padding: 12,
     marginTop: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.3)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.success[200],
   },
   vehiculoSeleccionadoContent: {
     flexDirection: 'row',
@@ -2858,7 +2849,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   vehiculoText: {
-    color: '#6EE7B7',
+    color: COLORS.success[700],
     fontSize: 13,
     fontWeight: '600',
     flex: 1,
@@ -2867,10 +2858,8 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 
-  // ── Services grid (kept for legacy) ──
   serviciosGrid: { gap: 10 },
 
-  // ── Calendar styles ──
   calendarContainer: { marginTop: 12 },
   calendarHeader: {
     flexDirection: 'row',
@@ -2882,14 +2871,14 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
   calendarTitle: {
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 15,
     fontWeight: '600',
     textTransform: 'capitalize',
@@ -2901,7 +2890,7 @@ const styles = StyleSheet.create({
   calendarDayLabel: {
     flex: 1,
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.4)',
+    color: COLORS.text.tertiary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -2914,33 +2903,32 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: BORDERS.radius.sm,
   },
   calendarDaySelected: {
-    backgroundColor: 'rgba(96,165,250,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(96,165,250,0.5)',
-    borderRadius: 8,
+    backgroundColor: COLORS.primary[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[400],
+    borderRadius: BORDERS.radius.sm,
   },
   calendarDayText: {
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 14,
     fontWeight: '500',
   },
   calendarDayTextSelected: {
-    color: '#93C5FD',
+    color: COLORS.primary[700],
     fontWeight: '700',
   },
   calendarDayTextDisabled: {
-    color: 'rgba(255,255,255,0.15)',
+    color: COLORS.neutral.gray[300],
   },
   calendarDayToday: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 8,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.dark,
+    borderRadius: BORDERS.radius.sm,
   },
 
-  // ── Time selector ──
   timeContainer: { marginTop: 20 },
   timeGrid: {
     flexDirection: 'row',
@@ -2951,116 +2939,114 @@ const styles = StyleSheet.create({
   timeButton: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   timeButtonSelected: {
-    backgroundColor: 'rgba(96,165,250,0.15)',
-    borderColor: 'rgba(96,165,250,0.4)',
+    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.primary[300],
   },
   timeButtonText: {
-    color: 'rgba(255,255,255,0.6)',
+    color: COLORS.text.secondary,
     fontSize: 13,
     fontWeight: '500',
   },
   timeButtonTextSelected: {
-    color: '#93C5FD',
+    color: COLORS.primary[700],
     fontWeight: '600',
   },
 
-  // ── Provider styles (kept for compatibility) ──
   proveedoresContainer: { marginTop: 14 },
-  proveedoresTitle: { color: '#FFF', fontSize: 15, fontWeight: '600', marginBottom: 4 },
-  proveedoresSubtitle: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginBottom: 12, lineHeight: 17 },
+  proveedoresTitle: { color: COLORS.text.primary, fontSize: 15, fontWeight: '600', marginBottom: 4 },
+  proveedoresSubtitle: { color: COLORS.text.tertiary, fontSize: 12, marginBottom: 12, lineHeight: 17 },
   proveedoresList: { maxHeight: 400 },
   proveedoresListContent: { gap: 10 },
-  proveedoresSectionTitle: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  proveedoresSectionTitle: { color: COLORS.text.secondary, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   mecanicosSection: { marginTop: 16 },
   proveedorCard: {
     padding: 14,
-    borderRadius: 14,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     marginBottom: 8,
+    ...SHADOWS.sm,
   },
   proveedorCardSeleccionado: {
-    borderColor: 'rgba(16,185,129,0.5)',
-    backgroundColor: 'rgba(16,185,129,0.06)',
+    borderColor: COLORS.success[400],
+    backgroundColor: COLORS.success.light,
   },
   proveedorCardContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   proveedorCardInfo: { flex: 1 },
-  proveedorCardNombre: { color: '#FFF', fontSize: 14, fontWeight: '600' },
-  proveedorCardNombreSeleccionado: { color: '#6EE7B7' },
-  proveedorCardDireccion: { color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 },
+  proveedorCardNombre: { color: COLORS.text.primary, fontSize: 14, fontWeight: '600' },
+  proveedorCardNombreSeleccionado: { color: COLORS.success[700] },
+  proveedorCardDireccion: { color: COLORS.text.tertiary, fontSize: 11, marginTop: 2 },
   proveedorCardRating: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  proveedorCardRatingText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
+  proveedorCardRatingText: { color: COLORS.text.secondary, fontSize: 11 },
   proveedoresSeleccionadosBadge: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, marginTop: 10,
-    backgroundColor: 'rgba(168,85,247,0.1)', borderRadius: 10,
-    borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)',
+    backgroundColor: COLORS.primary[50], borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin, borderColor: COLORS.primary[200],
   },
-  proveedoresSeleccionadosText: { color: '#C084FC', fontSize: 13, fontWeight: '600' },
+  proveedoresSeleccionadosText: { color: COLORS.primary[700], fontSize: 13, fontWeight: '600' },
 
-  // ── Avatar ──
   avatarContainer: { overflow: 'hidden' },
-  avatarImage: { backgroundColor: 'rgba(255,255,255,0.05)' },
+  avatarImage: { backgroundColor: COLORS.neutral.gray[100] },
   avatarPlaceholder: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.neutral.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // ── Precompra & misc ──
   cambiarServicioButton: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 16, paddingVertical: 10, paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: 'rgba(96,165,250,0.1)',
-    borderWidth: 1, borderColor: 'rgba(96,165,250,0.3)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
+    borderWidth: BORDERS.width.thin, borderColor: COLORS.primary[200],
     alignSelf: 'flex-start',
   },
-  cambiarServicioButtonText: { color: '#93C5FD', fontSize: 13, fontWeight: '600' },
+  cambiarServicioButtonText: { color: COLORS.primary[700], fontSize: 13, fontWeight: '600' },
   servicioPreseleccionadoCard: {
-    padding: 14, borderRadius: 14, marginBottom: 10,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    padding: 14, borderRadius: BORDERS.radius.md, marginBottom: 10,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin, borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   servicioPreseleccionadoHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  servicioPreseleccionadoNombre: { color: '#FFF', fontSize: 14, fontWeight: '600', flex: 1 },
-  servicioPreseleccionadoDescripcion: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginBottom: 4 },
-  servicioPreseleccionadoPrecio: { color: '#6EE7B7', fontSize: 13, fontWeight: '600' },
+  servicioPreseleccionadoNombre: { color: COLORS.text.primary, fontSize: 14, fontWeight: '600', flex: 1 },
+  servicioPreseleccionadoDescripcion: { color: COLORS.text.tertiary, fontSize: 12, marginBottom: 4 },
+  servicioPreseleccionadoPrecio: { color: COLORS.success[700], fontSize: 13, fontWeight: '600' },
   serviciosPreseleccionadosContainer: { gap: 10, marginBottom: 12 },
 
-  // ── Address (paso 5) ──
   direccionCard: {
-    padding: 14, borderRadius: 14, marginBottom: 10,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    padding: 14, borderRadius: BORDERS.radius.md, marginBottom: 10,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin, borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
-  direccionCardSelected: { borderColor: 'rgba(96,165,250,0.5)', backgroundColor: 'rgba(96,165,250,0.08)' },
+  direccionCardSelected: { borderColor: COLORS.primary[400], backgroundColor: COLORS.primary[50] },
   direccionCardContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   direccionCardInfo: { flex: 1 },
-  direccionCardNombre: { color: '#FFF', fontSize: 14, fontWeight: '600' },
-  direccionCardNombreSelected: { color: '#93C5FD' },
-  direccionCardDireccion: { color: 'rgba(255,255,255,0.45)', fontSize: 12, marginTop: 2 },
-  direccionCardDetalle: { color: 'rgba(255,255,255,0.35)', fontSize: 11, marginTop: 2 },
+  direccionCardNombre: { color: COLORS.text.primary, fontSize: 14, fontWeight: '600' },
+  direccionCardNombreSelected: { color: COLORS.primary[700] },
+  direccionCardDireccion: { color: COLORS.text.tertiary, fontSize: 12, marginTop: 2 },
+  direccionCardDetalle: { color: COLORS.text.disabled, fontSize: 11, marginTop: 2 },
 
-  // ── Service selector (paso 2 - unused now, kept for compat) ──
   vistaSelector: {
     flexDirection: 'row', gap: 8, marginBottom: 14,
   },
   vistaButton: {
     flex: 1, paddingVertical: 10, alignItems: 'center',
-    borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: BORDERS.radius.md, backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin, borderColor: COLORS.border.light,
   },
-  vistaButtonActiva: { backgroundColor: 'rgba(96,165,250,0.15)', borderColor: 'rgba(96,165,250,0.4)' },
-  vistaButtonText: { color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '500' },
-  vistaButtonTextActiva: { color: '#93C5FD', fontWeight: '600' },
+  vistaButtonActiva: { backgroundColor: COLORS.primary[50], borderColor: COLORS.primary[300] },
+  vistaButtonText: { color: COLORS.text.secondary, fontSize: 13, fontWeight: '500' },
+  vistaButtonTextActiva: { color: COLORS.primary[700], fontWeight: '600' },
 
   scrollView: { flex: 1 },
 });

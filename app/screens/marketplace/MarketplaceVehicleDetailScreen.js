@@ -2,8 +2,6 @@ import React, { useState, Fragment } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, Modal, Platform, Dimensions, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import Svg, { Circle } from 'react-native-svg';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,12 +19,11 @@ import OfferCreationModal from '../../components/marketplace/OfferCreationModal'
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal'; // Import Checklist Modal
 import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
 import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { getHealthColorToken, normalizePct } from '../../utils/healthFormat';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { BORDERS } from '../../design-system/tokens/borders';
 
-// Superficie glass alineada con banner marketplace / dark slate + acento ice
-const GLASS_BG = 'rgba(15,23,42,0.78)';
-const GLASS_BORDER = 'rgba(147,197,253,0.24)';
-const GLASS_BG_SUBTLE = 'rgba(255,255,255,0.05)';
-const BLUR_I = Platform.OS === 'ios' ? 40 : 0;
 const SCREEN_H = Dimensions.get('window').height;
 const HEALTH_MODAL_SCROLL_MAX_H = SCREEN_H * 0.68;
 
@@ -214,7 +211,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         cx="40"
                         cy="40"
                         r={radius}
-                        stroke="rgba(255,255,255,0.12)"
+                        stroke={COLORS.border.light}
                         strokeWidth="6"
                         fill="transparent"
                     />
@@ -294,10 +291,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         // Metric Logic matching VehicleHealthScreen - Consistent colors
         const score = item.salud_porcentaje || item.score || 0;
 
-        let color = '#EF4444'; // Red - default poor
-        if (score >= 80) color = '#10B981'; // Green - Excellent
-        else if (score >= 60) color = '#F59E0B'; // Yellow - Good  
-        else if (score >= 40) color = '#F97316'; // Orange - Fair
+        const color = getHealthColorToken(COLORS, score);
 
         const name = item.nombre || item.name || 'Componente';
         const lastServiceKm = item.km_ultimo_servicio ? `${item.km_ultimo_servicio.toLocaleString()} km` : '0 km';
@@ -396,21 +390,19 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
     return (
         <View style={[styles.container, webRootStyle]}>
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <LinearGradient colors={['#030712', '#0a0f1a', '#030712']} style={StyleSheet.absoluteFill} />
-            </View>
-
-            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+            <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
             <ScrollView
                 style={[styles.scrollView, webScrollStyle]}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6EE7B7" />}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />
+                }
             >
                 {!loading && loadError ? (
                     <View style={styles.loadErrorBox}>
-                        <Ionicons name="cloud-offline-outline" size={40} color="#9CA3AF" />
+                        <Ionicons name="cloud-offline-outline" size={40} color={COLORS.text.tertiary} />
                         <Text style={styles.loadErrorText}>{loadError}</Text>
                     </View>
                 ) : null}
@@ -419,12 +411,9 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     {imageUrl ? (
                         <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
                     ) : (
-                        <View style={[styles.headerImage, { backgroundColor: '#1F2937' }]} />
+                        <View style={[styles.headerImage, { backgroundColor: COLORS.neutral.gray[200] }]} />
                     )}
-                    <LinearGradient
-                        colors={['rgba(0,0,0,0.1)', 'transparent', 'rgba(3, 7, 18, 0.92)']}
-                        style={styles.headerGradient}
-                    />
+                    <View style={styles.headerScrim} pointerEvents="none" />
 
                     {/* Header: atrás con sesión (web y app); badge a la derecha; visitante sin atrás */}
                     <View style={styles.topBar}>
@@ -435,13 +424,13 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                 accessibilityRole="button"
                                 accessibilityLabel="Volver"
                             >
-                                <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+                                <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
                             </TouchableOpacity>
                         ) : null}
                         <View style={styles.topBarSpacer} />
                         {fullVehicleData.is_certified_mecanimovil ? (
                             <View style={styles.certifiedBadge}>
-                                <Ionicons name="shield-checkmark" size={14} color="#FFFFFF" />
+                                <Ionicons name="shield-checkmark" size={14} color={COLORS.success[700]} />
                                 <Text style={styles.certifiedText}>VERIFICADO MECANIMÓVIL</Text>
                             </View>
                         ) : null}
@@ -472,7 +461,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                     />
                                 ) : (
                                     <View style={[styles.sellerAvatar, styles.sellerAvatarPlaceholder]}>
-                                        <Ionicons name="person" size={22} color="rgba(147,197,253,0.9)" />
+                                        <Ionicons name="person" size={22} color={COLORS.primary[400]} />
                                     </View>
                                 )}
                             </View>
@@ -505,7 +494,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     {/* Service Timeline - REDESIGNED */}
                     {/* Vehicle Specs Section */}
                     <View style={styles.sectionHeader}>
-                        <Ionicons name="car-sport-outline" size={20} color="#93C5FD" />
+                        <Ionicons name="car-sport-outline" size={20} color={COLORS.primary[500]} />
                         <Text style={styles.sectionTitle}>Detalles del Vehículo</Text>
                     </View>
 
@@ -559,7 +548,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     {history.length > 0 && (
                         <>
                             <View style={styles.sectionHeader}>
-                                <Feather name="clock" size={20} color="#93C5FD" />
+                                <Feather name="clock" size={20} color={COLORS.primary[500]} />
                                 <Text style={styles.sectionTitle}>Historial de Servicios</Text>
                             </View>
 
@@ -569,7 +558,6 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                         key={item.id}
                                         item={item}
                                         onViewChecklist={user ? handleViewChecklist : undefined}
-                                        variant="dark"
                                     />
                                 ))}
                             </View>
@@ -581,9 +569,8 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 </View>
             </ScrollView>
 
-            {/* 3. Sticky Bottom Bar — glass continuo */}
+            {/* 3. Sticky Bottom Bar */}
             <View style={[styles.stickyBottomBar, { paddingBottom: insets.bottom > 0 ? insets.bottom : 20 }]}>
-                {Platform.OS === 'ios' && <BlurView intensity={BLUR_I} tint="dark" style={StyleSheet.absoluteFill} />}
                 <View style={styles.stickyBottomInner}>
                     <View style={styles.priceContainer}>
                         <Text style={styles.stickyPriceLabel}>Precio</Text>
@@ -596,15 +583,15 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
                         if (isAnonymousViewer && !isOwnerView) {
                             if (isReserved) {
-                                return (
-                                    <TouchableOpacity
-                                        style={[styles.makeOfferButton, { backgroundColor: 'rgba(75,85,99,0.9)' }]}
-                                        disabled
-                                    >
-                                        <Ionicons name="lock-closed" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                                        <Text style={styles.makeOfferText}>Reservado</Text>
-                                    </TouchableOpacity>
-                                );
+                            return (
+                                <TouchableOpacity
+                                    style={[styles.makeOfferButton, styles.makeOfferButtonMuted]}
+                                    disabled
+                                >
+                                    <Ionicons name="lock-closed" size={20} color={COLORS.text.inverse} style={{ marginRight: 8 }} />
+                                    <Text style={[styles.makeOfferText, styles.makeOfferLabelOnMuted]}>Reservado</Text>
+                                </TouchableOpacity>
+                            );
                             }
                             return (
                                 <TouchableOpacity
@@ -612,15 +599,12 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                     onPress={() => navigation.navigate(ROUTES.LOGIN)}
                                     activeOpacity={0.85}
                                 >
-                                    <LinearGradient
-                                        colors={['#007EA7', '#00A8E8']}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                        style={styles.makeOfferGradient}
-                                    >
-                                        <Ionicons name="log-in-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                                        <Text style={styles.makeOfferText}>Iniciar sesión para ofertar</Text>
-                                    </LinearGradient>
+                                    <View style={[styles.makeOfferGradient, styles.makeOfferPrimaryFill]}>
+                                        <Ionicons name="log-in-outline" size={20} color={COLORS.text.onPrimary} style={{ marginRight: 8 }} />
+                                        <Text style={[styles.makeOfferText, styles.makeOfferLabelOnPrimary]}>
+                                            Iniciar sesión para ofertar
+                                        </Text>
+                                    </View>
                                 </TouchableOpacity>
                             );
                         }
@@ -628,48 +612,56 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         let buttonText = "Hacer Oferta";
                         let disabled = false;
                         let icon = "pricetag-outline";
-                        let useGradient = true;
+                        let usePrimary = true;
 
                         if (isOwnerView) {
                             buttonText = "Tu Publicación";
                             disabled = true;
                             icon = "person";
-                            useGradient = false;
+                            usePrimary = false;
                         }
 
                         if (isReserved) {
                             buttonText = "Reservado";
                             disabled = true;
                             icon = "lock-closed";
-                            useGradient = false;
+                            usePrimary = false;
 
                             if (isOwnerView) {
                                 buttonText = "Ofertado (Ver Negocios)";
                             }
                         }
 
+                        const offerLabelStyle =
+                            usePrimary && !disabled
+                                ? styles.makeOfferLabelOnPrimary
+                                : isOwnerView
+                                    ? styles.makeOfferLabelOwner
+                                    : styles.makeOfferLabelOnMuted;
+                        const offerIconColor =
+                            usePrimary && !disabled
+                                ? COLORS.text.onPrimary
+                                : isOwnerView
+                                    ? COLORS.text.secondary
+                                    : COLORS.text.inverse;
+
                         const inner = (
                             <>
-                                <Ionicons name={icon} size={20} color="#FFF" style={{ marginRight: 8 }} />
-                                <Text style={styles.makeOfferText}>{buttonText}</Text>
+                                <Ionicons name={icon} size={20} color={offerIconColor} style={{ marginRight: 8 }} />
+                                <Text style={[styles.makeOfferText, offerLabelStyle]}>{buttonText}</Text>
                             </>
                         );
 
-                        if (useGradient && !disabled && !isOwnerView) {
+                        if (usePrimary && !disabled && !isOwnerView) {
                             return (
                                 <TouchableOpacity
                                     style={styles.makeOfferButtonWrap}
                                     onPress={() => setOfferModalVisible(true)}
                                     activeOpacity={0.85}
                                 >
-                                    <LinearGradient
-                                        colors={['#007EA7', '#00A8E8']}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                        style={styles.makeOfferGradient}
-                                    >
+                                    <View style={[styles.makeOfferGradient, styles.makeOfferPrimaryFill]}>
                                         {inner}
-                                    </LinearGradient>
+                                    </View>
                                 </TouchableOpacity>
                             );
                         }
@@ -678,7 +670,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                             <TouchableOpacity
                                 style={[
                                     styles.makeOfferButton,
-                                    { backgroundColor: isOwnerView ? 'rgba(255,255,255,0.12)' : 'rgba(75,85,99,0.9)' }
+                                    isOwnerView ? styles.makeOfferButtonOwner : styles.makeOfferButtonMuted,
                                 ]}
                                 onPress={() => {
                                     if (!disabled && !isOwnerView) setOfferModalVisible(true);
@@ -707,19 +699,10 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         onPress={() => setHealthModalVisible(false)}
                     />
                     <View style={styles.modalSheet}>
-                        <View style={styles.modalSheetBase} pointerEvents="none" />
-                        {Platform.OS === 'ios' && (
-                            <BlurView
-                                intensity={BLUR_I}
-                                tint="dark"
-                                style={StyleSheet.absoluteFill}
-                                pointerEvents="none"
-                            />
-                        )}
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Detalle de Salud</Text>
                             <TouchableOpacity onPress={() => setHealthModalVisible(false)} style={styles.closeButton}>
-                                <Ionicons name="close" size={24} color="#F9FAFB" />
+                                <Ionicons name="close" size={24} color={COLORS.text.primary} />
                             </TouchableOpacity>
                         </View>
                         <ScrollView
@@ -772,7 +755,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 const getStyles = (insets) => StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#030712',
+        backgroundColor: COLORS.background.default,
     },
     scrollView: {
         flex: 1,
@@ -791,26 +774,27 @@ const getStyles = (insets) => StyleSheet.create({
     loadErrorText: {
         marginTop: 16,
         fontSize: 16,
-        color: '#D1D5DB',
+        color: COLORS.text.secondary,
         textAlign: 'center',
         lineHeight: 22,
     },
-    // Header
     headerContainer: {
         height: 320,
         width: '100%',
         position: 'relative',
+        backgroundColor: COLORS.neutral.gray[200],
     },
     headerImage: {
         width: '100%',
         height: '100%',
     },
-    headerGradient: {
+    headerScrim: {
         position: 'absolute',
-        top: 0,
         left: 0,
         right: 0,
         bottom: 0,
+        height: '58%',
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.68),
     },
     topBar: {
         position: 'absolute',
@@ -820,6 +804,7 @@ const getStyles = (insets) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
+        zIndex: 2,
     },
     topBarSpacer: {
         flex: 1,
@@ -828,24 +813,25 @@ const getStyles = (insets) => StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.2)', // Blur effect simulation
+        backgroundColor: withOpacity(COLORS.base.white, 0.94),
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
     },
     certifiedBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(16, 185, 129, 0.35)',
+        backgroundColor: COLORS.success.light,
         paddingHorizontal: 12,
         paddingVertical: 7,
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(110,231,183,0.45)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.success[200],
     },
     certifiedText: {
-        color: '#FFFFFF',
+        color: COLORS.success[700],
         fontWeight: '700',
         fontSize: 10,
         marginLeft: 4,
@@ -853,42 +839,43 @@ const getStyles = (insets) => StyleSheet.create({
     },
     headerInfo: {
         position: 'absolute',
-        bottom: 40, // Space for overlap
+        bottom: 40,
         left: 20,
         right: 20,
+        zIndex: 2,
     },
     headerTitle: {
-        color: '#FFFFFF',
+        color: COLORS.text.inverse,
         fontSize: 32,
         fontWeight: '800',
-        textShadowColor: 'rgba(0,0,0,0.3)',
+        textShadowColor: withOpacity(COLORS.base.inkBlack, 0.35),
         textShadowOffset: { width: 0, height: 2 },
         textShadowRadius: 4,
     },
     headerSubtitle: {
-        color: 'rgba(255,255,255,0.8)',
+        color: withOpacity(COLORS.base.white, 0.88),
         fontSize: 16,
         marginTop: 4,
     },
-    // Body
     bodyContainer: {
         marginTop: -20,
-        backgroundColor: 'transparent',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        backgroundColor: COLORS.background.default,
+        borderTopLeftRadius: BORDERS.radius.xl,
+        borderTopRightRadius: BORDERS.radius.xl,
         paddingHorizontal: 20,
         paddingTop: 20,
     },
     sellerCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: GLASS_BG,
-        borderRadius: 18,
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.lg,
         paddingVertical: 14,
         paddingHorizontal: 16,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: GLASS_BORDER,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
     },
     sellerAvatarWrap: {
         marginRight: 14,
@@ -897,11 +884,11 @@ const getStyles = (insets) => StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        borderWidth: 1,
-        borderColor: GLASS_BORDER,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     sellerAvatarPlaceholder: {
-        backgroundColor: GLASS_BG_SUBTLE,
+        backgroundColor: COLORS.neutral.gray[100],
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -912,7 +899,7 @@ const getStyles = (insets) => StyleSheet.create({
     sellerLabel: {
         fontSize: 12,
         fontWeight: '600',
-        color: 'rgba(249,250,251,0.5)',
+        color: COLORS.text.tertiary,
         textTransform: 'uppercase',
         letterSpacing: 0.6,
         marginBottom: 2,
@@ -920,16 +907,16 @@ const getStyles = (insets) => StyleSheet.create({
     sellerName: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
-    // Health Card
     healthCard: {
-        backgroundColor: GLASS_BG,
-        borderRadius: 18,
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.lg,
         padding: 20,
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: GLASS_BORDER,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
         overflow: 'hidden',
     },
     healthRow: {
@@ -959,37 +946,36 @@ const getStyles = (insets) => StyleSheet.create({
     healthTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
         marginBottom: 4,
     },
     healthSubtitle: {
         fontSize: 13,
-        color: 'rgba(255,255,255,0.5)',
+        color: COLORS.text.secondary,
         marginBottom: 12,
     },
     detailButton: {
-        backgroundColor: 'rgba(147,197,253,0.14)',
+        backgroundColor: COLORS.primary[50],
         paddingHorizontal: 16,
         paddingVertical: 10,
-        borderRadius: 12,
+        borderRadius: BORDERS.radius.md,
         alignSelf: 'flex-start',
-        borderWidth: 1,
-        borderColor: 'rgba(147,197,253,0.35)',
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[200],
     },
     detailButtonText: {
-        color: '#93C5FD',
+        color: COLORS.primary[700],
         fontSize: 12,
         fontWeight: '600',
     },
-
-    // Specs Section
     specsCard: {
-        backgroundColor: GLASS_BG,
-        borderRadius: 18,
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.lg,
         padding: 20,
         marginBottom: 24,
-        borderWidth: 1,
-        borderColor: GLASS_BORDER,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
         overflow: 'hidden',
     },
     specsGrid: {
@@ -1005,13 +991,13 @@ const getStyles = (insets) => StyleSheet.create({
     },
     specLabel: {
         fontSize: 12,
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
         marginBottom: 4,
     },
     specValue: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     specRtRow: {
         width: '100%',
@@ -1020,7 +1006,7 @@ const getStyles = (insets) => StyleSheet.create({
         paddingHorizontal: 12,
         marginBottom: 16,
         borderLeftWidth: 3,
-        borderRadius: 12,
+        borderRadius: BORDERS.radius.md,
     },
     specRtHint: {
         fontSize: 11,
@@ -1028,8 +1014,6 @@ const getStyles = (insets) => StyleSheet.create({
         marginTop: 6,
         width: '100%',
     },
-
-    // Timeline
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1039,7 +1023,7 @@ const getStyles = (insets) => StyleSheet.create({
     sectionTitle: {
         fontSize: 17,
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
         marginLeft: 10,
         letterSpacing: 0.2,
     },
@@ -1048,14 +1032,12 @@ const getStyles = (insets) => StyleSheet.create({
     },
     emptyHistory: {
         alignItems: 'center',
-        paddingVertical: 20
+        paddingVertical: 20,
     },
     emptyHistoryText: {
-        color: '#9CA3AF',
-        fontStyle: 'italic'
+        color: COLORS.text.tertiary,
+        fontStyle: 'italic',
     },
-
-    // Sticky Bottom Bar
     stickyBottomBar: {
         position: 'absolute',
         bottom: 0,
@@ -1063,18 +1045,18 @@ const getStyles = (insets) => StyleSheet.create({
         right: 0,
         paddingTop: 14,
         paddingHorizontal: 20,
-        borderTopWidth: 1,
-        borderTopColor: GLASS_BORDER,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -6 },
-        shadowOpacity: 0.35,
-        shadowRadius: 16,
-        elevation: 20,
-        overflow: 'hidden',
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.border.light,
+        backgroundColor: COLORS.background.paper,
         ...Platform.select({
-            ios: { backgroundColor: 'transparent' },
-            android: { backgroundColor: 'rgba(15,23,42,0.98)' },
-            default: { backgroundColor: 'rgba(15,23,42,0.98)' },
+            ios: {
+                shadowColor: '#0A0B0D',
+                shadowOffset: { width: 0, height: -2 },
+                shadowOpacity: 0.06,
+                shadowRadius: 8,
+            },
+            android: { elevation: 8 },
+            default: {},
         }),
     },
     stickyBottomInner: {
@@ -1084,12 +1066,12 @@ const getStyles = (insets) => StyleSheet.create({
         zIndex: 2,
     },
     stickyPriceLabel: {
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.tertiary,
         fontSize: 12,
         fontWeight: '500',
     },
     stickyPriceValue: {
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
         fontSize: 24,
         fontWeight: '800',
     },
@@ -1099,7 +1081,7 @@ const getStyles = (insets) => StyleSheet.create({
         marginRight: 12,
     },
     makeOfferButtonWrap: {
-        borderRadius: 14,
+        borderRadius: BORDERS.radius.md,
         overflow: 'hidden',
         maxWidth: '58%',
     },
@@ -1109,62 +1091,74 @@ const getStyles = (insets) => StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: 22,
         paddingVertical: 14,
-        borderRadius: 14,
+        borderRadius: BORDERS.radius.md,
+    },
+    makeOfferPrimaryFill: {
+        backgroundColor: COLORS.primary[500],
+    },
+    makeOfferButtonMuted: {
+        backgroundColor: COLORS.neutral.gray[600],
+        borderColor: COLORS.neutral.gray[600],
+    },
+    makeOfferButtonOwner: {
+        backgroundColor: COLORS.neutral.gray[100],
+        borderColor: COLORS.border.light,
     },
     makeOfferButton: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 22,
         paddingVertical: 14,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: GLASS_BORDER,
+        borderRadius: BORDERS.radius.md,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         maxWidth: '58%',
     },
     makeOfferText: {
-        color: '#FFFFFF',
         fontSize: 15,
         fontWeight: '700',
     },
-
-    // Modals
+    makeOfferLabelOnPrimary: {
+        color: COLORS.text.onPrimary,
+    },
+    makeOfferLabelOnMuted: {
+        color: COLORS.text.inverse,
+    },
+    makeOfferLabelOwner: {
+        color: COLORS.text.secondary,
+    },
     modalOverlay: {
         flex: 1,
         justifyContent: 'flex-end',
-        backgroundColor: 'rgba(0,0,0,0.55)',
+        backgroundColor: COLORS.background.overlay,
     },
     modalBackdrop: {
         ...StyleSheet.absoluteFillObject,
     },
     modalSheet: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        borderTopLeftRadius: BORDERS.radius.xl,
+        borderTopRightRadius: BORDERS.radius.xl,
         maxHeight: '82%',
         minHeight: '42%',
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-        backgroundColor: '#0a0f1a',
-    },
-    modalSheetBase: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(10,15,26,0.94)',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        backgroundColor: COLORS.background.paper,
+        ...SHADOWS.lg,
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 20,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255,255,255,0.08)',
+        borderBottomWidth: BORDERS.width.thin,
+        borderBottomColor: COLORS.border.light,
         zIndex: 2,
     },
     modalTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     closeButton: {
         padding: 4,
@@ -1182,14 +1176,14 @@ const getStyles = (insets) => StyleSheet.create({
         alignItems: 'center',
         marginBottom: 14,
         padding: 14,
-        backgroundColor: GLASS_BG,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: GLASS_BORDER,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.md,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
     },
     detailProgressTrack: {
         height: 5,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: COLORS.neutral.gray[200],
         borderRadius: 3,
         marginTop: 8,
         marginBottom: 4,
@@ -1213,7 +1207,7 @@ const getStyles = (insets) => StyleSheet.create({
     detailName: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     detailStatusRow: {
         flexDirection: 'row',
@@ -1228,18 +1222,18 @@ const getStyles = (insets) => StyleSheet.create({
     },
     detailStatusText: {
         fontSize: 12,
-        color: 'rgba(255,255,255,0.45)',
-        marginBottom: 2
+        color: COLORS.text.tertiary,
+        marginBottom: 2,
     },
     detailRemaining: {
         fontSize: 11,
-        color: 'rgba(255,255,255,0.4)',
-        marginLeft: 8
+        color: COLORS.text.disabled,
+        marginLeft: 8,
     },
     statusBadge: {
         fontSize: 11,
         fontWeight: '600',
-        textTransform: 'uppercase'
+        textTransform: 'uppercase',
     },
     detailScore: {
         fontSize: 16,
@@ -1250,7 +1244,7 @@ const getStyles = (insets) => StyleSheet.create({
         alignItems: 'center',
     },
     emptyDetailsText: {
-        color: 'rgba(255,255,255,0.45)',
+        color: COLORS.text.secondary,
     },
 });
 

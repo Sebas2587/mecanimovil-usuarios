@@ -86,14 +86,14 @@ const PatrimonyCard = ({
                         <Text style={styles.statLabel}>Salud de Flota</Text>
                         <View style={styles.statValueContainer}>
                             <Ionicons
-                                name={fleetHealth >= 80 ? "arrow-up" : "arrow-down"}
+                                name={fleetHealth >= 70 ? "arrow-up" : "arrow-down"}
                                 size={14}
-                                color={fleetHealth >= 80 ? (colors.success?.[400] || '#33BFA7') : (colors.warning?.[400] || '#F59E0B')}
+                                color={fleetHealth >= 70 ? (colors.success?.[400] || '#33BFA7') : (colors.warning?.[400] || '#F59E0B')}
                             />
                             <Text style={styles.statValueBrand}>{fleetHealth > 0 ? `${fleetHealth}%` : '--'}</Text>
                         </View>
-                        <Text style={{ fontSize: 10, color: fleetHealth >= 80 ? (colors.success?.[400]) : (colors.warning?.[400]), marginTop: 2 }}>
-                            {fleetHealth >= 80 ? 'Valorizada' : 'Requiere Atención'}
+                        <Text style={{ fontSize: 10, color: fleetHealth >= 70 ? (colors.success?.[400]) : (colors.warning?.[400]), marginTop: 2 }}>
+                            {fleetHealth >= 70 ? 'Valorizada' : 'Requiere Atención'}
                         </Text>
                     </View>
                 </View>

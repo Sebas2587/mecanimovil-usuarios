@@ -1,52 +1,49 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { HeartPulse, Clock, ChevronRight } from 'lucide-react-native';
-
-const GlassCard = ({ children, style, onPress }) => (
-    <TouchableOpacity style={[styles.card, style]} activeOpacity={0.7} onPress={onPress}>
-        {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
-        {children}
-    </TouchableOpacity>
-);
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { getHealthColorToken } from '../../utils/healthFormat';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPress }) => {
-    const getHealthColor = (score) => {
-        if (score >= 80) return '#10B981';
-        if (score >= 60) return '#F59E0B';
-        if (score >= 40) return '#F97316';
-        return '#EF4444';
-    };
+    const healthColor = getHealthColorToken(COLORS, healthScore || 0);
 
-    const healthColor = getHealthColor(healthScore || 0);
+    const ActionCard = ({ children, onPress }) => (
+        <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={onPress}>
+            {children}
+        </TouchableOpacity>
+    );
 
     return (
         <View style={styles.container}>
-            <GlassCard onPress={onHealthPress}>
+            <ActionCard onPress={onHealthPress}>
                 <View style={styles.cardHeader}>
-                    <View style={[styles.iconCircle, { backgroundColor: `${healthColor}20` }]}>
+                    <View style={[styles.iconCircle, { backgroundColor: withOpacity(healthColor, 0.12) }]}>
                         <HeartPulse size={22} color={healthColor} />
                     </View>
-                    <ChevronRight size={16} color="rgba(255,255,255,0.25)" />
+                    <ChevronRight size={16} color={COLORS.text.tertiary} />
                 </View>
                 <View>
                     <Text style={styles.title}>Salud del Motor</Text>
                     <Text style={styles.subtitle}>{healthScore || 0}% de condición óptima</Text>
                 </View>
-            </GlassCard>
+            </ActionCard>
 
-            <GlassCard onPress={onHistoryPress}>
+            <ActionCard onPress={onHistoryPress}>
                 <View style={styles.cardHeader}>
-                    <View style={[styles.iconCircle, { backgroundColor: 'rgba(251,191,36,0.15)' }]}>
-                        <Clock size={22} color="#FBBF24" />
+                    <View style={[styles.iconCircle, { backgroundColor: COLORS.warning[50] }]}>
+                        <Clock size={22} color={COLORS.warning[600]} />
                     </View>
-                    <ChevronRight size={16} color="rgba(255,255,255,0.25)" />
+                    <ChevronRight size={16} color={COLORS.text.tertiary} />
                 </View>
                 <View>
                     <Text style={styles.title}>Historial</Text>
                     <Text style={styles.subtitle}>{serviceCount || 0} servicios registrados</Text>
                 </View>
-            </GlassCard>
+            </ActionCard>
         </View>
     );
 };
@@ -54,26 +51,27 @@ const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPr
 const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
-        paddingHorizontal: 16,
-        marginBottom: 24,
-        gap: 12,
+        paddingHorizontal: SPACING.container.horizontal,
+        marginBottom: SPACING.lg,
+        gap: SPACING.sm,
     },
     card: {
         flex: 1,
-        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.card.lg,
+        padding: SPACING.md,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         justifyContent: 'space-between',
         minHeight: 140,
         overflow: 'hidden',
+        ...SHADOWS.sm,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 12,
+        marginBottom: SPACING.sm,
     },
     iconCircle: {
         width: 44,
@@ -83,16 +81,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     title: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        marginBottom: 4,
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.xxs,
     },
     subtitle: {
         fontSize: 11,
-        color: 'rgba(255,255,255,0.4)',
+        color: COLORS.text.tertiary,
         lineHeight: 16,
-    }
+    },
 });
 
 export default QuickActionGrid;

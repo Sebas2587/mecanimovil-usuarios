@@ -15,12 +15,17 @@ import {
   StatusBar
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Car, X, Camera, Tag, Wrench, CheckCircle, Info, AlertCircle, AlertTriangle, Plus, ChevronDown, ChevronLeft, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { COLORS, ROUTES } from '../../utils/constants';
+import { ROUTES } from '../../utils/constants';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import { useAuth } from '../../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -35,25 +40,23 @@ import { useServicesHistory } from '../../hooks/useServices';
 import * as userService from '../../services/user';
 import * as vehicleService from '../../services/vehicle';
 import * as VehicleHealthService from '../../services/vehicleHealthService';
+import { getHealthColorToken } from '../../utils/healthFormat';
 
 const tiposMotor = [
   { id: 1, nombre: 'Gasolina' },
   { id: 2, nombre: 'Diésel' },
 ];
 
-const GlassCard = ({ children, style }) => (
-  <View style={[styles.glassCard, style]}>
-    {Platform.OS === 'ios' && (
-      <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-    )}
-    {children}
-  </View>
-);
-
 const MisVehiculosScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
+  const stackHeaderHeight = useHeaderHeight();
   const { user } = useAuth();
+
+  /** Tab sin header de stack: respeta notch. Con stack (p. ej. Mis Vehículos desde menú): solo separación bajo CustomHeader. */
+  const headerPaddingTop =
+    stackHeaderHeight > 0 ? SPACING.md : insets.top + SPACING.sm;
 
   // Estados para la lista de vehículos (Refactored to Hooks)
   const { data: vehiclesData, isLoading: isLoadingVehicles, refetch: refetchVehicles } = useVehicles();
@@ -407,13 +410,7 @@ const MisVehiculosScreen = () => {
   // --- RENDER HELPERS ---
   const formatCurrency = (value) => `$${(Number(value) || 0).toLocaleString('es-CL')}`;
 
-  // Get health color based on score
-  const getHealthColor = (score) => {
-    if (score >= 80) return '#10B981';
-    if (score >= 60) return '#F59E0B';
-    if (score >= 40) return '#F97316';
-    return '#EF4444';
-  };
+  const getHealthColor = (score) => getHealthColorToken(COLORS, score);
 
   const renderVehicleItem = ({ item }) => {
     const estimatedValue = item.precio_sugerido_final || item.precio_mercado_promedio || 0;
@@ -424,10 +421,6 @@ const MisVehiculosScreen = () => {
         activeOpacity={0.9}
         onPress={() => handleVehiclePress(item)}
       >
-        {Platform.OS === 'ios' && (
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-        )}
-
         {/* Cover Image */}
         <View style={styles.imageContainer}>
           <Image
@@ -435,15 +428,12 @@ const MisVehiculosScreen = () => {
             style={styles.vehicleImage}
             resizeMode="cover"
           />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.85)']}
-            style={styles.imageOverlay}
-          >
+          <View style={styles.imageOverlay}>
             <View>
               <Text style={styles.cardBrand}>{item.marca_nombre}</Text>
               <Text style={styles.cardModel}>{item.modelo_nombre}</Text>
             </View>
-          </LinearGradient>
+          </View>
 
           <View style={styles.yearBadge}>
             <Text style={styles.yearText}>{item.year}</Text>
@@ -452,7 +442,7 @@ const MisVehiculosScreen = () => {
           {/* Active Offers Indicator - Right Side */}
           {item.ofertas_activas_count > 0 && (
             <View style={styles.offersBadge}>
-              <Tag size={14} color="#FFFFFF" />
+              <Tag size={14} color={COLORS.text.inverse} />
               <Text style={styles.offersBadgeText}>{item.ofertas_activas_count} {item.ofertas_activas_count === 1 ? 'oferta' : 'ofertas'}</Text>
             </View>
           )}
@@ -460,7 +450,7 @@ const MisVehiculosScreen = () => {
           {/* Active Service Indicator */}
           {item.active_requests_count > 0 && (
             <View style={styles.serviceBadge}>
-              <Wrench size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Wrench size={14} color={COLORS.text.inverse} style={{ marginRight: 4 }} />
               <Text style={styles.serviceBadgeText}>En Servicio</Text>
             </View>
           )}
@@ -494,7 +484,7 @@ const MisVehiculosScreen = () => {
                   ]} />
                 </View>
 
-                {item.health_score >= 80 ? (
+                {item.health_score >= 70 ? (
                   <View style={styles.healthStatusRow}>
                     <CheckCircle size={12} color={getHealthColor(item.health_score)} />
                     <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
@@ -527,7 +517,7 @@ const MisVehiculosScreen = () => {
             ) : (
               <View style={styles.healthHeader}>
                 <Text style={styles.healthLabel}>Calculando Salud...</Text>
-                <ActivityIndicator size="small" color="#6EE7B7" />
+                <ActivityIndicator size="small" color={COLORS.primary[500]} />
               </View>
             )}
           </View>
@@ -539,49 +529,33 @@ const MisVehiculosScreen = () => {
   const EmptyVehiclesList = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconContainer}>
-        <Car size={64} color="#6EE7B7" />
+        <Car size={64} color={COLORS.primary[500]} />
       </View>
       <Text style={styles.emptyTitle}>Comienza tu Garage</Text>
       <Text style={styles.emptyDescription}>
         Registra tu primer vehículo para acceder a servicios, valoraciones y gestión de mantenimiento.
       </Text>
-      <TouchableOpacity onPress={handleAddVehicle} activeOpacity={0.8}>
-        <LinearGradient
-          colors={['#007EA7', '#00A8E8']}
-          style={styles.emptyButton}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-        >
-          <Plus size={18} color="#FFF" />
-          <Text style={styles.emptyButtonText}>Agregar Vehículo</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+      <Button title="Agregar Vehículo" onPress={handleAddVehicle} icon="add" />
     </View>
   );
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#030712" />
-
-      {/* Background */}
-      <LinearGradient
-        colors={['#030712', '#0a1628', '#030712']}
-        style={StyleSheet.absoluteFill}
-      />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <Text style={styles.headerTitle}>Mis Vehículos</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleAddVehicle}>
-          <Plus size={18} color="#6EE7B7" />
+          <Plus size={18} color={COLORS.primary[500]} />
           <Text style={styles.addButtonText}>Agregar auto</Text>
         </TouchableOpacity>
       </View>
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6EE7B7" />
+          <ActivityIndicator size="large" color={COLORS.primary[500]} />
         </View>
       ) : (
         <FlatList
@@ -593,7 +567,6 @@ const MisVehiculosScreen = () => {
           ListEmptyComponent={EmptyVehiclesList}
           refreshing={refreshing}
           onRefresh={handleRefresh}
-          tintColor="#6EE7B7"
         />
       )}
 
@@ -606,13 +579,10 @@ const MisVehiculosScreen = () => {
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            {Platform.OS === 'ios' && (
-              <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
-            )}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{isEdit ? 'Editar Vehículo' : 'Nuevo Vehículo'}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.modalCloseBtn}>
-                <X size={22} color="rgba(255,255,255,0.7)" />
+                <X size={22} color={COLORS.text.secondary} />
               </TouchableOpacity>
             </View>
 
@@ -624,7 +594,7 @@ const MisVehiculosScreen = () => {
                     <Text style={styles.formLabel}>Marca</Text>
                     <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowMarcasDropdown(!showMarcasDropdown)}>
                       <Text style={styles.dropdownButtonText}>{marcaSeleccionada?.nombre || 'Seleccionar Marca'}</Text>
-                      <ChevronDown size={18} color="rgba(255,255,255,0.5)" />
+                      <ChevronDown size={18} color={COLORS.text.tertiary} />
                     </TouchableOpacity>
                     {showMarcasDropdown && (
                       <View style={styles.dropdownList}>
@@ -642,7 +612,7 @@ const MisVehiculosScreen = () => {
                     <Text style={styles.formLabel}>Modelo</Text>
                     <TouchableOpacity style={styles.dropdownButton} onPress={() => setShowModelosDropdown(!showModelosDropdown)}>
                       <Text style={styles.dropdownButtonText}>{formData.modelo ? modelos.find(m => m.id.toString() === formData.modelo)?.nombre : 'Seleccionar Modelo'}</Text>
-                      <ChevronDown size={18} color="rgba(255,255,255,0.5)" />
+                      <ChevronDown size={18} color={COLORS.text.tertiary} />
                     </TouchableOpacity>
                     {showModelosDropdown && (
                       <View style={styles.dropdownList}>
@@ -664,7 +634,7 @@ const MisVehiculosScreen = () => {
                       <Image source={{ uri: formData.foto.uri }} style={styles.photoPreview} />
                     ) : (
                       <View style={styles.photoPlaceholder}>
-                        <Camera size={32} color="#6EE7B7" />
+                        <Camera size={32} color={COLORS.primary[500]} />
                         <Text style={styles.photoPlaceholderText}>Subir Foto</Text>
                       </View>
                     )}
@@ -675,10 +645,10 @@ const MisVehiculosScreen = () => {
               {currentStep === 2 && (
                 <View style={styles.checklistContainer}>
                   <Text style={styles.checklistTitle}>Checklist Inicial</Text>
-                  {fetchingChecklist ? <ActivityIndicator color="#6EE7B7" /> : checklistItems.map(item => (
+                  {fetchingChecklist ? <ActivityIndicator color={COLORS.primary[500]} /> : checklistItems.map(item => (
                     <TouchableOpacity key={item.id} style={styles.checklistItem} onPress={() => toggleChecklistItem(item.id)}>
                       <View style={[styles.checkbox, selectedChecklistItems.includes(item.id) && styles.checkboxActive]}>
-                        {selectedChecklistItems.includes(item.id) && <Check size={14} color="#FFF" />}
+                        {selectedChecklistItems.includes(item.id) && <Check size={14} color={COLORS.text.inverse} />}
                       </View>
                       <Text style={styles.checklistItemText}>{item.nombre}</Text>
                     </TouchableOpacity>
@@ -689,36 +659,16 @@ const MisVehiculosScreen = () => {
 
             <View style={styles.modalFooter}>
               {currentStep === 1 ? (
-                <TouchableOpacity onPress={handleNextStep} activeOpacity={0.8}>
-                  <LinearGradient
-                    colors={['#007EA7', '#00A8E8']}
-                    style={styles.submitButton}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Text style={styles.submitButtonText}>Continuar</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                <Button title="Continuar" onPress={handleNextStep} />
               ) : (
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                   <TouchableOpacity onPress={handlePreviousStep} style={styles.backButton} activeOpacity={0.8}>
-                    <ChevronLeft size={18} color="rgba(255,255,255,0.7)" />
+                    <ChevronLeft size={18} color={COLORS.text.secondary} />
                     <Text style={styles.backButtonText}>Atrás</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={handleSubmit} activeOpacity={0.8} style={{ flex: 1 }} disabled={isSubmitting}>
-                    <LinearGradient
-                      colors={['#007EA7', '#00A8E8']}
-                      style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                    >
-                      {isSubmitting ? (
-                        <ActivityIndicator size="small" color="#FFF" />
-                      ) : (
-                        <Text style={styles.submitButtonText}>Guardar</Text>
-                      )}
-                    </LinearGradient>
-                  </TouchableOpacity>
+                  <View style={{ flex: 1 }}>
+                    <Button title="Guardar" onPress={handleSubmit} isLoading={isSubmitting} />
+                  </View>
                 </View>
               )}
             </View>
@@ -732,58 +682,50 @@ const MisVehiculosScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingBottom: SPACING.md,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: TYPOGRAPHY.fontSize['3xl'],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
     flex: 1,
   },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(16,185,129,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.25)',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDERS.radius.badge.md,
+    backgroundColor: COLORS.primary[50],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
   },
   addButtonText: {
-    color: '#6EE7B7',
-    fontWeight: '600',
-    fontSize: 14,
+    color: COLORS.primary[600],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.fontSize.base,
   },
   listContent: {
-    padding: 20,
+    padding: SPACING.container.horizontal,
     paddingTop: 0,
   },
   // Card Styles
   cardContainer: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderRadius: 20,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card.lg,
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     overflow: 'hidden',
-  },
-  glassCard: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    overflow: 'hidden',
-    padding: 16,
+    ...SHADOWS.sm,
   },
   imageContainer: {
     height: 160,
@@ -801,85 +743,86 @@ const styles = StyleSheet.create({
     right: 0,
     height: 90,
     justifyContent: 'flex-end',
-    padding: 16,
+    padding: SPACING.md,
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
   },
   cardBrand: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
-    fontWeight: '700',
+    color: withOpacity(COLORS.text.inverse, 0.82),
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
     marginBottom: 2,
   },
   cardModel: {
-    color: '#FFFFFF',
-    fontSize: 22,
-    fontWeight: '800',
+    color: COLORS.text.inverse,
+    fontSize: TYPOGRAPHY.fontSize['2xl'],
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   yearBadge: {
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xxs,
+    borderRadius: BORDERS.radius.badge.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: withOpacity(COLORS.base.inkBlack, 0.15),
   },
   serviceBadge: {
     position: 'absolute',
     top: 16,
     left: 16,
-    backgroundColor: 'rgba(16,185,129,0.85)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    backgroundColor: COLORS.success[600],
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xxs,
+    borderRadius: BORDERS.radius.badge.md,
     flexDirection: 'row',
     alignItems: 'center',
   },
   serviceBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.inverse,
   },
   offersBadge: {
     position: 'absolute',
     top: 50,
     right: 16,
-    backgroundColor: 'rgba(16,185,129,0.85)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    backgroundColor: COLORS.primary[600],
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xxs,
+    borderRadius: BORDERS.radius.badge.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   offersBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.inverse,
   },
   yearText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.inverse,
   },
   cardBody: {
-    padding: 20,
+    padding: SPACING.lg,
   },
   valueRow: {
     marginBottom: 20,
   },
   valueLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
     marginBottom: 4,
   },
   valueAmount: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#93C5FD',
+    fontSize: TYPOGRAPHY.fontSize['2xl'],
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   healthContainer: {
     marginTop: 0,
@@ -890,17 +833,17 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   healthLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.tertiary,
   },
   healthPercent: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   progressBarBg: {
     height: 6,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[200],
     borderRadius: 3,
     marginBottom: 8,
   },
@@ -913,50 +856,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   healthStatus: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.fontSize.sm,
   },
   // Empty State
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 60,
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.container.horizontal,
   },
   emptyIconContainer: {
     width: 120,
     height: 120,
-    backgroundColor: 'rgba(16,185,129,0.1)',
+    backgroundColor: COLORS.primary[50],
     borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.2)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
     marginBottom: 8,
   },
   emptyDescription: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 22,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 14,
-  },
-  emptyButtonText: {
-    fontWeight: '600',
-    color: '#FFFFFF',
-    fontSize: 16,
   },
   loadingContainer: {
     flex: 1,
@@ -967,18 +897,19 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: COLORS.background.overlay,
   },
   modalContent: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(15,23,42,0.95)' : '#0f172a',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: COLORS.background.paper,
+    borderTopLeftRadius: BORDERS.radius.modal.lg,
+    borderTopRightRadius: BORDERS.radius.modal.lg,
     height: '90%',
-    padding: 20,
-    borderWidth: 1,
+    padding: SPACING.lg,
+    borderWidth: BORDERS.width.thin,
     borderBottomWidth: 0,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: COLORS.border.light,
     overflow: 'hidden',
+    ...SHADOWS.modal,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -987,70 +918,73 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   modalCloseBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[100],
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   formField: {
     marginBottom: 16,
   },
   formLabel: {
     marginBottom: 8,
-    fontWeight: '500',
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 13,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.secondary,
+    fontSize: TYPOGRAPHY.fontSize.base,
   },
   dropdownButton: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 12,
-    padding: 14,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDERS.radius.input.md,
+    padding: SPACING.md,
+    backgroundColor: COLORS.background.paper,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   dropdownButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.md,
   },
   dropdownList: {
     maxHeight: 200,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     marginTop: 4,
-    borderRadius: 12,
-    backgroundColor: 'rgba(15,23,42,0.98)',
+    borderRadius: BORDERS.radius.input.md,
+    backgroundColor: COLORS.background.paper,
     overflow: 'hidden',
+    ...SHADOWS.md,
   },
   dropdownItem: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    padding: SPACING.md,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.neutral.gray[200],
   },
   dropdownItemText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.md,
   },
   photoButton: {
     height: 150,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     borderStyle: 'dashed',
-    borderRadius: 12,
+    borderRadius: BORDERS.radius.input.md,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
     overflow: 'hidden',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: COLORS.neutral.gray[100],
   },
   photoPreview: {
     width: '100%',
@@ -1061,56 +995,45 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   photoPlaceholderText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 14,
+    color: COLORS.text.secondary,
+    fontSize: TYPOGRAPHY.fontSize.base,
   },
   checklistContainer: {
     marginTop: 20,
   },
   checklistTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
     marginBottom: 16,
-    color: '#FFFFFF',
+    color: COLORS.text.primary,
   },
   checklistItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.neutral.gray[200],
   },
   checklistItemText: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.md,
   },
   checkbox: {
     width: 22,
     height: 22,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderWidth: BORDERS.width.medium,
+    borderColor: COLORS.border.light,
     marginRight: 12,
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxActive: {
-    backgroundColor: '#007EA7',
-    borderColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
+    borderColor: COLORS.primary[500],
   },
   modalFooter: {
     marginTop: 20,
-  },
-  submitButton: {
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
   },
   backButton: {
     flex: 1,
@@ -1118,16 +1041,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    borderRadius: 14,
-    paddingVertical: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BORDERS.radius.button.md,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   backButtonText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
 });
 

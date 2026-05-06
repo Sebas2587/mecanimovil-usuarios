@@ -1,8 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { ChevronRight } from 'lucide-react-native';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { getHealthColorToken } from '../../utils/healthFormat';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 const ICON_MAP = {
     'aceite-motor': { lib: 'MaterialCommunityIcons', name: 'oil' },
@@ -20,7 +25,7 @@ const ICON_MAP = {
     'correa-distribucion': { lib: 'MaterialCommunityIcons', name: 'link-variant' },
     'amortiguadores': { lib: 'MaterialCommunityIcons', name: 'car-shocks' },
     'dpf': { lib: 'MaterialCommunityIcons', name: 'exhaust' },
-    'default': { lib: 'Ionicons', name: 'construct-outline' }
+    'default': { lib: 'Ionicons', name: 'construct-outline' },
 };
 
 const HealthMetricCard = ({ item, onPress }) => {
@@ -30,14 +35,7 @@ const HealthMetricCard = ({ item, onPress }) => {
     const status = item.nivel_alerta_display || item.status || 'NORMAL';
     const remainingKm = item.km_estimados_restantes ?? item.vida_util_restante_km ?? item.remaining_km;
 
-    const getHealthColor = (p) => {
-        if (p >= 80) return '#10B981';
-        if (p >= 60) return '#F59E0B';
-        if (p >= 40) return '#F97316';
-        return '#EF4444';
-    };
-
-    const color = getHealthColor(percentage);
+    const color = getHealthColorToken(COLORS, percentage);
 
     const getIcon = () => {
         const iconConfig = ICON_MAP[slug] || ICON_MAP['default'];
@@ -54,8 +52,7 @@ const HealthMetricCard = ({ item, onPress }) => {
 
     return (
         <TouchableOpacity style={styles.card} activeOpacity={0.7} onPress={onPress}>
-            {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />}
-            <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
+            <View style={[styles.iconContainer, { backgroundColor: withOpacity(color, 0.12) }]}>
                 {getIcon()}
             </View>
 
@@ -77,7 +74,7 @@ const HealthMetricCard = ({ item, onPress }) => {
                 </View>
             </View>
 
-            <ChevronRight size={16} color="rgba(255,255,255,0.25)" style={{ marginLeft: 8 }} />
+            <ChevronRight size={16} color={COLORS.text.tertiary} style={{ marginLeft: SPACING.xs }} />
         </TouchableOpacity>
     );
 };
@@ -86,13 +83,14 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: COLORS.background.paper,
+        padding: SPACING.md,
+        borderRadius: BORDERS.radius.card.lg,
+        marginBottom: SPACING.sm,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
         overflow: 'hidden',
+        ...SHADOWS.sm,
     },
     iconContainer: {
         width: 48,
@@ -100,7 +98,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
+        marginRight: SPACING.md,
     },
     contentContainer: {
         flex: 1,
@@ -108,25 +106,25 @@ const styles = StyleSheet.create({
     headerRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 8,
+        marginBottom: SPACING.xs,
         alignItems: 'center',
     },
     title: {
         fontSize: 15,
-        fontWeight: '600',
-        color: '#FFFFFF',
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
         flex: 1,
-        marginRight: 8,
+        marginRight: SPACING.xs,
     },
     percentage: {
-        fontSize: 14,
-        fontWeight: '700',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
     progressContainer: {
         height: 5,
-        backgroundColor: 'rgba(255,255,255,0.10)',
+        backgroundColor: COLORS.neutral.gray[200],
         borderRadius: 3,
-        marginBottom: 8,
+        marginBottom: SPACING.xs,
         overflow: 'hidden',
     },
     progressBar: {
@@ -139,14 +137,14 @@ const styles = StyleSheet.create({
     },
     statusText: {
         fontSize: 11,
-        fontWeight: '600',
-        color: 'rgba(255,255,255,0.4)',
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.tertiary,
         textTransform: 'uppercase',
     },
     remainingText: {
         fontSize: 11,
-        color: 'rgba(255,255,255,0.35)',
-    }
+        color: COLORS.text.secondary,
+    },
 });
 
 export default HealthMetricCard;

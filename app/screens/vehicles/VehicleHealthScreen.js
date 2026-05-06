@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
   FlatList,
   Modal,
   Alert,
@@ -12,10 +11,8 @@ import {
   StatusBar,
   Platform,
   useWindowDimensions,
+  RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Gauge,
@@ -38,9 +35,13 @@ import HealthMetricCard from '../../components/vehicles/HealthMetricCard';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
-import { normalizePct } from '../../utils/healthFormat';
-
-const { width } = Dimensions.get('window');
+import { normalizePct, getHealthColorToken, getHealthLabel } from '../../utils/healthFormat';
+import { COLORS } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import Button from '../../components/base/Button/Button';
 
 const VehicleHealthScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -140,23 +141,41 @@ const VehicleHealthScreen = ({ route }) => {
     loadData(true);
   };
 
-  /** Sincronizar con backend (recálculo asíncrono); recarga datos tras un breve delay */
+  /**
+   * Sincronizar con backend (recálculo asíncrono vía Celery).
+   * Flujo:
+   *  1. POST /sync/ → invalida cache Redis + encola tarea Celery
+   *  2. El WebSocket 'salud_vehiculo_actualizada' dispara loadData(true) cuando el worker termina
+   *  3. Como fallback, re-fetch progresivo a los 4 s y 10 s por si el WS no llega
+   */
   const handleSync = async () => {
     if (!vehicleId || syncing) return;
     setSyncing(true);
     try {
       await VehicleHealthService.syncVehicleHealth(vehicleId);
-      // Recálculo corre en Celery; hacer GET inmediato + re-fetch tras 5s para capturar resultado
-      const hData = await VehicleHealthService.getVehicleHealth(vehicleId, true);
-      if (hData) setHealthData(hData);
-      const v = await getVehicleById(vehicleId);
-      setVehicleData(v);
-      Alert.alert(
-        'Sincronización iniciada',
-        'Los datos se están recalculando. Se actualizarán automáticamente en unos segundos.'
-      );
-      // Re-fetch delayed para capturar resultado de Celery si WS no lo entregó
-      syncTimerRef.current = setTimeout(() => loadData(true), 5000);
+
+      // Re-fetch progresivo: Celery suele completar en 2-5 s
+      syncTimerRef.current = setTimeout(() => loadData(true), 4000);
+      const fallbackTimer = setTimeout(() => loadData(true), 10000);
+
+      // Limpiar fallback si el WS ya actualizó antes
+      const originalRef = wsHandlerRef.current;
+      const onceHandler = (data) => {
+        if (data.vehicle_id && String(data.vehicle_id) === String(vehicleId)) {
+          clearTimeout(fallbackTimer);
+        }
+        if (originalRef) originalRef(data);
+      };
+      wsHandlerRef.current = onceHandler;
+      WebSocketService.onMessage('salud_vehiculo_actualizada', onceHandler);
+
+      // Liberar handler extra después de 12 s (tiempo máximo razonable)
+      setTimeout(() => {
+        WebSocketService.offMessage('salud_vehiculo_actualizada', onceHandler);
+        if (wsHandlerRef.current === onceHandler) wsHandlerRef.current = originalRef;
+        clearTimeout(fallbackTimer);
+      }, 12000);
+
     } catch (e) {
       console.error('Sync salud error:', e);
       Alert.alert(
@@ -222,30 +241,21 @@ const VehicleHealthScreen = ({ route }) => {
 
   // --- RENDERERS ---
 
-  // Get health color based on score - matches MisVehiculosScreen logic
-  const getHealthColor = (score) => {
-    if (score >= 80) return '#10B981'; // Green - Excellent
-    if (score >= 60) return '#F59E0B'; // Yellow/Amber - Good
-    if (score >= 40) return '#F97316'; // Orange - Fair
-    return '#EF4444'; // Red - Poor
-  };
+  const getHealthColor = (score) => getHealthColorToken(COLORS, score);
 
   const renderHeader = () => {
-    // Health Score - Use same source as MisVehiculosScreen for consistency
-    // Priority: vehicleData.health_score (from vehicles list) > healthData.salud_general_porcentaje
-    const score = normalizePct(vehicleData?.health_score ?? healthData?.salud_general_porcentaje ?? 0);
+    // Fuente única: healthData.salud_general_porcentaje (endpoint /health/, snapshot del Engine)
+    // Fallback: vehicleData.health_score (ahora también usa el mismo snapshot vía serializer)
+    const score = normalizePct(healthData?.salud_general_porcentaje ?? vehicleData?.health_score ?? 0);
     const scoreColor = getHealthColor(score);
 
     return (
       <View style={styles.headerContainer}>
-        {Platform.OS === 'ios' && (
-          <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-        )}
         <View style={styles.vehicleInfo}>
           <Text style={styles.brand}>{vehicleData?.marca_nombre || 'Marca'} {vehicleData?.modelo_nombre}</Text>
           <Text style={styles.plate}>{vehicleData?.patente} • {vehicleData?.year}</Text>
           <View style={styles.kmBadge}>
-            <Gauge size={14} color="#6EE7B7" />
+            <Gauge size={14} color={COLORS.primary[500]} />
             <Text style={styles.kmText}>{vehicleData?.kilometraje?.toLocaleString()} km</Text>
           </View>
         </View>
@@ -271,24 +281,24 @@ const VehicleHealthScreen = ({ route }) => {
       <View style={styles.summaryContainer}>
         <View style={styles.legendRow}>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: '#10B981' }]} />
+            <View style={[styles.dot, { backgroundColor: COLORS.success[600] }]} />
             <Text style={styles.legendText}>{componentes_optimos} Óptimos</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
+            <View style={[styles.dot, { backgroundColor: COLORS.warning[600] }]} />
             <Text style={styles.legendText}>{componentes_atencion} Atención</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
+            <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
             <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: '#7F1D1D' }]} />
+            <View style={[styles.dot, { backgroundColor: COLORS.error[800] }]} />
             <Text style={styles.legendText}>{componentes_criticos} Críticos</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
-          <HelpCircle size={18} color="#93C5FD" />
+          <HelpCircle size={18} color={COLORS.primary[500]} />
           <Text style={styles.helpLinkText}>Ayuda</Text>
         </TouchableOpacity>
       </View>
@@ -304,17 +314,11 @@ const VehicleHealthScreen = ({ route }) => {
 
   return (
     <View style={[styles.screen, webRootStyle]}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient
-        colors={['#030712', '#0a1628', '#030712']}
-        style={StyleSheet.absoluteFill}
-      />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
-
-      {/* Glass header with back button */}
       <View style={[styles.screenHeader, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={22} color="#FFF" />
+          <ArrowLeft size={22} color={COLORS.text.primary} />
         </TouchableOpacity>
         <Text style={styles.screenTitle}>Salud del Vehículo</Text>
         <View style={{ width: 40 }} />
@@ -326,8 +330,14 @@ const VehicleHealthScreen = ({ route }) => {
         data={listData}
         keyExtractor={(item, index) => item.slug || item.componente || String(index)}
         contentContainerStyle={styles.listContent}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.primary[500]}
+            colors={[COLORS.primary[500]]}
+          />
+        }
         ListHeaderComponent={
           <>
             {renderHeader()}
@@ -341,9 +351,9 @@ const VehicleHealthScreen = ({ route }) => {
                 accessibilityLabel="Sincronizar métricas de salud"
               >
                 {syncing ? (
-                  <Hourglass size={18} color="rgba(255,255,255,0.35)" />
+                  <Hourglass size={18} color={COLORS.text.tertiary} />
                 ) : (
-                  <RefreshCw size={18} color="#6EE7B7" />
+                  <RefreshCw size={18} color={COLORS.primary[500]} />
                 )}
                 <Text style={[styles.syncButtonText, syncing && styles.syncButtonTextDisabled]}>
                   {syncing ? '…' : 'Sincronizar'}
@@ -364,7 +374,7 @@ const VehicleHealthScreen = ({ route }) => {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <CheckCircle size={64} color="rgba(255,255,255,0.2)" />
+              <CheckCircle size={64} color={COLORS.neutral.gray[300]} />
               <Text style={styles.emptyText}>Sin datos de componentes.</Text>
               <Text style={styles.emptySubText}>Tu vehículo parece estar nuevo en el sistema o no tiene reglas asignadas.</Text>
             </View>
@@ -380,21 +390,16 @@ const VehicleHealthScreen = ({ route }) => {
         onRequestClose={() => setShowHelpModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <BlurView intensity={Platform.OS === 'ios' ? 40 : 90} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.7)' }]} />
           <TouchableOpacity
               style={StyleSheet.absoluteFill}
               activeOpacity={1}
               onPress={() => setShowHelpModal(false)}
           />
           <Animatable.View animation="zoomIn" duration={300} style={styles.modalCard}>
-            {Platform.OS === 'ios' && (
-              <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-            )}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>¿Cómo calculamos la salud de tu vehículo?</Text>
               <TouchableOpacity onPress={() => setShowHelpModal(false)}>
-                <X size={24} color="#FFF" />
+                <X size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
 
@@ -415,19 +420,19 @@ const VehicleHealthScreen = ({ route }) => {
 
               <Text style={styles.helpSubtitle}>Niveles de estado</Text>
               <View style={styles.helpLevelRow}>
-                <View style={[styles.dot, { backgroundColor: '#10B981' }]} />
+                <View style={[styles.dot, { backgroundColor: COLORS.success[600] }]} />
                 <Text style={styles.helpLevelText}>Óptimo (≥70%): en buen estado.</Text>
               </View>
               <View style={styles.helpLevelRow}>
-                <View style={[styles.dot, { backgroundColor: '#F59E0B' }]} />
+                <View style={[styles.dot, { backgroundColor: COLORS.warning[600] }]} />
                 <Text style={styles.helpLevelText}>Atención (40–70%): planificar revisión pronto.</Text>
               </View>
               <View style={styles.helpLevelRow}>
-                <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
+                <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
                 <Text style={styles.helpLevelText}>Urgente (10–40%): revisar a la brevedad.</Text>
               </View>
               <View style={styles.helpLevelRow}>
-                <View style={[styles.dot, { backgroundColor: '#EF4444' }]} />
+                <View style={[styles.dot, { backgroundColor: COLORS.error[700] }]} />
                 <Text style={styles.helpLevelText}>Crítico ({'<'}10%): atención inmediata.</Text>
               </View>
 
@@ -437,16 +442,7 @@ const VehicleHealthScreen = ({ route }) => {
               </Text>
             </ScrollView>
 
-            <TouchableOpacity activeOpacity={0.8} onPress={() => setShowHelpModal(false)}>
-              <LinearGradient
-                colors={['#007EA7', '#00A8E8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.modalButton}
-              >
-                <Text style={styles.modalButtonText}>Entendido</Text>
-              </LinearGradient>
-            </TouchableOpacity>
+            <Button title="Entendido" onPress={() => setShowHelpModal(false)} />
           </Animatable.View>
         </View>
       </Modal>
@@ -459,23 +455,18 @@ const VehicleHealthScreen = ({ route }) => {
         onRequestClose={() => setSelectedMetric(null)}
       >
         <View style={styles.modalOverlay}>
-          <BlurView intensity={Platform.OS === 'ios' ? 40 : 90} tint="dark" style={StyleSheet.absoluteFill} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.7)' }]} />
           <TouchableOpacity
               style={StyleSheet.absoluteFill}
               activeOpacity={1}
               onPress={() => setSelectedMetric(null)}
           />
           <Animatable.View animation="zoomIn" duration={300} style={styles.modalCardLarge}>
-            {Platform.OS === 'ios' && (
-              <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} />
-            )}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle} numberOfLines={2}>
                 {selectedMetric?.name}
               </Text>
               <TouchableOpacity onPress={() => setSelectedMetric(null)} hitSlop={12}>
-                <X size={24} color="#FFF" />
+                <X size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
 
@@ -486,7 +477,7 @@ const VehicleHealthScreen = ({ route }) => {
               keyboardShouldPersistTaps="handled"
             >
               <View style={styles.infoRow}>
-                <Gauge size={20} color="rgba(255,255,255,0.5)" />
+                <Gauge size={20} color={COLORS.text.tertiary} />
                 <Text style={styles.infoText}>
                   Próx. revisión en:{' '}
                   <Text style={styles.bold}>{selectedMetric?.vida_util}</Text>
@@ -494,7 +485,7 @@ const VehicleHealthScreen = ({ route }) => {
               </View>
               {selectedMetric?.salud_porcentaje != null && (
                 <View style={styles.infoRow}>
-                  <Heart size={20} color="rgba(255,255,255,0.5)" />
+                  <Heart size={20} color={COLORS.text.tertiary} />
                   <Text style={styles.infoText}>
                     Salud del componente:{' '}
                     <Text style={styles.bold}>{Math.round(selectedMetric.salud_porcentaje)}%</Text>
@@ -542,7 +533,7 @@ const VehicleHealthScreen = ({ route }) => {
                       }}
                     >
                       <View style={styles.serviceCardIcon}>
-                        <Wrench size={22} color="#6EE7B7" />
+                        <Wrench size={22} color={COLORS.primary[500]} />
                       </View>
                       <View style={styles.serviceCardBody}>
                         <Text style={styles.serviceCardTitle} numberOfLines={2}>
@@ -559,7 +550,7 @@ const VehicleHealthScreen = ({ route }) => {
                           </Text>
                         ) : null}
                       </View>
-                      <ChevronRight size={20} color="rgba(255,255,255,0.35)" />
+                      <ChevronRight size={20} color={COLORS.text.tertiary} />
                     </TouchableOpacity>
                   ))}
                 </>
@@ -584,13 +575,12 @@ const VehicleHealthScreen = ({ route }) => {
   );
 };
 
-const createStyles = (insets) => StyleSheet.create({
+const createStyles = (_insets) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
     ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
-  /** Lista principal: web necesita minHeight 0 para scroll dentro del stack */
   mainList: {
     flex: 1,
     ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
@@ -599,71 +589,73 @@ const createStyles = (insets) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingBottom: SPACING.sm,
     zIndex: 10,
+    backgroundColor: COLORS.background.default,
   },
   screenTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
   },
   listContent: {
-    padding: 20,
+    padding: SPACING.container.horizontal,
     paddingBottom: 40,
   },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.background.paper,
+    padding: SPACING.lg,
+    borderRadius: BORDERS.radius.card.lg,
+    marginBottom: SPACING.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     overflow: 'hidden',
+    ...SHADOWS.sm,
   },
   vehicleInfo: {
     flex: 1,
   },
   brand: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
     textTransform: 'uppercase',
   },
   plate: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 4,
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
+    marginTop: SPACING.xxs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   kmBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16,185,129,0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    backgroundColor: COLORS.primary[50],
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: SPACING.xxs,
+    borderRadius: BORDERS.radius.sm,
     alignSelf: 'flex-start',
-    marginTop: 8,
+    marginTop: SPACING.xs,
     gap: 6,
   },
   kmText: {
-    fontSize: 12,
-    color: '#6EE7B7',
-    fontWeight: '700',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.primary[600],
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   scoreCircle: {
     width: 80,
@@ -672,55 +664,56 @@ const createStyles = (insets) => StyleSheet.create({
     borderWidth: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.neutral.gray[100],
   },
   scoreText: {
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   scoreLabel: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.35)',
+    color: COLORS.text.tertiary,
     textTransform: 'uppercase',
-    fontWeight: '600',
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   summaryContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 4,
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.xxs,
     flexWrap: 'wrap',
-    gap: 12,
+    gap: SPACING.sm,
   },
   syncButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor: 'rgba(16,185,129,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.25)',
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDERS.radius.sm,
+    backgroundColor: COLORS.primary[50],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
     flexShrink: 0,
   },
   syncButtonDisabled: {
     opacity: 0.5,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderColor: COLORS.border.light,
   },
   syncButtonText: {
-    fontSize: 14,
-    color: '#6EE7B7',
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.primary[600],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   syncButtonTextDisabled: {
-    color: 'rgba(255,255,255,0.35)',
+    color: COLORS.text.tertiary,
   },
   legendRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.sm,
+    flexWrap: 'wrap',
   },
   legendItem: {
     flexDirection: 'row',
@@ -733,62 +726,62 @@ const createStyles = (insets) => StyleSheet.create({
     borderRadius: 4,
   },
   legendText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   helpLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: SPACING.xxs,
   },
   helpLinkText: {
-    fontSize: 14,
-    color: '#93C5FD',
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.primary[600],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   helpScrollView: {
     maxHeight: 320,
     ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
   helpScrollContent: {
-    paddingBottom: 8,
+    paddingBottom: SPACING.xs,
   },
   helpSectionText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
     lineHeight: 22,
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
   helpSubtitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFF',
-    marginTop: 16,
-    marginBottom: 8,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   helpLevelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.xs,
     marginBottom: 6,
   },
   helpLevelText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
     lineHeight: 20,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    gap: 12,
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFF',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
     flex: 1,
   },
   emptyState: {
@@ -796,42 +789,44 @@ const createStyles = (insets) => StyleSheet.create({
     paddingVertical: 40,
   },
   emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 16,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+    marginTop: SPACING.md,
   },
   emptySubText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.35)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: SPACING.xs,
     maxWidth: '70%',
   },
-  // Modal overlay
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: SPACING.lg,
+    backgroundColor: COLORS.background.overlay,
     ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
   modalCard: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.97)',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.modal.lg,
+    padding: SPACING.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     overflow: 'hidden',
+    ...SHADOWS.lg,
     ...(Platform.OS === 'web' ? { maxHeight: '90vh', minHeight: 0 } : {}),
   },
   modalCardLarge: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(15,23,42,0.97)',
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.modal.lg,
+    padding: SPACING.lg,
     maxHeight: '85%',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     overflow: 'hidden',
+    ...SHADOWS.lg,
     ...(Platform.OS === 'web' ? { maxHeight: '85vh', minHeight: 0 } : {}),
   },
   modalScroll: {
@@ -839,46 +834,46 @@ const createStyles = (insets) => StyleSheet.create({
     ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
   modalScrollContent: {
-    paddingBottom: 8,
+    paddingBottom: SPACING.xs,
   },
   modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
-    marginTop: 8,
-    marginBottom: 4,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xxs,
   },
   modalSectionHint: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    marginBottom: 12,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.sm,
     lineHeight: 18,
   },
   infoBoxLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.35)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.tertiary,
     marginBottom: 6,
     textTransform: 'uppercase',
   },
   serviceCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 14,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.card.md,
     padding: 14,
     marginBottom: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   serviceCardIcon: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: 'rgba(16,185,129,0.15)',
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: SPACING.sm,
   },
   serviceCardBody: {
     flex: 1,
@@ -886,86 +881,76 @@ const createStyles = (insets) => StyleSheet.create({
   },
   serviceCardTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   serviceCardDesc: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 4,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    marginTop: SPACING.xxs,
     lineHeight: 18,
   },
   serviceCardMeta: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6EE7B7',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[600],
     marginTop: 6,
   },
   modalButtonSecondary: {
-    marginTop: 12,
-    paddingVertical: 14,
-    borderRadius: 16,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDERS.radius.button.md,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   modalButtonSecondaryText: {
-    color: '#FFF',
+    color: COLORS.text.primary,
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: SPACING.lg,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFF',
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
     flex: 1,
-    marginRight: 12,
+    marginRight: SPACING.sm,
   },
   modalBody: {
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+    gap: SPACING.xs,
+    marginBottom: SPACING.md,
   },
   infoText: {
     fontSize: 15,
-    color: 'rgba(255,255,255,0.7)',
+    color: COLORS.text.secondary,
   },
   bold: {
-    fontWeight: '700',
-    color: '#FFF',
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
   infoBox: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: COLORS.neutral.gray[100],
+    padding: SPACING.md,
+    borderRadius: BORDERS.radius.input.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   infoBoxText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
     lineHeight: 20,
-  },
-  modalButton: {
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
 

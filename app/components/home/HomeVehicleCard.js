@@ -51,18 +51,18 @@ const HomeVehicleCard = ({ vehicle, onPress }) => {
                         {(vehicle.health !== null && vehicle.health !== undefined) ? (
                             <View style={[
                                 styles.badge,
-                                (vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? styles.badgeSuccess : styles.badgeWarning
+                                (vehicle.health >= 70 && vehicle.pendingAlerts === 0) ? styles.badgeSuccess : styles.badgeWarning
                             ]}>
                                 <Ionicons
-                                    name={(vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? "shield-checkmark" : "warning"}
+                                    name={(vehicle.health >= 70 && vehicle.pendingAlerts === 0) ? "shield-checkmark" : "warning"}
                                     size={10}
-                                    color={(vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? (colors.success?.badgeText || '#065F46') : (colors.warning?.badgeText || '#92400E')}
+                                    color={(vehicle.health >= 70 && vehicle.pendingAlerts === 0) ? (colors.success?.badgeText || '#065F46') : (colors.warning?.badgeText || '#92400E')}
                                 />
                                 <Text style={[
                                     styles.badgeText,
-                                    (vehicle.health >= 80 && vehicle.pendingAlerts === 0) ? styles.badgeTextSuccess : styles.badgeTextWarning
+                                    (vehicle.health >= 70 && vehicle.pendingAlerts === 0) ? styles.badgeTextSuccess : styles.badgeTextWarning
                                 ]}>
-                                    {(vehicle.health >= 80 && vehicle.pendingAlerts === 0)
+                                    {(vehicle.health >= 70 && vehicle.pendingAlerts === 0)
                                         ? 'Excelente'
                                         : `Atención (${vehicle.pendingAlerts || 1})`}
                                 </Text>

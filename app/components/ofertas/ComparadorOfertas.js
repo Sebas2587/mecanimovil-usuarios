@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from '
 import { Image } from 'expo-image';
 import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { TOKENS } from '../../design-system/tokens';
+import { getHealthColor } from '../../utils/healthFormat';
 import ofertasService from '../../services/ofertasService';
 
 // Extraer tokens con valores por defecto
@@ -433,13 +434,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
     return stars;
   };
 
-  // Obtener color según puntuación
-  const getScoreColor = (score) => {
-    if (score >= 80) return successColor;
-    if (score >= 60) return infoColor;
-    if (score >= 40) return warningColor;
-    return errorColor;
-  };
+  const getScoreColor = (score) => getHealthColor(score);
 
   // Renderizar indicador de puntuación
   const renderScoreIndicator = (score, label) => {
