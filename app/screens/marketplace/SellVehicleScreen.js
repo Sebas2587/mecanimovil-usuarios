@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { ShieldAlert, ClipboardCheck } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,6 +19,7 @@ import { buildPublicListingUrl, buildDeepLinkListingUrl } from '../../config/pub
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
+import { ROUTES } from '../../utils/constants';
 
 const SellVehicleScreen = () => {
     const navigation = useNavigation();
@@ -57,6 +59,8 @@ const SellVehicleScreen = () => {
     // UI States (Modal & Input)
     const [priceModalVisible, setPriceModalVisible] = useState(false);
     const [newPriceInput, setNewPriceInput] = useState('');
+    // Modal de inspección requerida (publicación bloqueada por componentes USUARIO_DECLARADO)
+    const [inspeccionModal, setInspeccionModal] = useState({ visible: false, componentes: [] });
 
     // 1. QUERY: Fetch all Marketplace Data
     const {
@@ -123,7 +127,15 @@ const SellVehicleScreen = () => {
             if (context?.previousData) {
                 queryClient.setQueryData(['marketplaceData', vehicle.id], context.previousData);
             }
-            Alert.alert("Error", "No se pudo actualizar el estado de publicación.");
+            const responseData = err?.response?.data;
+            if (responseData?.error_code === 'INSPECCION_REQUERIDA') {
+                setInspeccionModal({
+                    visible: true,
+                    componentes: responseData.componentes_sin_verificar || [],
+                });
+                return;
+            }
+            Alert.alert('Error', responseData?.error || 'No se pudo actualizar el estado de publicación.');
         },
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['marketplaceData', vehicle.id] });
@@ -153,6 +165,16 @@ const SellVehicleScreen = () => {
             return;
         }
         togglePublishMutation.mutate(newValue);
+    };
+
+    const handleSolicitarInspeccion = () => {
+        setInspeccionModal({ visible: false, componentes: [] });
+        const componentesStr = inspeccionModal.componentes.join(', ');
+        const descripcion = `INSPECCIÓN TÉCNICA REQUERIDA PARA PUBLICACIÓN EN MARKETPLACE.\n\nComponentes a verificar: ${componentesStr}.\n\nEl usuario declaró manualmente el estado de estos componentes. Se requiere certificación por taller antes de publicar el vehículo.`;
+        navigation.navigate(ROUTES.CREAR_SOLICITUD, {
+            vehicle,
+            descripcionPrellenada: descripcion,
+        });
     };
 
     const handleShareFicha = useCallback(async () => {
@@ -467,6 +489,69 @@ const SellVehicleScreen = () => {
                     <Text style={styles.outlineButtonText}>Compartir Ficha</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Modal: Inspección técnica requerida */}
+            <Modal
+                visible={inspeccionModal.visible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setInspeccionModal({ visible: false, componentes: [] })}
+            >
+                <View style={styles.modalOverlay}>
+                    <TouchableOpacity
+                        style={StyleSheet.absoluteFill}
+                        activeOpacity={1}
+                        onPress={() => setInspeccionModal({ visible: false, componentes: [] })}
+                    />
+                    <View style={[styles.modalContent, { gap: 0 }]} onStartShouldSetResponder={() => true}>
+                        {/* Icono de alerta */}
+                        <View style={styles.inspeccionIconWrap}>
+                            <ShieldAlert size={36} color={COLORS.warning[600]} />
+                        </View>
+
+                        <Text style={styles.modalTitle}>Inspección técnica requerida</Text>
+                        <Text style={styles.modalSubtitle}>
+                            Tienes componentes declarados manualmente sin certificar por un taller.
+                            Para publicar tu vehículo, un mecánico debe verificarlos presencialmente.
+                        </Text>
+
+                        {/* Lista de componentes bloqueantes */}
+                        {inspeccionModal.componentes.length > 0 && (
+                            <View style={styles.inspeccionComponentesList}>
+                                <Text style={styles.inspeccionComponentesLabel}>Componentes a certificar:</Text>
+                                {inspeccionModal.componentes.map((nombre, i) => (
+                                    <View key={i} style={styles.inspeccionComponenteRow}>
+                                        <ClipboardCheck size={14} color={COLORS.warning[600]} />
+                                        <Text style={styles.inspeccionComponenteText}>{nombre}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+
+                        <Text style={styles.inspeccionExplainer}>
+                            Al solicitar la inspección, el taller revisará estos componentes y certificará
+                            su estado real. Una vez verificados, podrás publicar tu vehículo.
+                        </Text>
+
+                        {/* Botón principal */}
+                        <TouchableOpacity
+                            style={styles.inspeccionCTA}
+                            onPress={handleSolicitarInspeccion}
+                        >
+                            <Ionicons name="construct-outline" size={18} color={COLORS.text.onPrimary} />
+                            <Text style={styles.inspeccionCTAText}>Solicitar inspección técnica</Text>
+                        </TouchableOpacity>
+
+                        {/* Botón secundario */}
+                        <TouchableOpacity
+                            style={styles.inspeccionCancelBtn}
+                            onPress={() => setInspeccionModal({ visible: false, componentes: [] })}
+                        >
+                            <Text style={styles.inspeccionCancelText}>Ahora no</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* Price Edit Modal */}
             <Modal
@@ -912,6 +997,83 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     saveButtonText: {
         fontWeight: '600',
         color: COLORS.text.onPrimary,
+    },
+    // Modal de inspección requerida
+    inspeccionIconWrap: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: COLORS.warning[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'center',
+        marginBottom: 16,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.warning[200],
+    },
+    inspeccionComponentesList: {
+        width: '100%',
+        backgroundColor: COLORS.warning[50],
+        borderRadius: BORDERS.radius.md,
+        padding: 12,
+        marginTop: 8,
+        marginBottom: 12,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.warning[200],
+    },
+    inspeccionComponentesLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.warning[700],
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+        marginBottom: 8,
+    },
+    inspeccionComponenteRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 6,
+    },
+    inspeccionComponenteText: {
+        fontSize: 14,
+        color: COLORS.text.primary,
+        fontWeight: '500',
+        flex: 1,
+    },
+    inspeccionExplainer: {
+        fontSize: 12,
+        color: COLORS.text.tertiary,
+        textAlign: 'center',
+        lineHeight: 17,
+        marginBottom: 20,
+        paddingHorizontal: 4,
+    },
+    inspeccionCTA: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: COLORS.primary[500],
+        borderRadius: BORDERS.radius.md,
+        paddingVertical: 15,
+        marginBottom: 10,
+    },
+    inspeccionCTAText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: COLORS.text.onPrimary,
+    },
+    inspeccionCancelBtn: {
+        width: '100%',
+        alignItems: 'center',
+        paddingVertical: 12,
+    },
+    inspeccionCancelText: {
+        fontSize: 14,
+        color: COLORS.text.tertiary,
+        fontWeight: '500',
     },
 });
 

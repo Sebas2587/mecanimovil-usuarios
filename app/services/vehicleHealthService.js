@@ -114,6 +114,20 @@ class VehicleHealthService {
   }
 
   /**
+   * Registra un mantenimiento retroactivo declarado por el usuario.
+   * @param {number} vehicleId
+   * @param {{ componente_slug: string, km_en_el_que_se_hizo: number, fecha_realizado?: string, nota?: string }} data
+   */
+  static async registrarMantenimiento(vehicleId, data) {
+    const response = await post(
+      `/vehiculos/health/vehicle/${vehicleId}/registrar-mantenimiento/`,
+      data,
+    );
+    await this.invalidateCache(vehicleId);
+    return response;
+  }
+
+  /**
    * Invalida el cache de un vehículo
    * @param {number} vehicleId - ID del vehículo
    */

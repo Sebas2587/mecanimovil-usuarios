@@ -28,6 +28,21 @@ const ICON_MAP = {
     'default':             { lib: 'Ionicons',               name: 'construct-outline' },
 };
 
+/**
+ * Nivel de confianza del historial según fuente del backend.
+ *  - 'alta'  → CHECKLIST / REGISTRO_INICIAL (taller verificó)
+ *  - 'media' → USUARIO_DECLARADO (el usuario declaró retroactivamente)
+ *  - 'baja'  → ENGINE (estimado por el motor sin datos reales)
+ */
+const resolveConfianza = (item) => {
+    if (item.confianza_historial) return item.confianza_historial;
+    const fuente = item.historial_fuente;
+    if (fuente === 'CHECKLIST' || fuente === 'REGISTRO_INICIAL') return 'alta';
+    if (fuente === 'USUARIO_DECLARADO') return 'media';
+    if (item.historial_conocido === false) return 'baja';
+    return 'alta';
+};
+
 const HealthMetricCard = ({ item, onPress }) => {
     const name       = item.nombre || (typeof item.componente === 'string' ? item.componente : item.name) || 'Componente';
     const percentage = item.salud_porcentaje ?? item.salud ?? item.percentage ?? 0;
@@ -35,11 +50,12 @@ const HealthMetricCard = ({ item, onPress }) => {
     const status     = item.nivel_alerta_display || item.status || 'NORMAL';
     const remainingKm = item.km_estimados_restantes ?? item.vida_util_restante_km ?? item.remaining_km;
 
-    // historial_conocido=false → datos estimados (sin historial real de servicio)
-    const esEstimado = item.historial_conocido === false;
+    const confianza  = resolveConfianza(item);
+    const esEstimado = confianza === 'baja';
+    const esDeclarado = confianza === 'media';
 
     const color = esEstimado
-        ? COLORS.neutral.gray[400]   // gris suave para estimados
+        ? COLORS.neutral.gray[400]
         : getHealthColorToken(COLORS, percentage);
 
     const getIcon = () => {
@@ -70,6 +86,11 @@ const HealthMetricCard = ({ item, onPress }) => {
                                 <Text style={styles.estimadoText}>Estimado</Text>
                             </View>
                         )}
+                        {esDeclarado && (
+                            <View style={styles.declaradoBadge}>
+                                <Text style={styles.declaradoText}>Declarado</Text>
+                            </View>
+                        )}
                     </View>
                     <Text style={[styles.percentage, { color }]}>{Math.round(percentage)}%</Text>
                 </View>
@@ -87,14 +108,21 @@ const HealthMetricCard = ({ item, onPress }) => {
                 </View>
 
                 <View style={styles.footerRow}>
-                    <Text style={[styles.statusText, esEstimado && { color: COLORS.neutral.gray[400] }]}>
+                    <Text style={[
+                        styles.statusText,
+                        esEstimado && { color: COLORS.neutral.gray[400] },
+                        esDeclarado && { color: COLORS.warning[700] },
+                    ]}>
                         {esEstimado ? 'Sin historial' : status}
                     </Text>
                     {!esEstimado && remainingKm != null && (
                         <Text style={styles.remainingText}>Restan {remainingKm.toLocaleString()} km</Text>
                     )}
                     {esEstimado && (
-                        <Text style={styles.estimadoHint}>Actualiza el km de servicio</Text>
+                        <Text style={styles.estimadoHint}>Toca para declarar el km de servicio</Text>
+                    )}
+                    {esDeclarado && (
+                        <Text style={styles.declaradoHint}>Pendiente verificación taller</Text>
                     )}
                 </View>
             </View>
@@ -159,6 +187,26 @@ const styles = StyleSheet.create({
         color: COLORS.neutral.gray[500],
         textTransform: 'uppercase',
         letterSpacing: 0.4,
+    },
+    declaradoBadge: {
+        backgroundColor: COLORS.warning[50],
+        borderRadius: 4,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderWidth: 1,
+        borderColor: COLORS.warning[200],
+    },
+    declaradoText: {
+        fontSize: 9,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.warning[700],
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+    },
+    declaradoHint: {
+        fontSize: 10,
+        color: COLORS.warning[600],
+        fontStyle: 'italic',
     },
     percentage: {
         fontSize: TYPOGRAPHY.fontSize.base,

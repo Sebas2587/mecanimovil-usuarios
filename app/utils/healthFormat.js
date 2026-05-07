@@ -100,6 +100,22 @@ export function normalizePct(value) {
 }
 
 /**
+ * Salud global coherente con la pantalla de salud del vehículo: snapshot del motor primero, luego vehículo.
+ *
+ * @param {object|null|undefined} vehicleLike  Serializer vehículo (lista o detalle).
+ * @param {object|null|undefined} healthSummary  Respuesta GET `/vehiculos/health/vehicle/:id/` cuando exista.
+ * @returns {number}  Porcentaje 0–100 (ver `normalizePct`)
+ */
+export function resolveVehicleHealthPct(vehicleLike, healthSummary = null) {
+  const raw =
+    healthSummary?.salud_general_porcentaje ??
+    vehicleLike?.salud_general_porcentaje ??
+    vehicleLike?.health_score ??
+    0;
+  return normalizePct(raw);
+}
+
+/**
  * Normaliza el km restante de un componente desde múltiples campos posibles.
  *
  * @param {object} comp  Objeto componente del backend

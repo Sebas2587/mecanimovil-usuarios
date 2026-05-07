@@ -2,10 +2,12 @@ import React, { useState, Fragment, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, Modal, Platform, Dimensions, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { ShieldCheck, ShieldAlert } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
+import VehicleHealthService from '../../services/vehicleHealthService';
 import { ROUTES } from '../../utils/constants';
 import {
     loadRtRenewalDueISO,
@@ -18,9 +20,10 @@ import { useAuth } from '../../context/AuthContext';
 import OfferCreationModal from '../../components/marketplace/OfferCreationModal';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal'; // Import Checklist Modal
 import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
+import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
 import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
-import { getHealthColorToken, normalizePct } from '../../utils/healthFormat';
+import { getHealthColorToken, resolveVehicleHealthPct } from '../../utils/healthFormat';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SPACING } from '../../design-system/tokens/spacing';
@@ -105,10 +108,19 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
             setFullVehicleData(prev => ({ ...prev, ...detailData }));
             setLoadError(null);
 
-            // Set real health data from public endpoint
-            // The public endpoint should include health info in 'health_data' or 'health'
-            const publicHealth = detailData.health_data || detailData.health || {};
-            setHealthData(publicHealth);
+            // Salud pública en detalle (embed); si hay sesión y el vehículo es del cliente, GET /health/ alinea con VehicleHealthScreen.
+            let mergedHealth = detailData.health_data || detailData.health || {};
+            if (user?.id) {
+                try {
+                    const h = await VehicleHealthService.getVehicleHealth(effectiveVehicleId, true);
+                    if (h && typeof h === 'object' && !h.error) {
+                        mergedHealth = { ...mergedHealth, ...h };
+                    }
+                } catch {
+                    // Visitante, no propietario o endpoint no disponible: solo datos públicos.
+                }
+            }
+            setHealthData(mergedHealth);
 
         } catch (error) {
             console.error("Error fetching vehicle details:", error);
@@ -191,18 +203,14 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         }
     };
 
-    // Render Health Chart (Simple Circle)
+    // Render Health Chart (Simple Circle) — mismo criterio de color que MarketplaceScreen / healthFormat
     const renderHealthChart = (score) => {
         const radius = 30;
         const circumference = 2 * Math.PI * radius;
-        const validScore = isNaN(score) ? 100 : score;
-        const strokeDashoffset = circumference - (validScore / 100) * circumference;
-
-        // Dynamic Color Logic - Consistent with other screens
-        let wheelColor = '#10B981'; // Green - Excellent (80-100%)
-        if (validScore < 40) wheelColor = '#EF4444'; // Red - Poor (0-39%)
-        else if (validScore < 60) wheelColor = '#F97316'; // Orange - Fair (40-59%)
-        else if (validScore < 80) wheelColor = '#F59E0B'; // Yellow/Amber - Good (60-79%)
+        const validScore = Math.min(100, Math.max(0, Number(score)));
+        const pct = Number.isFinite(validScore) ? validScore : 0;
+        const strokeDashoffset = circumference - (pct / 100) * circumference;
+        const wheelColor = getHealthColorToken(COLORS, pct);
 
         return (
             <View style={styles.chartContainer}>
@@ -230,7 +238,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     />
                 </Svg>
                 <View style={styles.chartTextContainer}>
-                    <Text style={[styles.chartScore, { color: wheelColor }]}>{Math.round(validScore)}%</Text>
+                    <Text style={[styles.chartScore, { color: wheelColor }]}>{Math.round(pct)}%</Text>
                 </View>
             </View>
         );
@@ -242,15 +250,22 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     // Use real health data if available, fallback to vehicle data, default to 100
     // Be robust with 0 checks. If healthData exists but is 0, it might be real 0? 
     // Or if undefined, fallback.
-    const healthScore = (healthData && typeof healthData.salud_general_porcentaje === 'number')
-        ? healthData.salud_general_porcentaje
-        : (fullVehicleData.health_score || 0);
+    const healthScore = resolveVehicleHealthPct(fullVehicleData, healthData);
 
     // Robust history check - check multiple potential keys
     const history = fullVehicleData.historial || fullVehicleData.history || fullVehicleData.services || [];
 
     // Components/Details
     const healthDetails = healthData?.componentes || healthData?.components || fullVehicleData.health_details || [];
+    const integridadDatos = healthData?.integridad_datos ?? null;
+    const pctVerificado = integridadDatos?.porcentaje_verificado ?? null;
+    const integridadSubtitle = pctVerificado == null
+        ? 'Basado en historial del vehículo'
+        : pctVerificado >= 70
+            ? `${Math.round(pctVerificado)}% verificado por taller`
+            : pctVerificado >= 40
+                ? `${Math.round(pctVerificado)}% verificado · parte estimado`
+                : 'Historial principalmente estimado o declarado';
 
     const imageUrl = fullVehicleData.foto_url || fullVehicleData.image; // Fallback to list param image
     const brand = fullVehicleData.marca_nombre || fullVehicleData.brand;
@@ -288,15 +303,31 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     };
 
     const renderHealthDetailItem = (item) => {
-        // Metric Logic matching VehicleHealthScreen - Consistent colors
         const score = item.salud_porcentaje || item.score || 0;
-
         const color = getHealthColorToken(COLORS, score);
-
         const name = item.nombre || item.name || 'Componente';
         const lastServiceKm = item.km_ultimo_servicio ? `${item.km_ultimo_servicio.toLocaleString()} km` : '0 km';
         const remainingKm = item.km_estimados_restantes ? `${item.km_estimados_restantes.toLocaleString()} km restantes` : '';
         const statusText = item.nivel_alerta_display || item.nivel_alerta || (score >= 70 ? 'Óptimo' : (score >= 40 ? 'Atención' : 'Crítico'));
+
+        // Confianza del historial de este componente
+        const confianza = item.confianza_historial
+            || (item.historial_fuente === 'CHECKLIST' || item.historial_fuente === 'REGISTRO_INICIAL' ? 'alta'
+                : item.historial_fuente === 'USUARIO_DECLARADO' ? 'media'
+                : item.historial_conocido === false ? 'baja'
+                : 'alta');
+
+        const trustColor = confianza === 'alta' ? COLORS.success[600]
+            : confianza === 'media' ? COLORS.warning[600]
+            : COLORS.neutral.gray[400];
+        const trustBg = confianza === 'alta' ? COLORS.success[50]
+            : confianza === 'media' ? COLORS.warning[50]
+            : COLORS.neutral.gray[100];
+        const trustLabel = confianza === 'alta'
+            ? (item.historial_fuente_display || 'Verificado taller')
+            : confianza === 'media'
+            ? (item.historial_fuente_display || 'Declarado por vendedor')
+            : 'Estimado (sin historial)';
 
         return (
             <View style={styles.detailItem}>
@@ -304,11 +335,27 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     <Ionicons name={item.icono || "construct"} size={20} color={color} />
                 </View>
                 <View style={styles.detailContent}>
-                    <Text style={styles.detailName}>{name}</Text>
+                    <View style={styles.detailNameRow}>
+                        <Text style={styles.detailName}>{name}</Text>
+                        <View style={[styles.trustBadge, { backgroundColor: trustBg, borderColor: trustColor + '40' }]}>
+                            {confianza === 'alta'
+                                ? <ShieldCheck size={10} color={trustColor} />
+                                : <ShieldAlert size={10} color={trustColor} />
+                            }
+                            <Text style={[styles.trustBadgeText, { color: trustColor }]}>{trustLabel}</Text>
+                        </View>
+                    </View>
                     <Text style={styles.detailStatusText}>Último: {lastServiceKm}</Text>
 
                     <View style={styles.detailProgressTrack}>
-                        <View style={[styles.detailProgressFill, { width: `${Math.min(100, Math.max(0, score))}%`, backgroundColor: color }]} />
+                        <View style={[
+                            styles.detailProgressFill,
+                            {
+                                width: `${Math.min(100, Math.max(0, score))}%`,
+                                backgroundColor: color,
+                                opacity: confianza === 'baja' ? 0.55 : 1,
+                            }
+                        ]} />
                     </View>
 
                     <View style={styles.detailStatusRow}>
@@ -414,7 +461,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     ) : (
                         <View style={[styles.headerImage, { backgroundColor: COLORS.neutral.gray[200] }]} />
                     )}
-                    <View style={styles.headerScrim} pointerEvents="none" />
+                    <HeroImageGradientScrim intensity="strong" />
 
                     {/* Header: atrás con sesión (web y app); badge a la derecha; visitante sin atrás */}
                     <View style={styles.topBar}>
@@ -481,7 +528,21 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                             {renderHealthChart(healthScore)}
                             <View style={styles.healthInfo}>
                                 <Text style={styles.healthTitle}>Salud Mecánica</Text>
-                                <Text style={styles.healthSubtitle}>Basado en historial verificado</Text>
+                                <View style={styles.healthSubtitleRow}>
+                                    {pctVerificado != null && (
+                                        pctVerificado >= 70
+                                            ? <ShieldCheck size={13} color={COLORS.success[600]} />
+                                            : <ShieldAlert size={13} color={pctVerificado >= 40 ? COLORS.warning[600] : COLORS.error[500]} />
+                                    )}
+                                    <Text style={[
+                                        styles.healthSubtitle,
+                                        pctVerificado != null && pctVerificado < 40 && { color: COLORS.error[500] },
+                                        pctVerificado != null && pctVerificado >= 40 && pctVerificado < 70 && { color: COLORS.warning[700] },
+                                        pctVerificado != null && pctVerificado >= 70 && { color: COLORS.success[700] },
+                                    ]}>
+                                        {integridadSubtitle}
+                                    </Text>
+                                </View>
                                 <TouchableOpacity
                                     style={styles.detailButton}
                                     onPress={() => setHealthModalVisible(true)}
@@ -490,6 +551,55 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                 </TouchableOpacity>
                             </View>
                         </View>
+
+                        {/* Barra de composición de datos */}
+                        {integridadDatos && integridadDatos.total > 0 && (
+                            <View style={styles.integridadContainer}>
+                                <View style={styles.integridadBarTrack}>
+                                    <View style={[styles.integridadSegment, {
+                                        flex: integridadDatos.verificados_taller,
+                                        backgroundColor: COLORS.success[500],
+                                    }]} />
+                                    <View style={[styles.integridadSegment, {
+                                        flex: integridadDatos.declarados_usuario,
+                                        backgroundColor: COLORS.warning[400],
+                                    }]} />
+                                    <View style={[styles.integridadSegment, {
+                                        flex: integridadDatos.estimados_engine,
+                                        backgroundColor: COLORS.neutral.gray[300],
+                                    }]} />
+                                </View>
+                                <View style={styles.integridadLegend}>
+                                    {integridadDatos.verificados_taller > 0 && (
+                                        <View style={styles.integridadLegendItem}>
+                                            <View style={[styles.legendDot, { backgroundColor: COLORS.success[500] }]} />
+                                            <Text style={styles.integridadLegendText}>
+                                                {integridadDatos.verificados_taller} verificado{integridadDatos.verificados_taller !== 1 ? 's' : ''}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    {integridadDatos.declarados_usuario > 0 && (
+                                        <View style={styles.integridadLegendItem}>
+                                            <View style={[styles.legendDot, { backgroundColor: COLORS.warning[400] }]} />
+                                            <Text style={styles.integridadLegendText}>
+                                                {integridadDatos.declarados_usuario} declarado{integridadDatos.declarados_usuario !== 1 ? 's' : ''} por vendedor
+                                            </Text>
+                                        </View>
+                                    )}
+                                    {integridadDatos.estimados_engine > 0 && (
+                                        <View style={styles.integridadLegendItem}>
+                                            <View style={[styles.legendDot, { backgroundColor: COLORS.neutral.gray[400] }]} />
+                                            <Text style={styles.integridadLegendText}>
+                                                {integridadDatos.estimados_engine} estimado{integridadDatos.estimados_engine !== 1 ? 's' : ''}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
+                                {!!integridadDatos.advertencia && (
+                                    <Text style={styles.integridadAdvertencia}>{integridadDatos.advertencia}</Text>
+                                )}
+                            </View>
+                        )}
                     </View>
 
                     {/* Service Timeline - REDESIGNED */}
@@ -714,6 +824,31 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                             nestedScrollEnabled
                             bounces
                         >
+                            {/* Banner de transparencia de datos para el comprador */}
+                            <View style={styles.trustLegendBanner}>
+                                <View style={styles.trustLegendRow}>
+                                    <ShieldCheck size={12} color={COLORS.success[600]} />
+                                    <Text style={styles.trustLegendText}>
+                                        <Text style={{ fontWeight: '700', color: COLORS.success[700] }}>Verificado</Text>
+                                        {' '}— registrado por un taller en MecaniMóvil.
+                                    </Text>
+                                </View>
+                                <View style={styles.trustLegendRow}>
+                                    <ShieldAlert size={12} color={COLORS.warning[600]} />
+                                    <Text style={styles.trustLegendText}>
+                                        <Text style={{ fontWeight: '700', color: COLORS.warning[700] }}>Declarado</Text>
+                                        {' '}— informado por el vendedor, sin respaldo de taller.
+                                    </Text>
+                                </View>
+                                <View style={styles.trustLegendRow}>
+                                    <ShieldAlert size={12} color={COLORS.neutral.gray[400]} />
+                                    <Text style={styles.trustLegendText}>
+                                        <Text style={{ fontWeight: '700', color: COLORS.neutral.gray[500] }}>Estimado</Text>
+                                        {' '}— calculado por el sistema sin datos reales.
+                                    </Text>
+                                </View>
+                            </View>
+
                             {healthDetails.length > 0 ? (
                                 healthDetails.map((item, index) => (
                                     <Fragment key={`health-${item.id ?? item.nombre ?? index}`}>
@@ -789,14 +924,6 @@ const getStyles = (insets) => StyleSheet.create({
     headerImage: {
         width: '100%',
         height: '100%',
-    },
-    headerScrim: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        height: '58%',
-        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.68),
     },
     topBar: {
         position: 'absolute',
@@ -954,7 +1081,7 @@ const getStyles = (insets) => StyleSheet.create({
     healthSubtitle: {
         fontSize: 13,
         color: COLORS.text.secondary,
-        marginBottom: 12,
+        flex: 1,
     },
     detailButton: {
         backgroundColor: COLORS.primary[50],
@@ -1247,6 +1374,103 @@ const getStyles = (insets) => StyleSheet.create({
     },
     emptyDetailsText: {
         color: COLORS.text.secondary,
+    },
+    // Integridad de datos en health card
+    integridadContainer: {
+        marginTop: 16,
+        paddingTop: 14,
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.border.light,
+    },
+    integridadBarTrack: {
+        flexDirection: 'row',
+        height: 8,
+        borderRadius: 4,
+        overflow: 'hidden',
+        backgroundColor: COLORS.neutral.gray[200],
+        marginBottom: 8,
+    },
+    integridadSegment: {
+        height: '100%',
+    },
+    integridadLegend: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    integridadLegendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+    },
+    legendDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 3.5,
+    },
+    integridadLegendText: {
+        fontSize: 11,
+        color: COLORS.text.secondary,
+    },
+    integridadAdvertencia: {
+        fontSize: 11,
+        color: COLORS.warning[700],
+        marginTop: 8,
+        lineHeight: 16,
+        fontStyle: 'italic',
+    },
+    // Health subtitle con ícono
+    healthSubtitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        marginBottom: 12,
+    },
+    // Badge de confianza por componente en modal detalle
+    detailNameRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 8,
+        marginBottom: 2,
+        flexWrap: 'wrap',
+    },
+    trustBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        borderRadius: 4,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderWidth: 1,
+        flexShrink: 0,
+    },
+    trustBadgeText: {
+        fontSize: 9,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+    },
+    // Banner de leyenda en modal
+    trustLegendBanner: {
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.md,
+        padding: 12,
+        marginBottom: 16,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        gap: 6,
+    },
+    trustLegendRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 6,
+    },
+    trustLegendText: {
+        fontSize: 12,
+        color: COLORS.text.secondary,
+        flex: 1,
+        lineHeight: 17,
     },
 });
 

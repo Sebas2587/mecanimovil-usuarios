@@ -60,13 +60,14 @@ import {
   resetTripTracking,
 } from '../../services/tripTrackingService';
 import { useUnreadCount } from '../../hooks/useNotifications';
+import { useVehiclesHealth } from '../../hooks/useVehicles';
 import { useUserAddresses } from '../../hooks/useAddress';
 import { getWeatherPrediction } from '../../services/weatherService';
 import { getNearbyProvidersForPanel } from '../../services/providers';
 import { getActividadMercadoVehiculo } from '../../services/user';
 import { geocodeAddress } from '../../services/location';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
-import { normalizePct } from '../../utils/healthFormat';
+import { resolveVehicleHealthPct } from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
@@ -227,6 +228,7 @@ const UserPanelScreen = () => {
   });
 
   const vehicles = useMemo(() => vehiclesRaw || [], [vehiclesRaw]);
+  const vehiclesHealth = useVehiclesHealth(vehicles);
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -271,7 +273,12 @@ const UserPanelScreen = () => {
     });
   }, [selectedVehicle?.id]);
 
-  const healthScore = normalizePct(selectedVehicle?.health_score ?? 0);
+  const selectedHealthSummary = useMemo(() => {
+    if (!selectedVehicleId || !vehiclesHealth.data?.length) return null;
+    return vehiclesHealth.data.find((h) => h.vehicleId === selectedVehicleId)?.health ?? null;
+  }, [selectedVehicleId, vehiclesHealth.data]);
+
+  const healthScore = resolveVehicleHealthPct(selectedVehicle, selectedHealthSummary);
 
   const valuation =
     selectedVehicle?.precio_sugerido_final || selectedVehicle?.precio_mercado_promedio || 0;
@@ -862,7 +869,7 @@ const UserPanelScreen = () => {
                   <Text
                     style={[styles.healthCircleValue, { color: getHealthColor(healthScore) }]}
                   >
-                    {healthScore}
+                    {Math.round(healthScore)}
                   </Text>
                   <Text style={styles.healthCircleUnit}>%</Text>
                 </View>
@@ -1334,7 +1341,13 @@ const UserPanelScreen = () => {
                       </Text>
                       <Text style={styles.selectorListSub}>
                         {item.year || ''} · {formatKm(item.kilometraje)} km · Salud{' '}
-                        {item.health_score ?? 0}%
+                        {Math.round(
+                          resolveVehicleHealthPct(
+                            item,
+                            vehiclesHealth.data?.find((h) => h.vehicleId === item.id)?.health ?? null,
+                          ),
+                        )}
+                        %
                       </Text>
                     </View>
                     {isActive && <Check size={18} color={COLORS.success.main} />}

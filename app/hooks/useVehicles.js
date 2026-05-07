@@ -5,12 +5,13 @@ import logger from '../utils/logger';
 
 export const useVehicles = (userId) => {
     return useQuery({
-        queryKey: ['vehicles', userId],
+        queryKey: ['vehicles', userId ?? 'me'],
         queryFn: vehicleService.getUserVehicles,
         staleTime: 1000 * 60 * 5, // 5 min
         gcTime: 1000 * 60 * 60 * 24, // 24h
         select: (data) => data || [],
-        enabled: !!userId, // Solo ejecutar si hay userId
+        /** Lista del cliente autenticada (token); userId solo diferencia cache si multi-cuenta. */
+        enabled: true,
     });
 };
 

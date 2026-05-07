@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useQueries } from '@tanstack/react-query';
 import { ROUTES } from '../../utils/constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
@@ -10,7 +11,10 @@ import OfferNegotiationCard from '../../components/marketplace/OfferNegotiationC
 import MarketplaceFilterModal from '../../components/marketplace/MarketplaceFilterModal';
 import { useRequests } from '../../hooks/useRequests';
 import { tieneInspeccionPrecompraActivaParaVehiculo } from '../../utils/precompraInspection';
+import { resolveVehicleHealthPct, getHealthColorToken } from '../../utils/healthFormat';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { useAuth } from '../../context/AuthContext';
+import VehicleHealthService from '../../services/vehicleHealthService';
 
 const SURFACE_SOFT = COLORS.neutral.gray[100];
 const SURFACE_STRONG = COLORS.neutral.gray[200];
@@ -70,6 +74,7 @@ const MOCK_OFFERS = [
 const MarketplaceScreen = () => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
+    const { user } = useAuth();
 
     const styles = getStyles();
 
@@ -259,6 +264,35 @@ const MarketplaceScreen = () => {
         return result;
     };
 
+    /** Publicaciones del usuario logueado: GET /health/ alineado con VehicleHealthScreen. */
+    const myListingVehicleIds = useMemo(() => {
+        if (!user?.id || !Array.isArray(listings) || listings.length === 0) return [];
+        return listings
+            .filter((item) => item?.seller?.id != null && String(item.seller.id) === String(user.id))
+            .map((item) => item.id)
+            .filter(Boolean);
+    }, [listings, user?.id]);
+
+    const myListingHealthQueries = useQueries({
+        queries: myListingVehicleIds.map((vid) => ({
+            queryKey: ['vehicleHealth', vid],
+            queryFn: () => VehicleHealthService.getVehicleHealth(vid),
+            enabled: !!user?.id && !!vid,
+            staleTime: 60 * 1000,
+        })),
+    });
+
+    const marketplaceOwnerHealthById = useMemo(() => {
+        const m = {};
+        myListingVehicleIds.forEach((vid, idx) => {
+            const r = myListingHealthQueries[idx];
+            if (r?.data && typeof r.data === 'object' && !r.data.error) {
+                m[vid] = r.data;
+            }
+        });
+        return m;
+    }, [myListingVehicleIds, myListingHealthQueries]);
+
     // --- Render Items ---
 
     const renderListingItem = ({ item }) => (
@@ -315,12 +349,13 @@ const MarketplaceScreen = () => {
                 {!item.is_reserved && (
                     <View style={styles.bottomBadges}>
                         {(() => {
-                            const score = item.health_score ?? 0;
-                            // Consistent color logic across all screens
-                            let badgeColor = '#10B981'; // Green
-                            if (score < 40) badgeColor = '#EF4444'; // Red
-                            else if (score < 60) badgeColor = '#F97316'; // Orange
-                            else if (score < 80) badgeColor = '#F59E0B'; // Yellow
+                            const isMyListing =
+                                !!user?.id &&
+                                item?.seller?.id != null &&
+                                String(item.seller.id) === String(user.id);
+                            const ownerHealth = isMyListing ? marketplaceOwnerHealthById[item.id] : null;
+                            const score = resolveVehicleHealthPct(item, ownerHealth);
+                            const badgeColor = getHealthColorToken(COLORS, score);
 
                             return (
                                 <View style={styles.healthBadge}>

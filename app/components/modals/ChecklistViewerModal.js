@@ -14,7 +14,6 @@ import {
   BackHandler,
   useWindowDimensions,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -97,9 +96,23 @@ const ChecklistViewerModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [mostrarFirmas, setMostrarFirmas] = useState(false);
-  /** { uri: string, caption?: string } | null — vista expandida al tocar evidencia */
+  /** { uri, caption?, openId } | null — openId único por apertura (iOS: remount limpio de Image). */
   const [photoLightbox, setPhotoLightbox] = useState(null);
+  const lightboxOpenSeqRef = useRef(0);
   const { width: winW, height: winH } = useWindowDimensions();
+
+  const closePhotoLightbox = useCallback(() => {
+    setPhotoLightbox(null);
+  }, []);
+
+  const openPhotoLightbox = useCallback((uri, caption) => {
+    lightboxOpenSeqRef.current += 1;
+    setPhotoLightbox({
+      uri,
+      caption,
+      openId: lightboxOpenSeqRef.current,
+    });
+  }, []);
 
   // Función para cargar checklist - MEMOIZADA CON useCallback
   const cargarChecklist = useCallback(async () => {
@@ -144,11 +157,11 @@ const ChecklistViewerModal = ({
   useEffect(() => {
     if (!visible || !photoLightbox) return undefined;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      setPhotoLightbox(null);
+      closePhotoLightbox();
       return true;
     });
     return () => sub.remove();
-  }, [visible, photoLightbox]);
+  }, [visible, photoLightbox, closePhotoLightbox]);
 
   // ─── Proveedor (API + vista previa desde historial / marketplace) ─────────
   const renderProveedorBar = () => {
@@ -338,20 +351,20 @@ const ChecklistViewerModal = ({
 
                   return (
                     <TouchableOpacity
-                      key={String(fotoIndex)}
+                      key={`${uri}-${fotoIndex}`}
                       style={styles.fotoContainer}
                       activeOpacity={0.88}
                       delayPressIn={0}
-                      onPress={() => setPhotoLightbox({ uri, caption })}
+                      onPress={() => openPhotoLightbox(uri, caption)}
                       accessibilityRole="imagebutton"
                       accessibilityLabel="Ampliar foto de evidencia"
                     >
-                      <ExpoImage
+                      <Image
+                        pointerEvents="none"
                         source={{ uri }}
                         style={styles.fotoImagen}
-                        contentFit="cover"
-                        transition={150}
-                        cachePolicy="memory-disk"
+                        resizeMode="cover"
+                        {...(Platform.OS === 'android' ? { resizeMethod: 'resize' } : {})}
                       />
                       <Text style={styles.fotoDescripcion} numberOfLines={2}>
                         {caption}
@@ -419,6 +432,7 @@ const ChecklistViewerModal = ({
         contentContainerStyle={styles.contenidoScrollPad}
         nestedScrollEnabled
         keyboardShouldPersistTaps="always"
+        removeClippedSubviews={false}
       >
         {keysOrden.map((catKey) => {
           const respuestasCategoria = categorias[catKey] || [];
@@ -568,8 +582,15 @@ const ChecklistViewerModal = ({
   const lw = Math.min(winW - SPACING.lg * 2, 720);
   const lh = Math.min(winH * 0.72, lw * 1.05);
 
+  /**
+   * Lightbox: `Image` nativa. En iOS NO usar ScrollView+maximumZoomScale: tras cerrar/reabrir deja la imagen en blanco
+   * (UIScrollView zoom + UIImageView en RN). Pinch-zoom se puede recuperar luego con gesture-handler si hace falta.
+   */
   const renderPhotoLightboxOverlay = () => {
     if (!photoLightbox) return null;
+    const lbUri = photoLightbox.uri;
+    const openId = photoLightbox.openId ?? 0;
+
     return (
       <View
         style={[styles.photoLightboxStack, { paddingTop: insets.top + SPACING.sm }]}
@@ -577,7 +598,7 @@ const ChecklistViewerModal = ({
       >
         <Pressable
           style={[StyleSheet.absoluteFillObject, styles.photoLightboxBackdropFill]}
-          onPress={() => setPhotoLightbox(null)}
+          onPress={closePhotoLightbox}
           accessibilityLabel="Cerrar vista ampliada"
         />
         <View
@@ -586,57 +607,33 @@ const ChecklistViewerModal = ({
         >
           <TouchableOpacity
             style={styles.photoLightboxClose}
-            onPress={() => setPhotoLightbox(null)}
+            onPress={closePhotoLightbox}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Cerrar"
           >
             <X size={22} color={DS_COLORS.base.white} />
           </TouchableOpacity>
-          {photoLightbox.uri ? (
-            Platform.OS === 'ios' ? (
-              <ScrollView
-                style={[styles.photoLightboxZoomScroll, { maxHeight: winH * 0.72 }]}
-                contentContainerStyle={styles.photoLightboxZoomContent}
-                maximumZoomScale={4}
-                minimumZoomScale={1}
-                centerContent
-                showsHorizontalScrollIndicator={false}
-                showsVerticalScrollIndicator={false}
-                bouncesZoom
-              >
-                <View accessibilityRole="image">
-                  <ExpoImage
-                    source={{ uri: photoLightbox.uri }}
-                    style={{ width: lw, height: lh }}
-                    contentFit="contain"
-                    transition={200}
-                    cachePolicy="memory-disk"
-                  />
-                </View>
-              </ScrollView>
-            ) : (
-              <View accessibilityRole="image">
-                <ExpoImage
-                  source={{ uri: photoLightbox.uri }}
-                  style={{ width: lw, height: lh }}
-                  contentFit="contain"
-                  transition={200}
-                  cachePolicy="memory-disk"
-                />
-              </View>
-            )
+          {lbUri ? (
+            <View
+              style={[styles.photoLightboxImageWrap, { maxHeight: winH * 0.72 }]}
+              accessibilityRole="image"
+            >
+              <Image
+                key={`ev-lb-${openId}`}
+                source={{ uri: lbUri }}
+                style={{ width: lw, height: lh }}
+                resizeMode="contain"
+                {...(Platform.OS === 'android' ? { resizeMethod: 'resize' } : {})}
+              />
+            </View>
           ) : null}
           {photoLightbox.caption ? (
             <Text style={styles.photoLightboxCaption} numberOfLines={4}>
               {photoLightbox.caption}
             </Text>
           ) : null}
-          <Text style={styles.photoLightboxHint}>
-            {Platform.OS === 'ios'
-              ? 'Pellizca para ampliar · toca fuera o cerrar'
-              : 'Toca fuera o el botón cerrar'}
-          </Text>
+          <Text style={styles.photoLightboxHint}>Toca fuera o el botón cerrar</Text>
         </View>
       </View>
     );
@@ -648,11 +645,11 @@ const ChecklistViewerModal = ({
       animationType="slide"
       presentationStyle="fullScreen"
       onRequestClose={() => {
-        if (photoLightbox) setPhotoLightbox(null);
+        if (photoLightbox) closePhotoLightbox();
         else onClose();
       }}
     >
-      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.container, { paddingBottom: insets.bottom }]} collapsable={false}>
         <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
           <View style={styles.headerTopRow}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button">
@@ -677,6 +674,7 @@ const ChecklistViewerModal = ({
             style={styles.bodyScroll}
             contentContainerStyle={styles.bodyScrollContent}
             showsVerticalScrollIndicator={false}
+            removeClippedSubviews={false}
           >
             {renderProveedorBar()}
             <View style={styles.loadingBlock}>
@@ -710,7 +708,6 @@ const ChecklistViewerModal = ({
             </View>
           </View>
         )}
-
         {renderPhotoLightboxOverlay()}
       </View>
     </Modal>
@@ -1144,13 +1141,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
   },
-  photoLightboxZoomScroll: {
+  photoLightboxImageWrap: {
     alignSelf: 'center',
     maxWidth: '100%',
-  },
-  photoLightboxZoomContent: {
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   photoLightboxClose: {
     position: 'absolute',

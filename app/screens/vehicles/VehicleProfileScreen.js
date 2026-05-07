@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -16,7 +16,7 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Camera, Trash2, Info, ArrowLeft } from 'lucide-react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ROUTES } from '../../utils/constants';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
@@ -30,6 +30,7 @@ import Button from '../../components/base/Button/Button';
 import * as vehicleService from '../../services/vehicle';
 import { loadRtRenewalDueISO } from '../../utils/revisionTecnica';
 import * as VehicleHealthService from '../../services/vehicleHealthService';
+import { resolveVehicleHealthPct } from '../../utils/healthFormat';
 import { useSolicitudes } from '../../context/SolicitudesContext'; // To get active requests
 
 // Components
@@ -37,6 +38,7 @@ import ActiveRequestCard from '../../components/vehicle/ActiveRequestCard';
 import VehicleValuationCard from '../../components/vehicle/VehicleValuationCard';
 import QuickActionGrid from '../../components/vehicle/QuickActionGrid';
 import TechSpecsCard, { RevisionTecnicaCard } from '../../components/vehicle/TechSpecsCard';
+import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
 
 const VehicleProfileScreen = () => {
     const navigation = useNavigation();
@@ -55,6 +57,7 @@ const VehicleProfileScreen = () => {
     const [revisionRenewalDueISO, setRevisionRenewalDueISO] = useState(null);
 
     const styles = getStyles(insets);
+    const skipHealthFocusFetchRef = useRef(true);
 
     // Active Requests Context
     const { solicitudesActivas, cargarSolicitudesActivas } = useSolicitudes();
@@ -63,6 +66,9 @@ const VehicleProfileScreen = () => {
     const activeRequest = solicitudesActivas?.find(s =>
         s.vehiculo === vehicle?.id || s.vehiculo_detail?.id === vehicle?.id
     );
+
+    /** Misma fuente que VehicleHealthScreen (helper compartido). */
+    const profileHealthScorePct = resolveVehicleHealthPct(vehicle, healthData);
 
     // Load Data
     const loadData = useCallback(async () => {
@@ -106,6 +112,31 @@ const VehicleProfileScreen = () => {
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    useEffect(() => {
+        skipHealthFocusFetchRef.current = true;
+    }, [vehicle?.id]);
+
+    /** Al volver a la pantalla, misma fuente fresca que VehicleHealthScreen (evita caché 5 min desfasada). */
+    useFocusEffect(
+        useCallback(() => {
+            if (!vehicle?.id) return undefined;
+            if (skipHealthFocusFetchRef.current) {
+                skipHealthFocusFetchRef.current = false;
+                return undefined;
+            }
+            let alive = true;
+            VehicleHealthService.default
+                .getVehicleHealth(vehicle.id, true)
+                .then((h) => {
+                    if (alive) setHealthData(h);
+                })
+                .catch(() => {});
+            return () => {
+                alive = false;
+            };
+        }, [vehicle?.id])
+    );
 
     useEffect(() => {
         let alive = true;
@@ -296,6 +327,15 @@ const VehicleProfileScreen = () => {
                 showsVerticalScrollIndicator={false}
             >
                 <View style={styles.headerImageContainer}>
+                    {imageUrl ? (
+                        <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
+                    ) : (
+                        <View style={styles.placeholderHeader}>
+                            <Ionicons name="car-sport" size={80} color={COLORS.neutral.gray[300]} />
+                        </View>
+                    )}
+
+                    <HeroImageGradientScrim intensity="default" />
 
                     <View style={[styles.scrollableHeaderControls, { top: insets.top }]}>
                         <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
@@ -314,16 +354,7 @@ const VehicleProfileScreen = () => {
                         </View>
                     </View>
 
-                    {/* Image without overlay button */}
-                    {imageUrl ? (
-                        <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
-                    ) : (
-                        <View style={styles.placeholderHeader}>
-                            <Ionicons name="car-sport" size={80} color={COLORS.neutral.gray[300]} />
-                        </View>
-                    )}
-
-                    <View style={styles.gradientOverlay}>
+                    <View style={styles.headerInfoBlock}>
                         <View style={styles.headerInfo}>
                             <Text style={styles.headerSubtitle}>{vehicle.year} • {vehicle.patente}</Text>
                             <Text style={styles.headerTitle}>
@@ -346,7 +377,7 @@ const VehicleProfileScreen = () => {
 
                     {/* 2. Quick Actions */}
                     <QuickActionGrid
-                        healthScore={vehicle?.health_score ?? (healthData?.salud_general_porcentaje ? Math.round(healthData.salud_general_porcentaje) : 0)}
+                        healthScore={profileHealthScorePct}
                         serviceCount={servicesCount}
                         onHealthPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: vehicle.id, vehicle })}
                         onHistoryPress={() => navigation.navigate(ROUTES.VEHICLE_HISTORY, { vehicleId: vehicle.id, vehicle })}
@@ -466,16 +497,15 @@ const getStyles = (insets) => StyleSheet.create({
         alignItems: 'center',
         backgroundColor: COLORS.neutral.gray[100],
     },
-    gradientOverlay: {
+    headerInfoBlock: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        height: 160,
-        justifyContent: 'flex-end',
+        zIndex: 2,
         padding: SPACING.md,
         paddingBottom: SPACING['2xl'],
-        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.5),
+        justifyContent: 'flex-end',
     },
     headerInfo: {
         marginBottom: 8,

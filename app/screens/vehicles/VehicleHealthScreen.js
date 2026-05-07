@@ -26,7 +26,11 @@ import {
   ArrowLeft,
   Hourglass,
   AlertTriangle,
+  ShieldCheck,
+  ShieldAlert,
+  ClipboardEdit,
 } from 'lucide-react-native';
+import { TextInput, KeyboardAvoidingView } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import { ROUTES } from '../../utils/constants';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -36,7 +40,7 @@ import UnifiedComponentCard, { SectionHeader } from '../../components/vehicles/U
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
-import { normalizePct, getHealthColorToken, getHealthLabel } from '../../utils/healthFormat';
+import { getHealthColorToken, getHealthLabel, resolveVehicleHealthPct } from '../../utils/healthFormat';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -74,6 +78,11 @@ const VehicleHealthScreen = ({ route }) => {
   // Predicciones inteligentes (scikit-learn + bootstrap + similares)
   const [predictionsData, setPredictionsData] = useState(null);
   const [predictionsLoading, setPredictionsLoading] = useState(false);
+  // Modal de declaración retroactiva de mantenimiento
+  const [declarationTarget, setDeclarationTarget] = useState(null); // componente seleccionado
+  const [declKm, setDeclKm] = useState('');
+  const [declNota, setDeclNota] = useState('');
+  const [declarando, setDeclarando] = useState(false);
 
   const pollingIntervalRef = useRef(null);
   const wsHandlerRef = useRef(null);
@@ -259,6 +268,45 @@ const VehicleHealthScreen = ({ route }) => {
     return Array.from(byId.values());
   }, [selectedMetric, healthData?.alertas]);
 
+  const openDeclaration = (componente) => {
+    setDeclKm('');
+    setDeclNota('');
+    setDeclarationTarget(componente);
+    setSelectedMetric(null);
+  };
+
+  const handleDeclararMantenimiento = async () => {
+    const km = parseInt(declKm, 10);
+    if (!km || km <= 0) {
+      Alert.alert('Kilometraje inválido', 'Ingresa los km en los que realizaste el servicio.');
+      return;
+    }
+    const slug = declarationTarget?.slug || declarationTarget?.componente_detail?.slug;
+    if (!slug) {
+      Alert.alert('Error', 'No se pudo identificar el componente.');
+      return;
+    }
+    setDeclarando(true);
+    try {
+      await VehicleHealthService.registrarMantenimiento(vehicleId, {
+        componente_slug: slug,
+        km_en_el_que_se_hizo: km,
+        nota: declNota.trim() || undefined,
+      });
+      setDeclarationTarget(null);
+      Alert.alert(
+        'Mantenimiento registrado',
+        'El historial fue actualizado. La salud se recalculará en unos segundos.',
+        [{ text: 'OK', onPress: () => loadData(true) }],
+      );
+    } catch (e) {
+      const msg = e?.response?.data?.error || e?.message || 'No se pudo registrar.';
+      Alert.alert('No se pudo registrar', msg);
+    } finally {
+      setDeclarando(false);
+    }
+  };
+
   // --- RENDERERS ---
 
   const getHealthColor = (score) => getHealthColorToken(COLORS, score);
@@ -266,7 +314,7 @@ const VehicleHealthScreen = ({ route }) => {
   const renderHeader = () => {
     // Fuente única: healthData.salud_general_porcentaje (endpoint /health/, snapshot del Engine)
     // Fallback: vehicleData.health_score (ahora también usa el mismo snapshot vía serializer)
-    const score = normalizePct(healthData?.salud_general_porcentaje ?? vehicleData?.health_score ?? 0);
+    const score = resolveVehicleHealthPct(vehicleData, healthData);
     const scoreColor = getHealthColor(score);
 
     return (
@@ -295,32 +343,96 @@ const VehicleHealthScreen = ({ route }) => {
       componentes_atencion = 0,
       componentes_urgentes = 0,
       componentes_criticos = 0,
+      integridad_datos,
     } = healthData;
 
+    const pctVerif = integridad_datos?.porcentaje_verificado ?? null;
+    const integridadColor =
+      pctVerif == null ? COLORS.neutral.gray[400]
+      : pctVerif >= 70  ? COLORS.success[600]
+      : pctVerif >= 40  ? COLORS.warning[600]
+      : COLORS.error[500];
+
     return (
-      <View style={styles.summaryContainer}>
-        <View style={styles.legendRow}>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: COLORS.success[600] }]} />
-            <Text style={styles.legendText}>{componentes_optimos} Óptimos</Text>
+      <View>
+        <View style={styles.summaryContainer}>
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: COLORS.success[600] }]} />
+              <Text style={styles.legendText}>{componentes_optimos} Óptimos</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: COLORS.warning[600] }]} />
+              <Text style={styles.legendText}>{componentes_atencion} Atención</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
+              <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.dot, { backgroundColor: COLORS.error[800] }]} />
+              <Text style={styles.legendText}>{componentes_criticos} Críticos</Text>
+            </View>
           </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: COLORS.warning[600] }]} />
-            <Text style={styles.legendText}>{componentes_atencion} Atención</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
-            <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
-          </View>
-          <View style={styles.legendItem}>
-            <View style={[styles.dot, { backgroundColor: COLORS.error[800] }]} />
-            <Text style={styles.legendText}>{componentes_criticos} Críticos</Text>
-          </View>
+          <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
+            <HelpCircle size={18} color={COLORS.primary[500]} />
+            <Text style={styles.helpLinkText}>Ayuda</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
-          <HelpCircle size={18} color={COLORS.primary[500]} />
-          <Text style={styles.helpLinkText}>Ayuda</Text>
-        </TouchableOpacity>
+
+        {/* Bloque de integridad de datos */}
+        {integridad_datos && (
+          <View style={styles.integridadCard}>
+            <View style={styles.integridadHeader}>
+              {pctVerif >= 70
+                ? <ShieldCheck size={16} color={integridadColor} />
+                : <ShieldAlert size={16} color={integridadColor} />
+              }
+              <Text style={[styles.integridadTitle, { color: integridadColor }]}>
+                Confiabilidad de datos: {Math.round(pctVerif ?? 0)}% verificado
+              </Text>
+            </View>
+
+            {/* Barra de composición */}
+            <View style={styles.integridadBarTrack}>
+              {integridad_datos.total > 0 && (
+                <>
+                  <View style={[
+                    styles.integridadBarSegment,
+                    { flex: integridad_datos.verificados_taller, backgroundColor: COLORS.success[500] },
+                  ]} />
+                  <View style={[
+                    styles.integridadBarSegment,
+                    { flex: integridad_datos.declarados_usuario, backgroundColor: COLORS.warning[400] },
+                  ]} />
+                  <View style={[
+                    styles.integridadBarSegment,
+                    { flex: integridad_datos.estimados_engine, backgroundColor: COLORS.neutral.gray[300] },
+                  ]} />
+                </>
+              )}
+            </View>
+
+            <View style={styles.integridadLegend}>
+              <View style={styles.integridadLegendItem}>
+                <View style={[styles.dot, { backgroundColor: COLORS.success[500] }]} />
+                <Text style={styles.integridadLegendText}>{integridad_datos.verificados_taller} Verificados</Text>
+              </View>
+              <View style={styles.integridadLegendItem}>
+                <View style={[styles.dot, { backgroundColor: COLORS.warning[400] }]} />
+                <Text style={styles.integridadLegendText}>{integridad_datos.declarados_usuario} Declarados</Text>
+              </View>
+              <View style={styles.integridadLegendItem}>
+                <View style={[styles.dot, { backgroundColor: COLORS.neutral.gray[400] }]} />
+                <Text style={styles.integridadLegendText}>{integridad_datos.estimados_engine} Estimados</Text>
+              </View>
+            </View>
+
+            {!!integridad_datos.advertencia && (
+              <Text style={styles.integridadAdvertencia}>{integridad_datos.advertencia}</Text>
+            )}
+          </View>
+        )}
       </View>
     );
   };
@@ -454,6 +566,76 @@ const VehicleHealthScreen = ({ route }) => {
         }
       />
 
+      {/* Modal de declaración retroactiva de mantenimiento */}
+      <Modal
+        visible={!!declarationTarget}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !declarando && setDeclarationTarget(null)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => !declarando && setDeclarationTarget(null)}
+          />
+          <Animatable.View animation="slideInUp" duration={280} style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <ClipboardEdit size={20} color={COLORS.primary[500]} />
+              <Text style={[styles.modalTitle, { flex: 1, marginLeft: 8 }]}>
+                Declarar mantenimiento
+              </Text>
+              <TouchableOpacity onPress={() => !declarando && setDeclarationTarget(null)}>
+                <X size={24} color={COLORS.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.declModalComponent}>
+              Componente: <Text style={{ fontWeight: '700' }}>
+                {declarationTarget?.nombre || declarationTarget?.name || 'Componente'}
+              </Text>
+            </Text>
+            <Text style={styles.declModalHint}>
+              Indica los kilómetros del vehículo cuando realizaste este servicio. Quedará marcado
+              como "Declarado por ti" y el sistema recalculará la salud con un tope máximo de 65%.
+              Un taller puede verificarlo y subirlo a 100%.
+            </Text>
+
+            <Text style={styles.declLabel}>Kilómetros en los que se realizó *</Text>
+            <TextInput
+              style={styles.declInput}
+              placeholder="Ej: 120000"
+              placeholderTextColor={COLORS.text.tertiary}
+              keyboardType="numeric"
+              value={declKm}
+              onChangeText={setDeclKm}
+              editable={!declarando}
+            />
+
+            <Text style={styles.declLabel}>Nota (opcional)</Text>
+            <TextInput
+              style={[styles.declInput, styles.declInputMulti]}
+              placeholder="Ej: Cambio de correa en taller Novauto"
+              placeholderTextColor={COLORS.text.tertiary}
+              multiline
+              numberOfLines={3}
+              value={declNota}
+              onChangeText={setDeclNota}
+              editable={!declarando}
+            />
+
+            <Button
+              title={declarando ? 'Registrando…' : 'Registrar mantenimiento'}
+              onPress={handleDeclararMantenimiento}
+              disabled={declarando || !declKm}
+            />
+          </Animatable.View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Help Modal */}
       <Modal
         visible={showHelpModal}
@@ -512,6 +694,26 @@ const VehicleHealthScreen = ({ route }) => {
               <Text style={styles.helpSectionText}>
                 Si un componente tiene vida útil de 50.000 km y han pasado 25.000 km desde el último cambio, la salud se calcula en aproximadamente 78% (Óptimo). Si han pasado 45.000 km, sería ~45% (Atención). Si supera los 50.000 km, baja más y puede pasar a Urgente o Crítico.
               </Text>
+
+              <Text style={styles.helpSubtitle}>Confiabilidad de los datos</Text>
+              <View style={styles.helpLevelRow}>
+                <ShieldCheck size={14} color={COLORS.success[600]} />
+                <Text style={styles.helpLevelText}>
+                  <Text style={{ fontWeight: '700' }}>Verificado</Text>: el taller registró el servicio o fue incluido al registrar el vehículo. Máxima precisión.
+                </Text>
+              </View>
+              <View style={styles.helpLevelRow}>
+                <ShieldAlert size={14} color={COLORS.warning[600]} />
+                <Text style={styles.helpLevelText}>
+                  <Text style={{ fontWeight: '700' }}>Declarado</Text>: tú indicaste cuándo se realizó el servicio. El sistema acepta el dato pero limita la salud a 65% hasta que un taller lo confirme.
+                </Text>
+              </View>
+              <View style={styles.helpLevelRow}>
+                <ShieldAlert size={14} color={COLORS.neutral.gray[400]} />
+                <Text style={styles.helpLevelText}>
+                  <Text style={{ fontWeight: '700' }}>Estimado</Text>: no hay registro del último servicio; el algoritmo estima la salud según edad y km del vehículo. Puedes declarar el km de servicio para mejorar la precisión.
+                </Text>
+              </View>
             </ScrollView>
 
             <Button title="Entendido" onPress={() => setShowHelpModal(false)} />
@@ -628,7 +830,46 @@ const VehicleHealthScreen = ({ route }) => {
                 );
               })()}
 
-              {/* ── 4. Diagnóstico del motor ────────────────────── */}
+              {/* ── 4. Confianza del historial ──────────────────── */}
+              {(() => {
+                const confianza = selectedMetric?.confianza_historial
+                  || (selectedMetric?.historial_fuente === 'CHECKLIST' || selectedMetric?.historial_fuente === 'REGISTRO_INICIAL' ? 'alta'
+                    : selectedMetric?.historial_fuente === 'USUARIO_DECLARADO' ? 'media'
+                    : selectedMetric?.historial_conocido === false ? 'baja' : 'alta');
+                const fuenteDisplay = selectedMetric?.historial_fuente_display;
+                const showDeclareBtn = confianza === 'baja' || confianza === 'media';
+                const badgeColor = confianza === 'alta' ? COLORS.success[600]
+                  : confianza === 'media' ? COLORS.warning[600]
+                  : COLORS.neutral.gray[500];
+                const badgeBg = confianza === 'alta' ? COLORS.success[50]
+                  : confianza === 'media' ? COLORS.warning[50]
+                  : COLORS.neutral.gray[100];
+                const badgeLabel = confianza === 'alta' ? 'Verificado por taller'
+                  : confianza === 'media' ? (fuenteDisplay || 'Declarado por ti')
+                  : 'Estimado (sin historial)';
+                return (
+                  <View style={[styles.confianzaRow, { backgroundColor: badgeBg }]}>
+                    {confianza === 'alta'
+                      ? <ShieldCheck size={14} color={badgeColor} />
+                      : <ShieldAlert size={14} color={badgeColor} />
+                    }
+                    <Text style={[styles.confianzaText, { color: badgeColor }]}>{badgeLabel}</Text>
+                    {showDeclareBtn && (
+                      <TouchableOpacity
+                        style={styles.declararBtn}
+                        onPress={() => openDeclaration(selectedMetric)}
+                      >
+                        <ClipboardEdit size={13} color={COLORS.primary[600]} />
+                        <Text style={styles.declararBtnText}>
+                          {confianza === 'baja' ? 'Declarar km de servicio' : 'Actualizar km'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })()}
+
+              {/* ── 5. Diagnóstico del motor ────────────────────── */}
               {!!selectedMetric?.mensaje && (
                 <View style={styles.infoBox}>
                   <Text style={styles.infoBoxLabel}>Diagnóstico</Text>
@@ -921,6 +1162,129 @@ const createStyles = (_insets) => StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.text.primary,
     flex: 1,
+  },
+  // Bloque de integridad de datos
+  integridadCard: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
+  },
+  integridadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: SPACING.sm,
+  },
+  integridadTitle: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  integridadBarTrack: {
+    flexDirection: 'row',
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: COLORS.neutral.gray[200],
+    marginBottom: SPACING.xs,
+  },
+  integridadBarSegment: {
+    height: '100%',
+  },
+  integridadLegend: {
+    flexDirection: 'row',
+    gap: SPACING.md,
+    flexWrap: 'wrap',
+  },
+  integridadLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  integridadLegendText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+  },
+  integridadAdvertencia: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.warning[700],
+    marginTop: SPACING.xs,
+    lineHeight: 16,
+    fontStyle: 'italic',
+  },
+  // Confianza historial en modal detalle
+  confianzaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: BORDERS.radius.card.md,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
+    flexWrap: 'wrap',
+  },
+  confianzaText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    flex: 1,
+  },
+  declararBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: COLORS.primary[50],
+    borderRadius: BORDERS.radius.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
+  },
+  declararBtnText: {
+    fontSize: 11,
+    color: COLORS.primary[600],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  // Modal de declaración retroactiva
+  declModalComponent: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.xs,
+  },
+  declModalHint: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
+    lineHeight: 18,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.warning[50],
+    borderRadius: BORDERS.radius.input.sm,
+    padding: SPACING.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.warning[400],
+  },
+  declLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+    marginBottom: 4,
+    marginTop: SPACING.xs,
+  },
+  declInput: {
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.default,
+    borderRadius: BORDERS.radius.input.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.primary,
+    backgroundColor: COLORS.background.default,
+    marginBottom: SPACING.xs,
+  },
+  declInputMulti: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+    marginBottom: SPACING.md,
   },
   emptyState: {
     alignItems: 'center',

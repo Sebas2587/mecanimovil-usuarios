@@ -35,12 +35,20 @@ import Input from '../../components/base/Input/Input';
 import ScrollContainer from '../../components/base/ScrollContainer';
 
 // Servicios y Hooks
-import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, useCarBrands, useCarModels } from '../../hooks/useVehicles';
+import {
+  useVehicles,
+  useVehiclesHealth,
+  useCreateVehicle,
+  useUpdateVehicle,
+  useDeleteVehicle,
+  useCarBrands,
+  useCarModels,
+} from '../../hooks/useVehicles';
 import { useServicesHistory } from '../../hooks/useServices';
 import * as userService from '../../services/user';
 import * as vehicleService from '../../services/vehicle';
-import * as VehicleHealthService from '../../services/vehicleHealthService';
-import { getHealthColorToken } from '../../utils/healthFormat';
+import { getHealthColorToken, resolveVehicleHealthPct } from '../../utils/healthFormat';
+import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
 
 const tiposMotor = [
   { id: 1, nombre: 'Gasolina' },
@@ -61,6 +69,7 @@ const MisVehiculosScreen = () => {
   // Estados para la lista de vehículos (Refactored to Hooks)
   const { data: vehiclesData, isLoading: isLoadingVehicles, refetch: refetchVehicles } = useVehicles();
   const vehicles = vehiclesData || [];
+  const vehiclesHealth = useVehiclesHealth(vehicles);
   const loading = isLoadingVehicles && vehicles.length === 0;
 
   const [refreshing, setRefreshing] = useState(false);
@@ -414,6 +423,18 @@ const MisVehiculosScreen = () => {
 
   const renderVehicleItem = ({ item }) => {
     const estimatedValue = item.precio_sugerido_final || item.precio_mercado_promedio || 0;
+    const healthRow = vehiclesHealth.data?.find((h) => h.vehicleId === item.id);
+    const healthSummary = healthRow?.health;
+    const healthPct = resolveVehicleHealthPct(item, healthSummary);
+    const stillLoadingHealth = healthRow?.isLoading === true;
+    const hasHealthField =
+      item.health_score != null ||
+      item.salud_general_porcentaje != null ||
+      healthSummary?.salud_general_porcentaje != null;
+    const showCalculating =
+      stillLoadingHealth &&
+      item.health_score == null &&
+      item.salud_general_porcentaje == null;
 
     return (
       <TouchableOpacity
@@ -428,6 +449,7 @@ const MisVehiculosScreen = () => {
             style={styles.vehicleImage}
             resizeMode="cover"
           />
+          <HeroImageGradientScrim intensity="card" />
           <View style={styles.imageOverlay}>
             <View>
               <Text style={styles.cardBrand}>{item.marca_nombre}</Text>
@@ -465,59 +487,63 @@ const MisVehiculosScreen = () => {
 
           {/* Health Bar */}
           <View style={styles.healthContainer}>
-            {(item.health_score !== null && item.health_score !== undefined) ? (
+            {!showCalculating && hasHealthField ? (
               <>
                 <View style={styles.healthHeader}>
                   <Text style={styles.healthLabel}>Salud General</Text>
                   <Text style={[
                     styles.healthPercent,
-                    { color: getHealthColor(item.health_score) }
-                  ]}>{Math.round(item.health_score)}%</Text>
+                    { color: getHealthColor(healthPct) }
+                  ]}>{Math.round(healthPct)}%</Text>
                 </View>
                 <View style={styles.progressBarBg}>
                   <View style={[
                     styles.progressBarFill,
                     {
-                      width: `${item.health_score}%`,
-                      backgroundColor: getHealthColor(item.health_score)
+                      width: `${Math.min(100, Math.max(0, healthPct))}%`,
+                      backgroundColor: getHealthColor(healthPct)
                     }
                   ]} />
                 </View>
 
-                {item.health_score >= 70 ? (
+                {healthPct >= 70 ? (
                   <View style={styles.healthStatusRow}>
-                    <CheckCircle size={12} color={getHealthColor(item.health_score)} />
-                    <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                    <CheckCircle size={12} color={getHealthColor(healthPct)} />
+                    <Text style={[styles.healthStatus, { color: getHealthColor(healthPct) }]}>
                       {' '}En Buen Estado
                     </Text>
                   </View>
-                ) : item.health_score >= 60 ? (
+                ) : healthPct >= 60 ? (
                   <View style={styles.healthStatusRow}>
-                    <Info size={12} color={getHealthColor(item.health_score)} />
-                    <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                    <Info size={12} color={getHealthColor(healthPct)} />
+                    <Text style={[styles.healthStatus, { color: getHealthColor(healthPct) }]}>
                       {' '}Buen Estado
                     </Text>
                   </View>
-                ) : item.health_score >= 40 ? (
+                ) : healthPct >= 40 ? (
                   <View style={styles.healthStatusRow}>
-                    <AlertCircle size={12} color={getHealthColor(item.health_score)} />
-                    <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                    <AlertCircle size={12} color={getHealthColor(healthPct)} />
+                    <Text style={[styles.healthStatus, { color: getHealthColor(healthPct) }]}>
                       {' '}Mantenimiento Recomendado ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
                     </Text>
                   </View>
                 ) : (
                   <View style={styles.healthStatusRow}>
-                    <AlertTriangle size={12} color={getHealthColor(item.health_score)} />
-                    <Text style={[styles.healthStatus, { color: getHealthColor(item.health_score) }]}>
+                    <AlertTriangle size={12} color={getHealthColor(healthPct)} />
+                    <Text style={[styles.healthStatus, { color: getHealthColor(healthPct) }]}>
                       {' '}Requiere Atención ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
                     </Text>
                   </View>
                 )}
               </>
+            ) : showCalculating ? (
+              <View style={styles.healthHeader}>
+                <Text style={styles.healthLabel}>Calculando salud…</Text>
+                <ActivityIndicator size="small" color={COLORS.primary[500]} />
+              </View>
             ) : (
               <View style={styles.healthHeader}>
-                <Text style={styles.healthLabel}>Calculando Salud...</Text>
-                <ActivityIndicator size="small" color={COLORS.primary[500]} />
+                <Text style={styles.healthLabel}>Sin datos de salud</Text>
               </View>
             )}
           </View>
@@ -741,10 +767,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 90,
+    zIndex: 1,
+    minHeight: 72,
     justifyContent: 'flex-end',
     padding: SPACING.md,
-    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
+    paddingTop: SPACING.lg,
   },
   cardBrand: {
     color: withOpacity(COLORS.text.inverse, 0.82),
