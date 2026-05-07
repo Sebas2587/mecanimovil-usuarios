@@ -28,6 +28,7 @@
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
     "expo": "~54.0.33",
+    "expo-auth-session": "^55.0.15",
     "expo-blur": "~15.0.7",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.9",

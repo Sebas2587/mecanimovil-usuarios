@@ -19,7 +19,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
-import { COLORS, BORDERS, SPACING } from '../../design-system/tokens';
+import Button from '../../components/base/Button/Button';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -32,7 +37,7 @@ const GlassCard = ({ children, style }) => (
 const RegisterScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { register, error: authError } = useAuth();
+  const { register, loginWithGoogle, error: authError } = useAuth();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -42,6 +47,38 @@ const RegisterScreen = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  });
+
+  React.useEffect(() => {
+    const idToken = googleResponse?.authentication?.idToken;
+    if (!idToken) return;
+    let cancelled = false;
+    (async () => {
+      setGoogleLoading(true);
+      try {
+        const result = await loginWithGoogle(idToken);
+        if (!cancelled && result?.success) {
+          // ya quedó autenticado; salir del registro
+          return;
+        }
+        if (!cancelled && !result?.success) {
+          Alert.alert('Google', result?.error || 'No se pudo continuar con Google.');
+        }
+      } catch {
+        if (!cancelled) Alert.alert('Google', 'No se pudo continuar con Google.');
+      } finally {
+        if (!cancelled) setGoogleLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [googleResponse, loginWithGoogle]);
 
   const validate = () => {
     let valid = true;
@@ -209,6 +246,18 @@ const RegisterScreen = () => {
 
         {/* Form */}
         <GlassCard style={styles.formCard}>
+          <Button
+            title="Continuar con Google"
+            onPress={() => googlePromptAsync({ useProxy: true })}
+            disabled={!googleRequest}
+            isLoading={googleLoading}
+            type="primary"
+            variant="outline"
+            size="md"
+            fullWidth
+            style={{ marginBottom: 14 }}
+          />
+
           <View style={styles.nameRow}>
             <View style={[styles.nameInput, { marginRight: 12 }]}>
               <Input label="Nombre" placeholder="Juan" value={firstName}
@@ -261,9 +310,16 @@ const RegisterScreen = () => {
           {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
 
           {/* Submit */}
-          <TouchableOpacity onPress={handleRegister} disabled={loading} style={styles.submitBtn} activeOpacity={0.85}>
-            {loading ? <ActivityIndicator color={COLORS.text.inverse} /> : <Text style={styles.submitText}>Crear Cuenta</Text>}
-          </TouchableOpacity>
+          <Button
+            title="Crear Cuenta"
+            onPress={handleRegister}
+            isLoading={loading}
+            type="primary"
+            variant="solid"
+            useGradient
+            size="md"
+            fullWidth
+          />
         </GlassCard>
       </ScrollView>
     </View>
@@ -276,13 +332,39 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: SPACING.container.horizontal },
   headerSection: { alignItems: 'center', marginBottom: 24 },
   logo: { width: 180, height: 60, marginBottom: 16 },
-  headerTitle: { fontSize: 28, fontWeight: '600', color: COLORS.text.primary, marginBottom: 6 },
-  headerSub: { fontSize: 16, color: COLORS.text.secondary, textAlign: 'center' },
+  headerTitle: {
+    fontSize: TYPOGRAPHY.styles.h2.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h2.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.h2.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.h2.fontSize * TYPOGRAPHY.styles.h2.lineHeight),
+    color: COLORS.text.primary,
+    marginBottom: 6,
+  },
+  headerSub: {
+    fontSize: TYPOGRAPHY.styles.body.fontSize,
+    fontWeight: TYPOGRAPHY.styles.body.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.body.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.body.fontSize * TYPOGRAPHY.styles.body.lineHeight),
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+  },
 
   tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border.light },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', position: 'relative' },
-  tabTextActive: { fontSize: 16, fontWeight: '600', color: COLORS.text.primary },
-  tabTextInactive: { fontSize: 16, fontWeight: '500', color: COLORS.text.tertiary },
+  tabTextActive: {
+    fontSize: TYPOGRAPHY.styles.label.fontSize,
+    fontWeight: TYPOGRAPHY.styles.label.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.label.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.label.fontSize * TYPOGRAPHY.styles.label.lineHeight),
+    color: COLORS.text.primary,
+  },
+  tabTextInactive: {
+    fontSize: TYPOGRAPHY.styles.label.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    letterSpacing: TYPOGRAPHY.styles.label.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.label.fontSize * TYPOGRAPHY.styles.label.lineHeight),
+    color: COLORS.text.tertiary,
+  },
   tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: COLORS.primary[500] },
 
   card: {
@@ -301,12 +383,16 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 8 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border.dark, marginRight: 10, alignItems: 'center', justifyContent: 'center' },
   checkboxChecked: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
-  termsText: { fontSize: 14, color: COLORS.text.secondary, flex: 1 },
-  termsLink: { color: COLORS.primary[500], fontWeight: '500' },
+  termsText: {
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    fontWeight: TYPOGRAPHY.styles.caption.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.caption.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.caption.fontSize * TYPOGRAPHY.styles.caption.lineHeight),
+    color: COLORS.text.secondary,
+    flex: 1,
+  },
+  termsLink: { color: COLORS.primary[500], fontWeight: TYPOGRAPHY.fontWeight.medium },
   errorText: { color: COLORS.error[500], fontSize: 12, marginBottom: 8 },
-
-  submitBtn: { borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full, overflow: 'hidden', marginTop: 8, backgroundColor: COLORS.primary[500], paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
-  submitText: { color: COLORS.text.inverse, fontSize: 16, fontWeight: '600' },
 });
 
 export default RegisterScreen;

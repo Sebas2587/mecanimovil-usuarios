@@ -208,6 +208,7 @@ export const LAYOUT = {
 // Rutas de navegación
 export const ROUTES = {
   // Rutas de autenticación
+  ONBOARDING: 'Onboarding',
   LOGIN: 'Login',
   REGISTER: 'Register',
 

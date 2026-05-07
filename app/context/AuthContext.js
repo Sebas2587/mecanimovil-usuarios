@@ -540,6 +540,103 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
+   * Login/Registro con Google usando idToken (emitido por Google OAuth).
+   * El backend responde con { token, user } igual que /usuarios/login/.
+   */
+  const loginWithGoogle = async (idToken) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Limpiar cualquier token anterior para evitar problemas
+      await AsyncStorage.removeItem('auth_token');
+
+      const response = await authService.googleLogin(idToken);
+
+      if (!response.token) {
+        throw new Error('No se recibió un token válido del servidor');
+      }
+
+      // Normalizar usuario igual que login()
+      const normalizedUser = {
+        id: response.user.id,
+        username: response.user.username || response.user.email,
+        email: response.user.email || '',
+        firstName: response.user.first_name || response.user.firstName || '',
+        lastName: response.user.last_name || response.user.lastName || '',
+        first_name: response.user.first_name || response.user.firstName || '',
+        last_name: response.user.last_name || response.user.lastName || '',
+        telefono: response.user.telefono || '',
+        direccion: response.user.direccion || '',
+        foto_perfil: response.user.foto_perfil || null,
+        es_mecanico: response.user.es_mecanico !== undefined ? response.user.es_mecanico : false,
+        is_client: response.user.is_client !== undefined ? response.user.is_client : true,
+      };
+
+      // Guardrail proveedor
+      if (normalizedUser.es_mecanico === true) {
+        await AsyncStorage.removeItem('auth_token');
+        await AsyncStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+        const errorMessage =
+          'Esta cuenta es de proveedor. Por favor, utiliza la aplicación de proveedores para iniciar sesión.';
+        setError(errorMessage);
+        return { success: false, error: errorMessage };
+      }
+
+      setToken(response.token);
+      await AsyncStorage.setItem('auth_token', response.token);
+
+      // Verificar perfil proveedor (extra seguridad, mismo comportamiento que login)
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const esProveedor = await userService.isUserProvider();
+        if (esProveedor) {
+          await AsyncStorage.removeItem('auth_token');
+          await AsyncStorage.removeItem('user');
+          setToken(null);
+          setUser(null);
+          const errorMessage =
+            'Esta cuenta es de proveedor. Por favor, utiliza la aplicación de proveedores para iniciar sesión.';
+          setError(errorMessage);
+          return { success: false, error: errorMessage };
+        }
+      } catch (providerCheckError) {
+        if (providerCheckError.status !== 404 && providerCheckError.response?.status !== 404) {
+          logger.warn(
+            '⚠️ [AuthContext] Error verificando si usuario es proveedor (Google), continuando:',
+            providerCheckError.message
+          );
+        }
+      }
+
+      setUser(normalizedUser);
+      await AsyncStorage.setItem('user', JSON.stringify(normalizedUser));
+
+      // Reinit server config (igual que login)
+      try {
+        await forceReconnect();
+      } catch (reconnectError) {
+        logger.warn('⚠️ AuthContext: Error al reinicializar servidor (Google):', reconnectError);
+      }
+
+      return { success: true, user: normalizedUser };
+    } catch (e) {
+      let errorMessage = 'No se pudo iniciar sesión con Google. Intenta nuevamente.';
+      const status = e?.status || e?.response?.status;
+      if (status === 403) {
+        errorMessage =
+          'Esta cuenta es de proveedor. Por favor, utiliza la aplicación de proveedores para iniciar sesión.';
+      }
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
    * Registrar un nuevo usuario
    * @param {object} userData - Datos del usuario a registrar
    * @returns {object} - { success: boolean, error?: string }
@@ -828,6 +925,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     login,
+    loginWithGoogle,
     register,
     logout,
     updateProfile,

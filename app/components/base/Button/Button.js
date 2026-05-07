@@ -35,7 +35,8 @@ const SAFE_COLORS = TOKENS?.colors || {
 
 const SAFE_TYPOGRAPHY = TOKENS?.typography || {
   fontSize: { sm: 14, md: 16, lg: 18 },
-  fontWeight: { semibold: '600' }
+  fontWeight: { semibold: '600' },
+  styles: { button: { fontSize: 16, fontWeight: '600', lineHeight: 1.2, letterSpacing: 0 } },
 };
 
 const SAFE_SPACING = TOKENS?.spacing || {
@@ -173,6 +174,8 @@ const Button = ({
   const sizeStyles = getSizeStyles();
   const defaultGradientColors = useGradient ? getDefaultGradientColors() : null;
   const finalGradientColors = gradientColors || defaultGradientColors;
+  const buttonTextSpec = SAFE_TYPOGRAPHY.styles?.button || { lineHeight: 1.2, letterSpacing: 0 };
+  const computedLineHeight = Math.round(sizeStyles.fontSize * (buttonTextSpec.lineHeight || 1.2));
 
   // Obtener estilos según la variante
   const getVariantStyles = () => {
@@ -267,6 +270,8 @@ const Button = ({
                     color: textColor,
                     fontSize: sizeStyles.fontSize,
                     fontWeight: SAFE_TYPOGRAPHY.fontWeight?.semibold || '600',
+                    letterSpacing: buttonTextSpec.letterSpacing ?? 0,
+                    lineHeight: computedLineHeight,
                   },
                 ]}
               >
@@ -330,6 +335,8 @@ const Button = ({
                 color: textColor,
                 fontSize: sizeStyles.fontSize,
                 fontWeight: SAFE_TYPOGRAPHY.fontWeight?.semibold || '600',
+                letterSpacing: buttonTextSpec.letterSpacing ?? 0,
+                lineHeight: computedLineHeight,
               },
             ]}
           >

@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import MarketplaceVehicleDetailScreen from '../screens/marketplace/MarketplaceVehicleDetailScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
+import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import { ROUTES } from '../utils/constants';
 import { getMarketplaceVehicleIdFromWebPath, getPublicProviderFromWebPath } from '../utils/publicListingRoute';
 import { COLORS } from '../design-system/tokens';
+import SplashScreen from '../components/utils/SplashScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Stack = createStackNavigator();
+const HAS_SEEN_ONBOARDING_KEY = 'has_seen_onboarding_v1';
 
 /**
  * Navegador para autenticación. Si la URL es una ficha pública (web), abre el detalle
@@ -20,13 +24,39 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
   const marketplaceVehicleId = marketplaceVehicleIdProp ?? fromVehiclePath;
   const publicProviderData = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
 
-  const initialRouteName = publicProviderData
-    ? ROUTES.PROVIDER_DETAIL
-    : marketplaceVehicleId
-      ? ROUTES.MARKETPLACE_VEHICLE_DETAIL
-      : registerSuccess
-        ? ROUTES.REGISTER
-        : ROUTES.LOGIN;
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      if (Platform.OS === 'web') {
+        if (mounted) setHasSeenOnboarding(true);
+        return;
+      }
+      try {
+        const v = await AsyncStorage.getItem(HAS_SEEN_ONBOARDING_KEY);
+        if (mounted) setHasSeenOnboarding(v === 'true');
+      } catch {
+        if (mounted) setHasSeenOnboarding(true);
+      }
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const initialRouteName = useMemo(() => {
+    if (publicProviderData) return ROUTES.PROVIDER_DETAIL;
+    if (marketplaceVehicleId) return ROUTES.MARKETPLACE_VEHICLE_DETAIL;
+    if (registerSuccess) return ROUTES.REGISTER;
+    if (Platform.OS !== 'web' && hasSeenOnboarding === false) return ROUTES.ONBOARDING;
+    return ROUTES.LOGIN;
+  }, [publicProviderData, marketplaceVehicleId, registerSuccess, hasSeenOnboarding]);
+
+  if (hasSeenOnboarding == null && Platform.OS !== 'web' && !publicProviderData && !marketplaceVehicleId && !registerSuccess) {
+    return <SplashScreen />;
+  }
 
   return (
     <Stack.Navigator
@@ -38,6 +68,7 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
         cardStyle: { backgroundColor: COLORS.background.default },
       }}
     >
+      <Stack.Screen name={ROUTES.ONBOARDING} component={OnboardingScreen} />
       <Stack.Screen name={ROUTES.LOGIN} component={LoginScreen} />
       <Stack.Screen name={ROUTES.REGISTER} component={RegisterScreen} />
       <Stack.Screen

@@ -88,6 +88,27 @@ export const login = async (username, password) => {
 };
 
 /**
+ * Login/Registro con Google (id_token) -> backend devuelve { token, user }
+ * @param {string} idToken
+ */
+export const googleLogin = async (idToken) => {
+  try {
+    const response = await post('/usuarios/google-login/', { id_token: idToken }, { requiresAuth: false });
+    if (!response?.token || !response?.user) {
+      throw new Error('Respuesta inválida de Google login');
+    }
+    return { token: response.token, user: response.user };
+  } catch (error) {
+    logger.error('❌ [authService.googleLogin] Error:', {
+      message: error.message,
+      status: error.status || error.response?.status,
+      code: error.code,
+    });
+    throw error;
+  }
+};
+
+/**
  * Invalida el token de autenticación en el servidor.
  * Falla silenciosamente si la red no está disponible — la limpieza local
  * se realiza igualmente en AuthContext.

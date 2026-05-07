@@ -16,12 +16,14 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
-import { COLORS, BORDERS, SPACING } from '../../design-system/tokens';
+import Button from '../../components/base/Button/Button';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
 import logger from '../../utils/logger';
 import * as authService from '../../services/auth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,6 +31,10 @@ import * as categoryService from '../../services/categories';
 import * as userService from '../../services/user';
 import ofertasService from '../../services/ofertasService';
 import vehiculoService from '../../services/vehicle';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -41,7 +47,7 @@ const GlassCard = ({ children, style }) => (
 const LoginScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const queryClient = useQueryClient();
 
   const [email, setEmail] = useState('');
@@ -58,6 +64,35 @@ const LoginScreen = () => {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [forgotPasswordErrors, setForgotPasswordErrors] = useState({});
+
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    const idToken = googleResponse?.authentication?.idToken;
+    if (!idToken) return;
+    let cancelled = false;
+    (async () => {
+      setGoogleLoading(true);
+      try {
+        const result = await loginWithGoogle(idToken);
+        if (!cancelled && !result?.success) {
+          Alert.alert('Google', result?.error || 'No se pudo iniciar sesión con Google.');
+        }
+      } catch (e) {
+        if (!cancelled) Alert.alert('Google', 'No se pudo iniciar sesión con Google.');
+      } finally {
+        if (!cancelled) setGoogleLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [googleResponse, loginWithGoogle]);
 
   useEffect(() => {
     const loadRememberedCredentials = async () => {
@@ -221,6 +256,18 @@ const LoginScreen = () => {
 
         {/* Form */}
         <GlassCard style={styles.formCard}>
+          <Button
+            title="Continuar con Google"
+            onPress={() => googlePromptAsync({ useProxy: true })}
+            disabled={!googleRequest}
+            isLoading={googleLoading}
+            type="primary"
+            variant="outline"
+            size="md"
+            fullWidth
+            style={{ marginBottom: 14 }}
+          />
+
           <View style={styles.inputWrapper}>
             <Input
               label="Correo Electrónico"
@@ -266,9 +313,16 @@ const LoginScreen = () => {
           </View>
 
           {/* Submit */}
-          <TouchableOpacity onPress={handleLogin} disabled={loading} style={styles.submitBtn} activeOpacity={0.85}>
-            {loading ? <ActivityIndicator color={COLORS.text.inverse} /> : <Text style={styles.submitText}>Iniciar Sesión</Text>}
-          </TouchableOpacity>
+          <Button
+            title="Iniciar Sesión"
+            onPress={handleLogin}
+            isLoading={loading}
+            type="primary"
+            variant="solid"
+            useGradient
+            size="md"
+            fullWidth
+          />
         </GlassCard>
       </ScrollView>
 
@@ -300,11 +354,16 @@ const LoginScreen = () => {
                       onChangeText={(t) => { setForgotPasswordEmail(t); if (forgotPasswordErrors.email) setForgotPasswordErrors(p => ({ ...p, email: undefined })); }}
                       keyboardType="email-address" autoCapitalize="none" autoCorrect={false} error={forgotPasswordErrors.email} leftIcon="mail-outline" appearance="darkGlass" />
                   </View>
-                  <TouchableOpacity onPress={handleForgotPassword} disabled={forgotPasswordLoading} style={styles.submitBtn} activeOpacity={0.85}>
-                    <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
-                      {forgotPasswordLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Enviar Solicitud</Text>}
-                    </LinearGradient>
-                  </TouchableOpacity>
+                  <Button
+                    title="Enviar Solicitud"
+                    onPress={handleForgotPassword}
+                    isLoading={forgotPasswordLoading}
+                    type="primary"
+                    variant="solid"
+                    useGradient
+                    size="md"
+                    fullWidth
+                  />
                 </ScrollView>
               ) : (
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -324,11 +383,16 @@ const LoginScreen = () => {
                       onChangeText={(t) => { setConfirmNewPassword(t); if (forgotPasswordErrors.confirmNewPassword) setForgotPasswordErrors(p => ({ ...p, confirmNewPassword: undefined })); }}
                       secureTextEntry autoCorrect={false} error={forgotPasswordErrors.confirmNewPassword} leftIcon="lock-closed-outline" appearance="darkGlass" />
                   </View>
-                  <TouchableOpacity onPress={handleResetPassword} disabled={forgotPasswordLoading} style={styles.submitBtn} activeOpacity={0.85}>
-                    <LinearGradient colors={['#007EA7', '#00A8E8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.submitGradient}>
-                      {forgotPasswordLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Restablecer Contraseña</Text>}
-                    </LinearGradient>
-                  </TouchableOpacity>
+                  <Button
+                    title="Restablecer Contraseña"
+                    onPress={handleResetPassword}
+                    isLoading={forgotPasswordLoading}
+                    type="primary"
+                    variant="solid"
+                    useGradient
+                    size="md"
+                    fullWidth
+                  />
                   <TouchableOpacity onPress={() => setForgotPasswordStep(1)} style={styles.backLink}>
                     <Ionicons name="arrow-back" size={16} color="#67E8F9" style={{ marginRight: 6 }} />
                     <Text style={styles.backLinkText}>Volver a ingresar email</Text>
@@ -349,12 +413,32 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: SPACING.container.horizontal },
   headerSection: { alignItems: 'center', marginBottom: 32 },
   logo: { width: 180, height: 60, marginBottom: 16 },
-  subtitle: { fontSize: 15, color: COLORS.text.secondary, textAlign: 'center', lineHeight: 22, paddingHorizontal: 16 },
+  subtitle: {
+    fontSize: TYPOGRAPHY.styles.body.fontSize,
+    fontWeight: TYPOGRAPHY.styles.body.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.body.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.body.fontSize * TYPOGRAPHY.styles.body.lineHeight),
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+  },
 
   tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border.light },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', position: 'relative' },
-  tabTextActive: { fontSize: 16, fontWeight: '600', color: COLORS.text.primary },
-  tabTextInactive: { fontSize: 16, fontWeight: '500', color: COLORS.text.tertiary },
+  tabTextActive: {
+    fontSize: TYPOGRAPHY.styles.label.fontSize,
+    fontWeight: TYPOGRAPHY.styles.label.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.label.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.label.fontSize * TYPOGRAPHY.styles.label.lineHeight),
+    color: COLORS.text.primary,
+  },
+  tabTextInactive: {
+    fontSize: TYPOGRAPHY.styles.label.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    letterSpacing: TYPOGRAPHY.styles.label.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.label.fontSize * TYPOGRAPHY.styles.label.lineHeight),
+    color: COLORS.text.tertiary,
+  },
   tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: COLORS.primary[500] },
 
   card: {
@@ -372,19 +456,42 @@ const styles = StyleSheet.create({
   rememberRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border.dark, marginRight: 8, alignItems: 'center', justifyContent: 'center' },
   checkboxChecked: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
-  rememberText: { fontSize: 14, color: COLORS.text.secondary },
-  forgotText: { fontSize: 14, fontWeight: '500', color: COLORS.primary[500] },
-
-  submitBtn: { borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full, overflow: 'hidden', backgroundColor: COLORS.primary[500], paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
-  submitText: { color: COLORS.text.inverse, fontSize: 16, fontWeight: '600' },
+  rememberText: {
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    fontWeight: TYPOGRAPHY.styles.caption.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.caption.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.caption.fontSize * TYPOGRAPHY.styles.caption.lineHeight),
+    color: COLORS.text.secondary,
+  },
+  forgotText: {
+    fontSize: TYPOGRAPHY.styles.captionBold.fontSize,
+    fontWeight: TYPOGRAPHY.styles.captionBold.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.captionBold.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.captionBold.fontSize * TYPOGRAPHY.styles.captionBold.lineHeight),
+    color: COLORS.primary[500],
+  },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalCard: { width: '100%', maxWidth: 420, maxHeight: '85%', borderRadius: 24, overflow: 'hidden' },
   modalContent: { padding: 24 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   modalIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(0,126,167,0.20)', alignItems: 'center', justifyContent: 'center' },
-  modalTitle: { fontSize: 22, fontWeight: '800', color: '#F9FAFB', marginBottom: 8 },
-  modalDesc: { fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 20, marginBottom: 20 },
+  modalTitle: {
+    fontSize: TYPOGRAPHY.styles.h3.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.h3.fontSize * TYPOGRAPHY.styles.h3.lineHeight),
+    color: '#F9FAFB',
+    marginBottom: 8,
+  },
+  modalDesc: {
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    fontWeight: TYPOGRAPHY.styles.caption.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.caption.letterSpacing,
+    lineHeight: Math.round(TYPOGRAPHY.styles.caption.fontSize * TYPOGRAPHY.styles.caption.lineHeight),
+    color: withOpacity(COLORS.base.white, 0.55),
+    marginBottom: 20,
+  },
   backLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginTop: 8 },
   backLinkText: { fontSize: 14, fontWeight: '600', color: '#67E8F9' },
 });
