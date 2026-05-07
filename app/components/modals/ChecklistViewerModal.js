@@ -40,6 +40,31 @@ const C = {
   borderLight: DS_COLORS.border.light,
 };
 
+/** Texto del badge de estado en el header; null = no mostrar badge. */
+function labelEstadoInforme(estado) {
+  if (estado == null || estado === '') return null;
+  const u = String(estado).trim().toUpperCase();
+  if (u === 'OTROS') return null;
+  if (u === 'FINALIZADO' || u === 'COMPLETADO') return 'Completado';
+  if (u === 'EN_PROGRESO') return 'En progreso';
+  if (u === 'PENDIENTE') return 'Pendiente';
+  if (u === 'PAUSADO') return 'Pausado';
+  if (u === 'CANCELADO') return 'Cancelado';
+  return null;
+}
+
+/** Claves de categoría para tabs: oculta OTROS vacío (sin ítems). */
+function categoriasNavKeys(categorias) {
+  const keys = Object.keys(categorias || {});
+  return keys.filter((k) => {
+    if (k === 'OTROS') {
+      const arr = categorias[k];
+      return Array.isArray(arr) && arr.length > 0;
+    }
+    return true;
+  });
+}
+
 const ChecklistViewerModal = ({
   visible,
   onClose,
@@ -78,13 +103,11 @@ const ChecklistViewerModal = ({
 
       setChecklist(checklistFormateado);
 
-      // Establecer primera categoría como seleccionada por defecto
+      // Primera categoría con relevancia (sin pestaña OTROS vacía)
       if (checklistFormateado?.respuestas && Array.isArray(checklistFormateado.respuestas)) {
         const categorias = checklistClienteService.organizarRespuestasPorCategoria(checklistFormateado.respuestas);
-        const primeraCategoria = Object.keys(categorias)[0];
-        if (primeraCategoria) {
-          setCategoriaSeleccionada(primeraCategoria);
-        }
+        const keys = categoriasNavKeys(categorias);
+        if (keys[0]) setCategoriaSeleccionada(keys[0]);
       }
     } catch (err) {
       console.error('❌ Error cargando checklist:', err);
@@ -110,6 +133,15 @@ const ChecklistViewerModal = ({
   useEffect(() => {
     if (!visible) setPhotoLightbox(null);
   }, [visible]);
+
+  useEffect(() => {
+    if (!checklist?.respuestas || !categoriaSeleccionada) return;
+    const categorias = checklistClienteService.organizarRespuestasPorCategoria(checklist.respuestas);
+    const keys = categoriasNavKeys(categorias);
+    if (keys.length > 0 && !keys.includes(categoriaSeleccionada)) {
+      setCategoriaSeleccionada(keys[0]);
+    }
+  }, [checklist, categoriaSeleccionada]);
 
   // ─── Proveedor (API + vista previa desde historial / marketplace) ─────────
   const renderProveedorBar = () => {
@@ -162,7 +194,7 @@ const ChecklistViewerModal = ({
     }
 
     const categorias = checklistClienteService.organizarRespuestasPorCategoria(checklist.respuestas);
-    const categoriasArray = Object.keys(categorias || {});
+    const categoriasArray = categoriasNavKeys(categorias);
 
     if (categoriasArray.length === 0) {
       return null;
@@ -554,6 +586,7 @@ const ChecklistViewerModal = ({
   };
 
   // ─── RENDER PRINCIPAL ────────────────────────────────────────────────────
+  const estadoBadgeLabel = checklist ? labelEstadoInforme(checklist.estado) : null;
   const lw = Math.min(winW - SPACING.lg * 2, 720);
   const lh = Math.min(winH * 0.72, lw * 1.05);
 
@@ -572,11 +605,11 @@ const ChecklistViewerModal = ({
                   {String(servicioNombre || 'Servicio')}
                 </Text>
               </View>
-              <View style={styles.estadoBadge}>
-                <Text style={styles.estadoBadgeTexto}>
-                  {checklist?.estado === 'FINALIZADO' ? 'Completado' : (checklist?.estado || '—')}
-                </Text>
-              </View>
+              {estadoBadgeLabel ? (
+                <View style={styles.estadoBadge}>
+                  <Text style={styles.estadoBadgeTexto}>{estadoBadgeLabel}</Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
