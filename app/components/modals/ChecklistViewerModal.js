@@ -53,18 +53,6 @@ function labelEstadoInforme(estado) {
   return null;
 }
 
-/** Claves de categoría para tabs: oculta OTROS vacío (sin ítems). */
-function categoriasNavKeys(categorias) {
-  const keys = Object.keys(categorias || {});
-  return keys.filter((k) => {
-    if (k === 'OTROS') {
-      const arr = categorias[k];
-      return Array.isArray(arr) && arr.length > 0;
-    }
-    return true;
-  });
-}
-
 const ChecklistViewerModal = ({
   visible,
   onClose,
@@ -81,7 +69,6 @@ const ChecklistViewerModal = ({
   const [checklist, setChecklist] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
   const [mostrarFirmas, setMostrarFirmas] = useState(false);
   /** { uri: string, caption?: string } | null — vista expandida al tocar evidencia */
   const [photoLightbox, setPhotoLightbox] = useState(null);
@@ -102,13 +89,6 @@ const ChecklistViewerModal = ({
       const checklistFormateado = checklistClienteService.formatearChecklistParaCliente(checklistData);
 
       setChecklist(checklistFormateado);
-
-      // Primera categoría con relevancia (sin pestaña OTROS vacía)
-      if (checklistFormateado?.respuestas && Array.isArray(checklistFormateado.respuestas)) {
-        const categorias = checklistClienteService.organizarRespuestasPorCategoria(checklistFormateado.respuestas);
-        const keys = categoriasNavKeys(categorias);
-        if (keys[0]) setCategoriaSeleccionada(keys[0]);
-      }
     } catch (err) {
       console.error('❌ Error cargando checklist:', err);
       setError(String(err.message || 'No se pudo cargar el checklist del servicio'));
@@ -133,15 +113,6 @@ const ChecklistViewerModal = ({
   useEffect(() => {
     if (!visible) setPhotoLightbox(null);
   }, [visible]);
-
-  useEffect(() => {
-    if (!checklist?.respuestas || !categoriaSeleccionada) return;
-    const categorias = checklistClienteService.organizarRespuestasPorCategoria(checklist.respuestas);
-    const keys = categoriasNavKeys(categorias);
-    if (keys.length > 0 && !keys.includes(categoriaSeleccionada)) {
-      setCategoriaSeleccionada(keys[0]);
-    }
-  }, [checklist, categoriaSeleccionada]);
 
   // ─── Proveedor (API + vista previa desde historial / marketplace) ─────────
   const renderProveedorBar = () => {
@@ -187,92 +158,221 @@ const ChecklistViewerModal = ({
     );
   };
 
-  // ─── NAVEGACIÓN DE CATEGORÍAS ────────────────────────────────────────────
-  const renderNavegacion = () => {
-    if (!checklist?.respuestas || !Array.isArray(checklist.respuestas)) {
-      return null;
-    }
+  const renderTarjetaRespuesta = (respuesta, indexKey) => {
+    try {
+      if (!respuesta || typeof respuesta !== 'object') {
+        return null;
+      }
 
-    const categorias = checklistClienteService.organizarRespuestasPorCategoria(checklist.respuestas);
-    const categoriasArray = categoriasNavKeys(categorias);
+      const pregunta = String(
+        respuesta.item_template_info?.pregunta_texto ||
+        respuesta.item_info?.pregunta_texto ||
+        'Pregunta sin título'
+      );
+      const tipoPregunta = respuesta.item_info?.tipo_pregunta || respuesta.item_template_info?.tipo_pregunta;
 
-    if (categoriasArray.length === 0) {
-      return null;
-    }
+      const hasSeleccion =
+        respuesta.respuesta_seleccion != null && tipoPregunta !== 'BOOLEAN';
+      const hasTexto = Boolean(respuesta.respuesta_texto);
+      const hasNumero =
+        respuesta.respuesta_numero !== null && respuesta.respuesta_numero !== undefined;
+      const hasBoolean =
+        respuesta.respuesta_booleana !== null && respuesta.respuesta_booleana !== undefined;
+      const hasVerificacion = hasSeleccion || hasTexto || hasNumero || hasBoolean;
 
-    return (
-      <View style={styles.navegacionContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriasScroll}
-          contentContainerStyle={styles.categoriasScrollContent}
-        >
-          {categoriasArray.map((categoria) => {
-            const categoriaData = categorias[categoria] || [];
-            const categoriaLength = Array.isArray(categoriaData) ? categoriaData.length : 0;
-            const active = categoriaSeleccionada === categoria;
+      const fotos = respuesta.fotos && Array.isArray(respuesta.fotos) ? respuesta.fotos : [];
+      const hasFotos = fotos.length > 0;
 
-            return (
-              <TouchableOpacity
-                key={String(categoria)}
-                style={[styles.categoriaTab, active && styles.categoriaTabActiva]}
-                onPress={() => setCategoriaSeleccionada(categoria)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={checklistClienteService.obtenerIconoCategoria(categoria)}
-                  size={16}
-                  color={active ? DS_COLORS.primary[700] : DS_COLORS.text.tertiary}
-                />
-                <Text style={[styles.categoriaTabTexto, active && styles.categoriaTabTextoActivo]}>
-                  {String(checklistClienteService.obtenerNombreCategoria(categoria))}
-                </Text>
-                <View style={[styles.categoriaContador, active && styles.categoriaContadorActivo]}>
-                  <Text style={[styles.contadorTexto, active && styles.contadorTextoActivo]}>
-                    {String(categoriaLength)}
-                  </Text>
+      let opcionesSel = [];
+      if (hasSeleccion) {
+        const sel = respuesta.respuesta_seleccion;
+        if (Array.isArray(sel)) opcionesSel = sel;
+        else if (typeof sel === 'string') {
+          try {
+            const parsed = JSON.parse(sel);
+            opcionesSel = Array.isArray(parsed) ? parsed : [sel];
+          } catch {
+            opcionesSel = [sel];
+          }
+        }
+      }
+
+      let iconoTexto = null;
+      let unidad = '';
+      let valorStyle = {};
+      if (hasTexto) {
+        if (tipoPregunta === 'KILOMETER_INPUT') {
+          iconoTexto = (
+            <Ionicons name="speedometer-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+          );
+          unidad = ' km';
+          valorStyle = styles.valorKm;
+        } else if (tipoPregunta === 'FLUID_LEVEL') {
+          iconoTexto = (
+            <Ionicons name="water-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+          );
+        } else if (tipoPregunta === 'NUMBER') {
+          iconoTexto = (
+            <Ionicons name="calculator-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+          );
+        }
+      }
+
+      return (
+        <View key={indexKey} style={styles.respuestaCard}>
+          <View style={styles.preguntaContainer}>
+            <Text style={styles.preguntaTexto}>{pregunta}</Text>
+            {respuesta.completado ? (
+              <Ionicons name="checkmark-circle" size={22} color={C.success} />
+            ) : null}
+          </View>
+
+          {hasVerificacion ? (
+            <View style={styles.verifyBundle}>
+              <Text style={styles.bundleSectionTitle}>Verificación</Text>
+              {hasSeleccion ? (
+                <View style={styles.bundleBlock}>
+                  <Text style={styles.inlineMetaLabel}>Selección</Text>
+                  <View style={styles.chipsWrap}>
+                    {opcionesSel.map((op, oi) => (
+                      <View key={String(oi)} style={styles.seleccionChip}>
+                        <Ionicons name="checkmark-circle" size={14} color={C.success} />
+                        <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
+              ) : null}
+
+              {hasTexto ? (
+                <View style={styles.bundleBlock}>
+                  <Text style={styles.inlineMetaLabel}>Respuesta</Text>
+                  <View style={styles.valorRow}>
+                    {iconoTexto}
+                    <Text style={[styles.respuestaValor, valorStyle]}>
+                      {String(respuesta.respuesta_texto)}
+                      {unidad}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {hasNumero ? (
+                <View style={styles.bundleBlock}>
+                  <Text style={styles.inlineMetaLabel}>Valor numérico</Text>
+                  <Text style={styles.respuestaValor}>{String(respuesta.respuesta_numero)}</Text>
+                </View>
+              ) : null}
+
+              {hasBoolean ? (
+                <View style={styles.bundleBlock}>
+                  <Text style={styles.inlineMetaLabel}>Estado</Text>
+                  <View style={styles.booleanResponse}>
+                    <Ionicons
+                      name={respuesta.respuesta_booleana ? 'checkmark-circle' : 'close-circle'}
+                      size={18}
+                      color={respuesta.respuesta_booleana ? C.success : C.error}
+                    />
+                    <Text
+                      style={[
+                        styles.respuestaValor,
+                        respuesta.respuesta_booleana ? styles.booleanOk : styles.booleanWarn,
+                      ]}
+                    >
+                      {respuesta.respuesta_booleana ? 'Correcto' : 'Requiere atención'}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {hasFotos ? (
+            <View style={styles.fotosContainer}>
+              <Text style={styles.bundleSectionTitle}>
+                Evidencias ({fotos.length})
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {fotos.map((foto, fotoIndex) => {
+                  if (!foto || typeof foto !== 'object') return null;
+                  const uri = foto.imagen_url || foto.imagen_comprimida_url || '';
+                  if (!uri) return null;
+                  const caption = String(foto.descripcion || 'Evidencia');
+
+                  return (
+                    <TouchableOpacity
+                      key={String(fotoIndex)}
+                      style={styles.fotoContainer}
+                      activeOpacity={0.85}
+                      onPress={() => setPhotoLightbox({ uri, caption })}
+                      accessibilityRole="imagebutton"
+                      accessibilityLabel="Ampliar foto de evidencia"
+                    >
+                      <ExpoImage
+                        source={{ uri }}
+                        style={styles.fotoImagen}
+                        contentFit="cover"
+                        transition={150}
+                        cachePolicy="memory-disk"
+                      />
+                      <Text style={styles.fotoDescripcion} numberOfLines={2}>
+                        {caption}
+                      </Text>
+                      <Text style={styles.fotoTapHint}>Toca para ampliar</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {respuesta.fecha_respuesta ? (
+            <Text style={styles.fechaRespuesta}>
+              Verificado: {String(checklistClienteService.formatearFecha(respuesta.fecha_respuesta))}
+            </Text>
+          ) : null}
+        </View>
+      );
+    } catch (err) {
+      console.error('Error renderizando respuesta:', err);
+      return (
+        <View key={indexKey} style={styles.respuestaCard}>
+          <Text style={styles.inlineMetaLabel}>No se pudo mostrar este ítem</Text>
+        </View>
+      );
+    }
   };
 
-  // ─── CONTENIDO DE CATEGORÍA ──────────────────────────────────────────────
+  // ─── Contenido: todas las categorías en un scroll (sin filtro por pestañas) ─
   const renderContenido = () => {
-    if (!categoriaSeleccionada || !checklist?.respuestas) {
+    if (!checklist?.respuestas || !Array.isArray(checklist.respuestas)) {
       return (
         <View style={styles.contenidoContainer}>
           <View style={styles.contenidoEmpty}>
-            <Ionicons name="layers-outline" size={40} color={C.textLight} />
-            <Text style={styles.instruccionTexto}>
-              Selecciona una categoría arriba para ver la inspección.
-            </Text>
+            <Ionicons name="document-text-outline" size={40} color={C.textLight} />
+            <Text style={styles.instruccionTexto}>No hay respuestas en este informe.</Text>
           </View>
         </View>
       );
     }
 
     const categorias = checklistClienteService.organizarRespuestasPorCategoria(checklist.respuestas);
-    const respuestasCategoria = categorias[categoriaSeleccionada] || [];
+    const keysOrden = Object.keys(categorias || {}).filter((k) => k !== 'OTROS');
+    const otrosItems = Array.isArray(categorias.OTROS) ? categorias.OTROS : [];
 
-    if (!Array.isArray(respuestasCategoria) || respuestasCategoria.length === 0) {
+    const tieneAlgunaSeccion =
+      keysOrden.some((k) => (categorias[k] || []).length > 0) || otrosItems.length > 0;
+
+    if (!tieneAlgunaSeccion) {
       return (
         <View style={styles.contenidoContainer}>
           <View style={styles.contenidoEmpty}>
             <Ionicons name="folder-open-outline" size={40} color={C.textLight} />
-            <Text style={styles.sinDatosTexto}>
-              No hay elementos verificados en esta categoría
-            </Text>
+            <Text style={styles.sinDatosTexto}>No hay elementos verificados en este informe.</Text>
           </View>
         </View>
       );
     }
-
-    const n = respuestasCategoria.length;
 
     return (
       <ScrollView
@@ -280,199 +380,37 @@ const ChecklistViewerModal = ({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contenidoScrollPad}
       >
-        <View style={styles.categoriaHeaderBlock}>
-          <Text style={styles.categoriaTitle}>
-            {String(checklistClienteService.obtenerNombreCategoria(categoriaSeleccionada))}
-          </Text>
-          <Text style={styles.categoriaSubtitle}>
-            {n} ítem{n !== 1 ? 's' : ''} verificado{n !== 1 ? 's' : ''}
-          </Text>
-        </View>
-
-        {respuestasCategoria.map((respuesta, index) => {
-          try {
-            if (!respuesta || typeof respuesta !== 'object') {
-              return null;
-            }
-
-            const pregunta = String(
-              respuesta.item_template_info?.pregunta_texto ||
-              respuesta.item_info?.pregunta_texto ||
-              'Pregunta sin título'
-            );
-            const tipoPregunta = respuesta.item_info?.tipo_pregunta || respuesta.item_template_info?.tipo_pregunta;
-
-            const hasSeleccion =
-              respuesta.respuesta_seleccion != null && tipoPregunta !== 'BOOLEAN';
-            const hasTexto = Boolean(respuesta.respuesta_texto);
-            const hasNumero =
-              respuesta.respuesta_numero !== null && respuesta.respuesta_numero !== undefined;
-            const hasBoolean =
-              respuesta.respuesta_booleana !== null && respuesta.respuesta_booleana !== undefined;
-            const hasVerificacion = hasSeleccion || hasTexto || hasNumero || hasBoolean;
-
-            const fotos = respuesta.fotos && Array.isArray(respuesta.fotos) ? respuesta.fotos : [];
-            const hasFotos = fotos.length > 0;
-
-            let opcionesSel = [];
-            if (hasSeleccion) {
-              const sel = respuesta.respuesta_seleccion;
-              if (Array.isArray(sel)) opcionesSel = sel;
-              else if (typeof sel === 'string') {
-                try {
-                  const parsed = JSON.parse(sel);
-                  opcionesSel = Array.isArray(parsed) ? parsed : [sel];
-                } catch {
-                  opcionesSel = [sel];
-                }
-              }
-            }
-
-            let iconoTexto = null;
-            let unidad = '';
-            let valorStyle = {};
-            if (hasTexto) {
-              if (tipoPregunta === 'KILOMETER_INPUT') {
-                iconoTexto = (
-                  <Ionicons name="speedometer-outline" size={16} color={C.accent} style={styles.inlineIcon} />
-                );
-                unidad = ' km';
-                valorStyle = styles.valorKm;
-              } else if (tipoPregunta === 'FLUID_LEVEL') {
-                iconoTexto = (
-                  <Ionicons name="water-outline" size={16} color={C.accent} style={styles.inlineIcon} />
-                );
-              } else if (tipoPregunta === 'NUMBER') {
-                iconoTexto = (
-                  <Ionicons name="calculator-outline" size={16} color={C.accent} style={styles.inlineIcon} />
-                );
-              }
-            }
-
-            return (
-              <View key={String(index)} style={styles.respuestaCard}>
-                <View style={styles.preguntaContainer}>
-                  <Text style={styles.preguntaTexto}>{pregunta}</Text>
-                  {respuesta.completado ? (
-                    <Ionicons name="checkmark-circle" size={22} color={C.success} />
-                  ) : null}
-                </View>
-
-                {hasVerificacion ? (
-                  <View style={styles.verifyBundle}>
-                    <Text style={styles.bundleSectionTitle}>Verificación</Text>
-                    {hasSeleccion ? (
-                      <View style={styles.bundleBlock}>
-                        <Text style={styles.inlineMetaLabel}>Selección</Text>
-                        <View style={styles.chipsWrap}>
-                          {opcionesSel.map((op, oi) => (
-                            <View key={String(oi)} style={styles.seleccionChip}>
-                              <Ionicons name="checkmark-circle" size={14} color={C.success} />
-                              <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      </View>
-                    ) : null}
-
-                    {hasTexto ? (
-                      <View style={styles.bundleBlock}>
-                        <Text style={styles.inlineMetaLabel}>Respuesta</Text>
-                        <View style={styles.valorRow}>
-                          {iconoTexto}
-                          <Text style={[styles.respuestaValor, valorStyle]}>
-                            {String(respuesta.respuesta_texto)}
-                            {unidad}
-                          </Text>
-                        </View>
-                      </View>
-                    ) : null}
-
-                    {hasNumero ? (
-                      <View style={styles.bundleBlock}>
-                        <Text style={styles.inlineMetaLabel}>Valor numérico</Text>
-                        <Text style={styles.respuestaValor}>{String(respuesta.respuesta_numero)}</Text>
-                      </View>
-                    ) : null}
-
-                    {hasBoolean ? (
-                      <View style={styles.bundleBlock}>
-                        <Text style={styles.inlineMetaLabel}>Estado</Text>
-                        <View style={styles.booleanResponse}>
-                          <Ionicons
-                            name={respuesta.respuesta_booleana ? 'checkmark-circle' : 'close-circle'}
-                            size={18}
-                            color={respuesta.respuesta_booleana ? C.success : C.error}
-                          />
-                          <Text
-                            style={[
-                              styles.respuestaValor,
-                              respuesta.respuesta_booleana ? styles.booleanOk : styles.booleanWarn,
-                            ]}
-                          >
-                            {respuesta.respuesta_booleana ? 'Correcto' : 'Requiere atención'}
-                          </Text>
-                        </View>
-                      </View>
-                    ) : null}
-                  </View>
-                ) : null}
-
-                {hasFotos ? (
-                  <View style={styles.fotosContainer}>
-                    <Text style={styles.bundleSectionTitle}>
-                      Evidencias ({fotos.length})
-                    </Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {fotos.map((foto, fotoIndex) => {
-                        if (!foto || typeof foto !== 'object') return null;
-                        const uri = foto.imagen_url || foto.imagen_comprimida_url || '';
-                        if (!uri) return null;
-                        const caption = String(foto.descripcion || 'Evidencia');
-
-                        return (
-                          <TouchableOpacity
-                            key={String(fotoIndex)}
-                            style={styles.fotoContainer}
-                            activeOpacity={0.85}
-                            onPress={() => setPhotoLightbox({ uri, caption })}
-                            accessibilityRole="imagebutton"
-                            accessibilityLabel="Ampliar foto de evidencia"
-                          >
-                            <ExpoImage
-                              source={{ uri }}
-                              style={styles.fotoImagen}
-                              contentFit="cover"
-                              transition={150}
-                              cachePolicy="memory-disk"
-                            />
-                            <Text style={styles.fotoDescripcion} numberOfLines={2}>
-                              {caption}
-                            </Text>
-                            <Text style={styles.fotoTapHint}>Toca para ampliar</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                ) : null}
-
-                {respuesta.fecha_respuesta ? (
-                  <Text style={styles.fechaRespuesta}>
-                    Verificado: {String(checklistClienteService.formatearFecha(respuesta.fecha_respuesta))}
-                  </Text>
-                ) : null}
+        {keysOrden.map((catKey) => {
+          const respuestasCategoria = categorias[catKey] || [];
+          if (!respuestasCategoria.length) return null;
+          const n = respuestasCategoria.length;
+          return (
+            <View key={catKey}>
+              <View style={styles.categoriaHeaderBlock}>
+                <Text style={styles.categoriaTitle}>
+                  {String(checklistClienteService.obtenerNombreCategoria(catKey))}
+                </Text>
+                <Text style={styles.categoriaSubtitle}>
+                  {n} ítem{n !== 1 ? 's' : ''} verificado{n !== 1 ? 's' : ''}
+                </Text>
               </View>
-            );
-          } catch (err) {
-            console.error('Error renderizando respuesta:', err);
-            return (
-              <View key={String(index)} style={styles.respuestaCard}>
-                <Text style={styles.inlineMetaLabel}>No se pudo mostrar este ítem</Text>
-              </View>
-            );
-          }
+              {respuestasCategoria.map((respuesta, index) =>
+                renderTarjetaRespuesta(respuesta, `${catKey}-${index}`)
+              )}
+            </View>
+          );
         })}
+
+        {otrosItems.length > 0 ? (
+          <View key="__sin_titulo_otros__">
+            {keysOrden.some((k) => (categorias[k] || []).length > 0) ? (
+              <View style={styles.seccionOtrosSpacer} />
+            ) : null}
+            {otrosItems.map((respuesta, index) =>
+              renderTarjetaRespuesta(respuesta, `otros-${index}`)
+            )}
+          </View>
+        ) : null}
 
         {renderFirmas()}
       </ScrollView>
@@ -640,7 +578,6 @@ const ChecklistViewerModal = ({
           ) : checklist ? (
             <View style={styles.content}>
               {renderProveedorBar()}
-              {renderNavegacion()}
               {renderContenido()}
             </View>
           ) : (
@@ -898,64 +835,12 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
 
-  navegacionContainer: {
-    backgroundColor: DS_COLORS.background.paper,
-    paddingVertical: SPACING.xs,
-    borderBottomWidth: BORDERS.width.thin,
-    borderBottomColor: DS_COLORS.border.light,
-  },
-  categoriasScroll: {
-    flexGrow: 0,
-  },
-  categoriasScrollContent: {
-    paddingHorizontal: SPACING.sm,
-    gap: SPACING.xs,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  categoriaTab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: DS_COLORS.neutral.gray[100],
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xxs + 2,
-    borderRadius: BORDERS.radius.lg,
-    marginRight: SPACING.xs,
-    borderWidth: BORDERS.width.thin,
-    borderColor: DS_COLORS.border.light,
-    gap: 4,
-  },
-  categoriaTabActiva: {
-    backgroundColor: DS_COLORS.primary[50],
-    borderColor: DS_COLORS.primary[200],
-  },
-  categoriaTabTexto: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: DS_COLORS.text.secondary,
-    maxWidth: 140,
-  },
-  categoriaTabTextoActivo: {
-    color: DS_COLORS.primary[700],
-  },
-  categoriaContador: {
-    backgroundColor: DS_COLORS.neutral.gray[200],
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 10,
-    minWidth: 20,
-    alignItems: 'center',
-  },
-  categoriaContadorActivo: {
-    backgroundColor: withOpacity(DS_COLORS.primary[500], 0.15),
-  },
-  contadorTexto: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: DS_COLORS.text.tertiary,
-  },
-  contadorTextoActivo: {
-    color: DS_COLORS.primary[700],
+  seccionOtrosSpacer: {
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+    marginHorizontal: SPACING.md,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: DS_COLORS.border.light,
   },
 
   contenidoContainer: {
