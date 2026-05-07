@@ -282,34 +282,48 @@ function resolveHistoryItemCost(item, oferta) {
  * @param {Function} [onViewChecklist] - Si no se pasa, no se muestra el botón de checklist (p. ej. ficha pública).
  */
 function createHistoryRowStyles(isDark) {
-  const cardBg = isDark ? 'rgba(255,255,255,0.06)' : DS_COLORS.background.paper;
-  const border = isDark ? 'rgba(255,255,255,0.12)' : DS_COLORS.border.light;
+  const cardBg = isDark
+    ? withOpacity(DS_COLORS.base.white, 0.06)
+    : DS_COLORS.background.paper;
+  const border = isDark
+    ? withOpacity(DS_COLORS.base.white, 0.12)
+    : DS_COLORS.border.light;
   const textPrimary = isDark ? DS_COLORS.neutral.gray[50] : DS_COLORS.text.primary;
-  const textSecondary = isDark ? 'rgba(255,255,255,0.55)' : DS_COLORS.text.secondary;
-  const textMuted = isDark ? 'rgba(255,255,255,0.45)' : DS_COLORS.text.tertiary;
-  const sectionBg = isDark ? 'rgba(255,255,255,0.04)' : DS_COLORS.neutral.gray[100];
-  const primaryBtn = isDark ? DS_COLORS.info[300] : DS_COLORS.primary[600];
-  const primaryBorder = isDark ? 'rgba(147,197,253,0.45)' : DS_COLORS.primary[200];
-  const primaryBg = isDark ? 'rgba(147,197,253,0.08)' : withOpacity(DS_COLORS.primary[500], 0.06);
+  const textSecondary = isDark
+    ? withOpacity(DS_COLORS.base.white, 0.55)
+    : DS_COLORS.text.secondary;
+  const textMuted = isDark
+    ? withOpacity(DS_COLORS.base.white, 0.45)
+    : DS_COLORS.text.tertiary;
+  const sectionBg = isDark
+    ? withOpacity(DS_COLORS.base.white, 0.04)
+    : DS_COLORS.neutral.gray[100];
+  const primaryBtn = isDark ? DS_COLORS.primary[200] : DS_COLORS.primary[700];
+  const primaryBorder = isDark
+    ? withOpacity(DS_COLORS.primary[300], 0.45)
+    : DS_COLORS.primary[200];
+  const primaryBg = isDark
+    ? withOpacity(DS_COLORS.primary[500], 0.12)
+    : DS_COLORS.primary[50];
 
   return StyleSheet.create({
     rowContainer: {
       backgroundColor: cardBg,
-      borderRadius: BORDERS.radius.card.lg,
-      padding: SPACING.md,
-      marginBottom: SPACING.sm,
+      borderRadius: BORDERS.radius.lg,
+      padding: 20,
+      marginBottom: 20,
       borderWidth: BORDERS.width.thin,
       borderColor: border,
       overflow: 'hidden',
       ...SHADOWS.sm,
     },
     groupLabel: {
-      fontSize: 10,
-      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      fontSize: TYPOGRAPHY.fontSize.sm,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
       color: textMuted,
       letterSpacing: 0.6,
       textTransform: 'uppercase',
-      marginBottom: SPACING.xs,
+      marginBottom: 2,
     },
     providerRow: {
       flexDirection: 'row',
@@ -340,14 +354,18 @@ function createHistoryRowStyles(isDark) {
       paddingHorizontal: SPACING.sm,
       paddingVertical: 2,
       borderRadius: BORDERS.radius.full,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : DS_COLORS.primary[50],
+      backgroundColor: isDark
+        ? withOpacity(DS_COLORS.base.white, 0.1)
+        : DS_COLORS.primary[50],
       borderWidth: BORDERS.width.thin,
-      borderColor: isDark ? 'rgba(255,255,255,0.15)' : DS_COLORS.primary[100],
+      borderColor: isDark
+        ? withOpacity(DS_COLORS.base.white, 0.15)
+        : DS_COLORS.primary[100],
     },
     pillTipoText: {
-      fontSize: 11,
+      fontSize: TYPOGRAPHY.fontSize.sm,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: isDark ? DS_COLORS.info[200] : DS_COLORS.primary[700],
+      color: isDark ? DS_COLORS.primary[200] : DS_COLORS.primary[700],
     },
     pillKm: {
       flexDirection: 'row',
@@ -356,10 +374,12 @@ function createHistoryRowStyles(isDark) {
       paddingHorizontal: SPACING.sm,
       paddingVertical: 3,
       borderRadius: BORDERS.radius.md,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : DS_COLORS.neutral.gray[200],
+      backgroundColor: isDark
+        ? withOpacity(DS_COLORS.base.white, 0.08)
+        : DS_COLORS.neutral.gray[200],
     },
     pillKmText: {
-      fontSize: 11,
+      fontSize: TYPOGRAPHY.fontSize.sm,
       fontWeight: TYPOGRAPHY.fontWeight.medium,
       color: textSecondary,
     },
@@ -370,23 +390,29 @@ function createHistoryRowStyles(isDark) {
       paddingHorizontal: SPACING.sm,
       paddingVertical: 3,
       borderRadius: BORDERS.radius.md,
-      backgroundColor: DS_COLORS.success[50],
+      backgroundColor: isDark
+        ? withOpacity(DS_COLORS.success[500], 0.15)
+        : DS_COLORS.success[50],
       borderWidth: BORDERS.width.thin,
-      borderColor: DS_COLORS.success[200],
+      borderColor: isDark
+        ? withOpacity(DS_COLORS.success[400], 0.4)
+        : DS_COLORS.success[200],
     },
     pillVerifiedText: {
-      fontSize: 11,
+      fontSize: TYPOGRAPHY.fontSize.sm,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: DS_COLORS.success[700],
+      color: isDark ? DS_COLORS.success[200] : DS_COLORS.success[700],
     },
     divider: {
       height: 1,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : DS_COLORS.border.light,
+      backgroundColor: isDark
+        ? withOpacity(DS_COLORS.base.white, 0.08)
+        : DS_COLORS.border.light,
       marginVertical: SPACING.md,
     },
     serviceBlock: {
       backgroundColor: sectionBg,
-      borderRadius: BORDERS.radius.card.md,
+      borderRadius: BORDERS.radius.md,
       padding: SPACING.sm,
       marginBottom: SPACING.sm,
     },
@@ -408,35 +434,39 @@ function createHistoryRowStyles(isDark) {
       alignSelf: 'flex-end',
     },
     costBadge: {
-      backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : DS_COLORS.success[50],
+      backgroundColor: isDark
+        ? withOpacity(DS_COLORS.success[500], 0.15)
+        : DS_COLORS.success[50],
       paddingHorizontal: SPACING.md,
       paddingVertical: SPACING.sm,
-      borderRadius: BORDERS.radius.card.md,
+      borderRadius: BORDERS.radius.md,
       alignItems: 'flex-end',
       borderWidth: BORDERS.width.thin,
-      borderColor: isDark ? 'rgba(16,185,129,0.35)' : DS_COLORS.success[200],
+      borderColor: isDark
+        ? withOpacity(DS_COLORS.success[400], 0.4)
+        : DS_COLORS.success[200],
     },
     costLabel: {
-      fontSize: 10,
-      color: DS_COLORS.success[700],
+      fontSize: TYPOGRAPHY.fontSize.xs,
+      color: isDark ? DS_COLORS.success[300] : DS_COLORS.success[700],
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       textTransform: 'uppercase',
-      letterSpacing: 0.5,
+      letterSpacing: TYPOGRAPHY.letterSpacing.wider,
     },
     costValue: {
       fontSize: TYPOGRAPHY.fontSize.md,
-      color: DS_COLORS.success[600],
+      color: isDark ? DS_COLORS.success[200] : DS_COLORS.success[600],
       fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
     checklistButton: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingVertical: SPACING.sm,
+      paddingVertical: 10,
+      paddingHorizontal: SPACING.md,
       borderWidth: BORDERS.width.thin,
       borderColor: primaryBorder,
-      borderStyle: 'dashed',
-      borderRadius: BORDERS.radius.card.md,
+      borderRadius: BORDERS.radius.md,
       backgroundColor: primaryBg,
       gap: SPACING.xs,
     },
@@ -513,8 +543,10 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
   });
 
   const displayCostAmount = resolveHistoryItemCost(item, oferta);
-  const kmIconColor = isDark ? 'rgba(255,255,255,0.55)' : DS_COLORS.text.tertiary;
-  const checklistChevron = isDark ? DS_COLORS.info[300] : DS_COLORS.primary[600];
+  const kmIconColor = isDark
+    ? withOpacity(DS_COLORS.base.white, 0.55)
+    : DS_COLORS.text.tertiary;
+  const checklistChevron = isDark ? DS_COLORS.primary[200] : DS_COLORS.primary[600];
 
   return (
     <View style={s.rowContainer}>
@@ -551,7 +583,10 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
           </View>
           {item.verified === true && (
             <View style={s.pillVerified}>
-              <CheckCircle2 size={12} color={DS_COLORS.success[600]} />
+              <CheckCircle2
+                size={12}
+                color={isDark ? DS_COLORS.success[300] : DS_COLORS.success[600]}
+              />
               <Text style={s.pillVerifiedText}>Registrado</Text>
             </View>
           )}

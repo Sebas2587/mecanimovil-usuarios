@@ -23,6 +23,8 @@ import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { getHealthColorToken, normalizePct } from '../../utils/healthFormat';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { BORDERS } from '../../design-system/tokens/borders';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 const SCREEN_H = Dimensions.get('window').height;
 const HEALTH_MODAL_SCROLL_MAX_H = SCREEN_H * 0.68;
@@ -553,7 +555,6 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                     <VehicleServiceHistoryRow
                                         key={item.id}
                                         item={item}
-                                        variant="dark"
                                         onViewChecklist={user ? handleViewChecklist : undefined}
                                     />
                                 ))}
@@ -1014,15 +1015,15 @@ const getStyles = (insets) => StyleSheet.create({
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
-        marginTop: 8,
+        marginBottom: SPACING.sm,
+        marginTop: SPACING.xs,
     },
     sectionTitle: {
-        fontSize: 17,
-        fontWeight: '700',
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.text.primary,
-        marginLeft: 10,
-        letterSpacing: 0.2,
+        marginLeft: SPACING.sm,
+        letterSpacing: TYPOGRAPHY.letterSpacing.tight,
     },
     timelineContainer: {
         paddingLeft: 0,
