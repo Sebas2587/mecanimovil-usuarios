@@ -11,6 +11,7 @@ import {
   Image,
   Pressable,
   Platform,
+  BackHandler,
   useWindowDimensions,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
@@ -139,6 +140,15 @@ const ChecklistViewerModal = ({
   useEffect(() => {
     if (!visible) setPhotoLightbox(null);
   }, [visible]);
+
+  useEffect(() => {
+    if (!visible || !photoLightbox) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setPhotoLightbox(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, photoLightbox]);
 
   // ─── Proveedor (API + vista previa desde historial / marketplace) ─────────
   const renderProveedorBar = () => {
@@ -318,12 +328,7 @@ const ChecklistViewerModal = ({
               <Text style={styles.bundleSectionTitle}>
                 Evidencias ({fotos.length})
               </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                nestedScrollEnabled
-                keyboardShouldPersistTaps="handled"
-              >
+              <View style={styles.fotosRow}>
                 {fotos.map((foto, fotoIndex) => {
                   const uri = resolveEvidenciaUri(foto);
                   if (!uri) return null;
@@ -332,13 +337,14 @@ const ChecklistViewerModal = ({
                   );
 
                   return (
-                    <Pressable
+                    <TouchableOpacity
                       key={String(fotoIndex)}
-                      style={({ pressed }) => [styles.fotoContainer, pressed && styles.fotoContainerPressed]}
+                      style={styles.fotoContainer}
+                      activeOpacity={0.88}
+                      delayPressIn={0}
                       onPress={() => setPhotoLightbox({ uri, caption })}
                       accessibilityRole="imagebutton"
                       accessibilityLabel="Ampliar foto de evidencia"
-                      android_ripple={{ color: withOpacity(DS_COLORS.base.inkBlack, 0.08) }}
                     >
                       <ExpoImage
                         source={{ uri }}
@@ -346,16 +352,15 @@ const ChecklistViewerModal = ({
                         contentFit="cover"
                         transition={150}
                         cachePolicy="memory-disk"
-                        pointerEvents="none"
                       />
                       <Text style={styles.fotoDescripcion} numberOfLines={2}>
                         {caption}
                       </Text>
                       <Text style={styles.fotoTapHint}>Toca para ampliar</Text>
-                    </Pressable>
+                    </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
           ) : null}
 
@@ -413,7 +418,7 @@ const ChecklistViewerModal = ({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contenidoScrollPad}
         nestedScrollEnabled
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         {keysOrden.map((catKey) => {
           const respuestasCategoria = categorias[catKey] || [];
@@ -563,120 +568,43 @@ const ChecklistViewerModal = ({
   const lw = Math.min(winW - SPACING.lg * 2, 720);
   const lh = Math.min(winH * 0.72, lw * 1.05);
 
-  return (
-    <>
-      <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-        <View style={[styles.container, { paddingBottom: insets.bottom }]}>
-          <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
-            <View style={styles.headerTopRow}>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button">
-                <Ionicons name="arrow-back" size={22} color={DS_COLORS.text.primary} />
-              </TouchableOpacity>
-              <View style={styles.headerCenter}>
-                <Text style={styles.title}>Informe de servicio</Text>
-                <Text style={styles.subtitle} numberOfLines={2}>
-                  {String(servicioNombre || 'Servicio')}
-                </Text>
-              </View>
-              {estadoBadgeLabel ? (
-                <View style={styles.estadoBadge}>
-                  <Text style={styles.estadoBadgeTexto}>{estadoBadgeLabel}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          {loading ? (
-            <ScrollView
-              style={styles.bodyScroll}
-              contentContainerStyle={styles.bodyScrollContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {renderProveedorBar()}
-              <View style={styles.loadingBlock}>
-                <ActivityIndicator size="large" color={DS_COLORS.primary[500]} />
-                <Text style={styles.loadingText}>Cargando inspección…</Text>
-                <Text style={styles.loadingSub}>Obteniendo detalles del servicio</Text>
-              </View>
-            </ScrollView>
-          ) : error ? (
-            <View style={styles.errorContainer}>
-              <View style={styles.panelCard}>
-                <Ionicons name="warning-outline" size={48} color={DS_COLORS.warning.main} />
-                <Text style={styles.errorText}>No se pudo cargar el informe</Text>
-                <Text style={styles.errorSubtext}>{String(error)}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={cargarChecklist} activeOpacity={0.85}>
-                  <Text style={styles.retryButtonText}>Reintentar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : checklist ? (
-            <View style={styles.content}>
-              {renderProveedorBar()}
-              {renderContenido()}
-            </View>
-          ) : (
-            <View style={styles.errorContainer}>
-              <View style={styles.panelCard}>
-                <Ionicons name="document-text-outline" size={48} color={DS_COLORS.text.tertiary} />
-                <Text style={styles.noDataText}>Sin datos de inspección</Text>
-                <Text style={styles.loadingSub}>Este servicio no tiene un informe registrado.</Text>
-              </View>
-            </View>
-          )}
-        </View>
-      </Modal>
-
-      <Modal
-        visible={!!photoLightbox}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPhotoLightbox(null)}
-        statusBarTranslucent
-        presentationStyle="overFullScreen"
+  const renderPhotoLightboxOverlay = () => {
+    if (!photoLightbox) return null;
+    return (
+      <View
+        style={[styles.photoLightboxStack, { paddingTop: insets.top + SPACING.sm }]}
+        pointerEvents="box-none"
       >
-        <View style={[styles.photoLightboxRoot, { paddingTop: insets.top + SPACING.sm }]}>
-          <Pressable
-            style={[StyleSheet.absoluteFillObject, styles.photoLightboxBackdrop]}
+        <Pressable
+          style={[StyleSheet.absoluteFillObject, styles.photoLightboxBackdropFill]}
+          onPress={() => setPhotoLightbox(null)}
+          accessibilityLabel="Cerrar vista ampliada"
+        />
+        <View
+          style={[styles.photoLightboxInner, { paddingBottom: insets.bottom + SPACING.md }]}
+          pointerEvents="box-none"
+        >
+          <TouchableOpacity
+            style={styles.photoLightboxClose}
             onPress={() => setPhotoLightbox(null)}
-            accessibilityLabel="Cerrar vista ampliada"
-          />
-          <View
-            style={[styles.photoLightboxInner, { paddingBottom: insets.bottom + SPACING.md }]}
-            pointerEvents="box-none"
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar"
           >
-            <TouchableOpacity
-              style={styles.photoLightboxClose}
-              onPress={() => setPhotoLightbox(null)}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Cerrar"
-            >
-              <X size={22} color={DS_COLORS.base.white} />
-            </TouchableOpacity>
-            {photoLightbox?.uri ? (
-              Platform.OS === 'ios' ? (
-                <ScrollView
-                  style={[styles.photoLightboxZoomScroll, { maxHeight: winH * 0.72 }]}
-                  contentContainerStyle={styles.photoLightboxZoomContent}
-                  maximumZoomScale={4}
-                  minimumZoomScale={1}
-                  centerContent
-                  showsHorizontalScrollIndicator={false}
-                  showsVerticalScrollIndicator={false}
-                  bouncesZoom
-                >
-                  <View accessibilityRole="image">
-                    <ExpoImage
-                      source={{ uri: photoLightbox.uri }}
-                      style={{ width: lw, height: lh }}
-                      contentFit="contain"
-                      transition={200}
-                      cachePolicy="memory-disk"
-                    />
-                  </View>
-                </ScrollView>
-              ) : (
+            <X size={22} color={DS_COLORS.base.white} />
+          </TouchableOpacity>
+          {photoLightbox.uri ? (
+            Platform.OS === 'ios' ? (
+              <ScrollView
+                style={[styles.photoLightboxZoomScroll, { maxHeight: winH * 0.72 }]}
+                contentContainerStyle={styles.photoLightboxZoomContent}
+                maximumZoomScale={4}
+                minimumZoomScale={1}
+                centerContent
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                bouncesZoom
+              >
                 <View accessibilityRole="image">
                   <ExpoImage
                     source={{ uri: photoLightbox.uri }}
@@ -686,22 +614,106 @@ const ChecklistViewerModal = ({
                     cachePolicy="memory-disk"
                   />
                 </View>
-              )
-            ) : null}
-            {photoLightbox?.caption ? (
-              <Text style={styles.photoLightboxCaption} numberOfLines={4}>
-                {photoLightbox.caption}
-              </Text>
-            ) : null}
-            <Text style={styles.photoLightboxHint}>
-              {Platform.OS === 'ios'
-                ? 'Pellizca para ampliar · toca fuera o cerrar'
-                : 'Toca fuera o el botón cerrar'}
+              </ScrollView>
+            ) : (
+              <View accessibilityRole="image">
+                <ExpoImage
+                  source={{ uri: photoLightbox.uri }}
+                  style={{ width: lw, height: lh }}
+                  contentFit="contain"
+                  transition={200}
+                  cachePolicy="memory-disk"
+                />
+              </View>
+            )
+          ) : null}
+          {photoLightbox.caption ? (
+            <Text style={styles.photoLightboxCaption} numberOfLines={4}>
+              {photoLightbox.caption}
             </Text>
+          ) : null}
+          <Text style={styles.photoLightboxHint}>
+            {Platform.OS === 'ios'
+              ? 'Pellizca para ampliar · toca fuera o cerrar'
+              : 'Toca fuera o el botón cerrar'}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={() => {
+        if (photoLightbox) setPhotoLightbox(null);
+        else onClose();
+      }}
+    >
+      <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+        <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
+          <View style={styles.headerTopRow}>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button">
+              <Ionicons name="arrow-back" size={22} color={DS_COLORS.text.primary} />
+            </TouchableOpacity>
+            <View style={styles.headerCenter}>
+              <Text style={styles.title}>Informe de servicio</Text>
+              <Text style={styles.subtitle} numberOfLines={2}>
+                {String(servicioNombre || 'Servicio')}
+              </Text>
+            </View>
+            {estadoBadgeLabel ? (
+              <View style={styles.estadoBadge}>
+                <Text style={styles.estadoBadgeTexto}>{estadoBadgeLabel}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
-      </Modal>
-    </>
+
+        {loading ? (
+          <ScrollView
+            style={styles.bodyScroll}
+            contentContainerStyle={styles.bodyScrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {renderProveedorBar()}
+            <View style={styles.loadingBlock}>
+              <ActivityIndicator size="large" color={DS_COLORS.primary[500]} />
+              <Text style={styles.loadingText}>Cargando inspección…</Text>
+              <Text style={styles.loadingSub}>Obteniendo detalles del servicio</Text>
+            </View>
+          </ScrollView>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <View style={styles.panelCard}>
+              <Ionicons name="warning-outline" size={48} color={DS_COLORS.warning.main} />
+              <Text style={styles.errorText}>No se pudo cargar el informe</Text>
+              <Text style={styles.errorSubtext}>{String(error)}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={cargarChecklist} activeOpacity={0.85}>
+                <Text style={styles.retryButtonText}>Reintentar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : checklist ? (
+          <View style={styles.content}>
+            {renderProveedorBar()}
+            {renderContenido()}
+          </View>
+        ) : (
+          <View style={styles.errorContainer}>
+            <View style={styles.panelCard}>
+              <Ionicons name="document-text-outline" size={48} color={DS_COLORS.text.tertiary} />
+              <Text style={styles.noDataText}>Sin datos de inspección</Text>
+              <Text style={styles.loadingSub}>Este servicio no tiene un informe registrado.</Text>
+            </View>
+          </View>
+        )}
+
+        {renderPhotoLightboxOverlay()}
+      </View>
+    </Modal>
   );
 };
 
@@ -1078,18 +1090,19 @@ const styles = StyleSheet.create({
     borderTopColor: DS_COLORS.border.light,
     gap: SPACING.xs,
   },
+  fotosRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
   fotoContainer: {
     width: 132,
     alignItems: 'center',
-    marginRight: SPACING.sm,
     borderRadius: BORDERS.radius.md,
     overflow: 'hidden',
     backgroundColor: DS_COLORS.neutral.gray[100],
     borderWidth: BORDERS.width.thin,
     borderColor: DS_COLORS.border.light,
-  },
-  fotoContainerPressed: {
-    opacity: 0.92,
   },
   fotoImagen: {
     width: 132,
@@ -1112,13 +1125,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  photoLightboxRoot: {
-    flex: 1,
+  photoLightboxStack: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 200,
+    elevation: 50,
     backgroundColor: withOpacity(DS_COLORS.base.inkBlack, 0.88),
     justifyContent: 'center',
   },
-  photoLightboxBackdrop: {
-    zIndex: 0,
+  photoLightboxBackdropFill: {
+    backgroundColor: 'transparent',
   },
   photoLightboxInner: {
     flex: 1,
