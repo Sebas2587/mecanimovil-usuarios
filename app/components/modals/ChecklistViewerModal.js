@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
@@ -39,6 +40,31 @@ const C = {
   textLight: DS_COLORS.text.tertiary,
   borderLight: DS_COLORS.border.light,
 };
+
+/** URL de foto de evidencia desde distintas formas del API. */
+function resolveEvidenciaUri(foto) {
+  if (foto == null) return '';
+  if (typeof foto === 'string') {
+    const t = foto.trim();
+    return t || '';
+  }
+  if (typeof foto !== 'object') return '';
+  const candidates = [
+    foto.imagen_url,
+    foto.imagen_comprimida_url,
+    foto.imagen,
+    foto.url,
+    foto.uri,
+    foto.image,
+    foto.file,
+    foto.foto_url,
+    foto.archivo_url,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c.trim()) return c.trim();
+  }
+  return '';
+}
 
 /** Texto del badge de estado en el header; null = no mostrar badge. */
 function labelEstadoInforme(estado) {
@@ -292,21 +318,27 @@ const ChecklistViewerModal = ({
               <Text style={styles.bundleSectionTitle}>
                 Evidencias ({fotos.length})
               </Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+              >
                 {fotos.map((foto, fotoIndex) => {
-                  if (!foto || typeof foto !== 'object') return null;
-                  const uri = foto.imagen_url || foto.imagen_comprimida_url || '';
+                  const uri = resolveEvidenciaUri(foto);
                   if (!uri) return null;
-                  const caption = String(foto.descripcion || 'Evidencia');
+                  const caption = String(
+                    (foto && typeof foto === 'object' && foto.descripcion) || 'Evidencia'
+                  );
 
                   return (
-                    <TouchableOpacity
+                    <Pressable
                       key={String(fotoIndex)}
-                      style={styles.fotoContainer}
-                      activeOpacity={0.85}
+                      style={({ pressed }) => [styles.fotoContainer, pressed && styles.fotoContainerPressed]}
                       onPress={() => setPhotoLightbox({ uri, caption })}
                       accessibilityRole="imagebutton"
                       accessibilityLabel="Ampliar foto de evidencia"
+                      android_ripple={{ color: withOpacity(DS_COLORS.base.inkBlack, 0.08) }}
                     >
                       <ExpoImage
                         source={{ uri }}
@@ -314,12 +346,13 @@ const ChecklistViewerModal = ({
                         contentFit="cover"
                         transition={150}
                         cachePolicy="memory-disk"
+                        pointerEvents="none"
                       />
                       <Text style={styles.fotoDescripcion} numberOfLines={2}>
                         {caption}
                       </Text>
                       <Text style={styles.fotoTapHint}>Toca para ampliar</Text>
-                    </TouchableOpacity>
+                    </Pressable>
                   );
                 })}
               </ScrollView>
@@ -379,6 +412,8 @@ const ChecklistViewerModal = ({
         style={styles.contenidoContainer}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contenidoScrollPad}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
       >
         {keysOrden.map((catKey) => {
           const respuestasCategoria = categorias[catKey] || [];
@@ -598,14 +633,18 @@ const ChecklistViewerModal = ({
         animationType="fade"
         onRequestClose={() => setPhotoLightbox(null)}
         statusBarTranslucent
+        presentationStyle="overFullScreen"
       >
         <View style={[styles.photoLightboxRoot, { paddingTop: insets.top + SPACING.sm }]}>
           <Pressable
-            style={StyleSheet.absoluteFillObject}
+            style={[StyleSheet.absoluteFillObject, styles.photoLightboxBackdrop]}
             onPress={() => setPhotoLightbox(null)}
             accessibilityLabel="Cerrar vista ampliada"
           />
-          <View style={[styles.photoLightboxInner, { paddingBottom: insets.bottom + SPACING.md }]}>
+          <View
+            style={[styles.photoLightboxInner, { paddingBottom: insets.bottom + SPACING.md }]}
+            pointerEvents="box-none"
+          >
             <TouchableOpacity
               style={styles.photoLightboxClose}
               onPress={() => setPhotoLightbox(null)}
@@ -616,20 +655,49 @@ const ChecklistViewerModal = ({
               <X size={22} color={DS_COLORS.base.white} />
             </TouchableOpacity>
             {photoLightbox?.uri ? (
-              <ExpoImage
-                source={{ uri: photoLightbox.uri }}
-                style={{ width: lw, height: lh }}
-                contentFit="contain"
-                transition={200}
-                cachePolicy="memory-disk"
-              />
+              Platform.OS === 'ios' ? (
+                <ScrollView
+                  style={[styles.photoLightboxZoomScroll, { maxHeight: winH * 0.72 }]}
+                  contentContainerStyle={styles.photoLightboxZoomContent}
+                  maximumZoomScale={4}
+                  minimumZoomScale={1}
+                  centerContent
+                  showsHorizontalScrollIndicator={false}
+                  showsVerticalScrollIndicator={false}
+                  bouncesZoom
+                >
+                  <View accessibilityRole="image">
+                    <ExpoImage
+                      source={{ uri: photoLightbox.uri }}
+                      style={{ width: lw, height: lh }}
+                      contentFit="contain"
+                      transition={200}
+                      cachePolicy="memory-disk"
+                    />
+                  </View>
+                </ScrollView>
+              ) : (
+                <View accessibilityRole="image">
+                  <ExpoImage
+                    source={{ uri: photoLightbox.uri }}
+                    style={{ width: lw, height: lh }}
+                    contentFit="contain"
+                    transition={200}
+                    cachePolicy="memory-disk"
+                  />
+                </View>
+              )
             ) : null}
             {photoLightbox?.caption ? (
               <Text style={styles.photoLightboxCaption} numberOfLines={4}>
                 {photoLightbox.caption}
               </Text>
             ) : null}
-            <Text style={styles.photoLightboxHint}>Toca fuera o el botón cerrar</Text>
+            <Text style={styles.photoLightboxHint}>
+              {Platform.OS === 'ios'
+                ? 'Pellizca para ampliar · toca fuera o cerrar'
+                : 'Toca fuera o el botón cerrar'}
+            </Text>
           </View>
         </View>
       </Modal>
@@ -1020,6 +1088,9 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
     borderColor: DS_COLORS.border.light,
   },
+  fotoContainerPressed: {
+    opacity: 0.92,
+  },
   fotoImagen: {
     width: 132,
     height: 132,
@@ -1046,13 +1117,25 @@ const styles = StyleSheet.create({
     backgroundColor: withOpacity(DS_COLORS.base.inkBlack, 0.88),
     justifyContent: 'center',
   },
+  photoLightboxBackdrop: {
+    zIndex: 0,
+  },
   photoLightboxInner: {
     flex: 1,
     width: '100%',
     position: 'relative',
+    zIndex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
+  },
+  photoLightboxZoomScroll: {
+    alignSelf: 'center',
+    maxWidth: '100%',
+  },
+  photoLightboxZoomContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   photoLightboxClose: {
     position: 'absolute',
