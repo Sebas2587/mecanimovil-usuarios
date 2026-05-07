@@ -31,10 +31,17 @@ import * as categoryService from '../../services/categories';
 import * as userService from '../../services/user';
 import ofertasService from '../../services/ofertasService';
 import vehiculoService from '../../services/vehicle';
-import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
-
-WebBrowser.maybeCompleteAuthSession();
+import Constants from 'expo-constants';
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
+let GoogleSignin = null;
+let statusCodes = {};
+if (!IS_EXPO_GO) {
+  try {
+    const lib = require('@react-native-google-signin/google-signin');
+    GoogleSignin = lib.GoogleSignin;
+    statusCodes = lib.statusCodes;
+  } catch (_) {}
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -67,32 +74,33 @@ const LoginScreen = () => {
 
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  });
-
-  useEffect(() => {
-    const idToken = googleResponse?.authentication?.idToken;
-    if (!idToken) return;
-    let cancelled = false;
-    (async () => {
-      setGoogleLoading(true);
-      try {
-        const result = await loginWithGoogle(idToken);
-        if (!cancelled && !result?.success) {
-          Alert.alert('Google', result?.error || 'No se pudo iniciar sesión con Google.');
-        }
-      } catch (e) {
-        if (!cancelled) Alert.alert('Google', 'No se pudo iniciar sesión con Google.');
-      } finally {
-        if (!cancelled) setGoogleLoading(false);
+  const handleGoogleSignIn = async () => {
+    if (!GoogleSignin) {
+      Alert.alert('Google Sign-In', 'Disponible solo en builds nativos (no en Expo Go).');
+      return;
+    }
+    setGoogleLoading(true);
+    try {
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      const idToken = response?.data?.idToken;
+      if (!idToken) throw new Error('No se obtuvo idToken de Google.');
+      const result = await loginWithGoogle(idToken);
+      if (!result?.success) {
+        Alert.alert('Google', result?.error || 'No se pudo iniciar sesión con Google.');
       }
-    })();
-    return () => { cancelled = true; };
-  }, [googleResponse, loginWithGoogle]);
+    } catch (e) {
+      if (e.code === statusCodes.SIGN_IN_CANCELLED) {
+        // usuario canceló, sin alerta
+      } else if (e.code === statusCodes.IN_PROGRESS) {
+        // ya hay un sign-in en curso
+      } else {
+        Alert.alert('Google', e.message || 'No se pudo iniciar sesión con Google.');
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   useEffect(() => {
     const loadRememberedCredentials = async () => {
@@ -258,8 +266,7 @@ const LoginScreen = () => {
         <GlassCard style={styles.formCard}>
           <Button
             title="Continuar con Google"
-            onPress={() => googlePromptAsync({ useProxy: true })}
-            disabled={!googleRequest}
+            onPress={handleGoogleSignIn}
             isLoading={googleLoading}
             type="primary"
             variant="outline"

@@ -29,6 +29,11 @@
             "CFBundleURLSchemes": [
               "mecanimovil"
             ]
+          },
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.487744484665-otrorqrrqkkc7riu1kshlcqknakok0mm"
+            ]
           }
         ]
       }
@@ -78,6 +83,12 @@
       "url": "https://u.expo.dev/0e27e8dc-b47f-40b2-a23d-396a627ce8e8"
     },
     "plugins": [
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.487744484665-otrorqrrqkkc7riu1kshlcqknakok0mm"
+        }
+      ],
       [
         "expo-notifications",
         {

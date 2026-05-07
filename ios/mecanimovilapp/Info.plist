@@ -30,6 +30,12 @@
           <string>mecanimovil</string>
         </array>
       </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>com.googleusercontent.apps.487744484665-otrorqrrqkkc7riu1kshlcqknakok0mm</string>
+        </array>
+      </dict>
     </array>
     <key>CFBundleVersion</key>
     <string>2</string>

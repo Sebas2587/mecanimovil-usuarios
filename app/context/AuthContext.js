@@ -7,6 +7,24 @@ import WebSocketService from '../services/websocketService';
 import { forceReconnect, setOnAuthExpired } from '../services/api';
 import logger from '../utils/logger';
 import NotificationService from '../services/notificationService';
+import Constants from 'expo-constants';
+
+// @react-native-google-signin/google-signin requiere módulo nativo — no disponible en Expo Go.
+const IS_EXPO_GO = Constants.appOwnership === 'expo';
+let GoogleSignin = null;
+if (!IS_EXPO_GO) {
+  try {
+    GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+    GoogleSignin.configure({
+      iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+      offlineAccess: false,
+    });
+  } catch (e) {
+    console.warn('[AuthContext] GoogleSignin no disponible:', e.message);
+    GoogleSignin = null;
+  }
+}
 
 // Crear el contexto
 const AuthContext = createContext();
