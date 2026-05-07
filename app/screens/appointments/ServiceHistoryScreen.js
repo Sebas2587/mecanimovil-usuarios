@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,38 @@ import {
   RefreshControl,
   ScrollView,
   Alert,
-  Dimensions,
-  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { Building2, Car, CheckCircle2, ChevronRight, CreditCard, Calendar } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ROUTES } from '../../utils/constants';
 import * as userService from '../../services/user';
-import { useTheme } from '../../design-system/theme/useTheme';
-import CustomHeader from '../../components/navigation/Header/Header';
+import { COLORS as DS_COLORS } from '../../design-system/tokens/colors';
+import { SPACING as DS_SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS as DS_BORDERS } from '../../design-system/tokens/borders';
+import { TYPOGRAPHY as DS_TYPOGRAPHY } from '../../design-system/tokens/typography';
+import { SHADOWS as DS_SHADOWS } from '../../design-system/tokens/shadows';
+import Avatar from '../../components/base/Avatar/Avatar';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+/** Proveedor que ejecutó el servicio (taller o mecánico a domicilio). */
+function resolveHistorialProveedor(item) {
+  if (item.taller_detail) {
+    return {
+      name: item.taller_detail.nombre || 'Taller',
+      photo: item.taller_detail.foto_perfil_url || item.taller_detail.foto_perfil || null,
+      tipo: 'taller',
+    };
+  }
+  if (item.mecanico_detail) {
+    return {
+      name: item.mecanico_detail.nombre || 'Mecánico',
+      photo: item.mecanico_detail.foto_perfil_url || item.mecanico_detail.foto_perfil || null,
+      tipo: 'mecanico',
+    };
+  }
+  return { name: 'Proveedor', photo: null, tipo: null };
+}
 
 /**
  * Pantalla de Historial de Servicios Completados
@@ -28,40 +48,12 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
  */
 const ServiceHistoryScreen = () => {
   const navigation = useNavigation();
-  const theme = useTheme();
-  
-  // Extraer valores del tema de forma segura
-  const colors = theme?.colors || {};
-  const typography = theme?.typography || {};
-  const spacing = theme?.spacing || {};
-  const borders = theme?.borders || {};
-  
-  // Asegurar que typography tenga todas las propiedades necesarias
-  const safeTypography = typography?.fontSize && typography?.fontWeight
-    ? typography
-    : {
-      fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24 },
-      fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
-    };
-  
-  // Validar que borders esté completamente inicializado
-  const safeBorders = (borders?.radius && typeof borders.radius.full !== 'undefined') 
-    ? borders 
-    : {
-      radius: {
-        none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24,
-        full: 9999,
-        button: { sm: 8, md: 12, lg: 16, full: 9999 },
-        input: { sm: 8, md: 12, lg: 16 },
-        card: { sm: 8, md: 12, lg: 16, xl: 20 },
-        modal: { sm: 12, md: 16, lg: 20, xl: 24 },
-        avatar: { sm: 16, md: 24, lg: 32, full: 9999 },
-        badge: { sm: 4, md: 8, lg: 12, full: 9999 },
-      },
-      width: { none: 0, thin: 1, medium: 2, thick: 4 }
-    };
-  
-  // Crear estilos dinámicos con los tokens del tema
+
+  const colors = DS_COLORS;
+  const safeTypography = DS_TYPOGRAPHY;
+  const spacing = DS_SPACING;
+  const safeBorders = DS_BORDERS;
+
   const styles = createStyles(colors, safeTypography, spacing, safeBorders);
   
   const [historial, setHistorial] = useState([]);
@@ -186,16 +178,18 @@ const ServiceHistoryScreen = () => {
 
   // Card de Servicio Completado
   const ServiceCard = ({ item }) => {
+    const proveedor = resolveHistorialProveedor(item);
+    const lineas = item.lineas || item.lineas_detail || [];
+
     return (
       <TouchableOpacity
         style={styles.serviceCard}
         onPress={() => navigation.push(ROUTES.APPOINTMENT_DETAIL, { agendamiento: item })}
-        activeOpacity={0.7}
+        activeOpacity={0.75}
       >
-        {/* Header con badge de completado */}
         <View style={styles.serviceHeader}>
           <View style={styles.completedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
+            <CheckCircle2 size={14} color={DS_COLORS.text.onPrimary || '#FFFFFF'} />
             <Text style={styles.completedBadgeText}>Completado</Text>
           </View>
           <Text style={styles.serviceDate}>
@@ -203,81 +197,91 @@ const ServiceHistoryScreen = () => {
           </Text>
         </View>
 
-        {/* Información del vehículo */}
-        {item.vehiculo_detail && (
-          <View style={styles.vehicleSection}>
-            <View style={styles.vehicleIconContainer}>
-              <Ionicons name="car" size={22} color={colors.primary?.[500] || '#003459'} />
-            </View>
-            <View style={styles.vehicleInfo}>
-              <Text style={styles.vehicleName}>
-                {item.vehiculo_detail.marca_nombre} {item.vehiculo_detail.modelo_nombre}
-              </Text>
-              <Text style={styles.vehicleDetails}>
-                {item.vehiculo_detail.year} • {item.vehiculo_detail.patente}
-              </Text>
+        <View style={styles.cardSection}>
+          <Text style={styles.sectionLabel}>Proveedor</Text>
+          <View style={styles.providerRow}>
+            <Avatar source={proveedor.photo} name={proveedor.name} size="md" variant="circular" />
+            <View style={styles.providerTextCol}>
+              <Text style={styles.providerName} numberOfLines={2}>{proveedor.name}</Text>
+              {proveedor.tipo ? (
+                <View style={styles.tipoPill}>
+                  <Building2 size={12} color={DS_COLORS.primary[600]} />
+                  <Text style={styles.tipoPillText}>
+                    {proveedor.tipo === 'taller' ? 'Taller' : 'Mecánico a domicilio'}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
-        )}
+        </View>
 
-        {/* Fecha del servicio */}
-        {item.fecha_servicio && (
+        {item.vehiculo_detail ? (
+          <View style={styles.cardSectionMuted}>
+            <Text style={styles.sectionLabel}>Vehículo</Text>
+            <View style={styles.vehicleRow}>
+              <View style={styles.vehicleIconContainer}>
+                <Car size={20} color={DS_COLORS.primary[600]} />
+              </View>
+              <View style={styles.vehicleInfo}>
+                <Text style={styles.vehicleName}>
+                  {item.vehiculo_detail.marca_nombre} {item.vehiculo_detail.modelo_nombre}
+                </Text>
+                <Text style={styles.vehicleDetails}>
+                  {item.vehiculo_detail.year} • {item.vehiculo_detail.patente}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {item.fecha_servicio ? (
           <View style={styles.infoRow}>
-            <Ionicons name="calendar-outline" size={16} color={colors.text?.secondary || '#5D6F75'} />
+            <Calendar size={16} color={DS_COLORS.text.secondary} />
             <Text style={styles.infoText}>
               {formatearFechaCompleta(item.fecha_servicio)}
-              {item.hora_servicio ? ` a las ${item.hora_servicio}` : ''}
+              {item.hora_servicio ? ` · ${item.hora_servicio}` : ''}
             </Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Proveedor */}
-        {item.taller_detail && (
-          <View style={styles.infoRow}>
-            <Ionicons name="business-outline" size={16} color={colors.text?.secondary || '#5D6F75'} />
-            <Text style={styles.infoText}>{item.taller_detail.nombre}</Text>
-          </View>
-        )}
-
-        {/* Servicios realizados */}
-        {item.lineas && item.lineas.length > 0 && (
-          <View style={styles.servicesSection}>
-            <Text style={styles.servicesTitle}>Servicios realizados</Text>
+        {lineas.length > 0 ? (
+          <View style={styles.cardSectionMuted}>
+            <Text style={styles.sectionLabel}>Servicios realizados</Text>
             <View style={styles.servicesList}>
-              {item.lineas.slice(0, 3).map((linea, index) => (
-                <View key={index} style={styles.serviceItem}>
-                  <Ionicons name="checkmark" size={14} color={colors.success?.[500] || '#10B981'} />
+              {lineas.slice(0, 4).map((linea, index) => (
+                <View key={linea.id ?? index} style={styles.serviceItem}>
+                  <CheckCircle2 size={14} color={DS_COLORS.success[500]} />
                   <Text style={styles.serviceName}>{linea.servicio_nombre || linea.nombre}</Text>
                 </View>
               ))}
-              {item.lineas.length > 3 && (
+              {lineas.length > 4 ? (
                 <Text style={styles.moreServices}>
-                  +{item.lineas.length - 3} más
+                  +{lineas.length - 4} más
                 </Text>
-              )}
+              ) : null}
             </View>
           </View>
-        )}
+        ) : null}
 
-        {/* Footer con total */}
         <View style={styles.serviceFooter}>
           <View style={styles.paymentInfo}>
-            <Ionicons name="card-outline" size={16} color={colors.text?.secondary || '#5D6F75'} />
+            <CreditCard size={16} color={DS_COLORS.text.secondary} />
             <Text style={styles.paymentMethod}>
-              {item.metodo_pago === 'transferencia' ? 'Transferencia' : 
-               item.metodo_pago === 'efectivo' ? 'Efectivo' : 
-               item.metodo_pago || 'N/A'}
+              {item.metodo_pago === 'transferencia' ? 'Transferencia' :
+                item.metodo_pago === 'efectivo' ? 'Efectivo' :
+                  item.metodo_pago || 'N/A'}
             </Text>
           </View>
-          <Text style={styles.totalAmount}>
-            ${parseFloat(item.total || 0).toLocaleString('es-CL')}
-          </Text>
+          <View style={styles.totalPill}>
+            <Text style={styles.totalAmount}>
+              ${parseFloat(item.total || 0).toLocaleString('es-CL')}
+            </Text>
+          </View>
         </View>
 
-        {/* Indicador de ver más */}
         <View style={styles.viewMoreIndicator}>
           <Text style={styles.viewMoreText}>Ver detalles</Text>
-          <Ionicons name="chevron-forward" size={16} color={colors.primary?.[500] || '#003459'} />
+          <ChevronRight size={18} color={DS_COLORS.primary[600]} />
         </View>
       </TouchableOpacity>
     );
@@ -390,11 +394,9 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     marginTop: spacing?.md || 16,
     marginBottom: spacing?.lg || 24,
     padding: spacing?.lg || 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: borders.width?.thin ?? 1,
+    borderColor: colors.border?.light || '#DEE1E6',
+    ...DS_SHADOWS.sm,
   },
   resumenHeader: {
     flexDirection: 'row',
@@ -485,11 +487,9 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     borderRadius: borders.radius?.card?.lg || 16,
     padding: spacing?.md || 16,
     marginBottom: spacing?.sm || 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    borderWidth: borders.width?.thin ?? 1,
+    borderColor: colors.border?.light || '#DEE1E6',
+    ...DS_SHADOWS.sm,
   },
   serviceHeader: {
     flexDirection: 'row',
@@ -500,16 +500,67 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   completedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.success?.[500] || '#10B981',
-    borderRadius: borders.radius?.badge?.full || 16,
+    gap: 6,
+    backgroundColor: colors.success?.[500] || '#05B169',
+    borderRadius: borders.radius?.badge?.full || 9999,
     paddingHorizontal: spacing?.sm || 10,
     paddingVertical: spacing?.xs || 4,
   },
   completedBadgeText: {
     fontSize: typography.fontSize?.xs || 11,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: '#FFFFFF',
-    marginLeft: spacing?.xs || 4,
+    color: colors.text?.onPrimary || '#FFFFFF',
+  },
+  cardSection: {
+    marginBottom: spacing?.md || 16,
+  },
+  cardSectionMuted: {
+    marginBottom: spacing?.md || 16,
+    backgroundColor: colors.neutral?.gray?.[100] || '#F7F7F7',
+    borderRadius: borders.radius?.card?.md || 12,
+    padding: spacing?.sm || 12,
+    borderWidth: borders.width?.thin ?? 1,
+    borderColor: colors.border?.light || '#DEE1E6',
+  },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: typography.fontWeight?.bold || '700',
+    color: colors.text?.tertiary || '#7C828A',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: spacing?.xs || 8,
+  },
+  providerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing?.sm || 12,
+  },
+  providerTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  providerName: {
+    fontSize: typography.fontSize?.md || 16,
+    fontWeight: typography.fontWeight?.bold || '700',
+    color: colors.text?.primary || '#0A0B0D',
+    marginBottom: 4,
+  },
+  tipoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: spacing?.sm || 8,
+    paddingVertical: 2,
+    borderRadius: borders.radius?.badge?.full || 9999,
+    backgroundColor: colors.primary?.[50] || '#E6F2F7',
+    borderWidth: borders.width?.thin ?? 1,
+    borderColor: colors.primary?.[100] || '#CCEBF3',
+  },
+  tipoPillText: {
+    fontSize: 11,
+    fontWeight: typography.fontWeight?.semibold || '600',
+    color: colors.primary?.[700] || '#004C65',
   },
   serviceDate: {
     fontSize: typography.fontSize?.sm || 12,
@@ -517,14 +568,10 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     fontWeight: typography.fontWeight?.medium || '500',
   },
   
-  // Sección de vehículo
-  vehicleSection: {
+  vehicleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing?.md || 16,
-    paddingBottom: spacing?.sm || 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral?.gray?.[100] || '#F3F4F6',
+    gap: spacing?.sm || 12,
   },
   vehicleIconContainer: {
     width: 44,
@@ -533,7 +580,6 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     backgroundColor: colors.primary?.[50] || '#E6F2F7',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing?.sm || 12,
   },
   vehicleInfo: {
     flex: 1,
@@ -549,48 +595,34 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     color: colors.text?.secondary || '#5D6F75',
   },
   
-  // Filas de información
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing?.sm || 10,
+    marginBottom: spacing?.md || 16,
+    gap: spacing?.sm || 10,
   },
   infoText: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5D6F75',
-    marginLeft: spacing?.sm || 10,
+    color: colors.text?.secondary || '#5B616E',
     flex: 1,
-  },
-  
-  // Sección de servicios
-  servicesSection: {
-    marginBottom: spacing?.md || 16,
-  },
-  servicesTitle: {
-    fontSize: typography.fontSize?.sm || 13,
-    fontWeight: typography.fontWeight?.semibold || '600',
-    color: colors.text?.primary || '#00171F',
-    marginBottom: spacing?.sm || 8,
+    lineHeight: 20,
   },
   servicesList: {
-    backgroundColor: colors.background?.default || '#F8F9FA',
-    borderRadius: borders.radius?.md || 10,
-    padding: spacing?.sm || 10,
+    gap: spacing?.xs || 6,
   },
   serviceItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing?.xs || 4,
+    gap: spacing?.xs || 8,
   },
   serviceName: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5D6F75',
-    marginLeft: spacing?.sm || 8,
+    color: colors.text?.secondary || '#5B616E',
     flex: 1,
   },
   moreServices: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.primary?.[500] || '#003459',
+    color: colors.primary?.[600] || '#006586',
     fontWeight: typography.fontWeight?.semibold || '600',
     marginTop: spacing?.xs || 4,
     marginLeft: 22,
@@ -608,16 +640,24 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   paymentInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   paymentMethod: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5D6F75',
-    marginLeft: spacing?.xs || 6,
+    color: colors.text?.secondary || '#5B616E',
+  },
+  totalPill: {
+    backgroundColor: colors.primary?.[50] || '#E6F2F7',
+    paddingHorizontal: spacing?.md || 14,
+    paddingVertical: spacing?.xs || 6,
+    borderRadius: borders.radius?.card?.md || 12,
+    borderWidth: borders.width?.thin ?? 1,
+    borderColor: colors.primary?.[100] || '#CCEBF3',
   },
   totalAmount: {
     fontSize: typography.fontSize?.lg || 18,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.primary?.[500] || '#003459',
+    color: colors.primary?.[700] || '#004C65',
   },
   
   // Ver más

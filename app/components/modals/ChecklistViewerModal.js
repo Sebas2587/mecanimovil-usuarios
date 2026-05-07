@@ -11,6 +11,7 @@ import {
   Image,
   FlatList,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,6 +54,9 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
   const [mostrarFirmas, setMostrarFirmas] = useState(false);
   const [fotoProveedorError, setFotoProveedorError] = useState(false);
+  /** { uri: string, caption?: string } | null — vista expandida al tocar evidencia */
+  const [photoLightbox, setPhotoLightbox] = useState(null);
+  const { width: winW, height: winH } = useWindowDimensions();
 
   // Función para cargar checklist - MEMOIZADA CON useCallback
   const cargarChecklist = useCallback(async () => {
@@ -101,10 +105,9 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     }
   }, [visible, ordenId, cargarChecklist]);
 
-  // AHORA SÍ, RETURN CONDICIONAL DESPUÉS DE TODOS LOS HOOKS
-  if (!visible) {
-    return null;
-  }
+  useEffect(() => {
+    if (!visible) setPhotoLightbox(null);
+  }, [visible]);
 
   // ─── TARJETA DEL PROVEEDOR ───────────────────────────────────────────────
   const renderProveedorCard = () => {
@@ -430,20 +433,27 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       {respuesta.fotos.map((foto, fotoIndex) => {
                         if (!foto || typeof foto !== 'object') return null;
+                        const uri = foto.imagen_url || foto.imagen_comprimida_url || '';
+                        if (!uri) return null;
+                        const caption = String(foto.descripcion || 'Evidencia del servicio');
 
                         return (
                           <TouchableOpacity
                             key={String(fotoIndex)}
                             style={styles.fotoContainer}
-                            activeOpacity={0.8}
+                            activeOpacity={0.85}
+                            onPress={() => setPhotoLightbox({ uri, caption })}
+                            accessibilityRole="imagebutton"
+                            accessibilityLabel="Ampliar foto de evidencia"
                           >
                             <Image
-                              source={{ uri: foto.imagen_url || foto.imagen_comprimida_url || '' }}
+                              source={{ uri }}
                               style={styles.fotoImagen}
                             />
                             <Text style={styles.fotoDescripcion} numberOfLines={2}>
-                              {String(foto.descripcion || 'Evidencia del servicio')}
+                              {caption}
                             </Text>
+                            <Text style={styles.fotoTapHint}>Toca para ampliar</Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -583,6 +593,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
 
   // ─── RENDER PRINCIPAL ────────────────────────────────────────────────────
   return (
+    <>
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
       <View style={styles.container}>
         <View style={styles.bg}>
@@ -662,6 +673,47 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
         )}
       </View>
     </Modal>
+
+    <Modal
+      visible={!!photoLightbox}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setPhotoLightbox(null)}
+      statusBarTranslucent
+    >
+      <View style={styles.photoLightboxRoot}>
+        <TouchableOpacity
+          style={StyleSheet.absoluteFillObject}
+          activeOpacity={1}
+          onPress={() => setPhotoLightbox(null)}
+          accessibilityLabel="Cerrar vista ampliada"
+        />
+        <View
+          style={[StyleSheet.absoluteFillObject, styles.photoLightboxContent]}
+          pointerEvents="box-none"
+        >
+          {photoLightbox?.uri ? (
+            <TouchableOpacity activeOpacity={1} onPress={() => {}} accessibilityRole="image">
+              <Image
+                source={{ uri: photoLightbox.uri }}
+                style={{
+                  width: Math.min(winW - 32, 720),
+                  height: Math.min(winH * 0.72, (winW - 32) * 1.1),
+                }}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          ) : null}
+          {photoLightbox?.caption ? (
+            <Text style={styles.photoLightboxCaption} numberOfLines={4}>
+              {photoLightbox.caption}
+            </Text>
+          ) : null}
+          <Text style={styles.photoLightboxHint}>Toca fuera de la foto para cerrar</Text>
+        </View>
+      </View>
+    </Modal>
+    </>
   );
 };
 
@@ -1095,6 +1147,37 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: 'center',
     paddingHorizontal: 4,
+  },
+  fotoTapHint: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: C.accent,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  photoLightboxRoot: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+  },
+  photoLightboxContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  photoLightboxCaption: {
+    marginTop: 16,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+    lineHeight: 20,
+    maxWidth: 360,
+  },
+  photoLightboxHint: {
+    marginTop: 14,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
   },
   fechaRespuesta: {
     fontSize: 13,

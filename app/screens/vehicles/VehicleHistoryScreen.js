@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   cardWrapper: {
     paddingHorizontal: SPACING.container.horizontal,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   emptyContainer: {
     alignItems: 'center',

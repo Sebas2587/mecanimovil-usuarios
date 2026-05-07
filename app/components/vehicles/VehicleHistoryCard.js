@@ -1,8 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { CheckCircle2, Gauge, ClipboardList } from 'lucide-react-native';
 import { COLORS } from '../../utils/constants';
+import { COLORS as DS_COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Card from '../base/Card/Card';
 import Avatar from '../base/Avatar/Avatar';
 
@@ -276,19 +281,183 @@ function resolveHistoryItemCost(item, oferta) {
  * @param {Object} item - Service history item
  * @param {Function} [onViewChecklist] - Si no se pasa, no se muestra el botón de checklist (p. ej. ficha pública).
  */
-export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'light' }) => {
-  const s = variant === 'dark' ? historyStylesDark : historyStyles;
-  // Data Mapping for Real DB Fields
+function createHistoryRowStyles(isDark) {
+  const cardBg = isDark ? 'rgba(255,255,255,0.06)' : DS_COLORS.background.paper;
+  const border = isDark ? 'rgba(255,255,255,0.12)' : DS_COLORS.border.light;
+  const textPrimary = isDark ? DS_COLORS.neutral.gray[50] : DS_COLORS.text.primary;
+  const textSecondary = isDark ? 'rgba(255,255,255,0.55)' : DS_COLORS.text.secondary;
+  const textMuted = isDark ? 'rgba(255,255,255,0.45)' : DS_COLORS.text.tertiary;
+  const sectionBg = isDark ? 'rgba(255,255,255,0.04)' : DS_COLORS.neutral.gray[100];
+  const primaryBtn = isDark ? DS_COLORS.info[300] : DS_COLORS.primary[600];
+  const primaryBorder = isDark ? 'rgba(147,197,253,0.45)' : DS_COLORS.primary[200];
+  const primaryBg = isDark ? 'rgba(147,197,253,0.08)' : withOpacity(DS_COLORS.primary[500], 0.06);
 
-  // Check if item has oferta details (common in Solicitud objects)
-  // The 'item' here is likely a completed Solicitud from the history
+  return StyleSheet.create({
+    rowContainer: {
+      backgroundColor: cardBg,
+      borderRadius: BORDERS.radius.card.lg,
+      padding: SPACING.md,
+      marginBottom: SPACING.sm,
+      borderWidth: BORDERS.width.thin,
+      borderColor: border,
+      overflow: 'hidden',
+      ...SHADOWS.sm,
+    },
+    groupLabel: {
+      fontSize: 10,
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: textMuted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      marginBottom: SPACING.xs,
+    },
+    providerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: SPACING.sm,
+    },
+    providerTextCol: {
+      flex: 1,
+      minWidth: 0,
+    },
+    providerName: {
+      fontSize: TYPOGRAPHY.fontSize.md,
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      color: textPrimary,
+    },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: SPACING.xs,
+      marginTop: 4,
+    },
+    dateText: {
+      fontSize: TYPOGRAPHY.fontSize.sm,
+      color: textSecondary,
+    },
+    pillTipo: {
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 2,
+      borderRadius: BORDERS.radius.full,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : DS_COLORS.primary[50],
+      borderWidth: BORDERS.width.thin,
+      borderColor: isDark ? 'rgba(255,255,255,0.15)' : DS_COLORS.primary[100],
+    },
+    pillTipoText: {
+      fontSize: 11,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: isDark ? DS_COLORS.info[200] : DS_COLORS.primary[700],
+    },
+    pillKm: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 3,
+      borderRadius: BORDERS.radius.md,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : DS_COLORS.neutral.gray[200],
+    },
+    pillKmText: {
+      fontSize: 11,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+      color: textSecondary,
+    },
+    pillVerified: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: SPACING.sm,
+      paddingVertical: 3,
+      borderRadius: BORDERS.radius.md,
+      backgroundColor: DS_COLORS.success[50],
+      borderWidth: BORDERS.width.thin,
+      borderColor: DS_COLORS.success[200],
+    },
+    pillVerifiedText: {
+      fontSize: 11,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: DS_COLORS.success[700],
+    },
+    divider: {
+      height: 1,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : DS_COLORS.border.light,
+      marginVertical: SPACING.md,
+    },
+    serviceBlock: {
+      backgroundColor: sectionBg,
+      borderRadius: BORDERS.radius.card.md,
+      padding: SPACING.sm,
+      marginBottom: SPACING.sm,
+    },
+    serviceTitle: {
+      fontSize: TYPOGRAPHY.fontSize.base,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: textPrimary,
+      marginBottom: SPACING.sm,
+    },
+    chipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: SPACING.xs,
+    },
+    priceBlock: {
+      marginBottom: SPACING.sm,
+    },
+    costBadgeWrap: {
+      alignSelf: 'flex-end',
+    },
+    costBadge: {
+      backgroundColor: isDark ? 'rgba(16,185,129,0.15)' : DS_COLORS.success[50],
+      paddingHorizontal: SPACING.md,
+      paddingVertical: SPACING.sm,
+      borderRadius: BORDERS.radius.card.md,
+      alignItems: 'flex-end',
+      borderWidth: BORDERS.width.thin,
+      borderColor: isDark ? 'rgba(16,185,129,0.35)' : DS_COLORS.success[200],
+    },
+    costLabel: {
+      fontSize: 10,
+      color: DS_COLORS.success[700],
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    costValue: {
+      fontSize: TYPOGRAPHY.fontSize.md,
+      color: DS_COLORS.success[600],
+      fontWeight: TYPOGRAPHY.fontWeight.bold,
+    },
+    checklistButton: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: SPACING.sm,
+      borderWidth: BORDERS.width.thin,
+      borderColor: primaryBorder,
+      borderStyle: 'dashed',
+      borderRadius: BORDERS.radius.card.md,
+      backgroundColor: primaryBg,
+      gap: SPACING.xs,
+    },
+    checklistButtonText: {
+      color: primaryBtn,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      fontSize: TYPOGRAPHY.fontSize.sm,
+    },
+  });
+}
+
+const HISTORY_STYLES_LIGHT = createHistoryRowStyles(false);
+const HISTORY_STYLES_DARK = createHistoryRowStyles(true);
+
+export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'light' }) => {
+  const isDark = variant === 'dark';
+  const s = isDark ? HISTORY_STYLES_DARK : HISTORY_STYLES_LIGHT;
   const oferta = item.oferta_seleccionada_detail || item.oferta_seleccionada || {};
 
-  // 1. Provider Type & Info
-  // The backend usually provides 'tipo_proveedor' in the offer or flat on the item
   const providerType = item.tipo_proveedor || item.provider_type || oferta.tipo_proveedor || (item.taller ? 'taller' : 'mecanico');
 
-  // Name - Checking all possible locations including nested Offer
   let providerName = 'Proveedor';
   if (item.nombre_proveedor) providerName = item.nombre_proveedor;
   else if (oferta.nombre_proveedor) providerName = oferta.nombre_proveedor;
@@ -300,30 +469,33 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
   else if (item.mecanico?.nombre) providerName = item.mecanico.nombre;
   else if (item.provider?.name) providerName = item.provider.name;
 
-  // Avatar/Photo
-  // Check flat fields -> Offer fields -> Nested Objects
   let providerAvatar = null;
   if (item.proveedor_foto) providerAvatar = item.proveedor_foto;
   else if (oferta.proveedor_foto) providerAvatar = oferta.proveedor_foto;
-  else if (oferta.foto_proveedor) providerAvatar = oferta.foto_proveedor; // variation
+  else if (oferta.foto_proveedor) providerAvatar = oferta.foto_proveedor;
   else if (item.provider_avatar) providerAvatar = item.provider_avatar;
   else if (item.taller_logo) providerAvatar = item.taller_logo;
   else if (item.mecanico_foto) providerAvatar = item.mecanico_foto;
   else if (providerType === 'taller') {
     providerAvatar = item.taller?.logo || item.logo || item.provider?.logo || oferta.taller?.logo;
   } else {
-    providerAvatar = item.mecanico?.foto_perfil || item.foto_perfil || item.provider?.avatar || oferta.mecanico?.foto_perfil;
+    providerAvatar =
+      item.mecanico?.foto_perfil ||
+      item.mecanico?.usuario?.foto_perfil ||
+      item.foto_perfil ||
+      item.provider?.avatar ||
+      oferta.mecanico?.foto_perfil ||
+      oferta.mecanico?.usuario?.foto_perfil;
   }
 
-  // 2. Service Name
-  // Check flat -> Offer details -> Line Items -> Generic
+  const lineas = item.lineas || item.lineas_detail || [];
   const serviceName = item.servicio_nombre ||
     item.service_name ||
     item.nombre_servicio ||
     (oferta.detalles_servicios && oferta.detalles_servicios[0]?.servicio_nombre) ||
     (oferta.detalles_servicios && oferta.detalles_servicios[0]?.nombre) ||
-    (item.lineas && item.lineas[0]?.servicio_nombre) ||
-    (item.lineas && item.lineas[0]?.nombre) ||
+    (lineas[0]?.servicio_nombre) ||
+    (lineas[0]?.nombre) ||
     (item.line_items && item.line_items[0]?.service_name) ||
     item.service?.nombre ||
     'Servicio General';
@@ -333,330 +505,84 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
     ? `${kmNum.toLocaleString()} km`
     : (typeof item.mileage === 'string' && item.mileage.trim() ? item.mileage : '—');
 
-  // Date Formatting
   const dateObj = item.fecha_servicio ? new Date(item.fecha_servicio) : (item.date ? new Date(item.date) : new Date());
-
   const dateStr = dateObj.toLocaleDateString('es-CL', {
     day: 'numeric',
     month: 'short',
-    year: 'numeric'
+    year: 'numeric',
   });
 
   const displayCostAmount = resolveHistoryItemCost(item, oferta);
+  const kmIconColor = isDark ? 'rgba(255,255,255,0.55)' : DS_COLORS.text.tertiary;
+  const checklistChevron = isDark ? DS_COLORS.info[300] : DS_COLORS.primary[600];
 
   return (
     <View style={s.rowContainer}>
-      {/* Header: Provider Avatar + Name + Date */}
-      <View style={s.header}>
-        <View style={s.providerInfo}>
-          <Avatar
-            source={providerAvatar}
-            name={providerName}
-            size="sm"
-            variant="circular"
-            style={{ marginRight: 10 }}
-          />
-          <View>
-            <Text style={s.providerName}>{providerName}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={s.dateText}>{dateStr}</Text>
-              <View style={s.dotSeparator} />
-              <Text style={s.providerType}>
-                {providerType === 'taller' ? 'Taller' : 'Mecánico a Domicilio'}
+      <Text style={s.groupLabel}>Proveedor</Text>
+      <View style={s.providerRow}>
+        <Avatar
+          source={providerAvatar}
+          name={providerName}
+          size="md"
+          variant="circular"
+        />
+        <View style={s.providerTextCol}>
+          <Text style={s.providerName} numberOfLines={2}>{providerName}</Text>
+          <View style={s.metaRow}>
+            <Text style={s.dateText}>{dateStr}</Text>
+            <View style={s.pillTipo}>
+              <Text style={s.pillTipoText}>
+                {providerType === 'taller' ? 'Taller' : 'A domicilio'}
               </Text>
             </View>
           </View>
         </View>
       </View>
 
-      {/* Body: Service & Mileage */}
-      <View style={s.body}>
-        <View style={s.serviceInfo}>
-          <Text style={s.serviceTitle} numberOfLines={2}>{serviceName}</Text>
-          <View style={s.specsRow}>
-            <View style={s.specItem}>
-              <Feather name="activity" size={12} color={variant === 'dark' ? 'rgba(255,255,255,0.45)' : '#6B7280'} />
-              <Text style={s.specText}>{mileage}</Text>
+      <View style={s.divider} />
+
+      <Text style={s.groupLabel}>Servicio</Text>
+      <View style={s.serviceBlock}>
+        <Text style={s.serviceTitle} numberOfLines={3}>{serviceName}</Text>
+        <View style={s.chipsRow}>
+          <View style={s.pillKm}>
+            <Gauge size={12} color={kmIconColor} />
+            <Text style={s.pillKmText}>{mileage}</Text>
+          </View>
+          {item.verified === true && (
+            <View style={s.pillVerified}>
+              <CheckCircle2 size={12} color={DS_COLORS.success[600]} />
+              <Text style={s.pillVerifiedText}>Registrado</Text>
             </View>
-            <View style={s.specItem}>
-              <Ionicons name="checkmark-circle" size={12} color="#10B981" />
-              <Text style={s.specText}>Verificado</Text>
+          )}
+        </View>
+      </View>
+
+      {Number.isFinite(displayCostAmount) && displayCostAmount > 0 && (
+        <View style={s.priceBlock}>
+          <Text style={s.groupLabel}>Monto</Text>
+          <View style={s.costBadgeWrap}>
+            <View style={s.costBadge}>
+              <Text style={s.costLabel}>Total</Text>
+              <Text style={s.costValue}>
+                ${Math.round(displayCostAmount).toLocaleString('es-CL')}
+              </Text>
             </View>
           </View>
         </View>
+      )}
 
-        {Number.isFinite(displayCostAmount) && displayCostAmount > 0 && (
-          <View style={s.costBadge}>
-            <Text style={s.costLabel}>Valor Servicio</Text>
-            <Text style={s.costValue}>
-              ${Math.round(displayCostAmount).toLocaleString('es-CL')}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Checklist solo con sesión (datos sensibles); ficha pública omite onViewChecklist */}
       {typeof onViewChecklist === 'function' ? (
         <TouchableOpacity
           style={s.checklistButton}
           onPress={() => onViewChecklist(item)}
+          activeOpacity={0.75}
         >
-          <Text style={s.checklistButtonText}>Ver Checklist del Servicio</Text>
-          <Ionicons name="chevron-forward" size={14} color={variant === 'dark' ? '#93C5FD' : COLORS.primary} />
+          <ClipboardList size={16} color={checklistChevron} />
+          <Text style={s.checklistButtonText}>Ver informe de servicio</Text>
+          <Ionicons name="chevron-forward" size={16} color={checklistChevron} />
         </TouchableOpacity>
       ) : null}
     </View>
   );
 };
-
-const historyStyles = StyleSheet.create({
-  rowContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  providerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  providerName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  dateText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  dotSeparator: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: '#9CA3AF',
-    marginHorizontal: 6,
-    marginTop: 2,
-  },
-  providerType: {
-    fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  body: {
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  serviceInfo: {
-    flex: 1,
-    marginRight: 8,
-    // iOS: allow text to shrink so cost badge stays visible
-    minWidth: 0,
-  },
-  serviceTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-    flexShrink: 1,
-  },
-  specsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  specItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-    marginTop: 2,
-  },
-  specText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 4,
-  },
-  checklistButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    backgroundColor: 'rgba(0, 52, 89, 0.02)',
-  },
-  checklistButtonText: {
-    color: COLORS.primary,
-    fontWeight: '600',
-    fontSize: 13,
-    marginRight: 4,
-  },
-  costBadge: {
-    backgroundColor: 'rgba(52, 211, 153, 0.1)', // Light Emerald Green
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'flex-end',
-    marginLeft: 8,
-    flexShrink: 0,
-    borderWidth: 1,
-    borderColor: 'rgba(52, 211, 153, 0.2)',
-  },
-  costLabel: {
-    fontSize: 10,
-    color: '#059669', // Dark Emerald
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  costValue: {
-    fontSize: 14,
-    color: '#059669',
-    fontWeight: '800',
-  }
-});
-
-const historyStylesDark = StyleSheet.create({
-  rowContainer: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  providerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  providerName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#F9FAFB',
-  },
-  dateText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: 2,
-  },
-  dotSeparator: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    marginHorizontal: 6,
-    marginTop: 2,
-  },
-  providerType: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  body: {
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  serviceInfo: {
-    flex: 1,
-    marginRight: 8,
-    // iOS: allow text to shrink so cost badge stays visible
-    minWidth: 0,
-  },
-  serviceTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#F9FAFB',
-    marginBottom: 4,
-    flexShrink: 1,
-  },
-  specsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  specItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-    marginTop: 2,
-  },
-  specText: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    marginLeft: 4,
-  },
-  checklistButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(147,197,253,0.45)',
-    borderStyle: 'dashed',
-    borderRadius: 10,
-    backgroundColor: 'rgba(147,197,253,0.08)',
-  },
-  checklistButtonText: {
-    color: '#93C5FD',
-    fontWeight: '600',
-    fontSize: 13,
-    marginRight: 4,
-  },
-  costBadge: {
-    backgroundColor: 'rgba(16,185,129,0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    alignItems: 'flex-end',
-    marginLeft: 8,
-    flexShrink: 0,
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.35)',
-  },
-  costLabel: {
-    fontSize: 10,
-    color: '#6EE7B7',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  costValue: {
-    fontSize: 14,
-    color: '#6EE7B7',
-    fontWeight: '800',
-  },
-});
