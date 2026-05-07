@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -44,10 +44,12 @@ const GLASS_BG = Platform.select({
 const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 
 const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => {
-  console.log('🔍 Modal Props:', { visible, ordenId, servicioNombre });
-
   // TODOS LOS HOOKS PRIMERO - ANTES DE CUALQUIER RETURN
   const insets = useSafeAreaInsets();
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   const [checklist, setChecklist] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -63,7 +65,6 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     try {
       setLoading(true);
       setError(null);
-      console.log('🔍 Cargando checklist para orden:', ordenId);
 
       const checklistData = await checklistClienteService.obtenerChecklistServicio(ordenId);
 
@@ -73,7 +74,6 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
 
       const checklistFormateado = checklistClienteService.formatearChecklistParaCliente(checklistData);
 
-      console.log('✅ Checklist cargado:', checklistFormateado);
       setChecklist(checklistFormateado);
 
       // Establecer primera categoría como seleccionada por defecto
@@ -91,12 +91,12 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
       Alert.alert(
         'Error',
         String(err.message || 'No se pudo cargar el checklist del servicio'),
-        [{ text: 'OK', onPress: onClose }]
+        [{ text: 'OK', onPress: () => onCloseRef.current?.() }]
       );
     } finally {
       setLoading(false);
     }
-  }, [ordenId, onClose]);
+  }, [ordenId]);
 
   // useEffect también debe ir antes de cualquier return
   useEffect(() => {

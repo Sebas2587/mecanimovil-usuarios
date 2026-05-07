@@ -103,6 +103,11 @@ const DetalleSolicitudScreen = () => {
     }, [cargarDatos])
   );
 
+  const closeChecklistModal = useCallback(() => {
+    setShowChecklistModal(false);
+    setChecklistOrdenId(null);
+  }, []);
+
   // Handlers
   const handleAceptarOferta = (oferta) => {
     Alert.alert(
@@ -518,10 +523,7 @@ const DetalleSolicitudScreen = () => {
       {solicitud && (
         <ChecklistViewerModal
           visible={showChecklistModal}
-          onClose={() => {
-            setShowChecklistModal(false);
-            setChecklistOrdenId(null);
-          }}
+          onClose={closeChecklistModal}
           ordenId={checklistOrdenId ?? solicitud?.oferta_seleccionada_detail?.solicitud_servicio_id ?? solicitud?.orden_id ?? solicitud?.solicitud_servicio_id}
           servicioNombre={solicitud?.servicios_solicitados?.[0]?.nombre || solicitud?.servicios_solicitados?.[0]?.nombre_servicio || 'Servicio'}
         />

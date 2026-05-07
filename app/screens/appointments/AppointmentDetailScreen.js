@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -270,6 +270,10 @@ const AppointmentDetailScreen = () => {
     }
   };
 
+  const closeChecklistModal = useCallback(() => {
+    setShowChecklistModal(false);
+  }, []);
+
   return (
     <View style={styles.container}>
       {/* Contenido principal sin header personalizado */}
@@ -297,7 +301,7 @@ const AppointmentDetailScreen = () => {
       {agendamientoActual && (
         <ChecklistViewerModal
           visible={showChecklistModal}
-          onClose={() => setShowChecklistModal(false)}
+          onClose={closeChecklistModal}
           ordenId={agendamientoActual.id}
           servicioNombre={(() => {
             const lineas = Array.isArray(agendamientoActual.lineas) && agendamientoActual.lineas.length > 0

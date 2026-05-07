@@ -1,4 +1,4 @@
-import React, { useState, Fragment } from 'react';
+import React, { useState, Fragment, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, Modal, Platform, Dimensions, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -101,9 +101,6 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
             setFullVehicleData(prev => ({ ...prev, ...detailData }));
             setLoadError(null);
-
-            console.log('🚗 [DEBUG] Vehicle Detail Data (Enriched):', JSON.stringify(detailData, null, 2));
-            console.log('📜 [DEBUG] Enriched History Items (first 2):', JSON.stringify(enrichedHistory.slice(0, 2), null, 2));
 
             // Set real health data from public endpoint
             // The public endpoint should include health info in 'health_data' or 'health'
@@ -361,17 +358,12 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         );
     };
 
-    const handleViewChecklist = (item) => {
-        // The backend expects an integer ID (Orden ID / SolicitudServicio ID), not the UUID of the public request.
-        // We prioritize finding the integer ID from the offer details.
+    const handleViewChecklist = useCallback((item) => {
         const checklistId = item.id ||
             item.oferta_seleccionada_detail?.solicitud_servicio_id ||
             item.solicitud_servicio_id ||
             item.orden_id ||
             item.checklist_id;
-
-        console.log('🔍 handleViewChecklist - Item:', item.id);
-        console.log('🔍 handleViewChecklist - Resolved ID:', checklistId);
 
         if (checklistId) {
             const serviceName = item.servicio_nombre || item.service || 'Servicio';
@@ -379,9 +371,13 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
             setSelectedServiceName(serviceName);
             setChecklistModalVisible(true);
         } else {
-            Alert.alert("Aviso", "No hay checklist asociado a este servicio o no se encontró el ID válido.");
+            Alert.alert('Aviso', 'No hay checklist asociado a este servicio o no se encontró el ID válido.');
         }
-    };
+    }, []);
+
+    const closeChecklistModal = useCallback(() => {
+        setChecklistModalVisible(false);
+    }, []);
 
     const webRootStyle = Platform.OS === 'web'
         ? { height: windowHeight, maxHeight: windowHeight, overflow: 'hidden' }
@@ -557,6 +553,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                     <VehicleServiceHistoryRow
                                         key={item.id}
                                         item={item}
+                                        variant="dark"
                                         onViewChecklist={user ? handleViewChecklist : undefined}
                                     />
                                 ))}
@@ -743,7 +740,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
             {user ? (
                 <ChecklistViewerModal
                     visible={checklistModalVisible}
-                    onClose={() => setChecklistModalVisible(false)}
+                    onClose={closeChecklistModal}
                     ordenId={selectedChecklistId}
                     servicioNombre={selectedServiceName}
                 />

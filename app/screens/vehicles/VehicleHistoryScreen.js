@@ -78,6 +78,10 @@ const VehicleHistoryScreen = () => {
     setChecklistModalVisible(true);
   }, []);
 
+  const closeChecklistModal = useCallback(() => {
+    setChecklistModalVisible(false);
+  }, []);
+
   const EmptyState = () => (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconWrap}>
@@ -171,7 +175,7 @@ const VehicleHistoryScreen = () => {
 
       <ChecklistViewerModal
         visible={checklistModalVisible}
-        onClose={() => setChecklistModalVisible(false)}
+        onClose={closeChecklistModal}
         ordenId={selectedChecklistId}
         servicioNombre={selectedServiceName}
       />
