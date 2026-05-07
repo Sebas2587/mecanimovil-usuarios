@@ -839,7 +839,7 @@ const UserPanelScreen = () => {
                   <TrendingUp size={14} color={COLORS.success.main} />
                   <Text style={styles.labelText}>Valor Estimado</Text>
                 </View>
-                <Text style={styles.heroPrice}>{formatCLP(valuation)}</Text>
+                <Text style={styles.heroPriceDisplay}>{formatCLP(valuation)}</Text>
                 {priceDelta !== 0 && (
                   <Text
                     style={[
@@ -893,7 +893,7 @@ const UserPanelScreen = () => {
 
         {/* Telemetry */}
         {selectedVehicle && (
-          <Card style={styles.telemetryCard} innerStyle={styles.telemetryInner}>
+          <Card style={styles.telemetryCard}>
             <View style={styles.telemetryTopRow}>
               <Text style={styles.telemetryConsoleLabel}>CAPTURA TELEMETRÍA</Text>
             </View>
@@ -911,13 +911,6 @@ const UserPanelScreen = () => {
                     <Text style={styles.telemetrySubStatText}>{currentSpeed} km/h</Text>
                   </View>
                 )}
-              </View>
-              <View style={styles.telemetryVSep} />
-              <View style={styles.telemetryAhorroBlock}>
-                <Text style={styles.telemetryAhorroLabel}>Ahorro</Text>
-                <Text style={styles.telemetryAhorroValue} numberOfLines={1}>
-                  {priceDelta > 0 ? formatCLP(priceDelta) : '—'}
-                </Text>
               </View>
             </View>
 
@@ -1672,15 +1665,14 @@ const styles = StyleSheet.create({
   labelText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.tertiary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
   },
-  heroPrice: {
-    fontSize: TYPOGRAPHY.styles.h2.fontSize,
-    fontWeight: TYPOGRAPHY.styles.h2.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.h2.letterSpacing,
+  heroPriceDisplay: {
+    ...TYPOGRAPHY.styles.numberDisplay,
     color: COLORS.text.primary,
+    marginTop: 4,
   },
   heroDelta: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -1741,9 +1733,6 @@ const styles = StyleSheet.create({
   telemetryCard: {
     marginBottom: 12,
   },
-  telemetryInner: {
-    padding: 12,
-  },
   telemetryTopRow: {
     marginBottom: 6,
   },
@@ -1791,31 +1780,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.tertiary,
   },
-  telemetryVSep: {
-    width: 1,
-    alignSelf: 'stretch',
-    minHeight: 44,
-    backgroundColor: COLORS.border.light,
-    marginHorizontal: 10,
-  },
-  telemetryAhorroBlock: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    maxWidth: SCREEN_WIDTH * 0.32,
-  },
-  telemetryAhorroLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.success.main,
-    letterSpacing: 0.4,
-    marginBottom: 2,
-    textTransform: 'uppercase',
-  },
-  telemetryAhorroValue: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
 
   weatherCardWrap: {
     width: '100%',
@@ -1825,8 +1789,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   weatherFullInner: {
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    padding: SPACING.cardPadding,
   },
   weatherFullBody: {
     width: '100%',

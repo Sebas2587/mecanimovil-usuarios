@@ -11,6 +11,8 @@ const TYPOGRAPHY = Object.freeze({
     regular: 'System',
     medium: 'System',
     bold: 'System',
+    /** Números / importes — ver design-system Coinbase (mono) */
+    mono: 'monospace',
   }),
   fontSize: Object.freeze({
     xs: 10,
@@ -110,6 +112,14 @@ const TYPOGRAPHY = Object.freeze({
       fontWeight: '500',
       lineHeight: 1.4,
       letterSpacing: 0,
+    }),
+    /** Montos y métricas destacadas (panel, pagos, KPIs) */
+    numberDisplay: Object.freeze({
+      fontSize: 32,
+      fontWeight: '700',
+      lineHeight: 38,
+      letterSpacing: -0.75,
+      fontFamily: 'monospace',
     }),
   }),
 });

@@ -1,15 +1,12 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../utils/constants';
-import { Platform, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import { Home, Car, ShoppingBag } from 'lucide-react-native';
 import CustomHeader from '../components/navigation/Header/Header';
-import { useTheme } from '../design-system/theme/useTheme';
-import { COLORS } from '../design-system/tokens';
+import { COLORS, TYPOGRAPHY, BORDERS, SPACING } from '../design-system/tokens';
 
 import UserPanelScreen from '../screens/main/UserPanelScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
@@ -147,13 +144,12 @@ const HomeNavigator = () => (
   </HomeStack.Navigator>
 );
 
-// ── Glassmorphism Tab Bar ──
+// ── Main tab bar (solid surface, tokens) ──
 const GlassTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
 
   return (
     <View style={[tabStyles.container, { paddingBottom: Math.max(insets.bottom, 8), height: 64 + Math.max(insets.bottom, 0) }]}>
-      {Platform.OS === 'ios' && <BlurView intensity={40} tint="light" style={StyleSheet.absoluteFill} />}
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = options.tabBarLabel ?? options.title ?? route.name;
@@ -173,8 +169,20 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
         return (
           <TouchableOpacity key={route.key} onPress={onPress} style={tabStyles.tab} activeOpacity={0.7}>
             {isFocused && <View style={tabStyles.activeIndicator} />}
-            <IconComponent size={22} color={color} />
-            <Text style={[tabStyles.label, { color, fontWeight: isFocused ? '600' : '400' }]}>{label}</Text>
+            <IconComponent size={24} color={color} strokeWidth={isFocused ? 2.25 : 2} />
+            <Text
+              style={[
+                tabStyles.label,
+                {
+                  color,
+                  fontWeight: isFocused
+                    ? TYPOGRAPHY.fontWeight.semibold
+                    : TYPOGRAPHY.fontWeight.medium,
+                },
+              ]}
+            >
+              {label}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -185,8 +193,8 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
 const tabStyles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.92)' : '#FFFFFF',
-    borderTopWidth: 1,
+    backgroundColor: COLORS.base.white,
+    borderTopWidth: BORDERS.width.thin,
     borderTopColor: COLORS.border.light,
     overflow: 'hidden',
   },
@@ -194,20 +202,21 @@ const tabStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 10,
-    gap: 4,
+    paddingTop: SPACING.sm,
+    gap: SPACING.xxs,
   },
   activeIndicator: {
     position: 'absolute',
     top: 0,
-    width: 24,
-    height: 2,
-    borderRadius: 1,
+    width: 28,
+    height: BORDERS.width.medium,
+    borderRadius: BORDERS.radius.xs / 2,
     backgroundColor: COLORS.primary[500],
   },
   label: {
-    fontSize: 10,
-    letterSpacing: 0.3,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wide,
+    lineHeight: Math.round(TYPOGRAPHY.fontSize.sm * TYPOGRAPHY.lineHeight.tight),
   },
 });
 
