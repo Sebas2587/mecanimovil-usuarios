@@ -36,6 +36,7 @@ const VehicleHistoryScreen = () => {
   const [checklistModalVisible, setChecklistModalVisible] = useState(false);
   const [selectedChecklistId, setSelectedChecklistId] = useState(null);
   const [selectedServiceName, setSelectedServiceName] = useState('');
+  const [checklistProveedorPreview, setChecklistProveedorPreview] = useState(null);
 
   const fetchHistory = useCallback(async () => {
     if (!vehicleId) {
@@ -70,16 +71,18 @@ const VehicleHistoryScreen = () => {
     setRefreshing(false);
   }, [fetchHistory]);
 
-  const handleViewChecklist = useCallback((item) => {
+  const handleViewChecklist = useCallback((item, proveedorPreview) => {
     const ordenId = item.id;
     if (!ordenId) return;
     setSelectedChecklistId(ordenId);
     setSelectedServiceName(item.servicio_nombre || 'Servicio');
+    setChecklistProveedorPreview(proveedorPreview || null);
     setChecklistModalVisible(true);
   }, []);
 
   const closeChecklistModal = useCallback(() => {
     setChecklistModalVisible(false);
+    setChecklistProveedorPreview(null);
   }, []);
 
   const EmptyState = () => (
@@ -116,7 +119,7 @@ const VehicleHistoryScreen = () => {
 
   const renderHistoryItem = ({ item }) => (
     <View style={styles.cardWrapper}>
-      <VehicleServiceHistoryRow item={item} onViewChecklist={() => handleViewChecklist(item)} variant="light" />
+      <VehicleServiceHistoryRow item={item} onViewChecklist={handleViewChecklist} variant="light" />
     </View>
   );
 
@@ -178,6 +181,7 @@ const VehicleHistoryScreen = () => {
         onClose={closeChecklistModal}
         ordenId={selectedChecklistId}
         servicioNombre={selectedServiceName}
+        proveedorPreview={checklistProveedorPreview}
       />
     </View>
   );

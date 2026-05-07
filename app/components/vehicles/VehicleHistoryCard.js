@@ -279,7 +279,7 @@ function resolveHistoryItemCost(item, oferta) {
  * Used in MarketplaceVehicleDetailScreen.
  * 
  * @param {Object} item - Service history item
- * @param {Function} [onViewChecklist] - Si no se pasa, no se muestra el botón de checklist (p. ej. ficha pública).
+ * @param {Function} [onViewChecklist] - `(item, proveedorPreview?)`. Preview opcional: `{ nombre, fotoUrl, tipo }` para el modal de informe.
  */
 function createHistoryRowStyles(isDark) {
   const cardBg = isDark
@@ -623,7 +623,13 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
       {typeof onViewChecklist === 'function' ? (
         <TouchableOpacity
           style={s.checklistButton}
-          onPress={() => onViewChecklist(item)}
+          onPress={() =>
+            onViewChecklist(item, {
+              nombre: providerName,
+              fotoUrl: providerAvatar,
+              tipo: providerType,
+            })
+          }
           activeOpacity={0.75}
         >
           <ClipboardList size={16} color={checklistChevron} />

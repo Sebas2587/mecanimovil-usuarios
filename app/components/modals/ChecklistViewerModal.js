@@ -9,41 +9,44 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  FlatList,
-  Platform,
+  Pressable,
   useWindowDimensions,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS as DS_COLORS } from '../../design-system/tokens';
+import { COLORS as DS_COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { SPACING } from '../../design-system/tokens/spacing';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SHADOWS } from '../../design-system/tokens/shadows';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import Avatar from '../base/Avatar/Avatar';
 import checklistClienteService from '../../services/checklistService';
 
-// Aliases de colores del design system
+/** Atajos de color alineados al DS (evita hex sueltos en JSX) */
 const C = {
-  primary:       DS_COLORS?.primary?.[500]        ?? '#003459',
-  accent:        DS_COLORS?.accent?.[500]          ?? '#00A8E8',
-  success:       DS_COLORS?.success?.main          ?? '#00C9A7',
-  successBg:     DS_COLORS?.success?.light         ?? '#E6F7F4',
-  successDark:   DS_COLORS?.success?.dark          ?? '#00997A',
-  warning:       DS_COLORS?.warning?.main          ?? '#FFB84D',
-  error:         DS_COLORS?.error?.main            ?? '#FF6B6B',
-  bgDefault:     DS_COLORS?.background?.default    ?? '#F5F7F8',
-  bgPaper:       DS_COLORS?.background?.paper      ?? '#FFFFFF',
-  textPrimary:   DS_COLORS?.text?.primary          ?? '#00171F',
-  textSecondary: DS_COLORS?.text?.secondary        ?? '#3E4F53',
-  textLight:     DS_COLORS?.text?.tertiary         ?? '#5D6F75',
-  borderLight:   DS_COLORS?.border?.light          ?? '#D7DFE3',
-  borderMain:    DS_COLORS?.border?.main           ?? '#C3CFD5',
+  primary: DS_COLORS.primary[500],
+  accent: DS_COLORS.primary[500],
+  success: DS_COLORS.success[600],
+  successBg: DS_COLORS.success[50],
+  successDark: DS_COLORS.success[700],
+  error: DS_COLORS.error[500],
+  bgDefault: DS_COLORS.background.default,
+  bgPaper: DS_COLORS.background.paper,
+  textPrimary: DS_COLORS.text.primary,
+  textSecondary: DS_COLORS.text.secondary,
+  textLight: DS_COLORS.text.tertiary,
+  borderLight: DS_COLORS.border.light,
 };
 
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const GLASS_BORDER = 'rgba(255,255,255,0.12)';
-
-const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => {
+const ChecklistViewerModal = ({
+  visible,
+  onClose,
+  ordenId,
+  servicioNombre,
+  proveedorPreview = null,
+}) => {
   // TODOS LOS HOOKS PRIMERO - ANTES DE CUALQUIER RETURN
   const insets = useSafeAreaInsets();
   const onCloseRef = useRef(onClose);
@@ -55,7 +58,6 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
   const [error, setError] = useState(null);
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
   const [mostrarFirmas, setMostrarFirmas] = useState(false);
-  const [fotoProveedorError, setFotoProveedorError] = useState(false);
   /** { uri: string, caption?: string } | null — vista expandida al tocar evidencia */
   const [photoLightbox, setPhotoLightbox] = useState(null);
   const { width: winW, height: winH } = useWindowDimensions();
@@ -109,46 +111,37 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     if (!visible) setPhotoLightbox(null);
   }, [visible]);
 
-  // ─── TARJETA DEL PROVEEDOR ───────────────────────────────────────────────
-  const renderProveedorCard = () => {
-    const pi = checklist?.ordenInfo?.proveedor_info;
-    if (!pi) return null;
+  // ─── Proveedor (API + vista previa desde historial / marketplace) ─────────
+  const renderProveedorBar = () => {
+    const api = checklist?.proveedorInfo || checklist?.ordenInfo?.proveedor_info;
+    const nombre = api?.nombre || proveedorPreview?.nombre;
+    const rawFoto = api?.foto_perfil_url || proveedorPreview?.fotoUrl;
+    const fotoUri = rawFoto || null;
+    const tipo = api?.tipo || proveedorPreview?.tipo || 'taller';
+    const marcasVisibles = (api?.marcas_atendidas || []).slice(0, 4);
 
-    const marcasVisibles = (pi.marcas_atendidas || []).slice(0, 3);
-    const mostrarFoto = pi.foto_perfil_url && !fotoProveedorError;
+    if (!nombre && !fotoUri) return null;
 
     return (
       <View style={styles.proveedorCard}>
-        {/* Avatar compacto */}
-        {mostrarFoto ? (
-          <Image
-            source={{ uri: pi.foto_perfil_url }}
-            style={styles.proveedorAvatar}
-            resizeMode="cover"
-            onError={() => setFotoProveedorError(true)}
-          />
-        ) : (
-          <View style={[styles.proveedorAvatar, styles.proveedorAvatarPlaceholder]}>
-            <Text style={styles.proveedorAvatarInicial}>
-              {(pi.nombre || 'P')[0].toUpperCase()}
-            </Text>
-          </View>
-        )}
-
-        {/* Info compacta */}
+        <Avatar
+          source={fotoUri}
+          name={nombre || 'Proveedor'}
+          size="md"
+          variant="circular"
+        />
         <View style={styles.proveedorInfoContainer}>
           <View style={styles.proveedorRow}>
             <Text style={styles.proveedorNombre} numberOfLines={1}>
-              {pi.nombre || 'Proveedor'}
+              {nombre || 'Proveedor'}
             </Text>
             <View style={styles.proveedorTipoBadge}>
               <Text style={styles.proveedorTipoBadgeTexto}>
-                {pi.tipo === 'taller' ? 'Taller' : 'Mecánico'}
+                {tipo === 'taller' ? 'Taller' : 'A domicilio'}
               </Text>
             </View>
           </View>
-
-          {marcasVisibles.length > 0 && (
+          {marcasVisibles.length > 0 ? (
             <View style={styles.marcasRow}>
               {marcasVisibles.map((marca, idx) => (
                 <View key={String(idx)} style={styles.marcaChip}>
@@ -156,7 +149,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
                 </View>
               ))}
             </View>
-          )}
+          ) : null}
         </View>
       </View>
     );
@@ -181,47 +174,30 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.categoriasScroll}
-          contentContainerStyle={{ paddingHorizontal: 8 }}
+          contentContainerStyle={styles.categoriasScrollContent}
         >
           {categoriasArray.map((categoria) => {
             const categoriaData = categorias[categoria] || [];
             const categoriaLength = Array.isArray(categoriaData) ? categoriaData.length : 0;
+            const active = categoriaSeleccionada === categoria;
 
             return (
               <TouchableOpacity
                 key={String(categoria)}
-                style={[
-                  styles.categoriaTab,
-                  categoriaSeleccionada === categoria && styles.categoriaTabActiva,
-                ]}
+                style={[styles.categoriaTab, active && styles.categoriaTabActiva]}
                 onPress={() => setCategoriaSeleccionada(categoria)}
                 activeOpacity={0.7}
               >
                 <Ionicons
                   name={checklistClienteService.obtenerIconoCategoria(categoria)}
-                  size={18}
-                  color={categoriaSeleccionada === categoria ? '#F9FAFB' : 'rgba(255,255,255,0.55)'}
+                  size={16}
+                  color={active ? DS_COLORS.primary[700] : DS_COLORS.text.tertiary}
                 />
-                <Text
-                  style={[
-                    styles.categoriaTabTexto,
-                    categoriaSeleccionada === categoria && styles.categoriaTabTextoActivo,
-                  ]}
-                >
+                <Text style={[styles.categoriaTabTexto, active && styles.categoriaTabTextoActivo]}>
                   {String(checklistClienteService.obtenerNombreCategoria(categoria))}
                 </Text>
-                <View
-                  style={[
-                    styles.categoriaContador,
-                    categoriaSeleccionada === categoria && { backgroundColor: 'rgba(255,255,255,0.2)' },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.contadorTexto,
-                      categoriaSeleccionada === categoria && { color: '#fff' },
-                    ]}
-                  >
+                <View style={[styles.categoriaContador, active && styles.categoriaContadorActivo]}>
+                  <Text style={[styles.contadorTexto, active && styles.contadorTextoActivo]}>
                     {String(categoriaLength)}
                   </Text>
                 </View>
@@ -238,10 +214,10 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     if (!categoriaSeleccionada || !checklist?.respuestas) {
       return (
         <View style={styles.contenidoContainer}>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Ionicons name="information-circle" size={64} color={C.textLight} />
+          <View style={styles.contenidoEmpty}>
+            <Ionicons name="layers-outline" size={40} color={C.textLight} />
             <Text style={styles.instruccionTexto}>
-              👆 Selecciona una categoría arriba para ver los detalles de la inspección realizada
+              Selecciona una categoría arriba para ver la inspección.
             </Text>
           </View>
         </View>
@@ -254,8 +230,8 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
     if (!Array.isArray(respuestasCategoria) || respuestasCategoria.length === 0) {
       return (
         <View style={styles.contenidoContainer}>
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Ionicons name="folder-open" size={64} color={C.textLight} />
+          <View style={styles.contenidoEmpty}>
+            <Ionicons name="folder-open-outline" size={40} color={C.textLight} />
             <Text style={styles.sinDatosTexto}>
               No hay elementos verificados en esta categoría
             </Text>
@@ -264,18 +240,22 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
       );
     }
 
+    const n = respuestasCategoria.length;
+
     return (
       <ScrollView
         style={styles.contenidoContainer}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 30 }}
+        contentContainerStyle={styles.contenidoScrollPad}
       >
-        <Text style={styles.categoriaTitle}>
-          {String(checklistClienteService.obtenerNombreCategoria(categoriaSeleccionada))}
-        </Text>
-        <Text style={styles.categoriaSubtitle}>
-          ✅ {String(respuestasCategoria.length)} elemento{respuestasCategoria.length !== 1 ? 's' : ''} verificado{respuestasCategoria.length !== 1 ? 's' : ''}
-        </Text>
+        <View style={styles.categoriaHeaderBlock}>
+          <Text style={styles.categoriaTitle}>
+            {String(checklistClienteService.obtenerNombreCategoria(categoriaSeleccionada))}
+          </Text>
+          <Text style={styles.categoriaSubtitle}>
+            {n} ítem{n !== 1 ? 's' : ''} verificado{n !== 1 ? 's' : ''}
+          </Text>
+        </View>
 
         {respuestasCategoria.map((respuesta, index) => {
           try {
@@ -290,152 +270,133 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
             );
             const tipoPregunta = respuesta.item_info?.tipo_pregunta || respuesta.item_template_info?.tipo_pregunta;
 
+            const hasSeleccion =
+              respuesta.respuesta_seleccion != null && tipoPregunta !== 'BOOLEAN';
+            const hasTexto = Boolean(respuesta.respuesta_texto);
+            const hasNumero =
+              respuesta.respuesta_numero !== null && respuesta.respuesta_numero !== undefined;
+            const hasBoolean =
+              respuesta.respuesta_booleana !== null && respuesta.respuesta_booleana !== undefined;
+            const hasVerificacion = hasSeleccion || hasTexto || hasNumero || hasBoolean;
+
+            const fotos = respuesta.fotos && Array.isArray(respuesta.fotos) ? respuesta.fotos : [];
+            const hasFotos = fotos.length > 0;
+
+            let opcionesSel = [];
+            if (hasSeleccion) {
+              const sel = respuesta.respuesta_seleccion;
+              if (Array.isArray(sel)) opcionesSel = sel;
+              else if (typeof sel === 'string') {
+                try {
+                  const parsed = JSON.parse(sel);
+                  opcionesSel = Array.isArray(parsed) ? parsed : [sel];
+                } catch {
+                  opcionesSel = [sel];
+                }
+              }
+            }
+
+            let iconoTexto = null;
+            let unidad = '';
+            let valorStyle = {};
+            if (hasTexto) {
+              if (tipoPregunta === 'KILOMETER_INPUT') {
+                iconoTexto = (
+                  <Ionicons name="speedometer-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+                );
+                unidad = ' km';
+                valorStyle = styles.valorKm;
+              } else if (tipoPregunta === 'FLUID_LEVEL') {
+                iconoTexto = (
+                  <Ionicons name="water-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+                );
+              } else if (tipoPregunta === 'NUMBER') {
+                iconoTexto = (
+                  <Ionicons name="calculator-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+                );
+              }
+            }
+
             return (
               <View key={String(index)} style={styles.respuestaCard}>
                 <View style={styles.preguntaContainer}>
                   <Text style={styles.preguntaTexto}>{pregunta}</Text>
-                  {respuesta.completado && (
-                    <Ionicons name="checkmark-circle" size={24} color={C.success} />
-                  )}
+                  {respuesta.completado ? (
+                    <Ionicons name="checkmark-circle" size={22} color={C.success} />
+                  ) : null}
                 </View>
 
-                {/* SELECT / MULTISELECT */}
-                {respuesta.respuesta_seleccion != null &&
-                  tipoPregunta !== 'BOOLEAN' && (
-                    <View style={styles.respuestaItem}>
-                      <Text style={styles.respuestaLabel}>Resultado seleccionado</Text>
-                      {(() => {
-                        const sel = respuesta.respuesta_seleccion;
-                        let opciones = [];
-                        if (Array.isArray(sel)) {
-                          opciones = sel;
-                        } else if (typeof sel === 'string') {
-                          try {
-                            const parsed = JSON.parse(sel);
-                            opciones = Array.isArray(parsed) ? parsed : [sel];
-                          } catch {
-                            opciones = [sel];
-                          }
-                        }
-                        return (
-                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                            {opciones.map((op, oi) => (
-                              <View key={String(oi)} style={styles.seleccionChip}>
-                                <Ionicons
-                                  name="checkmark-circle"
-                                  size={16}
-                                  color={C.success}
-                                  style={{ marginRight: 4 }}
-                                />
-                                <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        );
-                      })()}
-                    </View>
-                  )}
-
-                {/* Respuesta de texto mejorada */}
-                {respuesta.respuesta_texto && (() => {
-                  let icono = null;
-                  let unidad = '';
-                  let valorStyle = {};
-
-                  if (tipoPregunta === 'KILOMETER_INPUT') {
-                    icono = (
-                      <Ionicons
-                        name="speedometer-outline"
-                        size={16}
-                        color={C.accent}
-                        style={{ marginRight: 6 }}
-                      />
-                    );
-                    unidad = ' km';
-                    valorStyle = { fontSize: 17, fontWeight: '700', color: C.primary };
-                  } else if (tipoPregunta === 'FLUID_LEVEL') {
-                    icono = (
-                      <Ionicons
-                        name="water-outline"
-                        size={16}
-                        color={C.accent}
-                        style={{ marginRight: 6 }}
-                      />
-                    );
-                  } else if (tipoPregunta === 'NUMBER') {
-                    icono = (
-                      <Ionicons
-                        name="calculator-outline"
-                        size={16}
-                        color={C.accent}
-                        style={{ marginRight: 6 }}
-                      />
-                    );
-                  }
-
-                  return (
-                    <View style={styles.respuestaItem}>
-                      <Text style={styles.respuestaLabel}>💬 Respuesta</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        {icono}
-                        <Text style={[styles.respuestaValor, valorStyle]}>
-                          {String(respuesta.respuesta_texto)}{unidad}
-                        </Text>
+                {hasVerificacion ? (
+                  <View style={styles.verifyBundle}>
+                    <Text style={styles.bundleSectionTitle}>Verificación</Text>
+                    {hasSeleccion ? (
+                      <View style={styles.bundleBlock}>
+                        <Text style={styles.inlineMetaLabel}>Selección</Text>
+                        <View style={styles.chipsWrap}>
+                          {opcionesSel.map((op, oi) => (
+                            <View key={String(oi)} style={styles.seleccionChip}>
+                              <Ionicons name="checkmark-circle" size={14} color={C.success} />
+                              <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
+                            </View>
+                          ))}
+                        </View>
                       </View>
-                    </View>
-                  );
-                })()}
+                    ) : null}
 
-                {/* Respuesta numérica */}
-                {respuesta.respuesta_numero !== null &&
-                  respuesta.respuesta_numero !== undefined && (
-                    <View style={styles.respuestaItem}>
-                      <Text style={styles.respuestaLabel}>🔢 Valor</Text>
-                      <Text style={styles.respuestaValor}>
-                        {String(respuesta.respuesta_numero)}
-                      </Text>
-                    </View>
-                  )}
-
-                {/* Respuesta booleana */}
-                {respuesta.respuesta_booleana !== null &&
-                  respuesta.respuesta_booleana !== undefined && (
-                    <View style={styles.respuestaItem}>
-                      <Text style={styles.respuestaLabel}>📊 Estado</Text>
-                      <View style={styles.booleanResponse}>
-                        <Ionicons
-                          name={respuesta.respuesta_booleana ? 'checkmark-circle' : 'close-circle'}
-                          size={18}
-                          color={respuesta.respuesta_booleana ? C.success : C.error}
-                        />
-                        <Text
-                          style={[
-                            styles.respuestaValor,
-                            {
-                              color: respuesta.respuesta_booleana ? C.success : C.error,
-                              marginLeft: 8,
-                              fontWeight: '600',
-                            },
-                          ]}
-                        >
-                          {String(respuesta.respuesta_booleana ? '✅ Correcto' : '⚠️ Necesita atención')}
-                        </Text>
+                    {hasTexto ? (
+                      <View style={styles.bundleBlock}>
+                        <Text style={styles.inlineMetaLabel}>Respuesta</Text>
+                        <View style={styles.valorRow}>
+                          {iconoTexto}
+                          <Text style={[styles.respuestaValor, valorStyle]}>
+                            {String(respuesta.respuesta_texto)}
+                            {unidad}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  )}
+                    ) : null}
 
-                {/* Fotos mejoradas */}
-                {respuesta.fotos && Array.isArray(respuesta.fotos) && respuesta.fotos.length > 0 && (
+                    {hasNumero ? (
+                      <View style={styles.bundleBlock}>
+                        <Text style={styles.inlineMetaLabel}>Valor numérico</Text>
+                        <Text style={styles.respuestaValor}>{String(respuesta.respuesta_numero)}</Text>
+                      </View>
+                    ) : null}
+
+                    {hasBoolean ? (
+                      <View style={styles.bundleBlock}>
+                        <Text style={styles.inlineMetaLabel}>Estado</Text>
+                        <View style={styles.booleanResponse}>
+                          <Ionicons
+                            name={respuesta.respuesta_booleana ? 'checkmark-circle' : 'close-circle'}
+                            size={18}
+                            color={respuesta.respuesta_booleana ? C.success : C.error}
+                          />
+                          <Text
+                            style={[
+                              styles.respuestaValor,
+                              respuesta.respuesta_booleana ? styles.booleanOk : styles.booleanWarn,
+                            ]}
+                          >
+                            {respuesta.respuesta_booleana ? 'Correcto' : 'Requiere atención'}
+                          </Text>
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {hasFotos ? (
                   <View style={styles.fotosContainer}>
-                    <Text style={styles.respuestaLabel}>
-                      {respuesta.fotos.length} foto{respuesta.fotos.length !== 1 ? 's' : ''} de evidencia
+                    <Text style={styles.bundleSectionTitle}>
+                      Evidencias ({fotos.length})
                     </Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      {respuesta.fotos.map((foto, fotoIndex) => {
+                      {fotos.map((foto, fotoIndex) => {
                         if (!foto || typeof foto !== 'object') return null;
                         const uri = foto.imagen_url || foto.imagen_comprimida_url || '';
                         if (!uri) return null;
-                        const caption = String(foto.descripcion || 'Evidencia del servicio');
+                        const caption = String(foto.descripcion || 'Evidencia');
 
                         return (
                           <TouchableOpacity
@@ -446,9 +407,12 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
                             accessibilityRole="imagebutton"
                             accessibilityLabel="Ampliar foto de evidencia"
                           >
-                            <Image
+                            <ExpoImage
                               source={{ uri }}
                               style={styles.fotoImagen}
+                              contentFit="cover"
+                              transition={150}
+                              cachePolicy="memory-disk"
                             />
                             <Text style={styles.fotoDescripcion} numberOfLines={2}>
                               {caption}
@@ -459,27 +423,25 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
                       })}
                     </ScrollView>
                   </View>
-                )}
+                ) : null}
 
-                {/* Fecha de respuesta */}
-                {respuesta.fecha_respuesta && (
+                {respuesta.fecha_respuesta ? (
                   <Text style={styles.fechaRespuesta}>
-                    🕐 Verificado: {String(checklistClienteService.formatearFecha(respuesta.fecha_respuesta))}
+                    Verificado: {String(checklistClienteService.formatearFecha(respuesta.fecha_respuesta))}
                   </Text>
-                )}
+                ) : null}
               </View>
             );
           } catch (err) {
             console.error('Error renderizando respuesta:', err);
             return (
               <View key={String(index)} style={styles.respuestaCard}>
-                <Text style={styles.respuestaLabel}>❌ Error cargando item</Text>
+                <Text style={styles.inlineMetaLabel}>No se pudo mostrar este ítem</Text>
               </View>
             );
           }
         })}
 
-        {/* Firmas al final de todo el contenido */}
         {renderFirmas()}
       </ScrollView>
     );
@@ -500,8 +462,8 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
             onPress={() => setMostrarFirmas(!mostrarFirmas)}
             activeOpacity={0.7}
           >
-            <Ionicons name="create" size={20} color={C.primary} />
-            <Text style={styles.firmasToggleText}>✍️ Ver Firmas de Conformidad</Text>
+            <Ionicons name="create-outline" size={20} color={C.primary} />
+            <Text style={styles.firmasToggleText}>Ver firmas de conformidad</Text>
             <Ionicons
               name={mostrarFirmas ? 'chevron-up' : 'chevron-down'}
               size={20}
@@ -528,9 +490,9 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
           onPress={() => setMostrarFirmas(!mostrarFirmas)}
           activeOpacity={0.7}
         >
-          <Ionicons name="create" size={20} color={C.primary} />
+          <Ionicons name="create-outline" size={20} color={C.primary} />
           <Text style={styles.firmasToggleText}>
-            ✍️ {mostrarFirmas ? 'Ocultar' : 'Ver'} Firmas de Conformidad
+            {mostrarFirmas ? 'Ocultar' : 'Ver'} firmas de conformidad
           </Text>
           <Ionicons
             name={mostrarFirmas ? 'chevron-up' : 'chevron-down'}
@@ -541,7 +503,7 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
 
         {mostrarFirmas && (
           <View style={styles.firmasContent}>
-            <Text style={styles.firmasTitle}>📝 Firmas de Conformidad</Text>
+            <Text style={styles.firmasTitle}>Firmas de conformidad</Text>
             <Text style={styles.firmasSubtitle}>
               Estas firmas confirman que el servicio fue completado satisfactoriamente
             </Text>
@@ -592,127 +554,115 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
   };
 
   // ─── RENDER PRINCIPAL ────────────────────────────────────────────────────
+  const lw = Math.min(winW - SPACING.lg * 2, 720);
+  const lh = Math.min(winH * 0.72, lw * 1.05);
+
   return (
     <>
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
-      <View style={styles.container}>
-        <View style={styles.bg}>
-          <View style={styles.blobGreen} />
-          <View style={styles.blobIndigo} />
-          <View style={styles.blobCyan} />
-        </View>
-
-        {/* Header mejorado */}
-        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <View style={styles.headerGlassBase} pointerEvents="none" />
-          <View style={styles.headerTopRow}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="arrow-back" size={22} color="#F9FAFB" />
-            </TouchableOpacity>
-
-            <View style={styles.headerCenter}>
-              <Text style={styles.title}>Informe de Servicio</Text>
-              <Text style={styles.subtitle} numberOfLines={1}>
-                {String(servicioNombre || 'Servicio Automotriz')}
-              </Text>
-            </View>
-
-            <View style={styles.estadoBadge}>
-              <Text style={styles.estadoBadgeTexto}>
-                {checklist?.estado === 'FINALIZADO' ? 'Completado' : (checklist?.estado || 'Completado')}
-              </Text>
+      <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
+        <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+          <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
+            <View style={styles.headerTopRow}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button">
+                <Ionicons name="arrow-back" size={22} color={DS_COLORS.text.primary} />
+              </TouchableOpacity>
+              <View style={styles.headerCenter}>
+                <Text style={styles.title}>Informe de servicio</Text>
+                <Text style={styles.subtitle} numberOfLines={2}>
+                  {String(servicioNombre || 'Servicio')}
+                </Text>
+              </View>
+              <View style={styles.estadoBadge}>
+                <Text style={styles.estadoBadgeTexto}>
+                  {checklist?.estado === 'FINALIZADO' ? 'Completado' : (checklist?.estado || '—')}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Contenido */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <View style={styles.centerCard}>
-              <View style={styles.centerCardBase} pointerEvents="none" />
-              <ActivityIndicator size="large" color="#6EE7B7" />
-            <Text style={styles.loadingText}>📋 Cargando inspección...</Text>
-              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginTop: 5 }}>
-                Obteniendo detalles del servicio realizado
-              </Text>
-            </View>
-          </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <View style={styles.centerCard}>
-              <View style={styles.centerCardBase} pointerEvents="none" />
-              <Ionicons name="warning-outline" size={64} color="#FBBF24" />
-              <Text style={styles.errorText}>⚠️ Error al cargar inspección</Text>
-              <Text style={styles.errorSubtext}>{String(error)}</Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={cargarChecklist}
-              activeOpacity={0.8}
+          {loading ? (
+            <ScrollView
+              style={styles.bodyScroll}
+              contentContainerStyle={styles.bodyScrollContent}
+              showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.retryButtonText}>🔄 Reintentar</Text>
-            </TouchableOpacity>
+              {renderProveedorBar()}
+              <View style={styles.loadingBlock}>
+                <ActivityIndicator size="large" color={DS_COLORS.primary[500]} />
+                <Text style={styles.loadingText}>Cargando inspección…</Text>
+                <Text style={styles.loadingSub}>Obteniendo detalles del servicio</Text>
+              </View>
+            </ScrollView>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <View style={styles.panelCard}>
+                <Ionicons name="warning-outline" size={48} color={DS_COLORS.warning.main} />
+                <Text style={styles.errorText}>No se pudo cargar el informe</Text>
+                <Text style={styles.errorSubtext}>{String(error)}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={cargarChecklist} activeOpacity={0.85}>
+                  <Text style={styles.retryButtonText}>Reintentar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        ) : checklist ? (
-          <View style={styles.content}>
-            {renderProveedorCard()}
-            {renderNavegacion()}
-            {renderContenido()}
-          </View>
-        ) : (
-          <View style={styles.noDataContainer}>
-            <View style={styles.centerCard}>
-              <View style={styles.centerCardBase} pointerEvents="none" />
-              <Ionicons name="document-outline" size={64} color="rgba(255,255,255,0.35)" />
-            <Text style={styles.noDataText}>📋 No hay datos de inspección disponibles</Text>
-              <Text style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', marginTop: 10 }}>
-                Este servicio no tiene una inspección registrada
-              </Text>
+          ) : checklist ? (
+            <View style={styles.content}>
+              {renderProveedorBar()}
+              {renderNavegacion()}
+              {renderContenido()}
             </View>
-          </View>
-        )}
-      </View>
-    </Modal>
-
-    <Modal
-      visible={!!photoLightbox}
-      transparent
-      animationType="fade"
-      onRequestClose={() => setPhotoLightbox(null)}
-      statusBarTranslucent
-    >
-      <View style={styles.photoLightboxRoot}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
-          activeOpacity={1}
-          onPress={() => setPhotoLightbox(null)}
-          accessibilityLabel="Cerrar vista ampliada"
-        />
-        <View
-          style={[StyleSheet.absoluteFillObject, styles.photoLightboxContent]}
-          pointerEvents="box-none"
-        >
-          {photoLightbox?.uri ? (
-            <TouchableOpacity activeOpacity={1} onPress={() => {}} accessibilityRole="image">
-              <Image
-                source={{ uri: photoLightbox.uri }}
-                style={{
-                  width: Math.min(winW - 32, 720),
-                  height: Math.min(winH * 0.72, (winW - 32) * 1.1),
-                }}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          ) : null}
-          {photoLightbox?.caption ? (
-            <Text style={styles.photoLightboxCaption} numberOfLines={4}>
-              {photoLightbox.caption}
-            </Text>
-          ) : null}
-          <Text style={styles.photoLightboxHint}>Toca fuera de la foto para cerrar</Text>
+          ) : (
+            <View style={styles.errorContainer}>
+              <View style={styles.panelCard}>
+                <Ionicons name="document-text-outline" size={48} color={DS_COLORS.text.tertiary} />
+                <Text style={styles.noDataText}>Sin datos de inspección</Text>
+                <Text style={styles.loadingSub}>Este servicio no tiene un informe registrado.</Text>
+              </View>
+            </View>
+          )}
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      <Modal
+        visible={!!photoLightbox}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPhotoLightbox(null)}
+        statusBarTranslucent
+      >
+        <View style={[styles.photoLightboxRoot, { paddingTop: insets.top + SPACING.sm }]}>
+          <Pressable
+            style={StyleSheet.absoluteFillObject}
+            onPress={() => setPhotoLightbox(null)}
+            accessibilityLabel="Cerrar vista ampliada"
+          />
+          <View style={[styles.photoLightboxInner, { paddingBottom: insets.bottom + SPACING.md }]}>
+            <TouchableOpacity
+              style={styles.photoLightboxClose}
+              onPress={() => setPhotoLightbox(null)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar"
+            >
+              <X size={22} color={DS_COLORS.base.white} />
+            </TouchableOpacity>
+            {photoLightbox?.uri ? (
+              <ExpoImage
+                source={{ uri: photoLightbox.uri }}
+                style={{ width: lw, height: lh }}
+                contentFit="contain"
+                transition={200}
+                cachePolicy="memory-disk"
+              />
+            ) : null}
+            {photoLightbox?.caption ? (
+              <Text style={styles.photoLightboxCaption} numberOfLines={4}>
+                {photoLightbox.caption}
+              </Text>
+            ) : null}
+            <Text style={styles.photoLightboxHint}>Toca fuera o el botón cerrar</Text>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 };
@@ -720,589 +670,610 @@ const ChecklistViewerModal = ({ visible, onClose, ordenId, servicioNombre }) => 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: DS_COLORS.background.default,
   },
-  bg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#030712',
-  },
-  blobGreen: {
-    position: 'absolute',
-    top: -80,
-    right: -60,
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(16,185,129,0.08)',
-  },
-  blobIndigo: {
-    position: 'absolute',
-    top: 360,
-    left: -90,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(99,102,241,0.06)',
-  },
-  blobCyan: {
-    position: 'absolute',
-    bottom: -50,
-    right: -40,
-    width: 190,
-    height: 190,
-    borderRadius: 95,
-    backgroundColor: 'rgba(6,182,212,0.05)',
-  },
-
-  // ── Header ──────────────────────────────────────────────────────────────
   header: {
-    backgroundColor: 'transparent',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  headerGlassBase: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: GLASS_BG,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: DS_COLORS.background.paper,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: DS_COLORS.border.light,
+    ...SHADOWS.sm,
   },
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.sm,
   },
   closeButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: GLASS_BG,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: DS_COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   headerCenter: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.primary,
     marginBottom: 2,
   },
   subtitle: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.secondary,
   },
   estadoBadge: {
-    backgroundColor: 'rgba(16,185,129,0.16)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginLeft: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(110,231,183,0.25)',
+    backgroundColor: DS_COLORS.success[50],
+    borderRadius: BORDERS.radius.md,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xxs,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.success[200],
+    maxWidth: 100,
   },
   estadoBadgeTexto: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6EE7B7',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.success[700],
   },
 
-  // ── Tarjeta del proveedor ────────────────────────────────────────────────
   proveedorCard: {
-    backgroundColor: GLASS_BG,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  proveedorAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: C.accent,
-  },
-  proveedorAvatarPlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  proveedorAvatarInicial: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: DS_COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
   },
   proveedorInfoContainer: {
     flex: 1,
-    marginLeft: 10,
+    minWidth: 0,
   },
   proveedorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.xs,
   },
   proveedorNombre: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.primary,
     flexShrink: 1,
   },
   proveedorTipoBadge: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 8,
-    paddingHorizontal: 6,
+    backgroundColor: DS_COLORS.primary[50],
+    borderRadius: BORDERS.radius.sm,
+    paddingHorizontal: SPACING.xs,
     paddingVertical: 2,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.primary[100],
   },
   proveedorTipoBadgeTexto: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: DS_COLORS.primary[700],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   marcasRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
-    marginTop: 4,
+    gap: SPACING.xxs,
+    marginTop: SPACING.xxs,
   },
   marcaChip: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 6,
-    paddingHorizontal: 6,
+    backgroundColor: DS_COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.sm,
+    paddingHorizontal: SPACING.xs,
     paddingVertical: 2,
   },
   marcaChipTexto: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.85)',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: DS_COLORS.text.secondary,
   },
 
-  // ── Estado / loading ────────────────────────────────────────────────────
+  bodyScroll: {
+    flex: 1,
+    backgroundColor: DS_COLORS.background.default,
+  },
+  bodyScrollContent: {
+    paddingBottom: SPACING.xl,
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
+    backgroundColor: DS_COLORS.background.default,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  loadingBlock: {
+    paddingVertical: SPACING.xl,
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    justifyContent: 'center',
   },
   loadingText: {
-    fontSize: 18,
-    color: '#F9FAFB',
-    marginTop: 15,
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: DS_COLORS.text.primary,
+    marginTop: SPACING.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  loadingSub: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.tertiary,
+    marginTop: SPACING.xs,
+    textAlign: 'center',
+    paddingHorizontal: SPACING.lg,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 30,
-    backgroundColor: 'transparent',
+    padding: SPACING.lg,
+    backgroundColor: DS_COLORS.background.default,
+  },
+  panelCard: {
+    backgroundColor: DS_COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.lg,
+    alignItems: 'center',
+    maxWidth: 360,
+    width: '100%',
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+    ...SHADOWS.sm,
   },
   errorText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FCA5A5',
-    marginBottom: 10,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.primary,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
     textAlign: 'center',
   },
   errorSubtext: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.secondary,
     textAlign: 'center',
-    marginBottom: 25,
+    marginBottom: SPACING.md,
   },
   retryButton: {
-    backgroundColor: '#007EA7',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(110,231,183,0.25)',
+    backgroundColor: DS_COLORS.primary[500],
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
   },
   retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  noDataContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 30,
-    backgroundColor: 'transparent',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.base.white,
   },
   noDataText: {
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: DS_COLORS.text.primary,
     textAlign: 'center',
-    marginTop: 15,
+    marginTop: SPACING.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
 
-  // ── Navegación de categorías ─────────────────────────────────────────────
   navegacionContainer: {
-    backgroundColor: 'transparent',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: DS_COLORS.background.paper,
+    paddingVertical: SPACING.xs,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: DS_COLORS.border.light,
   },
   categoriasScroll: {
     flexGrow: 0,
   },
+  categoriasScrollContent: {
+    paddingHorizontal: SPACING.sm,
+    gap: SPACING.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   categoriaTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: GLASS_BG,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.10)',
-  },
-
-  centerCard: {
-    backgroundColor: GLASS_BG,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    borderRadius: 18,
-    padding: 18,
-    alignItems: 'center',
-    overflow: 'hidden',
-    maxWidth: 340,
-  },
-  centerCardBase: {
-    ...StyleSheet.absoluteFillObject,
+    backgroundColor: DS_COLORS.neutral.gray[100],
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xxs + 2,
+    borderRadius: BORDERS.radius.lg,
+    marginRight: SPACING.xs,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+    gap: 4,
   },
   categoriaTabActiva: {
-    backgroundColor: 'rgba(13,148,136,0.35)',
-    borderColor: 'rgba(110,231,183,0.25)',
+    backgroundColor: DS_COLORS.primary[50],
+    borderColor: DS_COLORS.primary[200],
   },
   categoriaTabTexto: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-    marginLeft: 5,
-    marginRight: 5,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.text.secondary,
+    maxWidth: 140,
   },
   categoriaTabTextoActivo: {
-    color: '#fff',
+    color: DS_COLORS.primary[700],
   },
   categoriaContador: {
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    paddingHorizontal: 5,
+    backgroundColor: DS_COLORS.neutral.gray[200],
+    paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 10,
-    minWidth: 18,
+    minWidth: 20,
     alignItems: 'center',
   },
+  categoriaContadorActivo: {
+    backgroundColor: withOpacity(DS_COLORS.primary[500], 0.15),
+  },
   contadorTexto: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.tertiary,
+  },
+  contadorTextoActivo: {
+    color: DS_COLORS.primary[700],
   },
 
-  // ── Contenido ────────────────────────────────────────────────────────────
   contenidoContainer: {
     flex: 1,
-    backgroundColor: C.bgDefault,
+    backgroundColor: DS_COLORS.background.default,
+  },
+  contenidoScrollPad: {
+    paddingBottom: SPACING.xl,
+  },
+  contenidoEmpty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: SPACING['2xl'],
+    paddingHorizontal: SPACING.lg,
   },
   instruccionTexto: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: C.textLight,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: DS_COLORS.text.secondary,
     textAlign: 'center',
-    marginTop: 50,
-    paddingHorizontal: 30,
-    lineHeight: 26,
+    marginTop: SPACING.md,
+    lineHeight: 20,
   },
   sinDatosTexto: {
-    fontSize: 16,
-    color: C.textLight,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.secondary,
     textAlign: 'center',
-    marginTop: 30,
-    paddingHorizontal: 30,
+    marginTop: SPACING.sm,
+  },
+  categoriaHeaderBlock: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
   categoriaTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: C.textPrimary,
-    marginBottom: 8,
-    paddingHorizontal: 20,
-    marginTop: 20,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.primary,
+    marginBottom: SPACING.xxs,
   },
   categoriaSubtitle: {
-    fontSize: 16,
-    color: C.textLight,
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.tertiary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
 
-  // ── Cards de respuesta ───────────────────────────────────────────────────
   respuestaCard: {
-    backgroundColor: C.bgPaper,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: DS_COLORS.background.paper,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+    ...SHADOWS.sm,
   },
   preguntaContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 15,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: C.borderLight,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+    paddingBottom: SPACING.sm,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: DS_COLORS.border.light,
   },
   preguntaTexto: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: C.textPrimary,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.text.primary,
     flex: 1,
-    lineHeight: 24,
+    lineHeight: 22,
   },
-  respuestaItem: {
-    marginBottom: 12,
+  verifyBundle: {
+    backgroundColor: DS_COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.md,
+    padding: SPACING.sm,
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
-  respuestaLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.textLight,
-    marginBottom: 6,
+  bundleSectionTitle: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.tertiary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  bundleBlock: {
+    gap: SPACING.xxs,
+  },
+  inlineMetaLabel: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  chipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+  },
+  valorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  inlineIcon: {
+    marginRight: SPACING.xs,
+  },
+  valorKm: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.primary[600],
   },
   respuestaValor: {
-    fontSize: 17,
-    color: C.textPrimary,
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: DS_COLORS.text.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     lineHeight: 22,
   },
   booleanResponse: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: DS_COLORS.background.paper,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDERS.radius.md,
     alignSelf: 'flex-start',
+    gap: SPACING.xs,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+  },
+  booleanOk: {
+    color: DS_COLORS.success[700],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    marginLeft: 0,
+  },
+  booleanWarn: {
+    color: DS_COLORS.error[600],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    marginLeft: 0,
   },
 
-  // ── Selección chips ──────────────────────────────────────────────────────
   seleccionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.successBg,
-    borderWidth: 1,
-    borderColor: C.success,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: DS_COLORS.success[50],
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.success[200],
+    borderRadius: BORDERS.radius.md,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xxs + 2,
+    gap: 4,
   },
   seleccionChipTexto: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.successDark,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.success[800],
   },
 
-  // ── Fotos ────────────────────────────────────────────────────────────────
   fotosContainer: {
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: C.borderLight,
+    marginTop: SPACING.xs,
+    paddingTop: SPACING.sm,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: DS_COLORS.border.light,
+    gap: SPACING.xs,
   },
   fotoContainer: {
-    width: 160,
+    width: 132,
     alignItems: 'center',
-    marginRight: 12,
-    borderRadius: 12,
+    marginRight: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: DS_COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
   },
   fotoImagen: {
-    width: 160,
-    height: 160,
-    borderRadius: 12,
-    backgroundColor: C.borderLight,
+    width: 132,
+    height: 132,
+    backgroundColor: DS_COLORS.neutral.gray[200],
   },
   fotoDescripcion: {
-    fontSize: 12,
-    color: C.textLight,
-    marginTop: 6,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: DS_COLORS.text.secondary,
+    marginTop: SPACING.xxs,
     textAlign: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: SPACING.xxs,
   },
   fotoTapHint: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: C.accent,
-    marginTop: 4,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.primary[600],
+    marginTop: 2,
+    marginBottom: SPACING.xxs,
     textAlign: 'center',
-  },
-  photoLightboxRoot: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
-  },
-  photoLightboxContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  photoLightboxCaption: {
-    marginTop: 16,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-    textAlign: 'center',
-    paddingHorizontal: 12,
-    lineHeight: 20,
-    maxWidth: 360,
-  },
-  photoLightboxHint: {
-    marginTop: 14,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.5)',
-    textAlign: 'center',
-  },
-  fechaRespuesta: {
-    fontSize: 13,
-    color: C.textLight,
-    marginTop: 15,
-    fontStyle: 'italic',
-    textAlign: 'right',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
   },
 
-  // ── Firmas ───────────────────────────────────────────────────────────────
+  photoLightboxRoot: {
+    flex: 1,
+    backgroundColor: withOpacity(DS_COLORS.base.inkBlack, 0.88),
+    justifyContent: 'center',
+  },
+  photoLightboxInner: {
+    flex: 1,
+    width: '100%',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+  },
+  photoLightboxClose: {
+    position: 'absolute',
+    top: 0,
+    right: SPACING.md,
+    zIndex: 2,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: withOpacity(DS_COLORS.base.white, 0.12),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoLightboxCaption: {
+    marginTop: SPACING.md,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: withOpacity(DS_COLORS.base.white, 0.92),
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 360,
+    paddingHorizontal: SPACING.sm,
+  },
+  photoLightboxHint: {
+    marginTop: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: withOpacity(DS_COLORS.base.white, 0.5),
+    textAlign: 'center',
+  },
+
+  fechaRespuesta: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: DS_COLORS.text.tertiary,
+    marginTop: SPACING.sm,
+    textAlign: 'right',
+    paddingTop: SPACING.xs,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: DS_COLORS.border.light,
+  },
+
   firmasContainer: {
-    backgroundColor: C.bgPaper,
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 10,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: DS_COLORS.background.paper,
+    marginHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.lg,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+    ...SHADOWS.sm,
   },
   firmasToggleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.bgDefault,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: DS_COLORS.neutral.gray[100],
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
+    marginBottom: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
   },
   firmasToggleText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: C.textPrimary,
-    marginLeft: 8,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.text.primary,
+    marginLeft: SPACING.xs,
     flex: 1,
   },
   firmasContent: {
-    marginTop: 10,
+    marginTop: SPACING.xs,
   },
   sinFirmasContainer: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: SPACING.lg,
   },
   sinFirmasText: {
-    fontSize: 16,
-    color: C.textLight,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.secondary,
     textAlign: 'center',
-    marginTop: 15,
+    marginTop: SPACING.sm,
   },
   firmasTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: C.textPrimary,
-    marginBottom: 8,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.primary,
+    marginBottom: SPACING.xs,
     textAlign: 'center',
   },
   firmasSubtitle: {
-    fontSize: 14,
-    color: C.textLight,
-    fontWeight: '500',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.secondary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: SPACING.md,
     lineHeight: 20,
   },
   firmasGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: SPACING.sm,
   },
   firmaCard: {
     flex: 1,
-    backgroundColor: C.bgDefault,
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: C.borderLight,
+    minWidth: 0,
+    backgroundColor: DS_COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.md,
+    padding: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
   },
   firmaHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
     justifyContent: 'center',
   },
   firmaLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.textPrimary,
-    marginLeft: 8,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.text.primary,
+    marginLeft: SPACING.xs,
     textAlign: 'center',
   },
   firmaImageContainer: {
-    backgroundColor: C.bgPaper,
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: C.borderLight,
+    backgroundColor: DS_COLORS.background.paper,
+    borderRadius: BORDERS.radius.sm,
+    padding: SPACING.xs,
+    marginBottom: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
   },
   firmaImagen: {
     width: '100%',
     height: 100,
-    borderRadius: 6,
-    backgroundColor: C.bgDefault,
+    borderRadius: BORDERS.radius.sm,
+    backgroundColor: DS_COLORS.neutral.gray[100],
   },
   firmaDescripcion: {
-    fontSize: 12,
-    color: C.textLight,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: DS_COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 16,
   },

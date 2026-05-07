@@ -59,6 +59,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const [checklistModalVisible, setChecklistModalVisible] = useState(false);
     const [selectedChecklistId, setSelectedChecklistId] = useState(null);
     const [selectedServiceName, setSelectedServiceName] = useState('');
+    const [checklistProveedorPreview, setChecklistProveedorPreview] = useState(null);
     const [rtRenewalDueISO, setRtRenewalDueISO] = useState(null);
 
     const styles = getStyles(insets);
@@ -360,7 +361,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         );
     };
 
-    const handleViewChecklist = useCallback((item) => {
+    const handleViewChecklist = useCallback((item, proveedorPreview) => {
         const checklistId = item.id ||
             item.oferta_seleccionada_detail?.solicitud_servicio_id ||
             item.solicitud_servicio_id ||
@@ -371,6 +372,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
             const serviceName = item.servicio_nombre || item.service || 'Servicio';
             setSelectedChecklistId(checklistId);
             setSelectedServiceName(serviceName);
+            setChecklistProveedorPreview(proveedorPreview || null);
             setChecklistModalVisible(true);
         } else {
             Alert.alert('Aviso', 'No hay checklist asociado a este servicio o no se encontró el ID válido.');
@@ -379,6 +381,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
     const closeChecklistModal = useCallback(() => {
         setChecklistModalVisible(false);
+        setChecklistProveedorPreview(null);
     }, []);
 
     const webRootStyle = Platform.OS === 'web'
@@ -744,6 +747,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     onClose={closeChecklistModal}
                     ordenId={selectedChecklistId}
                     servicioNombre={selectedServiceName}
+                    proveedorPreview={checklistProveedorPreview}
                 />
             ) : null}
         </View>
