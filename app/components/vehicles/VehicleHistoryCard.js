@@ -427,24 +427,39 @@ function createHistoryRowStyles(isDark) {
       flexWrap: 'wrap',
       gap: SPACING.xs,
     },
-    priceBlock: {
+    priceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: SPACING.sm,
       marginBottom: SPACING.sm,
     },
-    costBadgeWrap: {
-      alignSelf: 'flex-end',
+    priceRowLabel: {
+      fontSize: TYPOGRAPHY.fontSize.sm,
+      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+      color: textMuted,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      marginBottom: 0,
+      flexShrink: 0,
     },
     costBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 1,
+      minWidth: 0,
+      justifyContent: 'flex-end',
       backgroundColor: isDark
         ? withOpacity(DS_COLORS.success[500], 0.15)
         : DS_COLORS.success[50],
       paddingHorizontal: SPACING.md,
-      paddingVertical: SPACING.sm,
+      paddingVertical: SPACING.xs,
       borderRadius: BORDERS.radius.md,
-      alignItems: 'flex-end',
       borderWidth: BORDERS.width.thin,
       borderColor: isDark
         ? withOpacity(DS_COLORS.success[400], 0.4)
         : DS_COLORS.success[200],
+      gap: SPACING.sm,
     },
     costLabel: {
       fontSize: TYPOGRAPHY.fontSize.xs,
@@ -594,15 +609,13 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
       </View>
 
       {Number.isFinite(displayCostAmount) && displayCostAmount > 0 && (
-        <View style={s.priceBlock}>
-          <Text style={s.groupLabel}>Monto</Text>
-          <View style={s.costBadgeWrap}>
-            <View style={s.costBadge}>
-              <Text style={s.costLabel}>Total</Text>
-              <Text style={s.costValue}>
-                ${Math.round(displayCostAmount).toLocaleString('es-CL')}
-              </Text>
-            </View>
+        <View style={s.priceRow}>
+          <Text style={s.priceRowLabel}>Monto</Text>
+          <View style={s.costBadge}>
+            <Text style={s.costLabel}>Total</Text>
+            <Text style={s.costValue} numberOfLines={1}>
+              ${Math.round(displayCostAmount).toLocaleString('es-CL')}
+            </Text>
           </View>
         </View>
       )}
