@@ -32,7 +32,7 @@ import logger from './app/utils/logger';
 import { parseMarketplaceVehicleIdFromUrl, parsePublicProviderFromUrl } from './app/utils/publicListingRoute';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { queryClient, asyncStoragePersister } from './app/config/queryClient';
+import { queryClient, asyncStoragePersister, shouldPersistQuery } from './app/config/queryClient';
 import './app/services/tripTrackingService';
 
 // CRÍTICO: Deshabilitar LogBox COMPLETAMENTE después de importar React Native
@@ -1439,7 +1439,12 @@ export default function App() {
         <ThemeProvider>
           <PersistQueryClientProvider
             client={queryClient}
-            persistOptions={{ persister: asyncStoragePersister }}
+            persistOptions={{
+              persister: asyncStoragePersister,
+              // Solo persistir catálogos públicos. Datos de usuario quedan en memoria
+              // y se borran con queryClient.clear() en logout — evita leak cross-sesión.
+              dehydrateOptions: { shouldDehydrateQuery: shouldPersistQuery },
+            }}
             onSuccess={() => logger.debug('✅ Query Cache restaurado desde MMKV/AsyncStorage')}
           >
             <AuthProvider>

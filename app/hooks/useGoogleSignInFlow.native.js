@@ -7,13 +7,17 @@ WebBrowser.maybeCompleteAuthSession();
 
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
+// Stubs de helpers web (no-op en native) — para que el código compartido pueda importarlos.
+export const getLastGoogleEmail = () => null;
+export const clearLastGoogleEmail = () => {};
+
 /** Google Sign-In en iOS/Android (fuera de Expo Go): SDK nativo. */
 export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
   const flow = options.flow || 'login';
   const onUserNotFound = options.onUserNotFound;
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleGoogleSignIn = useCallback(async () => {
+  const _doSignIn = useCallback(async (forceAccountChooser) => {
     if (IS_EXPO_GO) {
       Alert.alert(
         'Google Sign-In',
@@ -37,6 +41,11 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
     try {
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      }
+      // Para "otra cuenta": cerrar sesión local de Google → próxima llamada
+      // muestra selector de cuentas (incluye "Agregar otra cuenta").
+      if (forceAccountChooser) {
+        try { await GoogleSignin.signOut(); } catch {}
       }
       const response = await GoogleSignin.signIn();
       const idToken = response?.data?.idToken;
@@ -70,10 +79,15 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
     }
   }, [loginWithGoogle, flow, onUserNotFound]);
 
+  const handleGoogleSignIn = useCallback(() => _doSignIn(false), [_doSignIn]);
+  const signInWithAccountChooser = useCallback(() => _doSignIn(true), [_doSignIn]);
+
   return {
     handleGoogleSignIn,
     googleLoading,
     googleButtonDisabled: IS_EXPO_GO,
     isWebOAuthReady: false,
+    renderNativeGoogleButton: undefined,
+    signInWithAccountChooser,
   };
 }

@@ -954,6 +954,25 @@ export const AuthProvider = ({ children }) => {
 
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user');
+      // Borrar cualquier credencial recordada (privacidad estricta multi-usuario).
+      await AsyncStorage.multiRemove(['rememberMe', 'savedEmail', 'savedPassword']).catch(() => {});
+
+      // Web: limpiar localStorage privado (hints OAuth, etc.)
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem('mecanimovil:lastGoogleEmail');
+        } catch {}
+      }
+
+      // iOS/Android: signOut del SDK nativo de Google si está disponible.
+      try {
+        if (Platform.OS !== 'web' && !IS_EXPO_GO) {
+          const { GoogleSignin: GS } = require('@react-native-google-signin/google-signin');
+          await GS.signOut().catch(() => {});
+        }
+      } catch (_googleSignOutErr) {
+        // No crítico, continuar.
+      }
 
       setToken(null);
       setUser(null);

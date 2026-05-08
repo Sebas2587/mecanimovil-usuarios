@@ -84,3 +84,42 @@ export const queryClient = new QueryClient({
         },
     },
 });
+
+// Lista de prefijos de queryKey que CONTIENEN data privada de usuario.
+// Estos NUNCA deben persistirse a disco para evitar leaks cross-sesión.
+// (categorías, marcas, modelos -> sí pueden persistirse, son catálogos públicos)
+const USER_SCOPED_KEY_PREFIXES = new Set([
+    'requests',
+    'activeRequests',
+    'request',
+    'userVehicles',
+    'vehicles',
+    'vehicleHealth',
+    'vehicleHealthComponents',
+    'vehicleServices',
+    'userProfile',
+    'chats',
+    'chat',
+    'notifications',
+    'unreadCount',
+    'userAddresses',
+    'userPanelNearbyProviders',
+    'userPanelMarketActivity',
+    'weatherPrediction',
+    'favorites',
+    'bookings',
+    'agendamientos',
+    'ofertas',
+]);
+
+/**
+ * Filtro para PersistQueryClientProvider.dehydrateOptions.shouldDehydrateQuery.
+ * Solo persiste queries de catálogos públicos. Datos de usuario quedan únicamente
+ * en memoria y se pierden con queryClient.clear() en logout — sin riesgo de leak.
+ */
+export function shouldPersistQuery(query) {
+    const prefix = Array.isArray(query?.queryKey) ? query.queryKey[0] : null;
+    if (typeof prefix !== 'string') return false;
+    if (USER_SCOPED_KEY_PREFIXES.has(prefix)) return false;
+    return query.state.status === 'success';
+}

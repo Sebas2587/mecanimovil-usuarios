@@ -24,7 +24,7 @@ import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
-import { useGoogleSignInFlow } from '../../hooks/useGoogleSignInFlow';
+import { useGoogleSignInFlow, getLastGoogleEmail } from '../../hooks/useGoogleSignInFlow';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
 import logger from '../../utils/logger';
 import * as authService from '../../services/auth';
@@ -47,7 +47,14 @@ const LoginScreen = () => {
   const insets = useSafeAreaInsets();
   const { login, loginWithGoogle } = useAuth();
   const queryClient = useQueryClient();
-  const { handleGoogleSignIn, googleLoading, googleButtonDisabled, isWebOAuthReady, renderNativeGoogleButton } = useGoogleSignInFlow(loginWithGoogle, {
+  const {
+    handleGoogleSignIn,
+    googleLoading,
+    googleButtonDisabled,
+    isWebOAuthReady,
+    renderNativeGoogleButton,
+    signInWithAccountChooser,
+  } = useGoogleSignInFlow(loginWithGoogle, {
     flow: 'login',
     onUserNotFound: (profile) => {
       navigation.navigate(ROUTES.REGISTER, {
@@ -60,16 +67,22 @@ const LoginScreen = () => {
     },
   });
 
+  const [lastGoogleEmail, setLastGoogleEmail] = useState(null);
   const googleNativeBtnRef = React.useRef(null);
 
-  // Render Google's native sign-in button when GIS SDK is ready (web only).
-  // renderButton() has no One Tap cooldown and shows "Use another account" option.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    setLastGoogleEmail(getLastGoogleEmail());
+  }, []);
+
+  // Render Google's native button cuando hay cuenta previa (rápido para reusarla).
   useEffect(() => {
     if (Platform.OS !== 'web' || !isWebOAuthReady) return;
     if (!renderNativeGoogleButton) return;
+    if (!lastGoogleEmail) return; // Sin cuenta previa, mostramos botón "Usar otra cuenta" directo
     if (!googleNativeBtnRef.current) return;
     renderNativeGoogleButton(googleNativeBtnRef.current);
-  }, [isWebOAuthReady, renderNativeGoogleButton]);
+  }, [isWebOAuthReady, renderNativeGoogleButton, lastGoogleEmail]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -317,20 +330,56 @@ const LoginScreen = () => {
           </View>
 
           {Platform.OS === 'web' ? (
-            // Web: botón nativo de Google (sin cooldown, soporta "Usar otra cuenta").
-            // renderNativeGoogleButton() inyecta el iframe de GIS aquí.
             <View style={styles.googleNativeContainer}>
-              <View ref={googleNativeBtnRef} style={styles.googleNativeBtnWrap} />
-              {!isWebOAuthReady && (
-                <ActivityIndicator size="small" color={COLORS.primary[500]} style={{ marginTop: 8 }} />
+              {lastGoogleEmail ? (
+                <>
+                  {/* Cuenta previa: muestra botón GIS nativo (reusa cuenta cacheada rápido) */}
+                  <Text style={styles.googleHintText}>
+                    Última cuenta:{' '}
+                    <Text style={styles.googleHintEmail}>{lastGoogleEmail}</Text>
+                  </Text>
+                  <View ref={googleNativeBtnRef} style={styles.googleNativeBtnWrap} />
+                  {!isWebOAuthReady && (
+                    <ActivityIndicator size="small" color={COLORS.primary[500]} style={{ marginTop: 8 }} />
+                  )}
+                  <TouchableOpacity
+                    onPress={signInWithAccountChooser}
+                    disabled={googleLoading}
+                    style={styles.googleSwitchAccountBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.googleSwitchAccountText}>
+                      Iniciar con otra cuenta de Google
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                // Sin cuenta previa → popup OAuth2 con select_account directamente
+                <GoogleSignInButton
+                  onPress={signInWithAccountChooser}
+                  isLoading={googleLoading}
+                  disabled={!isWebOAuthReady && googleLoading}
+                />
               )}
             </View>
           ) : (
-            <GoogleSignInButton
-              onPress={handleGoogleSignIn}
-              isLoading={googleLoading}
-              disabled={googleButtonDisabled}
-            />
+            <>
+              <GoogleSignInButton
+                onPress={handleGoogleSignIn}
+                isLoading={googleLoading}
+                disabled={googleButtonDisabled}
+              />
+              <TouchableOpacity
+                onPress={signInWithAccountChooser}
+                disabled={googleLoading || googleButtonDisabled}
+                style={styles.googleSwitchAccountBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.googleSwitchAccountText}>
+                  Iniciar con otra cuenta de Google
+                </Text>
+              </TouchableOpacity>
+            </>
           )}
         </GlassCard>
       </ScrollView>
@@ -469,6 +518,27 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  googleHintText: {
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    color: COLORS.text.tertiary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  googleHintEmail: {
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+  },
+  googleSwitchAccountBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginTop: 10,
+  },
+  googleSwitchAccountText: {
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[500],
+    textAlign: 'center',
   },
 
   oauthDivider: {
