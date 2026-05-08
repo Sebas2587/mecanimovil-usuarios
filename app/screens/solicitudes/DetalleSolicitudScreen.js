@@ -8,7 +8,8 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  Platform
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,6 +50,19 @@ const DetalleSolicitudScreen = () => {
   const route = useRoute();
   const { solicitudId } = route.params || {};
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+
+  const webScreenFrame =
+    Platform.OS === 'web'
+      ? {
+          height: windowHeight,
+          maxHeight: windowHeight,
+          minHeight: 0,
+          flex: 1,
+          overflow: 'hidden',
+          position: 'relative',
+        }
+      : null;
 
   const { seleccionarOferta, cancelarSolicitud } = useSolicitudes();
 
@@ -209,7 +223,13 @@ const DetalleSolicitudScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.loadingContainer, Platform.OS === 'web' && styles.loadingContainerWeb]}>
+      <View
+        style={[
+          styles.loadingContainer,
+          Platform.OS === 'web' && styles.loadingContainerWeb,
+          Platform.OS === 'web' && webScreenFrame,
+        ]}
+      >
         <ActivityIndicator size="large" color={COLORS.primary[500]} />
         <Text style={styles.loadingText}>Cargando detalles...</Text>
       </View>
@@ -219,7 +239,7 @@ const DetalleSolicitudScreen = () => {
   if (!solicitud) return null;
 
   return (
-    <View style={[styles.container, Platform.OS === 'web' && styles.containerWeb]}>
+    <View style={[styles.container, webScreenFrame]}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -556,24 +576,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background.default,
   },
-  containerWeb: {
-    height: '100%',
-    minHeight: 0,
-    overflow: 'hidden',
-    position: 'relative',
-  },
   scrollHost: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { minHeight: 0, flex: 1 } : null),
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { overflow: 'hidden' } : null),
   },
   scroll: {
-    flex: 1,
     ...(Platform.OS === 'web'
       ? {
+          flexGrow: 1,
+          flexShrink: 1,
+          flexBasis: 0,
           minHeight: 0,
           overflow: 'scroll',
+          WebkitOverflowScrolling: 'touch',
         }
-      : null),
+      : { flex: 1 }),
   },
   loadingContainer: {
     flex: 1,
@@ -582,7 +600,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background.default,
   },
   loadingContainerWeb: {
-    height: '100%',
     minHeight: 0,
   },
   loadingText: {
@@ -629,7 +646,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: SPACING.container.horizontal,
-    flexGrow: 1,
+    ...Platform.select({
+      web: { flexGrow: 0 },
+      default: { flexGrow: 1 },
+    }),
   },
   tabSection: {
     marginTop: SPACING.sm,

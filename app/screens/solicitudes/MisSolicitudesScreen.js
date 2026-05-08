@@ -9,6 +9,7 @@ import {
   StatusBar,
   Alert,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -38,6 +39,19 @@ const MisSolicitudesScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+
+  /** RN Web: sin altura acotada al viewport el VirtualizedList no hace scroll interno. */
+  const webRootFrame =
+    Platform.OS === 'web'
+      ? {
+          height: windowHeight,
+          maxHeight: windowHeight,
+          minHeight: 0,
+          flex: 1,
+          overflow: 'hidden',
+        }
+      : null;
 
   const [mainTab, setMainTab] = useState(() => parseRouteToTabs(route).mainTab);
   const [filtroSegment, setFiltroSegment] = useState(() => parseRouteToTabs(route).filtroSegment);
@@ -296,7 +310,7 @@ const MisSolicitudesScreen = () => {
 
   if (showInitialSkeleton) {
     return (
-      <View style={styles.root}>
+      <View style={[styles.root, webRootFrame]}>
         <StatusBar barStyle="dark-content" />
         <View style={styles.mainColumn}>
           {renderHeaderChrome()}
@@ -307,7 +321,7 @@ const MisSolicitudesScreen = () => {
   }
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, webRootFrame]}>
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.mainColumn}>
@@ -367,28 +381,29 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.background.default,
-    ...(Platform.OS === 'web'
-      ? { height: '100%', minHeight: 0, overflow: 'hidden' }
-      : null),
   },
   /** Columna header + lista: en web el FlatList necesita un padre flex con minHeight 0 para scroll interno. */
   mainColumn: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { minHeight: 0, display: 'flex', flexDirection: 'column' } : null),
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column' } : null),
   },
   safeContent: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { minHeight: 0, flex: 1, overflow: 'hidden' } : null),
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { flex: 1, overflow: 'hidden' } : null),
   },
   list: {
-    flex: 1,
     ...(Platform.OS === 'web'
       ? {
+          flexGrow: 1,
+          flexShrink: 1,
+          flexBasis: 0,
           minHeight: 0,
           overflow: 'scroll',
           WebkitOverflowScrolling: 'touch',
         }
-      : null),
+      : { flex: 1 }),
   },
   headerContainer: {
     paddingBottom: 8,

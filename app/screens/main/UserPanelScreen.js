@@ -896,45 +896,51 @@ const UserPanelScreen = () => {
 
         {/* Telemetry */}
         {selectedVehicle && (
-          <Card style={styles.telemetryCard}>
-            <View style={styles.telemetryTopRow}>
-              <Text style={styles.telemetryConsoleLabel}>Viaje y telemetría</Text>
-            </View>
+          <Card style={styles.telemetryCardShell}>
+            <View style={styles.telemetryStack}>
+              <View style={styles.telemetryTopRow}>
+                <Text style={styles.telemetryConsoleLabel}>Viaje y telemetría</Text>
+              </View>
 
-            <View style={styles.telemetryMainRow}>
-              <View style={styles.telemetryKmBlock}>
-                <Text style={styles.telemetryKmHuge}>{tripKm.toFixed(1)}</Text>
-                <Text style={styles.telemetryKmUnit}>km</Text>
-                {tripActive && (
-                  <View style={styles.telemetrySubStats}>
-                    <Text style={styles.telemetrySubStatText}>
-                      {formatDuration(tripElapsed)}
-                    </Text>
-                    <Text style={styles.telemetrySubStatSep}>·</Text>
-                    <Text style={styles.telemetrySubStatText}>{currentSpeed} km/h</Text>
+              <View style={styles.telemetryMainRow}>
+                <View style={styles.telemetryKmBlock}>
+                  <View style={styles.telemetryKmRow}>
+                    <Text style={styles.telemetryKmHuge}>{tripKm.toFixed(1)}</Text>
+                    <Text style={styles.telemetryKmUnit}>km</Text>
                   </View>
+                  {tripActive && (
+                    <View style={styles.telemetrySubStats}>
+                      <Text style={styles.telemetrySubStatText}>
+                        {formatDuration(tripElapsed)}
+                      </Text>
+                      <Text style={styles.telemetrySubStatSep}>·</Text>
+                      <Text style={styles.telemetrySubStatText}>{currentSpeed} km/h</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              {!tripActive && (
+                <Text style={styles.tripHint}>
+                  Registra un viaje con GPS para contar kilómetros en tiempo real; esos datos alimentan
+                  el motor de salud y las predicciones del vehículo.
+                </Text>
+              )}
+
+              <View style={styles.telemetryCtaWrap}>
+                {tripActive ? (
+                  <SoftButton onPress={stopTrip} variant="stop">
+                    <Square size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
+                    <Text style={styles.softBtnTextStop}>Detener viaje</Text>
+                  </SoftButton>
+                ) : (
+                  <SoftButton onPress={startTrip}>
+                    <Play size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
+                    <Text style={styles.softBtnTextPrimary}>Iniciar viaje</Text>
+                  </SoftButton>
                 )}
               </View>
             </View>
-
-            {!tripActive && (
-              <Text style={styles.tripHint}>
-                Registra un viaje con GPS para contar kilómetros en tiempo real; esos datos alimentan
-                el motor de salud y las predicciones del vehículo.
-              </Text>
-            )}
-
-            {tripActive ? (
-              <SoftButton onPress={stopTrip} variant="stop">
-                <Square size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
-                <Text style={styles.softBtnTextStop}>Detener viaje</Text>
-              </SoftButton>
-            ) : (
-              <SoftButton onPress={startTrip}>
-                <Play size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
-                <Text style={styles.softBtnTextPrimary}>Iniciar viaje</Text>
-              </SoftButton>
-            )}
           </Card>
         )}
 
@@ -1734,11 +1740,16 @@ const styles = StyleSheet.create({
   },
 
   // Telemetry
-  telemetryCard: {
-    marginBottom: 12,
+  telemetryCardShell: {
+    marginBottom: SPACING.md,
+    padding: SPACING.lg,
+  },
+  telemetryStack: {
+    width: '100%',
+    gap: SPACING.md,
   },
   telemetryTopRow: {
-    marginBottom: 6,
+    marginBottom: 0,
   },
   telemetryConsoleLabel: {
     ...TYPOGRAPHY.styles.label,
@@ -1749,12 +1760,19 @@ const styles = StyleSheet.create({
   },
   telemetryMainRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 0,
   },
   telemetryKmBlock: {
     flex: 1,
     minWidth: 0,
+    gap: SPACING.xs,
+  },
+  telemetryKmRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
   },
   telemetryKmHuge: {
     ...TYPOGRAPHY.styles.numberDisplay,
@@ -1765,17 +1783,17 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? { fontFeatureSettings: '"tnum"' } : {}),
   },
   telemetryKmUnit: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     fontFamily: TYPOGRAPHY.fontFamily.mono,
     color: COLORS.text.tertiary,
-    marginTop: -4,
   },
   telemetrySubStats: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 2,
-    gap: 4,
+    flexWrap: 'wrap',
+    marginTop: SPACING.xs,
+    gap: SPACING.xs,
   },
   telemetrySubStatText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -2031,7 +2049,13 @@ const styles = StyleSheet.create({
   tripHint: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    marginBottom: 8,
+    lineHeight: 22,
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  telemetryCtaWrap: {
+    width: '100%',
+    marginTop: SPACING.xs,
   },
 
   panelSectionHeader: {
