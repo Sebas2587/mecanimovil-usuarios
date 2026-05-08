@@ -14,9 +14,9 @@ const CACHE = {
 export const useRequests = () => {
     const { user } = useAuth();
     return useQuery({
-        queryKey: ['requests'],
+        queryKey: ['requests', user?.id ?? 'anon'],
         queryFn: () => solicitudesService.obtenerMisSolicitudes(),
-        enabled: !!user,
+        enabled: !!user?.id,
         select: (data) => (Array.isArray(data) ? data : []),
         ...CACHE,
     });
@@ -25,9 +25,9 @@ export const useRequests = () => {
 export const useActiveRequests = () => {
     const { user } = useAuth();
     return useQuery({
-        queryKey: ['activeRequests'],
+        queryKey: ['activeRequests', user?.id ?? 'anon'],
         queryFn: () => solicitudesService.obtenerSolicitudesActivas(),
-        enabled: !!user,
+        enabled: !!user?.id,
         select: (data) => (Array.isArray(data) ? data : []),
         ...CACHE,
     });
@@ -35,12 +35,15 @@ export const useActiveRequests = () => {
 
 export const useCreateRequest = () => {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    const activeKey = ['activeRequests', user?.id ?? 'anon'];
+    const allKey = ['requests', user?.id ?? 'anon'];
     return useMutation({
         mutationFn: solicitudesService.crearSolicitud,
         onMutate: async (newRequest) => {
-            await queryClient.cancelQueries({ queryKey: ['activeRequests'] });
+            await queryClient.cancelQueries({ queryKey: activeKey });
 
-            const previousRequests = queryClient.getQueryData(['activeRequests']);
+            const previousRequests = queryClient.getQueryData(activeKey);
 
             const optimisticRequest = {
                 id: 'temp-' + Date.now(),
@@ -50,7 +53,7 @@ export const useCreateRequest = () => {
                 isOptimistic: true
             };
 
-            queryClient.setQueryData(['activeRequests'], (old) => {
+            queryClient.setQueryData(activeKey, (old) => {
                 const current = Array.isArray(old) ? old : [];
                 return [optimisticRequest, ...current];
             });
@@ -58,44 +61,53 @@ export const useCreateRequest = () => {
             return { previousRequests };
         },
         onError: (err, newRequest, context) => {
-            queryClient.setQueryData(['activeRequests'], context.previousRequests);
+            queryClient.setQueryData(activeKey, context.previousRequests);
         },
         onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
+            queryClient.invalidateQueries({ queryKey: allKey });
+            queryClient.invalidateQueries({ queryKey: activeKey });
         }
     });
 };
 
 export const usePublishRequest = () => {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    const activeKey = ['activeRequests', user?.id ?? 'anon'];
+    const allKey = ['requests', user?.id ?? 'anon'];
     return useMutation({
         mutationFn: solicitudesService.publicarSolicitud,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
+            queryClient.invalidateQueries({ queryKey: allKey });
+            queryClient.invalidateQueries({ queryKey: activeKey });
         }
     });
 };
 
 export const useCancelRequest = () => {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    const activeKey = ['activeRequests', user?.id ?? 'anon'];
+    const allKey = ['requests', user?.id ?? 'anon'];
     return useMutation({
         mutationFn: solicitudesService.cancelarSolicitud,
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
+            queryClient.invalidateQueries({ queryKey: allKey });
+            queryClient.invalidateQueries({ queryKey: activeKey });
         }
     });
 };
 
 export const useSelectOffer = () => {
     const queryClient = useQueryClient();
+    const { user } = useAuth();
+    const activeKey = ['activeRequests', user?.id ?? 'anon'];
+    const allKey = ['requests', user?.id ?? 'anon'];
     return useMutation({
         mutationFn: ({ solicitudId, ofertaId }) => solicitudesService.seleccionarOferta(solicitudId, ofertaId),
         onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({ queryKey: ['requests'] });
-            queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
+            queryClient.invalidateQueries({ queryKey: allKey });
+            queryClient.invalidateQueries({ queryKey: activeKey });
             queryClient.invalidateQueries({ queryKey: ['request', variables.solicitudId] });
         }
     });

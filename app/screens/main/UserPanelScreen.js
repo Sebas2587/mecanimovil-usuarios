@@ -219,7 +219,7 @@ const UserPanelScreen = () => {
     refetch: refetchVehicles,
     isRefetching,
   } = useQuery({
-    queryKey: ['userVehicles'],
+    queryKey: ['userVehicles', user?.id ?? 'anon'],
     queryFn: getUserVehicles,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
@@ -798,12 +798,12 @@ const UserPanelScreen = () => {
         {/* Quick Actions */}
         <ScrollView
           horizontal
-          nestedScrollEnabled
+          nestedScrollEnabled={Platform.OS !== 'web'}
           showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          snapToInterval={QUICK_ACTION_SNAP_INTERVAL}
-          snapToAlignment="start"
-          disableIntervalMomentum
+          decelerationRate={Platform.OS === 'web' ? undefined : 'fast'}
+          snapToInterval={Platform.OS === 'web' ? undefined : QUICK_ACTION_SNAP_INTERVAL}
+          snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
+          disableIntervalMomentum={Platform.OS === 'web' ? undefined : true}
           contentContainerStyle={styles.quickScrollContent}
           style={styles.quickScrollOuter}
           keyboardShouldPersistTaps="handled"
@@ -2091,6 +2091,13 @@ const styles = StyleSheet.create({
   quickScrollOuter: {
     marginBottom: 16,
     marginHorizontal: -2,
+    ...(Platform.OS === 'web'
+      ? {
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+        }
+      : null),
   },
   quickScrollContent: {
     flexDirection: 'row',

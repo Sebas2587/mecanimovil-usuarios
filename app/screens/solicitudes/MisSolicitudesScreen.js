@@ -357,7 +357,7 @@ const MisSolicitudesScreen = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.background.default },
-  safeContent: { flex: 1 },
+  safeContent: { flex: 1, ...(Platform.OS === 'web' ? { minHeight: 0 } : null) },
   headerContainer: {
     paddingBottom: 8,
     zIndex: 2,

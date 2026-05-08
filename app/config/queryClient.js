@@ -56,10 +56,19 @@ const initializeStorage = () => {
 const { storageImpl, isMMKV } = initializeStorage();
 
 // Configuración del Persister
+const PERSIST_KEY = isMMKV ? 'OFFLINE_CACHE_V1' : 'OFFLINE_CACHE_ASYNC_V1';
 export const asyncStoragePersister = createAsyncStoragePersister({
     storage: storageImpl,
-    key: isMMKV ? 'OFFLINE_CACHE_V1' : 'OFFLINE_CACHE_ASYNC_V1', // Usar key diferente por seguridad
+    key: PERSIST_KEY, // Usar key diferente por seguridad
 });
+
+export async function clearPersistedQueryCache() {
+    try {
+        await storageImpl.removeItem(PERSIST_KEY);
+    } catch (e) {
+        logger.warn('⚠️ Error limpiando cache persistida (ignorable):', e?.message || e);
+    }
+}
 
 // Configuración global del QueryClient
 export const queryClient = new QueryClient({

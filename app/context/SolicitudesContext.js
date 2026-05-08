@@ -114,7 +114,7 @@ export function SolicitudesProvider({ children }) {
 
         // Invalidate relevant queries
         queryClient.invalidateQueries({ queryKey: ['requests'] });
-        queryClient.invalidateQueries({ queryKey: ['requests', 'active'] });
+        queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
         queryClient.invalidateQueries({ queryKey: ['request', data.solicitud_id] }); // If we have individual request queries
       }
     };
@@ -122,7 +122,7 @@ export function SolicitudesProvider({ children }) {
     const handleSolicitudAdjudicada = (data) => {
       console.log('✅ Solicitud adjudicada vía WebSocket:', data);
       queryClient.invalidateQueries({ queryKey: ['requests'] });
-      queryClient.invalidateQueries({ queryKey: ['requests', 'active'] });
+      queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
     };
 
     const timeoutId = setTimeout(() => {
@@ -135,6 +135,19 @@ export function SolicitudesProvider({ children }) {
       websocketService.offMessage('nueva_oferta');
       websocketService.offMessage('solicitud_adjudicada');
     };
+  }, [queryClient, user]);
+
+  // Guardrail multi-sesión: al cerrar sesión (user=null) limpiar cache + estado efímero,
+  // para que nunca aparezcan solicitudes/ofertas de usuario anterior.
+  useEffect(() => {
+    if (user) return;
+    setOfertasNuevas([]);
+    setOfertasNuevasPorSolicitud({});
+    setUltimaOfertaRecibida(null);
+    setWsError(null);
+    queryClient.removeQueries({ queryKey: ['requests'] });
+    queryClient.removeQueries({ queryKey: ['activeRequests'] });
+    queryClient.removeQueries({ queryKey: ['request'] });
   }, [queryClient, user]);
 
   const limpiarOfertasNuevas = useCallback(() => {

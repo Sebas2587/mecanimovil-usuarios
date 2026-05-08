@@ -8,6 +8,7 @@ import { forceReconnect, setOnAuthExpired } from '../services/api';
 import logger from '../utils/logger';
 import NotificationService from '../services/notificationService';
 import Constants from 'expo-constants';
+import { queryClient, clearPersistedQueryCache } from '../config/queryClient';
 
 // @react-native-google-signin/google-signin — solo binarios iOS/Android; no web ni Expo Go.
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
@@ -942,6 +943,11 @@ export const AuthProvider = ({ children }) => {
       }
 
       await authService.logoutFromServer();
+
+      // CRÍTICO multi-sesión: limpiar cache React Query (incluye persistencia offline)
+      // para evitar que datos de usuario anterior aparezcan en nueva sesión.
+      queryClient.clear();
+      await clearPersistedQueryCache();
 
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user');
