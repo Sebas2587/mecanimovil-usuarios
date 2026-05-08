@@ -38,7 +38,17 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
     (async () => {
       setGoogleLoading(true);
       try {
+        // eslint-disable-next-line no-console
+        console.log('[GoogleAuth][web] auth response received. flow=', flow);
+
         const result = await loginWithGoogle(idToken, flow);
+        // eslint-disable-next-line no-console
+        console.log('[GoogleAuth][web] backend result:', {
+          success: result?.success,
+          code: result?.code,
+          hasProfile: !!result?.profile,
+        });
+
         if (!cancelled && result?.code === 'USER_NOT_FOUND') {
           onUserNotFound?.(result?.profile);
           return;
@@ -68,7 +78,11 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
     }
     setGoogleLoading(true);
     try {
+      // eslint-disable-next-line no-console
+      console.log('[GoogleAuth][web] promptAsync starting. flow=', flow);
       const result = await googlePromptAsync();
+      // eslint-disable-next-line no-console
+      console.log('[GoogleAuth][web] promptAsync result:', { type: result?.type });
       if (result?.type === 'cancel' || result?.type === 'dismiss') {
         setGoogleLoading(false);
         return;
