@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Platform,
   ScrollView,
   Alert,
   Image,
@@ -12,18 +11,20 @@ import {
   Modal,
   StatusBar,
   ActivityIndicator,
+  Animated,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
-import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
 import {
   useGoogleSignInFlow,
   getConnectedGoogleAccountsAsync,
@@ -39,23 +40,17 @@ import ofertasService from '../../services/ofertasService';
 import vehiculoService from '../../services/vehicle';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
 
-const GlassCard = ({ children, style }) => (
-  <View style={[styles.card, style]}>{children}</View>
-);
-
+/** ─────────────────────────────────────────────────────────────────────────── */
 const LoginScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { login, loginWithGoogle } = useAuth();
   const queryClient = useQueryClient();
-  const {
-    googleLoading,
-    googleButtonDisabled,
-    signInWithAccountChooser,
-  } = useGoogleSignInFlow(loginWithGoogle, {
+
+  // Google sign-in hook
+  const { googleLoading, signInWithAccountChooser } = useGoogleSignInFlow(loginWithGoogle, {
     flow: 'login',
     onUserNotFound: (profile) => {
       navigation.navigate(ROUTES.REGISTER, {
@@ -68,18 +63,14 @@ const LoginScreen = () => {
     },
   });
 
+  // Connected Google accounts (Canva-style list)
   const [connectedAccounts, setConnectedAccounts] = useState([]);
-
-  // Carga lista de cuentas Google ya usadas en el dispositivo (UX tipo Canva).
-  // Recargar también cuando termina un loading (post-login agrega cuenta nueva).
   useEffect(() => {
     let alive = true;
     getConnectedGoogleAccountsAsync().then((list) => {
       if (alive) setConnectedAccounts(list);
     });
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [googleLoading]);
 
   const handleClearGoogleAccounts = async () => {
@@ -97,12 +88,28 @@ const LoginScreen = () => {
     signInWithAccountChooser();
   };
 
+  // Email/password form (hidden by default — only shown if user taps "Usar correo")
+  const [emailMode, setEmailMode] = useState(false);
+  const emailModeAnim = useRef(new Animated.Value(0)).current;
+
+  const toggleEmailMode = () => {
+    const next = !emailMode;
+    setEmailMode(next);
+    Animated.spring(emailModeAnim, {
+      toValue: next ? 1 : 0,
+      useNativeDriver: false,
+      tension: 60,
+      friction: 10,
+    }).start();
+  };
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Forgot password modal
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [forgotPasswordStep, setForgotPasswordStep] = useState(1);
@@ -113,50 +120,37 @@ const LoginScreen = () => {
   const [forgotPasswordErrors, setForgotPasswordErrors] = useState({});
 
   useEffect(() => {
-    const loadRememberedCredentials = async () => {
-      try {
-        const remembered = await AsyncStorage.getItem('rememberMe');
-        if (remembered === 'true') {
-          const savedEmail = await AsyncStorage.getItem('savedEmail');
-          const savedPassword = await AsyncStorage.getItem('savedPassword');
-          if (savedEmail && savedPassword) {
-            setEmail(savedEmail);
-            setPassword(savedPassword);
-            setRememberMe(true);
-          }
+    AsyncStorage.getItem('rememberMe').then((val) => {
+      if (val !== 'true') return;
+      Promise.all([
+        AsyncStorage.getItem('savedEmail'),
+        AsyncStorage.getItem('savedPassword'),
+      ]).then(([savedEmail, savedPassword]) => {
+        if (savedEmail && savedPassword) {
+          setEmail(savedEmail);
+          setPassword(savedPassword);
+          setRememberMe(true);
+          setEmailMode(true);
+          emailModeAnim.setValue(1);
         }
-      } catch (error) {
-        logger.error('Error cargando credenciales recordadas:', error);
-      }
-    };
-    loadRememberedCredentials();
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleForgotPassword = async () => {
-    if (!forgotPasswordEmail) {
-      setForgotPasswordErrors({ email: 'El correo electrónico es requerido' });
-      return;
-    }
-    if (!/\S+@\S+\.\S+/.test(forgotPasswordEmail)) {
-      setForgotPasswordErrors({ email: 'El correo electrónico no es válido' });
-      return;
-    }
+    if (!forgotPasswordEmail) { setForgotPasswordErrors({ email: 'El correo electrónico es requerido' }); return; }
+    if (!/\S+@\S+\.\S+/.test(forgotPasswordEmail)) { setForgotPasswordErrors({ email: 'El correo electrónico no es válido' }); return; }
     setForgotPasswordLoading(true);
     setForgotPasswordErrors({});
     try {
       await authService.forgotPassword(forgotPasswordEmail);
       setForgotPasswordStep(2);
-      Alert.alert('Solicitud enviada', 'Se ha enviado un token de recuperación a tu correo electrónico.', [{ text: 'OK' }]);
+      Alert.alert('Solicitud enviada', 'Se ha enviado un token de recuperación a tu correo electrónico.');
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.message || 'Ocurrió un error al solicitar la recuperación.';
-      const statusCode = error.response?.status || error.status;
-      if (statusCode === 404) {
-        setForgotPasswordErrors({ email: errorMessage });
-        Alert.alert('Correo no registrado', errorMessage);
-      } else {
-        setForgotPasswordErrors({ email: errorMessage });
-        Alert.alert('Error', errorMessage);
-      }
+      const msg = error.response?.data?.error || error.message || 'Ocurrió un error.';
+      setForgotPasswordErrors({ email: msg });
+      Alert.alert(error.response?.status === 404 ? 'Correo no registrado' : 'Error', msg);
       setForgotPasswordStep(1);
     } finally {
       setForgotPasswordLoading(false);
@@ -166,14 +160,13 @@ const LoginScreen = () => {
   const handleResetPassword = async () => {
     if (!resetToken) { setForgotPasswordErrors({ token: 'El token es requerido' }); return; }
     if (!newPassword) { setForgotPasswordErrors({ newPassword: 'La nueva contraseña es requerida' }); return; }
-    if (newPassword.length < 8) { setForgotPasswordErrors({ newPassword: 'La contraseña debe tener al menos 8 caracteres' }); return; }
+    if (newPassword.length < 8) { setForgotPasswordErrors({ newPassword: 'Mínimo 8 caracteres' }); return; }
     if (newPassword !== confirmNewPassword) { setForgotPasswordErrors({ confirmNewPassword: 'Las contraseñas no coinciden' }); return; }
-
     setForgotPasswordLoading(true);
     setForgotPasswordErrors({});
     try {
       await authService.resetPassword(resetToken, newPassword);
-      Alert.alert('Contraseña restablecida', 'Tu contraseña ha sido restablecida exitosamente.', [{
+      Alert.alert('Contraseña restablecida', 'Tu contraseña fue restablecida exitosamente.', [{
         text: 'OK', onPress: () => {
           setShowForgotPasswordModal(false);
           setForgotPasswordStep(1);
@@ -181,12 +174,12 @@ const LoginScreen = () => {
           setResetToken('');
           setNewPassword('');
           setConfirmNewPassword('');
-        }
+        },
       }]);
     } catch (error) {
-      const errorMessage = error.response?.data?.error || error.message || 'Ocurrió un error al restablecer la contraseña.';
-      setForgotPasswordErrors({ token: errorMessage });
-      Alert.alert('Error', errorMessage);
+      const msg = error.response?.data?.error || error.message || 'Ocurrió un error.';
+      setForgotPasswordErrors({ token: msg });
+      Alert.alert('Error', msg);
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -203,13 +196,12 @@ const LoginScreen = () => {
   };
 
   const validate = () => {
-    let valid = true;
-    let newErrors = {};
-    if (!email) { newErrors.email = 'El correo electrónico es requerido'; valid = false; }
-    else if (!/\S+@\S+\.\S+/.test(email)) { newErrors.email = 'El correo electrónico no es válido'; valid = false; }
-    if (!password) { newErrors.password = 'La contraseña es requerida'; valid = false; }
+    const newErrors = {};
+    if (!email) newErrors.email = 'El correo electrónico es requerido';
+    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'El correo electrónico no es válido';
+    if (!password) newErrors.password = 'La contraseña es requerida';
     setErrors(newErrors);
-    return valid;
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleLogin = async () => {
@@ -221,10 +213,10 @@ const LoginScreen = () => {
       if (result.success) {
         if (result.user?.id) {
           const userId = result.user.id;
-          queryClient.prefetchQuery({ queryKey: ['userProfile', userId], queryFn: () => userService.getUserProfile(userId), staleTime: 1000 * 60 * 5 });
-          queryClient.prefetchQuery({ queryKey: ['categories'], queryFn: categoryService.getAllCategories, staleTime: 1000 * 60 * 60 * 24 });
-          queryClient.prefetchQuery({ queryKey: ['chats', 'list'], queryFn: () => ofertasService.obtenerListaChats(), staleTime: 1000 * 60 * 5 });
-          queryClient.prefetchQuery({ queryKey: ['vehicles'], queryFn: () => vehiculoService.getUserVehicles(), staleTime: 1000 * 60 * 5 });
+          queryClient.prefetchQuery({ queryKey: ['userProfile', userId], queryFn: () => userService.getUserProfile(userId), staleTime: 300_000 });
+          queryClient.prefetchQuery({ queryKey: ['categories'], queryFn: categoryService.getAllCategories, staleTime: 86_400_000 });
+          queryClient.prefetchQuery({ queryKey: ['chats', 'list'], queryFn: () => ofertasService.obtenerListaChats(), staleTime: 300_000 });
+          queryClient.prefetchQuery({ queryKey: ['vehicles'], queryFn: () => vehiculoService.getUserVehicles(), staleTime: 300_000 });
         }
         if (rememberMe) {
           await AsyncStorage.setItem('rememberMe', 'true');
@@ -234,234 +226,281 @@ const LoginScreen = () => {
           await AsyncStorage.multiRemove(['rememberMe', 'savedEmail', 'savedPassword']);
         }
       } else if (result.code === 'PROVIDER_ACCOUNT') {
-        Alert.alert(
-          'Cuenta de Proveedor',
-          'Esta cuenta está registrada como mecánico o taller.\n\nPara acceder, descarga y usa la aplicación MecaniMóvil Proveedores.',
-          [{ text: 'Entendido' }],
-        );
+        Alert.alert('Cuenta de Proveedor', 'Esta cuenta está registrada como mecánico o taller.\n\nUsa la aplicación MecaniMóvil Proveedores.', [{ text: 'Entendido' }]);
       } else {
-        const errorMessage = result.error || 'Correo electrónico o contraseña incorrectos.';
-        Alert.alert('Error al iniciar sesión', errorMessage, [{ text: 'OK' }]);
+        Alert.alert('Error al iniciar sesión', result.error || 'Correo o contraseña incorrectos.', [{ text: 'OK' }]);
       }
     } catch (error) {
       logger.error('Error inesperado en handleLogin:', error);
-      Alert.alert('Error al iniciar sesión', 'Ocurrió un problema. Verifica tu conexión e intenta nuevamente.', [{ text: 'OK' }]);
+      Alert.alert('Error al iniciar sesión', 'Ocurrió un problema. Verifica tu conexión.', [{ text: 'OK' }]);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ─── render ─────────────────────────────────────────────────────────────── */
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-      >
-        {/* Logo + Title */}
-        <View style={styles.headerSection}>
-          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.subtitle}>Conecta tu auto con especialistas automotrices</Text>
-        </View>
-
-        {/* Tabs */}
-        <View style={styles.tabRow}>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabTextActive}>Iniciar Sesión</Text>
-            <View style={styles.tabIndicatorActive} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate(ROUTES.REGISTER)}>
-            <Text style={styles.tabTextInactive}>Registrarse</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Form */}
-        <GlassCard style={styles.formCard}>
-          <View style={styles.inputWrapper}>
-            <Input
-              label="Correo Electrónico"
-              placeholder="ejemplo@correo.com"
-              value={email}
-              onChangeText={(text) => { setEmail(text); if (errors.email) setErrors(prev => ({ ...prev, email: undefined })); }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-              blurOnSubmit={false}
-              error={errors.email}
-              leftIcon="mail-outline"
-              appearance="light"
-            />
-          </View>
-          <View style={styles.inputWrapper}>
-            <Input
-              label="Contraseña"
-              placeholder="••••••••"
-              value={password}
-              onChangeText={(text) => { setPassword(text); if (errors.password) setErrors(prev => ({ ...prev, password: undefined })); }}
-              secureTextEntry
-              autoCorrect={false}
-              returnKeyType="done"
-              error={errors.password}
-              leftIcon="lock-closed-outline"
-              appearance="light"
-            />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 48 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          {/* ── Logo ───────────────────────────────────────────────────── */}
+          <View style={styles.logoWrap}>
+            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
           </View>
 
-          {/* Remember + Forgot */}
-          <View style={styles.optionsRow}>
-            <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe(!rememberMe)}>
-              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                {rememberMe && <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />}
-              </View>
-              <Text style={styles.rememberText}>Recordarme</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowForgotPasswordModal(true)}>
-              <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-            </TouchableOpacity>
-          </View>
+          {/* ── Heading ───────────────────────────────────────────────── */}
+          <Text style={styles.heading}>
+            {emailMode ? 'Inicia sesión con tu correo' : 'Inicia sesión o regístrate'}
+          </Text>
+          <Text style={styles.subheading}>
+            {emailMode
+              ? 'Ingresa tus datos para continuar'
+              : 'Para acceder a MecaniMóvil, usa tu cuenta de Google o correo electrónico.'}
+          </Text>
 
-          {/* Submit */}
-          <Button
-            title="Iniciar Sesión"
-            onPress={handleLogin}
-            isLoading={loading}
-            type="primary"
-            variant="solid"
-            useGradient
-            size="md"
-            fullWidth
-          />
-
-          <View style={styles.oauthDivider}>
-            <View style={styles.oauthDividerLine} />
-            <Text style={styles.oauthDividerText}>o</Text>
-            <View style={styles.oauthDividerLine} />
-          </View>
-
-          {connectedAccounts.length > 0 ? (
-            <View style={styles.googleAccountsSection}>
-              <Text style={styles.googleAccountsTitle}>
-                Continúa con tu cuenta de Google
-              </Text>
-              {connectedAccounts.map((acc) => {
-                const initials = (acc.name || acc.email || '?')
-                  .split(/\s+/)
-                  .map((s) => s[0])
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .join('')
-                  .toUpperCase();
-                return (
-                  <TouchableOpacity
-                    key={acc.email}
-                    onPress={() => handleAccountTap(acc.email)}
-                    disabled={googleLoading}
-                    style={[
-                      styles.googleAccountRow,
-                      googleLoading && styles.googleAccountRowDisabled,
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    {acc.picture ? (
-                      <Image
-                        source={{ uri: acc.picture }}
-                        style={styles.googleAccountAvatarImg}
-                      />
-                    ) : (
-                      <View style={styles.googleAccountAvatarFallback}>
-                        <Text style={styles.googleAccountAvatarText}>
-                          {initials}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.googleAccountText}>
-                      {acc.name ? (
-                        <Text style={styles.googleAccountName} numberOfLines={1}>
-                          {acc.name}
-                        </Text>
-                      ) : null}
-                      <Text style={styles.googleAccountEmail} numberOfLines={1}>
-                        {acc.email}
-                      </Text>
-                    </View>
-                    {googleLoading ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={COLORS.primary[500]}
-                      />
-                    ) : (
-                      <Ionicons
-                        name="chevron-forward"
-                        size={18}
-                        color={COLORS.text.tertiary}
-                      />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-
-              <View style={styles.googleAccountsDivider}>
-                <View style={styles.oauthDividerLine} />
-                <Text style={styles.oauthDividerText}>O bien</Text>
-                <View style={styles.oauthDividerLine} />
-              </View>
-
-              <TouchableOpacity
-                onPress={handleUseAnotherAccount}
-                disabled={googleLoading}
-                style={[
-                  styles.useAnotherAccountBtn,
-                  googleLoading && styles.googleAccountRowDisabled,
-                ]}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="logo-google"
-                  size={18}
-                  color={COLORS.text.primary}
-                />
-                <Text style={styles.useAnotherAccountText}>
-                  Usar otra cuenta de Google
-                </Text>
+          {/* ── Tabs ──────────────────────────────────────────────────── */}
+          {!emailMode && (
+            <View style={styles.tabRow}>
+              <TouchableOpacity style={styles.tab}>
+                <Text style={styles.tabActive}>Iniciar Sesión</Text>
+                <View style={styles.tabIndicator} />
               </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleClearGoogleAccounts}
-                disabled={googleLoading}
-                style={styles.clearAccountsBtn}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="person-remove-outline"
-                  size={14}
-                  color={COLORS.text.tertiary}
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.clearAccountsText}>Quitar las cuentas</Text>
+              <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate(ROUTES.REGISTER)}>
+                <Text style={styles.tabInactive}>Registrarse</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <GoogleSignInButton
-              onPress={handleUseAnotherAccount}
-              isLoading={googleLoading}
-              disabled={googleButtonDisabled}
-            />
           )}
-        </GlassCard>
-      </ScrollView>
 
-      {/* Forgot Password Modal */}
+          {/* ── Card ──────────────────────────────────────────────────── */}
+          <View style={styles.card}>
+
+            {/* === Auth options (shown when NOT in email mode) === */}
+            {!emailMode && (
+              <>
+                {/* --- Google accounts list (Canva style) --- */}
+                {connectedAccounts.length > 0 ? (
+                  <View>
+                    <Text style={styles.cardLabel}>¿Con qué cuenta continuarás hoy?</Text>
+
+                    {connectedAccounts.map((acc) => {
+                      const initials = (acc.name || acc.email || '?')
+                        .split(/\s+/)
+                        .map((s) => s[0])
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase();
+                      return (
+                        <TouchableOpacity
+                          key={acc.email}
+                          onPress={() => handleAccountTap(acc.email)}
+                          disabled={googleLoading}
+                          style={[styles.accountRow, googleLoading && styles.disabled]}
+                          activeOpacity={0.7}
+                        >
+                          {acc.picture ? (
+                            <Image source={{ uri: acc.picture }} style={styles.avatarImg} />
+                          ) : (
+                            <View style={styles.avatarFallback}>
+                              <Text style={styles.avatarInitials}>{initials}</Text>
+                            </View>
+                          )}
+                          <View style={styles.accountInfo}>
+                            {acc.name ? (
+                              <Text style={styles.accountName} numberOfLines={1}>{acc.name}</Text>
+                            ) : null}
+                            <Text style={styles.accountEmail} numberOfLines={1}>{acc.email}</Text>
+                          </View>
+                          {googleLoading ? (
+                            <ActivityIndicator size="small" color={COLORS.primary[500]} />
+                          ) : (
+                            <Ionicons name="chevron-forward" size={18} color={COLORS.text.tertiary} />
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+
+                    <View style={styles.dividerRow}>
+                      <View style={styles.dividerLine} />
+                      <Text style={styles.dividerText}>O bien</Text>
+                      <View style={styles.dividerLine} />
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* --- Google primary button --- */}
+                <TouchableOpacity
+                  onPress={handleUseAnotherAccount}
+                  disabled={googleLoading}
+                  style={[styles.authBtn, styles.authBtnGoogle, googleLoading && styles.disabled]}
+                  activeOpacity={0.75}
+                >
+                  {googleLoading ? (
+                    <ActivityIndicator size="small" color="#1F1F1F" />
+                  ) : (
+                    <>
+                      <Ionicons name="logo-google" size={20} color="#4285F4" style={styles.authBtnIcon} />
+                      <Text style={styles.authBtnText}>
+                        {connectedAccounts.length > 0 ? 'Usar otra cuenta de Google' : 'Continuar con Google'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {/* --- Email secondary button --- */}
+                <TouchableOpacity
+                  onPress={toggleEmailMode}
+                  style={[styles.authBtn, styles.authBtnEmail]}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="mail-outline" size={20} color={COLORS.text.primary} style={styles.authBtnIcon} />
+                  <Text style={styles.authBtnText}>Continuar con correo electrónico</Text>
+                </TouchableOpacity>
+
+                {/* --- Clear accounts link --- */}
+                {connectedAccounts.length > 0 && (
+                  <TouchableOpacity
+                    onPress={handleClearGoogleAccounts}
+                    disabled={googleLoading}
+                    style={styles.clearBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="person-remove-outline" size={13} color={COLORS.text.tertiary} style={{ marginRight: 5 }} />
+                    <Text style={styles.clearBtnText}>Quitar las cuentas</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+
+            {/* === Email/password form (shown when emailMode = true) === */}
+            {emailMode && (
+              <>
+                <TouchableOpacity
+                  onPress={toggleEmailMode}
+                  style={styles.backRow}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="arrow-back" size={18} color={COLORS.primary[500]} />
+                  <Text style={styles.backText}>Volver a opciones</Text>
+                </TouchableOpacity>
+
+                <View style={styles.tabs2}>
+                  <TouchableOpacity style={styles.tab}>
+                    <Text style={styles.tabActive}>Iniciar Sesión</Text>
+                    <View style={styles.tabIndicator} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate(ROUTES.REGISTER)}>
+                    <Text style={styles.tabInactive}>Registrarse</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.fieldWrap}>
+                  <Input
+                    label="Correo Electrónico"
+                    placeholder="ejemplo@correo.com"
+                    value={email}
+                    onChangeText={(t) => { setEmail(t); if (errors.email) setErrors((p) => ({ ...p, email: undefined })); }}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    error={errors.email}
+                    leftIcon="mail-outline"
+                    appearance="light"
+                  />
+                </View>
+                <View style={styles.fieldWrap}>
+                  <Input
+                    label="Contraseña"
+                    placeholder="••••••••"
+                    value={password}
+                    onChangeText={(t) => { setPassword(t); if (errors.password) setErrors((p) => ({ ...p, password: undefined })); }}
+                    secureTextEntry
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    error={errors.password}
+                    leftIcon="lock-closed-outline"
+                    appearance="light"
+                  />
+                </View>
+
+                <View style={styles.optionsRow}>
+                  <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe(!rememberMe)}>
+                    <View style={[styles.checkbox, rememberMe && styles.checkboxOn]}>
+                      {rememberMe && <Ionicons name="checkmark" size={13} color={COLORS.text.inverse} />}
+                    </View>
+                    <Text style={styles.rememberText}>Recordarme</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShowForgotPasswordModal(true)}>
+                    <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Button
+                  title="Iniciar Sesión"
+                  onPress={handleLogin}
+                  isLoading={loading}
+                  type="primary"
+                  variant="solid"
+                  useGradient
+                  size="md"
+                  fullWidth
+                />
+
+                <View style={styles.dividerRow}>
+                  <View style={styles.dividerLine} />
+                  <Text style={styles.dividerText}>o</Text>
+                  <View style={styles.dividerLine} />
+                </View>
+
+                <TouchableOpacity
+                  onPress={handleUseAnotherAccount}
+                  disabled={googleLoading}
+                  style={[styles.authBtn, styles.authBtnGoogle, googleLoading && styles.disabled]}
+                  activeOpacity={0.75}
+                >
+                  {googleLoading ? (
+                    <ActivityIndicator size="small" color="#1F1F1F" />
+                  ) : (
+                    <>
+                      <Ionicons name="logo-google" size={20} color="#4285F4" style={styles.authBtnIcon} />
+                      <Text style={styles.authBtnText}>
+                        {connectedAccounts.length > 0 ? 'Usar otra cuenta de Google' : 'Continuar con Google'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+
+          {/* ── Footer ─────────────────────────────────────────────────── */}
+          <Text style={styles.footer}>
+            Al continuar, aceptas los{' '}
+            <Text style={styles.footerLink}>Términos de uso</Text> de MecaniMóvil.
+            Consulta nuestra{' '}
+            <Text style={styles.footerLink}>Política de privacidad</Text>.
+          </Text>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+
+      {/* ── Forgot Password Modal ──────────────────────────────────────── */}
       <Modal visible={showForgotPasswordModal} animationType="fade" transparent onRequestClose={closeForgotPasswordModal}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeForgotPasswordModal} />
           <View style={styles.modalCard}>
             <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
             <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.88)' }]} />
-
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalIconWrap}>
@@ -471,59 +510,39 @@ const LoginScreen = () => {
                   <Ionicons name="close-circle" size={28} color="rgba(255,255,255,0.5)" />
                 </TouchableOpacity>
               </View>
-
               <Text style={styles.modalTitle}>{forgotPasswordStep === 1 ? 'Recuperar Contraseña' : 'Nueva Contraseña'}</Text>
-
               {forgotPasswordStep === 1 ? (
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   <Text style={styles.modalDesc}>Ingresa tu correo y te enviaremos un token para restablecer tu contraseña.</Text>
-                  <View style={styles.inputWrapper}>
+                  <View style={styles.fieldWrap}>
                     <Input label="Correo Electrónico" placeholder="ejemplo@correo.com" value={forgotPasswordEmail}
-                      onChangeText={(t) => { setForgotPasswordEmail(t); if (forgotPasswordErrors.email) setForgotPasswordErrors(p => ({ ...p, email: undefined })); }}
+                      onChangeText={(t) => { setForgotPasswordEmail(t); if (forgotPasswordErrors.email) setForgotPasswordErrors((p) => ({ ...p, email: undefined })); }}
                       keyboardType="email-address" autoCapitalize="none" autoCorrect={false} error={forgotPasswordErrors.email} leftIcon="mail-outline" appearance="darkGlass" />
                   </View>
-                  <Button
-                    title="Enviar Solicitud"
-                    onPress={handleForgotPassword}
-                    isLoading={forgotPasswordLoading}
-                    type="primary"
-                    variant="solid"
-                    useGradient
-                    size="md"
-                    fullWidth
-                  />
+                  <Button title="Enviar Solicitud" onPress={handleForgotPassword} isLoading={forgotPasswordLoading} type="primary" variant="solid" useGradient size="md" fullWidth />
                 </ScrollView>
               ) : (
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                   <Text style={styles.modalDesc}>Ingresa el token recibido y tu nueva contraseña.</Text>
-                  <View style={styles.inputWrapper}>
+                  <View style={styles.fieldWrap}>
                     <Input label="Token" placeholder="Ingresa el token" value={resetToken}
-                      onChangeText={(t) => { setResetToken(t); if (forgotPasswordErrors.token) setForgotPasswordErrors(p => ({ ...p, token: undefined })); }}
+                      onChangeText={(t) => { setResetToken(t); if (forgotPasswordErrors.token) setForgotPasswordErrors((p) => ({ ...p, token: undefined })); }}
                       autoCapitalize="none" autoCorrect={false} error={forgotPasswordErrors.token} leftIcon="key-outline" appearance="darkGlass" />
                   </View>
-                  <View style={styles.inputWrapper}>
+                  <View style={styles.fieldWrap}>
                     <Input label="Nueva Contraseña" placeholder="Mínimo 8 caracteres" value={newPassword}
-                      onChangeText={(t) => { setNewPassword(t); if (forgotPasswordErrors.newPassword) setForgotPasswordErrors(p => ({ ...p, newPassword: undefined })); }}
+                      onChangeText={(t) => { setNewPassword(t); if (forgotPasswordErrors.newPassword) setForgotPasswordErrors((p) => ({ ...p, newPassword: undefined })); }}
                       secureTextEntry autoCorrect={false} error={forgotPasswordErrors.newPassword} leftIcon="lock-closed-outline" appearance="darkGlass" />
                   </View>
-                  <View style={styles.inputWrapper}>
+                  <View style={styles.fieldWrap}>
                     <Input label="Confirmar Contraseña" placeholder="Confirma tu contraseña" value={confirmNewPassword}
-                      onChangeText={(t) => { setConfirmNewPassword(t); if (forgotPasswordErrors.confirmNewPassword) setForgotPasswordErrors(p => ({ ...p, confirmNewPassword: undefined })); }}
+                      onChangeText={(t) => { setConfirmNewPassword(t); if (forgotPasswordErrors.confirmNewPassword) setForgotPasswordErrors((p) => ({ ...p, confirmNewPassword: undefined })); }}
                       secureTextEntry autoCorrect={false} error={forgotPasswordErrors.confirmNewPassword} leftIcon="lock-closed-outline" appearance="darkGlass" />
                   </View>
-                  <Button
-                    title="Restablecer Contraseña"
-                    onPress={handleResetPassword}
-                    isLoading={forgotPasswordLoading}
-                    type="primary"
-                    variant="solid"
-                    useGradient
-                    size="md"
-                    fullWidth
-                  />
-                  <TouchableOpacity onPress={() => setForgotPasswordStep(1)} style={styles.backLink}>
+                  <Button title="Restablecer Contraseña" onPress={handleResetPassword} isLoading={forgotPasswordLoading} type="primary" variant="solid" useGradient size="md" fullWidth />
+                  <TouchableOpacity onPress={() => setForgotPasswordStep(1)} style={styles.backRow}>
                     <Ionicons name="arrow-back" size={16} color="#67E8F9" style={{ marginRight: 6 }} />
-                    <Text style={styles.backLinkText}>Volver a ingresar email</Text>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#67E8F9' }}>Volver a ingresar email</Text>
                   </TouchableOpacity>
                 </ScrollView>
               )}
@@ -535,179 +554,257 @@ const LoginScreen = () => {
   );
 };
 
+/* ─── Styles ──────────────────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background.default },
+  root: {
+    flex: 1,
+    backgroundColor: COLORS.background.default,
+    ...(Platform.OS === 'web' ? { height: '100%' } : null),
+  },
+  scroll: {
+    paddingHorizontal: SPACING.container.horizontal,
+  },
 
-  scroll: { paddingHorizontal: SPACING.container.horizontal },
-  headerSection: { alignItems: 'center', marginBottom: 32 },
-  logo: { width: 180, height: 60, marginBottom: 16 },
-  subtitle: {
-    fontSize: TYPOGRAPHY.styles.body.fontSize,
-    fontWeight: TYPOGRAPHY.styles.body.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.body.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.body.fontSize * TYPOGRAPHY.styles.body.lineHeight),
+  /* Logo */
+  logoWrap: { alignItems: 'center', marginBottom: 28 },
+  logo: { width: 180, height: 52 },
+
+  /* Heading */
+  heading: {
+    fontSize: TYPOGRAPHY.styles.h3.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subheading: {
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
     color: COLORS.text.secondary,
     textAlign: 'center',
-    paddingHorizontal: 16,
+    marginBottom: 28,
+    paddingHorizontal: 8,
   },
 
-  tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border.light },
-  tab: { flex: 1, paddingVertical: 14, alignItems: 'center', position: 'relative' },
-  tabTextActive: {
+  /* Tabs */
+  tabRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+  },
+  tabs2: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+  },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', position: 'relative' },
+  tabActive: {
     fontSize: TYPOGRAPHY.styles.label.fontSize,
-    fontWeight: TYPOGRAPHY.styles.label.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.label.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.label.fontSize * TYPOGRAPHY.styles.label.lineHeight),
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
-  tabTextInactive: {
+  tabInactive: {
     fontSize: TYPOGRAPHY.styles.label.fontSize,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    letterSpacing: TYPOGRAPHY.styles.label.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.label.fontSize * TYPOGRAPHY.styles.label.lineHeight),
     color: COLORS.text.tertiary,
   },
-  tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: COLORS.primary[500] },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: -1,
+    left: '15%',
+    right: '15%',
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: COLORS.primary[500],
+  },
 
+  /* Card */
   card: {
     borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
     borderWidth: 1,
     borderColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
     padding: 20,
+    marginBottom: 20,
   },
 
-  formCard: { marginBottom: 20 },
-  inputWrapper: { marginBottom: 16 },
-  googleAccountsSection: {
-    alignSelf: 'stretch',
-  },
-  googleAccountsTitle: {
+  /* Account list */
+  cardLabel: {
     fontSize: TYPOGRAPHY.styles.caption.fontSize,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.secondary,
-    marginBottom: 10,
+    marginBottom: 12,
     textAlign: 'center',
   },
-  googleAccountRow: {
+  accountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: BORDERS.radius?.md ?? 10,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: BORDERS.radius.md,
     borderWidth: 1,
     borderColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
     marginBottom: 8,
   },
-  googleAccountRowDisabled: {
-    opacity: 0.6,
-  },
-  googleAccountAvatarImg: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  avatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.neutral.gray[100],
   },
-  googleAccountAvatarFallback: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  avatarFallback: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
   },
-  googleAccountAvatarText: {
-    fontSize: 13,
+  avatarInitials: {
+    fontSize: 14,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.primary[500],
   },
-  googleAccountText: {
-    flex: 1,
-    marginLeft: 12,
-    minWidth: 0,
-  },
-  googleAccountName: {
+  accountInfo: { flex: 1, marginLeft: 12, minWidth: 0 },
+  accountName: {
     fontSize: TYPOGRAPHY.styles.body.fontSize,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
-  googleAccountEmail: {
+  accountEmail: {
     fontSize: TYPOGRAPHY.styles.caption.fontSize,
     color: COLORS.text.tertiary,
     marginTop: 1,
   },
-  googleAccountsDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 12,
-  },
-  useAnotherAccountBtn: {
+
+  /* Auth buttons */
+  authBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    minHeight: 46,
-    borderRadius: BORDERS.radius?.md ?? 10,
+    minHeight: 50,
+    borderRadius: BORDERS.radius.md,
     borderWidth: 1,
-    borderColor: COLORS.border.dark,
-    backgroundColor: COLORS.background.paper,
-    paddingVertical: 12,
+    paddingVertical: 13,
     paddingHorizontal: 16,
+    marginBottom: 10,
   },
-  useAnotherAccountText: {
+  authBtnGoogle: {
+    borderColor: '#747775',
+    backgroundColor: '#FFFFFF',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.07, shadowRadius: 2 },
+      android: { elevation: 1 },
+    }),
+  },
+  authBtnEmail: {
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+  },
+  authBtnIcon: { marginRight: 10 },
+  authBtnText: {
     fontSize: TYPOGRAPHY.styles.body.fontSize,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
-  clearAccountsBtn: {
+
+  /* Divider */
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 14,
+  },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border.light },
+  dividerText: {
+    marginHorizontal: 14,
+    fontSize: TYPOGRAPHY.styles.small.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
+  },
+
+  /* Clear accounts */
+  clearBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    marginTop: 4,
+    paddingVertical: 10,
+    marginTop: 2,
   },
-  clearAccountsText: {
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+  clearBtnText: {
+    fontSize: TYPOGRAPHY.styles.small.fontSize,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.tertiary,
     textDecorationLine: 'underline',
   },
 
-  oauthDivider: {
+  /* Back / email mode */
+  backRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    paddingVertical: 4,
     marginBottom: 16,
   },
-  oauthDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border.light },
-  oauthDividerText: {
-    marginHorizontal: 14,
+  backText: {
+    marginLeft: 6,
     fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.tertiary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[500],
   },
 
-  optionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 24 },
+  /* Form fields */
+  fieldWrap: { marginBottom: 14 },
+
+  /* Options row */
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  },
   rememberRow: { flexDirection: 'row', alignItems: 'center' },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border.dark, marginRight: 8, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: COLORS.border.dark,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxOn: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
   rememberText: {
     fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    fontWeight: TYPOGRAPHY.styles.caption.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.caption.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.caption.fontSize * TYPOGRAPHY.styles.caption.lineHeight),
     color: COLORS.text.secondary,
   },
   forgotText: {
     fontSize: TYPOGRAPHY.styles.captionBold.fontSize,
-    fontWeight: TYPOGRAPHY.styles.captionBold.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.captionBold.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.captionBold.fontSize * TYPOGRAPHY.styles.captionBold.lineHeight),
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.primary[500],
   },
 
+  /* Disabled state */
+  disabled: { opacity: 0.55 },
+
+  /* Footer */
+  footer: {
+    fontSize: TYPOGRAPHY.styles.small.fontSize,
+    color: COLORS.text.tertiary,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: 8,
+  },
+  footerLink: {
+    color: COLORS.primary[500],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    textDecorationLine: 'underline',
+  },
+
+  /* Modal */
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalCard: { width: '100%', maxWidth: 420, maxHeight: '85%', borderRadius: 24, overflow: 'hidden' },
   modalContent: { padding: 24 },
@@ -716,21 +813,15 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: TYPOGRAPHY.styles.h3.fontSize,
     fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.h3.fontSize * TYPOGRAPHY.styles.h3.lineHeight),
     color: '#F9FAFB',
     marginBottom: 8,
   },
   modalDesc: {
     fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    fontWeight: TYPOGRAPHY.styles.caption.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.caption.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.caption.fontSize * TYPOGRAPHY.styles.caption.lineHeight),
     color: withOpacity(COLORS.base.white, 0.55),
     marginBottom: 20,
+    lineHeight: 20,
   },
-  backLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, marginTop: 8 },
-  backLinkText: { fontSize: 14, fontWeight: '600', color: '#67E8F9' },
 });
 
 export default LoginScreen;
