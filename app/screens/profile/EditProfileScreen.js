@@ -24,6 +24,7 @@ import { useUserProfile } from '../../hooks/useUserProfile';
 
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
+import PhoneInput, { validatePhoneNumber, parsePhoneValue } from '../../components/base/PhoneInput/PhoneInput';
 
 const EditProfileScreen = () => {
   const navigation = useNavigation();
@@ -38,6 +39,7 @@ const EditProfileScreen = () => {
   });
   const [profileImage, setProfileImage] = useState(null);
   const [formErrors, setFormErrors] = useState({});
+  const [phoneTouched, setPhoneTouched] = useState(false);
 
   const {
     data: userProfile,
@@ -127,6 +129,16 @@ const EditProfileScreen = () => {
     if (!formData.first_name || !formData.last_name || !formData.email) {
       Alert.alert('Faltan datos', 'Por favor completa los campos obligatorios.');
       return;
+    }
+
+    if (formData.telefono) {
+      const { country, number } = parsePhoneValue(formData.telefono);
+      const phoneError = validatePhoneNumber(country, number);
+      if (phoneError) {
+        setPhoneTouched(true);
+        setFormErrors((prev) => ({ ...prev, telefono: phoneError }));
+        return;
+      }
     }
 
     try {
@@ -222,16 +234,14 @@ const EditProfileScreen = () => {
             variant="filled"
             style={[styles.inputContainer, { opacity: 0.6 }]}
           />
-          <Input
+          <PhoneInput
             label="Teléfono"
             value={formData.telefono}
-            onChangeText={(v) => handleChange('telefono', v)}
-            placeholder="+56 9 1234 5678"
-            leftIcon="call-outline"
-            keyboardType="phone-pad"
-            appearance="light"
-            variant="filled"
-            style={styles.inputContainer}
+            onChangeText={(v) => {
+              handleChange('telefono', v);
+              if (formErrors.telefono) setFormErrors((prev) => ({ ...prev, telefono: null }));
+            }}
+            error={formErrors.telefono}
           />
         </View>
 

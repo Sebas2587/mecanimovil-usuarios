@@ -196,6 +196,12 @@ const LoginScreen = () => {
         } else {
           await AsyncStorage.multiRemove(['rememberMe', 'savedEmail', 'savedPassword']);
         }
+      } else if (result.code === 'PROVIDER_ACCOUNT') {
+        Alert.alert(
+          'Cuenta de Proveedor',
+          'Esta cuenta está registrada como mecánico o taller.\n\nPara acceder, descarga y usa la aplicación MecaniMóvil Proveedores.',
+          [{ text: 'Entendido' }],
+        );
       } else {
         const errorMessage = result.error || 'Correo electrónico o contraseña incorrectos.';
         Alert.alert('Error al iniciar sesión', errorMessage, [{ text: 'OK' }]);

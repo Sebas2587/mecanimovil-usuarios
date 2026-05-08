@@ -4,13 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Platform,
   ScrollView,
   Alert,
   Image,
   Dimensions,
   StatusBar,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -21,8 +19,6 @@ import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
-import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
-import { useGoogleSignInFlow } from '../../hooks/useGoogleSignInFlow';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -37,8 +33,7 @@ const RegisterScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const { register, loginWithGoogle, error: authError } = useAuth();
-  const { handleGoogleSignIn, googleLoading, googleButtonDisabled } = useGoogleSignInFlow(loginWithGoogle, { flow: 'register' });
+  const { register, error: authError } = useAuth();
 
   const prefill = route?.params?.prefill || {};
   const [firstName, setFirstName] = useState(prefill.firstName || '');
@@ -278,17 +273,6 @@ const RegisterScreen = () => {
             size="md"
             fullWidth
           />
-
-          <View style={styles.oauthDivider}>
-            <View style={styles.oauthDividerLine} />
-            <Text style={styles.oauthDividerText}>o</Text>
-            <View style={styles.oauthDividerLine} />
-          </View>
-          <GoogleSignInButton
-            onPress={handleGoogleSignIn}
-            isLoading={googleLoading}
-            disabled={googleButtonDisabled}
-          />
         </GlassCard>
       </ScrollView>
     </View>
@@ -346,20 +330,6 @@ const styles = StyleSheet.create({
 
   formCard: { marginBottom: 20 },
   inputWrapper: { marginBottom: 16 },
-
-  oauthDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 16,
-  },
-  oauthDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border.light },
-  oauthDividerText: {
-    marginHorizontal: 14,
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.tertiary,
-  },
   nameRow: { flexDirection: 'row', marginBottom: 16 },
   nameInput: { flex: 1 },
 

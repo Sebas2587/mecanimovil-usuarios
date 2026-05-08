@@ -46,8 +46,16 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
         onUserNotFound?.(result?.profile);
         return;
       }
+      if (result?.code === 'PROVIDER_ACCOUNT') {
+        Alert.alert(
+          'Cuenta de Proveedor',
+          'Esta cuenta está registrada como mecánico o taller.\n\nPara acceder, descarga y usa la aplicación MecaniMóvil Proveedores.',
+          [{ text: 'Entendido' }],
+        );
+        return;
+      }
       if (!result?.success) {
-        Alert.alert('Google', result?.error || 'No se pudo iniciar sesión con Google.');
+        Alert.alert('Error', result?.error || 'No se pudo iniciar sesión con Google.');
       }
     } catch (e) {
       if (e.code === statusCodes.SIGN_IN_CANCELLED) {

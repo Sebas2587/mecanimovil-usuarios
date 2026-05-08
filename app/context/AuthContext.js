@@ -553,7 +553,11 @@ export const AuthProvider = ({ children }) => {
       }
 
       setError(errorMessage);
-      return { success: false, error: errorMessage };
+      return {
+        success: false,
+        error: errorMessage,
+        code: errorMessage.includes('proveedor') ? 'PROVIDER_ACCOUNT' : undefined,
+      };
     } finally {
       setLoading(false);
     }
@@ -662,7 +666,11 @@ export const AuthProvider = ({ children }) => {
           'Esta cuenta es de proveedor. Por favor, utiliza la aplicación de proveedores para iniciar sesión.';
       }
       setError(errorMessage);
-      return { success: false, error: errorMessage };
+      return {
+        success: false,
+        error: errorMessage,
+        code: status === 403 ? 'PROVIDER_ACCOUNT' : undefined,
+      };
     } finally {
       setLoading(false);
     }
