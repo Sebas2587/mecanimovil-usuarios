@@ -298,8 +298,10 @@ const MisSolicitudesScreen = () => {
     return (
       <View style={styles.root}>
         <StatusBar barStyle="dark-content" />
-        {renderHeaderChrome()}
-        <MisSolicitudesListSkeleton />
+        <View style={styles.mainColumn}>
+          {renderHeaderChrome()}
+          <MisSolicitudesListSkeleton />
+        </View>
       </View>
     );
   }
@@ -308,49 +310,55 @@ const MisSolicitudesScreen = () => {
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
 
-      {renderHeaderChrome()}
+      <View style={styles.mainColumn}>
+        {renderHeaderChrome()}
 
-      <SafeAreaView style={styles.safeContent} edges={['left', 'right', 'bottom']}>
-        <FlatList
-          data={solicitudesFiltradas}
-          keyExtractor={keyExtractor}
-          renderItem={renderSolicitud}
-          ItemSeparatorComponent={renderItemSeparator}
-          ListEmptyComponent={renderEmptyState}
-          contentContainerStyle={[
-            styles.listContent,
-            solicitudesFiltradas.length === 0 && styles.listContentEmpty,
-          ]}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={async () => {
-                setRefreshing(true);
-                try {
-                  await cargarDatos();
-                } catch (e) {
-                  console.error('Error refrescando:', e);
-                } finally {
-                  setRefreshing(false);
-                }
-              }}
-              tintColor={COLORS.primary[500]}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-          initialNumToRender={8}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews={Platform.OS !== 'web'}
-        />
+        <SafeAreaView style={styles.safeContent} edges={['left', 'right', 'bottom']}>
+          <FlatList
+            data={solicitudesFiltradas}
+            keyExtractor={keyExtractor}
+            renderItem={renderSolicitud}
+            ItemSeparatorComponent={renderItemSeparator}
+            ListEmptyComponent={renderEmptyState}
+            contentContainerStyle={[
+              styles.listContent,
+              solicitudesFiltradas.length === 0 && styles.listContentEmpty,
+            ]}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={async () => {
+                  setRefreshing(true);
+                  try {
+                    await cargarDatos();
+                  } catch (e) {
+                    console.error('Error refrescando:', e);
+                  } finally {
+                    setRefreshing(false);
+                  }
+                }}
+                tintColor={COLORS.primary[500]}
+              />
+            }
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={8}
+            maxToRenderPerBatch={10}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS !== 'web'}
+            style={styles.list}
+            {...(Platform.OS === 'web'
+              ? { nestedScrollEnabled: true }
+              : {})}
+          />
 
-        {error && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle-outline" size={20} color={COLORS.error[500]} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-      </SafeAreaView>
+          {error && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={20} color={COLORS.error[500]} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+        </SafeAreaView>
+      </View>
     </View>
   );
 };
@@ -359,11 +367,28 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.background.default,
-    ...(Platform.OS === 'web' ? { height: '100%' } : null),
+    ...(Platform.OS === 'web'
+      ? { height: '100%', minHeight: 0, overflow: 'hidden' }
+      : null),
+  },
+  /** Columna header + lista: en web el FlatList necesita un padre flex con minHeight 0 para scroll interno. */
+  mainColumn: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { minHeight: 0, display: 'flex', flexDirection: 'column' } : null),
   },
   safeContent: {
     flex: 1,
-    ...(Platform.OS === 'web' ? { minHeight: 0, overflow: 'hidden' } : null),
+    ...(Platform.OS === 'web' ? { minHeight: 0, flex: 1, overflow: 'hidden' } : null),
+  },
+  list: {
+    flex: 1,
+    ...(Platform.OS === 'web'
+      ? {
+          minHeight: 0,
+          overflow: 'scroll',
+          WebkitOverflowScrolling: 'touch',
+        }
+      : null),
   },
   headerContainer: {
     paddingBottom: 8,

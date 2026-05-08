@@ -41,6 +41,8 @@ const ESTADOS_OFERTA_CON_ORDEN = ['pagada', 'en_ejecucion', 'completada', 'final
 
 /** Altura fija del bloque de botones del header (debajo del safe area). */
 const HEADER_CONTENT_HEIGHT = 60;
+/** Espacio reservado bajo el scroll para que el contenido no quede tapado por el footer (web: footer fijo). */
+const FOOTER_SCROLL_PADDING = 120;
 
 const DetalleSolicitudScreen = () => {
   const navigation = useNavigation();
@@ -207,7 +209,7 @@ const DetalleSolicitudScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, Platform.OS === 'web' && styles.loadingContainerWeb]}>
         <ActivityIndicator size="large" color={COLORS.primary[500]} />
         <Text style={styles.loadingText}>Cargando detalles...</Text>
       </View>
@@ -217,7 +219,7 @@ const DetalleSolicitudScreen = () => {
   if (!solicitud) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, Platform.OS === 'web' && styles.containerWeb]}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <View style={[styles.header, { paddingTop: insets.top }]}>
@@ -237,13 +239,23 @@ const DetalleSolicitudScreen = () => {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + HEADER_CONTENT_HEIGHT },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.scrollHost}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: insets.top + HEADER_CONTENT_HEIGHT,
+              paddingBottom:
+                Platform.OS === 'web'
+                  ? Math.max(insets.bottom, 16) + FOOTER_SCROLL_PADDING
+                  : SPACING.section + SPACING.lg + Math.max(insets.bottom, 8),
+            },
+          ]}
+          showsVerticalScrollIndicator={Platform.OS !== 'web'}
+          keyboardShouldPersistTaps="handled"
+          {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
+        >
         {/* 1) Vehículo (primero) */}
         {solicitud.vehiculo_info && (
           <CertifiedVehicleCard vehiculo={solicitud.vehiculo_info} />
@@ -380,10 +392,17 @@ const DetalleSolicitudScreen = () => {
           )}
         </View>
 
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* Footer de Acciones (contextual según tab) */}
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <View
+        style={[
+          styles.footer,
+          Platform.OS === 'web' && styles.footerWeb,
+          { paddingBottom: Math.max(insets.bottom, 16) },
+        ]}
+      >
         <View style={styles.footerContent}>
           {tabActivo === TAB_PRINCIPALES ? (
             <>
@@ -528,7 +547,7 @@ const DetalleSolicitudScreen = () => {
           servicioNombre={solicitud?.servicios_solicitados?.[0]?.nombre || solicitud?.servicios_solicitados?.[0]?.nombre_servicio || 'Servicio'}
         />
       )}
-    </View >
+    </View>
   );
 };
 
@@ -537,11 +556,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background.default,
   },
+  containerWeb: {
+    height: '100%',
+    minHeight: 0,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  scrollHost: {
+    flex: 1,
+    ...(Platform.OS === 'web' ? { minHeight: 0, flex: 1 } : null),
+  },
+  scroll: {
+    flex: 1,
+    ...(Platform.OS === 'web'
+      ? {
+          minHeight: 0,
+          overflow: 'scroll',
+        }
+      : null),
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.background.default,
+  },
+  loadingContainerWeb: {
+    height: '100%',
+    minHeight: 0,
   },
   loadingText: {
     marginTop: 12,
@@ -587,7 +629,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: SPACING.container.horizontal,
-    paddingBottom: SPACING.section + SPACING.lg,
+    flexGrow: 1,
   },
   tabSection: {
     marginTop: SPACING.sm,
@@ -777,6 +819,14 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingHorizontal: 20,
     ...SHADOWS.sm,
+  },
+  /** Web: barra inferior siempre visible (paridad con sticky en app). */
+  footerWeb: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 40,
   },
   footerContent: {
     width: '100%',
