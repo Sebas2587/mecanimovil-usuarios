@@ -47,7 +47,18 @@ const LoginScreen = () => {
   const insets = useSafeAreaInsets();
   const { login, loginWithGoogle } = useAuth();
   const queryClient = useQueryClient();
-  const { handleGoogleSignIn, googleLoading, googleButtonDisabled } = useGoogleSignInFlow(loginWithGoogle);
+  const { handleGoogleSignIn, googleLoading, googleButtonDisabled } = useGoogleSignInFlow(loginWithGoogle, {
+    flow: 'login',
+    onUserNotFound: (profile) => {
+      navigation.navigate(ROUTES.REGISTER, {
+        prefill: {
+          email: profile?.email || '',
+          firstName: profile?.given_name || '',
+          lastName: profile?.family_name || '',
+        },
+      });
+    },
+  });
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

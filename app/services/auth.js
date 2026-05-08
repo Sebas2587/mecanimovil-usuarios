@@ -91,9 +91,9 @@ export const login = async (username, password) => {
  * Login/Registro con Google (id_token) -> backend devuelve { token, user }
  * @param {string} idToken
  */
-export const googleLogin = async (idToken) => {
+export const googleLogin = async (idToken, flow = 'login') => {
   try {
-    const response = await post('/usuarios/google-login/', { id_token: idToken }, { requiresAuth: false });
+    const response = await post('/usuarios/google-login/', { id_token: idToken, flow }, { requiresAuth: false });
     if (!response?.token || !response?.user) {
       throw new Error('Respuesta inválida de Google login');
     }

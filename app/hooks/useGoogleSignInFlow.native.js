@@ -8,7 +8,9 @@ WebBrowser.maybeCompleteAuthSession();
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
 
 /** Google Sign-In en iOS/Android (fuera de Expo Go): SDK nativo. */
-export function useGoogleSignInFlow(loginWithGoogle) {
+export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
+  const flow = options.flow || 'login';
+  const onUserNotFound = options.onUserNotFound;
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleGoogleSignIn = useCallback(async () => {
@@ -39,7 +41,11 @@ export function useGoogleSignInFlow(loginWithGoogle) {
       const response = await GoogleSignin.signIn();
       const idToken = response?.data?.idToken;
       if (!idToken) throw new Error('No se obtuvo idToken de Google.');
-      const result = await loginWithGoogle(idToken);
+      const result = await loginWithGoogle(idToken, flow);
+      if (result?.code === 'USER_NOT_FOUND') {
+        onUserNotFound?.(result?.profile);
+        return;
+      }
       if (!result?.success) {
         Alert.alert('Google', result?.error || 'No se pudo iniciar sesión con Google.');
       }
@@ -54,7 +60,7 @@ export function useGoogleSignInFlow(loginWithGoogle) {
     } finally {
       setGoogleLoading(false);
     }
-  }, [loginWithGoogle]);
+  }, [loginWithGoogle, flow, onUserNotFound]);
 
   return {
     handleGoogleSignIn,

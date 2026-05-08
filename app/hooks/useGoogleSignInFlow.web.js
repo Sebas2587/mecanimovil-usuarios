@@ -11,7 +11,9 @@ WebBrowser.maybeCompleteAuthSession();
  * En Google Cloud → cliente OAuth Web: orígenes JS autorizados + URIs de redirección
  * para cada dominio (producción y localhost).
  */
-export function useGoogleSignInFlow(loginWithGoogle) {
+export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
+  const flow = options.flow || 'login';
+  const onUserNotFound = options.onUserNotFound;
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const redirectUri = AuthSession.makeRedirectUri({ path: 'redirect' });
@@ -36,7 +38,11 @@ export function useGoogleSignInFlow(loginWithGoogle) {
     (async () => {
       setGoogleLoading(true);
       try {
-        const result = await loginWithGoogle(idToken);
+        const result = await loginWithGoogle(idToken, flow);
+        if (!cancelled && result?.code === 'USER_NOT_FOUND') {
+          onUserNotFound?.(result?.profile);
+          return;
+        }
         if (!cancelled && !result?.success) {
           Alert.alert('Google', result?.error || 'No se pudo iniciar sesión con Google.');
         }
@@ -65,11 +71,18 @@ export function useGoogleSignInFlow(loginWithGoogle) {
       const result = await googlePromptAsync();
       if (result?.type === 'cancel' || result?.type === 'dismiss') {
         setGoogleLoading(false);
+        return;
+      }
+      // Si fue success pero no llegó idToken por alguna razón, no dejar loading infinito.
+      const idToken = googleResponse?.authentication?.idToken;
+      if (result?.type === 'success' && !idToken) {
+        setGoogleLoading(false);
+        Alert.alert('Google', 'No se pudo completar el acceso con Google (sin idToken).');
       }
     } catch {
       setGoogleLoading(false);
     }
-  }, [googleRequest, googlePromptAsync]);
+  }, [googleRequest, googlePromptAsync, googleResponse, flow, onUserNotFound]);
 
   return {
     handleGoogleSignIn,

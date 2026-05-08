@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useNavigation } from '@react-navigation/native';
+import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
@@ -34,13 +35,15 @@ const GlassCard = ({ children, style }) => (
 
 const RegisterScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const { register, loginWithGoogle, error: authError } = useAuth();
-  const { handleGoogleSignIn, googleLoading, googleButtonDisabled } = useGoogleSignInFlow(loginWithGoogle);
+  const { handleGoogleSignIn, googleLoading, googleButtonDisabled } = useGoogleSignInFlow(loginWithGoogle, { flow: 'register' });
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
+  const prefill = route?.params?.prefill || {};
+  const [firstName, setFirstName] = useState(prefill.firstName || '');
+  const [lastName, setLastName] = useState(prefill.lastName || '');
+  const [email, setEmail] = useState(prefill.email || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);

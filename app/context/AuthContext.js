@@ -563,7 +563,7 @@ export const AuthProvider = ({ children }) => {
    * Login/Registro con Google usando idToken (emitido por Google OAuth).
    * El backend responde con { token, user } igual que /usuarios/login/.
    */
-  const loginWithGoogle = async (idToken) => {
+  const loginWithGoogle = async (idToken, flow = 'login') => {
     try {
       setLoading(true);
       setError(null);
@@ -571,7 +571,7 @@ export const AuthProvider = ({ children }) => {
       // Limpiar cualquier token anterior para evitar problemas
       await AsyncStorage.removeItem('auth_token');
 
-      const response = await authService.googleLogin(idToken);
+      const response = await authService.googleLogin(idToken, flow);
 
       if (!response.token) {
         throw new Error('No se recibió un token válido del servidor');
@@ -643,8 +643,20 @@ export const AuthProvider = ({ children }) => {
 
       return { success: true, user: normalizedUser };
     } catch (e) {
-      let errorMessage = 'No se pudo iniciar sesión con Google. Intenta nuevamente.';
       const status = e?.status || e?.response?.status;
+      const code = e?.response?.data?.code;
+      if (status === 404 && code === 'USER_NOT_FOUND') {
+        return {
+          success: false,
+          code: 'USER_NOT_FOUND',
+          profile: {
+            email: e?.response?.data?.email,
+            given_name: e?.response?.data?.given_name,
+            family_name: e?.response?.data?.family_name,
+          },
+        };
+      }
+      let errorMessage = 'No se pudo iniciar sesión con Google. Intenta nuevamente.';
       if (status === 403) {
         errorMessage =
           'Esta cuenta es de proveedor. Por favor, utiliza la aplicación de proveedores para iniciar sesión.';
