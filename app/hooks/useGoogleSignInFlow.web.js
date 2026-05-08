@@ -87,16 +87,38 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
         setGoogleLoading(false);
         return;
       }
-      // Si fue success pero no llegó idToken por alguna razón, no dejar loading infinito.
-      const idToken = googleResponse?.authentication?.idToken;
-      if (result?.type === 'success' && !idToken) {
+      if (result?.type === 'success') {
+        // En web, expo-auth-session entrega el id_token en params. No dependemos del estado `googleResponse`.
+        const idTokenFromParams = result?.params?.id_token;
+        if (!idTokenFromParams) {
+          setGoogleLoading(false);
+          Alert.alert('Google', 'No se pudo completar el acceso con Google (sin idToken).');
+          return;
+        }
+
+        const backendResult = await loginWithGoogle(idTokenFromParams, flow);
+        // eslint-disable-next-line no-console
+        console.log('[GoogleAuth][web] backend result (direct):', {
+          success: backendResult?.success,
+          code: backendResult?.code,
+          hasProfile: !!backendResult?.profile,
+        });
+
+        if (backendResult?.code === 'USER_NOT_FOUND') {
+          onUserNotFound?.(backendResult?.profile);
+          setGoogleLoading(false);
+          return;
+        }
+        if (!backendResult?.success) {
+          Alert.alert('Google', backendResult?.error || 'No se pudo iniciar sesión con Google.');
+        }
         setGoogleLoading(false);
-        Alert.alert('Google', 'No se pudo completar el acceso con Google (sin idToken).');
+        return;
       }
     } catch {
       setGoogleLoading(false);
     }
-  }, [googleRequest, googlePromptAsync, googleResponse, flow, onUserNotFound]);
+  }, [googleRequest, googlePromptAsync, flow, onUserNotFound, loginWithGoogle]);
 
   return {
     handleGoogleSignIn,
