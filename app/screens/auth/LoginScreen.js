@@ -23,6 +23,8 @@ import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
+import { useGoogleSignInFlow } from '../../hooks/useGoogleSignInFlow';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
 import logger from '../../utils/logger';
 import * as authService from '../../services/auth';
@@ -31,17 +33,6 @@ import * as categoryService from '../../services/categories';
 import * as userService from '../../services/user';
 import ofertasService from '../../services/ofertasService';
 import vehiculoService from '../../services/vehicle';
-import Constants from 'expo-constants';
-const IS_EXPO_GO = Constants.appOwnership === 'expo';
-let GoogleSignin = null;
-let statusCodes = {};
-if (!IS_EXPO_GO) {
-  try {
-    const lib = require('@react-native-google-signin/google-signin');
-    GoogleSignin = lib.GoogleSignin;
-    statusCodes = lib.statusCodes;
-  } catch (_) {}
-}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -56,6 +47,7 @@ const LoginScreen = () => {
   const insets = useSafeAreaInsets();
   const { login, loginWithGoogle } = useAuth();
   const queryClient = useQueryClient();
+  const { handleGoogleSignIn, googleLoading, googleButtonDisabled } = useGoogleSignInFlow(loginWithGoogle);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,36 +63,6 @@ const LoginScreen = () => {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [forgotPasswordErrors, setForgotPasswordErrors] = useState({});
-
-  const [googleLoading, setGoogleLoading] = useState(false);
-
-  const handleGoogleSignIn = async () => {
-    if (!GoogleSignin) {
-      Alert.alert('Google Sign-In', 'Disponible solo en builds nativos (no en Expo Go).');
-      return;
-    }
-    setGoogleLoading(true);
-    try {
-      await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-      const idToken = response?.data?.idToken;
-      if (!idToken) throw new Error('No se obtuvo idToken de Google.');
-      const result = await loginWithGoogle(idToken);
-      if (!result?.success) {
-        Alert.alert('Google', result?.error || 'No se pudo iniciar sesión con Google.');
-      }
-    } catch (e) {
-      if (e.code === statusCodes.SIGN_IN_CANCELLED) {
-        // usuario canceló, sin alerta
-      } else if (e.code === statusCodes.IN_PROGRESS) {
-        // ya hay un sign-in en curso
-      } else {
-        Alert.alert('Google', e.message || 'No se pudo iniciar sesión con Google.');
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   useEffect(() => {
     const loadRememberedCredentials = async () => {
@@ -264,17 +226,6 @@ const LoginScreen = () => {
 
         {/* Form */}
         <GlassCard style={styles.formCard}>
-          <Button
-            title="Continuar con Google"
-            onPress={handleGoogleSignIn}
-            isLoading={googleLoading}
-            type="primary"
-            variant="outline"
-            size="md"
-            fullWidth
-            style={{ marginBottom: 14 }}
-          />
-
           <View style={styles.inputWrapper}>
             <Input
               label="Correo Electrónico"
@@ -329,6 +280,17 @@ const LoginScreen = () => {
             useGradient
             size="md"
             fullWidth
+          />
+
+          <View style={styles.oauthDivider}>
+            <View style={styles.oauthDividerLine} />
+            <Text style={styles.oauthDividerText}>o</Text>
+            <View style={styles.oauthDividerLine} />
+          </View>
+          <GoogleSignInButton
+            onPress={handleGoogleSignIn}
+            isLoading={googleLoading}
+            disabled={googleButtonDisabled}
           />
         </GlassCard>
       </ScrollView>
@@ -458,6 +420,20 @@ const styles = StyleSheet.create({
 
   formCard: { marginBottom: 20 },
   inputWrapper: { marginBottom: 16 },
+
+  oauthDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  oauthDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border.light },
+  oauthDividerText: {
+    marginHorizontal: 14,
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
+  },
 
   optionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 24 },
   rememberRow: { flexDirection: 'row', alignItems: 'center' },

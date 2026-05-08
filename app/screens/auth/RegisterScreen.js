@@ -20,18 +20,9 @@ import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
+import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
+import { useGoogleSignInFlow } from '../../hooks/useGoogleSignInFlow';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
-import Constants from 'expo-constants';
-const IS_EXPO_GO = Constants.appOwnership === 'expo';
-let GoogleSignin = null;
-let statusCodes = {};
-if (!IS_EXPO_GO) {
-  try {
-    const lib = require('@react-native-google-signin/google-signin');
-    GoogleSignin = lib.GoogleSignin;
-    statusCodes = lib.statusCodes;
-  } catch (_) {}
-}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -45,6 +36,7 @@ const RegisterScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { register, loginWithGoogle, error: authError } = useAuth();
+  const { handleGoogleSignIn, googleLoading, googleButtonDisabled } = useGoogleSignInFlow(loginWithGoogle);
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -54,35 +46,6 @@ const RegisterScreen = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-
-  const handleGoogleSignIn = async () => {
-    if (!GoogleSignin) {
-      Alert.alert('Google Sign-In', 'Disponible solo en builds nativos (no en Expo Go).');
-      return;
-    }
-    setGoogleLoading(true);
-    try {
-      await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-      const idToken = response?.data?.idToken;
-      if (!idToken) throw new Error('No se obtuvo idToken de Google.');
-      const result = await loginWithGoogle(idToken);
-      if (!result?.success) {
-        Alert.alert('Google', result?.error || 'No se pudo continuar con Google.');
-      }
-    } catch (e) {
-      if (e.code === statusCodes.SIGN_IN_CANCELLED) {
-        // usuario canceló, sin alerta
-      } else if (e.code === statusCodes.IN_PROGRESS) {
-        // ya hay un sign-in en curso
-      } else {
-        Alert.alert('Google', e.message || 'No se pudo continuar con Google.');
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   const validate = () => {
     let valid = true;
@@ -250,18 +213,6 @@ const RegisterScreen = () => {
 
         {/* Form */}
         <GlassCard style={styles.formCard}>
-          <Button
-            title="Continuar con Google"
-            onPress={handleGoogleSignIn}
-            disabled={!googleRequest}
-            isLoading={googleLoading}
-            type="primary"
-            variant="outline"
-            size="md"
-            fullWidth
-            style={{ marginBottom: 14 }}
-          />
-
           <View style={styles.nameRow}>
             <View style={[styles.nameInput, { marginRight: 12 }]}>
               <Input label="Nombre" placeholder="Juan" value={firstName}
@@ -324,6 +275,17 @@ const RegisterScreen = () => {
             size="md"
             fullWidth
           />
+
+          <View style={styles.oauthDivider}>
+            <View style={styles.oauthDividerLine} />
+            <Text style={styles.oauthDividerText}>o</Text>
+            <View style={styles.oauthDividerLine} />
+          </View>
+          <GoogleSignInButton
+            onPress={handleGoogleSignIn}
+            isLoading={googleLoading}
+            disabled={googleButtonDisabled}
+          />
         </GlassCard>
       </ScrollView>
     </View>
@@ -381,6 +343,20 @@ const styles = StyleSheet.create({
 
   formCard: { marginBottom: 20 },
   inputWrapper: { marginBottom: 16 },
+
+  oauthDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  oauthDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border.light },
+  oauthDividerText: {
+    marginHorizontal: 14,
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
+  },
   nameRow: { flexDirection: 'row', marginBottom: 16 },
   nameInput: { flex: 1 },
 

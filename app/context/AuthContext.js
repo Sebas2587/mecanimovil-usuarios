@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authService from '../services/auth';
 import * as userService from '../services/user';
@@ -9,10 +9,12 @@ import logger from '../utils/logger';
 import NotificationService from '../services/notificationService';
 import Constants from 'expo-constants';
 
-// @react-native-google-signin/google-signin requiere módulo nativo — no disponible en Expo Go.
+// @react-native-google-signin/google-signin — solo binarios iOS/Android; no web ni Expo Go.
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
+const CAN_USE_NATIVE_GOOGLE =
+  Platform.OS !== 'web' && !IS_EXPO_GO;
 let GoogleSignin = null;
-if (!IS_EXPO_GO) {
+if (CAN_USE_NATIVE_GOOGLE) {
   try {
     GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
     GoogleSignin.configure({
