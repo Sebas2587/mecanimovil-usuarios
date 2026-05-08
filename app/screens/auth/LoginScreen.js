@@ -24,7 +24,11 @@ import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
 import GoogleSignInButton from '../../components/auth/GoogleSignInButton';
-import { useGoogleSignInFlow, getLastGoogleEmail } from '../../hooks/useGoogleSignInFlow';
+import {
+  useGoogleSignInFlow,
+  getConnectedGoogleAccountsAsync,
+  clearConnectedGoogleAccountsAsync,
+} from '../../hooks/useGoogleSignInFlow';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
 import logger from '../../utils/logger';
 import * as authService from '../../services/auth';
@@ -48,11 +52,8 @@ const LoginScreen = () => {
   const { login, loginWithGoogle } = useAuth();
   const queryClient = useQueryClient();
   const {
-    handleGoogleSignIn,
     googleLoading,
     googleButtonDisabled,
-    isWebOAuthReady,
-    renderNativeGoogleButton,
     signInWithAccountChooser,
   } = useGoogleSignInFlow(loginWithGoogle, {
     flow: 'login',
@@ -67,22 +68,34 @@ const LoginScreen = () => {
     },
   });
 
-  const [lastGoogleEmail, setLastGoogleEmail] = useState(null);
-  const googleNativeBtnRef = React.useRef(null);
+  const [connectedAccounts, setConnectedAccounts] = useState([]);
 
+  // Carga lista de cuentas Google ya usadas en el dispositivo (UX tipo Canva).
+  // Recargar también cuando termina un loading (post-login agrega cuenta nueva).
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
-    setLastGoogleEmail(getLastGoogleEmail());
-  }, []);
+    let alive = true;
+    getConnectedGoogleAccountsAsync().then((list) => {
+      if (alive) setConnectedAccounts(list);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [googleLoading]);
 
-  // Render Google's native button cuando hay cuenta previa (rápido para reusarla).
-  useEffect(() => {
-    if (Platform.OS !== 'web' || !isWebOAuthReady) return;
-    if (!renderNativeGoogleButton) return;
-    if (!lastGoogleEmail) return; // Sin cuenta previa, mostramos botón "Usar otra cuenta" directo
-    if (!googleNativeBtnRef.current) return;
-    renderNativeGoogleButton(googleNativeBtnRef.current);
-  }, [isWebOAuthReady, renderNativeGoogleButton, lastGoogleEmail]);
+  const handleClearGoogleAccounts = async () => {
+    await clearConnectedGoogleAccountsAsync();
+    setConnectedAccounts([]);
+  };
+
+  const handleAccountTap = (email) => {
+    if (googleLoading) return;
+    signInWithAccountChooser({ loginHint: email });
+  };
+
+  const handleUseAnotherAccount = () => {
+    if (googleLoading) return;
+    signInWithAccountChooser();
+  };
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -329,57 +342,114 @@ const LoginScreen = () => {
             <View style={styles.oauthDividerLine} />
           </View>
 
-          {Platform.OS === 'web' ? (
-            <View style={styles.googleNativeContainer}>
-              {lastGoogleEmail ? (
-                <>
-                  {/* Cuenta previa: muestra botón GIS nativo (reusa cuenta cacheada rápido) */}
-                  <Text style={styles.googleHintText}>
-                    Última cuenta:{' '}
-                    <Text style={styles.googleHintEmail}>{lastGoogleEmail}</Text>
-                  </Text>
-                  <View ref={googleNativeBtnRef} style={styles.googleNativeBtnWrap} />
-                  {!isWebOAuthReady && (
-                    <ActivityIndicator size="small" color={COLORS.primary[500]} style={{ marginTop: 8 }} />
-                  )}
+          {connectedAccounts.length > 0 ? (
+            <View style={styles.googleAccountsSection}>
+              <Text style={styles.googleAccountsTitle}>
+                Continúa con tu cuenta de Google
+              </Text>
+              {connectedAccounts.map((acc) => {
+                const initials = (acc.name || acc.email || '?')
+                  .split(/\s+/)
+                  .map((s) => s[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase();
+                return (
                   <TouchableOpacity
-                    onPress={signInWithAccountChooser}
+                    key={acc.email}
+                    onPress={() => handleAccountTap(acc.email)}
                     disabled={googleLoading}
-                    style={styles.googleSwitchAccountBtn}
+                    style={[
+                      styles.googleAccountRow,
+                      googleLoading && styles.googleAccountRowDisabled,
+                    ]}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.googleSwitchAccountText}>
-                      Iniciar con otra cuenta de Google
-                    </Text>
+                    {acc.picture ? (
+                      <Image
+                        source={{ uri: acc.picture }}
+                        style={styles.googleAccountAvatarImg}
+                      />
+                    ) : (
+                      <View style={styles.googleAccountAvatarFallback}>
+                        <Text style={styles.googleAccountAvatarText}>
+                          {initials}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.googleAccountText}>
+                      {acc.name ? (
+                        <Text style={styles.googleAccountName} numberOfLines={1}>
+                          {acc.name}
+                        </Text>
+                      ) : null}
+                      <Text style={styles.googleAccountEmail} numberOfLines={1}>
+                        {acc.email}
+                      </Text>
+                    </View>
+                    {googleLoading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={COLORS.primary[500]}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="chevron-forward"
+                        size={18}
+                        color={COLORS.text.tertiary}
+                      />
+                    )}
                   </TouchableOpacity>
-                </>
-              ) : (
-                // Sin cuenta previa → popup OAuth2 con select_account directamente
-                <GoogleSignInButton
-                  onPress={signInWithAccountChooser}
-                  isLoading={googleLoading}
-                  disabled={!isWebOAuthReady && googleLoading}
-                />
-              )}
-            </View>
-          ) : (
-            <>
-              <GoogleSignInButton
-                onPress={handleGoogleSignIn}
-                isLoading={googleLoading}
-                disabled={googleButtonDisabled}
-              />
+                );
+              })}
+
+              <View style={styles.googleAccountsDivider}>
+                <View style={styles.oauthDividerLine} />
+                <Text style={styles.oauthDividerText}>O bien</Text>
+                <View style={styles.oauthDividerLine} />
+              </View>
+
               <TouchableOpacity
-                onPress={signInWithAccountChooser}
-                disabled={googleLoading || googleButtonDisabled}
-                style={styles.googleSwitchAccountBtn}
+                onPress={handleUseAnotherAccount}
+                disabled={googleLoading}
+                style={[
+                  styles.useAnotherAccountBtn,
+                  googleLoading && styles.googleAccountRowDisabled,
+                ]}
                 activeOpacity={0.7}
               >
-                <Text style={styles.googleSwitchAccountText}>
-                  Iniciar con otra cuenta de Google
+                <Ionicons
+                  name="logo-google"
+                  size={18}
+                  color={COLORS.text.primary}
+                />
+                <Text style={styles.useAnotherAccountText}>
+                  Usar otra cuenta de Google
                 </Text>
               </TouchableOpacity>
-            </>
+
+              <TouchableOpacity
+                onPress={handleClearGoogleAccounts}
+                disabled={googleLoading}
+                style={styles.clearAccountsBtn}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="person-remove-outline"
+                  size={14}
+                  color={COLORS.text.tertiary}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={styles.clearAccountsText}>Quitar las cuentas</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <GoogleSignInButton
+              onPress={handleUseAnotherAccount}
+              isLoading={googleLoading}
+              disabled={googleButtonDisabled}
+            />
           )}
         </GlassCard>
       </ScrollView>
@@ -509,36 +579,100 @@ const styles = StyleSheet.create({
 
   formCard: { marginBottom: 20 },
   inputWrapper: { marginBottom: 16 },
-  googleNativeContainer: {
-    alignItems: 'center',
-    minHeight: 44,
-    justifyContent: 'center',
+  googleAccountsSection: {
+    alignSelf: 'stretch',
   },
-  googleNativeBtnWrap: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleHintText: {
+  googleAccountsTitle: {
     fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    color: COLORS.text.tertiary,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  googleHintEmail: {
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.secondary,
-  },
-  googleSwitchAccountBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    marginTop: 10,
-  },
-  googleSwitchAccountText: {
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[500],
+    marginBottom: 10,
     textAlign: 'center',
+  },
+  googleAccountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: BORDERS.radius?.md ?? 10,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+    marginBottom: 8,
+  },
+  googleAccountRowDisabled: {
+    opacity: 0.6,
+  },
+  googleAccountAvatarImg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.neutral.gray[100],
+  },
+  googleAccountAvatarFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleAccountAvatarText: {
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.primary[500],
+  },
+  googleAccountText: {
+    flex: 1,
+    marginLeft: 12,
+    minWidth: 0,
+  },
+  googleAccountName: {
+    fontSize: TYPOGRAPHY.styles.body.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  googleAccountEmail: {
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    color: COLORS.text.tertiary,
+    marginTop: 1,
+  },
+  googleAccountsDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  useAnotherAccountBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 46,
+    borderRadius: BORDERS.radius?.md ?? 10,
+    borderWidth: 1,
+    borderColor: COLORS.border.dark,
+    backgroundColor: COLORS.background.paper,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  useAnotherAccountText: {
+    fontSize: TYPOGRAPHY.styles.body.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  clearAccountsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+  },
+  clearAccountsText: {
+    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
+    textDecorationLine: 'underline',
   },
 
   oauthDivider: {
