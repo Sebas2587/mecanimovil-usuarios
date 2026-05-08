@@ -31,6 +31,7 @@ import Button from '../../components/base/Button/Button';
 import * as ImagePicker from 'expo-image-picker'; // New import
 import { useQueryClient } from '@tanstack/react-query'; // For invalidation
 import { ROUTES } from '../../utils/constants';
+import { showAlert } from '../../utils/platformAlert';
 
 // Utility
 const formatPatente = (text) => {
@@ -106,7 +107,7 @@ const VehicleRegistrationScreen = () => {
 
     const handleSearch = async () => {
         if (patente.length < 6) {
-            Alert.alert('Patente inválida', 'La patente debe tener 6 caracteres.');
+            showAlert('Patente inválida', 'La patente debe tener 6 caracteres.');
             return;
         }
 
@@ -117,16 +118,14 @@ const VehicleRegistrationScreen = () => {
             const check = await vehicleService.verificarPatenteRegistrada(patente);
             if (check?.registered) {
                 if (check.owner === 'self') {
-                    Alert.alert(
+                    showAlert(
                         'Patente ya registrada',
                         'Este vehículo ya se encuentra en tu garaje. Puedes verlo desde tu panel principal.',
-                        [{ text: 'Entendido' }],
                     );
                 } else {
-                    Alert.alert(
+                    showAlert(
                         'Patente no disponible',
                         'Esta patente ya se encuentra registrada por otro usuario en el sistema. Si crees que esto es un error, contáctanos a soporte.',
-                        [{ text: 'Entendido' }],
                     );
                 }
                 setLoading(false);
@@ -159,22 +158,16 @@ const VehicleRegistrationScreen = () => {
 
                 setStep('success');
             } else {
-                Alert.alert(
+                showAlert(
                     'Vehículo no encontrado',
                     'No encontramos información para esta patente. Intenta con otra o revisa la patente ingresada.',
-                    [
-                        { text: 'Intentar de nuevo', style: 'cancel' },
-                    ]
                 );
             }
         } catch (error) {
             console.error(error);
-            Alert.alert(
+            showAlert(
                 'Error',
                 'Hubo un problema consultando la patente. Intenta nuevamente o usa el ingreso manual.',
-                [
-                    { text: 'OK', style: 'cancel' },
-                ]
             );
         } finally {
             setLoading(false);
@@ -208,18 +201,18 @@ const VehicleRegistrationScreen = () => {
         console.log("🔍 [DEBUG] handleSave - vehicleData:", JSON.stringify(vehicleData, null, 2));
 
         if (!kilometraje) {
-            Alert.alert('Falta información', 'Por favor ingresa el kilometraje actual.');
+            showAlert('Falta información', 'Por favor ingresa el kilometraje actual.');
             return;
         }
 
         if (!selectedEngineType) {
-            Alert.alert('Falta información', 'Por favor selecciona el tipo de combustible.');
+            showAlert('Falta información', 'Por favor selecciona el tipo de combustible.');
             return;
         }
 
         if (!vehicleData.precio_mercado_promedio || Number(vehicleData.precio_mercado_promedio) === 0) {
             if (!valorMercado) {
-                Alert.alert('Falta información', 'Por favor ingresa el valor de mercado referencial.');
+                showAlert('Falta información', 'Por favor ingresa el valor de mercado referencial.');
                 return;
             }
         }
@@ -228,11 +221,19 @@ const VehicleRegistrationScreen = () => {
         try {
             const recheck = await vehicleService.verificarPatenteRegistrada(patente);
             if (recheck?.registered && recheck.owner !== 'self') {
-                Alert.alert(
-                    'Patente no disponible',
-                    'Esta patente fue registrada por otro usuario mientras completabas el formulario. Intenta con otra patente.',
-                    [{ text: 'Entendido', onPress: handleReset }],
-                );
+                if (Platform.OS === 'web') {
+                    showAlert(
+                        'Patente no disponible',
+                        'Esta patente fue registrada por otro usuario mientras completabas el formulario. Intenta con otra patente.',
+                    );
+                    handleReset();
+                } else {
+                    Alert.alert(
+                        'Patente no disponible',
+                        'Esta patente fue registrada por otro usuario mientras completabas el formulario. Intenta con otra patente.',
+                        [{ text: 'Entendido', onPress: handleReset }],
+                    );
+                }
                 return;
             }
         } catch (e) {
@@ -244,16 +245,16 @@ const VehicleRegistrationScreen = () => {
         for (const [compId, kmVal] of Object.entries(maintenanceSelections)) {
             if (kmVal === '' || kmVal === undefined) {
                 const item = checklistItems.find(c => c.id === Number(compId));
-                Alert.alert('Falta información', `Ingresa los km del odómetro cuando cambiaste "${item?.nombre || 'el componente'}".`);
+                showAlert('Falta información', `Ingresa los km del odómetro cuando cambiaste "${item?.nombre || 'el componente'}".`);
                 return;
             }
             const km = typeof kmVal === 'number' ? kmVal : parseInt(String(kmVal), 10);
             if (isNaN(km) || km < 0) {
-                Alert.alert('Dato inválido', 'Los km deben ser un número mayor o igual a 0.');
+                showAlert('Dato inválido', 'Los km deben ser un número mayor o igual a 0.');
                 return;
             }
             if (km > kmActual) {
-                Alert.alert('Dato inválido', `Los km del cambio no pueden ser mayores al kilometraje actual del auto (${kmActual.toLocaleString()} km).`);
+                showAlert('Dato inválido', `Los km del cambio no pueden ser mayores al kilometraje actual del auto (${kmActual.toLocaleString()} km).`);
                 return;
             }
         }
@@ -346,36 +347,56 @@ const VehicleRegistrationScreen = () => {
             queryClient.invalidateQueries({ queryKey: ['userVehicles'] });
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
 
-            Alert.alert('Éxito', 'Vehículo agregado a tu garaje.', [
-                {
-                    text: 'OK',
-                    onPress: () => {
-                        // Intentar navegar al stack principal o volver atrás
-                        if (navigation.canGoBack()) {
-                            navigation.goBack();
-                        } else {
-                            // Fallback para estructura de tabs
-                            navigation.navigate('Main', {
-                                screen: 'MisVehiculos',
-                                params: { refresh: true }
-                            });
+            if (Platform.OS === 'web') {
+                showAlert('Éxito', 'Vehículo agregado a tu garaje.');
+                if (navigation.canGoBack()) {
+                    navigation.goBack();
+                } else {
+                    navigation.navigate('Main', {
+                        screen: 'MisVehiculos',
+                        params: { refresh: true }
+                    });
+                }
+            } else {
+                Alert.alert('Éxito', 'Vehículo agregado a tu garaje.', [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            // Intentar navegar al stack principal o volver atrás
+                            if (navigation.canGoBack()) {
+                                navigation.goBack();
+                            } else {
+                                // Fallback para estructura de tabs
+                                navigation.navigate('Main', {
+                                    screen: 'MisVehiculos',
+                                    params: { refresh: true }
+                                });
+                            }
                         }
                     }
-                }
-            ]);
+                ]);
+            }
 
         } catch (error) {
             console.error(error);
             const status = error?.response?.status;
             const detail = error?.response?.data?.patente?.[0];
             if (status === 409 || (detail && detail.toLowerCase().includes('registrada'))) {
-                Alert.alert(
-                    'Patente no disponible',
-                    detail || 'Esta patente ya se encuentra registrada por otro usuario.',
-                    [{ text: 'Entendido', onPress: handleReset }],
-                );
+                if (Platform.OS === 'web') {
+                    showAlert(
+                        'Patente no disponible',
+                        detail || 'Esta patente ya se encuentra registrada por otro usuario.',
+                    );
+                    handleReset();
+                } else {
+                    Alert.alert(
+                        'Patente no disponible',
+                        detail || 'Esta patente ya se encuentra registrada por otro usuario.',
+                        [{ text: 'Entendido', onPress: handleReset }],
+                    );
+                }
             } else {
-                Alert.alert('Error', 'No se pudo guardar el vehículo. Inténtalo más tarde.');
+                showAlert('Error', 'No se pudo guardar el vehículo. Inténtalo más tarde.');
             }
         } finally {
             setSaving(false);
