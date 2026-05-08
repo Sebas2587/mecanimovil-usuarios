@@ -78,7 +78,10 @@ import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-syst
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_GAP = 12;
 const H_PAD = SPACING.container.horizontal;
-const GRID_CARD_W = (SCREEN_WIDTH - H_PAD * 2 - CARD_GAP) / 2;
+// On web (desktop/tablet), cap the layout reference width so cards don't stretch
+// to full browser viewport. 480px matches a large phone; feels natural on desktop too.
+const LAYOUT_WIDTH = Platform.OS === 'web' ? Math.min(SCREEN_WIDTH, 480) : SCREEN_WIDTH;
+const GRID_CARD_W = (LAYOUT_WIDTH - H_PAD * 2 - CARD_GAP) / 2;
 const QUICK_ACTION_CARD_W = GRID_CARD_W;
 const QUICK_ACTION_SNAP_INTERVAL = QUICK_ACTION_CARD_W + CARD_GAP;
 const TAB_BAR_BASE_HEIGHT = 64;

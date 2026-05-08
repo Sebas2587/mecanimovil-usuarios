@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
+import { showAlert } from '../utils/platformAlert';
 
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 
@@ -89,14 +90,19 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
     document.head.appendChild(script);
   }, []);
 
+  /**
+   * Intenta One Tap (google.accounts.id.prompt). Si está en cooldown o suprimido,
+   * falla silenciosamente — el usuario puede usar el botón nativo de Google renderizado
+   * en la UI vía renderNativeGoogleButton().
+   */
   const handleGoogleSignIn = useCallback(async () => {
     if (!gisReady || !window.google?.accounts?.id) {
-      Alert.alert('Google', 'Google Sign-In aún se está cargando. Espera un momento e intenta nuevamente.');
+      showAlert('Google', 'Google Sign-In aún se está cargando. Espera un momento e intenta nuevamente.');
       return;
     }
 
     if (!WEB_CLIENT_ID) {
-      Alert.alert('Google', 'Google Sign-In no está configurado para web (falta EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID).');
+      showAlert('Google', 'Google Sign-In no está configurado para web (falta EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID).');
       return;
     }
 
@@ -104,10 +110,8 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
 
     try {
       const credential = await new Promise((resolve, reject) => {
-        // Guardar el resolve para que el callback global lo llame
         _pendingResolve = resolve;
 
-        // Timeout de 120 segundos
         const timeout = setTimeout(() => {
           if (_pendingResolve === resolve) {
             _pendingResolve = null;
@@ -119,66 +123,71 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
           clearTimeout(timeout);
 
           if (notification.isNotDisplayed()) {
-            // GIS no pudo mostrar el selector (usuario no logueado en Google, etc.)
             _pendingResolve = null;
             reject(new Error('not_displayed:' + notification.getNotDisplayedReason()));
           } else if (notification.isSkippedMoment()) {
-            // Usuario cerró el selector sin seleccionar cuenta
             _pendingResolve = null;
-            reject(new Error('skipped'));
+            reject(new Error('skipped:' + notification.getSkippedReason()));
           }
-          // Si se muestra y el usuario selecciona cuenta → _handleGISCredential() llama resolve()
         });
       });
 
-      // credential es el id_token de Google
       // eslint-disable-next-line no-console
-      console.log('[GoogleAuth][web][GIS] credential recibido, llamando backend. flow=', flow);
+      console.log('[GoogleAuth][web][GIS] credential recibido, flow=', flow);
       const result = await loginWithGoogle(credential, flow);
-      // eslint-disable-next-line no-console
-      console.log('[GoogleAuth][web][GIS] backend result:', {
-        success: result?.success,
-        code: result?.code,
-        hasProfile: !!result?.profile,
-      });
 
       if (result?.code === 'USER_NOT_FOUND') {
         onUserNotFound?.(result?.profile);
         return;
       }
       if (result?.code === 'PROVIDER_ACCOUNT') {
-        Alert.alert(
+        showAlert(
           'Cuenta de Proveedor',
           'Esta cuenta está registrada como mecánico o taller.\n\nPara acceder, descarga y usa la aplicación MecaniMóvil Proveedores.',
-          [{ text: 'Entendido' }],
         );
         return;
       }
       if (!result?.success) {
-        Alert.alert('Error', result?.error || 'No se pudo iniciar sesión con Google.');
+        showAlert('Error', result?.error || 'No se pudo iniciar sesión con Google.');
       }
     } catch (e) {
       const msg = String(e?.message || '');
-      if (msg.startsWith('not_displayed')) {
-        Alert.alert(
-          'Google Sign-In',
-          'Para continuar con Google asegúrate de:\n• Estar con sesión iniciada en google.com\n• Que Google no esté bloqueado en el navegador\n\nLuego intenta nuevamente.',
-          [{ text: 'OK' }],
-        );
-      } else if (msg === 'skipped') {
-        // Usuario canceló — no mostrar error
+      if (msg.startsWith('not_displayed') || msg.startsWith('skipped')) {
+        // Cooldown / supresión / cancelación — silencioso.
+        // El botón nativo de Google (renderNativeGoogleButton) no tiene estas restricciones.
       } else if (msg !== 'timeout') {
-        Alert.alert('Google', 'No se pudo iniciar sesión con Google. Intenta nuevamente.');
+        showAlert('Google', 'No se pudo iniciar sesión con Google. Intenta nuevamente.');
       }
     } finally {
       if (mountedRef.current) setGoogleLoading(false);
     }
   }, [gisReady, loginWithGoogle, flow, onUserNotFound]);
 
+  /**
+   * Renderiza el botón nativo de Google Identity Services en un elemento DOM.
+   * El botón nativo no tiene cooldown y permite "Usar otra cuenta" (cualquier email).
+   * El credential (id_token) llega por el mismo callback _handleGISCredential.
+   * @param {HTMLElement} domElement - elemento DOM donde Google renderiza el botón
+   */
+  const renderNativeGoogleButton = useCallback((domElement) => {
+    if (!domElement || !window.google?.accounts?.id || !gisReady) return;
+    domElement.innerHTML = '';
+    window.google.accounts.id.renderButton(domElement, {
+      type: 'standard',
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      shape: 'rectangular',
+      width: Math.min(300, (typeof window !== 'undefined' ? window.innerWidth : 400) - 80),
+      logo_alignment: 'left',
+    });
+  }, [gisReady]);
+
   return {
     handleGoogleSignIn,
     googleLoading,
     googleButtonDisabled: !gisReady,
     isWebOAuthReady: gisReady,
+    renderNativeGoogleButton,
   };
 }

@@ -47,7 +47,7 @@ const LoginScreen = () => {
   const insets = useSafeAreaInsets();
   const { login, loginWithGoogle } = useAuth();
   const queryClient = useQueryClient();
-  const { handleGoogleSignIn, googleLoading, googleButtonDisabled } = useGoogleSignInFlow(loginWithGoogle, {
+  const { handleGoogleSignIn, googleLoading, googleButtonDisabled, isWebOAuthReady, renderNativeGoogleButton } = useGoogleSignInFlow(loginWithGoogle, {
     flow: 'login',
     onUserNotFound: (profile) => {
       navigation.navigate(ROUTES.REGISTER, {
@@ -59,6 +59,17 @@ const LoginScreen = () => {
       });
     },
   });
+
+  const googleNativeBtnRef = React.useRef(null);
+
+  // Render Google's native sign-in button when GIS SDK is ready (web only).
+  // renderButton() has no One Tap cooldown and shows "Use another account" option.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !isWebOAuthReady) return;
+    if (!renderNativeGoogleButton) return;
+    if (!googleNativeBtnRef.current) return;
+    renderNativeGoogleButton(googleNativeBtnRef.current);
+  }, [isWebOAuthReady, renderNativeGoogleButton]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -304,11 +315,23 @@ const LoginScreen = () => {
             <Text style={styles.oauthDividerText}>o</Text>
             <View style={styles.oauthDividerLine} />
           </View>
-          <GoogleSignInButton
-            onPress={handleGoogleSignIn}
-            isLoading={googleLoading}
-            disabled={googleButtonDisabled}
-          />
+
+          {Platform.OS === 'web' ? (
+            // Web: botón nativo de Google (sin cooldown, soporta "Usar otra cuenta").
+            // renderNativeGoogleButton() inyecta el iframe de GIS aquí.
+            <View style={styles.googleNativeContainer}>
+              <View ref={googleNativeBtnRef} style={styles.googleNativeBtnWrap} />
+              {!isWebOAuthReady && (
+                <ActivityIndicator size="small" color={COLORS.primary[500]} style={{ marginTop: 8 }} />
+              )}
+            </View>
+          ) : (
+            <GoogleSignInButton
+              onPress={handleGoogleSignIn}
+              isLoading={googleLoading}
+              disabled={googleButtonDisabled}
+            />
+          )}
         </GlassCard>
       </ScrollView>
 
@@ -437,6 +460,16 @@ const styles = StyleSheet.create({
 
   formCard: { marginBottom: 20 },
   inputWrapper: { marginBottom: 16 },
+  googleNativeContainer: {
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  googleNativeBtnWrap: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   oauthDivider: {
     flexDirection: 'row',
