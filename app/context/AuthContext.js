@@ -49,6 +49,9 @@ export const AuthProvider = ({ children }) => {
       setToken(null);
       setUser(null);
       WebSocketService.disconnect();
+      // Limpiar cache React Query para evitar leak de datos entre sesiones por expiración de token
+      queryClient.clear();
+      clearPersistedQueryCache().catch(() => {});
     });
     return () => setOnAuthExpired(null);
   }, []);

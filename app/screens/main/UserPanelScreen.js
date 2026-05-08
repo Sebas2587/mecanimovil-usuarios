@@ -799,13 +799,13 @@ const UserPanelScreen = () => {
         <ScrollView
           horizontal
           nestedScrollEnabled={Platform.OS !== 'web'}
-          showsHorizontalScrollIndicator={false}
+          showsHorizontalScrollIndicator={Platform.OS === 'web'}
           decelerationRate={Platform.OS === 'web' ? undefined : 'fast'}
           snapToInterval={Platform.OS === 'web' ? undefined : QUICK_ACTION_SNAP_INTERVAL}
           snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
           disableIntervalMomentum={Platform.OS === 'web' ? undefined : true}
           contentContainerStyle={styles.quickScrollContent}
-          style={styles.quickScrollOuter}
+          style={[styles.quickScrollOuter, Platform.OS === 'web' && { overflow: 'scroll' }]}
           keyboardShouldPersistTaps="handled"
         >
           {quickActionItems.map((it) => (
@@ -1066,12 +1066,13 @@ const UserPanelScreen = () => {
             ) : (
               <ScrollView
                 horizontal
-                pagingEnabled
-                decelerationRate="fast"
-                snapToInterval={nearbyPageWidth}
-                snapToAlignment="start"
+                pagingEnabled={Platform.OS !== 'web'}
+                decelerationRate={Platform.OS === 'web' ? undefined : 'fast'}
+                snapToInterval={Platform.OS === 'web' ? undefined : nearbyPageWidth}
+                snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
                 showsHorizontalScrollIndicator
                 keyboardShouldPersistTaps="handled"
+                style={Platform.OS === 'web' ? { overflow: 'scroll' } : undefined}
               >
                 {nearbyPages.map((pair, pageIdx) => (
                   <View
