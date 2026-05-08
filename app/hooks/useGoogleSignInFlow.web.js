@@ -3,6 +3,7 @@ import { showAlert } from '../utils/platformAlert';
 
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 const ACCOUNTS_KEY = 'mecanimovil:connectedGoogleAccounts';
+const OLD_EMAIL_KEY = 'mecanimovil:lastGoogleEmail';
 const MAX_ACCOUNTS = 5;
 
 let _gisInitialized = false;
@@ -47,6 +48,19 @@ function decodeJwtPayload(token) {
 function _readAccountsSync() {
   if (typeof window === 'undefined' || !window.localStorage) return [];
   try {
+    // Migrate from old single-email key (mecanimovil:lastGoogleEmail)
+    const oldEmail = window.localStorage.getItem(OLD_EMAIL_KEY);
+    if (oldEmail) {
+      try {
+        const existing = JSON.parse(window.localStorage.getItem(ACCOUNTS_KEY) || '[]');
+        if (Array.isArray(existing) && !existing.some((a) => a.email === oldEmail)) {
+          existing.unshift({ email: oldEmail, name: '', picture: '' });
+          window.localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(existing));
+        }
+      } catch {}
+      window.localStorage.removeItem(OLD_EMAIL_KEY);
+    }
+
     const raw = window.localStorage.getItem(ACCOUNTS_KEY);
     if (!raw) return [];
     const list = JSON.parse(raw);
@@ -370,7 +384,9 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
   return {
     handleGoogleSignIn,
     googleLoading,
-    googleButtonDisabled: !gisReady,
+    // The popup (OAuth2) flow does NOT need GIS — never disable the button for it.
+    // Only One Tap (handleGoogleSignIn) needs gisReady.
+    googleButtonDisabled: false,
     isWebOAuthReady: gisReady,
     renderNativeGoogleButton,
     signInWithAccountChooser,
