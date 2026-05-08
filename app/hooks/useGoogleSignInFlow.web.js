@@ -1,54 +1,40 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { showAlert } from '../utils/platformAlert';
 
+/**
+ * Web Google Sign-In flow.
+ *
+ * Estrategia:
+ *  - OAuth2 implicit flow vía popup → siempre devuelve `id_token`
+ *    (que es el formato que acepta nuestro backend).
+ *  - El popup redirige a `/oauth-callback.html` (servido estáticamente desde
+ *    `public/oauth-callback.html`). Ese HTML hace `postMessage` al opener con el
+ *    fragmento (`#id_token=...`) y se auto-cierra. Evita problemas de cross-origin
+ *    polling y mantiene UNA sola redirect_uri por entorno para registrar en GCP.
+ *  - `prompt=select_account` → fuerza selector de cuenta.
+ *  - `login_hint=email` → preselecciona cuenta concreta (login rápido).
+ *
+ * Configuración Google Cloud Console requerida (una sola vez por entorno):
+ *  - Authorized JavaScript origins:
+ *      https://mecanimovil-usuarios.vercel.app
+ *      http://localhost:8081
+ *  - Authorized redirect URIs:
+ *      https://mecanimovil-usuarios.vercel.app/oauth-callback.html
+ *      http://localhost:8081/oauth-callback.html
+ */
+
 const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
 const ACCOUNTS_KEY = 'mecanimovil:connectedGoogleAccounts';
 const OLD_EMAIL_KEY = 'mecanimovil:lastGoogleEmail';
 const MAX_ACCOUNTS = 5;
+const CALLBACK_PATH = '/oauth-callback.html';
 
-let _gisInitialized = false;
-let _pendingResolve = null;
-
-function _handleGISCredential(response) {
-  const credential = response?.credential;
-  if (_pendingResolve && credential) {
-    const resolve = _pendingResolve;
-    _pendingResolve = null;
-    resolve(credential);
-  }
-}
-
-function _ensureGISInitialized() {
-  if (_gisInitialized) return;
-  if (!window.google?.accounts?.id) return;
-  if (!WEB_CLIENT_ID) return;
-  window.google.accounts.id.initialize({
-    client_id: WEB_CLIENT_ID,
-    callback: _handleGISCredential,
-    auto_select: false,
-    cancel_on_tap_outside: true,
-    use_fedcm_for_prompt: false,
-  });
-  _gisInitialized = true;
-}
-
-function decodeJwtPayload(token) {
-  try {
-    const part = token.split('.')[1];
-    const padded = part
-      .replace(/-/g, '+')
-      .replace(/_/g, '/')
-      .padEnd(part.length + ((4 - (part.length % 4)) % 4), '=');
-    return JSON.parse(atob(padded));
-  } catch {
-    return null;
-  }
-}
+/* ─── localStorage helpers (cuentas conectadas — solo hint UX) ──────────────── */
 
 function _readAccountsSync() {
   if (typeof window === 'undefined' || !window.localStorage) return [];
   try {
-    // Migrate from old single-email key (mecanimovil:lastGoogleEmail)
+    // Migrar del formato viejo (single email) → nueva lista
     const oldEmail = window.localStorage.getItem(OLD_EMAIL_KEY);
     if (oldEmail) {
       try {
@@ -60,27 +46,18 @@ function _readAccountsSync() {
       } catch {}
       window.localStorage.removeItem(OLD_EMAIL_KEY);
     }
-
     const raw = window.localStorage.getItem(ACCOUNTS_KEY);
     if (!raw) return [];
     const list = JSON.parse(raw);
-    if (!Array.isArray(list)) return [];
-    return list.filter((a) => a && typeof a.email === 'string');
+    return Array.isArray(list) ? list.filter((a) => a && typeof a.email === 'string') : [];
   } catch {
     return [];
   }
 }
 
-/**
- * Lista persistida de cuentas Google con las que el usuario ha iniciado sesión
- * en MecaniMóvil en este dispositivo (más reciente primero).
- * Es solo un hint de UX; no contiene tokens ni datos sensibles.
- */
 export async function getConnectedGoogleAccountsAsync() {
   return _readAccountsSync();
 }
-
-/** Versión sync para web (localStorage). */
 export function getConnectedGoogleAccounts() {
   return _readAccountsSync();
 }
@@ -102,21 +79,41 @@ export async function clearConnectedGoogleAccountsAsync() {
   } catch {}
 }
 
-// Compat helpers (código previo)
-export function getLastGoogleEmail() {
-  return _readAccountsSync()[0]?.email || null;
-}
-export function clearLastGoogleEmail() {
-  return clearConnectedGoogleAccountsAsync();
+// Compat aliases
+export const getLastGoogleEmail = () => _readAccountsSync()[0]?.email || null;
+export const clearLastGoogleEmail = () => clearConnectedGoogleAccountsAsync();
+
+/* ─── JWT decoding ──────────────────────────────────────────────────────────── */
+
+function decodeJwtPayload(token) {
+  try {
+    const part = token.split('.')[1];
+    const padded = part
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(part.length + ((4 - (part.length % 4)) % 4), '=');
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
 }
 
-/**
- * Abre popup OAuth2 implícito (response_type=id_token).
- * @param {{ loginHint?: string, forceChooser?: boolean }} opts
- *   - loginHint: pasa email a Google → preselecciona cuenta (skip chooser si ya logueado)
- *   - forceChooser: prompt=select_account → siempre muestra selector
- */
-function openGoogleAuthPopup(opts = {}) {
+/* ─── OAuth2 popup flow vía postMessage ─────────────────────────────────────── */
+
+function buildAuthUrl({ loginHint, forceChooser, nonce, redirectUri }) {
+  const params = new URLSearchParams({
+    client_id: WEB_CLIENT_ID,
+    response_type: 'id_token',
+    scope: 'openid email profile',
+    redirect_uri: redirectUri,
+    nonce,
+  });
+  if (forceChooser) params.set('prompt', 'select_account');
+  if (loginHint) params.set('login_hint', loginHint);
+  return 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+}
+
+function openGoogleAuthPopup({ loginHint, forceChooser } = {}) {
   return new Promise((resolve, reject) => {
     if (!WEB_CLIENT_ID) {
       reject(new Error('no_client_id'));
@@ -124,20 +121,11 @@ function openGoogleAuthPopup(opts = {}) {
     }
     const NONCE =
       Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-    const REDIRECT_URI = window.location.origin + window.location.pathname;
-    const params = new URLSearchParams({
-      client_id: WEB_CLIENT_ID,
-      response_type: 'id_token',
-      scope: 'openid email profile',
-      redirect_uri: REDIRECT_URI,
-      nonce: NONCE,
-    });
-    if (opts.forceChooser) params.set('prompt', 'select_account');
-    if (opts.loginHint) params.set('login_hint', opts.loginHint);
-    const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+    const REDIRECT_URI = window.location.origin + CALLBACK_PATH;
+    const url = buildAuthUrl({ loginHint, forceChooser, nonce: NONCE, redirectUri: REDIRECT_URI });
 
     const w = 500;
-    const h = 600;
+    const h = 620;
     const left = window.screenX + (window.outerWidth - w) / 2;
     const top = window.screenY + (window.outerHeight - h) / 2;
     const popup = window.open(
@@ -151,42 +139,60 @@ function openGoogleAuthPopup(opts = {}) {
     }
 
     let settled = false;
-    const interval = setInterval(() => {
-      try {
-        if (popup.closed) {
-          if (!settled) {
-            settled = true;
-            clearInterval(interval);
-            reject(new Error('cancelled'));
-          }
-          return;
-        }
-        const hash = popup.location.hash;
-        if (hash && hash.includes('id_token=')) {
-          const p = new URLSearchParams(hash.slice(1));
-          const idToken = p.get('id_token');
-          settled = true;
-          clearInterval(interval);
-          try { popup.close(); } catch {}
-          if (idToken) resolve(idToken);
-          else reject(new Error('no_id_token'));
-        } else if (hash && hash.includes('error=')) {
-          const p = new URLSearchParams(hash.slice(1));
-          const err = p.get('error');
-          settled = true;
-          clearInterval(interval);
-          try { popup.close(); } catch {}
-          reject(new Error('oauth_error:' + err));
-        }
-      } catch {
-        // cross-origin: usuario navegando en accounts.google.com
-      }
-    }, 400);
+    let messageReceived = false;
+    const startTime = Date.now();
+    const cleanup = () => {
+      window.removeEventListener('message', onMessage);
+      clearInterval(closeWatcher);
+      clearTimeout(timeoutId);
+    };
 
-    setTimeout(() => {
+    function onMessage(event) {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (!data || data.type !== 'mecanimovil:google-oauth') return;
+      messageReceived = true;
+      const hash = (data.hash || '').replace(/^#/, '');
+      const search = (data.search || '').replace(/^\?/, '');
+      // Errores en query (?error=...) ó en fragmento (#error=...)
+      const params = new URLSearchParams(hash || search);
+      const idToken = params.get('id_token');
+      const err = params.get('error');
+      const errDesc = params.get('error_description');
+      settled = true;
+      cleanup();
+      try { popup.close(); } catch {}
+      if (idToken) {
+        resolve(idToken);
+      } else if (err) {
+        reject(new Error(`oauth_error:${err}${errDesc ? ':' + errDesc : ''}`));
+      } else {
+        reject(new Error('no_id_token'));
+      }
+    }
+    window.addEventListener('message', onMessage);
+
+    const closeWatcher = setInterval(() => {
+      if (!settled && popup.closed) {
+        settled = true;
+        cleanup();
+        // Heurística: si el popup estuvo abierto >4s y NUNCA llegó al callback
+        // (no hubo postMessage), probablemente Google rechazó la solicitud
+        // (redirect_uri_mismatch, client_id inválido, etc) y mostró su propia
+        // página de error en lugar de redirigir.
+        const elapsed = Date.now() - startTime;
+        if (!messageReceived && elapsed > 4000) {
+          reject(new Error('likely_oauth_misconfig'));
+        } else {
+          reject(new Error('cancelled'));
+        }
+      }
+    }, 500);
+
+    const timeoutId = setTimeout(() => {
       if (!settled) {
         settled = true;
-        clearInterval(interval);
+        cleanup();
         try { popup.close(); } catch {}
         reject(new Error('timeout'));
       }
@@ -194,58 +200,28 @@ function openGoogleAuthPopup(opts = {}) {
   });
 }
 
+/* ─── Hook ──────────────────────────────────────────────────────────────────── */
+
 export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
   const flow = options.flow || 'login';
   const onUserNotFound = options.onUserNotFound;
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [gisReady, setGisReady] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  // Carga script GIS (solo para One Tap fallback)
-  useEffect(() => {
-    if (!WEB_CLIENT_ID) return;
-    const tryInit = () => {
-      _ensureGISInitialized();
-      if (_gisInitialized && mountedRef.current) setGisReady(true);
-    };
-    if (window.google?.accounts?.id) {
-      tryInit();
-      return;
-    }
-    const existing = document.querySelector(
-      'script[src*="accounts.google.com/gsi/client"]',
-    );
-    if (existing) {
-      existing.addEventListener('load', tryInit);
-      return () => existing.removeEventListener('load', tryInit);
-    }
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = tryInit;
-    script.onerror = () => {
-      // eslint-disable-next-line no-console
-      console.warn('[GoogleAuth][web] No se pudo cargar Google GIS.');
-    };
-    document.head.appendChild(script);
+    return () => { mountedRef.current = false; };
   }, []);
 
   const _processCredential = useCallback(
     async (idToken, source) => {
       // eslint-disable-next-line no-console
-      console.log('[GoogleAuth][web] credential, source=', source, 'flow=', flow);
+      console.log('[GoogleAuth][web] credential received, source=', source);
       const result = await loginWithGoogle(idToken, flow);
 
       const payload = decodeJwtPayload(idToken);
-      // Recordar cuenta solo si backend acepta (login OK o usuario nuevo válido)
+      // Recordar SOLO si el backend acepta (login OK o usuario nuevo válido).
+      // NO recordar cuentas rechazadas (PROVIDER_ACCOUNT, etc) — privacidad.
       if (payload?.email && (result?.success || result?.code === 'USER_NOT_FOUND')) {
         rememberGoogleAccount({
           email: payload.email,
@@ -261,8 +237,8 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
       }
       if (result?.code === 'PROVIDER_ACCOUNT') {
         showAlert(
-          'Cuenta de Proveedor',
-          'Esta cuenta está registrada como mecánico o taller.\n\nPara acceder, descarga y usa la aplicación MecaniMóvil Proveedores.',
+          'Cuenta de proveedor',
+          'La cuenta de Google que seleccionaste está registrada como mecánico o taller.\n\nPara acceder, descarga la app MecaniMóvil Proveedores.',
         );
         return;
       }
@@ -270,50 +246,6 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
     },
     [loginWithGoogle, flow, onUserNotFound],
   );
-
-  /** Compat: One Tap GIS (rápido si Google ya tiene sesión). */
-  const handleGoogleSignIn = useCallback(async () => {
-    if (!gisReady || !window.google?.accounts?.id) {
-      showAlert('Google', 'Google Sign-In aún se está cargando. Espera un momento.');
-      return;
-    }
-    if (!WEB_CLIENT_ID) {
-      showAlert('Google', 'Google Sign-In no está configurado para web.');
-      return;
-    }
-    setGoogleLoading(true);
-    try {
-      const credential = await new Promise((resolve, reject) => {
-        _pendingResolve = resolve;
-        const timeout = setTimeout(() => {
-          if (_pendingResolve === resolve) {
-            _pendingResolve = null;
-            reject(new Error('timeout'));
-          }
-        }, 120_000);
-        window.google.accounts.id.prompt((notification) => {
-          clearTimeout(timeout);
-          if (notification.isNotDisplayed()) {
-            _pendingResolve = null;
-            reject(new Error('not_displayed:' + notification.getNotDisplayedReason()));
-          } else if (notification.isSkippedMoment()) {
-            _pendingResolve = null;
-            reject(new Error('skipped:' + notification.getSkippedReason()));
-          }
-        });
-      });
-      await _processCredential(credential, 'one_tap');
-    } catch (e) {
-      const msg = String(e?.message || '');
-      if (msg.startsWith('not_displayed') || msg.startsWith('skipped')) {
-        // silencioso
-      } else if (msg !== 'timeout') {
-        showAlert('Google', 'No se pudo iniciar sesión con Google.');
-      }
-    } finally {
-      if (mountedRef.current) setGoogleLoading(false);
-    }
-  }, [gisReady, _processCredential]);
 
   /**
    * Sign-in vía popup OAuth2.
@@ -329,7 +261,6 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
       }
       setGoogleLoading(true);
       try {
-        try { window.google?.accounts?.id?.disableAutoSelect?.(); } catch {}
         const idToken = await openGoogleAuthPopup({
           loginHint: opts.loginHint,
           forceChooser: !opts.loginHint,
@@ -341,14 +272,31 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
       } catch (e) {
         const msg = String(e?.message || '');
         if (msg === 'cancelled') {
-          // popup cerrado por usuario
+          // popup cerrado manualmente — silencioso
         } else if (msg === 'popup_blocked') {
           showAlert(
             'Popup bloqueado',
-            'Permite popups para iniciar sesión con Google e intenta nuevamente.',
+            'Tu navegador bloqueó la ventana de Google. Habilita popups para este sitio e intenta nuevamente.',
           );
-        } else if (msg !== 'timeout') {
-          showAlert('Google', 'No se pudo iniciar sesión con Google.');
+        } else if (msg === 'likely_oauth_misconfig') {
+          showAlert(
+            'Configuración de Google',
+            `Google rechazó la solicitud de inicio de sesión.\n\nLa causa más común es que la URL de redirección no esté autorizada en Google Cloud Console:\n\n${window.location.origin}${CALLBACK_PATH}\n\nContacta al administrador para registrar esta URL.`,
+          );
+        } else if (msg.startsWith('oauth_error:')) {
+          const errDetail = msg.replace('oauth_error:', '');
+          if (errDetail.startsWith('redirect_uri_mismatch')) {
+            showAlert(
+              'Configuración de Google',
+              `La URL de redirección no está autorizada en Google Cloud Console.\n\nAgrega:\n${window.location.origin}${CALLBACK_PATH}`,
+            );
+          } else if (errDetail.startsWith('access_denied')) {
+            // usuario rechazó permisos — silencioso
+          } else {
+            showAlert('Google', `No se pudo iniciar sesión con Google.\n${errDetail}`);
+          }
+        } else if (msg !== 'timeout' && msg !== 'no_id_token') {
+          showAlert('Google', 'No se pudo iniciar sesión con Google. Intenta nuevamente.');
         }
       } finally {
         if (mountedRef.current) setGoogleLoading(false);
@@ -357,38 +305,15 @@ export function useGoogleSignInFlow(loginWithGoogle, options = {}) {
     [_processCredential],
   );
 
-  /**
-   * Renderiza botón nativo de GIS — NO usado en LoginScreen (toma cuenta global
-   * sin permitir chooser). Se mantiene por compat para otros call sites.
-   */
-  const renderNativeGoogleButton = useCallback(
-    (domElement) => {
-      if (!domElement || !window.google?.accounts?.id || !gisReady) return;
-      domElement.innerHTML = '';
-      window.google.accounts.id.renderButton(domElement, {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'signin_with',
-        shape: 'rectangular',
-        width: Math.min(
-          300,
-          (typeof window !== 'undefined' ? window.innerWidth : 400) - 80,
-        ),
-        logo_alignment: 'left',
-      });
-    },
-    [gisReady],
-  );
+  // One Tap legacy — no usado en LoginScreen actual; se mantiene por compat.
+  const handleGoogleSignIn = useCallback(() => signInWithAccountChooser(), [signInWithAccountChooser]);
 
   return {
     handleGoogleSignIn,
     googleLoading,
-    // The popup (OAuth2) flow does NOT need GIS — never disable the button for it.
-    // Only One Tap (handleGoogleSignIn) needs gisReady.
     googleButtonDisabled: false,
-    isWebOAuthReady: gisReady,
-    renderNativeGoogleButton,
+    isWebOAuthReady: true,
+    renderNativeGoogleButton: undefined,
     signInWithAccountChooser,
   };
 }
