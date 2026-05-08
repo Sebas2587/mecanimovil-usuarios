@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Alert } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -13,11 +14,18 @@ WebBrowser.maybeCompleteAuthSession();
 export function useGoogleSignInFlow(loginWithGoogle) {
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  const redirectUri = AuthSession.makeRedirectUri({ path: 'redirect' });
+  // Ayuda de debugging: confirma el redirectUri exacto que Google recibe.
+  // (Esto aparece en consola del navegador.)
+  // eslint-disable-next-line no-console
+  console.log('[GoogleAuth][web] redirectUri:', redirectUri);
+
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    redirectUri,
   });
 
   useEffect(() => {
