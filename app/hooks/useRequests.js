@@ -8,28 +8,43 @@ const CACHE = {
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: Platform.OS === 'web',
-    placeholderData: (previousData) => previousData,
 };
 
 export const useRequests = () => {
     const { user } = useAuth();
+    const uid = user?.id ?? 'anon';
     return useQuery({
-        queryKey: ['requests', user?.id ?? 'anon'],
+        queryKey: ['requests', uid],
         queryFn: () => solicitudesService.obtenerMisSolicitudes(),
         enabled: !!user?.id,
         select: (data) => (Array.isArray(data) ? data : []),
-        ...CACHE,
+        staleTime: CACHE.staleTime,
+        gcTime: CACHE.gcTime,
+        refetchOnWindowFocus: CACHE.refetchOnWindowFocus,
+        placeholderData: (previousData, previousQuery) => {
+            const prevId = previousQuery?.queryKey?.[1];
+            if (prevId != null && prevId === uid) return previousData;
+            return undefined;
+        },
     });
 };
 
 export const useActiveRequests = () => {
     const { user } = useAuth();
+    const uid = user?.id ?? 'anon';
     return useQuery({
-        queryKey: ['activeRequests', user?.id ?? 'anon'],
+        queryKey: ['activeRequests', uid],
         queryFn: () => solicitudesService.obtenerSolicitudesActivas(),
         enabled: !!user?.id,
         select: (data) => (Array.isArray(data) ? data : []),
-        ...CACHE,
+        staleTime: CACHE.staleTime,
+        gcTime: CACHE.gcTime,
+        refetchOnWindowFocus: CACHE.refetchOnWindowFocus,
+        placeholderData: (previousData, previousQuery) => {
+            const prevId = previousQuery?.queryKey?.[1];
+            if (prevId != null && prevId === uid) return previousData;
+            return undefined;
+        },
     });
 };
 

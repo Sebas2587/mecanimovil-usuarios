@@ -112,17 +112,25 @@ export function SolicitudesProvider({ children }) {
           [data.solicitud_id]: [...(prev[data.solicitud_id] || []), data]
         }));
 
-        // Invalidate relevant queries
-        queryClient.invalidateQueries({ queryKey: ['requests'] });
-        queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
-        queryClient.invalidateQueries({ queryKey: ['request', data.solicitud_id] }); // If we have individual request queries
+        // Invalidar todas las variantes user-scoped de requests (queryKey[0] + user id)
+        queryClient.invalidateQueries({
+          predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+        });
+        queryClient.invalidateQueries({
+          predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+        });
+        queryClient.invalidateQueries({ queryKey: ['request', data.solicitud_id] });
       }
     };
 
     const handleSolicitudAdjudicada = (data) => {
       console.log('✅ Solicitud adjudicada vía WebSocket:', data);
-      queryClient.invalidateQueries({ queryKey: ['requests'] });
-      queryClient.invalidateQueries({ queryKey: ['activeRequests'] });
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+      });
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+      });
     };
 
     const timeoutId = setTimeout(() => {
@@ -145,9 +153,15 @@ export function SolicitudesProvider({ children }) {
     setOfertasNuevasPorSolicitud({});
     setUltimaOfertaRecibida(null);
     setWsError(null);
-    queryClient.removeQueries({ queryKey: ['requests'] });
-    queryClient.removeQueries({ queryKey: ['activeRequests'] });
-    queryClient.removeQueries({ queryKey: ['request'] });
+    queryClient.removeQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+    });
+    queryClient.removeQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+    });
+    queryClient.removeQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'request',
+    });
   }, [queryClient, user]);
 
   const limpiarOfertasNuevas = useCallback(() => {
