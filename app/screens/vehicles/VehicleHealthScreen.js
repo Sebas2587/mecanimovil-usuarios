@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   FlatList,
   Modal,
-  Alert,
   ScrollView,
   StatusBar,
   Platform,
   useWindowDimensions,
   RefreshControl,
 } from 'react-native';
+import { showAlert } from '../../utils/platformAlert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Gauge,
@@ -83,10 +83,19 @@ const VehicleHealthScreen = ({ route }) => {
   const [declKm, setDeclKm] = useState('');
   const [declNota, setDeclNota] = useState('');
   const [declarando, setDeclarando] = useState(false);
+  /** Aviso in-app (web no ejecuta `Alert.alert` de RN). */
+  const [healthBanner, setHealthBanner] = useState(null);
 
   const pollingIntervalRef = useRef(null);
   const wsHandlerRef = useRef(null);
   const syncTimerRef = useRef(null);
+  const healthPollTimersRef = useRef([]);
+  const loadDataRef = useRef(() => {});
+
+  const clearHealthPollTimers = useCallback(() => {
+    healthPollTimersRef.current.forEach(clearTimeout);
+    healthPollTimersRef.current = [];
+  }, []);
 
   // Initial Load
   useEffect(() => {
@@ -94,8 +103,9 @@ const VehicleHealthScreen = ({ route }) => {
     return () => {
       clearInterval(pollingIntervalRef.current);
       clearTimeout(syncTimerRef.current);
+      clearHealthPollTimers();
     };
-  }, [vehicleId]);
+  }, [vehicleId, clearHealthPollTimers]);
 
   const loadPredictions = useCallback(async (force = false) => {
     if (!vehicleId) return;
@@ -133,6 +143,20 @@ const VehicleHealthScreen = ({ route }) => {
       setRefreshing(false);
     }
   };
+
+  loadDataRef.current = loadData;
+
+  /** Tras declarar mantenimiento el recálculo suele ir por Celery: varios GET forzan UI al día. */
+  const scheduleHealthRefetchBurst = useCallback(() => {
+    clearHealthPollTimers();
+    const delays = [0, 2000, 5000, 10000, 20000];
+    delays.forEach((ms) => {
+      const id = setTimeout(() => {
+        loadDataRef.current?.(true);
+      }, ms);
+      healthPollTimersRef.current.push(id);
+    });
+  }, [clearHealthPollTimers]);
 
   // WebSocket & Polling Logic (Kep existing logic)
   useEffect(() => {
@@ -207,7 +231,7 @@ const VehicleHealthScreen = ({ route }) => {
 
     } catch (e) {
       console.error('Sync salud error:', e);
-      Alert.alert(
+      showAlert(
         'No se pudo sincronizar',
         e?.response?.data?.error || e?.message || 'Intenta de nuevo en unos segundos.'
       );
@@ -278,30 +302,30 @@ const VehicleHealthScreen = ({ route }) => {
   const handleDeclararMantenimiento = async () => {
     const km = parseInt(declKm, 10);
     if (!km || km <= 0) {
-      Alert.alert('Kilometraje inválido', 'Ingresa los km en los que realizaste el servicio.');
+      showAlert('Kilometraje inválido', 'Ingresa los km en los que realizaste el servicio.');
       return;
     }
     const slug = declarationTarget?.slug || declarationTarget?.componente_detail?.slug;
     if (!slug) {
-      Alert.alert('Error', 'No se pudo identificar el componente.');
+      showAlert('Error', 'No se pudo identificar el componente.');
       return;
     }
     setDeclarando(true);
     try {
-      await VehicleHealthService.registrarMantenimiento(vehicleId, {
+      const result = await VehicleHealthService.registrarMantenimiento(vehicleId, {
         componente_slug: slug,
         km_en_el_que_se_hizo: km,
         nota: declNota.trim() || undefined,
       });
       setDeclarationTarget(null);
-      Alert.alert(
-        'Mantenimiento registrado',
-        'El historial fue actualizado. La salud se recalculará en unos segundos.',
-        [{ text: 'OK', onPress: () => loadData(true) }],
-      );
+      const msg =
+        result?.mensaje ||
+        'Mantenimiento registrado. El historial se actualizó; la salud puede tardar unos segundos en reflejarse.';
+      setHealthBanner({ type: 'success', message: msg });
+      scheduleHealthRefetchBurst();
     } catch (e) {
       const msg = e?.response?.data?.error || e?.message || 'No se pudo registrar.';
-      Alert.alert('No se pudo registrar', msg);
+      showAlert('No se pudo registrar', msg);
     } finally {
       setDeclarando(false);
     }
@@ -501,6 +525,7 @@ const VehicleHealthScreen = ({ route }) => {
         style={styles.mainList}
         removeClippedSubviews={Platform.OS !== 'web'}
         data={flatListData}
+        extraData={healthData}
         keyExtractor={(item, index) =>
           item.type === 'section' ? item.key : (item.slug || item.componente || String(index))
         }
@@ -515,6 +540,19 @@ const VehicleHealthScreen = ({ route }) => {
         }
         ListHeaderComponent={
           <>
+            {healthBanner?.message ? (
+              <View style={styles.healthBanner} accessibilityRole="alert">
+                <CheckCircle size={20} color={COLORS.success[600]} style={{ flexShrink: 0 }} />
+                <Text style={styles.healthBannerText}>{healthBanner.message}</Text>
+                <TouchableOpacity
+                  onPress={() => setHealthBanner(null)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Cerrar aviso"
+                >
+                  <X size={18} color={COLORS.text.tertiary} />
+                </TouchableOpacity>
+              </View>
+            ) : null}
             {renderHeader()}
             {renderSummary()}
             {/* Barra de acciones: título + botón sincronizar */}
@@ -991,6 +1029,25 @@ const createStyles = (_insets) => StyleSheet.create({
   listContent: {
     padding: SPACING.container.horizontal,
     paddingBottom: 40,
+  },
+  healthBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.success[50],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.success[200],
+    borderRadius: BORDERS.radius.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  healthBannerText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.primary,
+    lineHeight: 20,
   },
   headerContainer: {
     flexDirection: 'row',

@@ -898,7 +898,7 @@ const UserPanelScreen = () => {
         {selectedVehicle && (
           <Card style={styles.telemetryCard}>
             <View style={styles.telemetryTopRow}>
-              <Text style={styles.telemetryConsoleLabel}>CAPTURA TELEMETRÍA</Text>
+              <Text style={styles.telemetryConsoleLabel}>Viaje y telemetría</Text>
             </View>
 
             <View style={styles.telemetryMainRow}>
@@ -919,8 +919,8 @@ const UserPanelScreen = () => {
 
             {!tripActive && (
               <Text style={styles.tripHint}>
-                Rastrea kilómetros en tiempo real vía GPS para actualizar automáticamente la salud
-                de tu vehículo.
+                Registra un viaje con GPS para contar kilómetros en tiempo real; esos datos alimentan
+                el motor de salud y las predicciones del vehículo.
               </Text>
             )}
 
@@ -966,7 +966,7 @@ const UserPanelScreen = () => {
                         size={20}
                         color={riskColorMap[overallRiskLevel] || COLORS.primary[500]}
                       />
-                      <Text style={styles.entornoRiskLabel}>Riesgo conducción</Text>
+                      <Text style={styles.entornoRiskLabel}>Riesgo de desgaste (clima)</Text>
                     </View>
                     <Text
                       style={[
@@ -1741,9 +1741,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   telemetryConsoleLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: 1,
+    ...TYPOGRAPHY.styles.label,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
     color: COLORS.text.tertiary,
     textTransform: 'uppercase',
   },
@@ -1757,15 +1757,17 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   telemetryKmHuge: {
-    fontSize: 30,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.numberDisplay,
+    fontSize: TYPOGRAPHY.fontSize['3xl'],
+    lineHeight: 34,
+    letterSpacing: TYPOGRAPHY.letterSpacing.tight,
     color: COLORS.text.primary,
-    letterSpacing: -1,
-    lineHeight: 32,
+    ...(Platform.OS === 'web' ? { fontFeatureSettings: '"tnum"' } : {}),
   },
   telemetryKmUnit: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
     color: COLORS.text.tertiary,
     marginTop: -4,
   },
@@ -1853,17 +1855,19 @@ const styles = StyleSheet.create({
   },
   entornoRiskLabel: {
     flexShrink: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.label,
+    fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.text.tertiary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
   },
   entornoRiskPct: {
-    fontSize: 28,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.numberDisplay,
+    fontSize: TYPOGRAPHY.fontSize['3xl'],
+    lineHeight: 34,
+    letterSpacing: TYPOGRAPHY.letterSpacing.tight,
     marginBottom: 4,
-    letterSpacing: -0.5,
+    ...(Platform.OS === 'web' ? { fontFeatureSettings: '"tnum"' } : {}),
   },
   entornoRiskBandLabel: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -1894,11 +1898,13 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   microBarPct: {
-    width: 32,
+    width: 36,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
     color: COLORS.text.tertiary,
     textAlign: 'right',
+    ...(Platform.OS === 'web' ? { fontFeatureSettings: '"tnum"' } : {}),
   },
   entornoTapText: {
     flex: 1,
@@ -2023,9 +2029,8 @@ const styles = StyleSheet.create({
   },
 
   tripHint: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: 17,
     marginBottom: 8,
   },
 
