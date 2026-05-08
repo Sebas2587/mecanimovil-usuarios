@@ -208,13 +208,16 @@ async function createApiInstance() {
   logger.info(`📱 Plataforma detectada: ${Platform.OS}`);
   logger.info(`🔧 Modo desarrollo: ${__DEV__ ? 'SÍ' : 'NO'}`);
 
+  const headers = { 'Content-Type': 'application/json' };
+  // Los browsers no permiten setear Accept-Encoding manualmente — solo en nativo
+  if (Platform.OS !== 'web') {
+    headers['Accept-Encoding'] = 'gzip, deflate';
+  }
+
   return axios.create({
     baseURL,
-    timeout: 15000, // 15 segundos de timeout
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept-Encoding': 'gzip, deflate', // Solicitar compresión (gzip/deflate soportados nativamente)
-    },
+    timeout: 15000,
+    headers,
   });
 }
 
