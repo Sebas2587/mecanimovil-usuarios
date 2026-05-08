@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +22,7 @@ import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS, SPACING, SHADOWS } from '../../design-system/tokens';
 import { getMediaURL } from '../../services/api';
 import { useUserProfile } from '../../hooks/useUserProfile';
+import { useQueryClient } from '@tanstack/react-query';
 
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
@@ -29,6 +31,9 @@ import PhoneInput, { validatePhoneNumber, parsePhoneValue } from '../../componen
 const EditProfileScreen = () => {
   const navigation = useNavigation();
   const { user, updateProfile } = useAuth();
+  const queryClient = useQueryClient();
+  /** Evita que un refetch de perfil pise lo que el usuario ya editó (muy visible en web). */
+  const formDirtyRef = useRef(false);
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -39,7 +44,6 @@ const EditProfileScreen = () => {
   });
   const [profileImage, setProfileImage] = useState(null);
   const [formErrors, setFormErrors] = useState({});
-  const [phoneTouched, setPhoneTouched] = useState(false);
 
   const {
     data: userProfile,
@@ -51,6 +55,16 @@ const EditProfileScreen = () => {
     const dataSource = userProfile || user;
 
     if (dataSource) {
+      if (formDirtyRef.current) {
+        const picUrl = dataSource.foto_perfil_url || dataSource.foto_perfil;
+        if (picUrl && !picUrl.startsWith('http')) {
+          getMediaURL(picUrl).then(setProfileImage).catch(() => {});
+        } else if (picUrl) {
+          setProfileImage(picUrl);
+        }
+        return;
+      }
+
       setFormData({
         first_name: (dataSource.first_name || dataSource.firstName || '').trim(),
         last_name: (dataSource.last_name || dataSource.lastName || '').trim(),
@@ -72,6 +86,7 @@ const EditProfileScreen = () => {
   }, [userProfile, user]);
 
   const handleChange = (field, value) => {
+    formDirtyRef.current = true;
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (formErrors[field]) setFormErrors((prev) => ({ ...prev, [field]: null }));
   };
@@ -126,40 +141,55 @@ const EditProfileScreen = () => {
   };
 
   const handleSubmit = async () => {
-    if (!formData.first_name || !formData.last_name || !formData.email) {
+    const fn = (formData.first_name || '').trim();
+    const ln = (formData.last_name || '').trim();
+    if (!fn || !ln || !formData.email) {
       Alert.alert('Faltan datos', 'Por favor completa los campos obligatorios.');
       return;
     }
 
-    if (formData.telefono) {
-      const { country, number } = parsePhoneValue(formData.telefono);
+    const tel = (formData.telefono || '').trim();
+    if (tel) {
+      const { country, number } = parsePhoneValue(tel);
       const phoneError = validatePhoneNumber(country, number);
       if (phoneError) {
-        setPhoneTouched(true);
         setFormErrors((prev) => ({ ...prev, telefono: phoneError }));
+        Alert.alert('Teléfono', phoneError);
         return;
       }
     }
 
     try {
       setLoading(true);
-      const updateData = { ...formData };
-      if (!updateData.telefono) delete updateData.telefono;
+      // email es read-only en backend; no enviarlo evita edge cases. Solo campos permitidos en PATCH.
+      const updateData = {
+        first_name: fn,
+        last_name: ln,
+      };
+      if (tel) updateData.telefono = tel;
 
       const updatedUser = await userService.updateUserProfile(updateData);
 
-      if (updatedUser) {
-        await updateProfile({
-          ...user,
-          ...updatedUser,
-          firstName: updatedUser.first_name,
-          lastName: updatedUser.last_name,
-          _skipBackendUpdate: true,
-        });
-        navigation.goBack();
+      const merged = updatedUser && typeof updatedUser === 'object' ? updatedUser : {};
+      await updateProfile({
+        ...user,
+        ...merged,
+        first_name: merged.first_name ?? fn,
+        last_name: merged.last_name ?? ln,
+        firstName: merged.first_name ?? fn,
+        lastName: merged.last_name ?? ln,
+        telefono: merged.telefono ?? tel,
+        email: user?.email || formData.email,
+        _skipBackendUpdate: true,
+      });
+      formDirtyRef.current = false;
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: ['userProfile', user.id] });
       }
+      navigation.goBack();
     } catch (error) {
-      Alert.alert('Error', 'No se pudo actualizar el perfil');
+      const msg = error?.message || error?.response?.data?.detail || 'No se pudo actualizar el perfil';
+      Alert.alert('Error', typeof msg === 'string' ? msg : 'No se pudo actualizar el perfil');
     } finally {
       setLoading(false);
     }
@@ -178,7 +208,12 @@ const EditProfileScreen = () => {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
-      <ScrollView contentContainerStyle={styles.formContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.formContainer}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode={Platform.OS === 'web' ? 'none' : 'on-drag'}
+      >
         <View style={styles.profilePicWrapper}>
           <TouchableOpacity onPress={handleImagePick} activeOpacity={0.8} style={styles.avatarContainer}>
             {profileImage ? (

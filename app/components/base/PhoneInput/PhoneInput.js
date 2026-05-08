@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -89,12 +89,18 @@ const PhoneInput = ({
   label = 'Teléfono',
   editable = true,
 }) => {
-  const parsed = useMemo(() => parsePhoneValue(value), []);
-  const [selectedCountry, setSelectedCountry] = useState(parsed.country);
-  const [number, setNumber] = useState(parsed.number);
+  const [selectedCountry, setSelectedCountry] = useState(() => parsePhoneValue(value).country);
+  const [number, setNumber] = useState(() => parsePhoneValue(value).number);
   const [modalVisible, setModalVisible] = useState(false);
   const [search, setSearch] = useState('');
   const [touched, setTouched] = useState(false);
+
+  // Mantener estado interno alineado con el valor del padre (p. ej. carga async del perfil en web).
+  useEffect(() => {
+    const p = parsePhoneValue(value);
+    setSelectedCountry(p.country);
+    setNumber(p.number);
+  }, [value]);
 
   const filteredCountries = useMemo(() => {
     if (!search) return COUNTRIES;
