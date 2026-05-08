@@ -896,7 +896,7 @@ const UserPanelScreen = () => {
 
         {/* Telemetry */}
         {selectedVehicle && (
-          <Card style={styles.telemetryCardShell}>
+          <Card style={styles.telemetryCard}>
             <View style={styles.telemetryStack}>
               <View style={styles.telemetryTopRow}>
                 <Text style={styles.telemetryConsoleLabel}>Viaje y telemetría</Text>
@@ -905,16 +905,28 @@ const UserPanelScreen = () => {
               <View style={styles.telemetryMainRow}>
                 <View style={styles.telemetryKmBlock}>
                   <View style={styles.telemetryKmRow}>
-                    <Text style={styles.telemetryKmHuge}>{tripKm.toFixed(1)}</Text>
+                    <Text
+                      style={[styles.telemetryKmHuge, tripActive && styles.telemetryKmHugeLive]}
+                    >
+                      {tripKm.toFixed(1)}
+                    </Text>
                     <Text style={styles.telemetryKmUnit}>km</Text>
                   </View>
                   {tripActive && (
-                    <View style={styles.telemetrySubStats}>
-                      <Text style={styles.telemetrySubStatText}>
-                        {formatDuration(tripElapsed)}
-                      </Text>
-                      <Text style={styles.telemetrySubStatSep}>·</Text>
-                      <Text style={styles.telemetrySubStatText}>{currentSpeed} km/h</Text>
+                    <View style={styles.telemetryLiveMetrics}>
+                      <View style={styles.telemetryLiveMetric}>
+                        <Text style={styles.telemetryLiveMetricLabel}>Tiempo</Text>
+                        <Text style={styles.telemetryLiveMetricValue}>
+                          {formatDuration(tripElapsed)}
+                        </Text>
+                      </View>
+                      <View style={styles.telemetryLiveDivider} />
+                      <View style={styles.telemetryLiveMetric}>
+                        <Text style={styles.telemetryLiveMetricLabel}>Velocidad</Text>
+                        <Text style={styles.telemetryLiveMetricValue}>
+                          {Math.round(currentSpeed)} km/h
+                        </Text>
+                      </View>
                     </View>
                   )}
                 </View>
@@ -922,8 +934,7 @@ const UserPanelScreen = () => {
 
               {!tripActive && (
                 <Text style={styles.tripHint}>
-                  Registra un viaje con GPS para contar kilómetros en tiempo real; esos datos alimentan
-                  el motor de salud y las predicciones del vehículo.
+                  Registra un viaje con GPS y actualiza los kilómetros recorridos en tiempo real.
                 </Text>
               )}
 
@@ -1739,14 +1750,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
 
-  // Telemetry
-  telemetryCardShell: {
-    marginBottom: SPACING.md,
-    padding: SPACING.lg,
+  // Telemetry — mismo inset que el resto de cards (`cardInner` = 16px); sin padding extra en el shell.
+  telemetryCard: {
+    marginBottom: 16,
   },
   telemetryStack: {
     width: '100%',
-    gap: SPACING.md,
+    gap: SPACING.sm,
   },
   telemetryTopRow: {
     marginBottom: 0,
@@ -1782,27 +1792,51 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     ...(Platform.OS === 'web' ? { fontFeatureSettings: '"tnum"' } : {}),
   },
+  /** Viaje activo: km principal al tamaño estándar numberDisplay (spec / KPI legible). */
+  telemetryKmHugeLive: {
+    fontSize: TYPOGRAPHY.styles.numberDisplay.fontSize,
+    lineHeight: TYPOGRAPHY.styles.numberDisplay.lineHeight,
+    letterSpacing: TYPOGRAPHY.styles.numberDisplay.letterSpacing,
+  },
   telemetryKmUnit: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     fontFamily: TYPOGRAPHY.fontFamily.mono,
     color: COLORS.text.tertiary,
   },
-  telemetrySubStats: {
+  telemetryLiveMetrics: {
     flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    marginTop: SPACING.xs,
-    gap: SPACING.xs,
+    alignItems: 'stretch',
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: COLORS.border.light,
+    gap: SPACING.md,
   },
-  telemetrySubStatText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  telemetryLiveMetric: {
+    flex: 1,
+    minWidth: 0,
   },
-  telemetrySubStatSep: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+  telemetryLiveDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: COLORS.border.light,
+    marginVertical: 2,
+  },
+  telemetryLiveMetricLabel: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
+    marginBottom: 4,
+  },
+  telemetryLiveMetricValue: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
+    color: COLORS.text.primary,
+    ...(Platform.OS === 'web' ? { fontFeatureSettings: '"tnum"' } : {}),
   },
 
   weatherCardWrap: {
@@ -2049,7 +2083,7 @@ const styles = StyleSheet.create({
   tripHint: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: 22,
+    lineHeight: 21,
     marginTop: 0,
     marginBottom: 0,
   },
