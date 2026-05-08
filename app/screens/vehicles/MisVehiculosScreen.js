@@ -717,9 +717,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.container.horizontal,
     paddingBottom: SPACING.md,
   },
+  /** Misma jerarquía tipográfica que MarketplaceScreen (TYPOGRAPHY.styles.h2). */
   headerTitle: {
-    fontSize: TYPOGRAPHY.fontSize['3xl'],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: TYPOGRAPHY.styles.h2.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h2.fontWeight,
+    letterSpacing: TYPOGRAPHY.styles.h2.letterSpacing,
     color: COLORS.text.primary,
     flex: 1,
   },

@@ -469,32 +469,40 @@ const LoginScreen = () => {
   );
 
   /* ─── render ─────────────────────────────────────────────────────── */
+  const scrollContent = (
+    <ScrollView
+      contentContainerStyle={[
+        styles.scroll,
+        { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 },
+      ]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === 'web' ? undefined : 'on-drag'}
+    >
+      <View style={styles.logoWrap}>
+        <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+      </View>
+
+      {step === null ? (
+        <View style={{ paddingTop: 60, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={COLORS.primary[500]} />
+        </View>
+      ) : step === 'accounts' ? renderAccountsView()
+        : step === 'methods'  ? renderMethodsView()
+        : renderEmailView()}
+    </ScrollView>
+  );
+
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.scroll,
-            { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-        >
-          <View style={styles.logoWrap}>
-            <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-          </View>
-
-          {step === null ? (
-            <View style={{ paddingTop: 60, alignItems: 'center' }}>
-              <ActivityIndicator size="large" color={COLORS.primary[500]} />
-            </View>
-          ) : step === 'accounts' ? renderAccountsView()
-            : step === 'methods'  ? renderMethodsView()
-            : renderEmailView()}
-        </ScrollView>
-      </TouchableWithoutFeedback>
+      {Platform.OS === 'web' ? (
+        scrollContent
+      ) : (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          {scrollContent}
+        </TouchableWithoutFeedback>
+      )}
 
       {/* Forgot Password Modal */}
       <Modal visible={showForgotPasswordModal} animationType="fade" transparent onRequestClose={closeForgotPasswordModal}>

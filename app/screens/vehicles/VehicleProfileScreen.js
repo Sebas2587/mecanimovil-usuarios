@@ -10,7 +10,8 @@ import {
     ActivityIndicator,
     RefreshControl,
     TextInput,
-    Platform
+    Platform,
+    useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
@@ -44,8 +45,20 @@ const VehicleProfileScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const insets = useSafeAreaInsets();
+    const { height: windowHeight } = useWindowDimensions();
 
     const { vehicle: initialVehicle } = route.params || {};
+
+    const webRootFrame =
+        Platform.OS === 'web'
+            ? {
+                  height: windowHeight,
+                  maxHeight: windowHeight,
+                  minHeight: 0,
+                  flex: 1,
+                  overflow: 'hidden',
+              }
+            : null;
 
     const [vehicle, setVehicle] = useState(initialVehicle);
     const [healthData, setHealthData] = useState(null);
@@ -311,7 +324,7 @@ const VehicleProfileScreen = () => {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, webRootFrame]}>
             <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
             <ScrollView
@@ -462,7 +475,7 @@ const VehicleProfileScreen = () => {
                     </View>
                 )
             }
-        </View >
+        </View>
     );
 };
 
@@ -472,10 +485,14 @@ const getStyles = (insets) => StyleSheet.create({
         backgroundColor: COLORS.background.default,
         ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
     },
-    /** Web: sin altura acotada el ScrollView crece con el contenido y no hay scroll (stack/tabs). */
+    /** Web: viewport acotado + flexBasis 0 para que el scroll sea interno al ScrollView. */
     scrollWeb: {
-        flex: 1,
+        flexGrow: 1,
+        flexShrink: 1,
+        flexBasis: 0,
         minHeight: 0,
+        overflow: 'scroll',
+        WebkitOverflowScrolling: 'touch',
     },
     scrollContent: {
         paddingBottom: insets.bottom,

@@ -931,9 +931,8 @@ export const AuthProvider = ({ children }) => {
    * Todo envuelto en try/catch para que la limpieza local ocurra siempre.
    */
   const logout = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-
       WebSocketService.disconnect();
 
       try {
@@ -945,41 +944,48 @@ export const AuthProvider = ({ children }) => {
         logger.warn('⚠️ No se pudo desactivar push token:', _pushErr?.message);
       }
 
-      await authService.logoutFromServer();
+      // El cierre de sesión local debe ocurrir aunque el POST falle (red, CSRF, etc.).
+      try {
+        await authService.logoutFromServer();
+      } catch (e) {
+        logger.warn('⚠️ logoutFromServer no completó (se limpia sesión local igual):', e?.message || e);
+      }
 
       // CRÍTICO multi-sesión: limpiar cache React Query (incluye persistencia offline)
-      // para evitar que datos de usuario anterior aparezcan en nueva sesión.
       queryClient.clear();
-      await clearPersistedQueryCache();
+      await clearPersistedQueryCache().catch((e) => logger.warn('clearPersistedQueryCache:', e?.message));
 
       await AsyncStorage.removeItem('auth_token');
       await AsyncStorage.removeItem('user');
-      // Borrar cualquier credencial recordada (privacidad estricta multi-usuario).
       await AsyncStorage.multiRemove(['rememberMe', 'savedEmail', 'savedPassword']).catch(() => {});
 
-      // Web: limpiar localStorage privado (hints OAuth, etc.)
       if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
         try {
           window.localStorage.removeItem('mecanimovil:lastGoogleEmail');
         } catch {}
       }
 
-      // iOS/Android: signOut del SDK nativo de Google si está disponible.
       try {
         if (Platform.OS !== 'web' && !IS_EXPO_GO) {
           const { GoogleSignin: GS } = require('@react-native-google-signin/google-signin');
           await GS.signOut().catch(() => {});
         }
       } catch (_googleSignOutErr) {
-        // No crítico, continuar.
+        // No crítico
       }
 
       setToken(null);
       setUser(null);
-
       return true;
     } catch (e) {
       logger.error('Error al cerrar sesión:', e);
+      try {
+        queryClient.clear();
+        await AsyncStorage.removeItem('auth_token');
+        await AsyncStorage.removeItem('user');
+      } catch {}
+      setToken(null);
+      setUser(null);
       return false;
     } finally {
       setLoading(false);
