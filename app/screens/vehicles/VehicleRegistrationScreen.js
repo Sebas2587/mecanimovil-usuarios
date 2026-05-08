@@ -417,7 +417,9 @@ const VehicleRegistrationScreen = () => {
 
                     {/* SEARCH STATE */}
                     {step === 'search' && (
-                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                        // NOTE: On web, TouchableWithoutFeedback can swallow click/focus events for TextInput.
+                        // Keep dismiss-on-background-tap only on native.
+                        (Platform.OS === 'web' ? (
                             <View style={styles.centerWrapper}>
                                 <Text style={styles.instructionText}>Ingresa la patente de tu vehículo para buscar sus datos automáticamente.</Text>
 
@@ -454,7 +456,46 @@ const VehicleRegistrationScreen = () => {
                                     </TouchableOpacity>
                                 </View>
                             </View>
-                        </TouchableWithoutFeedback>
+                        ) : (
+                            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                                <View style={styles.centerWrapper}>
+                                    <Text style={styles.instructionText}>Ingresa la patente de tu vehículo para buscar sus datos automáticamente.</Text>
+
+                                    <View style={styles.searchCardShell}>
+                                        <View style={styles.patenteInputContainer}>
+                                            <View style={styles.patenteDecorator}>
+                                                <Text style={styles.patenteFlag}>🇨🇱</Text>
+                                            </View>
+                                            <TextInput
+                                                ref={patenteInputRef}
+                                                style={styles.patenteInput}
+                                                placeholder="AB-CD-12"
+                                                placeholderTextColor={COLORS.text.tertiary}
+                                                value={patente}
+                                                onChangeText={t => setPatente(formatPatente(t))}
+                                                maxLength={6}
+                                                autoCapitalize="characters"
+                                                autoCorrect={false}
+                                                returnKeyType="search"
+                                                onSubmitEditing={handleSearch}
+                                            />
+                                        </View>
+
+                                        <TouchableOpacity
+                                            style={[styles.searchButton, loading && styles.disabledButton]}
+                                            onPress={handleSearch}
+                                            disabled={loading}
+                                        >
+                                            {loading ? (
+                                                <ActivityIndicator color={COLORS.text.inverse} />
+                                            ) : (
+                                                <Ionicons name="search" size={24} color={COLORS.text.inverse} />
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </TouchableWithoutFeedback>
+                        ))
                     )}
 
                     {/* SUCCESS STATE */}
