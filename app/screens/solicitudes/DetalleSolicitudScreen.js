@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   View,
   Text,
@@ -66,6 +67,7 @@ const DetalleSolicitudScreen = () => {
       : null;
 
   const { seleccionarOferta, cancelarSolicitud } = useSolicitudes();
+  const queryClient = useQueryClient();
 
   const [solicitud, setSolicitud] = useState(null);
   const [ofertas, setOfertas] = useState([]);
@@ -315,6 +317,15 @@ const DetalleSolicitudScreen = () => {
               refreshKey={signatureRefreshKey}
               onSignatureSuccess={() => {
                 setSignatureRefreshKey((v) => v + 1);
+                queryClient.invalidateQueries({
+                  predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+                });
+                queryClient.invalidateQueries({
+                  predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+                });
+                if (solicitudId) {
+                  queryClient.invalidateQueries({ queryKey: ['request', solicitudId] });
+                }
                 cargarDatos();
               }}
             />

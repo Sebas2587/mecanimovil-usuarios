@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   View,
   Text,
@@ -26,6 +27,7 @@ const AppointmentDetailScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { agendamiento } = route.params;
+  const queryClient = useQueryClient();
   
   const [loading, setLoading] = useState(true);
   const [agendamientoActual, setAgendamientoActual] = useState(null);
@@ -625,6 +627,12 @@ const AppointmentDetailScreen = () => {
           refreshKey={signatureRefreshKey}
           onSignatureSuccess={() => {
             setSignatureRefreshKey((v) => v + 1);
+            queryClient.invalidateQueries({
+              predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+            });
+            queryClient.invalidateQueries({
+              predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+            });
             cargarDatosCompletos();
           }}
         />

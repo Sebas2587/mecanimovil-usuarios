@@ -133,15 +133,30 @@ export function SolicitudesProvider({ children }) {
       });
     };
 
+    const handleServicioCompletado = (data) => {
+      console.log('✅ Servicio completado vía WebSocket:', data);
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+      });
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+      });
+      if (data?.solicitud_id) {
+        queryClient.invalidateQueries({ queryKey: ['request', data.solicitud_id] });
+      }
+    };
+
     const timeoutId = setTimeout(() => {
       websocketService.onMessage('nueva_oferta', handleNuevaOferta);
       websocketService.onMessage('solicitud_adjudicada', handleSolicitudAdjudicada);
+      websocketService.onMessage('servicio_completado', handleServicioCompletado);
     }, 500);
 
     return () => {
       clearTimeout(timeoutId);
       websocketService.offMessage('nueva_oferta');
       websocketService.offMessage('solicitud_adjudicada');
+      websocketService.offMessage('servicio_completado');
     };
   }, [queryClient, user]);
 
