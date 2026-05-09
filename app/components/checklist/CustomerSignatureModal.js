@@ -209,11 +209,18 @@ const CustomerSignatureModal = ({
     onClose?.();
   };
 
+  // iOS: `formSheet` / `pageSheet` permiten cerrar el modal con un swipe
+  // hacia abajo; al firmar, ese gesto se confunde con el trazo y cierra todo.
+  // `fullScreen` evita el dismiss interactivo; solo se cierra con ✕ o al
+  // terminar el flujo con éxito.
+  const modalPresentationStyle =
+    Platform.OS === 'web' ? 'overFullScreen' : 'fullScreen';
+
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle={Platform.OS === 'web' ? 'overFullScreen' : 'formSheet'}
+      presentationStyle={modalPresentationStyle}
       transparent={Platform.OS === 'web'}
       onRequestClose={handleClose}
     >
