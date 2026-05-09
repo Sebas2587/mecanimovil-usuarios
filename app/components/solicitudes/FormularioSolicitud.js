@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, getColorWithOpacity } from '../../design-system/tokens/colors';
 import { getHealthColorToken } from '../../utils/healthFormat';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -56,7 +57,7 @@ import {
   Package,
 } from 'lucide-react-native';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const GlassCard = ({ children, style, onPress, activeOpacity = 0.8 }) => {
   const content = (
@@ -136,7 +137,8 @@ const FormularioSolicitud = ({
     fecha_preferida: (initialData?.fecha_preferida && typeof initialData.fecha_preferida === 'string') ? initialData.fecha_preferida : '',
     hora_preferida: (initialData?.hora_preferida && typeof initialData.hora_preferida === 'string') ? initialData.hora_preferida : '',
     ubicacion_servicio: initialData?.ubicacion_servicio || null,
-    sin_vehiculo_registrado: initialData?.sin_vehiculo_registrado === true
+    sin_vehiculo_registrado: initialData?.sin_vehiculo_registrado === true,
+    fotos_necesidad: Array.isArray(initialData?.fotos_necesidad) ? initialData.fotos_necesidad : [],
   });
 
 
@@ -218,6 +220,128 @@ const FormularioSolicitud = ({
 
   const [descriptionModalVisible, setDescriptionModalVisible] = useState(false);
   const [tempDescription, setTempDescription] = useState('');
+  const [tempFotosNecesidad, setTempFotosNecesidad] = useState([]);
+
+  const MAX_FOTOS_NECESIDAD = 3;
+
+  const agregarFotoNecesidad = async (source, listaActual, actualizarLista) => {
+    if (listaActual.length >= MAX_FOTOS_NECESIDAD) {
+      Alert.alert('Límite alcanzado', 'Solo puedes adjuntar hasta 3 fotos.');
+      return;
+    }
+    try {
+      let result;
+      if (source === 'camera') {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permiso requerido', 'Necesitamos acceso a la cámara para tomar la foto.');
+          return;
+        }
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.75,
+          base64: true,
+        });
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permiso requerido', 'Necesitamos acceso a la galería.');
+          return;
+        }
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.75,
+          base64: true,
+        });
+      }
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      if (!asset.base64) {
+        Alert.alert('Error', 'No se pudo leer la imagen. Prueba con otra foto.');
+        return;
+      }
+      const mime = asset.mimeType || 'image/jpeg';
+      const nuevo = { uri: asset.uri, base64: asset.base64, mimeType: mime };
+      actualizarLista([...listaActual, nuevo].slice(0, MAX_FOTOS_NECESIDAD));
+    } catch (e) {
+      console.warn('agregarFotoNecesidad', e);
+      Alert.alert('Error', 'No se pudo seleccionar la imagen');
+    }
+  };
+
+  const solicitarOrigenFotoNecesidad = (listaActual, actualizarLista) => {
+    if (listaActual.length >= MAX_FOTOS_NECESIDAD) {
+      Alert.alert('Límite alcanzado', 'Solo puedes adjuntar hasta 3 fotos.');
+      return;
+    }
+    Alert.alert('Agregar foto', '¿Desde dónde?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Galería', onPress: () => agregarFotoNecesidad('library', listaActual, actualizarLista) },
+      { text: 'Cámara', onPress: () => agregarFotoNecesidad('camera', listaActual, actualizarLista) },
+    ]);
+  };
+
+  const renderFotosNecesidadEditor = (lista, actualizarLista) => (
+    <View style={{ marginTop: 4 }}>
+      <Text style={{ color: COLORS.text.secondary, fontSize: 13, marginBottom: 10 }}>
+        Fotos de la necesidad (opcional, máx. {MAX_FOTOS_NECESIDAD})
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, alignItems: 'center' }}>
+        {lista.map((item, idx) => (
+          <View key={`${item.uri || 'foto'}-${idx}`} style={{ position: 'relative' }}>
+            <Image
+              source={{ uri: item.uri }}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: BORDERS.radius.md,
+                borderWidth: BORDERS.width.thin,
+                borderColor: COLORS.border.light,
+              }}
+              contentFit="cover"
+            />
+            <TouchableOpacity
+              onPress={() => actualizarLista(lista.filter((_, i) => i !== idx))}
+              style={{
+                position: 'absolute',
+                top: -6,
+                right: -6,
+                backgroundColor: COLORS.neutral.gray[800],
+                borderRadius: 12,
+                width: 24,
+                height: 24,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        ))}
+        {lista.length < MAX_FOTOS_NECESIDAD && (
+          <TouchableOpacity
+            onPress={() => solicitarOrigenFotoNecesidad(lista, actualizarLista)}
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: BORDERS.radius.md,
+              borderWidth: 2,
+              borderColor: COLORS.border.light,
+              borderStyle: 'dashed',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: COLORS.neutral.gray[50],
+            }}
+          >
+            <Ionicons name="add" size={28} color={COLORS.primary[500]} />
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </View>
+  );
 
   // Ref para trackear si es la primera vez que se monta el componente
   // Esto evita limpiar servicios seleccionados manualmente cuando useFocusEffect
@@ -775,6 +899,7 @@ const FormularioSolicitud = ({
       }
       if (!formData.descripcion_problema?.trim()) {
         setTempDescription(formData.descripcion_problema || '');
+        setTempFotosNecesidad(Array.isArray(formData.fotos_necesidad) ? [...formData.fotos_necesidad] : []);
         setDescriptionModalVisible(true);
         return;
       }
@@ -1637,6 +1762,13 @@ const FormularioSolicitud = ({
           </View>
         )}
 
+        <View style={{ marginTop: formData.sin_vehiculo_registrado ? 14 : 10 }}>
+          {renderFotosNecesidadEditor(
+            Array.isArray(formData.fotos_necesidad) ? formData.fotos_necesidad : [],
+            (next) => setFormData((prev) => ({ ...prev, fotos_necesidad: next })),
+          )}
+        </View>
+
         <View style={{ marginVertical: 16 }} />
 
         {/* Repuestos selection */}
@@ -2456,31 +2588,34 @@ const FormularioSolicitud = ({
                 }
               : {})}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <FileTextIcon size={22} color={COLORS.primary[500]} />
-              <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Describe tu necesidad</Text>
-            </View>
-            <Text style={{ color: COLORS.text.secondary, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
-              Cuéntanos qué problema tienes para que los proveedores entiendan tu solicitud.
-            </Text>
-            <TextInput
-              style={styles.descModalInput}
-              multiline
-              numberOfLines={5}
-              placeholder="Ej: Mi auto hace un ruido al frenar..."
-              placeholderTextColor={COLORS.text.disabled}
-              value={tempDescription}
-              onChangeText={setTempDescription}
-              textAlignVertical="top"
-              autoFocus={Platform.OS !== 'web'}
-              {...(Platform.OS === 'web'
-                ? {
-                    onPointerDown: (e) => {
-                      e?.stopPropagation?.();
-                    },
-                  }
-                : {})}
-            />
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <FileTextIcon size={22} color={COLORS.primary[500]} />
+                <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Describe tu necesidad</Text>
+              </View>
+              <Text style={{ color: COLORS.text.secondary, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
+                Cuéntanos qué problema tienes para que los proveedores entiendan tu solicitud. Puedes adjuntar hasta 3 fotos.
+              </Text>
+              <TextInput
+                style={styles.descModalInput}
+                multiline
+                numberOfLines={5}
+                placeholder="Ej: Mi auto hace un ruido al frenar..."
+                placeholderTextColor={COLORS.text.disabled}
+                value={tempDescription}
+                onChangeText={setTempDescription}
+                textAlignVertical="top"
+                autoFocus={Platform.OS !== 'web'}
+                {...(Platform.OS === 'web'
+                  ? {
+                      onPointerDown: (e) => {
+                        e?.stopPropagation?.();
+                      },
+                    }
+                  : {})}
+              />
+              {renderFotosNecesidadEditor(tempFotosNecesidad, setTempFotosNecesidad)}
+            </ScrollView>
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
               <TouchableOpacity style={styles.descModalCancelBtn} onPress={() => setDescriptionModalVisible(false)}>
                 <Text style={{ color: COLORS.text.secondary, fontSize: 15, fontWeight: '600' }}>Cancelar</Text>
@@ -2489,7 +2624,11 @@ const FormularioSolicitud = ({
                 style={{ flex: 1, opacity: tempDescription.trim() ? 1 : 0.4 }}
                 onPress={() => {
                   if (tempDescription.trim()) {
-                    setFormData((prev) => ({ ...prev, descripcion_problema: tempDescription.trim() }));
+                    setFormData((prev) => ({
+                      ...prev,
+                      descripcion_problema: tempDescription.trim(),
+                      fotos_necesidad: Array.isArray(tempFotosNecesidad) ? [...tempFotosNecesidad] : [],
+                    }));
                     setDescriptionModalVisible(false);
                     setPasoActual(3);
                   }
@@ -2638,6 +2777,7 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
+    maxHeight: SCREEN_HEIGHT * 0.88,
     ...SHADOWS.lg,
   },
   descModalInput: {

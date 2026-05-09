@@ -785,6 +785,20 @@ const CrearSolicitudScreen = () => {
         console.log('CrearSolicitudScreen: IDs de usuarios de proveedores:', solicitudData.proveedores_dirigidos);
       }
 
+      if (Array.isArray(formData.fotos_necesidad) && formData.fotos_necesidad.length > 0) {
+        solicitudData.fotos_necesidad_data = formData.fotos_necesidad
+          .slice(0, 3)
+          .map((f) => {
+            if (f && typeof f.base64 === 'string' && f.base64.length > 0) {
+              const mime = f.mimeType && typeof f.mimeType === 'string' ? f.mimeType : 'image/jpeg';
+              return `data:${mime};base64,${f.base64}`;
+            }
+            if (typeof f === 'string') return f;
+            return null;
+          })
+          .filter(Boolean);
+      }
+
       console.log('CrearSolicitudScreen: Datos preparados:', solicitudData);
 
       // VERIFICACIÓN CRÍTICA: ¿Hay servicios seleccionados en el paso 2?

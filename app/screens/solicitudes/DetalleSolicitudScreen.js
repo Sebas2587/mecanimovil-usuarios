@@ -11,7 +11,10 @@ import {
   Alert,
   Platform,
   useWindowDimensions,
+  Modal,
+  Pressable,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -79,6 +82,7 @@ const DetalleSolicitudScreen = () => {
   const [checklistOrdenId, setChecklistOrdenId] = useState(null);
   // Counter para forzar refetch de la card de firma diferida tras firmar.
   const [signatureRefreshKey, setSignatureRefreshKey] = useState(0);
+  const [fotoAmpliadaUrl, setFotoAmpliadaUrl] = useState(null);
 
   // Cargar datos
   const cargarDatos = useCallback(async () => {
@@ -288,6 +292,28 @@ const DetalleSolicitudScreen = () => {
 
         {/* 2) Detalle de Solicitud */}
         <ServiceSummaryCard solicitud={solicitud} />
+
+        {Array.isArray(solicitud.fotos_necesidad) && solicitud.fotos_necesidad.length > 0 && (
+          <View style={styles.fotosNecesidadSection}>
+            <Text style={styles.fotosNecesidadTitle}>Fotos de tu necesidad</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fotosNecesidadRow}>
+              {solicitud.fotos_necesidad.map((foto) => {
+                const url = foto?.imagen_url;
+                if (!url) return null;
+                return (
+                  <TouchableOpacity
+                    key={foto.id || url}
+                    onPress={() => setFotoAmpliadaUrl(url)}
+                    activeOpacity={0.85}
+                    style={styles.fotosNecesidadThumbWrap}
+                  >
+                    <Image source={{ uri: url }} style={styles.fotosNecesidadThumb} contentFit="cover" />
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/*
           Firma diferida del cliente: si el técnico cerró el checklist y dejó
@@ -615,6 +641,14 @@ const DetalleSolicitudScreen = () => {
           servicioNombre={solicitud?.servicios_solicitados?.[0]?.nombre || solicitud?.servicios_solicitados?.[0]?.nombre_servicio || 'Servicio'}
         />
       )}
+
+      <Modal visible={!!fotoAmpliadaUrl} transparent animationType="fade" onRequestClose={() => setFotoAmpliadaUrl(null)}>
+        <Pressable style={styles.fotoLightboxBackdrop} onPress={() => setFotoAmpliadaUrl(null)}>
+          {fotoAmpliadaUrl ? (
+            <Image source={{ uri: fotoAmpliadaUrl }} style={styles.fotoLightboxImage} contentFit="contain" />
+          ) : null}
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -949,6 +983,47 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
     lineHeight: 18,
+  },
+  fotosNecesidadSection: {
+    marginHorizontal: SPACING.container.horizontal,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
+  },
+  fotosNecesidadTitle: {
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.sm,
+  },
+  fotosNecesidadRow: {
+    gap: 10,
+    paddingVertical: 4,
+  },
+  fotosNecesidadThumbWrap: {
+    borderRadius: BORDERS.radius.md,
+    overflow: 'hidden',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+  },
+  fotosNecesidadThumb: {
+    width: 88,
+    height: 88,
+  },
+  fotoLightboxBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  fotoLightboxImage: {
+    width: '100%',
+    height: '100%',
+    maxHeight: 640,
   },
 });
 
