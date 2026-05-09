@@ -29,6 +29,10 @@ import SignatureScreen from 'react-native-signature-canvas';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
+import {
   COLORS,
   SPACING,
   BORDERS,
@@ -224,13 +228,25 @@ const CustomerSignatureModal = ({
       transparent={Platform.OS === 'web'}
       onRequestClose={handleClose}
     >
-      <View style={styles.container}>
+      {/*
+        Modal en RN no siempre hereda insets del SafeAreaProvider raíz.
+        Provider + SafeAreaView aquí aseguran notch / Dynamic Island / home
+        indicator y que el botón cerrar sea alcanzable.
+      */}
+      <SafeAreaProvider>
+        <SafeAreaView
+          style={styles.container}
+          edges={['top', 'right', 'bottom', 'left']}
+        >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={handleClose}
             style={styles.headerBackButton}
             disabled={submitting}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar"
           >
             <Ionicons name="close" size={26} color={COLORS.text.primary} />
           </TouchableOpacity>
@@ -346,7 +362,8 @@ const CustomerSignatureModal = ({
             )}
           </TouchableOpacity>
         </View>
-      </View>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 };
@@ -360,7 +377,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.lg,
-    paddingTop: Platform.OS === 'ios' ? SPACING.lg : SPACING.md,
+    paddingTop: SPACING.sm,
     paddingBottom: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border.light,
@@ -484,7 +501,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,
-    paddingBottom: Platform.OS === 'ios' ? SPACING.xl : SPACING.lg,
+    paddingBottom: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: COLORS.border.light,
     backgroundColor: COLORS.background.default,
