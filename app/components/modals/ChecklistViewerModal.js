@@ -24,6 +24,7 @@ import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Avatar from '../base/Avatar/Avatar';
 import checklistClienteService from '../../services/checklistService';
+import { signatureStoredToImageUri } from '../../utils/signatureImageUri';
 
 /** Atajos de color alineados al DS (evita hex sueltos en JSX) */
 const C = {
@@ -475,8 +476,10 @@ const ChecklistViewerModal = ({
   const renderFirmas = () => {
     if (!checklist) return null;
 
-    const tieneFirmaTecnico = checklist.firmaTecnico && typeof checklist.firmaTecnico === 'string';
-    const tieneFirmaCliente = checklist.firmaCliente && typeof checklist.firmaCliente === 'string';
+    const uriTecnico = signatureStoredToImageUri(checklist.firmaTecnico);
+    const uriCliente = signatureStoredToImageUri(checklist.firmaCliente);
+    const tieneFirmaTecnico = Boolean(uriTecnico);
+    const tieneFirmaCliente = Boolean(uriCliente);
 
     if (!tieneFirmaTecnico && !tieneFirmaCliente) {
       return (
@@ -541,7 +544,7 @@ const ChecklistViewerModal = ({
                   </View>
                   <View style={styles.firmaImageContainer}>
                     <Image
-                      source={{ uri: `data:image/png;base64,${checklist.firmaTecnico}` }}
+                      source={{ uri: uriTecnico }}
                       style={styles.firmaImagen}
                       resizeMode="contain"
                     />
@@ -560,7 +563,7 @@ const ChecklistViewerModal = ({
                   </View>
                   <View style={styles.firmaImageContainer}>
                     <Image
-                      source={{ uri: `data:image/png;base64,${checklist.firmaCliente}` }}
+                      source={{ uri: uriCliente }}
                       style={styles.firmaImagen}
                       resizeMode="contain"
                     />
