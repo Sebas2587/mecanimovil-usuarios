@@ -238,12 +238,20 @@ const CustomerSignatureModal = ({
           <View style={styles.headerSpacer} />
         </View>
 
+        {/*
+          El lienzo de firma NO debe ir dentro de ScrollView: los gestos
+          verticales al dibujar se confunden con scroll y la UI “salta”.
+          Solo la tarjeta informativa puede desplazarse si hace falta.
+        */}
         <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          style={styles.infoScroll}
+          contentContainerStyle={styles.infoScrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          nestedScrollEnabled={false}
+          scrollEventThrottle={16}
         >
-          {/* Card explicativa */}
           <View style={styles.infoCard}>
             <View style={styles.infoIconWrap}>
               <Ionicons
@@ -262,8 +270,9 @@ const CustomerSignatureModal = ({
               </Text>
             </View>
           </View>
+        </ScrollView>
 
-          {/* Canvas */}
+        <View style={styles.signatureSection}>
           <View style={styles.canvasWrapper}>
             <Text style={styles.canvasHint}>Dibuja tu firma dentro del recuadro</Text>
             <View style={styles.canvasContainer}>
@@ -277,7 +286,10 @@ const CustomerSignatureModal = ({
                 imageType="image/png"
                 trimWhitespace
                 autoClear={false}
-                style={{ flex: 1, height: CANVAS_HEIGHT }}
+                scrollable={false}
+                nestedScrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+                style={styles.signatureWebView}
               />
             </View>
 
@@ -296,7 +308,7 @@ const CustomerSignatureModal = ({
               </TouchableOpacity>
             </View>
           </View>
-        </ScrollView>
+        </View>
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -370,13 +382,29 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: 2,
   },
-  scroll: {
+  infoScroll: {
     flex: 1,
+    flexGrow: 1,
   },
-  scrollContent: {
+  infoScrollContent: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.lg,
-    paddingBottom: SPACING.xl,
+    paddingBottom: SPACING.md,
+    flexGrow: 1,
+  },
+  signatureSection: {
+    flexShrink: 0,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border.light,
+    backgroundColor: COLORS.background.default,
+  },
+  signatureWebView: {
+    width: '100%',
+    height: CANVAS_HEIGHT,
+    backgroundColor: COLORS.neutral.white,
   },
   infoCard: {
     flexDirection: 'row',
