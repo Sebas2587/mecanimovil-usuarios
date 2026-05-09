@@ -1,9 +1,9 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { ChevronRight, Cloud, AlertTriangle, Calendar, Gauge } from 'lucide-react-native';
+import { ChevronRight, Cloud, AlertTriangle, Calendar, Gauge, ClipboardEdit, ShieldCheck } from 'lucide-react-native';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
-import { getHealthColorToken } from '../../utils/healthFormat';
+import { getHealthColorToken, normalizePct } from '../../utils/healthFormat';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -88,11 +88,21 @@ function Chip({ label, color, bgColor, icon }) {
  *  onPress — callback para abrir modal de detalle
  */
 const UnifiedComponentCard = memo(({ item, onPress }) => {
-  const name       = item.nombre || (typeof item.componente === 'string' ? item.componente : item.name) || 'Componente';
-  const percentage = item.salud_porcentaje ?? item.salud ?? item.percentage ?? 0;
+  const name = item.nombre || (typeof item.componente === 'string' ? item.componente : item.name) || 'Componente';
+  // normalizePct: acepta ratio legacy 0–1, strings, y salud_actual del predictor si faltan los otros campos
+  const percentage = normalizePct(
+    item.salud_porcentaje ?? item.salud ?? item.percentage ?? item.salud_actual,
+  );
   const slug       = item.slug || item.componente_detail?.slug || item.icon_slug || '';
   const nivel      = item.nivel_alerta_display || item.nivel_alerta || 'NORMAL';
   const esEstimado = item.historial_conocido === false;
+  // Declarado por el usuario: permite mostrar etiqueta "Declarado por ti" + bloqueo marketplace.
+  const esDeclarado = item.historial_fuente === 'USUARIO_DECLARADO';
+  // Verificado por taller: el componente fue inspeccionado o reemplazado
+  // por un proveedor en los últimos 90 días (refactor checklist inteligente).
+  const fechaUltimoSrv = item.fecha_ultimo_servicio ? new Date(item.fecha_ultimo_servicio) : null;
+  const diasDesdeSrv = fechaUltimoSrv ? Math.floor((Date.now() - fechaUltimoSrv.getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const esVerificadoTaller = item.historial_fuente === 'CHECKLIST' && diasDesdeSrv !== null && diasDesdeSrv <= 90;
 
   // Predicción fusionada (puede ser null si aún no cargó)
   const pred = item._prediction ?? null;
@@ -149,9 +159,25 @@ const UnifiedComponentCard = memo(({ item, onPress }) => {
           </View>
         )}
 
-        {/* Chips: riesgo / clima / estimado */}
-        {(showRisk || showClima || esEstimado) && (
+        {/* Chips: declarado / riesgo / clima / estimado */}
+        {(showRisk || showClima || esEstimado || esDeclarado || esVerificadoTaller) && (
           <View style={s.chips}>
+            {esDeclarado && (
+              <Chip
+                label="Declarado por ti"
+                color={COLORS.warning[700]}
+                bgColor={COLORS.warning[50]}
+                icon={<ClipboardEdit size={10} color={COLORS.warning[700]} />}
+              />
+            )}
+            {esVerificadoTaller && (
+              <Chip
+                label={diasDesdeSrv === 0 ? 'Verificado hoy' : 'Verificado por taller'}
+                color={COLORS.success[700] || COLORS.success[600]}
+                bgColor={COLORS.success[50]}
+                icon={<ShieldCheck size={10} color={COLORS.success[700] || COLORS.success[600]} />}
+              />
+            )}
             {showRisk && (
               <Chip
                 label={`Riesgo ${Math.round(riesgo30)}%`}
@@ -168,7 +194,7 @@ const UnifiedComponentCard = memo(({ item, onPress }) => {
                 icon={<Cloud size={10} color={COLORS.warning[700]} />}
               />
             )}
-            {esEstimado && (
+            {esEstimado && !esDeclarado && (
               <Chip
                 label="Estimado"
                 color={COLORS.neutral.gray[500]}

@@ -55,8 +55,14 @@ class VehicleHealthService {
     }
     
     // 3. Cargar desde API
+    // Importante: pasar forceRefresh a get() para saltar responseCache (Cache-Control) en api.js;
+    // sin esto, en web el GET podía devolver JSON viejo tras declarar mantenimiento.
     try {
-      const response = await get(`/vehiculos/health/vehicle/${vehicleId}/`);
+      const response = await get(
+        `/vehiculos/health/vehicle/${vehicleId}/`,
+        {},
+        { forceRefresh: forceRefresh },
+      );
       const data = response;
       
       // Guardar en cache

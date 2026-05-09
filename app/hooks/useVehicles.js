@@ -18,7 +18,8 @@ export const useVehicles = (userId) => {
 export const useVehicleHealth = (vehicleId) => {
     return useQuery({
         queryKey: ['vehicleHealth', vehicleId],
-        queryFn: () => VehicleHealthService.getVehicleHealth(vehicleId),
+        // forceRefresh: salta caché HTTP (api.js) + memoria del servicio; evita % en 0 / datos viejos en web
+        queryFn: () => VehicleHealthService.getVehicleHealth(vehicleId, true),
         enabled: !!vehicleId,
         staleTime: 1000 * 60 * 5,
     });
@@ -28,7 +29,7 @@ export const useVehiclesHealth = (vehicles) => {
     return useQueries({
         queries: (vehicles || []).map((vehicle) => ({
             queryKey: ['vehicleHealth', vehicle.id],
-            queryFn: () => VehicleHealthService.getVehicleHealth(vehicle.id),
+            queryFn: () => VehicleHealthService.getVehicleHealth(vehicle.id, true),
             staleTime: 1000 * 60 * 2, // 2 min
         })),
         combine: (results) => {

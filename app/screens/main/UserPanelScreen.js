@@ -233,6 +233,10 @@ const UserPanelScreen = () => {
   const vehicles = useMemo(() => vehiclesRaw || [], [vehiclesRaw]);
   const vehiclesHealth = useVehiclesHealth(vehicles);
 
+  // No invalidar `vehicleHealth` al enfocar el panel: el refetch suele traer JSON viejo (caché
+  // HTTP/Redis) y borra el valor que VehicleHealthScreen ya escribió con setQueryData.
+  // La salud del círculo se alinea con la pantalla de salud vía esa caché + pull-to-refresh.
+
   useEffect(() => {
     if (Platform.OS === 'web') {
       refetchVehicles();
@@ -614,12 +618,14 @@ const UserPanelScreen = () => {
     }
     await Promise.all([
       refetchVehicles(),
+      queryClient.invalidateQueries({ queryKey: ['vehicleHealth'] }),
       cargarSolicitudesActivas(),
       refetchWeather(),
       ...extras,
     ]);
   }, [
     refetchVehicles,
+    queryClient,
     cargarSolicitudesActivas,
     refetchWeather,
     selectedVehicle?.id,

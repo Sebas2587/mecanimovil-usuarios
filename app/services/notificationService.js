@@ -137,8 +137,13 @@ class NotificationService {
    */
   async mostrarNotificacionLocal(titulo, mensaje, data = {}) {
     try {
+      // Web (y entornos sin módulo nativo): no hay scheduleNotificationAsync; evitar UnavailabilityError.
+      if (!this.isAvailable()) {
+        return;
+      }
+
       const hasPermission = await this.requestPermissions();
-      if (!hasPermission && this.isAvailable()) {
+      if (!hasPermission) {
         return;
       }
 

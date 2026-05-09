@@ -34,13 +34,20 @@ import { TextInput, KeyboardAvoidingView } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import { ROUTES } from '../../utils/constants';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { getVehicleById } from '../../services/vehicle';
 import UnifiedComponentCard, { SectionHeader } from '../../components/vehicles/UnifiedComponentCard';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
-import { getHealthColorToken, getHealthLabel, resolveVehicleHealthPct } from '../../utils/healthFormat';
+import {
+  getHealthColorToken,
+  getHealthLabel,
+  normalizePct,
+  resolveVehicleHealthPct,
+} from '../../utils/healthFormat';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -50,7 +57,22 @@ import Button from '../../components/base/Button/Button';
 
 const VehicleHealthScreen = ({ route }) => {
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const { vehicleId, vehicle } = route.params;
+
+  /** Misma clave que `useVehiclesHealth` en UserPanelScreen — mantiene el % global al día al declarar km. */
+  const syncVehicleHealthQueryCache = useCallback(
+    (data) => {
+      if (data == null || vehicleId == null || vehicleId === '') return;
+      queryClient.setQueryData(['vehicleHealth', vehicleId], data);
+      const n = Number(vehicleId);
+      if (Number.isFinite(n) && n !== vehicleId) {
+        queryClient.setQueryData(['vehicleHealth', n], data);
+      }
+    },
+    [vehicleId, queryClient],
+  );
+
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const styles = createStyles(insets);
@@ -69,7 +91,53 @@ const VehicleHealthScreen = ({ route }) => {
   // Data State
   // Prefer fresh data from fetch, fallback to route params if available
   const [healthData, setHealthData] = useState(null);
+  const healthDataRef = useRef(null);
+  useEffect(() => {
+    healthDataRef.current = healthData;
+  }, [healthData]);
+
+  // Al salir de la pantalla, volcar el último resumen a TanStack Query (panel "Valor estimado").
+  useEffect(() => {
+    const unsub = navigation.addListener('blur', () => {
+      const h = healthDataRef.current;
+      if (h) syncVehicleHealthQueryCache(h);
+    });
+    return unsub;
+  }, [navigation, syncVehicleHealthQueryCache]);
+
   const [vehicleData, setVehicleData] = useState(vehicle);
+
+  /** Odómetro desde API sin esperar hidratación de parches ni `loadData` (evita flash de km viejo de `route.params`). */
+  const refreshVehicleOdometer = useCallback(() => {
+    if (!vehicleId) return;
+    getVehicleById(vehicleId)
+      .then((v) => {
+        if (v) setVehicleData(v);
+      })
+      .catch(() => {});
+  }, [vehicleId]);
+
+  // Si el panel ya cargó la lista de vehículos, usar ese km de inmediato (más actual que params de navegación).
+  useEffect(() => {
+    const entries = queryClient.getQueriesData({ queryKey: ['userVehicles'] });
+    for (const [, data] of entries) {
+      const list = Array.isArray(data) ? data : data?.results || [];
+      const v = list.find((x) => String(x.id) === String(vehicleId));
+      if (v && v.kilometraje != null) {
+        setVehicleData((prev) => {
+          const base = prev ?? vehicle ?? {};
+          if (Number(v.kilometraje) === Number(base.kilometraje) && prev != null) return prev;
+          return { ...base, ...v };
+        });
+        break;
+      }
+    }
+  }, [vehicleId, queryClient, vehicle]);
+
+  useEffect(() => {
+    refreshVehicleOdometer();
+  }, [refreshVehicleOdometer]);
+
   const [loading, setLoading] = useState(!vehicle?.health_report);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedMetric, setSelectedMetric] = useState(null); // For Modal
@@ -91,21 +159,68 @@ const VehicleHealthScreen = ({ route }) => {
   const syncTimerRef = useRef(null);
   const healthPollTimersRef = useRef([]);
   const loadDataRef = useRef(() => {});
+  /**
+   * Mapa slug → { km, pct, oldPct, fuente, fechaIso, expiry } de declaraciones recientes.
+   * Se persiste en AsyncStorage por vehículo: sobrevive recargas/navegación y mantiene
+   * la UI consistente hasta que el backend confirme que Celery procesó el cambio.
+   */
+  const optimisticDeclRef = useRef(new Map());
+  const [optimisticHydrated, setOptimisticHydrated] = useState(false);
+  /** Incrementa con cada actualización de datos para forzar re-render en web. */
+  const [listRenderVersion, setListRenderVersion] = useState(0);
+
+  const optimisticStorageKey = `health_optimistic_decl_v1_${vehicleId}`;
+
+  const persistOptimistic = useCallback(async () => {
+    try {
+      const obj = Object.fromEntries(optimisticDeclRef.current.entries());
+      await AsyncStorage.setItem(optimisticStorageKey, JSON.stringify(obj));
+    } catch (e) {
+      console.warn('No se pudo persistir parche optimista:', e?.message);
+    }
+  }, [optimisticStorageKey]);
+
+  // Hidratar parches optimistas desde AsyncStorage al montar (sobreviven F5 en web).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(optimisticStorageKey);
+        if (!cancelled && raw) {
+          const obj = JSON.parse(raw) || {};
+          const now = Date.now();
+          const map = new Map();
+          for (const [slug, opt] of Object.entries(obj)) {
+            if (opt?.expiry && opt.expiry > now) map.set(slug, opt);
+          }
+          optimisticDeclRef.current = map;
+        }
+      } catch (e) {
+        console.warn('No se pudo hidratar parche optimista:', e?.message);
+      } finally {
+        if (!cancelled) setOptimisticHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [optimisticStorageKey]);
 
   const clearHealthPollTimers = useCallback(() => {
     healthPollTimersRef.current.forEach(clearTimeout);
     healthPollTimersRef.current = [];
   }, []);
 
-  // Initial Load
+  // Initial Load — esperar a que terminen de hidratarse los parches para no perderlos
   useEffect(() => {
-    loadData();
+    if (!optimisticHydrated) return;
+    loadData(true);
     return () => {
       clearInterval(pollingIntervalRef.current);
       clearTimeout(syncTimerRef.current);
       clearHealthPollTimers();
     };
-  }, [vehicleId, clearHealthPollTimers]);
+  }, [vehicleId, clearHealthPollTimers, optimisticHydrated]);
 
   const loadPredictions = useCallback(async (force = false) => {
     if (!vehicleId) return;
@@ -121,23 +236,126 @@ const VehicleHealthScreen = ({ route }) => {
     }
   }, [vehicleId]);
 
+  /**
+   * Calcula el % de salud estimado para el componente dado el km declarado.
+   * Usa la fórmula Weibull (beta=2) del backend con eta aproximado desde
+   * los datos del componente disponibles en el cliente.
+   * Siempre se aplica el tope máx 65 % para declaraciones de usuario
+   * (regla del HealthEngine: USUARIO_DECLARADO nunca puede mostrar ÓPTIMO).
+   */
+  const computeOptimisticPct = useCallback((comp, kmVehiculo, kmDeclarado) => {
+    const kmRecNuevo = Math.max(0, (kmVehiculo || 0) - (kmDeclarado || 0));
+    if (kmRecNuevo <= 0) return 65; // recién cambiado → al tope permitido
+
+    // Eta: vida útil esperada del componente (km).
+    // Prioridad: vida_util_total (health_report) → derivado de km_estimados_restantes → fallback razonable.
+    const kmRecAnterior = Math.max(0, (kmVehiculo || 0) - (comp.km_ultimo_servicio || 0));
+    const etaDesdeEstimados = kmRecAnterior + Math.max(0, comp.km_estimados_restantes || 0);
+    const etaCandidato = Math.max(
+      comp.vida_util_total || comp.vida_util_proyectada || 0,
+      etaDesdeEstimados,
+    );
+    // Si no tenemos eta válido (componente sin datos previos), el cálculo no es confiable
+    // → usar tope 65 % en vez de calcular un mínimo arbitrario.
+    if (!etaCandidato || etaCandidato < 1000) return 65;
+
+    // Weibull beta=2 (valor genérico del backend para la mayoría de componentes)
+    const salud = Math.exp(-Math.pow(kmRecNuevo / etaCandidato, 2)) * 100;
+    // Tope superior: 65 (regla USUARIO_DECLARADO). Tope inferior: 10 para evitar 0% visual.
+    return Math.min(65, Math.max(10, Math.round(salud)));
+  }, []);
+
+  /**
+   * Aplica los parches optimistas vigentes sobre los datos frescos del servidor.
+   *
+   * Lógica de cuándo confiar en el servidor (señal robusta de que Celery procesó la declaración):
+   *   1. Servidor devuelve serverPct > 0 (NUNCA confiamos en 0% → es cache stale o error).
+   *   2. Servidor reporta historial_fuente === 'USUARIO_DECLARADO' → procesó nuestra declaración.
+   *   3. O bien: serverPct > 0 y serverPct ≤ 65 (cap aplicado) y km_ultimo_servicio coincide.
+   *
+   * Si no se cumple, mantenemos el parche optimista. Expira a las 24 h (safety net).
+   * Persistimos el Map a AsyncStorage para sobrevivir refrescos de página.
+   */
+  const applyOptimisticPatch = useCallback((data) => {
+    const patches = optimisticDeclRef.current;
+    const now = Date.now();
+    let mapChanged = false;
+    for (const [slug, opt] of patches.entries()) {
+      if (now > opt.expiry) {
+        patches.delete(slug);
+        mapChanged = true;
+      }
+    }
+    if (patches.size === 0) {
+      if (mapChanged) persistOptimistic();
+      return data;
+    }
+    if (!data?.componentes?.length) return data;
+
+    let listChanged = false;
+    const patched = data.componentes.map((c) => {
+      const s = String(c.slug || c.componente_detail?.slug || c.icon_slug || '');
+      const opt = patches.get(s);
+      if (!opt) return c;
+
+      const serverPct = normalizePct(c.salud_porcentaje ?? c.salud);
+      const serverFuente = c.historial_fuente;
+      const serverKm = c.km_ultimo_servicio;
+
+      // Confiar en servidor SOLO si:
+      //   - serverPct > 0 (descartar cache stale / 0 corrupto)
+      //   - el backend ya marcó USUARIO_DECLARADO Y el km coincide con el declarado
+      const backendProceso =
+        serverPct > 0 &&
+        serverFuente === 'USUARIO_DECLARADO' &&
+        opt.km != null &&
+        Math.abs(Number(serverKm || 0) - opt.km) < 100;
+
+      if (backendProceso) {
+        patches.delete(s);
+        mapChanged = true;
+        return c; // servidor ya tiene el dato real (≤65% por el cap del engine)
+      }
+
+      // Mantener parche optimista
+      listChanged = true;
+      return {
+        ...c,
+        historial_conocido: true,
+        historial_fuente: opt.fuente,
+        salud_porcentaje: opt.pct,
+        ...(opt.km ? { km_ultimo_servicio: opt.km } : {}),
+        ...(opt.fechaIso ? { fecha_ultimo_servicio: opt.fechaIso } : {}),
+      };
+    });
+
+    if (mapChanged) persistOptimistic();
+    if (!listChanged) return data;
+
+    // Recalcular % global como promedio de todos los componentes parcheados
+    const total = patched.length;
+    const suma = patched.reduce(
+      (acc, c) => acc + normalizePct(c.salud_porcentaje ?? c.salud ?? 0), 0,
+    );
+    const saludGeneral = total > 0 ? Math.round(suma / total) : data.salud_general_porcentaje;
+    return { ...data, componentes: patched, salud_general_porcentaje: saludGeneral };
+  }, [persistOptimistic]);
+
   const loadData = async (force = false) => {
     if (!vehicleId) return;
     try {
       if (!vehicleData || force) {
-        // Refresh full vehicle to get updated health_report
         const v = await getVehicleById(vehicleId);
         setVehicleData(v);
       }
-      // Also fetch specific health summary (legacy support or extra details)
-      // Since backend now puts report in vehicle, maybe fetchVehicleHealth is redundant?
-      // But we keep it if it returns 'alertas' or 'costo_estimado'.
-      const hData = await VehicleHealthService.getVehicleHealth(vehicleId, force);
+      const rawHealth = await VehicleHealthService.getVehicleHealth(vehicleId, force);
+      const hData = applyOptimisticPatch(rawHealth);
       setHealthData(hData);
-      // Predicciones inteligentes en paralelo (no bloquea la UI principal)
+      syncVehicleHealthQueryCache(hData);
+      setListRenderVersion((n) => n + 1);
       loadPredictions(force);
     } catch (e) {
-      console.error("Error loading health:", e);
+      console.error('Error loading health:', e);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -146,10 +364,14 @@ const VehicleHealthScreen = ({ route }) => {
 
   loadDataRef.current = loadData;
 
-  /** Tras declarar mantenimiento el recálculo suele ir por Celery: varios GET forzan UI al día. */
+  /**
+   * Programa refetches progresivos después de declarar mantenimiento.
+   * NO incluye delay 0 porque en ese instante Celery no ha recalculado
+   * y la respuesta sobreescribiría el parche optimista con datos viejos.
+   */
   const scheduleHealthRefetchBurst = useCallback(() => {
     clearHealthPollTimers();
-    const delays = [0, 2000, 5000, 10000, 20000];
+    const delays = [2000, 5000, 10000, 20000];
     delays.forEach((ms) => {
       const id = setTimeout(() => {
         loadDataRef.current?.(true);
@@ -185,8 +407,10 @@ const VehicleHealthScreen = ({ route }) => {
 
   useFocusEffect(
     useCallback(() => {
+      refreshVehicleOdometer();
+      if (!optimisticHydrated) return;
       loadData(true);
-    }, [vehicleId])
+    }, [vehicleId, optimisticHydrated, refreshVehicleOdometer])
   );
 
   const handleRefresh = () => {
@@ -318,6 +542,74 @@ const VehicleHealthScreen = ({ route }) => {
         nota: declNota.trim() || undefined,
       });
       setDeclarationTarget(null);
+
+      const declaredSlug = result?.slug != null ? String(result.slug) : String(slug);
+      const kmReg = Number(result?.km_servicio_registrado ?? km);
+      const kmOk = Number.isFinite(kmReg) && kmReg > 0;
+      const fuente = result?.historial_fuente || 'USUARIO_DECLARADO';
+      const fechaIso = result?.fecha_servicio ?? null;
+      const kmVehiculo = vehicleData?.kilometraje || 0;
+
+      // Parche inmediato en UI — calcula el % real con Weibull aproximado en lugar de fijar 65.
+      const patchRow = (c) => {
+        const s = String(c.slug || c.componente_detail?.slug || c.icon_slug || '');
+        if (s !== declaredSlug) return c;
+        const pct = computeOptimisticPct(c, kmVehiculo, kmOk ? kmReg : km);
+        return {
+          ...c,
+          historial_conocido: true,
+          historial_fuente: fuente,
+          salud_porcentaje: pct,
+          ...(kmOk ? { km_ultimo_servicio: Math.round(kmReg) } : {}),
+          ...(fechaIso ? { fecha_ultimo_servicio: fechaIso } : {}),
+        };
+      };
+
+      // Buscar la fila del componente para el cálculo y para capturar el % previo.
+      const compRow = healthData?.componentes?.find?.(
+        (c) => String(c.slug || c.componente_detail?.slug || '') === declaredSlug,
+      ) ?? declarationTarget;
+      const pctOptimista = computeOptimisticPct(compRow || {}, kmVehiculo, kmOk ? kmReg : km);
+      // oldPct: valor previo a la declaración — referencia diagnóstica.
+      const oldPct = normalizePct(
+        compRow?.salud_porcentaje ?? compRow?.salud ?? compRow?.salud_actual ?? 0,
+      );
+      // Guardar en el Map de parches.
+      // TTL largo (24 h) porque Celery puede tardar en propagar y el usuario puede recargar
+      // la página; el parche se invalida automáticamente cuando el backend reporta
+      // historial_fuente=USUARIO_DECLARADO + km coincidente.
+      optimisticDeclRef.current.set(declaredSlug, {
+        km: kmOk ? Math.round(kmReg) : null,
+        pct: pctOptimista,
+        oldPct,
+        fuente,
+        fechaIso,
+        expiry: Date.now() + 24 * 60 * 60 * 1000,
+      });
+      persistOptimistic();
+
+      setHealthData((prev) => {
+        if (!prev) return prev;
+        const list = Array.isArray(prev.componentes) ? prev.componentes : [];
+        const nuevosList = list.map(patchRow);
+        // Recalcular % global
+        const total = nuevosList.length;
+        const suma = nuevosList.reduce(
+          (acc, c) => acc + normalizePct(c.salud_porcentaje ?? c.salud ?? 0), 0,
+        );
+        const saludGeneral = total > 0 ? Math.round(suma / total) : prev.salud_general_porcentaje;
+        const next = { ...prev, componentes: nuevosList, salud_general_porcentaje: saludGeneral };
+        syncVehicleHealthQueryCache(next);
+        return next;
+      });
+      setVehicleData((v) => {
+        if (!v) return v;
+        const list = Array.isArray(v.health_report) ? v.health_report : [];
+        return { ...v, health_report: list.map(patchRow) };
+      });
+      // Forzar re-render de FlatList en web
+      setListRenderVersion((n) => n + 1);
+
       const msg =
         result?.mensaje ||
         'Mantenimiento registrado. El historial se actualizó; la salud puede tardar unos segundos en reflejarse.';
@@ -467,10 +759,14 @@ const VehicleHealthScreen = ({ route }) => {
    * Se añaden items `{ type: 'section', ... }` como cabeceras de sección.
    */
   const flatListData = useMemo(() => {
+    const summaryList =
+      healthData && Array.isArray(healthData.componentes) ? healthData.componentes : null;
+    // Si el summary trae [] (p. ej. 202 calculando) no pisar health_report del vehículo.
     const rawComponents =
-      healthData && Array.isArray(healthData.componentes)
-        ? healthData.componentes
-        : vehicleData?.health_report || [];
+      summaryList && summaryList.length > 0 ? summaryList : vehicleData?.health_report || [];
+
+    const pct = (c) =>
+      normalizePct(c.salud_porcentaje ?? c.salud ?? c.percentage ?? c.salud_actual);
 
     // Mapa slug → predicción para O(1) lookup
     const predMap = new Map();
@@ -490,12 +786,12 @@ const VehicleHealthScreen = ({ route }) => {
 
     // Ordenar por urgencia (salud asc) dentro de cada sección
     const urgentes = merged
-      .filter((c) => (c.salud_porcentaje ?? 0) < 70)
-      .sort((a, b) => (a.salud_porcentaje ?? 0) - (b.salud_porcentaje ?? 0));
+      .filter((c) => pct(c) < 70)
+      .sort((a, b) => pct(a) - pct(b));
 
     const optimos = merged
-      .filter((c) => (c.salud_porcentaje ?? 0) >= 70)
-      .sort((a, b) => (a.salud_porcentaje ?? 0) - (b.salud_porcentaje ?? 0));
+      .filter((c) => pct(c) >= 70)
+      .sort((a, b) => pct(a) - pct(b));
 
     const result = [];
     if (urgentes.length > 0) {
@@ -525,10 +821,17 @@ const VehicleHealthScreen = ({ route }) => {
         style={styles.mainList}
         removeClippedSubviews={Platform.OS !== 'web'}
         data={flatListData}
-        extraData={healthData}
-        keyExtractor={(item, index) =>
-          item.type === 'section' ? item.key : (item.slug || item.componente || String(index))
+        extraData={
+          Platform.OS === 'web'
+            ? `v${listRenderVersion}-${healthData?.fecha_calculo ?? ''}-${healthData?.ultima_actualizacion ?? ''}-${vehicleData?.kilometraje ?? ''}-${flatListData.length}`
+            : [healthData, listRenderVersion]
         }
+        keyExtractor={(item, index) => {
+          if (item.type === 'section') return `${item.key}-${index}`;
+          const stableId = item.id ?? item.componente_salud_id;
+          const slug = item.slug || item.componente_detail?.slug || item.icon_slug || 'c';
+          return stableId != null ? `comp-${stableId}-i${index}` : `comp-${slug}-i${index}`;
+        }}
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
@@ -789,8 +1092,13 @@ const VehicleHealthScreen = ({ route }) => {
               keyboardShouldPersistTaps="handled"
             >
               {/* ── 1. Estado de salud ──────────────────────────── */}
-              {selectedMetric?.salud_porcentaje != null && (() => {
-                const pct   = Math.round(selectedMetric.salud_porcentaje);
+              {(() => {
+                const raw =
+                  selectedMetric?.salud_porcentaje ??
+                  selectedMetric?.salud ??
+                  selectedMetric?.salud_actual;
+                if (raw == null) return null;
+                const pct = Math.round(normalizePct(raw));
                 const hc    = getHealthColor(pct);
                 const nivel = selectedMetric.nivel_alerta_display || selectedMetric.nivel_alerta || '';
                 return (
@@ -903,6 +1211,25 @@ const VehicleHealthScreen = ({ route }) => {
                         </Text>
                       </TouchableOpacity>
                     )}
+                  </View>
+                );
+              })()}
+
+              {/* ── 4b. Detalle de inspección declarada por taller ──── */}
+              {selectedMetric?.historial_fuente === 'CHECKLIST' && selectedMetric?.salud_anclada_pct != null && (() => {
+                const fechaSrv = selectedMetric?.fecha_ultimo_servicio ? new Date(selectedMetric.fecha_ultimo_servicio) : null;
+                const fechaTxt = fechaSrv && !isNaN(fechaSrv)
+                  ? fechaSrv.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                  : null;
+                const declaradoTxt = `${Math.round(Number(selectedMetric.salud_anclada_pct))}%`;
+                return (
+                  <View style={styles.inspeccionBlock}>
+                    <ClipboardEdit size={14} color={COLORS.success[600]} />
+                    <Text style={styles.inspeccionText}>
+                      {fechaTxt
+                        ? `Inspeccionado el ${fechaTxt} — declarado en ${declaradoTxt}`
+                        : `Declarado por taller en ${declaradoTxt}`}
+                    </Text>
                   </View>
                 );
               })()}
@@ -1285,6 +1612,23 @@ const createStyles = (_insets) => StyleSheet.create({
   confianzaText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    flex: 1,
+  },
+  inspeccionBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: BORDERS.radius.card.md,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
+    backgroundColor: COLORS.success[50],
+    borderWidth: 1,
+    borderColor: COLORS.success[100] || COLORS.success[200],
+  },
+  inspeccionText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.success[700] || COLORS.success[600],
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     flex: 1,
   },
   declararBtn: {
