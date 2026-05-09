@@ -28,6 +28,7 @@ import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard'
 import CertifiedVehicleCard from '../../components/solicitudes/CertifiedVehicleCard';
 import OfferCardDetailed from '../../components/solicitudes/OfferCardDetailed';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
+import PendingClientSignatureCard from '../../components/checklist/PendingClientSignatureCard';
 
 const TAB_PRINCIPALES = 'principales';
 const TAB_ADICIONALES = 'adicionales';
@@ -74,6 +75,8 @@ const DetalleSolicitudScreen = () => {
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [tabActivo, setTabActivo] = useState(TAB_PRINCIPALES);
   const [checklistOrdenId, setChecklistOrdenId] = useState(null);
+  // Counter para forzar refetch de la card de firma diferida tras firmar.
+  const [signatureRefreshKey, setSignatureRefreshKey] = useState(0);
 
   // Cargar datos
   const cargarDatos = useCallback(async () => {
@@ -283,6 +286,40 @@ const DetalleSolicitudScreen = () => {
 
         {/* 2) Detalle de Solicitud */}
         <ServiceSummaryCard solicitud={solicitud} />
+
+        {/*
+          Firma diferida del cliente: si el técnico cerró el checklist y dejó
+          la orden en `pendiente_firma_cliente`, mostramos un CTA para firmar
+          desde la app del cliente (change firma-cliente-diferida-checklist).
+        */}
+        {(() => {
+          const ordenIdParaFirma =
+            solicitud?.oferta_seleccionada_detail?.solicitud_servicio_id ??
+            solicitud?.orden_id ??
+            solicitud?.solicitud_servicio_id ??
+            null;
+          if (!ordenIdParaFirma) return null;
+          const proveedorNombre =
+            solicitud?.oferta_seleccionada_detail?.proveedor?.nombre ||
+            solicitud?.oferta_seleccionada_detail?.proveedor_nombre ||
+            null;
+          const servicioNombre =
+            solicitud?.servicios_solicitados?.[0]?.nombre ||
+            solicitud?.servicios_solicitados?.[0]?.nombre_servicio ||
+            'Servicio contratado';
+          return (
+            <PendingClientSignatureCard
+              ordenId={ordenIdParaFirma}
+              servicioNombre={servicioNombre}
+              proveedorNombre={proveedorNombre}
+              refreshKey={signatureRefreshKey}
+              onSignatureSuccess={() => {
+                setSignatureRefreshKey((v) => v + 1);
+                cargarDatos();
+              }}
+            />
+          );
+        })()}
 
         {/* C. Tabs: Ofertas recibidas | Ofertas adicionales */}
         <View style={styles.tabSection}>

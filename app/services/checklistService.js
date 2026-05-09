@@ -1,4 +1,4 @@
-import { get } from './api';
+import { get, post } from './api';
 
 /**
  * Servicio para gestión de checklists desde el lado del cliente
@@ -37,6 +37,56 @@ class ChecklistClienteService {
       }
       
       throw new Error('No se pudo cargar el checklist del servicio');
+    }
+  }
+
+  /**
+   * Firma del cliente desde su app autenticada (firma diferida).
+   * Se invoca cuando el técnico cerró el checklist y la orden quedó en
+   * `pendiente_firma_cliente`. Tras un POST exitoso, el servicio queda
+   * `completado` y se dispara la actualización de salud del vehículo.
+   *
+   * @param {number} instanceId - ID del `ChecklistInstance`.
+   * @param {string} firmaBase64 - Imagen de la firma en Base64
+   *   (típicamente `data:image/png;base64,...`).
+   * @param {{ lat: number, lng: number } | null} ubicacion - Ubicación
+   *   GPS opcional.
+   * @returns {Promise<Object>} Respuesta del backend.
+   */
+  async firmarChecklistComoCliente(instanceId, firmaBase64, ubicacion = null) {
+    if (!instanceId) {
+      throw new Error('Falta el ID del checklist para firmar.');
+    }
+    if (!firmaBase64) {
+      throw new Error('Falta la firma del cliente.');
+    }
+
+    const payload = { firma_cliente: firmaBase64 };
+    if (ubicacion && typeof ubicacion.lat === 'number' && typeof ubicacion.lng === 'number') {
+      payload.ubicacion_lat = ubicacion.lat;
+      payload.ubicacion_lng = ubicacion.lng;
+    }
+
+    try {
+      console.log('✍️ ChecklistClienteService: Firmando como cliente', { instanceId });
+      const response = await post(
+        `/checklists/instances/${instanceId}/firmar-cliente/`,
+        payload,
+      );
+      console.log('✅ ChecklistClienteService: Firma del cliente registrada', response);
+      return response;
+    } catch (error) {
+      console.error('❌ ChecklistClienteService: Error firmando como cliente', error);
+      const status = error?.status ?? error?.response?.status;
+      if (status === 403) {
+        throw new Error('No tienes permiso para firmar este servicio.');
+      }
+      if (status === 400) {
+        throw new Error(
+          error?.message || error?.response?.data?.error || 'No se pudo registrar la firma.',
+        );
+      }
+      throw new Error('No se pudo registrar la firma del cliente. Intenta nuevamente.');
     }
   }
 

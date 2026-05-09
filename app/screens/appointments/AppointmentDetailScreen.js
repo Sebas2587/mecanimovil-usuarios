@@ -20,6 +20,7 @@ import * as userService from '../../services/user';
 import GlassmorphicContainer from '../../components/utils/GlassmorphicContainer';
 import Card from '../../components/base/Card/Card';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
+import PendingClientSignatureCard from '../../components/checklist/PendingClientSignatureCard';
 
 const AppointmentDetailScreen = () => {
   const navigation = useNavigation();
@@ -31,6 +32,8 @@ const AppointmentDetailScreen = () => {
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [checklistDisponible, setChecklistDisponible] = useState(false);
   const [verificandoChecklist, setVerificandoChecklist] = useState(false);
+  // Counter para refrescar la card de firma diferida del cliente.
+  const [signatureRefreshKey, setSignatureRefreshKey] = useState(0);
 
   // Detectar si estamos en un stack anidado (ProfileStack)
   const isInNestedStack = navigation.getState?.()?.routes?.some(route => 
@@ -601,6 +604,30 @@ const AppointmentDetailScreen = () => {
             </View>
           </View>
         </View>
+
+        {/*
+          Firma diferida del cliente: si la orden quedó en
+          `pendiente_firma_cliente` tras la firma del técnico, la card abre
+          el `CustomerSignatureModal` (change firma-cliente-diferida-checklist).
+        */}
+        <PendingClientSignatureCard
+          ordenId={agendamientoActual.id}
+          servicioNombre={
+            agendamientoActual?.lineas?.[0]?.servicio_nombre ||
+            agendamientoActual?.lineas_detail?.[0]?.servicio_nombre ||
+            'Servicio agendado'
+          }
+          proveedorNombre={
+            agendamientoActual?.taller?.nombre ||
+            agendamientoActual?.mecanico?.nombre_completo ||
+            null
+          }
+          refreshKey={signatureRefreshKey}
+          onSignatureSuccess={() => {
+            setSignatureRefreshKey((v) => v + 1);
+            cargarDatosCompletos();
+          }}
+        />
 
         {/* Botones de Acción */}
         <View style={styles.actionsContainer}>
