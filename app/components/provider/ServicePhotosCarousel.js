@@ -1,14 +1,28 @@
-import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useMemo, useState, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Platform, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
-import { COLORS, BORDERS } from '../../design-system/tokens';
+import { COLORS, SPACING } from '../../design-system/tokens';
 import { resolveToAbsoluteMediaUrl } from '../../utils/providerUtils';
+
+/** Ancho aproximado de columna (~48% del ancho útil) antes del primer onLayout. */
+function estimateServicePhotoSlideWidth() {
+  const w = Dimensions.get('window').width;
+  const hPad = (SPACING.container?.horizontal ?? 16) * 2;
+  const inner = Math.max(0, w - hPad);
+  return Math.max(100, Math.floor(inner * 0.48 - 4));
+}
 
 /**
  * Carrusel liviano para fotos asociadas a un servicio/oferta.
  * Espera items tipo: { imagen_url?: string, imagen?: string, url?: string, image?: string }
  */
 export default function ServicePhotosCarousel({ photos, height = 120 }) {
+  const [slideWidth, setSlideWidth] = useState(estimateServicePhotoSlideWidth);
+  const onWrapLayout = useCallback((e) => {
+    const w = Math.round(e.nativeEvent.layout.width);
+    if (w > 0) setSlideWidth((prev) => (prev === w ? prev : w));
+  }, []);
+
   const items = useMemo(() => (Array.isArray(photos) ? photos.filter(Boolean) : []), [photos]);
   if (items.length === 0) return null;
 
@@ -29,18 +43,18 @@ export default function ServicePhotosCarousel({ photos, height = 120 }) {
   const showDots = resolved.length > 1;
 
   return (
-    <View style={[styles.wrap, { height }]}>
+    <View style={[styles.wrap, { height }]} onLayout={onWrapLayout}>
       <ScrollView
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        style={Platform.OS === 'web' ? styles.horizontalScrollWeb : undefined}
+        style={[styles.scrollFill, Platform.OS === 'web' ? styles.horizontalScrollWeb : undefined]}
       >
         {resolved.map((p, idx) => (
           <Image
             key={`${p.id}-${idx}`}
             source={{ uri: p.uri }}
-            style={[styles.image, { height }]}
+            style={{ width: slideWidth, height }}
             contentFit="cover"
             cachePolicy="memory-disk"
             transition={150}
@@ -62,14 +76,11 @@ export default function ServicePhotosCarousel({ photos, height = 120 }) {
 const styles = StyleSheet.create({
   wrap: {
     width: '100%',
-    borderRadius: BORDERS.radius.md,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
     backgroundColor: COLORS.neutral.gray[100],
   },
-  image: {
-    width: 260,
+  scrollFill: {
+    flexGrow: 0,
   },
   dots: {
     position: 'absolute',

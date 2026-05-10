@@ -359,35 +359,35 @@ const ProviderDetailScreen = () => {
                 }
 
                 return (
-                  <Card key={`${servicio.id || idx}`} style={styles.serviceCardOuter}>
+                  <View key={`${servicio.id || idx}`} style={styles.serviceCardShell}>
                     {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
-                      <View style={{ marginBottom: 10 }}>
-                        <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
-                      </View>
+                      <ServicePhotosCarousel photos={servicio.fotos_servicio} height={120} />
                     ) : null}
 
-                    <Text style={styles.serviceName} numberOfLines={2}>
-                      {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
-                    </Text>
-                    {servicio.categoria && (
-                      <Text style={styles.serviceCategory} numberOfLines={1}>
-                        {servicio.categoria}
+                    <View style={styles.serviceCardBody}>
+                      <Text style={styles.serviceName} numberOfLines={2}>
+                        {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
                       </Text>
-                    )}
+                      {servicio.categoria && (
+                        <Text style={styles.serviceCategory} numberOfLines={1}>
+                          {servicio.categoria}
+                        </Text>
+                      )}
 
-                    {isCompatible ? (
-                      <View style={styles.serviceFooter}>
-                        <View style={styles.compatibilityBadge}>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={12}
-                            color={COLORS.success.main}
-                          />
-                          <Text style={styles.compatibilityText}>Compatible</Text>
+                      {isCompatible ? (
+                        <View style={styles.serviceFooter}>
+                          <View style={styles.compatibilityBadge}>
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={12}
+                              color={COLORS.success.main}
+                            />
+                            <Text style={styles.compatibilityText}>Compatible</Text>
+                          </View>
                         </View>
-                      </View>
-                    ) : null}
-                  </Card>
+                      ) : null}
+                    </View>
+                  </View>
                 );
               })}
             </View>
@@ -522,10 +522,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  serviceCardOuter: {
+  serviceCardShell: {
     width: '48%',
-    padding: 12,
     marginBottom: 8,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    overflow: 'hidden',
+  },
+  serviceCardBody: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   serviceName: {
     color: COLORS.text.primary,
