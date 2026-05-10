@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Image, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { COLORS, BORDERS } from '../../design-system/tokens';
 
 /**
@@ -34,7 +35,9 @@ export default function ServicePhotosCarousel({ photos, height = 120 }) {
             key={`${p.id}-${idx}`}
             source={{ uri: p.uri }}
             style={[styles.image, { height }]}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
           />
         ))}
       </ScrollView>

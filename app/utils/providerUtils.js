@@ -39,14 +39,15 @@ export const resolveToAbsoluteMediaUrl = (raw) => {
 };
 
 /**
- * Misma prioridad que ProviderHeader (perfil proveedor): foto del proveedor, luego usuario, luego *_url.
+ * Prioridad de foto: URLs absolutas del backend primero (*_url), luego campos crudos.
+ * Así el campo ya resuelto por cPanel/storage se usa directamente sin re-resolución incorrecta.
  */
 function buildProfileOrderedRawPhotos(provider) {
   const seq = [
-    provider?.foto_perfil,
-    provider?.usuario?.foto_perfil,
     provider?.foto_perfil_url,
     provider?.usuario?.foto_perfil_url,
+    provider?.foto_perfil,
+    provider?.usuario?.foto_perfil,
     provider?.imagen,
   ];
   const out = [];
@@ -65,7 +66,8 @@ function buildProfileOrderedRawPhotos(provider) {
  * URL absoluta principal para avatar (perfil / cards). Misma lógica de origen que ProviderHeader + resolución media.
  */
 export const buildProviderAvatarUri = (provider) => {
-  for (const raw of buildProfileOrderedRawPhotos(provider)) {
+  const candidates = buildProfileOrderedRawPhotos(provider);
+  for (const raw of candidates) {
     const abs = resolveToAbsoluteMediaUrl(raw);
     if (abs) return abs;
   }

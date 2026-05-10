@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { buildProviderAvatarUri, getKpiTierPresentation } from '../../utils/providerUtils';
@@ -43,7 +44,7 @@ const ProviderHeader = ({
   return (
     <View style={styles.container}>
       <View style={styles.coverContainer}>
-        <Image source={{ uri: coverImage }} style={styles.coverImage} resizeMode="cover" />
+        <Image source={{ uri: coverImage }} style={styles.coverImage} contentFit="cover" cachePolicy="memory-disk" />
         <View style={styles.coverOverlay} pointerEvents="none" />
 
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
@@ -86,7 +87,7 @@ const ProviderHeader = ({
       <View style={styles.profileCard}>
         <View style={styles.avatarRow}>
           <View style={styles.avatarContainer}>
-            <Image source={{ uri: avatarImage }} style={styles.avatar} />
+            <Image source={{ uri: avatarImage }} style={styles.avatar} contentFit="cover" cachePolicy="memory-disk" transition={150} />
             {showVerifiedBadge ? (
               <View style={styles.verifiedBadge}>
                 <Ionicons name="checkmark" size={12} color={COLORS.text.inverse} />
