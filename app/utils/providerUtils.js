@@ -202,7 +202,14 @@ export const getProviderSpecialty = (provider, fallback = 'Especialidad general'
  * Usa los mismos campos que expone el backend en talleres/mecánicos (lista y cerca).
  */
 export const getProviderRating = (provider) => {
+  // Misma fuente que ProviderDetailScreen (endpoint reviews / modelo Review en API).
+  const fromReviews =
+    provider?.rating_average != null && provider?.rating_average !== ''
+      ? provider.rating_average
+      : null;
+
   const raw =
+    fromReviews ??
     provider?.calificacion_promedio ??
     provider?.rating ??
     provider?.calificacion ??
@@ -210,7 +217,8 @@ export const getProviderRating = (provider) => {
     null;
 
   const reviewCount = Number(
-    provider?.numero_de_calificaciones ??
+    provider?.rating_reviews_count ??
+      provider?.numero_de_calificaciones ??
       provider?.total_resenas ??
       provider?.total_reviews ??
       provider?.reviews_count ??
@@ -239,6 +247,7 @@ export const getProviderRating = (provider) => {
  * Devuelve el número de reseñas del proveedor.
  */
 export const getProviderReviews = (provider) =>
+  provider?.rating_reviews_count ??
   provider?.numero_de_calificaciones ??
   provider?.total_resenas ??
   provider?.total_reviews ??
