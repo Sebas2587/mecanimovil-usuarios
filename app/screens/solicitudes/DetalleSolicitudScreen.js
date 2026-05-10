@@ -115,6 +115,17 @@ const DetalleSolicitudScreen = () => {
   const ofertasSecundarias = requestBundle?.ofertasSecundarias ?? [];
   const showInitialLoader = Boolean(solicitudId) && isPending && !requestBundle;
 
+  const {
+    data: serviceConversations = [],
+    refetch: refetchServiceConversations,
+  } = useConversationsList('service');
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchServiceConversations();
+    }, [refetchServiceConversations]),
+  );
+
   const solicitudChatUnread = useMemo(() => {
     const sid = solicitud?.id;
     if (sid == null) return 0;

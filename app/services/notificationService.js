@@ -2,13 +2,9 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// setNotificationHandler se llama en App.js (nivel de módulo) para garantizar
+// que esté activo antes de que cualquier componente se monte.
+// Este bloque queda solo como documentación; no llamar aquí para evitar doble setup.
 
 const ANDROID_CHANNELS = [
   {
@@ -54,6 +50,24 @@ const ANDROID_CHANNELS = [
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 200, 200, 200],
     lightColor: '#6366F1',
+    sound: 'default',
+  },
+  {
+    id: 'marketplace',
+    name: 'Marketplace',
+    description: 'Ofertas en tu vehículo publicado y alertas de mercado',
+    importance: Notifications.AndroidImportance.HIGH,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#F59E0B',
+    sound: 'default',
+  },
+  {
+    id: 'clima',
+    name: 'Alerta Climática',
+    description: 'Análisis y alertas de condiciones climáticas para conducción',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    vibrationPattern: [0, 200],
+    lightColor: '#06B6D4',
     sound: 'default',
   },
 ];
@@ -135,6 +149,20 @@ class NotificationService {
   /**
    * Mostrar notificación local (funciona en Expo Go)
    */
+  /**
+   * Mapeo de tipo → canal Android para que cada push vaya al canal correcto.
+   */
+  _channelForType(type) {
+    if (!type) return 'default';
+    if (type.includes('salud') || type.includes('health')) return 'salud';
+    if (type.includes('viaje') || type.includes('trip')) return 'viajes';
+    if (type.includes('chat') || type.includes('mensaje')) return 'chat';
+    if (type.includes('oferta') || type.includes('solicitud') || type.includes('pago') || type.includes('offer')) return 'servicios';
+    if (type.includes('marketplace') || type.includes('vehicle')) return 'marketplace';
+    if (type.includes('clima') || type.includes('weather') || type.includes('driving')) return 'clima';
+    return 'default';
+  }
+
   async mostrarNotificacionLocal(titulo, mensaje, data = {}) {
     try {
       // Web (y entornos sin módulo nativo): no hay scheduleNotificationAsync; evitar UnavailabilityError.
@@ -147,20 +175,26 @@ class NotificationService {
         return;
       }
 
+      const channelId = this._channelForType(data?.type);
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title: titulo,
           body: mensaje,
           sound: 'default',
+          // Android: enrutar al canal correcto (salud, servicios, chat, marketplace, clima, etc.)
+          ...(Platform.OS === 'android' ? { channelId } : {}),
           data: {
             ...data,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           },
         },
         trigger: null, // Mostrar inmediatamente
       });
 
-      console.log('📱 Notificación local enviada:', titulo);
+      if (__DEV__) {
+        console.log('📱 Notificación local enviada:', titulo, '→ canal:', channelId);
+      }
     } catch (error) {
       console.error('❌ Error al mostrar notificación local:', error);
     }
@@ -276,6 +310,42 @@ class NotificationService {
         vehiculo_info: vehiculoInfo,
         componentes_actualizados: componentesActualizados
       }
+    );
+  }
+
+  /**
+   * Nueva oferta recibida para una solicitud de servicio.
+   * Canal: servicios (alta prioridad).
+   */
+  async notificarNuevaOferta({ proveedorNombre, vehiculo, solicitudId }) {
+    await this.mostrarNotificacionLocal(
+      '🔧 Nueva oferta recibida',
+      `${proveedorNombre} hizo una oferta para tu ${vehiculo || 'vehículo'}.`,
+      { type: 'nueva_oferta', solicitud_id: solicitudId },
+    );
+  }
+
+  /**
+   * Nueva oferta en vehículo publicado en Marketplace.
+   * Canal: marketplace.
+   */
+  async notificarOfertaMarketplace({ compradorNombre, vehiculo, vehiculoId }) {
+    await this.mostrarNotificacionLocal(
+      '🚗 Nueva oferta en tu publicación',
+      `${compradorNombre} está interesado en tu ${vehiculo || 'vehículo'}.`,
+      { type: 'marketplace_offer', vehicle_id: vehiculoId },
+    );
+  }
+
+  /**
+   * Alerta de análisis climático para conducción.
+   * Canal: clima.
+   */
+  async notificarAlertaClimatica({ titulo, cuerpo, vehiculoId }) {
+    await this.mostrarNotificacionLocal(
+      titulo || '🌦️ Alerta climática para conducción',
+      cuerpo || 'Revisa las condiciones climáticas antes de salir.',
+      { type: 'weather_alert', vehicle_id: vehiculoId },
     );
   }
 

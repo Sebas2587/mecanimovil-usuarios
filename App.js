@@ -35,6 +35,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queryClient, asyncStoragePersister, shouldPersistQuery } from './app/config/queryClient';
 import './app/services/tripTrackingService';
 
+// ─── Push notifications: handler de nivel de módulo (requerido por Expo docs) ───
+// Debe ejecutarse ANTES de que cualquier componente se monte, para que las
+// notificaciones que llegan mientras la app arranca se procesen correctamente.
+// shouldShowBanner + shouldShowList reemplaza el deprecated shouldShowAlert (SDK 50+).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+// ────────────────────────────────────────────────────────────────────────────────
+
 // CRÍTICO: Deshabilitar LogBox COMPLETAMENTE después de importar React Native
 // Esto debe ejecutarse INMEDIATAMENTE después de importar para que funcione correctamente
 // Esta es la configuración PRINCIPAL que deshabilita LogBox completamente
@@ -723,6 +737,25 @@ const MainImpl = ({ lastNotificationResponse }) => {
           }
           break;
 
+        // Ofertas recibidas en un vehículo publicado en marketplace
+        case 'marketplace_offer':
+        case 'nueva_oferta_marketplace':
+        case 'marketplace_new_offer':
+          if (vehicle_id) {
+            navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId: vehicle_id });
+          } else {
+            navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
+          }
+          break;
+
+        // Alerta climática para conducción
+        case 'clima':
+        case 'alerta_climatica':
+        case 'weather_alert':
+        case 'driving_weather':
+          navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
+          break;
+
         case 'status_update':
         case 'order_completed':
         case 'order_rejected':
@@ -803,10 +836,40 @@ const MainImpl = ({ lastNotificationResponse }) => {
       return;
     }
 
+    const pushTypesRefreshSolicitudes = new Set([
+      'status_update',
+      'cambio_estado',
+      'order_completed',
+      'order_rejected',
+      'new_offer',
+      'nueva_oferta',
+      'offer_accepted',
+      'solicitud_adjudicada',
+      'recordatorio_pago',
+      'payment_reminder',
+      'pago_expirado',
+      'servicio_completado',
+      'servicio_iniciado',
+    ]);
+
     const foregroundSubscription = Notifications.addNotificationReceivedListener(
       (notification) => {
         try {
-          logger.debug('Notificación recibida (foreground)', notification?.request?.content?.data);
+          const data = notification?.request?.content?.data;
+          logger.debug('Notificación recibida (foreground)', data);
+          const t = data && typeof data.type === 'string' ? data.type : null;
+          if (t && pushTypesRefreshSolicitudes.has(t)) {
+            queryClient.invalidateQueries({
+              predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+            });
+            queryClient.invalidateQueries({
+              predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+            });
+            const sid = data.solicitud_id ?? data.solicitudId;
+            if (sid != null && String(sid).trim() !== '') {
+              queryClient.invalidateQueries({ queryKey: ['request', String(sid)] });
+            }
+          }
         } catch (error) {
           logger.error('Error procesando notificación foreground:', error);
         }

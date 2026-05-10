@@ -27,13 +27,19 @@ const ChatsListScreen = () => {
 
   const {
     data: conversations = [],
-    isLoading,
-    isFetching,
+    isPending,
     refetch,
   } = useConversationsList(activeTab);
 
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+
   const onRefresh = useCallback(() => {
-    refetch();
+    setPullRefreshing(true);
+    refetch()
+      .catch(() => {})
+      .finally(() => {
+        setPullRefreshing(false);
+      });
   }, [refetch]);
 
   const handleTabChange = useCallback((tab) => {
@@ -120,7 +126,8 @@ const ChatsListScreen = () => {
     []
   );
 
-  const showSkeleton = isLoading;
+  // Solo pantalla vacía de carga inicial: con datos en caché (optimista/placeholder) no ocultar la lista.
+  const showSkeleton = isPending;
 
   return (
     <View style={styles.root}>
@@ -170,7 +177,11 @@ const ChatsListScreen = () => {
               conversations.length === 0 && styles.listContentEmpty,
             ]}
             refreshControl={
-              <RefreshControl refreshing={isFetching && !isLoading} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />
+              <RefreshControl
+                refreshing={pullRefreshing}
+                onRefresh={onRefresh}
+                tintColor={COLORS.primary[500]}
+              />
             }
             ListEmptyComponent={conversations.length === 0 ? listEmpty : null}
             showsVerticalScrollIndicator={false}

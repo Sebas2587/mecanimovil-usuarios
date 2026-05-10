@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
     KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Keyboard, Alert, Modal,
@@ -17,7 +18,7 @@ import websocketService from '../../services/websocketService'; // Global WS for
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../../config/serverConfig';
 import { ROUTES } from '../../utils/constants';
-import { useChats } from '../../context/ChatsContext';
+import { CONVERSATIONS_KEYS } from '../../hooks/useChats';
 
 const ChatDetailScreen = () => {
     const route = useRoute();
@@ -26,7 +27,7 @@ const ChatDetailScreen = () => {
 
     const styles = getStyles();
 
-    const { refetchChats } = useChats();
+    const queryClient = useQueryClient();
     const { conversationId } = route.params;
 
     const [conversation, setConversation] = useState(null);
@@ -41,6 +42,14 @@ const ChatDetailScreen = () => {
     const sentMessagesRef = useRef(new Set());
     /** context_id de la conversación = id solicitud pública; para filtrar WS sin conversation_id. */
     const solicitudContextRef = useRef(null);
+
+    /**
+     * Buffer de mensajes WS que llegan ANTES de que loadData termine.
+     * loadData los fusiona al final para evitar la race condition de sobrescritura.
+     */
+    const pendingWsMessagesRef = useRef([]);
+    /** true una vez que loadData terminó de setMessages. */
+    const isLoadedRef = useRef(false);
 
     // Load current user ID
     useEffect(() => {
@@ -65,106 +74,162 @@ const ChatDetailScreen = () => {
         solicitudContextRef.current = conversation?.context_id ?? null;
     }, [conversation?.context_id]);
 
+    /**
+     * Punto de entrada único para agregar un mensaje al hilo.
+     * Si loadData aún no terminó, el mensaje queda en el buffer (pendingWsMessagesRef).
+     * loadData fusionará el buffer con los mensajes cargados del servidor.
+     */
+    const addMessageToState = useCallback((newMsg) => {
+        // Sin id no podemos deduplicar → ignorar
+        if (newMsg.id == null) return;
+
+        if (!isLoadedRef.current) {
+            pendingWsMessagesRef.current.push(newMsg);
+            return;
+        }
+
+        setMessages((prev) => {
+            const idStr = String(newMsg.id);
+            // Ya en el estado (WS doble-disparo)
+            if (prev.some((m) => m.id != null && String(m.id) === idStr)) return prev;
+            // Lo enviamos nosotros (optimistic) - ignorar el eco
+            if (sentMessagesRef.current.has(idStr)) return prev;
+            return [newMsg, ...prev];
+        });
+    }, []);
+
+    const patchConversationsUnreadZero = useCallback(
+        (convId) => {
+            ['service', 'marketplace'].forEach((tab) => {
+                queryClient.setQueryData(CONVERSATIONS_KEYS.list(tab), (old) => {
+                    if (!Array.isArray(old)) return old;
+                    return old.map((c) =>
+                        String(c.id) === String(convId)
+                            ? { ...c, unread_count: 0 }
+                            : c,
+                    );
+                });
+            });
+        },
+        [queryClient],
+    );
+
+    const loadData = useCallback(async () => {
+        try {
+            const conv = await chatService.getConversation(conversationId);
+            setConversation(conv);
+            solicitudContextRef.current = conv?.context_id ?? null;
+
+            const msgsData = await chatService.getMessages(conversationId);
+            const raw = msgsData?.results ?? msgsData;
+            const loadedList = (Array.isArray(raw) ? raw : []).map((m) => ({
+                ...m,
+                content: m.content ?? m.message ?? m.mensaje ?? '',
+            }));
+
+            isLoadedRef.current = true;
+
+            const pendingNow = pendingWsMessagesRef.current;
+            pendingWsMessagesRef.current = [];
+
+            setMessages(() => {
+                const loadedIds = new Set(loadedList.map((m) => String(m.id)));
+                const freshPending = pendingNow
+                    .filter(
+                        (m) =>
+                            m.id != null &&
+                            !loadedIds.has(String(m.id)) &&
+                            !sentMessagesRef.current.has(String(m.id)),
+                    )
+                    .reverse();
+                return [...freshPending, ...loadedList];
+            });
+
+            setLoading(false);
+
+            chatService
+                .markRead(conversationId)
+                .then(() => patchConversationsUnreadZero(conversationId))
+                .catch(() => {});
+        } catch (error) {
+            console.error('Error loading chat:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [conversationId, patchConversationsUnreadZero]);
+
     useEffect(() => {
+        // Resetear estado de carga para esta conversación
+        isLoadedRef.current = false;
+        pendingWsMessagesRef.current = [];
+
         loadData();
 
-        // Connect to conversation-specific WS (for User→Provider messages)
+        // WS específico de la conversación (recibe ecos de mensajes propios y mensajes del proveedor)
         chatService.connect(conversationId, (raw) => {
-            console.log('📨 [USER APP] Message from conversation WS:', raw);
+            const msgId = raw.id ?? raw.mensaje_id ?? null;
+            if (msgId == null) return;
             const normalized = {
-                id: raw.id ?? raw.mensaje_id,
+                id: msgId,
                 content: raw.content ?? raw.message ?? raw.mensaje ?? '',
                 sender_id: raw.sender_id ?? raw.sender?.id,
+                sender: raw.sender ?? { id: raw.sender_id ?? raw.sender?.id },
                 timestamp: raw.timestamp ?? raw.created_at,
                 created_at: raw.created_at ?? raw.timestamp,
                 attachment: raw.attachment ?? raw.archivo_adjunto ?? null,
-                is_read: raw.is_read,
+                is_read: raw.is_read ?? false,
             };
-            if (normalized.id == null) {
-                console.warn('⚠️ [CHAT DETAIL] WS message sin id, ignorando');
-                return;
-            }
-            setMessages((prev) => {
-                if (prev.some((m) => String(m.id) === String(normalized.id))) return prev;
-                return [normalized, ...prev];
-            });
+            addMessageToState(normalized);
         });
 
-        // 🔔 ALSO subscribe to global WebSocket for Provider→User broadcasts
-        console.log('🔗 [USER APP] Subscribing to global WebSocket for Provider messages...');
+        // WS global: recibe broadcasts del proveedor hacia el usuario
         const handleGlobalMessage = (data) => {
-            console.log('📨 [USER APP] Global WS message received:', JSON.stringify(data, null, 2));
+            if (data.type !== 'nuevo_mensaje_chat') return;
 
-            // Only process chat messages
-            if (data.type === 'nuevo_mensaje_chat') {
-                const myConv = String(conversationId);
-                const wsConv = data.conversation_id != null && String(data.conversation_id).trim() !== ''
+            const myConv = String(conversationId);
+
+            // Filtrar por conversation_id si está presente
+            const wsConv =
+                data.conversation_id != null && String(data.conversation_id).trim() !== ''
                     ? String(data.conversation_id)
                     : null;
-                if (wsConv != null) {
-                    if (wsConv !== myConv) {
-                        return;
-                    }
-                } else {
-                    const sid = solicitudContextRef.current;
-                    if (sid == null) {
-                        return;
-                    }
-                    if (data.solicitud_id == null || String(data.solicitud_id) !== String(sid)) {
-                        return;
-                    }
+
+            if (wsConv != null) {
+                // Tenemos conversation_id → filtro exacto
+                if (wsConv !== myConv) return;
+            } else {
+                // Sin conversation_id → intentar filtro por solicitud_id
+                // Si solicitud aún no cargó (solicitudContextRef null), NO descartar:
+                // el WS de conversación ya está manejando el mensaje.
+                const sid = solicitudContextRef.current;
+                if (sid != null) {
+                    if (data.solicitud_id == null || String(data.solicitud_id) !== String(sid)) return;
                 }
-
-                console.log('💬 [USER APP] New chat message broadcast:', {
-                    mensaje_id: data.mensaje_id,
-                    oferta_id: data.oferta_id,
-                    solicitud_id: data.solicitud_id,
-                    es_proveedor: data.es_proveedor
-                });
-
-                // Add message directly to state (like Provider App does)
-                setMessages((prevMessages) => {
-                    // Check if message already exists
-                    const exists = prevMessages.find(m => String(m.id) === String(data.mensaje_id));
-                    if (exists) {
-                        console.log('💬 [USER APP] Message already exists, ignoring:', data.mensaje_id);
-                        return prevMessages;
-                    }
-
-                    // Check if we sent this message (optimistic UI)
-                    if (sentMessagesRef.current.has(String(data.mensaje_id))) {
-                        console.log('💬 [USER APP] Message sent by us (optimistic), ignoring WS broadcast:', data.mensaje_id);
-                        return prevMessages;
-                    }
-
-                    console.log('✅ [USER APP] Adding new message from broadcast');
-                    // Create message object
-                    const newMessage = {
-                        id: data.mensaje_id,
-                        content: data.mensaje || data.message || data.content || '',
-                        sender_id: data.sender_id,
-                        sender: {
-                            id: data.sender_id,
-                            username: data.enviado_por
-                        },
-                        created_at: data.timestamp,
-                        timestamp: data.timestamp,
-                        attachment: data.archivo_adjunto || data.attachment || null,
-                        is_read: false
-                    };
-
-                    // Add to beginning of array (newest first)
-                    return [newMessage, ...prevMessages];
-                });
+                // Si sid == null, dejar pasar (el WS de conversación cubre este caso)
             }
+
+            // ID robusto: el backend puede enviar mensaje_id o id
+            const msgId = data.mensaje_id ?? data.id ?? null;
+            if (msgId == null) return;
+
+            const newMessage = {
+                id: msgId,
+                content: data.mensaje ?? data.content ?? data.message ?? '',
+                sender_id: data.sender_id,
+                sender: { id: data.sender_id, username: data.enviado_por },
+                created_at: data.timestamp ?? new Date().toISOString(),
+                timestamp: data.timestamp ?? new Date().toISOString(),
+                attachment: data.archivo_adjunto ?? data.attachment ?? null,
+                is_read: false,
+            };
+
+            addMessageToState(newMessage);
         };
 
-        // Register handler for ALL messages from global WS
         websocketService.onMessage('nuevo_mensaje_chat', handleGlobalMessage);
 
-        // Ensure global WS is connected
+        // Asegurar que el WS global esté conectado
         if (!websocketService.getConnectionStatus()) {
-            console.log('🔗 [USER APP] Global WS not connected, connecting now...');
             websocketService.connect();
         }
 
@@ -172,41 +237,7 @@ const ChatDetailScreen = () => {
             chatService.disconnect();
             websocketService.offMessage('nuevo_mensaje_chat', handleGlobalMessage);
         };
-    }, [conversationId]);
-
-    const loadData = async () => {
-        try {
-            // Load specific conversation details
-            const conv = await chatService.getConversation(conversationId);
-
-            setConversation(conv);
-            solicitudContextRef.current = conv?.context_id ?? null;
-
-            // Load messages (normalizar content: API siempre usa content; WS legacy a veces mensaje)
-            const msgsData = await chatService.getMessages(conversationId);
-            const raw = msgsData?.results ?? msgsData;
-            const list = Array.isArray(raw) ? raw : [];
-            setMessages(
-                list.map((m) => ({
-                    ...m,
-                    content: m.content ?? m.message ?? m.mensaje ?? '',
-                })),
-            );
-
-            // Mark as read
-            await chatService.markRead(conversationId);
-
-            // Sync global unread count
-            if (refetchChats) {
-                console.log('🔄 [CHAT DETAIL] Refreshing global chat list to update unread count...');
-                refetchChats();
-            }
-        } catch (error) {
-            console.error('Error loading chat:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [conversationId, addMessageToState, loadData]);
 
     const handlePickAttachment = async () => {
         Alert.alert(

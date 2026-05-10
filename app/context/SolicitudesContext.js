@@ -13,6 +13,32 @@ import {
   useSelectOffer
 } from '../hooks/useRequests';
 
+/** Tipos WS (client_status) que implican cambio en lista/detalle de solicitudes públicas. */
+const WS_TYPES_REFRESH_SOLICITUDES = new Set([
+  'nueva_oferta',
+  'solicitud_adjudicada',
+  'servicio_completado',
+  'servicio_iniciado',
+  'pago_expirado',
+  'alerta_pago_proximo',
+  'rechazo_solicitud',
+  'oferta_secundaria_creada',
+  'reserva_creditos_expirada',
+]);
+
+function invalidateSolicitudesQueries(queryClient, payload) {
+  queryClient.invalidateQueries({
+    predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+  });
+  queryClient.invalidateQueries({
+    predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+  });
+  const sid = payload?.solicitud_id;
+  if (sid != null && String(sid).trim() !== '') {
+    queryClient.invalidateQueries({ queryKey: ['request', String(sid)] });
+  }
+}
+
 // Crear el contexto
 const SolicitudesContext = createContext();
 
@@ -99,64 +125,31 @@ export function SolicitudesProvider({ children }) {
 
     initWebSocket();
 
-    const handleNuevaOferta = (data) => {
-      console.log('📨 Nueva oferta recibida vía WebSocket:', data);
+    const handleWsAny = (data) => {
+      if (!data || typeof data.type !== 'string') return;
+      if (!WS_TYPES_REFRESH_SOLICITUDES.has(data.type)) return;
 
-      // Update local ephemeral state
-      setUltimaOfertaRecibida(data);
-      setOfertasNuevas(prev => [...prev, data]);
-
-      if (data.solicitud_id) {
-        setOfertasNuevasPorSolicitud(prev => ({
-          ...prev,
-          [data.solicitud_id]: [...(prev[data.solicitud_id] || []), data]
-        }));
-
-        // Invalidar todas las variantes user-scoped de requests (queryKey[0] + user id)
-        queryClient.invalidateQueries({
-          predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
-        });
-        queryClient.invalidateQueries({
-          predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
-        });
-        queryClient.invalidateQueries({ queryKey: ['request', String(data.solicitud_id)] });
+      if (data.type === 'nueva_oferta' || data.type === 'oferta_secundaria_creada') {
+        setUltimaOfertaRecibida(data);
+        setOfertasNuevas((prev) => [...prev, data]);
+        if (data.solicitud_id) {
+          setOfertasNuevasPorSolicitud((prev) => ({
+            ...prev,
+            [data.solicitud_id]: [...(prev[data.solicitud_id] || []), data],
+          }));
+        }
       }
-    };
 
-    const handleSolicitudAdjudicada = (data) => {
-      console.log('✅ Solicitud adjudicada vía WebSocket:', data);
-      queryClient.invalidateQueries({
-        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
-      });
-      queryClient.invalidateQueries({
-        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
-      });
-    };
-
-    const handleServicioCompletado = (data) => {
-      console.log('✅ Servicio completado vía WebSocket:', data);
-      queryClient.invalidateQueries({
-        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
-      });
-      queryClient.invalidateQueries({
-        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
-      });
-      if (data?.solicitud_id) {
-        queryClient.invalidateQueries({ queryKey: ['request', String(data.solicitud_id)] });
-      }
+      invalidateSolicitudesQueries(queryClient, data);
     };
 
     const timeoutId = setTimeout(() => {
-      websocketService.onMessage('nueva_oferta', handleNuevaOferta);
-      websocketService.onMessage('solicitud_adjudicada', handleSolicitudAdjudicada);
-      websocketService.onMessage('servicio_completado', handleServicioCompletado);
+      websocketService.onAnyMessage(handleWsAny);
     }, 500);
 
     return () => {
       clearTimeout(timeoutId);
-      websocketService.offMessage('nueva_oferta');
-      websocketService.offMessage('solicitud_adjudicada');
-      websocketService.offMessage('servicio_completado');
+      websocketService.offMessage('any', handleWsAny);
     };
   }, [queryClient, user]);
 

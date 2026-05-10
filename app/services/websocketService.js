@@ -120,10 +120,28 @@ class WebSocketService {
       this.authFailures = 0;
 
       let handlersCalled = 0;
-      this.messageHandlers.forEach((handler, type) => {
-        if (type === 'any' || data.type === type) {
-          handler(data);
+      const runHandlers = (setOrFn) => {
+        if (!setOrFn) return;
+        if (typeof setOrFn === 'function') {
+          setOrFn(data);
           handlersCalled++;
+          return;
+        }
+        if (setOrFn instanceof Set) {
+          setOrFn.forEach((fn) => {
+            try {
+              fn(data);
+              handlersCalled++;
+            } catch (err) {
+              logger.warn('❌ [CLIENTE WS] Error en handler:', err?.message || err);
+            }
+          });
+        }
+      };
+
+      this.messageHandlers.forEach((handlers, type) => {
+        if (type === 'any' || data.type === type) {
+          runHandlers(handlers);
         }
       });
 
@@ -259,28 +277,47 @@ class WebSocketService {
    * Registra un handler para un tipo de mensaje específico
    */
   onMessage(type, handler) {
-    this.messageHandlers.set(type, handler);
+    if (!handler || typeof handler !== 'function') return;
+    let bucket = this.messageHandlers.get(type);
+    if (!bucket) {
+      bucket = new Set();
+      this.messageHandlers.set(type, bucket);
+    } else if (typeof bucket === 'function') {
+      const prev = bucket;
+      bucket = new Set([prev, handler]);
+      this.messageHandlers.set(type, bucket);
+      return;
+    } else if (!(bucket instanceof Set)) {
+      bucket = new Set([handler]);
+      this.messageHandlers.set(type, bucket);
+      return;
+    }
+    bucket.add(handler);
   }
 
   /**
    * Registra un handler para todos los mensajes
    */
   onAnyMessage(handler) {
-    this.messageHandlers.set('any', handler);
+    this.onMessage('any', handler);
   }
 
   /**
    * Remueve un handler
    */
   offMessage(type, handler) {
-    if (handler) {
-      // Si se proporciona un handler específico, solo eliminar si coincide
-      const currentHandler = this.messageHandlers.get(type);
-      if (currentHandler === handler) {
+    const bucket = this.messageHandlers.get(type);
+    if (!bucket) return;
+    if (!handler) {
+      this.messageHandlers.delete(type);
+      return;
+    }
+    if (bucket instanceof Set) {
+      bucket.delete(handler);
+      if (bucket.size === 0) {
         this.messageHandlers.delete(type);
       }
-    } else {
-      // Si no se proporciona handler, eliminar el tipo completamente
+    } else if (bucket === handler) {
       this.messageHandlers.delete(type);
     }
   }
@@ -343,9 +380,18 @@ class WebSocketService {
     console.log('🔄 Actualización de estado de mecánico:', data);
     
     // Notificar a los handlers registrados
-    this.messageHandlers.forEach((handler, type) => {
-      if (type === 'mechanic_status_update' || type === 'any') {
-        handler(data);
+    this.messageHandlers.forEach((handlers, type) => {
+      if (type !== 'mechanic_status_update' && type !== 'any') return;
+      if (handlers instanceof Set) {
+        handlers.forEach((fn) => {
+          try {
+            fn(data);
+          } catch (e) {
+            logger.warn('❌ [CLIENTE WS] mechanic handler error:', e?.message || e);
+          }
+        });
+      } else if (typeof handlers === 'function') {
+        handlers(data);
       }
     });
   }
