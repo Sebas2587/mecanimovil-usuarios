@@ -33,7 +33,7 @@ import * as providerService from '../../services/providers';
 import * as categoriesService from '../../services/categories';
 import { getMediaURL } from '../../services/api';
 import VehicleHealthService from '../../services/vehicleHealthService';
-import { getProviderSpecialty } from '../../utils/providerUtils';
+import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProviderAvatarUri } from '../../utils/providerUtils';
 import {
   Car as CarIcon,
   TriangleAlert as AlertTriangleIcon,
@@ -1928,10 +1928,11 @@ const FormularioSolicitud = ({
       return pId === userId && p.tipo === tipo;
     });
 
-    const fotoUrl = proveedor?.usuario?.foto_perfil || proveedor?.foto_perfil;
+    const fotoUrl = buildProviderAvatarUri(proveedor);
     const hasPhoto = typeof fotoUrl === 'string' && fotoUrl.startsWith('http');
-    const calificacion = parseFloat(proveedor?.calificacion_promedio || 0);
-    const totalResenas = proveedor?.total_resenas ?? proveedor?.numero_de_calificaciones ?? 0;
+    const ratingStr = getProviderRating(proveedor);
+    const calificacion = ratingStr != null ? parseFloat(ratingStr) : 0;
+    const totalResenas = getProviderReviews(proveedor);
     const specialtyText = getProviderSpecialty ? getProviderSpecialty(proveedor, null) : null;
     const direccion = proveedor?.direccion_fisica?.direccion_completa || proveedor?.direccion;
 
@@ -1951,8 +1952,14 @@ const FormularioSolicitud = ({
             </View>
           )}
           {/* Type badge */}
-          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: getColorWithOpacity(COLORS.base.inkBlack, 0.65), borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ color: COLORS.text.primary, fontSize: 10, fontWeight: '600' }}>
+          <View style={{
+            position: 'absolute', top: 8, left: 8,
+            backgroundColor: tipo === 'taller' ? COLORS.primary[600] : COLORS.warning[600],
+            borderRadius: BORDERS.radius.sm,
+            paddingHorizontal: 8, paddingVertical: 3,
+            flexDirection: 'row', alignItems: 'center', gap: 4,
+          }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700', letterSpacing: 0.3 }}>
               {tipo === 'taller' ? 'Taller' : 'A domicilio'}
             </Text>
           </View>
@@ -1987,10 +1994,10 @@ const FormularioSolicitud = ({
               </View>
             ) : <View />}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 8 }}>
-              {calificacion > 0 ? (
+              {ratingStr != null ? (
                 <>
                   <Star size={13} color={COLORS.warning[500]} fill={COLORS.warning[500]} />
-                  <Text style={{ color: COLORS.text.primary, fontSize: 12, fontWeight: '600' }}>{calificacion.toFixed(1)}</Text>
+                  <Text style={{ color: COLORS.text.primary, fontSize: 12, fontWeight: '600' }}>{ratingStr}</Text>
                   {totalResenas > 0 && <Text style={{ color: COLORS.text.tertiary, fontSize: 10 }}>({totalResenas})</Text>}
                 </>
               ) : (
