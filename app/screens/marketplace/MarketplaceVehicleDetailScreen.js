@@ -598,14 +598,6 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         </View>
                     ) : null}
 
-                    {/* Descripción de la venta */}
-                    {!loading && fullVehicleData.descripcion_venta ? (
-                        <View style={styles.descripcionCard}>
-                            <Text style={styles.descripcionCardTitle}>Descripción del vendedor</Text>
-                            <Text style={styles.descripcionCardText}>{fullVehicleData.descripcion_venta}</Text>
-                        </View>
-                    ) : null}
-
                     {/* Health Summary Card */}
                     <View style={styles.healthCard}>
                         <View style={styles.healthRow}>
@@ -739,6 +731,14 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                             )}
                         </View>
                     </View>
+
+                    {/* Descripción del vendedor */}
+                    {!loading && fullVehicleData.descripcion_venta ? (
+                        <View style={styles.descripcionCard}>
+                            <Text style={styles.descripcionCardTitle}>Descripción del vendedor</Text>
+                            <Text style={styles.descripcionCardText}>{fullVehicleData.descripcion_venta}</Text>
+                        </View>
+                    ) : null}
 
                     {history.length > 0 && (
                         <>
