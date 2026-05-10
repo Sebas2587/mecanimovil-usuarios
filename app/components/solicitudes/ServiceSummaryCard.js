@@ -3,6 +3,37 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 
+/** Colores de badge alineados a estados de solicitud pública (Coinbase / superficies suaves). */
+export function getEstadoBadgeMeta(solicitud) {
+    const efectivo = solicitud.estado_efectivo ?? solicitud.estado;
+    const label =
+        efectivo === 'ofertas_adicionales_pendientes' && solicitud.estado_display_efectivo
+            ? solicitud.estado_display_efectivo
+            : solicitud.estado_display ||
+              (typeof efectivo === 'string' ? efectivo.replace(/_/g, ' ') : '—');
+    const map = {
+        creada: { color: COLORS.text.secondary, bg: COLORS.neutral.gray[100], border: COLORS.border.light },
+        seleccionando_servicios: { color: COLORS.primary[700], bg: COLORS.primary[50], border: COLORS.primary[200] },
+        publicada: { color: COLORS.primary[700], bg: COLORS.primary[50], border: COLORS.primary[200] },
+        con_ofertas: { color: COLORS.warning[800], bg: COLORS.warning[50], border: COLORS.warning[200] },
+        esperando_creditos_proveedor: { color: COLORS.warning[800], bg: COLORS.warning[50], border: COLORS.warning[300] },
+        adjudicada: { color: COLORS.success[800], bg: COLORS.success.light, border: COLORS.success[200] },
+        pendiente_pago: { color: COLORS.success[800], bg: COLORS.success.light, border: COLORS.success[200] },
+        pagada: { color: COLORS.success[800], bg: COLORS.success.light, border: COLORS.success[200] },
+        en_ejecucion: { color: COLORS.primary[700], bg: COLORS.primary[50], border: COLORS.primary[200] },
+        completada: { color: COLORS.success[800], bg: COLORS.success.light, border: COLORS.success[200] },
+        expirada: { color: COLORS.error[700], bg: COLORS.error[50], border: COLORS.error[200] },
+        cancelada: { color: COLORS.error[700], bg: COLORS.error[50], border: COLORS.error[200] },
+        ofertas_adicionales_pendientes: { color: COLORS.warning[800], bg: COLORS.warning[50], border: COLORS.warning[200] },
+    };
+    const c = map[efectivo] || {
+        color: COLORS.text.secondary,
+        bg: COLORS.neutral.gray[100],
+        border: COLORS.border.light,
+    };
+    return { label, ...c };
+}
+
 const getUrgencyConfig = (urgencia) => {
     switch (urgencia?.toLowerCase()) {
         case 'alta':
@@ -83,6 +114,7 @@ const ServiceSummaryCard = ({ solicitud }) => {
     };
 
     const modoSolicitud = getModoSolicitud();
+    const estadoBadge = getEstadoBadgeMeta(solicitud);
     const fechaPreferida = solicitud.fecha_preferida || solicitud.fecha_creacion;
     const horaPreferida = solicitud.hora_preferida || solicitud.preferencia_horario;
 
@@ -112,6 +144,28 @@ const ServiceSummaryCard = ({ solicitud }) => {
             )}
 
             <View style={styles.gridContainer}>
+                <View style={styles.gridItem}>
+                    <View style={styles.iconContainer}>
+                        <Ionicons name="flag-outline" size={18} color={COLORS.text.secondary} />
+                    </View>
+                    <View style={styles.gridItemTextWrap}>
+                        <Text style={styles.gridLabel}>Estado</Text>
+                        <View
+                            style={[
+                                styles.estadoBadge,
+                                {
+                                    backgroundColor: estadoBadge.bg,
+                                    borderColor: estadoBadge.border,
+                                },
+                            ]}
+                        >
+                            <Text style={[styles.estadoBadgeText, { color: estadoBadge.color }]} numberOfLines={2}>
+                                {estadoBadge.label}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+
                 <View style={styles.gridItem}>
                     <View style={styles.iconContainer}>
                         <Ionicons name="calendar-outline" size={18} color={COLORS.text.secondary} />
@@ -261,6 +315,19 @@ const styles = StyleSheet.create({
         color: COLORS.text.secondary,
         fontWeight: TYPOGRAPHY.fontWeight.medium,
         marginTop: SPACING.xxs,
+        lineHeight: 18,
+    },
+    estadoBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: SPACING.xxs,
+        borderRadius: BORDERS.radius.badge.md,
+        borderWidth: BORDERS.width.thin,
+        maxWidth: '100%',
+    },
+    estadoBadgeText: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
         lineHeight: 18,
     },
 });

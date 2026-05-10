@@ -60,6 +60,7 @@ import {
   resetTripTracking,
 } from '../../services/tripTrackingService';
 import { useUnreadCount } from '../../hooks/useNotifications';
+import { useConversationsList } from '../../hooks/useChats';
 import { useVehiclesHealth } from '../../hooks/useVehicles';
 import { useUserAddresses } from '../../hooks/useAddress';
 import { getWeatherPrediction } from '../../services/weatherService';
@@ -180,10 +181,35 @@ const UserPanelScreen = () => {
   const { data: unreadData } = useUnreadCount();
   const unreadCount = typeof unreadData === 'number' ? unreadData : (unreadData?.count || 0);
 
+  const {
+    data: serviceConversations = [],
+    refetch: refetchServiceConversations,
+  } = useConversationsList('service');
+  const {
+    data: marketplaceConversations = [],
+    refetch: refetchMarketplaceConversations,
+  } = useConversationsList('marketplace');
+
+  const chatsUnreadTotal = useMemo(() => {
+    const sum = (list) =>
+      (Array.isArray(list) ? list : []).reduce(
+        (acc, c) => acc + (Number(c?.unread_count) || 0),
+        0,
+      );
+    return sum(serviceConversations) + sum(marketplaceConversations);
+  }, [serviceConversations, marketplaceConversations]);
+
   useFocusEffect(
     useCallback(() => {
       cargarSolicitudesActivas();
     }, [cargarSolicitudesActivas])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchServiceConversations();
+      refetchMarketplaceConversations();
+    }, [refetchServiceConversations, refetchMarketplaceConversations]),
   );
 
   // ── Vehicle selection ──
@@ -338,13 +364,17 @@ const UserPanelScreen = () => {
       {
         key: 'mensajes',
         title: 'Mensajes',
-        sub: 'Chats con proveedores',
+        sub:
+          chatsUnreadTotal > 0
+            ? `${chatsUnreadTotal} mensaje${chatsUnreadTotal > 1 ? 's' : ''} sin leer`
+            : 'Chats con proveedores',
         iconBg: COLORS.neutral.gray[200],
         icon: <MessageCircle size={22} color={COLORS.text.primary} />,
         onPress: () => navigation.navigate(ROUTES.CHATS_LIST),
+        badgeCount: chatsUnreadTotal,
       },
     ],
-    [navigation, selectedVehicle, activeSolicitudesCount],
+    [navigation, selectedVehicle, activeSolicitudesCount, chatsUnreadTotal],
   );
 
   const { data: userAddresses } = useUserAddresses();
@@ -817,8 +847,17 @@ const UserPanelScreen = () => {
               innerStyle={styles.quickMgmtInner}
               onPress={it.onPress}
             >
-              <View style={[styles.quickMgmtIconBox, { backgroundColor: it.iconBg }]}>
-                {it.icon}
+              <View style={styles.quickMgmtIconWrap}>
+                <View style={[styles.quickMgmtIconBox, { backgroundColor: it.iconBg }]}>
+                  {it.icon}
+                </View>
+                {(it.badgeCount ?? 0) > 0 ? (
+                  <View style={styles.quickMgmtBadge} accessibilityElementsHidden>
+                    <Text style={styles.quickMgmtBadgeText}>
+                      {(it.badgeCount ?? 0) > 99 ? '99+' : it.badgeCount}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
               <View style={styles.quickMgmtTextCol}>
                 <Text style={styles.quickMgmtTitle} numberOfLines={1}>
@@ -2171,12 +2210,36 @@ const styles = StyleSheet.create({
     padding: 16,
     minHeight: 76,
   },
+  quickMgmtIconWrap: {
+    position: 'relative',
+    width: 44,
+    height: 44,
+  },
   quickMgmtIconBox: {
     width: 44,
     height: 44,
     borderRadius: BORDERS.radius.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  quickMgmtBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: COLORS.error.main,
+    borderRadius: BORDERS.radius.full,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: COLORS.background.paper,
+  },
+  quickMgmtBadgeText: {
+    color: COLORS.text.inverse,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   quickMgmtTextCol: {
     flex: 1,

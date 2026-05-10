@@ -1,14 +1,15 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import WebSocketService from '../services/websocketService';
-import ofertasService from '../services/ofertasService';
 import { useAuth } from './AuthContext';
-import { useChatsList } from '../hooks/useChats';
+import { useChatsList, CONVERSATIONS_KEYS } from '../hooks/useChats';
 
 const ChatsContext = createContext();
 
 export const ChatsProvider = ({ children }) => {
   const [totalMensajesNoLeidos, setTotalMensajesNoLeidos] = useState(0);
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Use the same hook as the screen for consistency and caching
   const { data: chatsData, refetch: refetchChats } = useChatsList();
@@ -36,10 +37,10 @@ export const ChatsProvider = ({ children }) => {
     const handler = (data) => {
       console.log('📨 [CHATS CONTEXT] Nuevo mensaje recibido:', data);
 
-      // Invalidad cache de chats para que se actualice el total y la lista
-      if (data.type === 'nuevo_mensaje_chat' && data.es_proveedor) {
-        console.log('📊 [CHATS CONTEXT] Invalidando cache por nuevo mensaje');
+      if (data.type === 'nuevo_mensaje_chat') {
+        console.log('📊 [CHATS CONTEXT] Refetch / invalidar listas de chat');
         refetchChats();
+        queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEYS.all });
       }
     };
 
@@ -49,7 +50,7 @@ export const ChatsProvider = ({ children }) => {
     return () => {
       WebSocketService.offMessage('nuevo_mensaje_chat', handler);
     };
-  }, [user, totalMensajesNoLeidos]);
+  }, [user, refetchChats, queryClient]);
 
   // Función para decrementar el contador (cuando se leen mensajes)
   const decrementarNoLeidos = (cantidad) => {

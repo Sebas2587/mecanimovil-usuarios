@@ -24,6 +24,7 @@ const formatTime = (timeString) => {
 const OfferCardDetailed = ({
     oferta,
     solicitud = null,
+    chatUnreadCount = 0,
     onChatPress,
     onAceptarPress,
     onProfilePress,
@@ -257,13 +258,26 @@ const OfferCardDetailed = ({
 
             {/* 4. Acciones */}
             <View style={styles.actionsRow}>
-                {/* Botón Chat */}
-                <TouchableOpacity
-                    style={styles.chatButton}
-                    onPress={() => onChatPress(oferta)}
-                >
-                    <Ionicons name="chatbubble-ellipses-outline" size={22} color={COLORS.primary[600]} />
-                </TouchableOpacity>
+                <View style={styles.chatButtonWrap}>
+                    <TouchableOpacity
+                        style={styles.chatButton}
+                        onPress={() => onChatPress(oferta)}
+                        accessibilityLabel={
+                            chatUnreadCount > 0
+                                ? `Chat, ${chatUnreadCount} mensajes sin leer`
+                                : 'Abrir chat con el proveedor'
+                        }
+                    >
+                        <Ionicons name="chatbubble-ellipses-outline" size={22} color={COLORS.primary[600]} />
+                    </TouchableOpacity>
+                    {chatUnreadCount > 0 ? (
+                        <View style={styles.chatUnreadBadge} accessibilityElementsHidden>
+                            <Text style={styles.chatUnreadBadgeText}>
+                                {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                            </Text>
+                        </View>
+                    ) : null}
+                </View>
 
                 {/* Botón Aceptar o Badge Aceptado */}
                 {isAccepted ? (
@@ -514,6 +528,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: SPACING.sm,
     },
+    chatButtonWrap: {
+        position: 'relative',
+        width: 48,
+        height: 48,
+    },
     chatButton: {
         width: 48,
         height: 48,
@@ -523,6 +542,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.primary[200],
+    },
+    chatUnreadBadge: {
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        backgroundColor: COLORS.error.main,
+        borderRadius: 10,
+        minWidth: 18,
+        height: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
+        borderWidth: 2,
+        borderColor: COLORS.background.paper,
+    },
+    chatUnreadBadgeText: {
+        color: COLORS.text.onError,
+        fontSize: 10,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
     disabledChatButton: {
         backgroundColor: COLORS.neutral.gray[100],

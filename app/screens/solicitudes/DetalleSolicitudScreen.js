@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   View,
@@ -15,7 +15,7 @@ import {
   Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
@@ -25,6 +25,7 @@ import chatService from '../../services/chatService';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { ROUTES } from '../../utils/constants';
 import { requestDetailQueryKey, useRequestDetail } from '../../hooks/useRequests';
+import { useConversationsList } from '../../hooks/useChats';
 import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
 
 // New Components
@@ -41,7 +42,36 @@ const ESTADOS_OFERTA_YA_RESUELTA = ['aceptada', 'pendiente_pago', 'pagada', 'en_
 const ESTADOS_OFERTA_ACEPTADA = ['aceptada', 'pendiente_pago', 'pagada', 'en_ejecucion', 'completada'];
 const ESTADOS_OFERTA_PAGAR = ['aceptada', 'pendiente_pago'];
 // Estados del objeto solicitud_servicio (orden), no de la oferta
-const ESTADOS_SOLICITUD_CON_CHECKLIST = ['checklist_en_progreso', 'en_proceso', 'checklist_completado', 'completada', 'finalizada', 'calificada'];
+const ESTADOS_SOLICITUD_CON_CHECKLIST = [
+  'checklist_en_progreso',
+  'en_proceso',
+  'en_ejecucion',
+  'checklist_completado',
+  'completada',
+  'finalizada',
+  'calificada',
+];
+
+/** ID de orden (solicitud_servicio) para checklist: detalle, campos planos y oferta ganadora en listas. */
+function resolverOrdenIdParaChecklist(solicitud, ofertasPrincipales = [], ofertasSecundarias = []) {
+  if (!solicitud) return null;
+  const toId = (v) => (v != null && v !== '' ? v : null);
+  const ss = solicitud.solicitud_servicio;
+  const fromDetail = toId(
+    solicitud.oferta_seleccionada_detail?.solicitud_servicio_id ??
+      solicitud.oferta_seleccionada_detail?.orden_id ??
+      solicitud.orden_id ??
+      solicitud.solicitud_servicio_id ??
+      (ss != null && typeof ss === 'object' ? ss.id : null) ??
+      (typeof ss === 'number' ? ss : null),
+  );
+  if (fromDetail != null) return fromDetail;
+  const selectedId = solicitud.oferta_seleccionada;
+  if (selectedId == null) return null;
+  const all = [...(ofertasPrincipales || []), ...(ofertasSecundarias || [])];
+  const win = all.find((o) => o && (o.id === selectedId || String(o.id) === String(selectedId)));
+  return toId(win?.solicitud_servicio_id ?? win?.orden_id);
+}
 // Estados de la oferta que indican que ya tiene orden y el servicio avanzó (equivalente a orden creada)
 const ESTADOS_OFERTA_CON_ORDEN = ['pagada', 'en_ejecucion', 'completada', 'finalizada', 'calificada'];
 
@@ -84,6 +114,15 @@ const DetalleSolicitudScreen = () => {
   const ofertas = requestBundle?.ofertas ?? [];
   const ofertasSecundarias = requestBundle?.ofertasSecundarias ?? [];
   const showInitialLoader = Boolean(solicitudId) && isPending && !requestBundle;
+
+  const solicitudChatUnread = useMemo(() => {
+    const sid = solicitud?.id;
+    if (sid == null) return 0;
+    const conv = serviceConversations.find(
+      (c) => c.context_id != null && String(c.context_id) === String(sid),
+    );
+    return conv?.unread_count ?? 0;
+  }, [serviceConversations, solicitud?.id]);
 
   const [procesando, setProcesando] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
@@ -209,6 +248,40 @@ const DetalleSolicitudScreen = () => {
     });
   };
 
+  const handleConfirmarCancelarSolicitud = useCallback(() => {
+    Alert.alert(
+      'Cancelar solicitud',
+      '¿Seguro? Los proveedores con oferta enviada serán notificados. No podrás deshacer esta acción. Si ya elegiste una oferta, no es posible cancelar desde aquí.',
+      [
+        { text: 'Volver', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setProcesando(true);
+              await cancelarSolicitud(solicitudId);
+              Alert.alert(
+                'Solicitud cancelada',
+                'Se notificó a los proveedores que tenían ofertas pendientes.',
+              );
+              navigation.goBack();
+            } catch (error) {
+              console.error('Error cancelling request:', error);
+              const msg =
+                error?.response?.data?.error ||
+                error?.message ||
+                'No se pudo cancelar la solicitud.';
+              Alert.alert('Error', String(msg));
+            } finally {
+              setProcesando(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [solicitudId, cancelarSolicitud, navigation]);
+
   if (!solicitudId) {
     return (
       <View
@@ -239,6 +312,8 @@ const DetalleSolicitudScreen = () => {
   }
 
   if (!solicitud) return null;
+
+  const ordenIdParaChecklist = resolverOrdenIdParaChecklist(solicitud, ofertas, ofertasSecundarias);
 
   return (
     <View style={[styles.container, webScreenFrame]}>
@@ -288,7 +363,7 @@ const DetalleSolicitudScreen = () => {
 
         {Array.isArray(solicitud.fotos_necesidad) && solicitud.fotos_necesidad.length > 0 && (
           <View style={styles.fotosNecesidadSection}>
-            <Text style={styles.fotosNecesidadTitle}>Fotos de tu necesidad</Text>
+            <Text style={styles.fotosNecesidadTitle}>Fotos</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.fotosNecesidadRow}>
               {solicitud.fotos_necesidad.map((foto) => {
                 const url = foto?.imagen_url;
@@ -412,6 +487,7 @@ const DetalleSolicitudScreen = () => {
                         key={oferta.id}
                         oferta={oferta}
                         solicitud={solicitud}
+                        chatUnreadCount={solicitudChatUnread}
                         onChatPress={handleChat}
                         onAceptarPress={handleAceptarOferta}
                         onProfilePress={handleProfilePress}
@@ -463,6 +539,7 @@ const DetalleSolicitudScreen = () => {
                     <OfferCardDetailed
                       oferta={oferta}
                       solicitud={solicitud}
+                      chatUnreadCount={solicitudChatUnread}
                       onChatPress={handleChat}
                       onAceptarPress={handleAceptarOferta}
                       onProfilePress={handleProfilePress}
@@ -489,127 +566,112 @@ const DetalleSolicitudScreen = () => {
         ]}
       >
         <View style={styles.footerContent}>
+          {puedeClienteCancelarSolicitudPublica(solicitud) ? (
+            <TouchableOpacity
+              style={[styles.footerCancelLikeAccept, procesando && styles.footerCancelLikeAcceptDisabled]}
+              onPress={handleConfirmarCancelarSolicitud}
+              disabled={procesando}
+              accessibilityLabel="Cancelar solicitud"
+              accessibilityRole="button"
+            >
+              <Text style={styles.footerCancelLikeAcceptText}>Cancelar solicitud</Text>
+              <Ionicons name="close-circle-outline" size={18} color={COLORS.text.onError} />
+            </TouchableOpacity>
+          ) : null}
+
           {tabActivo === TAB_PRINCIPALES ? (
             <>
-              {puedeClienteCancelarSolicitudPublica(solicitud) && (
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => {
-                    Alert.alert(
-                      'Cancelar solicitud',
-                      '¿Seguro? Los proveedores con oferta enviada serán notificados. No podrás deshacer esta acción. Si ya elegiste una oferta, no es posible cancelar desde aquí.',
-                      [
-                        { text: 'Volver', style: 'cancel' },
-                        {
-                          text: 'Sí, cancelar',
-                          style: 'destructive',
-                          onPress: async () => {
-                            try {
-                              setProcesando(true);
-                              await cancelarSolicitud(solicitudId);
-                              Alert.alert(
-                                'Solicitud cancelada',
-                                'Se notificó a los proveedores que tenían ofertas pendientes.',
-                              );
-                              navigation.goBack();
-                            } catch (error) {
-                              console.error('Error cancelling request:', error);
-                              const msg =
-                                error?.response?.data?.error ||
-                                error?.message ||
-                                'No se pudo cancelar la solicitud.';
-                              Alert.alert('Error', String(msg));
-                            } finally {
-                              setProcesando(false);
-                            }
-                          }
-                        }
-                      ]
-                    );
-                  }}
-                  disabled={procesando}
-                >
-                  <Ionicons name="trash-outline" size={20} color={COLORS.error.main} />
-                  <Text style={styles.cancelButtonText}>Cancelar Solicitud</Text>
-                </TouchableOpacity>
-              )}
-              {['pendiente_pago', 'adjudicada'].includes(solicitud.estado) && (
-                <TouchableOpacity
-                  style={styles.primaryButton}
-                  onPress={() => navigation.navigate('OpcionesPago', { solicitudId, origen: 'solicitud_publica' })}
-                >
-                  <Text style={styles.primaryButtonText}>Ir a Pagar</Text>
-                  <Ionicons name="card-outline" size={20} color={COLORS.text.onPrimary} />
-                </TouchableOpacity>
-              )}
               {(() => {
-                const ordenId = solicitud?.oferta_seleccionada_detail?.solicitud_servicio_id ?? solicitud?.orden_id ?? solicitud?.solicitud_servicio_id;
-                const puedeVerChecklist = ESTADOS_SOLICITUD_CON_CHECKLIST.includes(solicitud.estado) && ordenId != null;
-                if (!puedeVerChecklist) return null;
-                return (
-                  <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={() => {
-                      setChecklistOrdenId(null);
-                      setShowChecklistModal(true);
-                    }}
-                  >
-                    <Text style={styles.primaryButtonText}>Ver Checklist</Text>
-                    <Ionicons name="clipboard-outline" size={20} color={COLORS.text.onPrimary} />
-                  </TouchableOpacity>
-                );
+                const showPagar = ['pendiente_pago', 'adjudicada'].includes(solicitud.estado);
+                const showChecklist =
+                  ESTADOS_SOLICITUD_CON_CHECKLIST.includes(solicitud.estado) && ordenIdParaChecklist != null;
+
+                const openChecklistPrincipal = () => {
+                  setChecklistOrdenId(null);
+                  setShowChecklistModal(true);
+                };
+
+                if (showPagar) {
+                  return (
+                    <>
+                      <TouchableOpacity
+                        style={styles.footerPrimaryCta}
+                        onPress={() =>
+                          navigation.navigate('OpcionesPago', {
+                            solicitudId,
+                            origen: 'solicitud_publica',
+                          })
+                        }
+                      >
+                        <Text style={styles.footerPrimaryCtaText}>Ir a Pagar</Text>
+                        <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
+                      </TouchableOpacity>
+                      {showChecklist ? (
+                        <TouchableOpacity style={styles.footerPrimaryCta} onPress={openChecklistPrincipal}>
+                          <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
+                          <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
+                        </TouchableOpacity>
+                      ) : null}
+                    </>
+                  );
+                }
+
+                if (showChecklist) {
+                  return (
+                    <TouchableOpacity style={styles.footerPrimaryCta} onPress={openChecklistPrincipal}>
+                      <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
+                      <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
+                    </TouchableOpacity>
+                  );
+                }
+
+                return null;
               })()}
-              {!['publicada', 'pendiente_pago', 'adjudicada', 'checklist_en_progreso', 'en_proceso', 'checklist_completado', 'completada', 'finalizada', 'calificada'].includes(solicitud.estado) && (
-                <View style={styles.statusFooter}>
-                  <Ionicons name="information-circle-outline" size={20} color={COLORS.text.tertiary} />
-                  <Text style={styles.statusFooterText}>
-                    Estado: {solicitud.estado_display_efectivo || solicitud.estado_display || solicitud.estado}
-                  </Text>
-                </View>
-              )}
             </>
           ) : (() => {
-            // "Pagar": la oferta fue aceptada (estado 'aceptada') o quedó en pendiente_pago
-            const ofertaParaPagar = ofertasSecundarias.find(
-              o => ESTADOS_OFERTA_PAGAR.includes(o?.estado)
+            const ofertaParaPagar = ofertasSecundarias.find((o) =>
+              ESTADOS_OFERTA_PAGAR.includes(o?.estado),
             );
-            // "Ver Checklist": tiene solicitud_servicio_id (orden creada) y la oferta avanzó al servicio
             const ofertaConChecklist = ofertasSecundarias.find(
-              o => (o?.solicitud_servicio_id ?? o?.orden_id) != null &&
-                   ESTADOS_OFERTA_CON_ORDEN.includes(o?.estado)
+              (o) =>
+                (o?.solicitud_servicio_id ?? o?.orden_id) != null &&
+                ESTADOS_OFERTA_CON_ORDEN.includes(o?.estado),
             );
             const hayAcciones = ofertaParaPagar || ofertaConChecklist;
             return (
               <>
-                {ofertaParaPagar && (
+                {ofertaParaPagar ? (
                   <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={() => navigation.navigate('OpcionesPago', {
-                      solicitudId,
-                      ofertaId: ofertaParaPagar.id,
-                      origen: 'oferta_secundaria',
-                    })}
+                    style={styles.footerPrimaryCta}
+                    onPress={() =>
+                      navigation.navigate('OpcionesPago', {
+                        solicitudId,
+                        ofertaId: ofertaParaPagar.id,
+                        origen: 'oferta_secundaria',
+                      })
+                    }
                   >
-                    <Text style={styles.primaryButtonText}>Ir a Pagar</Text>
-                    <Ionicons name="card-outline" size={20} color={COLORS.text.onPrimary} />
+                    <Text style={styles.footerPrimaryCtaText}>Ir a Pagar</Text>
+                    <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
                   </TouchableOpacity>
-                )}
-                {ofertaConChecklist && (
+                ) : null}
+                {ofertaConChecklist ? (
                   <TouchableOpacity
-                    style={[styles.primaryButton, ofertaParaPagar && { marginTop: 10 }]}
+                    style={styles.footerPrimaryCta}
                     onPress={() => {
-                      setChecklistOrdenId(ofertaConChecklist.solicitud_servicio_id ?? ofertaConChecklist.orden_id);
+                      setChecklistOrdenId(
+                        ofertaConChecklist.solicitud_servicio_id ?? ofertaConChecklist.orden_id,
+                      );
                       setShowChecklistModal(true);
                     }}
                   >
-                    <Text style={styles.primaryButtonText}>Ver Checklist</Text>
-                    <Ionicons name="clipboard-outline" size={20} color={COLORS.text.onPrimary} />
+                    <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
+                    <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
                   </TouchableOpacity>
-                )}
+                ) : null}
                 {!hayAcciones && (
-                  <View style={styles.statusFooter}>
-                    <Ionicons name="information-circle-outline" size={20} color={COLORS.text.tertiary} />
-                    <Text style={styles.statusFooterText}>
+                  <View style={[styles.footerHintBadge, styles.footerHintBadgeStandalone]}>
+                    <Text style={styles.footerHintBadgeText}>
                       Acepta una oferta adicional para poder pagar y ver su checklist.
                     </Text>
                   </View>
@@ -635,7 +697,7 @@ const DetalleSolicitudScreen = () => {
         <ChecklistViewerModal
           visible={showChecklistModal}
           onClose={closeChecklistModal}
-          ordenId={checklistOrdenId ?? solicitud?.oferta_seleccionada_detail?.solicitud_servicio_id ?? solicitud?.orden_id ?? solicitud?.solicitud_servicio_id}
+          ordenId={checklistOrdenId ?? ordenIdParaChecklist}
           servicioNombre={solicitud?.servicios_solicitados?.[0]?.nombre || solicitud?.servicios_solicitados?.[0]?.nombre_servicio || 'Servicio'}
         />
       )}
@@ -930,57 +992,65 @@ const styles = StyleSheet.create({
   },
   footerContent: {
     width: '100%',
+    flexDirection: 'column',
+    gap: SPACING.sm,
   },
-  cancelButton: {
+  /** Botón ancho completo, columna única (sticky inferior). */
+  footerCancelLikeAccept: {
+    width: '100%',
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.error[50],
-    paddingVertical: 14,
+    height: 48,
     borderRadius: BORDERS.radius.md,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.error[200],
-    gap: 8,
-  },
-  cancelButtonText: {
-    color: COLORS.error[600],
-    fontWeight: '700',
-    fontSize: 16,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    borderWidth: BORDERS.width.thin,
+    backgroundColor: COLORS.error.main,
+    borderColor: COLORS.error.dark,
+  },
+  footerCancelLikeAcceptText: {
+    color: COLORS.text.onError,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+  },
+  footerCancelLikeAcceptDisabled: {
+    opacity: 0.55,
+  },
+  footerPrimaryCta: {
+    width: '100%',
+    flexDirection: 'row',
+    height: 48,
+    borderRadius: BORDERS.radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    borderWidth: BORDERS.width.thin,
     backgroundColor: COLORS.primary[500],
-    paddingVertical: 14,
-    borderRadius: BORDERS.radius.md,
-    gap: 8,
-    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.primary[600],
   },
-  primaryButtonText: {
+  footerPrimaryCtaText: {
     color: COLORS.text.onPrimary,
-    fontWeight: '700',
-    fontSize: 16,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontSize: TYPOGRAPHY.fontSize.md,
   },
-  statusFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.neutral.gray[100],
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: BORDERS.radius.md,
-    gap: 8,
+  footerHintBadge: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDERS.radius.badge?.md ?? 999,
     borderWidth: BORDERS.width.thin,
+    backgroundColor: COLORS.neutral.gray[100],
     borderColor: COLORS.border.light,
+    width: '100%',
   },
-  statusFooterText: {
+  footerHintBadgeStandalone: {
+    marginTop: SPACING.xs,
+  },
+  footerHintBadgeText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.secondary,
-    fontWeight: '500',
-    fontSize: 13,
-    flex: 1,
-    lineHeight: 18,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   fotosNecesidadSection: {
     marginHorizontal: SPACING.container.horizontal,
@@ -993,7 +1063,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   fotosNecesidadTitle: {
-    ...TYPOGRAPHY.styles.bodyBold,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     marginBottom: SPACING.sm,
   },

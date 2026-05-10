@@ -39,6 +39,8 @@ const ChatDetailScreen = () => {
     const [selectedImage, setSelectedImage] = useState(null);
     const flatListRef = useRef(null);
     const sentMessagesRef = useRef(new Set());
+    /** context_id de la conversación = id solicitud pública; para filtrar WS sin conversation_id. */
+    const solicitudContextRef = useRef(null);
 
     // Load current user ID
     useEffect(() => {
@@ -60,12 +62,32 @@ const ChatDetailScreen = () => {
     }, []);
 
     useEffect(() => {
+        solicitudContextRef.current = conversation?.context_id ?? null;
+    }, [conversation?.context_id]);
+
+    useEffect(() => {
         loadData();
 
         // Connect to conversation-specific WS (for User→Provider messages)
-        chatService.connect(conversationId, (newMessage) => {
-            console.log('📨 [USER APP] Message from conversation WS:', newMessage);
-            setMessages((prev) => [newMessage, ...prev]);
+        chatService.connect(conversationId, (raw) => {
+            console.log('📨 [USER APP] Message from conversation WS:', raw);
+            const normalized = {
+                id: raw.id ?? raw.mensaje_id,
+                content: raw.content ?? raw.message ?? raw.mensaje ?? '',
+                sender_id: raw.sender_id ?? raw.sender?.id,
+                timestamp: raw.timestamp ?? raw.created_at,
+                created_at: raw.created_at ?? raw.timestamp,
+                attachment: raw.attachment ?? raw.archivo_adjunto ?? null,
+                is_read: raw.is_read,
+            };
+            if (normalized.id == null) {
+                console.warn('⚠️ [CHAT DETAIL] WS message sin id, ignorando');
+                return;
+            }
+            setMessages((prev) => {
+                if (prev.some((m) => String(m.id) === String(normalized.id))) return prev;
+                return [normalized, ...prev];
+            });
         });
 
         // 🔔 ALSO subscribe to global WebSocket for Provider→User broadcasts
@@ -75,6 +97,24 @@ const ChatDetailScreen = () => {
 
             // Only process chat messages
             if (data.type === 'nuevo_mensaje_chat') {
+                const myConv = String(conversationId);
+                const wsConv = data.conversation_id != null && String(data.conversation_id).trim() !== ''
+                    ? String(data.conversation_id)
+                    : null;
+                if (wsConv != null) {
+                    if (wsConv !== myConv) {
+                        return;
+                    }
+                } else {
+                    const sid = solicitudContextRef.current;
+                    if (sid == null) {
+                        return;
+                    }
+                    if (data.solicitud_id == null || String(data.solicitud_id) !== String(sid)) {
+                        return;
+                    }
+                }
+
                 console.log('💬 [USER APP] New chat message broadcast:', {
                     mensaje_id: data.mensaje_id,
                     oferta_id: data.oferta_id,
@@ -92,7 +132,7 @@ const ChatDetailScreen = () => {
                     }
 
                     // Check if we sent this message (optimistic UI)
-                    if (sentMessagesRef.current.has(data.mensaje_id)) {
+                    if (sentMessagesRef.current.has(String(data.mensaje_id))) {
                         console.log('💬 [USER APP] Message sent by us (optimistic), ignoring WS broadcast:', data.mensaje_id);
                         return prevMessages;
                     }
@@ -101,12 +141,15 @@ const ChatDetailScreen = () => {
                     // Create message object
                     const newMessage = {
                         id: data.mensaje_id,
-                        content: data.mensaje || data.message || data.content,
+                        content: data.mensaje || data.message || data.content || '',
+                        sender_id: data.sender_id,
                         sender: {
                             id: data.sender_id,
                             username: data.enviado_por
                         },
                         created_at: data.timestamp,
+                        timestamp: data.timestamp,
+                        attachment: data.archivo_adjunto || data.attachment || null,
                         is_read: false
                     };
 
@@ -137,10 +180,18 @@ const ChatDetailScreen = () => {
             const conv = await chatService.getConversation(conversationId);
 
             setConversation(conv);
+            solicitudContextRef.current = conv?.context_id ?? null;
 
-            // Load messages
+            // Load messages (normalizar content: API siempre usa content; WS legacy a veces mensaje)
             const msgsData = await chatService.getMessages(conversationId);
-            setMessages(msgsData.results || msgsData);
+            const raw = msgsData?.results ?? msgsData;
+            const list = Array.isArray(raw) ? raw : [];
+            setMessages(
+                list.map((m) => ({
+                    ...m,
+                    content: m.content ?? m.message ?? m.mensaje ?? '',
+                })),
+            );
 
             // Mark as read
             await chatService.markRead(conversationId);
@@ -371,8 +422,14 @@ const ChatDetailScreen = () => {
     };
 
     const renderMessage = ({ item }) => {
-        const isMe = item.sender_id === currentUserId;
-        const hasAttachment = !!item.attachment;
+        const senderId = item.sender_id ?? item.sender?.id;
+        const isMe =
+            currentUserId != null &&
+            senderId != null &&
+            String(senderId) === String(currentUserId);
+        const messageBody = item.content ?? item.message ?? item.mensaje ?? '';
+        const attachmentUri = item.attachment ?? item.archivo_adjunto;
+        const hasAttachment = !!attachmentUri;
 
         return (
             <View style={[
@@ -389,14 +446,15 @@ const ChatDetailScreen = () => {
                         <View style={styles.attachmentContainer}>
                             {/* Simple logic: if it ends in jpg/png/jpeg it's image, else doc */}
                             {(() => {
-                                const isImage = typeof item.attachment === 'string' && (item.attachment.match(/\.(jpeg|jpg|png|gif|webp|bmp)$/i) || item.attachment.startsWith('file://'));
+                                const att = attachmentUri;
+                                const isImage = typeof att === 'string' && (att.match(/\.(jpeg|jpg|png|gif|webp|bmp)$/i) || att.startsWith('file://'));
 
-                                let imageUri = item.attachment;
-                                if (typeof item.attachment === 'string' && !item.attachment.startsWith('http') && !item.attachment.startsWith('file://')) {
+                                let imageUri = att;
+                                if (typeof att === 'string' && !att.startsWith('http') && !att.startsWith('file://')) {
                                     // It's a relative path from backend
                                     const baseUrl = serverConfig.getMediaURL();
                                     if (baseUrl) {
-                                        imageUri = `${baseUrl}${item.attachment.startsWith('/') ? '' : '/'}${item.attachment}`;
+                                        imageUri = `${baseUrl}${att.startsWith('/') ? '' : '/'}${att}`;
                                     }
                                 }
 
@@ -415,7 +473,7 @@ const ChatDetailScreen = () => {
                                         <View style={styles.documentAttachment}>
                                             <Ionicons name="document-text" size={24} color={isMe ? COLORS.text.onPrimary : COLORS.primary[600]} />
                                             <Text style={[styles.documentText, isMe ? { color: COLORS.text.onPrimary } : { color: COLORS.text.primary }]} numberOfLines={1}>
-                                                {typeof item.attachment === 'string' ? item.attachment.split('/').pop() : 'Documento'}
+                                                {typeof att === 'string' ? att.split('/').pop() : 'Documento'}
                                             </Text>
                                         </View>
                                     );
@@ -424,12 +482,12 @@ const ChatDetailScreen = () => {
                         </View>
                     )}
 
-                    {!!item.content && (
+                    {!!messageBody && (
                         <Text style={[
                             styles.messageText,
                             isMe ? styles.textRight : styles.textLeft,
                             hasAttachment ? { paddingHorizontal: 10, paddingBottom: 6 } : {}
-                        ]}>{item.content}</Text>
+                        ]}>{messageBody}</Text>
                     )}
 
                     <Text style={[
@@ -667,10 +725,10 @@ const getStyles = () => StyleSheet.create({
         lineHeight: 20,
     },
     textRight: {
-        color: '#FFF',
+        color: COLORS.text.onPrimary,
     },
     textLeft: {
-        color: '#F9FAFB',
+        color: COLORS.text.primary,
     },
     messageTime: {
         fontSize: 10,
