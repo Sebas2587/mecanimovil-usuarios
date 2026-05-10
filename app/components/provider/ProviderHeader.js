@@ -25,7 +25,11 @@ const ProviderHeader = ({
   const resolvedType = providerType || (provider?.tipo === 'taller' ? 'taller' : 'mecanico');
   const type = resolvedType === 'taller' ? 'Taller' : 'Mecánico a Domicilio';
   const location = provider?.direccion_fisica?.comuna || provider?.comuna || '';
-  const rating = provider?.calificacion_promedio ?? '';
+  const rawCalif = provider?.calificacion_promedio;
+  const ratingNum =
+    rawCalif === '' || rawCalif === null || rawCalif === undefined ? NaN : Number(rawCalif);
+  const rating =
+    Number.isFinite(ratingNum) && ratingNum > 0 ? ratingNum.toFixed(1) : '';
   const jobs = provider?.servicios_completados ?? provider?.trabajos_realizados ?? '';
   const experience = provider?.experiencia_anos ?? provider?.experiencia_anios ?? '';
 

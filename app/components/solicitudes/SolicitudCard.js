@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import CountdownTimer from '../common/CountdownTimer';
-import { isSolicitudSinVehiculoEnCuenta } from '../../utils/solicitudVehicle';
+import { isSolicitudSinVehiculoEnCuenta, puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -98,7 +98,7 @@ const getEstadoSurfaceConfig = (estadoEfectivo) => {
   };
 };
 
-const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
+const SolicitudCard = ({ solicitud, onPress, onCancelPress, fullWidth = false }) => {
   const { obtenerOfertasNuevasCountPorSolicitud } = useSolicitudes();
   const ofertasNuevasCount = obtenerOfertasNuevasCountPorSolicitud(solicitud.id);
 
@@ -152,6 +152,13 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
 
   const handlePress = () => {
     if (onPress) onPress(solicitud);
+  };
+
+  const mostrarCancelar = typeof onCancelPress === 'function' && puedeClienteCancelarSolicitudPublica(solicitud);
+
+  const handleCancelPress = (e) => {
+    e?.stopPropagation?.();
+    onCancelPress(solicitud);
   };
 
   const estadoParaIcono = solicitud.estado_efectivo ?? solicitud.estado;
@@ -275,6 +282,18 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
               </Text>
             </View>
           </View>
+        )}
+
+        {mostrarCancelar && (
+          <TouchableOpacity
+            style={styles.cancelLink}
+            onPress={handleCancelPress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close-circle-outline" size={16} color={COLORS.error.main} />
+            <Text style={styles.cancelLinkText}>Cancelar solicitud</Text>
+          </TouchableOpacity>
         )}
       </View>
     </TouchableOpacity>
@@ -428,6 +447,19 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.gray[100],
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
+  },
+  cancelLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  cancelLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.error.main,
   },
 });
 

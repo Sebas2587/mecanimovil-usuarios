@@ -24,7 +24,7 @@ import ServicePhotosCarousel from '../../components/provider/ServicePhotosCarous
 import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
 import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
 
-import { fetchPublicProviderFicha } from '../../services/providers';
+import { fetchPublicProviderFicha, getProviderReviews } from '../../services/providers';
 import {
   getPublicProviderFromWebPath,
   normalizeProviderRouteParams,
@@ -99,6 +99,7 @@ const PublicProviderDetailScreen = () => {
   const [details, setDetails] = useState(null);
   const [servicios, setServicios] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [reviewsSummary, setReviewsSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
 
@@ -107,18 +108,21 @@ const PublicProviderDetailScreen = () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const { detail, servicios: svc, documents: docs } = await fetchPublicProviderFicha(
-        providerId,
-        providerType
-      );
+      const [ficha, reviewsRes] = await Promise.all([
+        fetchPublicProviderFicha(providerId, providerType),
+        getProviderReviews(providerId, providerType).catch(() => null),
+      ]);
+      const { detail, servicios: svc, documents: docs } = ficha;
       setDetails(detail);
       setServicios(Array.isArray(svc) ? svc : []);
       setDocuments(Array.isArray(docs) ? docs : []);
+      setReviewsSummary(reviewsRes && typeof reviewsRes === 'object' ? reviewsRes : null);
     } catch (e) {
       setLoadError('No se pudo cargar esta ficha. Revisa tu conexión o el enlace.');
       setDetails(null);
       setServicios([]);
       setDocuments([]);
+      setReviewsSummary(null);
     } finally {
       setLoading(false);
     }
@@ -174,7 +178,19 @@ const PublicProviderDetailScreen = () => {
   }, [providerId, providerType, details]);
 
   const completedJobs = [];
-  const provider = { ...details, servicios };
+  const provider = useMemo(() => {
+    const base = { ...details, servicios };
+    const totalRev = Number(reviewsSummary?.total_reviews ?? 0);
+    const avg = reviewsSummary?.rating_average;
+    if (totalRev > 0 && avg != null && Number.isFinite(Number(avg))) {
+      return {
+        ...base,
+        calificacion_promedio: Number(avg),
+        numero_de_calificaciones: totalRev,
+      };
+    }
+    return base;
+  }, [details, servicios, reviewsSummary]);
 
   if (providerId == null || providerId === '' || !providerType) {
     return (

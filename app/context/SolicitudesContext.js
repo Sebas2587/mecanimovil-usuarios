@@ -119,7 +119,7 @@ export function SolicitudesProvider({ children }) {
         queryClient.invalidateQueries({
           predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
         });
-        queryClient.invalidateQueries({ queryKey: ['request', data.solicitud_id] });
+        queryClient.invalidateQueries({ queryKey: ['request', String(data.solicitud_id)] });
       }
     };
 
@@ -142,7 +142,7 @@ export function SolicitudesProvider({ children }) {
         predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
       });
       if (data?.solicitud_id) {
-        queryClient.invalidateQueries({ queryKey: ['request', data.solicitud_id] });
+        queryClient.invalidateQueries({ queryKey: ['request', String(data.solicitud_id)] });
       }
     };
 

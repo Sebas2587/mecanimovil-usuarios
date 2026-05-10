@@ -2,13 +2,17 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import RequestCard from './RequestCard';
 import { ROUTES } from '../../utils/constants';
+import { prefetchRequestDetail } from '../../hooks/useRequests';
 
 const ActiveRequestsCarousel = ({ requests = [] }) => {
     const navigation = useNavigation();
+    const queryClient = useQueryClient();
 
     const handlePress = (request) => {
+        if (request?.id) void prefetchRequestDetail(queryClient, request.id);
         navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: request.id });
     };
 

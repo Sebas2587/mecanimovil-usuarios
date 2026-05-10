@@ -1039,7 +1039,7 @@ export const getProviderReviews = async (providerId, providerType) => {
     // Usar el endpoint unificado que maneja ambos tipos de proveedores y retorna el resumen
     const endpoint = `/usuarios/providers/${providerId}/reviews/`;
 
-    const response = await get(endpoint);
+    const response = await get(endpoint, {}, { requiresAuth: false });
     return response;
   } catch (error) {
     console.error('Error fetching provider reviews:', error);

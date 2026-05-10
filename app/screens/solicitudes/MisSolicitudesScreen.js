@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ClipboardList } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
@@ -21,6 +22,7 @@ import { useSolicitudes } from '../../context/SolicitudesContext';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesListSkeleton';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { prefetchRequestDetail, requestDetailQueryKey } from '../../hooks/useRequests';
 
 const SURFACE_SOFT = COLORS.neutral.gray[100];
 
@@ -38,6 +40,7 @@ const parseRouteToTabs = (route) => {
 const MisSolicitudesScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -70,7 +73,14 @@ const MisSolicitudesScreen = () => {
     return v;
   }, [route.params?.vehicle, selectedVehicleId]);
 
-  const { solicitudes, requestsIsLoading, error, cargarSolicitudes, cargarSolicitudesActivas } = useSolicitudes();
+  const {
+    solicitudes,
+    requestsIsLoading,
+    error,
+    cargarSolicitudes,
+    cargarSolicitudesActivas,
+    cancelarSolicitud,
+  } = useSolicitudes();
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -167,9 +177,44 @@ const MisSolicitudesScreen = () => {
         Alert.alert('Error', 'No se pudo identificar la solicitud');
         return;
       }
+      void prefetchRequestDetail(queryClient, id);
       navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: id });
     },
-    [navigation],
+    [navigation, queryClient],
+  );
+
+  const handleCancelarSolicitud = useCallback(
+    (solicitud) => {
+      const id = solicitud?.id || solicitud?.properties?.id;
+      if (!id) return;
+      Alert.alert(
+        'Cancelar solicitud',
+        '¿Seguro? Los proveedores con oferta enviada recibirán un aviso. No podrás deshacer esta acción. Si ya elegiste una oferta, cancelá desde soporte o seguí el flujo de pago.',
+        [
+          { text: 'Volver', style: 'cancel' },
+          {
+            text: 'Cancelar solicitud',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await cancelarSolicitud(id);
+                const rk = requestDetailQueryKey(id);
+                if (rk) queryClient.invalidateQueries({ queryKey: rk });
+                await cargarDatos();
+                Alert.alert('Solicitud cancelada', 'Se notificó a los proveedores afectados.');
+              } catch (e) {
+                const msg =
+                  e?.response?.data?.error ||
+                  e?.message ||
+                  'No se pudo cancelar. Si ya elegiste una oferta, no es posible cancelar desde aquí.';
+                Alert.alert('No se pudo cancelar', String(msg));
+              }
+            },
+          },
+        ],
+      );
+    },
+    [cancelarSolicitud, queryClient, cargarDatos],
   );
 
   const mensajesVacios = useMemo(
@@ -243,10 +288,15 @@ const MisSolicitudesScreen = () => {
   const renderSolicitud = useCallback(
     ({ item }) => (
       <View style={styles.cardWrapper}>
-        <SolicitudCard solicitud={item} onPress={handleSolicitudPress} fullWidth />
+        <SolicitudCard
+          solicitud={item}
+          onPress={handleSolicitudPress}
+          onCancelPress={handleCancelarSolicitud}
+          fullWidth
+        />
       </View>
     ),
-    [handleSolicitudPress],
+    [handleSolicitudPress, handleCancelarSolicitud],
   );
 
   const renderItemSeparator = useCallback(() => <View style={styles.separator} />, []);

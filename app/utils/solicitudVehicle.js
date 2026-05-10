@@ -37,3 +37,23 @@ export function solicitudVisibleParaVehiculoDashboard(solicitud, selectedVehicle
   if (isSolicitudSinVehiculoEnCuenta(solicitud)) return true;
   return sameVehicleId(getSolicitudVehiculoId(solicitud), selectedVehicleId);
 }
+
+/** Estados en los que el cliente puede cancelar la solicitud pública (sin oferta aún elegida). */
+const ESTADOS_SOLICITUD_PUBLICA_CANCELABLES = new Set([
+  'creada',
+  'seleccionando_servicios',
+  'publicada',
+  'con_ofertas',
+]);
+
+/**
+ * True si el cliente puede cancelar desde la app (lista o detalle).
+ * No aplica si ya eligió oferta (adjudicación / pago / ejecución).
+ */
+export function puedeClienteCancelarSolicitudPublica(solicitud) {
+  if (!solicitud || !solicitud.estado) return false;
+  if (!ESTADOS_SOLICITUD_PUBLICA_CANCELABLES.has(solicitud.estado)) return false;
+  if (solicitud.oferta_seleccionada != null && solicitud.oferta_seleccionada !== '') return false;
+  if (solicitud.oferta_seleccionada_detail != null) return false;
+  return true;
+}

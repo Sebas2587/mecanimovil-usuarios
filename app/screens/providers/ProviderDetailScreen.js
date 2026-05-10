@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -84,11 +84,23 @@ const ProviderDetailScreen = () => {
   const { data: reviewsData } = useProviderReviews(idToLoad, providerType);
   const { data: completedJobs = [] } = useProviderCompletedJobs(idToLoad, providerType);
 
-  const provider = {
-    ...initialProvider,
-    ...details,
-    servicios: services || initialProvider?.servicios || [],
-  };
+  const provider = useMemo(() => {
+    const base = {
+      ...initialProvider,
+      ...details,
+      servicios: services || initialProvider?.servicios || [],
+    };
+    const totalRev = Number(reviewsData?.total_reviews ?? 0);
+    const avg = reviewsData?.rating_average;
+    if (totalRev > 0 && avg != null && Number.isFinite(Number(avg))) {
+      return {
+        ...base,
+        calificacion_promedio: Number(avg),
+        numero_de_calificaciones: totalRev,
+      };
+    }
+    return base;
+  }, [initialProvider, details, services, reviewsData]);
 
   const { isFavorite, toggleFavorite } = useFavorites();
   const favorite = isFavorite(idToLoad, providerType);

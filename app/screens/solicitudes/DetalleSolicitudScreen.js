@@ -15,17 +15,17 @@ import {
   Pressable,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 
 // Services & Context
-import solicitudesService from '../../services/solicitudesService';
 import chatService from '../../services/chatService';
-import ofertasService from '../../services/ofertasService';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { ROUTES } from '../../utils/constants';
+import { requestDetailQueryKey, useRequestDetail } from '../../hooks/useRequests';
+import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
 
 // New Components
 import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard';
@@ -53,7 +53,7 @@ const FOOTER_SCROLL_PADDING = 120;
 const DetalleSolicitudScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { solicitudId } = route.params || {};
+  const solicitudId = route.params?.solicitudId ?? route.params?.id ?? null;
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -72,10 +72,19 @@ const DetalleSolicitudScreen = () => {
   const { seleccionarOferta, cancelarSolicitud } = useSolicitudes();
   const queryClient = useQueryClient();
 
-  const [solicitud, setSolicitud] = useState(null);
-  const [ofertas, setOfertas] = useState([]);
-  const [ofertasSecundarias, setOfertasSecundarias] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: requestBundle,
+    isPending,
+    isError,
+    error: requestError,
+    refetch: refetchRequestDetail,
+  } = useRequestDetail(solicitudId);
+
+  const solicitud = requestBundle?.solicitud ?? null;
+  const ofertas = requestBundle?.ofertas ?? [];
+  const ofertasSecundarias = requestBundle?.ofertasSecundarias ?? [];
+  const showInitialLoader = Boolean(solicitudId) && isPending && !requestBundle;
+
   const [procesando, setProcesando] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [tabActivo, setTabActivo] = useState(TAB_PRINCIPALES);
@@ -84,49 +93,19 @@ const DetalleSolicitudScreen = () => {
   const [signatureRefreshKey, setSignatureRefreshKey] = useState(0);
   const [fotoAmpliadaUrl, setFotoAmpliadaUrl] = useState(null);
 
-  // Cargar datos
-  const cargarDatos = useCallback(async () => {
-    if (!solicitudId) return;
-    try {
-      setLoading(true);
-      const [solicitudData, ofertasData] = await Promise.all([
-        solicitudesService.obtenerDetalleSolicitud(solicitudId),
-        ofertasService.obtenerOfertasDeSolicitud(solicitudId)
-      ]);
-
-      // Normalizar datos si vienen en GeoJSON
-      const solicitudNormalizada = (solicitudData.type === 'Feature')
-        ? { ...solicitudData.properties, id: solicitudData.id }
-        : solicitudData;
-
-      setSolicitud(solicitudNormalizada);
-
-      // Ofertas principales (para comparar entre sí) y secundarias (nuevas opciones del proveedor para esta misma solicitud)
-      const todas = ofertasData || [];
-      const principales = todas
-        .filter(o => !o.es_oferta_secundaria)
-        .sort((a, b) => parseFloat(a.precio_total_ofrecido) - parseFloat(b.precio_total_ofrecido));
-      const secundarias = todas
-        .filter(o => o.es_oferta_secundaria)
-        .sort((a, b) => parseFloat(a.precio_total_ofrecido) - parseFloat(b.precio_total_ofrecido));
-
-      setOfertas(principales);
-      setOfertasSecundarias(secundarias);
-
-    } catch (error) {
-      console.error('Error loading request details:', error);
-      Alert.alert('Error', 'No se pudieron cargar los datos de la solicitud');
+  useEffect(() => {
+    if (solicitudId == null || solicitudId === '') {
       navigation.goBack();
-    } finally {
-      setLoading(false);
     }
-  }, [solicitudId]);
+  }, [solicitudId, navigation]);
 
-  useFocusEffect(
-    useCallback(() => {
-      cargarDatos();
-    }, [cargarDatos])
-  );
+  useEffect(() => {
+    if (!isError || !requestError) return;
+    console.error('Error loading request details:', requestError);
+    Alert.alert('Error', 'No se pudieron cargar los datos de la solicitud', [
+      { text: 'OK', onPress: () => navigation.goBack() },
+    ]);
+  }, [isError, requestError, navigation]);
 
   const closeChecklistModal = useCallback(() => {
     setShowChecklistModal(false);
@@ -152,7 +131,7 @@ const DetalleSolicitudScreen = () => {
                 Alert.alert(
                   'Proveedor elegido',
                   'El proveedor debe confirmar la adjudicación con créditos en su app antes de que puedas pagar. Podés seguir el estado de la solicitud aquí.',
-                  [{ text: 'Entendido', onPress: () => cargarDatos() }]
+                  [{ text: 'Entendido', onPress: () => refetchRequestDetail() }]
                 );
                 return;
               }
@@ -173,7 +152,7 @@ const DetalleSolicitudScreen = () => {
                 }
               } else {
                 Alert.alert('¡Excelente!', 'Oferta aceptada correctamente.');
-                cargarDatos();
+                refetchRequestDetail();
               }
             } catch (error) {
               console.error('Error accepting offer:', error);
@@ -230,7 +209,21 @@ const DetalleSolicitudScreen = () => {
     });
   };
 
-  if (loading) {
+  if (!solicitudId) {
+    return (
+      <View
+        style={[
+          styles.loadingContainer,
+          Platform.OS === 'web' && styles.loadingContainerWeb,
+          Platform.OS === 'web' && webScreenFrame,
+        ]}
+      >
+        <ActivityIndicator size="large" color={COLORS.primary[500]} />
+      </View>
+    );
+  }
+
+  if (showInitialLoader) {
     return (
       <View
         style={[
@@ -262,7 +255,7 @@ const DetalleSolicitudScreen = () => {
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Detalle de Solicitud</Text>
-            <Text style={styles.headerSubtitle}>ID: {solicitudId.slice(0, 8)}</Text>
+            <Text style={styles.headerSubtitle}>ID: {String(solicitudId).slice(0, 8)}</Text>
           </View>
           <View style={{ width: 40 }} />
         </View>
@@ -349,10 +342,8 @@ const DetalleSolicitudScreen = () => {
                 queryClient.invalidateQueries({
                   predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
                 });
-                if (solicitudId) {
-                  queryClient.invalidateQueries({ queryKey: ['request', solicitudId] });
-                }
-                cargarDatos();
+                const rk = requestDetailQueryKey(solicitudId);
+                if (rk) queryClient.invalidateQueries({ queryKey: rk });
               }}
             />
           );
@@ -500,27 +491,34 @@ const DetalleSolicitudScreen = () => {
         <View style={styles.footerContent}>
           {tabActivo === TAB_PRINCIPALES ? (
             <>
-              {solicitud.estado === 'publicada' && (
+              {puedeClienteCancelarSolicitudPublica(solicitud) && (
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={() => {
                     Alert.alert(
-                      'Cancelar Solicitud',
-                      '¿Estás seguro de que deseas cancelar esta solicitud? Esta acción no se puede deshacer.',
+                      'Cancelar solicitud',
+                      '¿Seguro? Los proveedores con oferta enviada serán notificados. No podrás deshacer esta acción. Si ya elegiste una oferta, no es posible cancelar desde aquí.',
                       [
                         { text: 'Volver', style: 'cancel' },
                         {
-                          text: 'Sí, Cancelar',
+                          text: 'Sí, cancelar',
                           style: 'destructive',
                           onPress: async () => {
                             try {
                               setProcesando(true);
                               await cancelarSolicitud(solicitudId);
-                              Alert.alert('Solicitud Cancelada', 'La solicitud ha sido cancelada exitosamente.');
+                              Alert.alert(
+                                'Solicitud cancelada',
+                                'Se notificó a los proveedores que tenían ofertas pendientes.',
+                              );
                               navigation.goBack();
                             } catch (error) {
                               console.error('Error cancelling request:', error);
-                              Alert.alert('Error', 'No se pudo cancelar la solicitud.');
+                              const msg =
+                                error?.response?.data?.error ||
+                                error?.message ||
+                                'No se pudo cancelar la solicitud.';
+                              Alert.alert('Error', String(msg));
                             } finally {
                               setProcesando(false);
                             }

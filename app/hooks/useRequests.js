@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import solicitudesService from '../services/solicitudesService';
+import ofertasService from '../services/ofertasService';
 import logger from '../utils/logger';
 import { useAuth } from '../context/AuthContext';
 
@@ -9,6 +10,67 @@ const CACHE = {
     gcTime: 1000 * 60 * 30,
     refetchOnWindowFocus: Platform.OS === 'web',
 };
+
+/** Misma clave en toda la app + invalidaciones WebSocket / mutaciones (siempre string). */
+export const requestDetailQueryKey = (solicitudId) => {
+    if (solicitudId == null || solicitudId === '') return null;
+    return ['request', String(solicitudId)];
+};
+
+/**
+ * Detalle público de solicitud + ofertas (un solo bundle cacheado).
+ * No usar refetch en cada focus: solo al montar si los datos están stale, o tras invalidate.
+ */
+export async function fetchRequestDetailBundle(solicitudId) {
+    const sid = solicitudId != null && solicitudId !== '' ? String(solicitudId) : null;
+    if (!sid) {
+        throw new Error('solicitudId requerido');
+    }
+    const [solicitudData, ofertasData] = await Promise.all([
+        solicitudesService.obtenerDetalleSolicitud(sid),
+        ofertasService.obtenerOfertasDeSolicitud(sid),
+    ]);
+    const solicitudNormalizada =
+        solicitudData?.type === 'Feature'
+            ? { ...solicitudData.properties, id: solicitudData.id }
+            : solicitudData;
+    const todas = ofertasData || [];
+    const principales = todas
+        .filter((o) => !o.es_oferta_secundaria)
+        .sort((a, b) => parseFloat(a.precio_total_ofrecido) - parseFloat(b.precio_total_ofrecido));
+    const secundarias = todas
+        .filter((o) => o.es_oferta_secundaria)
+        .sort((a, b) => parseFloat(a.precio_total_ofrecido) - parseFloat(b.precio_total_ofrecido));
+    return {
+        solicitud: solicitudNormalizada,
+        ofertas: principales,
+        ofertasSecundarias: secundarias,
+    };
+}
+
+export const useRequestDetail = (solicitudId) => {
+    const key = requestDetailQueryKey(solicitudId);
+    return useQuery({
+        queryKey: key || ['request', '__disabled__'],
+        queryFn: () => fetchRequestDetailBundle(solicitudId),
+        enabled: key != null,
+        staleTime: CACHE.staleTime,
+        gcTime: CACHE.gcTime,
+        refetchOnWindowFocus: false,
+        retry: 1,
+        placeholderData: (prev) => prev,
+    });
+};
+
+export function prefetchRequestDetail(queryClient, solicitudId) {
+    const key = requestDetailQueryKey(solicitudId);
+    if (!key) return Promise.resolve();
+    return queryClient.prefetchQuery({
+        queryKey: key,
+        queryFn: () => fetchRequestDetailBundle(solicitudId),
+        staleTime: CACHE.staleTime,
+    });
+}
 
 export const useRequests = () => {
     const { user } = useAuth();
@@ -106,9 +168,11 @@ export const useCancelRequest = () => {
     const allKey = ['requests', user?.id ?? 'anon'];
     return useMutation({
         mutationFn: solicitudesService.cancelarSolicitud,
-        onSuccess: () => {
+        onSuccess: (data, solicitudId) => {
             queryClient.invalidateQueries({ queryKey: allKey });
             queryClient.invalidateQueries({ queryKey: activeKey });
+            const rk = requestDetailQueryKey(solicitudId);
+            if (rk) queryClient.invalidateQueries({ queryKey: rk });
         }
     });
 };
@@ -123,7 +187,8 @@ export const useSelectOffer = () => {
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: allKey });
             queryClient.invalidateQueries({ queryKey: activeKey });
-            queryClient.invalidateQueries({ queryKey: ['request', variables.solicitudId] });
+            const rk = requestDetailQueryKey(variables.solicitudId);
+            if (rk) queryClient.invalidateQueries({ queryKey: rk });
         }
     });
 };
