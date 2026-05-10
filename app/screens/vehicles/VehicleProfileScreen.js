@@ -90,7 +90,7 @@ const VehicleProfileScreen = () => {
         try {
             // Parallel Fetch
             const [health, freshVehicle] = await Promise.all([
-                VehicleHealthService.default.getVehicleHealth(vehicle.id),
+                VehicleHealthService.default.getVehicleHealthWithPatches(vehicle.id, true),
                 vehicleService.getVehicleById(vehicle.id)
             ]);
 
@@ -140,7 +140,7 @@ const VehicleProfileScreen = () => {
             }
             let alive = true;
             VehicleHealthService.default
-                .getVehicleHealth(vehicle.id, true)
+                .getVehicleHealthWithPatches(vehicle.id, true)
                 .then((h) => {
                     if (alive) setHealthData(h);
                 })
