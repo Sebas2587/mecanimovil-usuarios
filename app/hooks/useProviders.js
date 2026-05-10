@@ -199,15 +199,27 @@ export const useProviderServices = (id, type, providerName) => {
                     },
                 };
 
-                serviciosMap.set(servicioId, servicioFinal);
+                // Si ya hay un servicio con este id y tiene fotos, fusionar fotos
+                // para no perderlas cuando múltiples ofertas tienen el mismo servicio.
+                const existing = serviciosMap.get(servicioId);
+                if (existing) {
+                    const existingFotos = existing.fotos_servicio || [];
+                    const newFotos = servicioFinal.fotos_servicio || [];
+                    const allFotos = [...existingFotos, ...newFotos].filter(
+                        (f, i, arr) => arr.findIndex((x) => x.id === f.id) === i
+                    );
+                    serviciosMap.set(servicioId, { ...servicioFinal, fotos_servicio: allFotos });
+                } else {
+                    serviciosMap.set(servicioId, servicioFinal);
+                }
             });
 
             return Array.from(serviciosMap.values());
         },
         enabled: !!id && !!type,
-        staleTime: 1000 * 60 * 30,  // 30 min — datos de servicios no cambian seguido
-        gcTime: 1000 * 60 * 60,     // 1 hora en memoria tras salir del perfil
-        refetchOnMount: false,       // si el cache es fresco, no refetch al navegar de vuelta
+        staleTime: 1000 * 60 * 2,   // 2 min — fotos pueden actualizarse seguido
+        gcTime: 1000 * 60 * 10,     // 10 min en memoria
+        refetchOnMount: true,        // re-verificar al navegar al perfil del proveedor
         refetchOnWindowFocus: false,
     });
 };

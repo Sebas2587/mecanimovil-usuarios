@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet, ScrollView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { COLORS, BORDERS } from '../../design-system/tokens';
+import { resolveToAbsoluteMediaUrl } from '../../utils/providerUtils';
 
 /**
  * Carrusel liviano para fotos asociadas a un servicio/oferta.
@@ -12,10 +13,15 @@ export default function ServicePhotosCarousel({ photos, height = 120 }) {
   if (items.length === 0) return null;
 
   const resolved = items
-    .map((p) => ({
-      id: p.id ?? `${p.imagen_url || p.imagen || p.url || p.image || ''}`,
-      uri: p.imagen_url || p.image || p.url || p.imagen || null,
-    }))
+    .map((p) => {
+      // Prioridad: imagen_url (URL absoluta del backend) > otros campos > fallback con resolveToAbsoluteMediaUrl
+      const rawUri = p.imagen_url || p.image || p.url || p.imagen || null;
+      const uri = resolveToAbsoluteMediaUrl(rawUri);
+      return {
+        id: p.id ?? rawUri ?? '',
+        uri,
+      };
+    })
     .filter((p) => !!p.uri);
 
   if (resolved.length === 0) return null;
