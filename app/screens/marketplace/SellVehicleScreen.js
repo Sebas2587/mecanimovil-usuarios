@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
     Switch, ActivityIndicator, Alert, Modal, TextInput, RefreshControl, Platform, Share,
+    Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { ShieldAlert, ClipboardCheck } from 'lucide-react-native';
+import { ShieldAlert, ClipboardCheck, Camera, Trash2, ImagePlus } from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 
 // React Query Imports
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +22,10 @@ import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
+
+const SCREEN_W = Dimensions.get('window').width;
+const MAX_FOTOS = 10;
+const DESCRIPTION_MAX_CHARS = 600;
 
 const SellVehicleScreen = () => {
     const navigation = useNavigation();
@@ -62,6 +68,16 @@ const SellVehicleScreen = () => {
     // Modal de inspección requerida (publicación bloqueada por componentes USUARIO_DECLARADO)
     const [inspeccionModal, setInspeccionModal] = useState({ visible: false, componentes: [] });
 
+    // Fotos de venta
+    const [uploadingFoto, setUploadingFoto] = useState(false);
+    const [deletingFotoId, setDeletingFotoId] = useState(null);
+
+    // Descripción de venta
+    const [descripcion, setDescripcion] = useState('');
+    const [descripcionSaved, setDescripcionSaved] = useState(false);
+    const [savingDescripcion, setSavingDescripcion] = useState(false);
+    const descripcionRef = useRef('');
+
     // 1. QUERY: Fetch all Marketplace Data
     const {
         data: marketplaceData,
@@ -87,6 +103,16 @@ const SellVehicleScreen = () => {
     const settings = marketplaceData?.settings || {};
     const stats = marketplaceData?.statsData || { views: 0, favorites: 0, leads: 0 };
     const appraisal = marketplaceData?.appraisal || {};
+    const fotosVenta = Array.isArray(settings.fotos) ? settings.fotos : [];
+
+    // Sync descripcion from remote when data loads
+    useEffect(() => {
+        if (settings.descripcion_venta !== undefined && settings.descripcion_venta !== null) {
+            const val = settings.descripcion_venta || '';
+            setDescripcion(val);
+            descripcionRef.current = val;
+        }
+    }, [settings.descripcion_venta]);
 
     // Calculate offers count for this vehicle
     const vehicleOffers = (marketplaceData?.receivedOffers || []).filter(o =>
@@ -158,6 +184,78 @@ const SellVehicleScreen = () => {
     const onRefresh = useCallback(() => {
         refetch();
     }, [refetch]);
+
+    // ── Fotos handlers ──────────────────────────────────────────────
+    const handlePickFoto = useCallback(async () => {
+        if (fotosVenta.length >= MAX_FOTOS) {
+            Alert.alert('Límite alcanzado', `Puedes subir hasta ${MAX_FOTOS} fotos.`);
+            return;
+        }
+
+        const { status: permStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permStatus !== 'granted') {
+            Alert.alert('Permiso requerido', 'Necesitamos acceso a tu galería para subir fotos.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            quality: 0.85,
+        });
+
+        if (result.canceled || !result.assets?.length) return;
+
+        const asset = result.assets[0];
+        setUploadingFoto(true);
+        try {
+            await vehicleService.uploadMarketplaceFoto(vehicle.id, asset);
+            queryClient.invalidateQueries({ queryKey: ['marketplaceData', vehicle.id] });
+        } catch (err) {
+            Alert.alert('Error', 'No se pudo subir la foto. Intenta nuevamente.');
+            console.error('[uploadMarketplaceFoto]', err);
+        } finally {
+            setUploadingFoto(false);
+        }
+    }, [fotosVenta.length, vehicle?.id, queryClient]);
+
+    const handleDeleteFoto = useCallback(async (fotoId) => {
+        Alert.alert('Eliminar foto', '¿Estás seguro de que deseas eliminar esta foto?', [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Eliminar',
+                style: 'destructive',
+                onPress: async () => {
+                    setDeletingFotoId(fotoId);
+                    try {
+                        await vehicleService.deleteMarketplaceFoto(vehicle.id, fotoId);
+                        queryClient.invalidateQueries({ queryKey: ['marketplaceData', vehicle.id] });
+                    } catch {
+                        Alert.alert('Error', 'No se pudo eliminar la foto.');
+                    } finally {
+                        setDeletingFotoId(null);
+                    }
+                },
+            },
+        ]);
+    }, [vehicle?.id, queryClient]);
+
+    // ── Descripción handlers ─────────────────────────────────────────
+    const handleSaveDescripcion = useCallback(async () => {
+        if (savingDescripcion) return;
+        setSavingDescripcion(true);
+        setDescripcionSaved(false);
+        try {
+            await vehicleService.updateMarketplaceData(vehicle.id, { descripcion_venta: descripcionRef.current });
+            queryClient.invalidateQueries({ queryKey: ['marketplaceData', vehicle.id] });
+            setDescripcionSaved(true);
+            setTimeout(() => setDescripcionSaved(false), 2500);
+        } catch {
+            Alert.alert('Error', 'No se pudo guardar la descripción.');
+        } finally {
+            setSavingDescripcion(false);
+        }
+    }, [savingDescripcion, vehicle?.id, queryClient]);
 
     const togglePublish = (newValue) => {
         if (newValue === true && (!sellingPrice || sellingPrice <= 0)) {
@@ -345,6 +443,108 @@ const SellVehicleScreen = () => {
 
                 {/* 2. Body Content */}
                 <View style={styles.bodyContainer}>
+
+                    {/* ── Fotos del vehículo ─────────────────────────────────── */}
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Camera size={18} color={COLORS.primary[500]} />
+                                <Text style={styles.cardTitle}>Fotos del vehículo</Text>
+                            </View>
+                            <Text style={styles.fotosCounter}>{fotosVenta.length}/{MAX_FOTOS}</Text>
+                        </View>
+
+                        {/* Grid de fotos */}
+                        <View style={styles.fotosGrid}>
+                            {fotosVenta.map((foto) => (
+                                <View key={foto.id} style={styles.fotoThumb}>
+                                    <Image
+                                        source={{ uri: foto.foto_url }}
+                                        style={styles.fotoThumbImage}
+                                        contentFit="cover"
+                                        cachePolicy="memory-disk"
+                                    />
+                                    {deletingFotoId === foto.id ? (
+                                        <View style={styles.fotoDeleteOverlay}>
+                                            <ActivityIndicator size="small" color={COLORS.base.white} />
+                                        </View>
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={styles.fotoDeleteBtn}
+                                            onPress={() => handleDeleteFoto(foto.id)}
+                                            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                        >
+                                            <Trash2 size={13} color={COLORS.base.white} />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            ))}
+
+                            {/* Botón añadir foto */}
+                            {fotosVenta.length < MAX_FOTOS && (
+                                <TouchableOpacity
+                                    style={[styles.fotoThumb, styles.fotoAddBtn]}
+                                    onPress={handlePickFoto}
+                                    disabled={uploadingFoto}
+                                >
+                                    {uploadingFoto ? (
+                                        <ActivityIndicator size="small" color={COLORS.primary[500]} />
+                                    ) : (
+                                        <>
+                                            <ImagePlus size={22} color={COLORS.primary[500]} />
+                                            <Text style={styles.fotoAddText}>Agregar</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        <Text style={styles.fotosHint}>
+                            Las fotos se muestran como carrusel en el marketplace.
+                        </Text>
+                    </View>
+
+                    {/* ── Descripción de la venta ────────────────────────────── */}
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <Text style={styles.cardTitle}>Descripción de la venta</Text>
+                            {descripcionSaved && (
+                                <View style={styles.savedBadge}>
+                                    <Ionicons name="checkmark-circle" size={14} color={COLORS.success[600]} />
+                                    <Text style={styles.savedBadgeText}>Guardado</Text>
+                                </View>
+                            )}
+                        </View>
+                        <TextInput
+                            style={styles.descripcionInput}
+                            placeholder="Describe el estado, extras, historial de mantenimiento, motivo de la venta…"
+                            placeholderTextColor={COLORS.text.disabled}
+                            multiline
+                            maxLength={DESCRIPTION_MAX_CHARS}
+                            value={descripcion}
+                            onChangeText={(t) => {
+                                setDescripcion(t);
+                                descripcionRef.current = t;
+                            }}
+                            onBlur={handleSaveDescripcion}
+                            textAlignVertical="top"
+                        />
+                        <View style={styles.descripcionFooter}>
+                            <Text style={styles.descripcionCounter}>
+                                {descripcion.length}/{DESCRIPTION_MAX_CHARS}
+                            </Text>
+                            <TouchableOpacity
+                                style={[styles.saveDescBtn, savingDescripcion && { opacity: 0.6 }]}
+                                onPress={handleSaveDescripcion}
+                                disabled={savingDescripcion}
+                            >
+                                {savingDescripcion ? (
+                                    <ActivityIndicator size="small" color={COLORS.base.white} />
+                                ) : (
+                                    <Text style={styles.saveDescBtnText}>Guardar</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
 
                     {/* Price Control Card */}
                     <View style={styles.card}>
@@ -1074,6 +1274,113 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
         fontSize: 14,
         color: COLORS.text.tertiary,
         fontWeight: '500',
+    },
+
+    // ── Fotos ────────────────────────────────────────────────────────
+    fotosCounter: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.text.tertiary,
+    },
+    fotosGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 12,
+    },
+    fotoThumb: {
+        width: (SCREEN_W - 40 - 40 - 24) / 4,
+        aspectRatio: 1,
+        borderRadius: BORDERS.radius.md,
+        overflow: 'hidden',
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+    },
+    fotoThumbImage: {
+        width: '100%',
+        height: '100%',
+    },
+    fotoDeleteOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fotoDeleteBtn: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        borderRadius: 10,
+        padding: 4,
+    },
+    fotoAddBtn: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: COLORS.primary[50],
+        borderColor: COLORS.primary[200],
+        borderStyle: 'dashed',
+        gap: 4,
+    },
+    fotoAddText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: COLORS.primary[500],
+    },
+    fotosHint: {
+        fontSize: 11,
+        color: COLORS.text.tertiary,
+        lineHeight: 15,
+    },
+
+    // ── Descripción ───────────────────────────────────────────────────
+    savedBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: COLORS.success[50],
+        borderRadius: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    savedBadgeText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: COLORS.success[700],
+    },
+    descripcionInput: {
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.md,
+        padding: 14,
+        fontSize: 14,
+        color: COLORS.text.primary,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        minHeight: 120,
+        marginBottom: 10,
+    },
+    descripcionFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    descripcionCounter: {
+        fontSize: 12,
+        color: COLORS.text.tertiary,
+    },
+    saveDescBtn: {
+        backgroundColor: COLORS.primary[500],
+        borderRadius: BORDERS.radius.sm,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    saveDescBtnText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: COLORS.text.onPrimary,
     },
 });
 

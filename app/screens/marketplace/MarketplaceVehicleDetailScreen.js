@@ -1,5 +1,5 @@
-import React, { useState, Fragment, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, Modal, Platform, Dimensions, useWindowDimensions } from 'react-native';
+import React, { useState, Fragment, useCallback, useRef, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, Alert, RefreshControl, Modal, Platform, Dimensions, useWindowDimensions, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { ShieldCheck, ShieldAlert } from 'lucide-react-native';
@@ -29,8 +29,10 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
+const SCREEN_W = Dimensions.get('window').width;
 const SCREEN_H = Dimensions.get('window').height;
 const HEALTH_MODAL_SCROLL_MAX_H = SCREEN_H * 0.68;
+const HEADER_H = 320;
 
 const MarketplaceVehicleDetailScreen = ({ route }) => {
     const navigation = useNavigation();
@@ -64,6 +66,13 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const [selectedServiceName, setSelectedServiceName] = useState('');
     const [checklistProveedorPreview, setChecklistProveedorPreview] = useState(null);
     const [rtRenewalDueISO, setRtRenewalDueISO] = useState(null);
+
+    // ── Carousel state ───────────────────────────────────────────────
+    const [carouselIndex, setCarouselIndex] = useState(0);
+    const [lightboxVisible, setLightboxVisible] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const carouselRef = useRef(null);
+    const lightboxRef = useRef(null);
 
     const styles = getStyles(insets);
     const skipNextFocusFetchRef = React.useRef(false);
@@ -270,6 +279,14 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                 : 'Historial principalmente estimado o declarado';
 
     const imageUrl = fullVehicleData.foto_url || fullVehicleData.image; // Fallback to list param image
+
+    // Build carousel images: prefer fotos_marketplace, fall back to single foto_url
+    const carouselImages = useMemo(() => {
+        const fotos = Array.isArray(fullVehicleData.fotos) ? fullVehicleData.fotos : [];
+        if (fotos.length > 0) return fotos.map(f => f.foto_url).filter(Boolean);
+        if (imageUrl) return [imageUrl];
+        return [];
+    }, [fullVehicleData.fotos, imageUrl]);
     const brand = fullVehicleData.marca_nombre || fullVehicleData.brand;
     const model = fullVehicleData.modelo_nombre || fullVehicleData.model;
     const year = fullVehicleData.year;
@@ -293,6 +310,16 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
     const showPublicInstallCtas = isAnonymousViewer;
     /** Con sesión: flecha atrás en web y en nativo. Visitante anónimo: sin atrás (ficha pública). */
     const showBackButton = !isAnonymousViewer;
+
+    const openLightbox = useCallback((index) => {
+        setLightboxIndex(index);
+        setLightboxVisible(true);
+    }, []);
+
+    const handleCarouselScroll = useCallback((e) => {
+        const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+        setCarouselIndex(idx);
+    }, []);
 
     const handleHeaderBack = () => {
         if (navigation.canGoBack()) {
@@ -456,13 +483,60 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         <Text style={styles.loadErrorText}>{loadError}</Text>
                     </View>
                 ) : null}
-                {/* 1. Immersive Header */}
+                {/* 1. Immersive Header — Carousel */}
                 <View style={styles.headerContainer}>
-                    {imageUrl ? (
-                        <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
+                    {/* Carousel strip */}
+                    {carouselImages.length > 0 ? (
+                        <FlatList
+                            ref={carouselRef}
+                            data={carouselImages}
+                            keyExtractor={(uri, i) => `${uri}-${i}`}
+                            horizontal
+                            pagingEnabled
+                            showsHorizontalScrollIndicator={false}
+                            scrollEventThrottle={16}
+                            onScroll={handleCarouselScroll}
+                            initialScrollIndex={0}
+                            getItemLayout={(_, index) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
+                            renderItem={({ item: uri, index }) => (
+                                <TouchableOpacity
+                                    activeOpacity={0.92}
+                                    onPress={() => openLightbox(index)}
+                                    style={{ width: SCREEN_W, height: HEADER_H }}
+                                >
+                                    <Image
+                                        source={{ uri }}
+                                        style={{ width: SCREEN_W, height: HEADER_H }}
+                                        contentFit="cover"
+                                        cachePolicy="memory-disk"
+                                    />
+                                </TouchableOpacity>
+                            )}
+                        />
                     ) : (
                         <View style={[styles.headerImage, { backgroundColor: COLORS.neutral.gray[200] }]} />
                     )}
+
+                    {/* Dot indicators */}
+                    {carouselImages.length > 1 && (
+                        <View style={styles.carouselDots}>
+                            {carouselImages.map((_, i) => (
+                                <View
+                                    key={i}
+                                    style={[styles.carouselDot, i === carouselIndex && styles.carouselDotActive]}
+                                />
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Photo counter pill */}
+                    {carouselImages.length > 1 && (
+                        <View style={styles.photoPill}>
+                            <Ionicons name="camera-outline" size={12} color={COLORS.base.white} />
+                            <Text style={styles.photoPillText}>{carouselIndex + 1}/{carouselImages.length}</Text>
+                        </View>
+                    )}
+
                     <HeroImageGradientScrim intensity="strong" />
 
                     {/* Header: atrás con sesión (web y app); badge a la derecha; visitante sin atrás */}
@@ -521,6 +595,14 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                     {fullVehicleData.seller.nombre}
                                 </Text>
                             </View>
+                        </View>
+                    ) : null}
+
+                    {/* Descripción de la venta */}
+                    {!loading && fullVehicleData.descripcion_venta ? (
+                        <View style={styles.descripcionCard}>
+                            <Text style={styles.descripcionCardTitle}>Descripción del vendedor</Text>
+                            <Text style={styles.descripcionCardText}>{fullVehicleData.descripcion_venta}</Text>
                         </View>
                     ) : null}
 
@@ -887,6 +969,101 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                     proveedorPreview={checklistProveedorPreview}
                 />
             ) : null}
+
+            {/* Lightbox — full screen expandable photo viewer */}
+            <Modal
+                visible={lightboxVisible}
+                transparent
+                animationType="fade"
+                statusBarTranslucent
+                onRequestClose={() => setLightboxVisible(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: '#000' }}>
+                    {/* Close button */}
+                    <TouchableOpacity
+                        style={{
+                            position: 'absolute',
+                            top: (insets.top || 0) + 12,
+                            right: 16,
+                            zIndex: 20,
+                            backgroundColor: 'rgba(0,0,0,0.55)',
+                            borderRadius: 20,
+                            padding: 8,
+                        }}
+                        onPress={() => setLightboxVisible(false)}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                        <Ionicons name="close" size={24} color="#FFFFFF" />
+                    </TouchableOpacity>
+
+                    <FlatList
+                        ref={lightboxRef}
+                        data={carouselImages}
+                        keyExtractor={(uri, i) => `lb-${uri}-${i}`}
+                        horizontal
+                        pagingEnabled
+                        showsHorizontalScrollIndicator={false}
+                        initialScrollIndex={lightboxIndex}
+                        getItemLayout={(_, index) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
+                        onScrollToIndexFailed={() => {}}
+                        renderItem={({ item: uri }) => (
+                            <View style={{ width: SCREEN_W, height: SCREEN_H, justifyContent: 'center', alignItems: 'center' }}>
+                                <Image
+                                    source={{ uri }}
+                                    style={{ width: SCREEN_W, height: SCREEN_H * 0.75 }}
+                                    contentFit="contain"
+                                    cachePolicy="memory-disk"
+                                />
+                            </View>
+                        )}
+                        onScroll={(e) => {
+                            const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+                            setLightboxIndex(idx);
+                        }}
+                        scrollEventThrottle={16}
+                    />
+
+                    {/* Dot indicators */}
+                    {carouselImages.length > 1 && (
+                        <View style={{
+                            position: 'absolute',
+                            bottom: (insets.bottom || 0) + 24,
+                            left: 0,
+                            right: 0,
+                            flexDirection: 'row',
+                            justifyContent: 'center',
+                            gap: 6,
+                        }}>
+                            {carouselImages.map((_, i) => (
+                                <View
+                                    key={i}
+                                    style={{
+                                        width: i === lightboxIndex ? 10 : 6,
+                                        height: 6,
+                                        borderRadius: 3,
+                                        backgroundColor: i === lightboxIndex ? '#FFFFFF' : 'rgba(255,255,255,0.38)',
+                                    }}
+                                />
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Counter */}
+                    <View style={{
+                        position: 'absolute',
+                        bottom: (insets.bottom || 0) + 24,
+                        right: 16,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        borderRadius: 10,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                    }}>
+                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>
+                            {lightboxIndex + 1} / {carouselImages.length}
+                        </Text>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -918,14 +1095,55 @@ const getStyles = (insets) => StyleSheet.create({
         lineHeight: 22,
     },
     headerContainer: {
-        height: 320,
+        height: HEADER_H,
         width: '100%',
         position: 'relative',
         backgroundColor: COLORS.neutral.gray[200],
+        overflow: 'hidden',
     },
     headerImage: {
         width: '100%',
         height: '100%',
+    },
+    carouselDots: {
+        position: 'absolute',
+        bottom: 52,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 5,
+        zIndex: 3,
+        pointerEvents: 'none',
+    },
+    carouselDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: 'rgba(255,255,255,0.45)',
+    },
+    carouselDotActive: {
+        width: 10,
+        backgroundColor: '#FFFFFF',
+    },
+    photoPill: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        zIndex: 3,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        borderRadius: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    photoPillText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '600',
     },
     topBar: {
         position: 'absolute',
@@ -995,6 +1213,28 @@ const getStyles = (insets) => StyleSheet.create({
         borderTopRightRadius: BORDERS.radius.xl,
         paddingHorizontal: 20,
         paddingTop: 20,
+    },
+    descripcionCard: {
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.lg,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
+    },
+    descripcionCardTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: COLORS.text.tertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+        marginBottom: 8,
+    },
+    descripcionCardText: {
+        fontSize: 14,
+        color: COLORS.text.primary,
+        lineHeight: 21,
     },
     sellerCard: {
         flexDirection: 'row',

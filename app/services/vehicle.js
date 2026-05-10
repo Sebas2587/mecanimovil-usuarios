@@ -451,6 +451,34 @@ export const respondToOffer = async (offerId, status) => {
 };
 
 /**
+ * Sube una foto de venta al marketplace para un vehículo (máx 10).
+ * @param {number} vehicleId
+ * @param {{ uri: string, mimeType?: string, fileName?: string }} imageAsset - objeto de expo-image-picker
+ * @returns {Promise<{ id: number, foto_url: string, orden: number }>}
+ */
+export const uploadMarketplaceFoto = async (vehicleId, imageAsset) => {
+  const formData = new FormData();
+  formData.append('foto', {
+    uri: imageAsset.uri,
+    type: imageAsset.mimeType || 'image/jpeg',
+    name: imageAsset.fileName || `foto_marketplace_${Date.now()}.jpg`,
+  });
+  const data = await post(`/vehiculos/${vehicleId}/marketplace-fotos/`, formData, { isFormData: true });
+  return data;
+};
+
+/**
+ * Elimina una foto de venta del marketplace.
+ * @param {number} vehicleId
+ * @param {number} fotoId
+ * @returns {Promise<boolean>}
+ */
+export const deleteMarketplaceFoto = async (vehicleId, fotoId) => {
+  await delete_(`/vehiculos/${vehicleId}/marketplace-fotos/${fotoId}/`);
+  return true;
+};
+
+/**
  * Obtiene el detalle de una oferta de vehículo por su ID
  * @param {number} offerId
  * @returns {Promise<Object>}

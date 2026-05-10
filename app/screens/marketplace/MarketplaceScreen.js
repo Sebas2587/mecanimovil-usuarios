@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, ScrollView, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+
+const CARD_IMG_H = 180;
+const SCREEN_W = Dimensions.get('window').width;
+const CARD_IMG_W = SCREEN_W - 32; // listContent padding * 2
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQueries } from '@tanstack/react-query';
 import { ROUTES } from '../../utils/constants';
@@ -70,6 +74,100 @@ const MOCK_OFFERS = [
         }
     }
 ];
+
+/**
+ * Carrusel de fotos liviano para las cards del marketplace.
+ * Usa ScrollView con paginación para rendimiento dentro de FlatList.
+ */
+const PhotoCarousel = React.memo(({ fotos, fallbackUri, isReserved }) => {
+    const [activeIndex, setActiveIndex] = useState(0);
+    const scrollRef = useRef(null);
+
+    const allImages = useMemo(() => {
+        if (fotos && fotos.length > 0) return fotos.map(f => f.foto_url).filter(Boolean);
+        if (fallbackUri) return [fallbackUri];
+        return [];
+    }, [fotos, fallbackUri]);
+
+    const handleScroll = useCallback((e) => {
+        const idx = Math.round(e.nativeEvent.contentOffset.x / CARD_IMG_W);
+        setActiveIndex(idx);
+    }, []);
+
+    if (allImages.length === 0) {
+        return (
+            <View style={[carouselStyles.image, carouselStyles.placeholder]}>
+                <Ionicons name="car-outline" size={48} color="rgba(255,255,255,0.35)" />
+            </View>
+        );
+    }
+
+    return (
+        <View style={{ width: '100%', height: CARD_IMG_H }}>
+            <ScrollView
+                ref={scrollRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                scrollEventThrottle={16}
+                onScroll={handleScroll}
+                style={{ opacity: isReserved ? 0.6 : 1 }}
+            >
+                {allImages.map((uri, i) => (
+                    <Image
+                        key={`${uri}-${i}`}
+                        source={{ uri }}
+                        style={carouselStyles.image}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                    />
+                ))}
+            </ScrollView>
+            {allImages.length > 1 && (
+                <View style={carouselStyles.dotsRow}>
+                    {allImages.map((_, i) => (
+                        <View
+                            key={i}
+                            style={[carouselStyles.dot, i === activeIndex && carouselStyles.dotActive]}
+                        />
+                    ))}
+                </View>
+            )}
+        </View>
+    );
+});
+
+const carouselStyles = StyleSheet.create({
+    image: {
+        width: CARD_IMG_W,
+        height: CARD_IMG_H,
+    },
+    placeholder: {
+        backgroundColor: 'rgba(255,255,255,0.07)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    dotsRow: {
+        position: 'absolute',
+        bottom: 8,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 5,
+    },
+    dot: {
+        width: 5,
+        height: 5,
+        borderRadius: 3,
+        backgroundColor: 'rgba(255,255,255,0.45)',
+    },
+    dotActive: {
+        width: 8,
+        backgroundColor: '#FFFFFF',
+    },
+});
 
 const MarketplaceScreen = () => {
     const navigation = useNavigation();
@@ -301,15 +399,13 @@ const MarketplaceScreen = () => {
             activeOpacity={0.9}
             onPress={() => navigation.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicle: item })}
         >
-            {/* Image Header */}
+            {/* Image Header — Carousel */}
             <View style={styles.imageContainer}>
-                {item.foto_url ? (
-                    <Image source={{ uri: item.foto_url }} style={[styles.image, item.is_reserved && { opacity: 0.6 }]} contentFit="cover" />
-                ) : (
-                    <View style={[styles.image, styles.imagePlaceholder]}>
-                        <Ionicons name="car-outline" size={48} color="rgba(255,255,255,0.35)" />
-                    </View>
-                )}
+                <PhotoCarousel
+                    fotos={item.fotos}
+                    fallbackUri={item.foto_url}
+                    isReserved={item.is_reserved}
+                />
 
                 {/* Reserved Badge Overlay */}
                 {item.is_reserved && (
@@ -399,6 +495,12 @@ const MarketplaceScreen = () => {
                         {item.seller?.nombre || item.seller?.name || item.usuario?.first_name || 'Vendedor'}
                     </Text>
                 </View>
+
+                {item.descripcion_venta ? (
+                    <Text style={styles.descripcionVenta} numberOfLines={2}>
+                        {item.descripcion_venta}
+                    </Text>
+                ) : null}
 
                 <View style={styles.divider} />
 
@@ -915,6 +1017,12 @@ const getStyles = () => StyleSheet.create({
         fontSize: 14,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.primary[500],
+    },
+    descripcionVenta: {
+        fontSize: 13,
+        color: COLORS.text.secondary,
+        lineHeight: 18,
+        marginTop: 10,
     },
     emptyContainer: {
         alignItems: 'center',
