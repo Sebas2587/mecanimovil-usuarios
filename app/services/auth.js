@@ -99,9 +99,24 @@ export const googleLogin = async (idToken, flow = 'login') => {
     }
     return { token: response.token, user: response.user };
   } catch (error) {
+    const status = error?.status || error?.response?.status;
+    const responseCode = error?.response?.data?.code;
+
+    // Propagar USER_NOT_FOUND como objeto (no excepción) para que AuthContext
+    // pueda redirigir al registro sin mostrar un alert de error genérico.
+    if (status === 404 && responseCode === 'USER_NOT_FOUND') {
+      return {
+        __userNotFound: true,
+        code: 'USER_NOT_FOUND',
+        email: error?.response?.data?.email,
+        given_name: error?.response?.data?.given_name,
+        family_name: error?.response?.data?.family_name,
+      };
+    }
+
     logger.error('❌ [authService.googleLogin] Error:', {
       message: error.message,
-      status: error.status || error.response?.status,
+      status,
       code: error.code,
     });
     throw error;

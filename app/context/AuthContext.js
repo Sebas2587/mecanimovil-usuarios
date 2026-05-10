@@ -581,6 +581,19 @@ export const AuthProvider = ({ children }) => {
 
       const response = await authService.googleLogin(idToken, flow);
 
+      // googleLogin puede retornar USER_NOT_FOUND como objeto (no excepción)
+      if (response?.__userNotFound) {
+        return {
+          success: false,
+          code: 'USER_NOT_FOUND',
+          profile: {
+            email: response.email,
+            given_name: response.given_name,
+            family_name: response.family_name,
+          },
+        };
+      }
+
       if (!response.token) {
         throw new Error('No se recibió un token válido del servidor');
       }
