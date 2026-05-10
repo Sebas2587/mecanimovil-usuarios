@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo } from 'react';
+import React, { useLayoutEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Star, ChevronRight, MessageCircle, MapPin, Award } from 'lucide-react-native';
 
@@ -76,6 +77,18 @@ const ProviderDetailScreen = () => {
     if (sameId && sameType) return;
     navigation.setParams({ type: w.providerType, id: w.providerId });
   }, [navigation, params.id, params.providerId, params.type, params.providerType]);
+
+  const queryClient = useQueryClient();
+
+  // Invalida el query de servicios (fotos) cada vez que la pantalla recibe foco.
+  // Esto cubre tanto mount/unmount del stack como regreso desde otra pantalla.
+  useFocusEffect(
+    useCallback(() => {
+      if (idToLoad && providerType) {
+        queryClient.invalidateQueries({ queryKey: ['providerServices', providerType, idToLoad] });
+      }
+    }, [queryClient, idToLoad, providerType])
+  );
 
   const { data: details, isLoading: loadingDetails } = useProviderDetails(idToLoad, providerType);
   const { data: services } = useProviderServices(idToLoad, providerType);
