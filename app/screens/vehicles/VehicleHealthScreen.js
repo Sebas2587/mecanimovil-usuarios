@@ -198,13 +198,18 @@ const VehicleHealthScreen = ({ route }) => {
       } catch (e) {
         console.warn('No se pudo hidratar parche optimista:', e?.message);
       } finally {
-        if (!cancelled) setOptimisticHydrated(true);
+        if (!cancelled) {
+          // Sincronizar mapa hidratado con el servicio para que UserPanelScreen
+          // y MarketplaceVehicleDetailScreen usen el mismo pipeline.
+          VehicleHealthService.setPatchMap(vehicleId, optimisticDeclRef.current);
+          setOptimisticHydrated(true);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [optimisticStorageKey]);
+  }, [optimisticStorageKey, vehicleId]);
 
   const clearHealthPollTimers = useCallback(() => {
     healthPollTimersRef.current.forEach(clearTimeout);
@@ -586,6 +591,8 @@ const VehicleHealthScreen = ({ route }) => {
         fechaIso,
         expiry: Date.now() + 24 * 60 * 60 * 1000,
       });
+      // Notificar al servicio para que UserPanelScreen y Marketplace usen el parche actualizado.
+      VehicleHealthService.setPatchMap(vehicleId, optimisticDeclRef.current);
       persistOptimistic();
 
       setHealthData((prev) => {

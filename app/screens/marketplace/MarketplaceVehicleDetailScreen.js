@@ -108,11 +108,13 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
             setFullVehicleData(prev => ({ ...prev, ...detailData }));
             setLoadError(null);
 
-            // Salud pública en detalle (embed); si hay sesión y el vehículo es del cliente, GET /health/ alinea con VehicleHealthScreen.
+            // Salud pública en detalle (embed); si hay sesión y el vehículo es del cliente,
+            // usamos getVehicleHealthWithPatches para que el % coincida exactamente con
+            // VehicleHealthScreen y UserPanelScreen (misma lógica de parches optimistas).
             let mergedHealth = detailData.health_data || detailData.health || {};
             if (user?.id) {
                 try {
-                    const h = await VehicleHealthService.getVehicleHealth(effectiveVehicleId, true);
+                    const h = await VehicleHealthService.getVehicleHealthWithPatches(effectiveVehicleId, true);
                     if (h && typeof h === 'object' && !h.error) {
                         mergedHealth = { ...mergedHealth, ...h };
                     }
