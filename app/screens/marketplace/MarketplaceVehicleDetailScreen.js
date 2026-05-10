@@ -677,6 +677,13 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                             </View>
                         )}
                     </View>
+                    {/* Descripción del vendedor */}
+                    {!loading && fullVehicleData.descripcion_venta ? (
+                        <View style={styles.descripcionCard}>
+                            <Text style={styles.descripcionCardTitle}>Descripción del vendedor</Text>
+                            <Text style={styles.descripcionCardText}>{fullVehicleData.descripcion_venta}</Text>
+                        </View>
+                    ) : null}
 
                     {/* Service Timeline - REDESIGNED */}
                     {/* Vehicle Specs Section */}
@@ -732,13 +739,6 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                         </View>
                     </View>
 
-                    {/* Descripción del vendedor */}
-                    {!loading && fullVehicleData.descripcion_venta ? (
-                        <View style={styles.descripcionCard}>
-                            <Text style={styles.descripcionCardTitle}>Descripción del vendedor</Text>
-                            <Text style={styles.descripcionCardText}>{fullVehicleData.descripcion_venta}</Text>
-                        </View>
-                    ) : null}
 
                     {history.length > 0 && (
                         <>

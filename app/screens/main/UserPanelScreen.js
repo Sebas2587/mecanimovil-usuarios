@@ -1095,7 +1095,7 @@ const UserPanelScreen = () => {
             </View>
             <Text style={styles.panelSectionHint}>
               Talleres y mecánicos compatibles con tu {selectedVehicle.marca_nombre || 'marca'}{' '}
-              {selectedVehicle.modelo_nombre || ''}, ordenados por distancia desde tu dirección.
+              {selectedVehicle.modelo_nombre || ''}.
             </Text>
             {!selectedAddress ? (
               <Card style={{ paddingVertical: 16 }}>
@@ -1170,8 +1170,7 @@ const UserPanelScreen = () => {
             </View>
             <Text style={styles.panelSectionHint}>
               Misma marca y modelo ({selectedVehicle.marca_nombre || '—'}{' '}
-              {selectedVehicle.modelo_nombre || ''}). A la derecha: personas distintas que pidieron
-              cada servicio.
+              {selectedVehicle.modelo_nombre || ''}).
             </Text>
             {panelActivityLoading ? (
               <Card style={{ paddingVertical: 20, alignItems: 'center' }}>

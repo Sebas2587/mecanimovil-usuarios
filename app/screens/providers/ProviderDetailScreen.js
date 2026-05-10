@@ -209,6 +209,8 @@ const ProviderDetailScreen = () => {
         <ProviderHeader
           provider={provider}
           providerType={providerType}
+          useWeeklyAvailabilityBadge
+          weeklyHorarios={schedule}
           onShare={handleShare}
           onToggleFavorite={handleToggleFavorite}
           isFavorite={favorite}

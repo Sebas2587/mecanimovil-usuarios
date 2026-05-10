@@ -239,6 +239,8 @@ const PublicProviderDetailScreen = () => {
       <ProviderHeader
         provider={provider}
         providerType={providerType}
+        useWeeklyAvailabilityBadge
+        weeklyHorarios={provider?.horarios_semanales}
         showBackButton={false}
         onShare={handleShare}
       />

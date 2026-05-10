@@ -177,6 +177,49 @@ export const getKpiTierPresentation = (kpiBadge) => {
   return { label, bg_color, text_color, border_color, styleCode };
 };
 
+/** `dia_semana` del API: 0=Lunes … 6=Domingo (igual que Python weekday). */
+export function jsDateToBackendDiaSemana(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  const js = d.getDay(); // 0=Dom … 6=Sáb
+  return js === 0 ? 6 : js - 1;
+}
+
+function parseHorarioToMinutes(timeStr) {
+  if (timeStr == null || timeStr === '') return null;
+  const parts = String(timeStr).trim().split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1] || '0', 10);
+  if (Number.isNaN(h)) return null;
+  return h * 60 + (Number.isNaN(m) ? 0 : m);
+}
+
+/** True si hay al menos un día con ventana horaria activa (misma lógica que ProviderScheduleSection). */
+export function weeklyHorariosHasAnyActiveSlot(horarios) {
+  const items = Array.isArray(horarios) ? horarios : [];
+  return items.some((it) => {
+    const d = Number(it?.dia_semana);
+    if (!Number.isFinite(d) || d < 0 || d > 6) return false;
+    return !!it?.activo && it?.hora_inicio && it?.hora_fin;
+  });
+}
+
+/**
+ * Si el proveedor atiende "ahora" según horarios semanales del API (hora local del dispositivo).
+ * Rango [hora_inicio, hora_fin): a las 18:00 ya no cuenta como dentro si fin es 18:00.
+ */
+export function isProviderOpenAccordingToWeeklyHorarios(horarios, now = new Date()) {
+  if (!weeklyHorariosHasAnyActiveSlot(horarios)) return false;
+  const dia = jsDateToBackendDiaSemana(now);
+  const items = Array.isArray(horarios) ? horarios : [];
+  const slot = items.find((it) => Number(it?.dia_semana) === dia);
+  if (!slot || !slot.activo || !slot.hora_inicio || !slot.hora_fin) return false;
+  const start = parseHorarioToMinutes(slot.hora_inicio);
+  const end = parseHorarioToMinutes(slot.hora_fin);
+  if (start == null || end == null || end <= start) return false;
+  const cur = now.getHours() * 60 + now.getMinutes();
+  return cur >= start && cur < end;
+}
+
 /**
  * Devuelve la cadena de especialidad/marcas de un proveedor.
  * Prioridad: marcas_atendidas_nombres → especialidades_nombres → especialidades[].nombre → fallback

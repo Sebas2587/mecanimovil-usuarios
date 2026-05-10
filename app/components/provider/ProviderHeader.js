@@ -1,15 +1,34 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
-import { buildProviderAvatarUri, getKpiTierPresentation } from '../../utils/providerUtils';
+import {
+  buildProviderAvatarUri,
+  getKpiTierPresentation,
+  isProviderOpenAccordingToWeeklyHorarios,
+  weeklyHorariosHasAnyActiveSlot,
+} from '../../utils/providerUtils';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function useScheduleOpenTick(enabled) {
+  const [tick, setTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const id = setInterval(() => setTick(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, [enabled]);
+  return tick;
+}
 
 const ProviderHeader = ({
   provider,
   providerType,
+  /** Si es true, el pill de disponibilidad usa `weeklyHorarios` (hora local del dispositivo). */
+  useWeeklyAvailabilityBadge = false,
+  /** Lista de `{ dia_semana, activo, hora_inicio, hora_fin }` o `undefined` mientras carga el hook. */
+  weeklyHorarios,
   onShare,
   onToggleFavorite,
   isFavorite = false,
@@ -21,6 +40,25 @@ const ProviderHeader = ({
   const kpiPresentation = getKpiTierPresentation(kpiBadge);
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const scheduleTick = useScheduleOpenTick(useWeeklyAvailabilityBadge);
+
+  const availability = useMemo(() => {
+    if (!useWeeklyAvailabilityBadge) {
+      return { phase: 'hidden' };
+    }
+    if (weeklyHorarios === undefined) {
+      return { phase: 'loading' };
+    }
+    const hasAny = weeklyHorariosHasAnyActiveSlot(weeklyHorarios);
+    if (!hasAny) {
+      return { phase: 'unavailable', label: 'No disponible' };
+    }
+    const open = isProviderOpenAccordingToWeeklyHorarios(weeklyHorarios, new Date(scheduleTick));
+    return {
+      phase: open ? 'open' : 'closed',
+      label: open ? 'Disponible' : 'No disponible',
+    };
+  }, [useWeeklyAvailabilityBadge, weeklyHorarios, scheduleTick]);
 
   const name = provider?.nombre || 'Proveedor Profesional';
   const resolvedType = providerType || (provider?.tipo === 'taller' ? 'taller' : 'mecanico');
@@ -95,31 +133,52 @@ const ProviderHeader = ({
             ) : null}
           </View>
 
-          <View style={styles.statusBadge}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>Disponible hoy</Text>
-          </View>
+          {availability.phase === 'hidden' ? null : availability.phase === 'loading' ? (
+            <View style={[styles.statusBadge, styles.statusBadgeLoading]}>
+              <ActivityIndicator size="small" color={COLORS.text.tertiary} />
+              <Text style={styles.statusTextMuted}>Horario…</Text>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.statusBadge,
+                availability.phase === 'open' ? styles.statusBadgeOpen : styles.statusBadgeClosed,
+              ]}
+            >
+              <View
+                style={[
+                  styles.statusDot,
+                  availability.phase === 'open' ? styles.statusDotOpen : styles.statusDotClosed,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.statusText,
+                  availability.phase === 'open' ? styles.statusTextOpen : styles.statusTextClosed,
+                ]}
+              >
+                {availability.label}
+              </Text>
+            </View>
+          )}
         </View>
 
-        <Text style={styles.name}>{name}</Text>
-        <Text style={styles.type}>{[type, location].filter(Boolean).join(' • ') || type}</Text>
-
-        {kpiPresentation ? (
-          <View style={styles.badgesRow}>
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={2}>
+            {name}
+          </Text>
+          {kpiPresentation ? (
             <View
               style={[
                 styles.kpiBadge,
+                styles.kpiBadgeInline,
                 {
                   backgroundColor: kpiPresentation.bg_color,
                   borderColor: kpiPresentation.border_color,
                 },
               ]}
             >
-              <Ionicons
-                name="ribbon-outline"
-                size={14}
-                color={kpiPresentation.text_color}
-              />
+              <Ionicons name="ribbon-outline" size={14} color={kpiPresentation.text_color} />
               <Text
                 style={[styles.kpiBadgeText, { color: kpiPresentation.text_color }]}
                 numberOfLines={1}
@@ -127,8 +186,9 @@ const ProviderHeader = ({
                 {kpiPresentation.label}
               </Text>
             </View>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
+        <Text style={styles.type}>{[type, location].filter(Boolean).join(' • ') || type}</Text>
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
@@ -245,41 +305,70 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.success.light,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: BORDERS.radius.full,
     borderWidth: 1,
+    maxWidth: '52%',
+  },
+  statusBadgeOpen: {
+    backgroundColor: COLORS.success.light,
     borderColor: COLORS.success.main,
+  },
+  statusBadgeClosed: {
+    backgroundColor: COLORS.neutral.gray[100],
+    borderColor: COLORS.neutral.gray[300],
+  },
+  statusBadgeLoading: {
+    backgroundColor: COLORS.neutral.gray[100],
+    borderColor: COLORS.neutral.gray[300],
+    gap: 6,
   },
   statusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.success.main,
     marginRight: 6,
+  },
+  statusDotOpen: {
+    backgroundColor: COLORS.success.main,
+  },
+  statusDotClosed: {
+    backgroundColor: COLORS.neutral.gray[500],
   },
   statusText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  statusTextOpen: {
     color: COLORS.success.main,
   },
+  statusTextClosed: {
+    color: COLORS.text.secondary,
+  },
+  statusTextMuted: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 4,
+  },
   name: {
+    flex: 1,
+    minWidth: 0,
     fontSize: TYPOGRAPHY.styles.h3.fontSize,
     fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
     letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
     color: COLORS.text.primary,
-    marginBottom: 4,
   },
   type: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.secondary,
-    marginBottom: 12,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
     marginBottom: 12,
   },
   kpiBadge: {
@@ -290,7 +379,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: BORDERS.radius.full,
     borderWidth: 1,
-    maxWidth: '100%',
+  },
+  kpiBadgeInline: {
+    flexShrink: 0,
+    maxWidth: '46%',
   },
   kpiBadgeText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
