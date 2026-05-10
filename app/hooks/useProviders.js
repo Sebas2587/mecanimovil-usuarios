@@ -217,9 +217,9 @@ export const useProviderServices = (id, type, providerName) => {
             return Array.from(serviciosMap.values());
         },
         enabled: !!id && !!type,
-        staleTime: 1000 * 60 * 2,   // 2 min — fotos pueden actualizarse seguido
+        staleTime: 0,                // siempre considerar datos desactualizados
         gcTime: 1000 * 60 * 10,     // 10 min en memoria
-        refetchOnMount: true,        // re-verificar al navegar al perfil del proveedor
+        refetchOnMount: 'always',    // forzar refetch cada vez que se abre el perfil
         refetchOnWindowFocus: false,
     });
 };
