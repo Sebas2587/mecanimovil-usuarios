@@ -67,6 +67,91 @@ function resolveEvidenciaUri(foto) {
   return '';
 }
 
+/**
+ * Convierte respuesta_seleccion (string | array | objeto) en filas legibles para chips.
+ */
+function seleccionRespuestaAChips(sel) {
+  if (sel == null) return [];
+  if (Array.isArray(sel)) {
+    return sel.map((x) => {
+      if (typeof x === 'string' || typeof x === 'number' || typeof x === 'boolean') {
+        return String(x);
+      }
+      if (x && typeof x === 'object') {
+        if (x.name != null) return String(x.name);
+        if (x.label != null) return String(x.label);
+        if (x.texto != null) return String(x.texto);
+      }
+      try {
+        return JSON.stringify(x);
+      } catch {
+        return String(x);
+      }
+    });
+  }
+  if (typeof sel === 'string') {
+    try {
+      const parsed = JSON.parse(sel);
+      if (Array.isArray(parsed) || (parsed && typeof parsed === 'object')) {
+        return seleccionRespuestaAChips(parsed);
+      }
+    } catch {
+      /* texto plano */
+    }
+    return sel.trim() ? [sel] : [];
+  }
+  if (typeof sel === 'object') {
+    const flat = Object.values(sel).filter(
+      (v) => v != null && typeof v !== 'object'
+    );
+    if (flat.length > 0) return flat.map(String);
+    try {
+      return [JSON.stringify(sel)];
+    } catch {
+      return [];
+    }
+  }
+  return [String(sel)];
+}
+
+/** Tipos donde el técnico elige opciones (debe verse igual en la app del cliente). */
+const TIPOS_OPCION_TECNICO = new Set([
+  'SELECT',
+  'FLUID_LEVEL',
+  'MULTISELECT',
+  'SERVICE_SELECTION',
+  'VEHICLE_CONDITION',
+  'ELECTRICAL_CHECK',
+  'BRAKE_CHECK',
+  'SUSPENSION_CHECK',
+  'TIRE_CONDITION',
+  'EXTERIOR_INSPECTION',
+  'INTERIOR_INSPECTION',
+  'ENGINE_INSPECTION',
+]);
+
+function tituloOpcionTecnico(tipoPregunta) {
+  switch (tipoPregunta) {
+    case 'FLUID_LEVEL':
+      return 'Nivel indicado por el técnico';
+    case 'SELECT':
+      return 'Opción elegida por el técnico';
+    case 'MULTISELECT':
+    case 'SERVICE_SELECTION':
+    case 'VEHICLE_CONDITION':
+    case 'ELECTRICAL_CHECK':
+    case 'BRAKE_CHECK':
+    case 'SUSPENSION_CHECK':
+    case 'TIRE_CONDITION':
+    case 'EXTERIOR_INSPECTION':
+    case 'INTERIOR_INSPECTION':
+    case 'ENGINE_INSPECTION':
+      return 'Opciones indicadas por el técnico';
+    default:
+      return 'Selección del técnico';
+  }
+}
+
 /** Texto del badge de estado en el header; null = no mostrar badge. */
 function labelEstadoInforme(estado) {
   if (estado == null || estado === '') return null;
@@ -220,37 +305,76 @@ const ChecklistViewerModal = ({
         'Pregunta sin título'
       );
       const tipoPregunta = respuesta.item_info?.tipo_pregunta || respuesta.item_template_info?.tipo_pregunta;
+      /** SIGNATURE guarda base64 en JSON; no mostrar eso como “chips” (parece código). */
+      const isSignatureItem = tipoPregunta === 'SIGNATURE';
 
       const hasSeleccion =
-        respuesta.respuesta_seleccion != null && tipoPregunta !== 'BOOLEAN';
+        !isSignatureItem &&
+        respuesta.respuesta_seleccion != null &&
+        tipoPregunta !== 'BOOLEAN';
       const hasTexto = Boolean(respuesta.respuesta_texto);
       const hasNumero =
         respuesta.respuesta_numero !== null && respuesta.respuesta_numero !== undefined;
       const hasBoolean =
         respuesta.respuesta_booleana !== null && respuesta.respuesta_booleana !== undefined;
-      const hasVerificacion = hasSeleccion || hasTexto || hasNumero || hasBoolean;
+      const hasFecha =
+        respuesta.respuesta_fecha != null && respuesta.respuesta_fecha !== '';
+      let hasTextoMostrar = hasTexto;
+      if (isSignatureItem && hasTexto) {
+        const t = String(respuesta.respuesta_texto || '').trim();
+        const parecePayloadFirma =
+          /^data:image\//i.test(t) ||
+          (/^[A-Za-z0-9+/=\s]+$/.test(t) && t.length > 200);
+        if (parecePayloadFirma) {
+          hasTextoMostrar = false;
+        }
+      }
+
+      const firmaSoloMarcada =
+        isSignatureItem &&
+        respuesta.completado &&
+        !hasSeleccion &&
+        !hasTextoMostrar &&
+        !hasNumero &&
+        !hasBoolean &&
+        !hasFecha;
 
       const fotos = respuesta.fotos && Array.isArray(respuesta.fotos) ? respuesta.fotos : [];
       const hasFotos = fotos.length > 0;
 
+      const esTipoOpcionesTecnico =
+        Boolean(tipoPregunta) && TIPOS_OPCION_TECNICO.has(tipoPregunta);
+
+      /** Paso marcado listo pero sin valor guardado (p. ej. checklist antiguo antes del fix del taller). */
+      const detalleOpcionFaltante =
+        esTipoOpcionesTecnico &&
+        !isSignatureItem &&
+        respuesta.completado &&
+        !hasSeleccion &&
+        !hasTextoMostrar &&
+        !hasNumero &&
+        !hasBoolean &&
+        !hasFecha &&
+        !hasFotos;
+
+      const hasVerificacion =
+        hasSeleccion ||
+        hasTextoMostrar ||
+        hasNumero ||
+        hasBoolean ||
+        hasFecha ||
+        firmaSoloMarcada ||
+        detalleOpcionFaltante;
+
       let opcionesSel = [];
       if (hasSeleccion) {
-        const sel = respuesta.respuesta_seleccion;
-        if (Array.isArray(sel)) opcionesSel = sel;
-        else if (typeof sel === 'string') {
-          try {
-            const parsed = JSON.parse(sel);
-            opcionesSel = Array.isArray(parsed) ? parsed : [sel];
-          } catch {
-            opcionesSel = [sel];
-          }
-        }
+        opcionesSel = seleccionRespuestaAChips(respuesta.respuesta_seleccion);
       }
 
       let iconoTexto = null;
       let unidad = '';
       let valorStyle = {};
-      if (hasTexto) {
+      if (hasTextoMostrar) {
         if (tipoPregunta === 'KILOMETER_INPUT') {
           iconoTexto = (
             <Ionicons name="speedometer-outline" size={16} color={C.accent} style={styles.inlineIcon} />
@@ -282,19 +406,37 @@ const ChecklistViewerModal = ({
               <Text style={styles.bundleSectionTitle}>Verificación</Text>
               {hasSeleccion ? (
                 <View style={styles.bundleBlock}>
-                  <Text style={styles.inlineMetaLabel}>Selección</Text>
-                  <View style={styles.chipsWrap}>
-                    {opcionesSel.map((op, oi) => (
-                      <View key={String(oi)} style={styles.seleccionChip}>
-                        <Ionicons name="checkmark-circle" size={14} color={C.success} />
-                        <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
-                      </View>
-                    ))}
+                  <Text style={styles.inlineMetaLabel}>{tituloOpcionTecnico(tipoPregunta)}</Text>
+                  {opcionesSel.length === 1 ? (
+                    <View style={styles.valorRow}>
+                      <Ionicons name="checkmark-circle" size={20} color={C.success} style={styles.inlineIcon} />
+                      <Text style={styles.valorSeleccionDestacada}>{String(opcionesSel[0])}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.chipsWrap}>
+                      {opcionesSel.map((op, oi) => (
+                        <View key={String(oi)} style={styles.seleccionChip}>
+                          <Ionicons name="checkmark-circle" size={14} color={C.success} />
+                          <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ) : null}
+
+              {detalleOpcionFaltante ? (
+                <View style={[styles.bundleBlock, styles.bundleBlockAviso]}>
+                  <View style={styles.valorRow}>
+                    <Ionicons name="information-circle-outline" size={18} color={C.textSecondary} style={styles.inlineIcon} />
+                    <Text style={styles.avisoDetalleFaltante}>
+                      El técnico completó este paso, pero la opción elegida no quedó guardada en el informe. En servicios nuevos, aquí verás el mismo nivel u opción que eligió el taller (por ejemplo Normal, Bajo, etc.).
+                    </Text>
                   </View>
                 </View>
               ) : null}
 
-              {hasTexto ? (
+              {hasTextoMostrar ? (
                 <View style={styles.bundleBlock}>
                   <Text style={styles.inlineMetaLabel}>Respuesta</Text>
                   <View style={styles.valorRow}>
@@ -303,6 +445,16 @@ const ChecklistViewerModal = ({
                       {String(respuesta.respuesta_texto)}
                       {unidad}
                     </Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {firmaSoloMarcada ? (
+                <View style={styles.bundleBlock}>
+                  <Text style={styles.inlineMetaLabel}>Estado</Text>
+                  <View style={styles.valorRow}>
+                    <Ionicons name="checkmark-circle" size={16} color={C.success} style={styles.inlineIcon} />
+                    <Text style={styles.respuestaValor}>Firma registrada</Text>
                   </View>
                 </View>
               ) : null}
@@ -330,6 +482,32 @@ const ChecklistViewerModal = ({
                       ]}
                     >
                       {respuesta.respuesta_booleana ? 'Correcto' : 'Requiere atención'}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {hasFecha ? (
+                <View style={styles.bundleBlock}>
+                  <Text style={styles.inlineMetaLabel}>Fecha y hora</Text>
+                  <View style={styles.valorRow}>
+                    <Ionicons name="calendar-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+                    <Text style={styles.respuestaValor}>
+                      {(() => {
+                        try {
+                          const d = new Date(respuesta.respuesta_fecha);
+                          if (Number.isNaN(d.getTime())) return 'No disponible';
+                          return d.toLocaleString('es-CL', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          });
+                        } catch {
+                          return String(respuesta.respuesta_fecha);
+                        }
+                      })()}
                     </Text>
                   </View>
                 </View>
@@ -1081,6 +1259,30 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: DS_COLORS.success[800],
+  },
+
+  valorSeleccionDestacada: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.primary,
+    lineHeight: 24,
+  },
+
+  bundleBlockAviso: {
+    backgroundColor: DS_COLORS.neutral.gray[50],
+    borderRadius: BORDERS.radius.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+  },
+
+  avisoDetalleFaltante: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.secondary,
+    lineHeight: 20,
   },
 
   fotosContainer: {

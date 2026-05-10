@@ -67,7 +67,11 @@ import { getNearbyProvidersForPanel } from '../../services/providers';
 import { getActividadMercadoVehiculo } from '../../services/user';
 import { geocodeAddress } from '../../services/location';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
-import { resolveVehicleHealthPct } from '../../utils/healthFormat';
+import {
+  getHealthColorToken,
+  getHealthLabel,
+  resolveVehicleHealthPct,
+} from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
@@ -91,18 +95,6 @@ const formatCLP = (value) => {
   if (!value || value <= 0) return '--';
   const formatted = Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   return `$${formatted}`;
-};
-
-const getHealthColor = (score) => {
-  if (score >= 70) return COLORS.success.main;
-  if (score >= 40) return COLORS.warning.main;
-  return COLORS.error.main;
-};
-
-const getHealthLabel = (score) => {
-  if (score >= 70) return 'Óptimo';
-  if (score >= 40) return 'Atención';
-  return 'Crítico';
 };
 
 const formatDuration = (ms) => {
@@ -286,6 +278,7 @@ const UserPanelScreen = () => {
   }, [selectedVehicleId, vehiclesHealth.data]);
 
   const healthScore = resolveVehicleHealthPct(selectedVehicle, selectedHealthSummary);
+  const healthScoreColor = getHealthColorToken(COLORS, healthScore);
 
   const valuation =
     selectedVehicle?.precio_sugerido_final || selectedVehicle?.precio_mercado_promedio || 0;
@@ -871,22 +864,15 @@ const UserPanelScreen = () => {
                   })
                 }
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={`Salud del vehículo ${Math.round(healthScore)} por ciento, ${getHealthLabel(healthScore)}`}
               >
-                <View
-                  style={[styles.healthCircle, { borderColor: getHealthColor(healthScore) }]}
-                >
-                  <Text
-                    style={[styles.healthCircleValue, { color: getHealthColor(healthScore) }]}
-                  >
-                    {Math.round(healthScore)}
+                <View style={[styles.healthCircle, { borderColor: healthScoreColor }]}>
+                  <Text style={[styles.healthCirclePct, { color: healthScoreColor }]}>
+                    {Math.round(healthScore)}%
                   </Text>
-                  <Text style={styles.healthCircleUnit}>%</Text>
+                  <Text style={styles.healthCircleSaludLabel}>Salud</Text>
                 </View>
-                <Text
-                  style={[styles.healthCircleLabel, { color: getHealthColor(healthScore) }]}
-                >
-                  {getHealthLabel(healthScore)}
-                </Text>
               </TouchableOpacity>
             </View>
 
@@ -1710,29 +1696,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 16,
   },
+  /** Alineado con `VehicleHealthScreen` (`scoreCircle` / `scoreText` / `scoreLabel`). */
   healthCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: BORDERS.radius.full,
-    borderWidth: 3,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 6,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.neutral.gray[100],
   },
-  healthCircleValue: {
+  healthCirclePct: {
     fontSize: 22,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
-  healthCircleUnit: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+  healthCircleSaludLabel: {
+    fontSize: 10,
     color: COLORS.text.tertiary,
+    textTransform: 'uppercase',
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    marginTop: -2,
-  },
-  healthCircleLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    marginTop: 4,
   },
   odometerRow: {
     flexDirection: 'row',

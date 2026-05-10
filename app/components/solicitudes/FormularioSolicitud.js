@@ -13,6 +13,8 @@ import {
   Modal,
   Dimensions,
   Pressable,
+  Keyboard,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -221,6 +223,7 @@ const FormularioSolicitud = ({
   const [descriptionModalVisible, setDescriptionModalVisible] = useState(false);
   const [tempDescription, setTempDescription] = useState('');
   const [tempFotosNecesidad, setTempFotosNecesidad] = useState([]);
+  const [descModalKeyboardInset, setDescModalKeyboardInset] = useState(0);
 
   const MAX_FOTOS_NECESIDAD = 3;
 
@@ -353,6 +356,24 @@ const FormularioSolicitud = ({
   const descripcionProblemaRef = useRef(null);
   const paso2ScrollViewRef = useRef(null);
   const descripcionYPosition = useRef(0);
+
+  // Modal "Describe tu necesidad": mantener el formulario por encima del teclado
+  useEffect(() => {
+    if (!descriptionModalVisible) {
+      setDescModalKeyboardInset(0);
+      return;
+    }
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const onShow = (e) => setDescModalKeyboardInset(e?.endCoordinates?.height ?? 0);
+    const onHide = () => setDescModalKeyboardInset(0);
+    const subShow = Keyboard.addListener(showEvent, onShow);
+    const subHide = Keyboard.addListener(hideEvent, onHide);
+    return () => {
+      subShow.remove();
+      subHide.remove();
+    };
+  }, [descriptionModalVisible]);
 
   // Sincronizar formData con initialData cuando cambia
   // IMPORTANTE: Solo sincronizar cuando hay datos reales en initialData (servicios preseleccionados)
@@ -2570,79 +2591,126 @@ const FormularioSolicitud = ({
       </View>
 
       {/* Description Modal: backdrop con Pressable (no TouchableOpacity envolviendo el formulario) para que en web el TextInput no dispare cierre al enfocar/escribir */}
-      <Modal visible={descriptionModalVisible} transparent animationType="fade" onRequestClose={() => setDescriptionModalVisible(false)}>
-        <View style={styles.modalOverlay} pointerEvents="box-none">
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setDescriptionModalVisible(false)}
-            accessibilityLabel="Cerrar modal"
-          />
+      <Modal
+        visible={descriptionModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setDescriptionModalVisible(false);
+        }}
+      >
+        <KeyboardAvoidingView
+          style={styles.descModalKeyboardRoot}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          enabled={Platform.OS === 'ios'}
+        >
           <View
-            style={styles.descModal}
-            onStartShouldSetResponder={() => true}
-            {...(Platform.OS === 'web'
-              ? {
-                  onPointerDown: (e) => {
-                    e?.stopPropagation?.();
-                  },
-                }
-              : {})}
+            style={[
+              styles.modalOverlay,
+              Platform.OS === 'android' &&
+                descModalKeyboardInset > 0 && {
+                  justifyContent: 'flex-end',
+                  paddingBottom: descModalKeyboardInset + 12,
+                },
+            ]}
+            pointerEvents="box-none"
           >
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <FileTextIcon size={22} color={COLORS.primary[500]} />
-                <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Describe tu necesidad</Text>
-              </View>
-              <Text style={{ color: COLORS.text.secondary, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
-                Cuéntanos qué problema tienes para que los proveedores entiendan tu solicitud. Puedes adjuntar hasta 3 fotos.
-              </Text>
-              <TextInput
-                style={styles.descModalInput}
-                multiline
-                numberOfLines={5}
-                placeholder="Ej: Mi auto hace un ruido al frenar..."
-                placeholderTextColor={COLORS.text.disabled}
-                value={tempDescription}
-                onChangeText={setTempDescription}
-                textAlignVertical="top"
-                autoFocus={Platform.OS !== 'web'}
-                {...(Platform.OS === 'web'
-                  ? {
-                      onPointerDown: (e) => {
-                        e?.stopPropagation?.();
-                      },
-                    }
-                  : {})}
-              />
-              {renderFotosNecesidadEditor(tempFotosNecesidad, setTempFotosNecesidad)}
-            </ScrollView>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              <TouchableOpacity style={styles.descModalCancelBtn} onPress={() => setDescriptionModalVisible(false)}>
-                <Text style={{ color: COLORS.text.secondary, fontSize: 15, fontWeight: '600' }}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ flex: 1, opacity: tempDescription.trim() ? 1 : 0.4 }}
-                onPress={() => {
-                  if (tempDescription.trim()) {
-                    setFormData((prev) => ({
-                      ...prev,
-                      descripcion_problema: tempDescription.trim(),
-                      fotos_necesidad: Array.isArray(tempFotosNecesidad) ? [...tempFotosNecesidad] : [],
-                    }));
-                    setDescriptionModalVisible(false);
-                    setPasoActual(3);
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={() => {
+                Keyboard.dismiss();
+                setDescriptionModalVisible(false);
+              }}
+              accessibilityLabel="Cerrar modal"
+            />
+            <View
+              style={[
+                styles.descModal,
+                Platform.OS !== 'web' &&
+                  descModalKeyboardInset > 0 && {
+                    maxHeight: Math.min(
+                      SCREEN_HEIGHT * 0.58,
+                      SCREEN_HEIGHT - descModalKeyboardInset - 40
+                    ),
+                  },
+              ]}
+              onStartShouldSetResponder={() => true}
+              {...(Platform.OS === 'web'
+                ? {
+                    onPointerDown: (e) => {
+                      e?.stopPropagation?.();
+                    },
                   }
-                }}
-                disabled={!tempDescription.trim()}
+                : {})}
+            >
+              <ScrollView
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                keyboardDismissMode="on-drag"
               >
-                <View style={{ borderRadius: BORDERS.radius.md, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.primary[500] }}>
-                  <Text style={{ color: COLORS.text.onPrimary, fontSize: 15, fontWeight: '700' }}>Continuar</Text>
-                  <ChevronRightIcon size={18} color={COLORS.text.onPrimary} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <FileTextIcon size={22} color={COLORS.primary[500]} />
+                  <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Describe tu necesidad</Text>
                 </View>
-              </TouchableOpacity>
+                <Text style={{ color: COLORS.text.secondary, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
+                  Cuéntanos qué problema tienes para que los proveedores entiendan tu solicitud. Puedes adjuntar hasta 3 fotos.
+                </Text>
+                <TextInput
+                  style={styles.descModalInput}
+                  multiline
+                  numberOfLines={5}
+                  placeholder="Ej: Mi auto hace un ruido al frenar..."
+                  placeholderTextColor={COLORS.text.disabled}
+                  value={tempDescription}
+                  onChangeText={setTempDescription}
+                  textAlignVertical="top"
+                  autoFocus={Platform.OS !== 'web'}
+                  {...(Platform.OS === 'web'
+                    ? {
+                        onPointerDown: (e) => {
+                          e?.stopPropagation?.();
+                        },
+                      }
+                    : {})}
+                />
+                {renderFotosNecesidadEditor(tempFotosNecesidad, setTempFotosNecesidad)}
+              </ScrollView>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+                <TouchableOpacity
+                  style={styles.descModalCancelBtn}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setDescriptionModalVisible(false);
+                  }}
+                >
+                  <Text style={{ color: COLORS.text.secondary, fontSize: 15, fontWeight: '600' }}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{ flex: 1, opacity: tempDescription.trim() ? 1 : 0.4 }}
+                  onPress={() => {
+                    if (tempDescription.trim()) {
+                      Keyboard.dismiss();
+                      setFormData((prev) => ({
+                        ...prev,
+                        descripcion_problema: tempDescription.trim(),
+                        fotos_necesidad: Array.isArray(tempFotosNecesidad) ? [...tempFotosNecesidad] : [],
+                      }));
+                      setDescriptionModalVisible(false);
+                      setPasoActual(3);
+                    }
+                  }}
+                  disabled={!tempDescription.trim()}
+                >
+                  <View style={{ borderRadius: BORDERS.radius.md, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.primary[500] }}>
+                    <Text style={{ color: COLORS.text.onPrimary, fontSize: 15, fontWeight: '700' }}>Continuar</Text>
+                    <ChevronRightIcon size={18} color={COLORS.text.onPrimary} />
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -2759,6 +2827,9 @@ const styles = StyleSheet.create({
     color: COLORS.text.onPrimary,
     fontSize: 15,
     fontWeight: '700',
+  },
+  descModalKeyboardRoot: {
+    flex: 1,
   },
   modalOverlay: {
     flex: 1,

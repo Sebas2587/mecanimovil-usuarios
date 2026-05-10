@@ -9,6 +9,7 @@ import RepuestosExpandible from './RepuestosExpandible';
 import EstadoSolicitudBadge from '../solicitudes/EstadoSolicitudBadge';
 import { useTheme } from '../../design-system/theme/useTheme';
 import CountdownTimer from '../common/CountdownTimer';
+import { calcularDesgloseIvaOferta } from '../../utils/ofertaPrecioDesglose';
 
 // Habilitar LayoutAnimation en Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -275,19 +276,15 @@ const OfertaCard = ({
     const tieneDesglose =
       costoRepuestos > 0 || costoManoObra > 0 || costoGestionCompra > 0;
 
-    // Calcular subtotal e IVA solo si hay desglose
-    let subtotalSinIva = 0;
-    let iva = 0;
-
-    if (tieneDesglose) {
-      // Usar valores directos del proveedor
-      subtotalSinIva = costoManoObra + costoRepuestos + costoGestionCompra;
-      iva = subtotalSinIva * 0.19;
-    } else {
-      // Si no hay desglose, calcular desde el precio total
-      subtotalSinIva = precioTotal / 1.19;
-      iva = precioTotal - subtotalSinIva;
-    }
+    const desgloseIva = calcularDesgloseIvaOferta({
+      costoManoObra: oferta.costo_mano_obra,
+      costoRepuestos: oferta.costo_repuestos,
+      costoGestionCompra: oferta.costo_gestion_compra,
+      precioTotalOfrecido: oferta.precio_total_ofrecido,
+    });
+    const dApi = oferta.desglose_iva;
+    const subtotalSinIva = dApi?.subtotal_sin_iva ?? desgloseIva.subSinIvaDisplay;
+    const iva = dApi?.iva ?? desgloseIva.ivaDisplay;
 
     return {
       // Servicios individuales de la oferta
@@ -300,10 +297,13 @@ const OfertaCard = ({
       costoManoObra,
       costoRepuestos,
       costoGestionCompra,
-      // Totales
+      // Totales (subtotal + IVA cuadran con precio_total_ofrecido; ver ofertaPrecioDesglose)
       subtotalSinIva: Math.round(subtotalSinIva),
       iva: Math.round(iva),
-      total: Math.round(precioTotal), // Usar el precio total original de la oferta
+      total:
+        dApi != null && Number.isFinite(dApi.total)
+          ? dApi.total
+          : (desgloseIva.totalCliente || Math.round(precioTotal)),
       tieneDesglose
     };
   };

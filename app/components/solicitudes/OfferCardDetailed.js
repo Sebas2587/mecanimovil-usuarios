@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { getMediaURL } from '../../services/api';
+import { calcularDesgloseIvaOferta } from '../../utils/ofertaPrecioDesglose';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -64,16 +65,16 @@ const OfferCardDetailed = ({
     const precioTotal = parseFloat(oferta.precio_total_ofrecido || 0);
     const tieneDesgloseMontos =
         costoManoObra > 0 || costoRepuestos > 0 || costoGestion > 0;
-    const subSinIva = tieneDesgloseMontos
-        ? costoManoObra + costoRepuestos + costoGestion
-        : precioTotal > 0
-            ? precioTotal / 1.19
-            : 0;
-    const ivaMonto = tieneDesgloseMontos
-        ? subSinIva * 0.19
-        : precioTotal > 0
-            ? precioTotal - subSinIva
-            : 0;
+    const desgloseIva = calcularDesgloseIvaOferta({
+        costoManoObra: oferta.costo_mano_obra,
+        costoRepuestos: oferta.costo_repuestos,
+        costoGestionCompra: oferta.costo_gestion_compra,
+        precioTotalOfrecido: oferta.precio_total_ofrecido,
+    });
+    const dApi = oferta.desglose_iva;
+    const subSinIva = dApi?.subtotal_sin_iva ?? desgloseIva.subSinIvaDisplay;
+    const ivaMonto = dApi?.iva ?? desgloseIva.ivaDisplay;
+    const mostrarNotaReconciliacion = desgloseIva.mostrarNotaReconciliacion;
     const mostrarLineasProveedor =
         costoManoObra > 0 ||
         costoRepuestos > 0 ||
@@ -186,8 +187,14 @@ const OfferCardDetailed = ({
                 <View style={styles.divider} />
                 <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total a pagar</Text>
-                    <Text style={styles.totalValue}>${Math.round(precioTotal).toLocaleString()}</Text>
+                    <Text style={styles.totalValue}>${(dApi?.total ?? desgloseIva.totalCliente).toLocaleString()}</Text>
                 </View>
+                {mostrarNotaReconciliacion ? (
+                    <Text style={styles.reconciliacionNota}>
+                        El total coincide con el precio de la oferta. Subtotal e IVA se reparten sobre ese monto; las
+                        líneas superiores son el desglose declarado por el proveedor.
+                    </Text>
+                ) : null}
             </View>
 
             {/* Fecha de la oferta. Bloque "fecha alternativa" solo para ofertas principales (no secundarias) */}
@@ -436,6 +443,13 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.xl,
         fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.primary[600],
+    },
+    reconciliacionNota: {
+        marginTop: SPACING.sm,
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.text.tertiary,
+        lineHeight: 18,
+        fontStyle: 'italic',
     },
     fechaSection: {
         marginBottom: SPACING.md,
