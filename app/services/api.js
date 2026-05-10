@@ -66,22 +66,30 @@ function parseCacheControl(cacheControl) {
   return null;
 }
 
-/**
- * Genera una clave de cache única para una petición
- * @param {string} url - URL de la petición
- * @param {object} params - Parámetros de la petición
- * @returns {string} - Clave única de cache
- */
-function getCacheKey(url, params = {}) {
-  const paramsStr = JSON.stringify(params);
-  return `${url}:${paramsStr}`;
+// Identidad del usuario en sesión actual — se actualiza al hacer login/logout.
+// Se incluye en las cache keys para aislar datos entre usuarios distintos.
+let _currentUserCacheId = 'anon';
+
+export function setCurrentUserCacheId(userId) {
+  const newId = userId ? String(userId) : 'anon';
+  if (newId !== _currentUserCacheId) {
+    _currentUserCacheId = newId;
+    // Limpiar toda la caché al cambiar de usuario — previene cross-user data leakage.
+    responseCache.clear();
+    logger.info(`🔒 api cache: usuario cambió a ${newId}, caché limpiada.`);
+  }
 }
 
 /**
- * Obtiene una respuesta del cache si está disponible y no ha expirado
- * @param {string} url - URL de la petición
- * @param {object} params - Parámetros de la petición
- * @returns {object|null} - Datos cacheados o null si no hay cache válido
+ * Genera una clave de cache única para una petición, incluyendo identidad del usuario.
+ */
+function getCacheKey(url, params = {}) {
+  const paramsStr = JSON.stringify(params);
+  return `${_currentUserCacheId}:${url}:${paramsStr}`;
+}
+
+/**
+ * Obtiene una respuesta del cache si está disponible y no ha expirado.
  */
 function getCachedResponse(url, params = {}) {
   const cacheKey = getCacheKey(url, params);
@@ -92,7 +100,6 @@ function getCachedResponse(url, params = {}) {
   const now = Date.now();
   const age = now - cached.timestamp;
 
-  // Si el cache ha expirado, eliminarlo y retornar null
   if (age >= cached.maxAge) {
     responseCache.delete(cacheKey);
     return null;
@@ -103,15 +110,11 @@ function getCachedResponse(url, params = {}) {
 }
 
 /**
- * Guarda una respuesta en el cache
- * @param {string} url - URL de la petición
- * @param {object} params - Parámetros de la petición
- * @param {object} data - Datos a cachear
- * @param {string} cacheControl - Header Cache-Control del servidor
+ * Guarda una respuesta en el cache.
  */
 function setCachedResponse(url, params = {}, data, cacheControl) {
   const maxAge = parseCacheControl(cacheControl);
-  if (!maxAge) return; // No cachear si no hay max-age
+  if (!maxAge) return;
 
   const cacheKey = getCacheKey(url, params);
   responseCache.set(cacheKey, {

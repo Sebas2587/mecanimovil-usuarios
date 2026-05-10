@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as authService from '../services/auth';
 import * as userService from '../services/user';
 import WebSocketService from '../services/websocketService';
-import { forceReconnect, setOnAuthExpired } from '../services/api';
+import { forceReconnect, setOnAuthExpired, setCurrentUserCacheId } from '../services/api';
 import logger from '../utils/logger';
 import NotificationService from '../services/notificationService';
 import Constants from 'expo-constants';
@@ -55,6 +55,12 @@ export const AuthProvider = ({ children }) => {
     });
     return () => setOnAuthExpired(null);
   }, []);
+
+  // Sincronizar identidad del usuario con la caché de api.js para prevenir cross-user data leakage.
+  // Cuando user cambia (login, logout, cambio de cuenta), la caché HTTP se limpia automáticamente.
+  useEffect(() => {
+    setCurrentUserCacheId(user?.id ?? null);
+  }, [user?.id]);
 
   // Efecto para cargar el usuario y token desde AsyncStorage al iniciar la app
   useEffect(() => {
