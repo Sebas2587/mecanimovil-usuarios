@@ -198,17 +198,41 @@ export const getProviderSpecialty = (provider, fallback = 'Especialidad general'
 };
 
 /**
- * Devuelve la calificación formateada (string "4.5") o null si no hay datos.
+ * Devuelve la calificación formateada (string "4.5") o null si no hay datos útiles.
+ * Usa los mismos campos que expone el backend en talleres/mecánicos (lista y cerca).
  */
 export const getProviderRating = (provider) => {
   const raw =
     provider?.calificacion_promedio ??
     provider?.rating ??
     provider?.calificacion ??
+    provider?.promedio_calificaciones ??
     null;
-  if (raw == null) return null;
-  const parsed = parseFloat(raw);
-  return isNaN(parsed) ? null : parsed > 0 ? parsed.toFixed(1) : null;
+
+  const reviewCount = Number(
+    provider?.numero_de_calificaciones ??
+      provider?.total_resenas ??
+      provider?.total_reviews ??
+      provider?.reviews_count ??
+      0
+  );
+
+  if (raw == null || raw === '') {
+    return reviewCount > 0 ? '0.0' : null;
+  }
+
+  const normalized = String(raw).trim().replace(',', '.');
+  const parsed = parseFloat(normalized);
+  if (Number.isNaN(parsed)) {
+    return reviewCount > 0 ? '0.0' : null;
+  }
+
+  // Sin reseñas y promedio en 0: no mostrar badge numérico engañoso
+  if (reviewCount === 0 && parsed <= 0) {
+    return null;
+  }
+
+  return parsed.toFixed(1);
 };
 
 /**

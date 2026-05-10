@@ -150,14 +150,11 @@ const ProviderPreviewCard = ({
           {specialty}
         </Text>
 
-        <View style={styles.ratingRow}>
+        <View style={styles.ratingDistanceRow}>
           <View style={styles.ratingPill}>
             <Ionicons name="star" size={11} color={COLORS.warning.main} />
             <Text style={styles.ratingPillText}>{ratingLabel}</Text>
           </View>
-        </View>
-
-        <View style={styles.footer}>
           <View style={styles.distanceContainer}>
             <Ionicons name="location-outline" size={12} color={COLORS.text.tertiary} />
             <Text style={styles.distanceText} numberOfLines={1}>
@@ -267,13 +264,17 @@ const getStyles = (width, omitRightMargin, imageHeight, containerRadius) =>
       color: COLORS.text.secondary,
       marginBottom: 6,
     },
-    ratingRow: {
-      marginBottom: 6,
+    ratingDistanceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginBottom: 0,
     },
     ratingPill: {
       flexDirection: 'row',
       alignItems: 'center',
-      alignSelf: 'flex-start',
+      flexShrink: 0,
       paddingHorizontal: 8,
       paddingVertical: 3,
       borderRadius: BORDERS.radius.full,
@@ -287,22 +288,20 @@ const getStyles = (width, omitRightMargin, imageHeight, containerRadius) =>
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       color: COLORS.text.primary,
     },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-start',
-    },
     distanceContainer: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'flex-end',
       flexShrink: 1,
-      maxWidth: '100%',
+      flexGrow: 1,
+      minWidth: 0,
     },
     distanceText: {
       flexShrink: 1,
       fontSize: TYPOGRAPHY.fontSize.sm,
       color: COLORS.text.tertiary,
       marginLeft: 4,
+      textAlign: 'right',
     },
   });
 
