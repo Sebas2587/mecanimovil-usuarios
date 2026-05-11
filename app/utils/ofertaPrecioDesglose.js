@@ -1,7 +1,9 @@
 /**
- * Desglose subtotal (sin IVA) + IVA alineado a precio_total_ofrecido.
- * Misma regla que mecanimovil-prov en oferta-detalle: si mo+rep+gest y sum*1.19 cuadran
- * con el total (±2), el IVA es el residuo total − subtotal; si no, se reparte desde total/1.19.
+ * Desglose subtotal (sin IVA) + IVA derivados SIEMPRE de precio_total_ofrecido.
+ *
+ * IVA = total − round(total / 1.19)  — garantiza IVA > 0 cuando total > 0.
+ * Los costos individuales (mo, rep, gest) se usan solo como contexto de líneas,
+ * nunca para calcular el IVA final.
  */
 export function calcularDesgloseIvaOferta({
   costoManoObra = 0,
@@ -20,19 +22,9 @@ export function calcularDesgloseIvaOferta({
   const lineasCuadranConTotal =
     sumSinIva > 0 && Math.abs(totalDesdeLineas - totalCliente) <= TOL;
 
-  let subSinIvaDisplay;
-  let ivaDisplay;
-
-  if (totalCliente <= 0) {
-    subSinIvaDisplay = 0;
-    ivaDisplay = 0;
-  } else if (tieneMontosProveedor && lineasCuadranConTotal) {
-    subSinIvaDisplay = Math.round(sumSinIva);
-    ivaDisplay = totalCliente - subSinIvaDisplay;
-  } else {
-    subSinIvaDisplay = Math.round(totalCliente / 1.19);
-    ivaDisplay = totalCliente - subSinIvaDisplay;
-  }
+  // IVA y subtotal SIEMPRE derivados del total — única fuente de verdad
+  const subSinIvaDisplay = totalCliente > 0 ? Math.round(totalCliente / 1.19) : 0;
+  const ivaDisplay = totalCliente > 0 ? totalCliente - subSinIvaDisplay : 0;
 
   return {
     subSinIvaDisplay,
@@ -43,5 +35,36 @@ export function calcularDesgloseIvaOferta({
     tieneMontosProveedor,
     mostrarNotaReconciliacion:
       tieneMontosProveedor && totalCliente > 0 && !lineasCuadranConTotal && sumSinIva > 0,
+  };
+}
+
+/**
+ * Resuelve el desglose final a mostrar.
+ * Usa el IVA del API solo cuando sea positivo y coherente.
+ * En cualquier otro caso usa el cálculo local (siempre > 0 cuando total > 0).
+ */
+export function resolverDesgloseIvaMostrado(dApi, calc) {
+  const apiIva = dApi != null && dApi.iva != null ? Number(dApi.iva) : null;
+  const apiSub = dApi != null && dApi.subtotal_sin_iva != null ? Number(dApi.subtotal_sin_iva) : null;
+  const apiTotal = dApi != null && dApi.total != null ? Number(dApi.total) : null;
+
+  const apiValida =
+    apiIva !== null &&
+    Number.isFinite(apiIva) &&
+    apiIva > 0 &&
+    apiSub !== null &&
+    Number.isFinite(apiSub) &&
+    apiTotal !== null &&
+    Number.isFinite(apiTotal) &&
+    apiTotal > 0;
+
+  if (apiValida) {
+    return { subSinIva: apiSub, iva: apiIva, total: apiTotal };
+  }
+
+  return {
+    subSinIva: calc.subSinIvaDisplay,
+    iva: calc.ivaDisplay,
+    total: calc.totalCliente,
   };
 }

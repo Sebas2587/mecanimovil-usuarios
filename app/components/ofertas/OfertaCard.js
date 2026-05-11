@@ -9,7 +9,7 @@ import RepuestosExpandible from './RepuestosExpandible';
 import EstadoSolicitudBadge from '../solicitudes/EstadoSolicitudBadge';
 import { useTheme } from '../../design-system/theme/useTheme';
 import CountdownTimer from '../common/CountdownTimer';
-import { calcularDesgloseIvaOferta } from '../../utils/ofertaPrecioDesglose';
+import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
 
 // Habilitar LayoutAnimation en Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -282,9 +282,9 @@ const OfertaCard = ({
       costoGestionCompra: oferta.costo_gestion_compra,
       precioTotalOfrecido: oferta.precio_total_ofrecido,
     });
-    const dApi = oferta.desglose_iva;
-    const subtotalSinIva = dApi?.subtotal_sin_iva ?? desgloseIva.subSinIvaDisplay;
-    const iva = dApi?.iva ?? desgloseIva.ivaDisplay;
+    const merged = resolverDesgloseIvaMostrado(oferta.desglose_iva, desgloseIva);
+    const subtotalSinIva = merged.subSinIva;
+    const iva = merged.iva;
 
     return {
       // Servicios individuales de la oferta
@@ -300,10 +300,7 @@ const OfertaCard = ({
       // Totales (subtotal + IVA cuadran con precio_total_ofrecido; ver ofertaPrecioDesglose)
       subtotalSinIva: Math.round(subtotalSinIva),
       iva: Math.round(iva),
-      total:
-        dApi != null && Number.isFinite(dApi.total)
-          ? dApi.total
-          : (desgloseIva.totalCliente || Math.round(precioTotal)),
+      total: merged.total || Math.round(precioTotal),
       tieneDesglose
     };
   };

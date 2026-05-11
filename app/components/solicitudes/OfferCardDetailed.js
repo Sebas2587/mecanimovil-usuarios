@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { getMediaURL } from '../../services/api';
-import { calcularDesgloseIvaOferta } from '../../utils/ofertaPrecioDesglose';
+import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -72,9 +72,9 @@ const OfferCardDetailed = ({
         costoGestionCompra: oferta.costo_gestion_compra,
         precioTotalOfrecido: oferta.precio_total_ofrecido,
     });
-    const dApi = oferta.desglose_iva;
-    const subSinIva = dApi?.subtotal_sin_iva ?? desgloseIva.subSinIvaDisplay;
-    const ivaMonto = dApi?.iva ?? desgloseIva.ivaDisplay;
+    const merged = resolverDesgloseIvaMostrado(oferta.desglose_iva, desgloseIva);
+    const subSinIva = merged.subSinIva;
+    const ivaMonto = merged.iva;
     const mostrarNotaReconciliacion = desgloseIva.mostrarNotaReconciliacion;
     const mostrarLineasProveedor =
         costoManoObra > 0 ||
@@ -188,7 +188,7 @@ const OfferCardDetailed = ({
                 <View style={styles.divider} />
                 <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total a pagar</Text>
-                    <Text style={styles.totalValue}>${(dApi?.total ?? desgloseIva.totalCliente).toLocaleString()}</Text>
+                    <Text style={styles.totalValue}>${merged.total.toLocaleString()}</Text>
                 </View>
                 {mostrarNotaReconciliacion ? (
                     <Text style={styles.reconciliacionNota}>
