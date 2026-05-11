@@ -88,7 +88,7 @@ const SplashScreen = () => {
             source={require('../../../assets/images/Group 27logo_negro_mecanimovil.png')}
             style={styles.logo}
             resizeMode="contain"
-            defaultSource={require('../../../assets/icon.png')}
+            defaultSource={require('../../../assets/images/app-icon.png')}
           />
         </Animated.View>
 
