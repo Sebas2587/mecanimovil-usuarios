@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ClipboardList } from 'lucide-react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +22,8 @@ import { useSolicitudes } from '../../context/SolicitudesContext';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesListSkeleton';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
-import { prefetchRequestDetail } from '../../hooks/useRequests';
+import { prefetchRequestDetail, REQUESTS_LIST_KEY } from '../../hooks/useRequests';
+import { useAuth } from '../../context/AuthContext';
 
 const SURFACE_SOFT = COLORS.neutral.gray[100];
 
@@ -73,6 +74,7 @@ const MisSolicitudesScreen = () => {
     return v;
   }, [route.params?.vehicle, selectedVehicleId]);
 
+  const { user } = useAuth();
   const { solicitudes, requestsIsLoading, error, cargarSolicitudes, cargarSolicitudesActivas } = useSolicitudes();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -144,6 +146,25 @@ const MisSolicitudesScreen = () => {
       console.error('Error cargando solicitudes:', e);
     }
   }, [cargarSolicitudes, cargarSolicitudesActivas]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) return;
+
+      const forceRefresh = route.params?.refreshList === true;
+      if (forceRefresh) {
+        navigation.setParams({ refreshList: undefined });
+        void cargarDatos();
+        return;
+      }
+
+      const listKey = REQUESTS_LIST_KEY(user.id);
+      const state = queryClient.getQueryState(listKey);
+      if (state?.isStale !== false) {
+        void cargarDatos();
+      }
+    }, [user?.id, route.params?.refreshList, navigation, queryClient, cargarDatos]),
+  );
 
   const solicitudesArray = Array.isArray(solicitudes) ? solicitudes : [];
 

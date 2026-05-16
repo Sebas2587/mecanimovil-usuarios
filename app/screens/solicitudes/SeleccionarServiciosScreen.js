@@ -12,11 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, ROUTES } from '../../utils/constants';
 import ServiceCard from '../../components/cards/ServiceCard';
 import Button from '../../components/base/Button/Button';
-import solicitudesService from '../../services/solicitudesService';
+import solicitudesService, { normalizarSolicitudPublica } from '../../services/solicitudesService';
+import { syncSolicitudesListAfterChange } from '../../hooks/useRequests';
+import { useAuth } from '../../context/AuthContext';
 
 const FOOTER_BTN_MIN = 52;
 
@@ -27,6 +30,8 @@ const SeleccionarServiciosScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { solicitudId } = route.params || {};
   const footerReserve = SPACING.md * 2 + FOOTER_BTN_MIN + insets.bottom;
 
@@ -81,8 +86,16 @@ const SeleccionarServiciosScreen = () => {
       await solicitudesService.agregarServiciosASolicitud(solicitudId, serviciosSeleccionados);
       
       // Publicar la solicitud
-      await solicitudesService.publicarSolicitud(solicitudId);
-      
+      const publicada = await solicitudesService.publicarSolicitud(solicitudId);
+
+      if (user?.id) {
+        const paraLista = normalizarSolicitudPublica(publicada) || {
+          id: solicitudId,
+          estado: 'publicada',
+        };
+        await syncSolicitudesListAfterChange(queryClient, user.id, paraLista);
+      }
+
       Alert.alert(
         'Éxito',
         'Solicitud publicada correctamente. Los proveedores podrán ver tu solicitud y hacer ofertas.',
@@ -90,7 +103,7 @@ const SeleccionarServiciosScreen = () => {
           {
             text: 'OK',
             onPress: () => {
-              navigation.navigate(ROUTES.MIS_SOLICITUDES);
+              navigation.navigate(ROUTES.MIS_SOLICITUDES, { refreshList: true });
             }
           }
         ]

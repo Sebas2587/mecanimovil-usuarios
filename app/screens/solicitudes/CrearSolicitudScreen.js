@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Car, Plus, Sparkles } from 'lucide-react-native';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -24,7 +24,9 @@ import * as vehicleService from '../../services/vehicle';
 import * as locationService from '../../services/location';
 import * as userService from '../../services/user';
 import * as serviceService from '../../services/service';
-import solicitudesService from '../../services/solicitudesService';
+import solicitudesService, { normalizarSolicitudPublica } from '../../services/solicitudesService';
+import { syncSolicitudesListAfterChange } from '../../hooks/useRequests';
+import { useAuth } from '../../context/AuthContext';
 
 /** Vuelve al panel (misma UX que mobile). En web Alert no ejecuta onPress → alert nativo + reset. */
 function goToUserPanelDashboard(navigation) {
@@ -67,6 +69,8 @@ const CrearSolicitudScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { crearSolicitud } = useSolicitudes();
 
   // Incremented after successful submit to force FormularioSolicitud re-mount
@@ -191,9 +195,10 @@ const CrearSolicitudScreen = () => {
   } = useQuery({
     queryKey: ['userVehicles'], // Shared key with UserPanelScreen
     queryFn: vehicleService.getUserVehicles,
+    enabled: !isPreCompra,
     staleTime: 1000 * 60 * 5, // 5 minutes
     cacheTime: 1000 * 60 * 30, // 30 minutes
-    refetchOnMount: true,
+    refetchOnMount: !isPreCompra,
     // refetchOnWindowFocus desactivado: causaba refetches inesperados que podían cascadear
     // re-renders en FormularioSolicitud y hacer parecer que el paso 1 se "recargaba".
     refetchOnWindowFocus: false,
@@ -255,7 +260,7 @@ const CrearSolicitudScreen = () => {
                   onPress: () => {
                     navigation.goBack();
                     setTimeout(() => {
-                      navigation.navigate(ROUTES.MIS_SOLICITUDES);
+                      navigation.navigate(ROUTES.MIS_SOLICITUDES, { refreshList: true });
                     }, 100);
                   }
                 },
@@ -280,7 +285,7 @@ const CrearSolicitudScreen = () => {
                   onPress: () => {
                     navigation.goBack();
                     setTimeout(() => {
-                      navigation.navigate(ROUTES.MIS_SOLICITUDES);
+                      navigation.navigate(ROUTES.MIS_SOLICITUDES, { refreshList: true });
                     }, 100);
                   }
                 },
@@ -467,7 +472,12 @@ const CrearSolicitudScreen = () => {
 
     // Si aún no hay vehículos en caché y la query está cargando, mantener overlay de carga
     // Solo en la carga inicial (initialLoadDoneRef impide que loading vuelva a true después)
-    if (!initialLoadDoneRef.current && isLoadingVehicles && (!allVehicles || allVehicles.length === 0)) {
+    if (
+      !isPreCompra &&
+      !initialLoadDoneRef.current &&
+      isLoadingVehicles &&
+      (!allVehicles || allVehicles.length === 0)
+    ) {
       setLoading(true);
     }
 
@@ -494,7 +504,7 @@ const CrearSolicitudScreen = () => {
       console.error('Error cargando direcciones/cliente:', error);
       // Non-blocking error for addresses
     } finally {
-      if (!isLoadingVehicles) {
+      if (isPreCompra || !isLoadingVehicles) {
         setLoading(false);
         initialLoadDoneRef.current = true;
       }
@@ -503,11 +513,11 @@ const CrearSolicitudScreen = () => {
 
   // Sync loading state with query — una vez que loading pasa a false por primera vez, no vuelve a true
   useEffect(() => {
-    if (!isLoadingVehicles) {
+    if (isPreCompra || !isLoadingVehicles) {
       setLoading(false);
       initialLoadDoneRef.current = true;
     }
-  }, [isLoadingVehicles]);
+  }, [isLoadingVehicles, isPreCompra]);
 
   // Inspección pre-compra: buscar servicio y preparar initialData
   useEffect(() => {
@@ -556,6 +566,8 @@ const CrearSolicitudScreen = () => {
           ofertaId,
         });
         setInitialDataReady(true);
+        setLoading(false);
+        initialLoadDoneRef.current = true;
       } catch (err) {
         if (!cancelled) {
           Alert.alert('Error', 'No se pudo cargar el servicio de inspección pre-compra.');
@@ -915,8 +927,16 @@ const CrearSolicitudScreen = () => {
         console.log('CrearSolicitudScreen: ✅ Servicios ya seleccionados en paso 2 - Publicando solicitud automáticamente');
         try {
           // Publicar la solicitud automáticamente si tiene servicios seleccionados
-          await solicitudesService.publicarSolicitud(solicitudId);
+          const publicada = await solicitudesService.publicarSolicitud(solicitudId);
           console.log('CrearSolicitudScreen: ✅ Solicitud publicada automáticamente');
+
+          if (user?.id) {
+            const paraLista = normalizarSolicitudPublica(publicada) || {
+              id: solicitudId,
+              estado: 'publicada',
+            };
+            await syncSolicitudesListAfterChange(queryClient, user.id, paraLista);
+          }
 
           setSubmitCount(prev => prev + 1);
 
@@ -958,8 +978,15 @@ const CrearSolicitudScreen = () => {
         // Aún así, intentar publicar directamente en lugar de navegar a SELECCIONAR_SERVICIOS
         // porque si llegamos al paso 6, significa que el usuario completó todos los pasos necesarios
         try {
-          await solicitudesService.publicarSolicitud(solicitudId);
+          const publicadaFb = await solicitudesService.publicarSolicitud(solicitudId);
           console.log('CrearSolicitudScreen: ✅ Solicitud publicada automáticamente (fallback)');
+          if (user?.id) {
+            const paraLista = normalizarSolicitudPublica(publicadaFb) || {
+              id: solicitudId,
+              estado: 'publicada',
+            };
+            await syncSolicitudesListAfterChange(queryClient, user.id, paraLista);
+          }
           alertSuccessAndGoToPanel(
             navigation,
             'Éxito',
@@ -1011,13 +1038,21 @@ const CrearSolicitudScreen = () => {
     onBack: () => navigation.goBack(),
   };
 
-  if (loading || (needsPreloadServicios && !initialDataReady)) {
+  if (
+    loading ||
+    (isPreCompra && !initialDataReady) ||
+    (needsPreloadServicios && !initialDataReady)
+  ) {
     return (
     <GlassShell {...glassShellProps}>
         <View style={styles.centeredState}>
           <ActivityIndicator size="large" color={COLORS.primary[500]} />
           <Text style={styles.stateText}>
-            {needsPreloadServicios && !initialDataReady ? 'Preparando servicio...' : 'Cargando datos...'}
+            {isPreCompra && !initialDataReady
+              ? 'Preparando inspección pre-compra...'
+              : needsPreloadServicios && !initialDataReady
+                ? 'Preparando servicio...'
+                : 'Cargando datos...'}
           </Text>
         </View>
       </GlassShell>
@@ -1025,7 +1060,7 @@ const CrearSolicitudScreen = () => {
   }
 
   // Solo tras al menos una respuesta de la query: evita mostrar “sin vehículos”/cambiar de árbol antes de tiempo
-  if (vehiclesQueryFetched && vehiculos.length === 0) {
+  if (!isPreCompra && vehiclesQueryFetched && vehiculos.length === 0) {
     return (
     <GlassShell {...glassShellProps}>
         <View style={styles.centeredState}>

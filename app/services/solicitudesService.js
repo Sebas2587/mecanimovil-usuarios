@@ -1,6 +1,44 @@
 import { get, post, put, patch, delete_ } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/** Normaliza Feature GeoJSON u objeto plano de solicitud pública. */
+export function normalizarSolicitudPublica(solicitud) {
+  if (solicitud && solicitud.type === 'Feature' && solicitud.properties) {
+    const id = solicitud.id || solicitud.properties.id;
+    return {
+      ...solicitud.properties,
+      id,
+      geometry: solicitud.geometry,
+    };
+  }
+  if (solicitud && !solicitud.id && solicitud.properties?.id) {
+    return {
+      ...solicitud.properties,
+      id: solicitud.properties.id,
+      geometry: solicitud.geometry,
+    };
+  }
+  return solicitud;
+}
+
+function normalizarListaSolicitudes(data) {
+  let solicitudesArray = [];
+  if (Array.isArray(data)) {
+    solicitudesArray = data;
+  } else if (data?.results) {
+    if (data.results.type === 'FeatureCollection' && Array.isArray(data.results.features)) {
+      solicitudesArray = data.results.features;
+    } else if (Array.isArray(data.results)) {
+      solicitudesArray = data.results;
+    } else if (Array.isArray(data.results.features)) {
+      solicitudesArray = data.results.features;
+    }
+  } else if (data?.data) {
+    solicitudesArray = Array.isArray(data.data) ? data.data : [];
+  }
+  return solicitudesArray.map(normalizarSolicitudPublica);
+}
+
 /**
  * Servicio para gestionar solicitudes públicas de servicios
  */
@@ -116,56 +154,9 @@ class SolicitudesService {
       // Construir URL correctamente: base + query params si existen
       const baseUrl = '/ordenes/solicitudes-publicas/';
       const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
-      const data = await get(url);
+      const data = await get(url, {}, { forceRefresh: true });
       console.log('SolicitudesService: Solicitudes obtenidas:', data);
-
-      // Normalizar solicitudes: extraer properties de GeoJSON Features
-      const normalizarSolicitud = (solicitud) => {
-        // Si es un GeoJSON Feature, extraer properties y combinar con id
-        if (solicitud && solicitud.type === 'Feature' && solicitud.properties) {
-          // El ID puede estar en el nivel raíz (solicitud.id) o en properties.id
-          const id = solicitud.id || solicitud.properties.id;
-          if (!id) {
-            console.warn('SolicitudesService: Solicitud Feature sin ID:', solicitud);
-          }
-          return {
-            ...solicitud.properties,
-            id: id, // Asegurar que el ID esté siempre en el nivel raíz
-            geometry: solicitud.geometry
-          };
-        }
-        // Si ya es un objeto normal pero tiene properties, normalizar también
-        if (solicitud && !solicitud.id && solicitud.properties && solicitud.properties.id) {
-          return {
-            ...solicitud.properties,
-            id: solicitud.properties.id,
-            geometry: solicitud.geometry
-          };
-        }
-        // Si ya es un objeto normal, devolverlo tal cual
-        return solicitud;
-      };
-
-      // Manejar diferentes estructuras de respuesta
-      let solicitudesArray = [];
-      if (Array.isArray(data)) {
-        solicitudesArray = data;
-      } else if (data.results) {
-        // Si results es un FeatureCollection, extraer features
-        if (data.results.type === 'FeatureCollection' && Array.isArray(data.results.features)) {
-          solicitudesArray = data.results.features;
-        } else if (Array.isArray(data.results)) {
-          solicitudesArray = data.results;
-        } else if (data.results.features && Array.isArray(data.results.features)) {
-          solicitudesArray = data.results.features;
-        }
-      } else if (data.data) {
-        solicitudesArray = Array.isArray(data.data) ? data.data : [];
-      }
-
-      // Normalizar todas las solicitudes para extraer properties de GeoJSON Features
-      const solicitudesNormalizadas = solicitudesArray.map(normalizarSolicitud);
-      return solicitudesNormalizadas;
+      return normalizarListaSolicitudes(data);
     } catch (error) {
       if (error.status === 401) {
         return [];
@@ -319,37 +310,9 @@ class SolicitudesService {
       }
 
       console.log('SolicitudesService: Obteniendo solicitudes activas');
-      const data = await get('/ordenes/solicitudes-publicas/activas/');
+      const data = await get('/ordenes/solicitudes-publicas/activas/', {}, { forceRefresh: true });
       console.log('SolicitudesService: Solicitudes activas obtenidas:', data);
 
-      // Normalizar solicitudes: extraer properties de GeoJSON Features
-      const normalizarSolicitud = (solicitud) => {
-        // Si es un GeoJSON Feature, extraer properties y combinar con id
-        if (solicitud && solicitud.type === 'Feature' && solicitud.properties) {
-          // El ID puede estar en el nivel raíz (solicitud.id) o en properties.id
-          const id = solicitud.id || solicitud.properties.id;
-          if (!id) {
-            console.warn('SolicitudesService: Solicitud Feature sin ID:', solicitud);
-          }
-          return {
-            ...solicitud.properties,
-            id: id, // Asegurar que el ID esté siempre en el nivel raíz
-            geometry: solicitud.geometry
-          };
-        }
-        // Si ya es un objeto normal pero tiene properties, normalizar también
-        if (solicitud && !solicitud.id && solicitud.properties && solicitud.properties.id) {
-          return {
-            ...solicitud.properties,
-            id: solicitud.properties.id,
-            geometry: solicitud.geometry
-          };
-        }
-        // Si ya es un objeto normal, devolverlo tal cual
-        return solicitud;
-      };
-
-      // Manejar diferentes estructuras de respuesta
       let solicitudesArray = [];
       if (Array.isArray(data)) {
         solicitudesArray = data;
@@ -375,7 +338,7 @@ class SolicitudesService {
       }
 
       // Normalizar todas las solicitudes para extraer properties de GeoJSON Features
-      const solicitudesNormalizadas = solicitudesArray.map(normalizarSolicitud);
+      const solicitudesNormalizadas = solicitudesArray.map(normalizarSolicitudPublica);
       console.log('SolicitudesService: Solicitudes activas normalizadas (primeras 2):', solicitudesNormalizadas.slice(0, 2).map(s => ({ id: s?.id, tieneId: !!s?.id })));
       return solicitudesNormalizadas;
     } catch (error) {

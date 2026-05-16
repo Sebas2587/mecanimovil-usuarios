@@ -10,7 +10,9 @@ import {
   useCreateRequest,
   usePublishRequest,
   useCancelRequest,
-  useSelectOffer
+  useSelectOffer,
+  invalidateSolicitudesListQueries,
+  requestDetailQueryKey,
 } from '../hooks/useRequests';
 
 /** Tipos WS (client_status) que implican cambio en lista/detalle de solicitudes públicas. */
@@ -26,16 +28,12 @@ const WS_TYPES_REFRESH_SOLICITUDES = new Set([
   'reserva_creditos_expirada',
 ]);
 
-function invalidateSolicitudesQueries(queryClient, payload) {
-  queryClient.invalidateQueries({
-    predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
-  });
-  queryClient.invalidateQueries({
-    predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
-  });
+function invalidateSolicitudesQueries(queryClient, payload, userId) {
+  invalidateSolicitudesListQueries(queryClient, userId);
   const sid = payload?.solicitud_id;
-  if (sid != null && String(sid).trim() !== '') {
-    queryClient.invalidateQueries({ queryKey: ['request', String(sid)] });
+  const rk = requestDetailQueryKey(sid);
+  if (rk) {
+    queryClient.invalidateQueries({ queryKey: rk });
   }
 }
 
@@ -140,7 +138,7 @@ export function SolicitudesProvider({ children }) {
         }
       }
 
-      invalidateSolicitudesQueries(queryClient, data);
+      invalidateSolicitudesQueries(queryClient, data, user?.id);
     };
 
     const timeoutId = setTimeout(() => {
