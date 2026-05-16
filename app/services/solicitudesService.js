@@ -152,7 +152,7 @@ class SolicitudesService {
       });
       const queryString = queryParams.toString();
       // Construir URL correctamente: base + query params si existen
-      const baseUrl = '/ordenes/solicitudes-publicas/';
+      const baseUrl = '/ordenes/solicitudes-publicas/mis-solicitudes/';
       const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
       const data = await get(url, {}, { forceRefresh: true });
       console.log('SolicitudesService: Solicitudes obtenidas:', data);

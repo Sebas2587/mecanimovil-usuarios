@@ -357,7 +357,8 @@ function setupInterceptors(apiInstance) {
         const isMisSolicitudesListGet =
           method === 'get' &&
           !pathNoQuery.includes('/activas') &&
-          /\/ordenes\/solicitudes-publicas\/?$/.test(pathNoQuery);
+          (/\/ordenes\/solicitudes-publicas\/mis-solicitudes\/?$/.test(pathNoQuery) ||
+            /\/ordenes\/solicitudes-publicas\/?$/.test(pathNoQuery));
         const isListaChats401 =
           reqUrl.includes('/chat-solicitudes/lista-chats/');
         const isUnauthorizedExpected = error.response.status === 401 &&
@@ -682,7 +683,8 @@ export const get = async (url, params = {}, options = {}) => {
       (url.includes('/chat-solicitudes/lista-chats/') ||
         (pathNoQuery.includes('/ordenes/solicitudes-publicas') &&
           !pathNoQuery.includes('/activas') &&
-          /\/ordenes\/solicitudes-publicas\/?$/.test(pathNoQuery)));
+          (/\/ordenes\/solicitudes-publicas\/mis-solicitudes\/?$/.test(pathNoQuery) ||
+            /\/ordenes\/solicitudes-publicas\/?$/.test(pathNoQuery))));
 
     if (isCarritoNotFound) {
       logger.info(`Estado normal en GET a ${url}: No hay carrito activo`);
