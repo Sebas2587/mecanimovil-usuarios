@@ -7,7 +7,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   StatusBar,
-  Alert,
   Platform,
   useWindowDimensions,
 } from 'react-native';
@@ -24,6 +23,7 @@ import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesLis
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { prefetchRequestDetail, REQUESTS_LIST_KEY } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
+import { showAlert } from '../../utils/platformAlert';
 
 const SURFACE_SOFT = COLORS.neutral.gray[100];
 
@@ -188,7 +188,7 @@ const MisSolicitudesScreen = () => {
     (solicitud) => {
       const id = solicitud?.id || solicitud?.properties?.id;
       if (!id) {
-        Alert.alert('Error', 'No se pudo identificar la solicitud');
+        showAlert('Error', 'No se pudo identificar la solicitud');
         return;
       }
       void prefetchRequestDetail(queryClient, id);

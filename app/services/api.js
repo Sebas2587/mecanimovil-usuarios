@@ -457,19 +457,42 @@ function setupInterceptors(apiInstance) {
             !msg.match(/^\d+$/); // No solo números (códigos de estado)
         };
 
-        // Extraer mensaje del backend con prioridad
+        // Extraer mensaje del backend con prioridad (incl. errores por campo DRF)
         if (error.response.data) {
+          const data = error.response.data;
+          const fieldLabels = {
+            descripcion_problema: 'Descripción',
+            ubicacion_servicio: 'Ubicación',
+            fecha_preferida: 'Fecha',
+            direccion_servicio_texto: 'Dirección',
+            vehiculo: 'Vehículo',
+            servicios_solicitados: 'Servicios',
+            fotos_necesidad_data: 'Fotos',
+          };
+          let fieldError = null;
+          if (data && typeof data === 'object' && !Array.isArray(data)) {
+            for (const [key, val] of Object.entries(data)) {
+              if (['detail', 'error', 'message', 'non_field_errors'].includes(key)) continue;
+              const msg = Array.isArray(val) ? val[0] : val;
+              if (typeof msg === 'string' && isFriendlyMessage(msg)) {
+                const label = fieldLabels[key] || key;
+                fieldError = `${label}: ${msg}`;
+                break;
+              }
+            }
+          }
+
           const candidates = [
-            error.response.data.error,
-            error.response.data.detail,
-            Array.isArray(error.response.data.non_field_errors)
-              ? error.response.data.non_field_errors[0]
-              : error.response.data.non_field_errors,
-            error.response.data.message,
-            typeof error.response.data === 'string' ? error.response.data : null
+            fieldError,
+            data.error,
+            data.detail,
+            Array.isArray(data.non_field_errors)
+              ? data.non_field_errors[0]
+              : data.non_field_errors,
+            data.message,
+            typeof data === 'string' ? data : null,
           ];
 
-          // Buscar el primer mensaje amigable
           for (const candidate of candidates) {
             if (candidate && isFriendlyMessage(candidate)) {
               errorMessage = candidate;

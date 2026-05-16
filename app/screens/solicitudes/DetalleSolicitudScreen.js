@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
-  Alert,
   Platform,
   useWindowDimensions,
   Modal,
@@ -27,6 +26,7 @@ import { ROUTES } from '../../utils/constants';
 import { requestDetailQueryKey, useRequestDetail } from '../../hooks/useRequests';
 import { useConversationsList } from '../../hooks/useChats';
 import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
+import { showAlert, showConfirm, showAlertButtons } from '../../utils/platformAlert';
 
 // New Components
 import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard';
@@ -152,7 +152,7 @@ const DetalleSolicitudScreen = () => {
   useEffect(() => {
     if (!isError || !requestError) return;
     console.error('Error loading request details:', requestError);
-    Alert.alert('Error', 'No se pudieron cargar los datos de la solicitud', [
+    showAlertButtons('Error', 'No se pudieron cargar los datos de la solicitud', [
       { text: 'OK', onPress: () => navigation.goBack() },
     ]);
   }, [isError, requestError, navigation]);
@@ -163,57 +163,51 @@ const DetalleSolicitudScreen = () => {
   }, []);
 
   // Handlers
-  const handleAceptarOferta = (oferta) => {
-    Alert.alert(
-      'Confirmar Selección',
-      `¿Estás seguro de que deseas aceptar la oferta de ${oferta.nombre_proveedor} por $${Math.round(parseFloat(oferta.precio_total_ofrecido)).toLocaleString()}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Aceptar Oferta',
-          style: 'default',
-          onPress: async () => {
-            try {
-              setProcesando(true);
-              const resultado = await seleccionarOferta(solicitudId, oferta.id);
+  const ejecutarAceptarOferta = async (oferta) => {
+    try {
+      setProcesando(true);
+      const resultado = await seleccionarOferta(solicitudId, oferta.id);
 
-              if (resultado?.estado_resultado === 'esperando_creditos_proveedor') {
-                Alert.alert(
-                  'Proveedor elegido',
-                  'El proveedor debe confirmar la adjudicación con créditos en su app antes de que puedas pagar. Podés seguir el estado de la solicitud aquí.',
-                  [{ text: 'Entendido', onPress: () => refetchRequestDetail() }]
-                );
-                return;
-              }
+      if (resultado?.estado_resultado === 'esperando_creditos_proveedor') {
+        showAlertButtons(
+          'Proveedor elegido',
+          'El proveedor debe confirmar la adjudicación con créditos en su app antes de que puedas pagar. Podés seguir el estado de la solicitud aquí.',
+          [{ text: 'Entendido', onPress: () => refetchRequestDetail() }],
+        );
+        return;
+      }
 
-              // Con carrito (flujo tradicional) o sin carrito (precompra / sin vehículo) → mismo destino de pago
-              if (resultado?.carrito || resultado?.sin_carrito) {
-                if (oferta.es_oferta_secundaria) {
-                  navigation.navigate('OpcionesPago', {
-                    solicitudId,
-                    ofertaId: oferta.id,
-                    origen: 'oferta_secundaria',
-                  });
-                } else {
-                  navigation.navigate('OpcionesPago', {
-                    solicitudId,
-                    origen: 'solicitud_publica',
-                  });
-                }
-              } else {
-                Alert.alert('¡Excelente!', 'Oferta aceptada correctamente.');
-                refetchRequestDetail();
-              }
-            } catch (error) {
-              console.error('Error accepting offer:', error);
-              Alert.alert('Error', 'Hubo un problema al aceptar la oferta. Inténtalo de nuevo.');
-            } finally {
-              setProcesando(false);
-            }
-          }
+      if (resultado?.carrito || resultado?.sin_carrito) {
+        if (oferta.es_oferta_secundaria) {
+          navigation.navigate('OpcionesPago', {
+            solicitudId,
+            ofertaId: oferta.id,
+            origen: 'oferta_secundaria',
+          });
+        } else {
+          navigation.navigate('OpcionesPago', {
+            solicitudId,
+            origen: 'solicitud_publica',
+          });
         }
-      ]
-    );
+      } else {
+        showAlert('¡Excelente!', 'Oferta aceptada correctamente.');
+        refetchRequestDetail();
+      }
+    } catch (error) {
+      console.error('Error accepting offer:', error);
+      showAlert('Error', 'Hubo un problema al aceptar la oferta. Inténtalo de nuevo.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleAceptarOferta = (oferta) => {
+    const msg = `¿Estás seguro de que deseas aceptar la oferta de ${oferta.nombre_proveedor} por $${Math.round(parseFloat(oferta.precio_total_ofrecido)).toLocaleString()}?`;
+    showConfirm('Confirmar Selección', msg, {
+      confirmText: 'Aceptar Oferta',
+      onConfirm: () => ejecutarAceptarOferta(oferta),
+    });
   };
 
   const handleChat = async (oferta) => {
@@ -230,13 +224,13 @@ const DetalleSolicitudScreen = () => {
       });
     } catch (error) {
       console.error('Error opening chat:', error);
-      Alert.alert('Error', 'No se pudo abrir el chat. Intenta nuevamente.');
+      showAlert('Error', 'No se pudo abrir el chat. Intenta nuevamente.');
     }
   };
 
   const handleCompararOfertas = () => {
     if (ofertas.length < 2) {
-      Alert.alert('Información', 'Necesitas al menos 2 ofertas para comparar');
+      showAlert('Información', 'Necesitas al menos 2 ofertas para comparar');
       return;
     }
     navigation.navigate(ROUTES.COMPARADOR_OFERTAS, {
@@ -260,36 +254,32 @@ const DetalleSolicitudScreen = () => {
   };
 
   const handleConfirmarCancelarSolicitud = useCallback(() => {
-    Alert.alert(
+    showConfirm(
       'Cancelar solicitud',
       '¿Seguro? Los proveedores con oferta enviada serán notificados. No podrás deshacer esta acción. Si ya elegiste una oferta, no es posible cancelar desde aquí.',
-      [
-        { text: 'Volver', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setProcesando(true);
-              await cancelarSolicitud(solicitudId);
-              Alert.alert(
-                'Solicitud cancelada',
-                'Se notificó a los proveedores que tenían ofertas pendientes.',
-              );
-              navigation.goBack();
-            } catch (error) {
-              console.error('Error cancelling request:', error);
-              const msg =
-                error?.response?.data?.error ||
-                error?.message ||
-                'No se pudo cancelar la solicitud.';
-              Alert.alert('Error', String(msg));
-            } finally {
-              setProcesando(false);
-            }
-          },
+      {
+        confirmText: 'Sí, cancelar',
+        onConfirm: async () => {
+          try {
+            setProcesando(true);
+            await cancelarSolicitud(solicitudId);
+            showAlert(
+              'Solicitud cancelada',
+              'Se notificó a los proveedores que tenían ofertas pendientes.',
+            );
+            navigation.goBack();
+          } catch (error) {
+            console.error('Error cancelling request:', error);
+            const msg =
+              error?.response?.data?.error ||
+              error?.message ||
+              'No se pudo cancelar la solicitud.';
+            showAlert('Error', String(msg));
+          } finally {
+            setProcesando(false);
+          }
         },
-      ],
+      },
     );
   }, [solicitudId, cancelarSolicitud, navigation]);
 
@@ -1018,6 +1008,7 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
     backgroundColor: COLORS.error.main,
     borderColor: COLORS.error.dark,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
   },
   footerCancelLikeAcceptText: {
     color: COLORS.text.onError,
@@ -1038,6 +1029,7 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
     backgroundColor: COLORS.primary[500],
     borderColor: COLORS.primary[600],
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
   },
   footerPrimaryCtaText: {
     color: COLORS.text.onPrimary,

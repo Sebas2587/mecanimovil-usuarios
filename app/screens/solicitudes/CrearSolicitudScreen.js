@@ -27,6 +27,8 @@ import * as serviceService from '../../services/service';
 import solicitudesService, { normalizarSolicitudPublica } from '../../services/solicitudesService';
 import { syncSolicitudesListAfterChange } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
+import { showAlert, showAlertButtons } from '../../utils/platformAlert';
+import { formatApiErrorMessage } from '../../utils/formatApiError';
 
 /** Vuelve al panel (misma UX que mobile). En web Alert no ejecuta onPress → alert nativo + reset. */
 function goToUserPanelDashboard(navigation) {
@@ -813,6 +815,19 @@ const CrearSolicitudScreen = () => {
 
       console.log('CrearSolicitudScreen: Datos preparados:', solicitudData);
 
+      if (
+        !solicitudData.servicios_solicitados ||
+        !Array.isArray(solicitudData.servicios_solicitados) ||
+        solicitudData.servicios_solicitados.length === 0
+      ) {
+        showAlert(
+          'Servicios requeridos',
+          'Debes seleccionar al menos un servicio antes de crear la solicitud.',
+        );
+        setCreando(false);
+        return;
+      }
+
       // VERIFICACIÓN CRÍTICA: ¿Hay servicios seleccionados en el paso 2?
       // Esta verificación debe hacerse ANTES de crear la solicitud para evitar navegar a SELECCIONAR_SERVICIOS
       // Verificar explícitamente si hay servicios en formData O en solicitudData
@@ -1012,19 +1027,11 @@ const CrearSolicitudScreen = () => {
       }
     } catch (error) {
       console.error('Error creando solicitud:', error);
-      const d = error.response?.data;
-      let mensajeError =
-        (typeof d?.detail === 'string' ? d.detail : null)
-        || d?.message
-        || error.message;
-      if (!mensajeError && d && typeof d === 'object') {
-        const ss = d.servicios_solicitados;
-        if (typeof ss === 'string') mensajeError = ss;
-        else if (Array.isArray(ss) && ss[0]) mensajeError = String(ss[0]);
-      }
-      mensajeError = mensajeError || 'No se pudo crear la solicitud. Inténtalo de nuevo.';
-
-      Alert.alert('Error', mensajeError);
+      const mensajeError = formatApiErrorMessage(
+        error,
+        'No se pudo crear la solicitud. Inténtalo de nuevo.',
+      );
+      showAlert('Error', mensajeError);
     } finally {
       setCreando(false);
     }

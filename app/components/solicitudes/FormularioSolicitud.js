@@ -21,6 +21,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
+import { showAlert, showAlertButtons } from '../../utils/platformAlert';
+import { normalizeImagePickerAsset } from '../../utils/imagePickerWeb';
 import { COLORS, getColorWithOpacity } from '../../design-system/tokens/colors';
 import { getHealthColorToken } from '../../utils/healthFormat';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -229,15 +231,19 @@ const FormularioSolicitud = ({
 
   const agregarFotoNecesidad = async (source, listaActual, actualizarLista) => {
     if (listaActual.length >= MAX_FOTOS_NECESIDAD) {
-      Alert.alert('Límite alcanzado', 'Solo puedes adjuntar hasta 3 fotos.');
+      showAlert('Límite alcanzado', 'Solo puedes adjuntar hasta 3 fotos.');
       return;
     }
     try {
       let result;
       if (source === 'camera') {
+        if (Platform.OS === 'web') {
+          showAlert('No disponible en web', 'Usa "Elegir archivo" para subir una imagen desde tu computador.');
+          return;
+        }
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Permiso requerido', 'Necesitamos acceso a la cámara para tomar la foto.');
+          showAlert('Permiso requerido', 'Necesitamos acceso a la cámara para tomar la foto.');
           return;
         }
         result = await ImagePicker.launchCameraAsync({
@@ -248,38 +254,45 @@ const FormularioSolicitud = ({
         });
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('Permiso requerido', 'Necesitamos acceso a la galería.');
+        if (Platform.OS !== 'web' && status !== 'granted') {
+          showAlert('Permiso requerido', 'Necesitamos acceso a la galería.');
           return;
         }
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
+          allowsEditing: Platform.OS !== 'web',
           quality: 0.75,
           base64: true,
         });
       }
       if (result.canceled || !result.assets?.length) return;
-      const asset = result.assets[0];
-      if (!asset.base64) {
-        Alert.alert('Error', 'No se pudo leer la imagen. Prueba con otra foto.');
+      const normalized = await normalizeImagePickerAsset(result.assets[0]);
+      if (!normalized?.base64) {
+        showAlert('Error', 'No se pudo leer la imagen. Prueba con otro archivo (JPG o PNG, máx. 5 MB).');
         return;
       }
-      const mime = asset.mimeType || 'image/jpeg';
-      const nuevo = { uri: asset.uri, base64: asset.base64, mimeType: mime };
+      const nuevo = {
+        uri: normalized.uri,
+        base64: normalized.base64,
+        mimeType: normalized.mimeType || 'image/jpeg',
+      };
       actualizarLista([...listaActual, nuevo].slice(0, MAX_FOTOS_NECESIDAD));
     } catch (e) {
       console.warn('agregarFotoNecesidad', e);
-      Alert.alert('Error', 'No se pudo seleccionar la imagen');
+      showAlert('Error', 'No se pudo seleccionar la imagen. Intenta de nuevo.');
     }
   };
 
   const solicitarOrigenFotoNecesidad = (listaActual, actualizarLista) => {
     if (listaActual.length >= MAX_FOTOS_NECESIDAD) {
-      Alert.alert('Límite alcanzado', 'Solo puedes adjuntar hasta 3 fotos.');
+      showAlert('Límite alcanzado', 'Solo puedes adjuntar hasta 3 fotos.');
       return;
     }
-    Alert.alert('Agregar foto', '¿Desde dónde?', [
+    if (Platform.OS === 'web') {
+      agregarFotoNecesidad('library', listaActual, actualizarLista);
+      return;
+    }
+    showAlertButtons('Agregar foto', '¿Desde dónde?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Galería', onPress: () => agregarFotoNecesidad('library', listaActual, actualizarLista) },
       { text: 'Cámara', onPress: () => agregarFotoNecesidad('camera', listaActual, actualizarLista) },
@@ -325,22 +338,46 @@ const FormularioSolicitud = ({
           </View>
         ))}
         {lista.length < MAX_FOTOS_NECESIDAD && (
-          <TouchableOpacity
-            onPress={() => solicitarOrigenFotoNecesidad(lista, actualizarLista)}
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: BORDERS.radius.md,
-              borderWidth: 2,
-              borderColor: COLORS.border.light,
-              borderStyle: 'dashed',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: COLORS.neutral.gray[50],
-            }}
-          >
-            <Ionicons name="add" size={28} color={COLORS.primary[500]} />
-          </TouchableOpacity>
+          Platform.OS === 'web' ? (
+            <TouchableOpacity
+              onPress={() => solicitarOrigenFotoNecesidad(lista, actualizarLista)}
+              style={{
+                minWidth: 120,
+                height: 72,
+                paddingHorizontal: 12,
+                borderRadius: BORDERS.radius.md,
+                borderWidth: 2,
+                borderColor: COLORS.primary[300],
+                borderStyle: 'dashed',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: COLORS.primary[50],
+                ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+              }}
+            >
+              <Ionicons name="cloud-upload-outline" size={22} color={COLORS.primary[500]} />
+              <Text style={{ color: COLORS.primary[600], fontSize: 12, fontWeight: '600', marginTop: 4 }}>
+                Elegir archivo
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => solicitarOrigenFotoNecesidad(lista, actualizarLista)}
+              style={{
+                width: 72,
+                height: 72,
+                borderRadius: BORDERS.radius.md,
+                borderWidth: 2,
+                borderColor: COLORS.border.light,
+                borderStyle: 'dashed',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: COLORS.neutral.gray[50],
+              }}
+            >
+              <Ionicons name="add" size={28} color={COLORS.primary[500]} />
+            </TouchableOpacity>
+          )
         )}
       </ScrollView>
     </View>
