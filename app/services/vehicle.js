@@ -407,6 +407,21 @@ export const createOffer = async (offerData) => {
 };
 
 /**
+ * Verifica si el usuario autenticado puede ofertar por un vehículo (marketplace).
+ * @param {number|string} vehiculoId
+ * @returns {Promise<{ puede_ofertar: boolean, mensaje?: string, code?: string }>}
+ */
+export const checkPuedeOfertar = async (vehiculoId) => {
+  try {
+    const data = await get('/vehiculos/ofertas/puede_ofertar/', { vehiculo_id: vehiculoId });
+    return data;
+  } catch (error) {
+    console.error('Error checkPuedeOfertar:', error);
+    throw error;
+  }
+};
+
+/**
  * Obtiene las ofertas enviadas por el usuario actual (Compras)
  * @returns {Promise<Array>}
  */

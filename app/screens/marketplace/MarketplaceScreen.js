@@ -15,6 +15,7 @@ import OfferNegotiationCard from '../../components/marketplace/OfferNegotiationC
 import MarketplaceFilterModal from '../../components/marketplace/MarketplaceFilterModal';
 import { useRequests } from '../../hooks/useRequests';
 import { tieneInspeccionPrecompraActivaParaVehiculo } from '../../utils/precompraInspection';
+import { showMarketplaceAlert } from '../../utils/marketplaceAlerts';
 import { resolveVehicleHealthPct, getHealthColorToken } from '../../utils/healthFormat';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { useAuth } from '../../context/AuthContext';
@@ -555,8 +556,15 @@ const MarketplaceScreen = () => {
                 inspectionDisabled={!!inspectionBlocked}
                 inspectionDisabledReason="Ya tienes una inspección pre-compra activa para este vehículo. Revisa Mis solicitudes o espera a que finalice o expire."
                 onRequestInspection={
-                    item.type === 'sent' && item.status === 'accepted' && item.vehiculoId
+                    item.type === 'sent' && item.status === 'accepted'
                         ? () => {
+                            if (!item.vehiculoId) {
+                                showMarketplaceAlert(
+                                    'Error',
+                                    'No se pudo identificar el vehículo de la publicación. Intenta recargar Negocios.'
+                                );
+                                return;
+                            }
                             navigation.navigate(ROUTES.CREAR_SOLICITUD, {
                                 isPreCompra: true,
                                 targetVehicleId: item.vehiculoId,

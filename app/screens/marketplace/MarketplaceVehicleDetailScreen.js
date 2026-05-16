@@ -15,6 +15,8 @@ import {
     getRevisionTecnicaToneStyles,
 } from '../../utils/revisionTecnica';
 import { useAuth } from '../../context/AuthContext';
+import { showMarketplaceAlert, MSG_OFERTA_ACTIVA_MISMO_VENDEDOR } from '../../utils/marketplaceAlerts';
+import { parseCreateOfferError } from '../../utils/marketplaceOfferRules';
 
 // Updates for Marketplace Negotiation
 import OfferCreationModal from '../../components/marketplace/OfferCreationModal';
@@ -189,11 +191,27 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
         fetchVehicleDetails(false);
     }, [fetchVehicleDetails]);
 
-    // Handle Offer Submission
-    // Handle Offer Submission
+    const handleOpenOfferModal = React.useCallback(async () => {
+        if (!fullVehicleData?.id || !user?.id) {
+            return;
+        }
+        try {
+            const check = await vehicleService.checkPuedeOfertar(fullVehicleData.id);
+            if (check && check.puede_ofertar === false) {
+                showMarketplaceAlert(
+                    'Oferta activa',
+                    check.mensaje || MSG_OFERTA_ACTIVA_MISMO_VENDEDOR
+                );
+                return;
+            }
+        } catch (e) {
+            console.warn('puede_ofertar fallback', e);
+        }
+        setOfferModalVisible(true);
+    }, [fullVehicleData?.id, user?.id]);
+
     const handleMakeOffer = async (amount) => {
         try {
-            // Construct payload
             const offerData = {
                 vehiculo_id: fullVehicleData.id,
                 monto: amount,
@@ -202,15 +220,19 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
 
             await vehicleService.createOffer(offerData);
 
-            Alert.alert(
-                "Oferta Enviada",
+            showMarketplaceAlert(
+                'Oferta Enviada',
                 "Tu oferta ha sido enviada al vendedor. Podrás ver el estado y responder en la pestaña 'Negocios' del Marketplace.",
-                [{ text: "OK", onPress: () => setOfferModalVisible(false) }]
+                [{ text: 'OK', onPress: () => setOfferModalVisible(false) }]
             );
 
         } catch (error) {
-            console.error("Error creating offer:", error);
-            Alert.alert("Error", "No se pudo enviar la oferta. Verifica tu conexión o intenta más tarde.");
+            console.error('Error creating offer:', error);
+            const parsed = parseCreateOfferError(error);
+            showMarketplaceAlert(
+                'No se puede enviar la oferta',
+                parsed || 'No se pudo enviar la oferta. Verifica tu conexión o intenta más tarde.'
+            );
         }
     };
 
@@ -851,7 +873,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                             return (
                                 <TouchableOpacity
                                     style={styles.makeOfferButtonWrap}
-                                    onPress={() => setOfferModalVisible(true)}
+                                    onPress={handleOpenOfferModal}
                                     activeOpacity={0.85}
                                 >
                                     <View style={[styles.makeOfferGradient, styles.makeOfferPrimaryFill]}>
@@ -868,7 +890,7 @@ const MarketplaceVehicleDetailScreen = ({ route }) => {
                                     isOwnerView ? styles.makeOfferButtonOwner : styles.makeOfferButtonMuted,
                                 ]}
                                 onPress={() => {
-                                    if (!disabled && !isOwnerView) setOfferModalVisible(true);
+                                    if (!disabled && !isOwnerView) handleOpenOfferModal();
                                 }}
                                 activeOpacity={disabled ? 1 : 0.8}
                                 disabled={disabled}

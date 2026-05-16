@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { showMarketplaceAlert } from '../../utils/marketplaceAlerts';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import Avatar from '../base/Avatar/Avatar';
@@ -183,7 +184,7 @@ const OfferNegotiationCard = ({
                                             activeOpacity={inspectionDisabled ? 1 : 0.7}
                                             onPress={() => {
                                                 if (inspectionDisabled) {
-                                                    Alert.alert(
+                                                    showMarketplaceAlert(
                                                         'Inspección ya solicitada',
                                                         inspectionDisabledReason ||
                                                             'Ya tienes una inspección pre-compra activa para este vehículo. Revisa Mis solicitudes o espera a que finalice o expire.'
