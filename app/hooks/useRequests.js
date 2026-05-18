@@ -2,8 +2,6 @@ import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import solicitudesService, { normalizarSolicitudPublica } from '../services/solicitudesService';
 import ofertasService from '../services/ofertasService';
-import { getClienteDetails } from '../services/user';
-import { filtrarSolicitudesDelCliente } from '../utils/solicitudOwnership';
 import { useAuth } from '../context/AuthContext';
 
 const CACHE = {
@@ -147,24 +145,12 @@ export function prefetchRequestDetail(queryClient, solicitudId) {
     });
 }
 
-async function fetchMisSolicitudesConFiltroCliente() {
-    const [lista, cliente] = await Promise.all([
-        solicitudesService.obtenerMisSolicitudes(),
-        getClienteDetails().catch(() => null),
-    ]);
-    const clienteId = cliente?.id ?? cliente?.cliente_id ?? null;
-    if (clienteId == null) {
-        return Array.isArray(lista) ? lista : [];
-    }
-    return filtrarSolicitudesDelCliente(lista, clienteId);
-}
-
 export const useRequests = () => {
     const { user } = useAuth();
     const uid = user?.id ?? 'anon';
     return useQuery({
         queryKey: REQUESTS_LIST_KEY(uid),
-        queryFn: fetchMisSolicitudesConFiltroCliente,
+        queryFn: () => solicitudesService.obtenerMisSolicitudes(),
         enabled: !!user?.id,
         select: (data) => (Array.isArray(data) ? data : []),
         staleTime: CACHE.staleTime,

@@ -21,22 +21,30 @@ export function normalizarSolicitudPublica(solicitud) {
   return solicitud;
 }
 
-function normalizarListaSolicitudes(data) {
-  let solicitudesArray = [];
-  if (Array.isArray(data)) {
-    solicitudesArray = data;
-  } else if (data?.results) {
-    if (data.results.type === 'FeatureCollection' && Array.isArray(data.results.features)) {
-      solicitudesArray = data.results.features;
-    } else if (Array.isArray(data.results)) {
-      solicitudesArray = data.results;
-    } else if (Array.isArray(data.results.features)) {
-      solicitudesArray = data.results.features;
-    }
-  } else if (data?.data) {
-    solicitudesArray = Array.isArray(data.data) ? data.data : [];
+function extraerFeaturesDeRespuesta(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+    return data.features;
   }
-  return solicitudesArray.map(normalizarSolicitudPublica);
+  if (data.results) {
+    if (data.results.type === 'FeatureCollection' && Array.isArray(data.results.features)) {
+      return data.results.features;
+    }
+    if (Array.isArray(data.results)) return data.results;
+    if (Array.isArray(data.results.features)) return data.results.features;
+  }
+  if (data.data) {
+    if (data.data.type === 'FeatureCollection' && Array.isArray(data.data.features)) {
+      return data.data.features;
+    }
+    if (Array.isArray(data.data)) return data.data;
+  }
+  return [];
+}
+
+function normalizarListaSolicitudes(data) {
+  return extraerFeaturesDeRespuesta(data).map(normalizarSolicitudPublica);
 }
 
 /**
@@ -154,7 +162,20 @@ class SolicitudesService {
       // Construir URL correctamente: base + query params si existen
       const baseUrl = '/ordenes/solicitudes-publicas/mis-solicitudes/';
       const url = queryString ? `${baseUrl}?${queryString}` : baseUrl;
-      const data = await get(url, {}, { forceRefresh: true });
+      let data;
+      try {
+        data = await get(url, {}, { forceRefresh: true });
+      } catch (err) {
+        // Backend antiguo sin mis-solicitudes: fallback al list ya acotado por cliente
+        if (err?.status === 404) {
+          const legacyUrl = queryString
+            ? `/ordenes/solicitudes-publicas/?${queryString}`
+            : '/ordenes/solicitudes-publicas/';
+          data = await get(legacyUrl, {}, { forceRefresh: true });
+        } else {
+          throw err;
+        }
+      }
       console.log('SolicitudesService: Solicitudes obtenidas:', data);
       return normalizarListaSolicitudes(data);
     } catch (error) {

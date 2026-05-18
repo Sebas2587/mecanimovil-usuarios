@@ -3,4 +3,4 @@
 - [x] OpenSpec: proposal, design, spec, tasks
 - [x] Backend: `mis-solicitudes`, `list` solo cliente, fix OfertaProveedor, tests
 - [x] Frontend: endpoint, `filtrarSolicitudesDelCliente`, `useRequests`
-- [ ] Commit y push (usuarios + backend)
+- [x] Commit y push (usuarios + backend)
