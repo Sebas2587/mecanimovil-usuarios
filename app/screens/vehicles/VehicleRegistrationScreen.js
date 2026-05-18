@@ -32,7 +32,7 @@ import Button from '../../components/base/Button/Button';
 import * as ImagePicker from 'expo-image-picker'; // New import
 import { useQueryClient } from '@tanstack/react-query'; // For invalidation
 import { ROUTES } from '../../utils/constants';
-import { showAlert } from '../../utils/platformAlert';
+import { showAlert, showConfirm } from '../../utils/platformAlert';
 import { formatApiErrorMessage } from '../../utils/formatApiError';
 import {
     necesitaValorMercadoManual,
@@ -40,6 +40,9 @@ import {
 } from '../../utils/vehicleValuation';
 import {
     getMileageSii,
+    getVehicleYear,
+    kmValidacionToHint,
+    mensajeSinMileageSii,
     tieneMileageSii,
     validarKilometrajeContraSii,
 } from '../../utils/vehicleMileage';
@@ -183,10 +186,7 @@ const VehicleRegistrationScreen = () => {
                 }
 
                 if (!tieneMileageSii(data)) {
-                    const sinSii = validarKilometrajeContraSii('1', data);
-                    setKmValidationHint(
-                        sinSii.mensaje ? { tipo: 'aviso', mensaje: sinSii.mensaje } : null,
-                    );
+                    setKmValidationHint({ tipo: 'aviso', mensaje: mensajeSinMileageSii() });
                 } else {
                     setKmValidationHint(null);
                 }
@@ -237,7 +237,7 @@ const VehicleRegistrationScreen = () => {
         }
     };
 
-    const handleSave = async () => {
+    const handleSave = async (kilometrajeConfirmado = false) => {
         if (!vehicleData) return;
 
         console.log("🔍 [DEBUG] handleSave - vehicleData:", JSON.stringify(vehicleData, null, 2));
@@ -253,15 +253,44 @@ const VehicleRegistrationScreen = () => {
             return;
         }
 
+        if (validacionKm.requiere_confirmacion && !kilometrajeConfirmado) {
+            const titulo =
+                validacionKm.code === 'km_posible_typo'
+                    ? 'Revisar kilometraje'
+                    : 'Confirmar kilometraje';
+            showConfirm(titulo, validacionKm.mensaje, {
+                confirmText: 'Sí, es correcto',
+                onConfirm: () => handleSave(true),
+            });
+            return;
+        }
+
         try {
             const validacionServidor = await vehicleService.validarKilometraje(kilometraje, {
                 mileage_sii: getMileageSii(vehicleData),
                 tiene_mileage_sii: tieneMileageSii(vehicleData),
+                year: getVehicleYear(vehicleData),
             });
             if (validacionServidor && validacionServidor.valid === false) {
                 showAlert(
                     'Kilometraje inconsistente',
                     validacionServidor.mensaje || validacionKm.mensaje,
+                );
+                return;
+            }
+            if (
+                validacionServidor?.requiere_confirmacion &&
+                !kilometrajeConfirmado
+            ) {
+                showConfirm(
+                    validacionServidor.code === 'km_posible_typo'
+                        ? 'Revisar kilometraje'
+                        : 'Confirmar kilometraje',
+                    validacionServidor.mensaje || validacionKm.mensaje,
+                    {
+                        confirmText: 'Sí, es correcto',
+                        onConfirm: () => handleSave(true),
+                    },
                 );
                 return;
             }
@@ -486,20 +515,27 @@ const VehicleRegistrationScreen = () => {
             const cleaned = text.replace(/[^0-9]/g, '');
             setKilometraje(cleaned);
             if (!vehicleData || !cleaned) {
-                setKmValidationHint(null);
+                setKmValidationHint(
+                    !tieneMileageSii(vehicleData) && vehicleData
+                        ? { tipo: 'aviso', mensaje: mensajeSinMileageSii() }
+                        : null,
+                );
                 return;
             }
             const v = validarKilometrajeContraSii(cleaned, vehicleData);
-            if (!v.valid) {
-                setKmValidationHint({ tipo: 'error', mensaje: v.mensaje });
-            } else if (v.nivel === 'aviso') {
-                setKmValidationHint({ tipo: 'aviso', mensaje: v.mensaje });
-            } else {
-                setKmValidationHint(null);
-            }
+            setKmValidationHint(kmValidacionToHint(v));
         },
         [vehicleData],
     );
+
+    const aplicarKmSugerido = useCallback(() => {
+        if (kmValidationHint?.km_sugerido) {
+            const sugerido = String(kmValidationHint.km_sugerido);
+            setKilometraje(sugerido);
+            const v = validarKilometrajeContraSii(sugerido, vehicleData);
+            setKmValidationHint(kmValidacionToHint(v));
+        }
+    }, [kmValidationHint, vehicleData]);
 
     const requiereValorMercadoManual =
         step === 'success' && vehicleData && necesitaValorMercadoManual(vehicleData);
@@ -712,15 +748,27 @@ const VehicleRegistrationScreen = () => {
                                     <Text style={styles.kmSuffix}>km</Text>
                                 </View>
                                 {kmValidationHint?.mensaje ? (
-                                    <Text
-                                        style={
-                                            kmValidationHint.tipo === 'error'
-                                                ? styles.kmHintError
-                                                : styles.kmHintAviso
-                                        }
-                                    >
-                                        {kmValidationHint.mensaje}
-                                    </Text>
+                                    <View style={styles.kmHintBlock}>
+                                        <Text
+                                            style={
+                                                kmValidationHint.tipo === 'error'
+                                                    ? styles.kmHintError
+                                                    : styles.kmHintAviso
+                                            }
+                                        >
+                                            {kmValidationHint.mensaje}
+                                        </Text>
+                                        {kmValidationHint.km_sugerido ? (
+                                            <TouchableOpacity
+                                                onPress={aplicarKmSugerido}
+                                                style={styles.kmSugeridoButton}
+                                            >
+                                                <Text style={styles.kmSugeridoButtonText}>
+                                                    Usar {kmValidationHint.km_sugerido.toLocaleString('es-CL')} km
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ) : null}
+                                    </View>
                                 ) : null}
                             </PaperCard>
 
@@ -1105,10 +1153,25 @@ const styles = StyleSheet.create({
         lineHeight: 18,
     },
     kmHintAviso: {
-        marginTop: SPACING.sm,
         fontSize: TYPOGRAPHY.fontSize.sm,
         color: COLORS.warning[700],
         lineHeight: 18,
+    },
+    kmHintBlock: {
+        marginTop: SPACING.sm,
+        gap: SPACING.xs,
+    },
+    kmSugeridoButton: {
+        alignSelf: 'flex-start',
+        paddingVertical: SPACING.xxs,
+        paddingHorizontal: SPACING.sm,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.primary[50],
+    },
+    kmSugeridoButtonText: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.primary[700],
     },
     gridLabel: {
         fontSize: TYPOGRAPHY.fontSize.sm,

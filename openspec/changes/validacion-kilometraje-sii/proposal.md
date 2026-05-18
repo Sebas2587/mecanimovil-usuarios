@@ -9,4 +9,5 @@ El usuario puede ingresar un odómetro menor al registrado en el SII vía GetAPI
 
 ## Alcance
 - `VehicleRegistrationScreen`, `vehicle.js`, util `vehicleMileage.js`
+- Plausibilidad por edad sin SII: alertas, confirmación y sugerencia de tipeo
 - `getapi_client.py`, `kilometraje_validation.py`, `VehiculoViewSet`

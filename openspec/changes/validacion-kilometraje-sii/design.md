@@ -6,12 +6,21 @@
 
 Campo canónico en respuesta backend: `mileage` + `tiene_mileage_sii` + `kilometraje_api` (alias).
 
-## Reglas
+## Reglas SII (prioridad; no mezclar con plausibilidad)
 | Condición | Resultado |
 |-----------|-----------|
 | `tiene_mileage_sii` y `km_usuario < mileage` | Error bloqueante (inconsistencia con SII) |
 | `tiene_mileage_sii` y `km_usuario >= mileage` | OK |
-| Sin `mileage` en API | Aviso informativo; registro permitido con validación básica (>0) |
+| Con `mileage` SII | No se evalúa banda por edad |
+
+## Plausibilidad por edad (solo sin `mileage` SII)
+Banda: `años_vida × [3000, 12000, 28000]` km; vehículo del año: máx ~45.000 km.
+| Condición | Resultado |
+|-----------|-----------|
+| km dentro de banda | OK |
+| km bajo/alto moderado | Aviso + confirmación |
+| km extremo o posible tipeo (×10 / ÷10) | Error o aviso con `km_sugerido` |
+| Sin `year` | Aviso informativo; solo km > 0 |
 
 ## UX
 - Ficha del vehículo muestra "Kilometraje según registro (SII): X km" cuando aplica.

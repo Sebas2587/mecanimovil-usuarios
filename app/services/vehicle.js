@@ -289,9 +289,9 @@ export const getVehicleByPatente = async (patente) => {
 };
 
 /**
- * Valida kilometraje contra mileage SII vía backend.
+ * Valida kilometraje contra mileage SII y plausibilidad por edad vía backend.
  * @param {number|string} kilometraje
- * @param {{ mileage_sii?: number, tiene_mileage_sii?: boolean }} opts
+ * @param {{ mileage_sii?: number, tiene_mileage_sii?: boolean, year?: number|string }} opts
  */
 export const validarKilometraje = async (kilometraje, opts = {}) => {
   const params = { kilometraje: String(kilometraje) };
@@ -300,6 +300,9 @@ export const validarKilometraje = async (kilometraje, opts = {}) => {
   }
   if (opts.tiene_mileage_sii != null) {
     params.tiene_mileage_sii = opts.tiene_mileage_sii ? 'true' : 'false';
+  }
+  if (opts.year != null) {
+    params.year = String(opts.year);
   }
   try {
     return await get('/vehiculos/validar-kilometraje/', params);
