@@ -268,13 +268,18 @@ export const getVehicleByPatente = async (patente) => {
       puertas: source.doors || source.puertas || vehicleData.puertas,
       version: source.version || vehicleData.version,
       mes_revision_tecnica: source.monthRT || vehicleData.mes_revision_tecnica,
-      precio_mercado_promedio: source.precio_mercado_promedio || vehicleData.precio_mercado_promedio || source.marketValue || 0
+      precio_mercado_promedio:
+        vehicleData.precio_mercado_promedio ??
+        source.precio_mercado_promedio ??
+        source.marketValue ??
+        null,
+      precio_mercado_min: vehicleData.precio_mercado_min ?? null,
+      precio_mercado_max: vehicleData.precio_mercado_max ?? null,
+      tasacion_fiscal: vehicleData.tasacion_fiscal ?? null,
+      tiene_tasacion_mercado: vehicleData.tiene_tasacion_mercado,
     };
   } catch (error) {
     console.error('Error consultando patente:', error);
-
-    // Retorna null explícitamente si no se encuentra o hay error,
-    // para que la UI pueda manejar el caso "no encontrado"
     throw error;
   }
 };

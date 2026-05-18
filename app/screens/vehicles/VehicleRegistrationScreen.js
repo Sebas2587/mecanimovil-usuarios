@@ -13,7 +13,8 @@ import {
     TouchableWithoutFeedback,
     ScrollView,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
  
@@ -32,6 +33,11 @@ import * as ImagePicker from 'expo-image-picker'; // New import
 import { useQueryClient } from '@tanstack/react-query'; // For invalidation
 import { ROUTES } from '../../utils/constants';
 import { showAlert } from '../../utils/platformAlert';
+import { formatApiErrorMessage } from '../../utils/formatApiError';
+import {
+    necesitaValorMercadoManual,
+    tieneValorMercadoDesdeApi,
+} from '../../utils/vehicleValuation';
 
 // Utility
 const formatPatente = (text) => {
@@ -48,6 +54,18 @@ const PaperCard = ({ children, style }) => (
 const VehicleRegistrationScreen = () => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
+    const { height: windowHeight } = useWindowDimensions();
+
+    const webRootFrame =
+        Platform.OS === 'web'
+            ? {
+                  height: windowHeight,
+                  maxHeight: windowHeight,
+                  minHeight: 0,
+                  flex: 1,
+                  overflow: 'hidden',
+              }
+            : null;
 
     // States
     const [patente, setPatente] = useState('');
@@ -150,24 +168,34 @@ const VehicleRegistrationScreen = () => {
                     setSelectedEngineType(type);
                 }
 
-                if (!data.precio_mercado_promedio || Number(data.precio_mercado_promedio) === 0) {
-                    setShowValorMercadoAlert(true);
+                const requiereValorManual = necesitaValorMercadoManual(data);
+                setShowValorMercadoAlert(requiereValorManual);
+                if (!requiereValorManual && data.precio_mercado_promedio) {
+                    setValorMercado(String(data.precio_mercado_promedio));
                 } else {
-                    setShowValorMercadoAlert(false);
+                    setValorMercado('');
                 }
 
                 setStep('success');
             } else {
                 showAlert(
-                    'Vehículo no encontrado',
-                    'No encontramos información para esta patente. Intenta con otra o revisa la patente ingresada.',
+                    'Patente no encontrada',
+                    'No encontramos un vehículo asociado a esta patente en el registro nacional. Revisa que esté escrita correctamente (6 caracteres).',
                 );
             }
         } catch (error) {
             console.error(error);
+            if (error?.status === 404) {
+                const detalle = formatApiErrorMessage(
+                    error,
+                    'La patente ingresada no existe en el registro nacional de vehículos.',
+                );
+                showAlert('Patente no encontrada', detalle);
+                return;
+            }
             showAlert(
                 'Error',
-                'Hubo un problema consultando la patente. Intenta nuevamente o usa el ingreso manual.',
+                'Hubo un problema consultando la patente. Intenta nuevamente en unos momentos.',
             );
         } finally {
             setLoading(false);
@@ -210,7 +238,7 @@ const VehicleRegistrationScreen = () => {
             return;
         }
 
-        if (!vehicleData.precio_mercado_promedio || Number(vehicleData.precio_mercado_promedio) === 0) {
+        if (necesitaValorMercadoManual(vehicleData)) {
             if (!valorMercado) {
                 showAlert('Falta información', 'Por favor ingresa el valor de mercado referencial.');
                 return;
@@ -302,7 +330,7 @@ const VehicleRegistrationScreen = () => {
             }
 
             // Append market value manually if needed
-            if (valorMercado && (!vehicleData.precio_mercado_promedio || Number(vehicleData.precio_mercado_promedio) === 0)) {
+            if (necesitaValorMercadoManual(vehicleData) && valorMercado) {
                 formData.append('precio_mercado_promedio', valorMercado);
             }
 
@@ -414,8 +442,11 @@ const VehicleRegistrationScreen = () => {
         setMaintenanceSelections({});
     };
 
+    const requiereValorMercadoManual =
+        step === 'success' && vehicleData && necesitaValorMercadoManual(vehicleData);
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, webRootFrame]}>
             <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
             {/* Header */}
@@ -431,10 +462,15 @@ const VehicleRegistrationScreen = () => {
 
             {/* Main Content */}
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardContainer}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={[styles.keyboardContainer, Platform.OS === 'web' && styles.keyboardContainerWeb]}
             >
-                <View style={styles.contentContainer}>
+                <View
+                    style={[
+                        styles.contentContainer,
+                        Platform.OS === 'web' && styles.contentContainerWeb,
+                    ]}
+                >
 
                     {/* SEARCH STATE */}
                     {step === 'search' && (
@@ -522,6 +558,7 @@ const VehicleRegistrationScreen = () => {
                     {/* SUCCESS STATE */}
                     {step === 'success' && vehicleData && (
                         <ScrollView
+                            style={Platform.OS === 'web' ? styles.successScrollViewWeb : undefined}
                             showsVerticalScrollIndicator={false}
                             contentContainerStyle={styles.successScroll}
                             keyboardShouldPersistTaps="handled"
@@ -593,15 +630,15 @@ const VehicleRegistrationScreen = () => {
                                 </View>
                             </PaperCard>
 
-                            {/* Valor Mercado (Condicional) */}
-                            {(!vehicleData.precio_mercado_promedio || Number(vehicleData.precio_mercado_promedio) === 0) && (
+                            {/* Valor mercado: solo si GetAPI no entregó tasación */}
+                            {requiereValorMercadoManual && (
                                 <>
                                     {showValorMercadoAlert && (
                                         <View style={[styles.warningCard, styles.warningCardRow]}>
                                             <Ionicons name="information-circle-outline" size={22} color={COLORS.warning[600]} style={{ marginRight: SPACING.xs, marginTop: 2 }} />
                                             <View style={{ flex: 1 }}>
                                                 <Text style={styles.warningText}>
-                                                    <Text style={styles.warningTextStrong}>Aviso:</Text> No pudimos obtener el valor de mercado para este vehículo por defecto. Por favor ingresa el valor de mercado manualmente.
+                                                    <Text style={styles.warningTextStrong}>Aviso:</Text> No hay valor de mercado registrado para este vehículo. Ingresa un valor referencial aproximado.
                                                 </Text>
                                             </View>
                                             <TouchableOpacity onPress={() => setShowValorMercadoAlert(false)} style={{ padding: 4 }}>
@@ -624,6 +661,16 @@ const VehicleRegistrationScreen = () => {
                                         </View>
                                     </PaperCard>
                                 </>
+                            )}
+
+                            {tieneValorMercadoDesdeApi(vehicleData) && (
+                                <PaperCard style={[styles.kilometerSection, { marginTop: SPACING.md }]}>
+                                    <Text style={styles.sectionLabel}>Valor de mercado (registro)</Text>
+                                    <Text style={styles.valorMercadoRegistrado}>
+                                        $
+                                        {Number(vehicleData.precio_mercado_promedio || 0).toLocaleString('es-CL')}
+                                    </Text>
+                                </PaperCard>
                             )}
 
                             {/* Mantenimientos Recientes (Opcional) */}
@@ -775,10 +822,19 @@ const styles = StyleSheet.create({
     keyboardContainer: {
         flex: 1,
     },
+    keyboardContainerWeb: {
+        minHeight: 0,
+    },
     contentContainer: {
         flex: 1,
         paddingHorizontal: SPACING.container.horizontal,
         paddingBottom: SPACING.xl,
+    },
+    contentContainerWeb: {
+        minHeight: 0,
+    },
+    successScrollViewWeb: {
+        flex: 1,
     },
     centerWrapper: {
         flex: 1,
@@ -851,6 +907,12 @@ const styles = StyleSheet.create({
     successScroll: {
         flexGrow: 1,
         paddingBottom: 40,
+    },
+    valorMercadoRegistrado: {
+        fontSize: TYPOGRAPHY.fontSize.xl,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+        marginTop: SPACING.xs,
     },
     successHeader: {
         alignItems: 'center',
