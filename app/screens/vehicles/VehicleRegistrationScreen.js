@@ -38,6 +38,11 @@ import {
     necesitaValorMercadoManual,
     tieneValorMercadoDesdeApi,
 } from '../../utils/vehicleValuation';
+import {
+    getMileageSii,
+    tieneMileageSii,
+    validarKilometrajeContraSii,
+} from '../../utils/vehicleMileage';
 
 // Utility
 const formatPatente = (text) => {
@@ -80,6 +85,7 @@ const VehicleRegistrationScreen = () => {
     const [maintenanceExpanded, setMaintenanceExpanded] = useState(true);
     const [valorMercado, setValorMercado] = useState('');
     const [showValorMercadoAlert, setShowValorMercadoAlert] = useState(false);
+    const [kmValidationHint, setKmValidationHint] = useState(null);
     const queryClient = useQueryClient();
 
     // Fetch checklist for maintenance section
@@ -176,6 +182,14 @@ const VehicleRegistrationScreen = () => {
                     setValorMercado('');
                 }
 
+                if (!tieneMileageSii(data)) {
+                    const sinSii = validarKilometrajeContraSii('1', data);
+                    setKmValidationHint(
+                        sinSii.mensaje ? { tipo: 'aviso', mensaje: sinSii.mensaje } : null,
+                    );
+                } else {
+                    setKmValidationHint(null);
+                }
                 setStep('success');
             } else {
                 showAlert(
@@ -231,6 +245,28 @@ const VehicleRegistrationScreen = () => {
         if (!kilometraje) {
             showAlert('Falta información', 'Por favor ingresa el kilometraje actual.');
             return;
+        }
+
+        const validacionKm = validarKilometrajeContraSii(kilometraje, vehicleData);
+        if (!validacionKm.valid) {
+            showAlert('Kilometraje inconsistente', validacionKm.mensaje);
+            return;
+        }
+
+        try {
+            const validacionServidor = await vehicleService.validarKilometraje(kilometraje, {
+                mileage_sii: getMileageSii(vehicleData),
+                tiene_mileage_sii: tieneMileageSii(vehicleData),
+            });
+            if (validacionServidor && validacionServidor.valid === false) {
+                showAlert(
+                    'Kilometraje inconsistente',
+                    validacionServidor.mensaje || validacionKm.mensaje,
+                );
+                return;
+            }
+        } catch (e) {
+            console.warn('Validación servidor kilometraje:', e);
         }
 
         if (!selectedEngineType) {
@@ -323,8 +359,7 @@ const VehicleRegistrationScreen = () => {
             formData.append('year', String(parseInt(vehicleData.year || vehicleData.anio)));
             formData.append('kilometraje', String(parseInt(kilometraje)));
 
-            // Send API Mileage for comparison
-            const apiMileage = vehicleData.raw_data?.mileage || vehicleData.mileage || vehicleData.kilometraje;
+            const apiMileage = getMileageSii(vehicleData);
             if (apiMileage) {
                 formData.append('kilometraje_api', String(apiMileage));
             }
@@ -438,9 +473,33 @@ const VehicleRegistrationScreen = () => {
         setKilometraje('');
         setValorMercado('');
         setShowValorMercadoAlert(false);
+        setKmValidationHint(null);
         setImage(null);
         setMaintenanceSelections({});
     };
+
+    const mileageSiiRegistro = vehicleData ? getMileageSii(vehicleData) : null;
+    const hayMileageSii = vehicleData ? tieneMileageSii(vehicleData) : false;
+
+    const handleKilometrajeChange = useCallback(
+        (text) => {
+            const cleaned = text.replace(/[^0-9]/g, '');
+            setKilometraje(cleaned);
+            if (!vehicleData || !cleaned) {
+                setKmValidationHint(null);
+                return;
+            }
+            const v = validarKilometrajeContraSii(cleaned, vehicleData);
+            if (!v.valid) {
+                setKmValidationHint({ tipo: 'error', mensaje: v.mensaje });
+            } else if (v.nivel === 'aviso') {
+                setKmValidationHint({ tipo: 'aviso', mensaje: v.mensaje });
+            } else {
+                setKmValidationHint(null);
+            }
+        },
+        [vehicleData],
+    );
 
     const requiereValorMercadoManual =
         step === 'success' && vehicleData && necesitaValorMercadoManual(vehicleData);
@@ -611,23 +670,58 @@ const VehicleRegistrationScreen = () => {
                                         <Text style={styles.gridLabel}>VIN</Text>
                                         <Text style={[styles.gridValue, styles.monospace]}>{vehicleData.vin || 'N/A'}</Text>
                                     </View>
+                                    {hayMileageSii && mileageSiiRegistro != null && (
+                                        <View style={[styles.gridItem, styles.gridItemFull]}>
+                                            <Text style={styles.gridLabel}>Kilometraje según registro (SII)</Text>
+                                            <Text style={styles.gridValueSii}>
+                                                {mileageSiiRegistro.toLocaleString('es-CL')} km
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
                             </PaperCard>
 
                             {/* Kilometraje Input */}
                             <PaperCard style={styles.kilometerSection}>
                                 <Text style={styles.sectionLabel}>Kilometraje Actual</Text>
+                                {hayMileageSii && mileageSiiRegistro != null ? (
+                                    <Text style={styles.kmReferenciaSii}>
+                                        Referencia SII: {mileageSiiRegistro.toLocaleString('es-CL')} km. El odómetro no puede ser menor a este valor.
+                                    </Text>
+                                ) : (
+                                    <Text style={styles.kmReferenciaSiiMuted}>
+                                        No hay kilometraje de referencia del SII para este vehículo. Ingresa el valor actual del odómetro.
+                                    </Text>
+                                )}
                                 <View style={styles.kmInputWrapper}>
                                     <TextInput
-                                        style={styles.kmInput}
+                                        style={[
+                                            styles.kmInput,
+                                            kmValidationHint?.tipo === 'error' && styles.kmInputError,
+                                        ]}
                                         value={kilometraje}
-                                        onChangeText={text => setKilometraje(text.replace(/[^0-9]/g, ''))}
-                                        placeholder="0"
+                                        onChangeText={handleKilometrajeChange}
+                                        placeholder={
+                                            hayMileageSii && mileageSiiRegistro
+                                                ? String(mileageSiiRegistro)
+                                                : '0'
+                                        }
                                         keyboardType="numeric"
                                         placeholderTextColor={COLORS.text.tertiary}
                                     />
                                     <Text style={styles.kmSuffix}>km</Text>
                                 </View>
+                                {kmValidationHint?.mensaje ? (
+                                    <Text
+                                        style={
+                                            kmValidationHint.tipo === 'error'
+                                                ? styles.kmHintError
+                                                : styles.kmHintAviso
+                                        }
+                                    >
+                                        {kmValidationHint.mensaje}
+                                    </Text>
+                                ) : null}
                             </PaperCard>
 
                             {/* Valor mercado: solo si GetAPI no entregó tasación */}
@@ -980,6 +1074,41 @@ const styles = StyleSheet.create({
     },
     gridItem: {
         width: '45%',
+    },
+    gridItemFull: {
+        width: '100%',
+    },
+    gridValueSii: {
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.primary[700],
+    },
+    kmReferenciaSii: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
+        marginBottom: SPACING.sm,
+        lineHeight: 20,
+    },
+    kmReferenciaSiiMuted: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.tertiary,
+        marginBottom: SPACING.sm,
+        lineHeight: 20,
+    },
+    kmInputError: {
+        color: COLORS.error[600],
+    },
+    kmHintError: {
+        marginTop: SPACING.sm,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.error[600],
+        lineHeight: 18,
+    },
+    kmHintAviso: {
+        marginTop: SPACING.sm,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.warning[700],
+        lineHeight: 18,
     },
     gridLabel: {
         fontSize: TYPOGRAPHY.fontSize.sm,

@@ -277,9 +277,36 @@ export const getVehicleByPatente = async (patente) => {
       precio_mercado_max: vehicleData.precio_mercado_max ?? null,
       tasacion_fiscal: vehicleData.tasacion_fiscal ?? null,
       tiene_tasacion_mercado: vehicleData.tiene_tasacion_mercado,
+      mileage: vehicleData.mileage ?? vehicleData.kilometraje_api ?? null,
+      kilometraje_api: vehicleData.kilometraje_api ?? vehicleData.mileage ?? null,
+      tiene_mileage_sii: vehicleData.tiene_mileage_sii,
+      mileage_fuente: vehicleData.mileage_fuente ?? null,
     };
   } catch (error) {
     console.error('Error consultando patente:', error);
+    throw error;
+  }
+};
+
+/**
+ * Valida kilometraje contra mileage SII vía backend.
+ * @param {number|string} kilometraje
+ * @param {{ mileage_sii?: number, tiene_mileage_sii?: boolean }} opts
+ */
+export const validarKilometraje = async (kilometraje, opts = {}) => {
+  const params = { kilometraje: String(kilometraje) };
+  if (opts.mileage_sii != null) {
+    params.mileage_sii = String(opts.mileage_sii);
+  }
+  if (opts.tiene_mileage_sii != null) {
+    params.tiene_mileage_sii = opts.tiene_mileage_sii ? 'true' : 'false';
+  }
+  try {
+    return await get('/vehiculos/validar-kilometraje/', params);
+  } catch (error) {
+    if (error?.status === 400 && error?.response?.data) {
+      return error.response.data;
+    }
     throw error;
   }
 };
