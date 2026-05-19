@@ -829,12 +829,17 @@ const FormularioSolicitud = ({
       return;
     }
     const comunasExtraidas = extraerComunasDesdeDireccion(formData.direccion_usuario);
+    const direccionTexto =
+      formData.direccion_servicio_texto?.trim()
+      || formData.direccion_usuario?.direccion?.trim()
+      || '';
     const list = await cargarCandidatosIa({
       vehiculoId: formData.vehiculo.id,
       servicioIds,
       lat,
       lng,
       comunasExtraidas,
+      direccionTexto,
       requiereRepuestos: formData.requiere_repuestos !== false,
     });
     if (!list.length) {

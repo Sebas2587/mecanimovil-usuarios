@@ -88,6 +88,7 @@ export function useAgendamientoAsistido() {
       lat,
       lng,
       comunasExtraidas,
+      direccionTexto,
       requiereRepuestos = true,
     }) => {
       if (!habilitado || !vehiculoId || !Array.isArray(servicioIds) || servicioIds.length === 0) {
@@ -103,6 +104,7 @@ export function useAgendamientoAsistido() {
           lat,
           lng,
           comunas_extraidas: comunasExtraidas,
+          direccion_texto: direccionTexto,
           requiere_repuestos: requiereRepuestos,
         });
         const list = Array.isArray(data?.candidatos) ? data.candidatos : [];

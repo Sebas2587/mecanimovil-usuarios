@@ -7,14 +7,6 @@ export function extraerComunasDesdeDireccion(direccion) {
   if (explicit && String(explicit).trim()) {
     return [String(explicit).trim()];
   }
-  const texto = String(direccion.direccion || '').trim();
-  if (!texto) return [];
-  const partes = texto.split(',').map((p) => p.trim()).filter(Boolean);
-  if (partes.length >= 2) {
-    const candidata = partes[partes.length - 2];
-    if (candidata && candidata.length > 2 && candidata.length < 60) {
-      return [candidata];
-    }
-  }
+  // No inferir comuna desde calle/número: el backend resuelve con ChileanCommune + direccion_texto.
   return [];
 }
