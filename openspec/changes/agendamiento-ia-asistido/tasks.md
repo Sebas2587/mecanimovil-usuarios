@@ -8,15 +8,14 @@
 - [x] motor_necesidad, motor_match
 - [x] AsistenteAgendamientoViewSet + URLs + flag
 - [x] Tests (requieren GDAL/PostGIS en CI local)
-- [ ] confirmar-candidato (fase 2)
 
 ## Fase 2 — Usuarios
 - [x] agendamientoAsistidoService.js
 - [x] useAgendamientoAsistido.js
 - [x] Componentes base agendamiento-asistido/
-- [ ] Integración FormularioSolicitud + flag
-- [ ] Comparador modo catalogo
-- [ ] STT on-device
+- [x] Integración FormularioSolicitud + flag
+- [x] Comparador modo catalogo
+- [x] STT on-device (expo-speech-recognition)
 
 ## Fase 3 — Proveedores
-- [ ] UI confirmación catálogo
+- [x] UI confirmación catálogo (en prov repo)

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,10 @@ import { Mic, Sparkles } from 'lucide-react-native';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
+import { useNecesidadSpeech } from '../../hooks/useNecesidadSpeech';
 
 /**
- * Paso «¿Qué necesitas?» — texto editable; voz vía STT nativo (fase UI: placeholder).
+ * Paso «¿Qué necesitas?» — texto editable; voz vía STT on-device (sin audio al servidor).
  */
 export default function NecesidadInputStep({
   value,
@@ -23,12 +24,14 @@ export default function NecesidadInputStep({
   temperatura,
   urgenciaLabel,
 }) {
-  const [listening] = useState(false);
+  const { listening, startListening } = useNecesidadSpeech({
+    onTranscript: (text) => onChangeText?.(text),
+    onEnd: () => onAnalizar?.(),
+  });
 
   const handleMic = useCallback(() => {
-    // STT on-device: integrar @react-native-voice/voice en fase siguiente
-    onChangeText?.(value || '');
-  }, [onChangeText, value]);
+    startListening(value || '');
+  }, [startListening, value]);
 
   return (
     <View style={styles.wrap}>
@@ -37,7 +40,7 @@ export default function NecesidadInputStep({
         <Text style={styles.title}>¿Qué necesitas?</Text>
       </View>
       <Text style={styles.subtitle}>
-        Describe el problema o usa el micrófono. Te sugeriremos servicios sin guardar borradores en el servidor.
+        Describe el problema o usa el micrófono. El dictado es local; no guardamos audio en el servidor.
       </Text>
 
       <View style={styles.inputRow}>
@@ -54,11 +57,19 @@ export default function NecesidadInputStep({
         <TouchableOpacity
           style={[styles.micBtn, listening && styles.micActive]}
           onPress={handleMic}
-          accessibilityLabel="Dictar necesidad"
+          accessibilityLabel={listening ? 'Detener dictado' : 'Dictar necesidad'}
         >
-          <Mic size={22} color={COLORS.primary?.main || COLORS.primary} />
+          {listening ? (
+            <ActivityIndicator size="small" color={COLORS.primary?.main || COLORS.primary} />
+          ) : (
+            <Mic size={22} color={COLORS.primary?.main || COLORS.primary} />
+          )}
         </TouchableOpacity>
       </View>
+
+      {listening ? (
+        <Text style={styles.listeningHint}>Escuchando… toca el micrófono para terminar</Text>
+      ) : null}
 
       {(temperatura != null || urgenciaLabel) && (
         <View style={styles.badgeRow}>
@@ -127,6 +138,12 @@ const styles = StyleSheet.create({
   },
   micActive: {
     backgroundColor: COLORS.primary?.light || '#DBEAFE',
+  },
+  listeningHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: COLORS.primary?.main || COLORS.primary,
+    fontWeight: '600',
   },
   badgeRow: {
     flexDirection: 'row',

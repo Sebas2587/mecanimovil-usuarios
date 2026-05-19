@@ -119,6 +119,13 @@
           "isAndroidBackgroundLocationEnabled": true
         }
       ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Permitir usar el micrófono para dictar la descripción del problema.",
+          "speechRecognitionPermission": "Permitir reconocimiento de voz para describir tu necesidad."
+        }
+      ],
       "./plugins/withAndroidSingleTask.js"
     ],
     "extra": {
