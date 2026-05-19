@@ -1,6 +1,7 @@
 import { get } from './api';
 import { getMediaURL } from './api';
 import * as locationService from './location';
+import { compareProvidersByKpiRelevance } from '../utils/providerUtils';
 
 /**
  * Servicios para manejo de proveedores (talleres y mecánicos)
@@ -874,6 +875,48 @@ export const getNearbyMechanics = async (lat, lng, radius = 10) => {
 };
 
 /**
+ * Proveedores «Para ti»: marca del vehículo + orden KPI (`proveedores_filtrados`).
+ * Opcionalmente enriquece `distance` si se pasan coordenadas (mapa desde `/cerca/`).
+ */
+export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
+  const limit = options.limit ?? 12;
+  if (!vehiculoId) return [];
+
+  try {
+    const params = { vehiculo_id: vehiculoId };
+    const [tRes, mRes] = await Promise.all([
+      get('/usuarios/talleres/proveedores_filtrados/', params),
+      get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params),
+    ]);
+
+    const talleres = (tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' }));
+    const mecanicos = (mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' }));
+    let merged = [...talleres, ...mecanicos].sort(compareProvidersByKpiRelevance);
+
+    const { lat, lng, marcaId } = options;
+    if (lat != null && lng != null) {
+      try {
+        const nearby = await getNearbyProvidersForPanel(lat, lng, marcaId, { limit: 80 });
+        const distMap = new Map(
+          nearby.map((p) => [`${p._panelKind}-${p.id}`, p.distance]),
+        );
+        merged = merged.map((p) => {
+          const d = distMap.get(`${p._panelKind}-${p.id}`);
+          return d != null ? { ...p, distance: d } : p;
+        });
+      } catch (distErr) {
+        console.warn('No se pudo enriquecer distancia en Para ti:', distErr);
+      }
+    }
+
+    return merged.slice(0, limit);
+  } catch (error) {
+    console.error('Error obteniendo proveedores Para ti:', error);
+    return [];
+  }
+};
+
+/**
  * Talleres y mecánicos cercanos, opcionalmente filtrados por marca atendida (mismo parámetro `marca` que los endpoints cerca).
  * Devuelve una lista unificada ordenada por distancia (más cercano primero).
  */
@@ -897,7 +940,9 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
       (Array.isArray(arr) ? arr : []).map((p) => ({ ...p, _panelKind: kind }));
     const merged = [...withKind(talleres, 'taller'), ...withKind(mecanicos, 'mecanico')];
     merged.sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9));
-    return merged.slice(0, 18);
+    const limit = options.limit ?? 18;
+    if (limit == null || limit <= 0) return merged;
+    return merged.slice(0, limit);
   } catch (error) {
     console.error('Error obteniendo proveedores cercanos para panel:', error);
     return [];

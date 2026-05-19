@@ -38,6 +38,8 @@ import FavoriteProvidersScreen from '../screens/profile/FavoriteProvidersScreen'
 
 import TalleresScreen from '../screens/providers/TalleresScreen';
 import MecanicosScreen from '../screens/providers/MecanicosScreen';
+import ExploreProvidersScreen from '../screens/providers/ExploreProvidersScreen';
+import { EXPLORE_MODE_PARA_TI } from '../components/providers/explore';
 import ProviderDetailScreen from '../screens/providers/ProviderDetailScreen';
 import ProviderReviewsScreen from '../screens/providers/ProviderReviewsScreen';
 
@@ -139,6 +141,15 @@ const HomeStack = createStackNavigator();
 const HomeNavigator = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="UserPanel" component={UserPanelScreen} />
+    <HomeStack.Screen
+      name={ROUTES.EXPLORE_PROVIDERS}
+      component={ExploreProvidersScreen}
+      options={({ route }) =>
+        getHeaderOptions(
+          route.params?.mode === EXPLORE_MODE_PARA_TI ? 'Para ti' : 'Cerca de ti',
+        )
+      }
+    />
     <HomeStack.Screen name={ROUTES.TALLERES} component={TalleresScreen} options={getHeaderOptions("Talleres")} />
     <HomeStack.Screen name={ROUTES.MECANICOS} component={MecanicosScreen} options={getHeaderOptions("Mecánicos a Domicilio")} />
   </HomeStack.Navigator>

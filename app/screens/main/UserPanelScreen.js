@@ -7,20 +7,15 @@ import {
   TouchableOpacity,
   StatusBar,
   Modal,
-  FlatList,
   RefreshControl,
-  Dimensions,
   Platform,
   ActivityIndicator,
 } from 'react-native';
 import { showAlert } from '../../utils/platformAlert';
-import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Car,
-  ChevronDown,
   Play,
   Square,
   Gauge,
@@ -30,24 +25,15 @@ import {
   ClipboardList,
   Store,
   MessageCircle,
-  Bell,
-  User,
-  Sparkles,
-  X,
   Check,
-  Plus,
   Zap,
   CloudRain,
   Disc,
   Wind,
   Droplets,
-  Users,
-  Navigation,
-  MapPin,
 } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
-
 import { useAuth } from '../../context/AuthContext';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { getUserVehicles } from '../../services/vehicle';
@@ -75,93 +61,31 @@ import {
 } from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
-import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
-import { formatProviderForCard } from '../../utils/providerUtils';
+import {
+  HomeTopBar,
+  HomeVehicleSelector,
+  HomeVehicleSelectorModal,
+  HomeQuickActions,
+  HomeParaTiSection,
+  HomeNearbySection,
+  HomeMarketActivitySection,
+} from '../../components/home/discovery';
+import { EXPLORE_MODE_CERCA, EXPLORE_MODE_PARA_TI } from '../../components/providers/explore';
+import { useParaTiProviders } from '../../hooks/useParaTiProviders';
+import {
+  H_PAD,
+  SCREEN_WIDTH,
+  TAB_BAR_BASE_HEIGHT,
+  SCROLL_BOTTOM_GAP,
+} from '../../components/home/shared/homeLayoutConstants';
+import { formatCLP, formatDuration, formatKm } from '../../components/home/shared/homeFormatters';
+import {
+  resolveVehicleMarcaId,
+  coordsFromSavedAddress,
+} from '../../components/home/shared/homeVehicleUtils';
+import { HomePanelCard, HomeSoftButton } from '../../components/home/shared/HomePanelCard';
 
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_GAP = 12;
-const H_PAD = SPACING.container.horizontal;
-// On web (desktop/tablet), cap the layout reference width so cards don't stretch
-// to full browser viewport. 480px matches a large phone; feels natural on desktop too.
-const LAYOUT_WIDTH = Platform.OS === 'web' ? Math.min(SCREEN_WIDTH, 480) : SCREEN_WIDTH;
-const GRID_CARD_W = (LAYOUT_WIDTH - H_PAD * 2 - CARD_GAP) / 2;
-const QUICK_ACTION_CARD_W = GRID_CARD_W;
-const QUICK_ACTION_SNAP_INTERVAL = QUICK_ACTION_CARD_W + CARD_GAP;
-const TAB_BAR_BASE_HEIGHT = 64;
-const SCROLL_BOTTOM_GAP = 10;
-
-const formatCLP = (value) => {
-  if (!value || value <= 0) return '--';
-  const formatted = Math.round(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `$${formatted}`;
-};
-
-const formatDuration = (ms) => {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-};
-
-const formatKm = (km) => {
-  if (km == null) return '0';
-  return Math.round(km).toLocaleString('es-CL');
-};
-
-function resolveVehicleMarcaId(vehicle) {
-  if (!vehicle) return null;
-  if (typeof vehicle.marca === 'number') return vehicle.marca;
-  if (vehicle.marca && typeof vehicle.marca === 'object' && vehicle.marca.id != null) {
-    return Number(vehicle.marca.id);
-  }
-  if (vehicle.marca_id != null) return Number(vehicle.marca_id);
-  return null;
-}
-
-function coordsFromSavedAddress(addr) {
-  if (!addr?.ubicacion?.coordinates || addr.ubicacion.coordinates.length < 2) return null;
-  const [lng, lat] = addr.ubicacion.coordinates;
-  const la = Number(lat);
-  const lo = Number(lng);
-  if (!Number.isFinite(la) || !Number.isFinite(lo)) return null;
-  return { lat: la, lng: lo };
-}
-
-// ─────────────────────────────────────────────
-// Card local (paper + hairline + sm shadow)
-// ─────────────────────────────────────────────
-const Card = ({ children, style, onPress, innerStyle }) => {
-  const inner = (
-    <View style={[styles.card, style]}>
-      <View style={[styles.cardInner, innerStyle]}>{children}</View>
-    </View>
-  );
-  if (onPress) {
-    return (
-      <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
-        {inner}
-      </TouchableOpacity>
-    );
-  }
-  return inner;
-};
-
-const SoftButton = ({ onPress, children, variant }) => (
-  <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.softBtnWrap}>
-    <View
-      style={[
-        styles.softBtnInner,
-        variant === 'stop' ? styles.softBtnInnerStop : styles.softBtnInnerPrimary,
-      ]}
-    >
-      {children}
-    </View>
-  </TouchableOpacity>
-);
 
 // Risk colors → tokens
 const riskColorMap = {
@@ -395,6 +319,16 @@ const UserPanelScreen = () => {
   const marcaIdForPanel = resolveVehicleMarcaId(selectedVehicle);
 
   const {
+    data: panelParaTiProviders = [],
+    isLoading: panelParaTiLoading,
+    refetch: refetchPanelParaTi,
+  } = useParaTiProviders({
+    vehicle: selectedVehicle,
+    address: selectedAddress,
+    enabled: !!selectedVehicle?.id,
+  });
+
+  const {
     data: panelNearbyProviders = [],
     isLoading: panelNearbyLoading,
     refetch: refetchPanelNearby,
@@ -442,16 +376,25 @@ const UserPanelScreen = () => {
     [navigation],
   );
 
-  const nearbyPageWidth = SCREEN_WIDTH;
-  const nearbyCardW = GRID_CARD_W;
-  const nearbyPages = useMemo(() => {
-    const list = panelNearbyProviders;
-    const pages = [];
-    for (let i = 0; i < list.length; i += 2) {
-      pages.push(list.slice(i, i + 2));
-    }
-    return pages;
-  }, [panelNearbyProviders]);
+  const handleSeeAllParaTi = useCallback(() => {
+    if (!selectedVehicle) return;
+    navigation.navigate(ROUTES.EXPLORE_PROVIDERS, {
+      vehicle: selectedVehicle,
+      address: selectedAddress ?? undefined,
+      mode: EXPLORE_MODE_PARA_TI,
+      initialTab: 'all',
+    });
+  }, [navigation, selectedVehicle, selectedAddress]);
+
+  const handleSeeAllNearby = useCallback(() => {
+    if (!selectedVehicle) return;
+    navigation.navigate(ROUTES.EXPLORE_PROVIDERS, {
+      vehicle: selectedVehicle,
+      address: selectedAddress ?? undefined,
+      mode: EXPLORE_MODE_CERCA,
+      initialTab: 'all',
+    });
+  }, [navigation, selectedVehicle, selectedAddress]);
 
   // ── Weather ──
   const {
@@ -637,7 +580,7 @@ const UserPanelScreen = () => {
   const onRefresh = useCallback(async () => {
     const extras = [];
     if (selectedVehicle?.id) {
-      extras.push(refetchPanelNearby(), refetchPanelActivity());
+      extras.push(refetchPanelParaTi(), refetchPanelNearby(), refetchPanelActivity());
     }
     await Promise.all([
       refetchVehicles(),
@@ -652,6 +595,7 @@ const UserPanelScreen = () => {
     cargarSolicitudesActivas,
     refetchWeather,
     selectedVehicle?.id,
+    refetchPanelParaTi,
     refetchPanelNearby,
     refetchPanelActivity,
   ]);
@@ -716,164 +660,30 @@ const UserPanelScreen = () => {
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>Hola, {user?.first_name || 'Conductor'}</Text>
-            {addressList.length > 0 ? (
-              <TouchableOpacity
-                style={styles.addressSelectorBtn}
-                onPress={() => setAddAddressModalOpen(true)}
-                activeOpacity={0.7}
-              >
-                <MapPin size={13} color={COLORS.primary[500]} />
-                <Text style={styles.addressSelectorText} numberOfLines={1}>
-                  {selectedAddress?.etiqueta || 'Dirección'}: {selectedAddress?.direccion || '—'}
-                </Text>
-                <ChevronDown size={14} color={COLORS.text.tertiary} />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.subtitleRow}>
-                <Sparkles size={14} color={COLORS.primary[500]} />
-                <Text style={styles.subtitle}>Dashboard Predictivo</Text>
-              </View>
-            )}
-          </View>
-          <TouchableOpacity
-            style={styles.headerIcon}
-            onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
-            activeOpacity={0.85}
-          >
-            <Bell size={20} color={COLORS.text.primary} />
-            {unreadCount > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerAvatar}
-            onPress={() => navigation.navigate(ROUTES.PROFILE)}
-            activeOpacity={0.85}
-          >
-            {user?.foto_perfil_url || user?.foto_perfil ? (
-              <Image
-                source={{ uri: user.foto_perfil_url || user.foto_perfil }}
-                style={styles.avatarImg}
-                contentFit="cover"
-              />
-            ) : (
-              <View style={[styles.avatarImg, styles.avatarFallback]}>
-                <User size={18} color={COLORS.primary[500]} />
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+        <HomeTopBar
+          firstName={user?.first_name}
+          unreadCount={unreadCount}
+          user={user}
+          hasAddresses={addressList.length > 0}
+          selectedAddress={selectedAddress}
+          onPressSelectAddress={() => setAddAddressModalOpen(true)}
+          onPressNotifications={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
+          onPressProfile={() => navigation.navigate(ROUTES.PROFILE)}
+        />
 
-        {/* Vehicle Selector */}
-        {vehicles.length > 0 ? (
-          <Card onPress={() => setSelectorVisible(true)} style={{ marginBottom: 16 }}>
-            <View style={styles.selectorRow}>
-              {selectedVehicle?.foto ? (
-                <Image
-                  source={{ uri: selectedVehicle.foto }}
-                  style={styles.selectorThumb}
-                  contentFit="cover"
-                />
-              ) : (
-                <View style={[styles.selectorThumb, styles.selectorThumbFallback]}>
-                  <Car size={22} color={COLORS.primary[500]} />
-                </View>
-              )}
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.selectorTitle} numberOfLines={1}>
-                  {selectedVehicle?.marca_nombre || selectedVehicle?.marca || '—'}{' '}
-                  {selectedVehicle?.modelo_nombre || selectedVehicle?.modelo || ''}
-                </Text>
-                <Text style={styles.selectorSub}>
-                  {selectedVehicle?.year || ''} · {selectedVehicle?.patente || ''}
-                </Text>
-              </View>
-              <ChevronDown size={20} color={COLORS.text.tertiary} />
-            </View>
-          </Card>
-        ) : vehiclesLoading ? (
-          <Card style={{ marginBottom: 16, alignItems: 'center', paddingVertical: 32 }}>
-            <ActivityIndicator color={COLORS.primary[500]} size="large" />
-            <Text style={[styles.emptyText, { marginTop: 12 }]}>Cargando vehículos...</Text>
-          </Card>
-        ) : (
-          <Card style={{ marginBottom: 16 }}>
-            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-              <View style={styles.emptyIconWrap}>
-                <Car size={32} color={COLORS.primary[500]} />
-              </View>
-              <Text style={styles.emptyTitle}>Sin vehículos registrados</Text>
-              <Text style={styles.emptyText}>
-                Registra tu primer vehículo para desbloquear el dashboard predictivo, telemetría y
-                salud IA.
-              </Text>
-              <TouchableOpacity
-                style={styles.emptyBtn}
-                onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
-                activeOpacity={0.85}
-              >
-                <Plus size={18} color={COLORS.text.inverse} />
-                <Text style={styles.emptyBtnText}>Agregar Vehículo</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-        )}
+        <HomeVehicleSelector
+          vehicles={vehicles}
+          vehiclesLoading={vehiclesLoading}
+          selectedVehicle={selectedVehicle}
+          onOpenSelector={() => setSelectorVisible(true)}
+          onAddVehicle={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
+        />
 
-        {/* Quick Actions */}
-        <ScrollView
-          horizontal
-          nestedScrollEnabled={Platform.OS !== 'web'}
-          showsHorizontalScrollIndicator={Platform.OS === 'web'}
-          decelerationRate={Platform.OS === 'web' ? undefined : 'fast'}
-          snapToInterval={Platform.OS === 'web' ? undefined : QUICK_ACTION_SNAP_INTERVAL}
-          snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
-          disableIntervalMomentum={Platform.OS === 'web' ? undefined : true}
-          contentContainerStyle={styles.quickScrollContent}
-          style={[styles.quickScrollOuter, Platform.OS === 'web' && { overflow: 'scroll' }]}
-          keyboardShouldPersistTaps="handled"
-        >
-          {quickActionItems.map((it) => (
-            <Card
-              key={it.key}
-              style={[styles.quickMgmtCardScroll, { width: QUICK_ACTION_CARD_W }]}
-              innerStyle={styles.quickMgmtInner}
-              onPress={it.onPress}
-            >
-              <View style={styles.quickMgmtIconWrap}>
-                <View style={[styles.quickMgmtIconBox, { backgroundColor: it.iconBg }]}>
-                  {it.icon}
-                </View>
-                {(it.badgeCount ?? 0) > 0 ? (
-                  <View style={styles.quickMgmtBadge} accessibilityElementsHidden>
-                    <Text style={styles.quickMgmtBadgeText}>
-                      {(it.badgeCount ?? 0) > 99 ? '99+' : it.badgeCount}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-              <View style={styles.quickMgmtTextCol}>
-                <Text style={styles.quickMgmtTitle} numberOfLines={1}>
-                  {it.title}
-                </Text>
-                <Text style={styles.quickMgmtSub} numberOfLines={2}>
-                  {it.sub}
-                </Text>
-              </View>
-            </Card>
-          ))}
-        </ScrollView>
+        <HomeQuickActions items={quickActionItems} />
 
         {/* Hero (valuation + health) */}
         {selectedVehicle && (
-          <Card style={{ marginBottom: 16 }}>
+          <HomePanelCard style={{ marginBottom: 16 }}>
             <View style={styles.heroRow}>
               <View style={{ flex: 1 }}>
                 <View style={styles.labelRow}>
@@ -922,12 +732,12 @@ const UserPanelScreen = () => {
               <Shield size={14} color={COLORS.text.tertiary} />
               <Text style={styles.odometerText}>{selectedVehicle?.tipo_motor || 'Motor'}</Text>
             </View>
-          </Card>
+          </HomePanelCard>
         )}
 
         {/* Telemetry */}
         {selectedVehicle && (
-          <Card style={styles.telemetryCard}>
+          <HomePanelCard style={styles.telemetryCard}>
             <View style={styles.telemetryStack}>
               <View style={styles.telemetryTopRow}>
                 <Text style={styles.telemetryConsoleLabel}>Viaje y telemetría</Text>
@@ -971,19 +781,19 @@ const UserPanelScreen = () => {
 
               <View style={styles.telemetryCtaWrap}>
                 {tripActive ? (
-                  <SoftButton onPress={stopTrip} variant="stop">
+                  <HomeSoftButton onPress={stopTrip} variant="stop">
                     <Square size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
                     <Text style={styles.softBtnTextStop}>Detener viaje</Text>
-                  </SoftButton>
+                  </HomeSoftButton>
                 ) : (
-                  <SoftButton onPress={startTrip}>
+                  <HomeSoftButton onPress={startTrip}>
                     <Play size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
                     <Text style={styles.softBtnTextPrimary}>Iniciar viaje</Text>
-                  </SoftButton>
+                  </HomeSoftButton>
                 )}
               </View>
             </View>
-          </Card>
+          </HomePanelCard>
         )}
 
         {/* Weather */}
@@ -993,7 +803,7 @@ const UserPanelScreen = () => {
             onPress={() => setIsWeatherModalOpen(true)}
             style={styles.weatherCardWrap}
           >
-            <Card style={styles.weatherFullGlass} innerStyle={styles.weatherFullInner}>
+            <HomePanelCard style={styles.weatherFullGlass} innerStyle={styles.weatherFullInner}>
               <View style={styles.weatherFullBody}>
                 {weatherLoading ? (
                   <View style={styles.weatherCardLoading}>
@@ -1082,132 +892,32 @@ const UserPanelScreen = () => {
                   </>
                 )}
               </View>
-            </Card>
+            </HomePanelCard>
           </TouchableOpacity>
         )}
 
-        {/* Cerca de ti */}
-        {selectedVehicle && (
-          <View style={{ marginBottom: 18 }}>
-            <View style={styles.panelSectionHeader}>
-              <Navigation size={16} color={COLORS.primary[500]} />
-              <Text style={styles.sectionLabelInline}>Cerca de ti</Text>
-            </View>
-            <Text style={styles.panelSectionHint}>
-              Talleres y mecánicos compatibles con tu {selectedVehicle.marca_nombre || 'marca'}{' '}
-              {selectedVehicle.modelo_nombre || ''}.
-            </Text>
-            {!selectedAddress ? (
-              <Card style={{ paddingVertical: 16 }}>
-                <Text style={styles.panelEmptyText}>
-                  Agrega y selecciona una dirección para ver proveedores cercanos.
-                </Text>
-              </Card>
-            ) : panelNearbyLoading ? (
-              <Card style={{ paddingVertical: 20, alignItems: 'center' }}>
-                <ActivityIndicator color={COLORS.primary[500]} />
-              </Card>
-            ) : panelNearbyProviders.length === 0 ? (
-              <Card style={{ paddingVertical: 16 }}>
-                <Text style={styles.panelEmptyText}>
-                  No hay proveedores verificados en este radio para tu marca. Prueba ampliar
-                  dirección o crear una solicitud desde Servicios.
-                </Text>
-              </Card>
-            ) : (
-              <ScrollView
-                horizontal
-                pagingEnabled={Platform.OS !== 'web'}
-                decelerationRate={Platform.OS === 'web' ? undefined : 'fast'}
-                snapToInterval={Platform.OS === 'web' ? undefined : nearbyPageWidth}
-                snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
-                showsHorizontalScrollIndicator
-                keyboardShouldPersistTaps="handled"
-                style={Platform.OS === 'web' ? { overflow: 'scroll' } : undefined}
-              >
-                {nearbyPages.map((pair, pageIdx) => (
-                  <View
-                    key={`nearby-page-${pageIdx}`}
-                    style={{
-                      width: nearbyPageWidth,
-                      paddingHorizontal: H_PAD,
-                      flexDirection: 'row',
-                      gap: CARD_GAP,
-                    }}
-                  >
-                    {pair.map((p) => {
-                      const { id: _pid, ...card } = formatProviderForCard(p);
-                      const kindLabel = p._panelKind === 'taller' ? 'Taller' : 'A domicilio';
-                      return (
-                        <ProviderPreviewCard
-                          key={`${p._panelKind}-${p.id}`}
-                          {...card}
-                          provider={p}
-                          typeLabel={kindLabel}
-                          specialty={card.specialty || 'Servicios y diagnóstico'}
-                          kpiBadge={p.kpi_badge || null}
-                          appearance="light"
-                          width={nearbyCardW}
-                          omitRightMargin
-                          onPress={() => openProviderFromPanel(p)}
-                        />
-                      );
-                    })}
-                    {pair.length === 1 ? <View style={{ width: nearbyCardW }} /> : null}
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        )}
+        <HomeParaTiSection
+          selectedVehicle={selectedVehicle}
+          providers={panelParaTiProviders}
+          loading={panelParaTiLoading}
+          onProviderPress={openProviderFromPanel}
+          onSeeAll={handleSeeAllParaTi}
+        />
 
-        {/* Demanda */}
-        {selectedVehicle && (
-          <View style={{ marginBottom: 18 }}>
-            <View style={styles.panelSectionHeader}>
-              <Users size={16} color={COLORS.primary[500]} />
-              <Text style={styles.sectionLabelInline}>Qué piden otros con tu mismo auto</Text>
-            </View>
-            <Text style={styles.panelSectionHint}>
-              Misma marca y modelo ({selectedVehicle.marca_nombre || '—'}{' '}
-              {selectedVehicle.modelo_nombre || ''}).
-            </Text>
-            {panelActivityLoading ? (
-              <Card style={{ paddingVertical: 20, alignItems: 'center' }}>
-                <ActivityIndicator color={COLORS.primary[500]} />
-              </Card>
-            ) : !panelMarketActivity?.items?.length ? (
-              <Card style={{ paddingVertical: 16 }}>
-                <Text style={styles.panelEmptyText}>
-                  Aún no hay datos para esta marca y modelo. Cuando otros usuarios soliciten
-                  servicios con un auto como el tuyo, aparecerán aquí.
-                </Text>
-              </Card>
-            ) : (
-              <Card innerStyle={{ paddingVertical: 6, paddingHorizontal: 0 }}>
-                {panelMarketActivity.items.map((row, idx) => (
-                  <View
-                    key={`svc-${row.servicio_id ?? idx}`}
-                    style={[
-                      styles.marketServicioRow,
-                      idx < panelMarketActivity.items.length - 1 && styles.marketServicioRowBorder,
-                    ]}
-                  >
-                    <Text style={styles.marketServicioName} numberOfLines={2}>
-                      {row.servicio_nombre || 'Servicio'}
-                    </Text>
-                    <View style={styles.marketPersonasCol}>
-                      <Text style={styles.marketPersonasNum}>
-                        {Number(row.personas ?? 0)}
-                      </Text>
-                      <Text style={styles.marketPersonasLbl}>personas</Text>
-                    </View>
-                  </View>
-                ))}
-              </Card>
-            )}
-          </View>
-        )}
+        <HomeNearbySection
+          selectedVehicle={selectedVehicle}
+          hasSelectedAddress={!!selectedAddress}
+          providers={panelNearbyProviders}
+          loading={panelNearbyLoading}
+          onProviderPress={openProviderFromPanel}
+          onSeeAll={handleSeeAllNearby}
+        />
+
+        <HomeMarketActivitySection
+          selectedVehicle={selectedVehicle}
+          activity={panelMarketActivity}
+          loading={panelActivityLoading}
+        />
       </ScrollView>
 
       {/* ─── Weather modal ─── */}
@@ -1328,97 +1038,21 @@ const UserPanelScreen = () => {
         </View>
       </Modal>
 
-      {/* ─── Vehicle Selector modal ─── */}
-      <Modal
+      <HomeVehicleSelectorModal
         visible={selectorVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelectorVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            onPress={() => setSelectorVisible(false)}
-            activeOpacity={1}
-          />
-          <View style={styles.selectorModal}>
-            <View style={styles.selectorModalHeader}>
-              <Text style={styles.selectorModalTitle}>Seleccionar Vehículo</Text>
-              <TouchableOpacity onPress={() => setSelectorVisible(false)} hitSlop={12}>
-                <X size={22} color={COLORS.text.tertiary} />
-              </TouchableOpacity>
-            </View>
-
-            <FlatList
-              data={vehicles}
-              keyExtractor={(item) => item.id.toString()}
-              contentContainerStyle={{ paddingBottom: 16 }}
-              renderItem={({ item }) => {
-                const isActive = item.id === selectedVehicleId;
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.selectorListItem,
-                      isActive && styles.selectorListItemActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedVehicleId(item.id);
-                      setSelectorVisible(false);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    {item.foto ? (
-                      <Image
-                        source={{ uri: item.foto }}
-                        style={styles.selectorListThumb}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <View style={[styles.selectorListThumb, styles.selectorThumbFallback]}>
-                        <Car size={18} color={COLORS.primary[500]} />
-                      </View>
-                    )}
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.selectorListTitle} numberOfLines={1}>
-                        {item.marca_nombre || item.marca || ''}{' '}
-                        {item.modelo_nombre || item.modelo || ''}
-                      </Text>
-                      <Text style={styles.selectorListSub}>
-                        {item.year || ''} · {formatKm(item.kilometraje)} km · Salud{' '}
-                        {Math.round(
-                          resolveVehicleHealthPct(
-                            item,
-                            vehiclesHealth.data?.find((h) => h.vehicleId === item.id)?.health ?? null,
-                          ),
-                        )}
-                        %
-                      </Text>
-                    </View>
-                    {isActive && <Check size={18} color={COLORS.success.main} />}
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={
-                <View style={{ padding: 32, alignItems: 'center' }}>
-                  <Text style={styles.emptyText}>No hay vehículos disponibles</Text>
-                </View>
-              }
-            />
-
-            <TouchableOpacity
-              style={styles.selectorAddBtn}
-              onPress={() => {
-                setSelectorVisible(false);
-                navigation.navigate(ROUTES.CREAR_VEHICULO);
-              }}
-              activeOpacity={0.85}
-            >
-              <Plus size={18} color={COLORS.text.inverse} />
-              <Text style={styles.selectorAddText}>Agregar Vehículo</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        vehicles={vehicles}
+        selectedVehicleId={selectedVehicleId}
+        vehiclesHealthData={vehiclesHealth.data}
+        onClose={() => setSelectorVisible(false)}
+        onSelectVehicle={(id) => {
+          setSelectedVehicleId(id);
+          setSelectorVisible(false);
+        }}
+        onAddVehicle={() => {
+          setSelectorVisible(false);
+          navigation.navigate(ROUTES.CREAR_VEHICULO);
+        }}
+      />
 
       {/* ─── Trip completion modal ─── */}
       <Modal visible={tripCompletionVisible} transparent animationType="fade" onRequestClose={dismissTrip}>
@@ -1511,38 +1145,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: H_PAD,
   },
 
-  // Card base
-  card: {
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  cardInner: {
-    padding: 16,
-  },
-
-  // Soft button (filled, in cards)
-  softBtnWrap: {
-    marginTop: 6,
-  },
-  softBtnInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
-  },
-  softBtnInnerPrimary: {
-    backgroundColor: COLORS.primary[500],
-  },
-  softBtnInnerStop: {
-    backgroundColor: COLORS.error.main,
-  },
   softBtnTextPrimary: {
     color: COLORS.text.inverse,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
@@ -1554,155 +1156,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
   },
 
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  greeting: {
-    fontSize: TYPOGRAPHY.styles.h3.fontSize,
-    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
-    color: COLORS.text.primary,
-  },
-  subtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    gap: 4,
-  },
-  subtitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  addressSelectorBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    gap: 5,
-    paddingVertical: 3,
-  },
-  addressSelectorText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.background.paper,
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-    ...SHADOWS.sm,
-  },
-  headerAvatar: {
-    marginLeft: 8,
-  },
-  avatarImg: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
-  },
-  avatarFallback: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
-  },
-  bellBadge: {
-    position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: COLORS.error.main,
-    borderRadius: BORDERS.radius.full,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: COLORS.background.paper,
-  },
-  bellBadgeText: {
-    color: COLORS.text.inverse,
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-
-  // Vehicle selector
-  selectorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  selectorThumb: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.neutral.gray[100],
-  },
-  selectorThumbFallback: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
-  },
-  selectorTitle: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
-  selectorSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
-
-  // Empty state
-  emptyIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
-    marginTop: 20,
-  },
-  emptyBtnText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
-  },
-
-  // Hero
+  // Hero (patrimonio / salud — Fase 4 puede extraerse)
   heroRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2118,212 +1572,10 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xs,
   },
 
-  panelSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  sectionLabelInline: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: -0.25,
-    color: COLORS.text.primary,
-  },
-  panelSectionHint: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    lineHeight: 17,
-    marginBottom: 12,
-  },
-  panelEmptyText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-    lineHeight: 19,
-  },
-  marketServicioRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  marketServicioRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  marketServicioName: {
-    flex: 1,
-    marginRight: 12,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.primary,
-    lineHeight: 20,
-  },
-  marketPersonasCol: {
-    alignItems: 'flex-end',
-    flexShrink: 0,
-    minWidth: 56,
-  },
-  marketPersonasNum: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.primary[500],
-  },
-  marketPersonasLbl: {
-    marginTop: 2,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-
-  // Quick actions
-  quickScrollOuter: {
-    marginBottom: 16,
-    marginHorizontal: -2,
-    ...(Platform.OS === 'web'
-      ? {
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-        }
-      : null),
-  },
-  quickScrollContent: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: CARD_GAP,
-    paddingVertical: 2,
-    paddingRight: 12,
-  },
-  quickMgmtCardScroll: {
-    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-  },
-  quickMgmtInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    minHeight: 76,
-  },
-  quickMgmtIconWrap: {
-    position: 'relative',
-    width: 44,
-    height: 44,
-  },
-  quickMgmtIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDERS.radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quickMgmtBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: COLORS.error.main,
-    borderRadius: BORDERS.radius.full,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: COLORS.background.paper,
-  },
-  quickMgmtBadgeText: {
-    color: COLORS.text.inverse,
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  quickMgmtTextCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  quickMgmtTitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
-  quickMgmtSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    marginTop: 1,
-  },
-
-  // Vehicle selector modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(10,11,13,0.45)',
     justifyContent: 'flex-end',
-  },
-  selectorModal: {
-    maxHeight: '70%',
-    borderTopLeftRadius: BORDERS.radius.xl,
-    borderTopRightRadius: BORDERS.radius.xl,
-    overflow: 'hidden',
-    backgroundColor: COLORS.background.paper,
-    ...SHADOWS.lg,
-  },
-  selectorModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 12,
-  },
-  selectorModalTitle: {
-    fontSize: TYPOGRAPHY.styles.h3.fontSize,
-    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
-    color: COLORS.text.primary,
-  },
-  selectorListItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  selectorListItemActive: {
-    backgroundColor: COLORS.primary[50],
-  },
-  selectorListThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.neutral.gray[100],
-  },
-  selectorListTitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
-  selectorListSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
-  selectorAddBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border.light,
-    backgroundColor: COLORS.primary[500],
-  },
-  selectorAddText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.inverse,
   },
 
   // Trip completion modal

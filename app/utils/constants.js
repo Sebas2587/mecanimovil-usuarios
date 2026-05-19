@@ -232,6 +232,8 @@ export const ROUTES = {
   // Nuevas rutas para categorías de proveedores
   TALLERES: 'Talleres',
   MECANICOS: 'Mecanicos',
+  /** Listado completo desde home (tabs Todos / Talleres / A domicilio) */
+  EXPLORE_PROVIDERS: 'ExploreProviders',
   PROVIDER_DETAIL: 'ProviderDetail',
 
   // Rutas del perfil

@@ -102,6 +102,36 @@ function parseKpiScore(value) {
   return Math.max(0, Math.min(100, n));
 }
 
+/**
+ * Tupla ordenable alineada con `_kpi_rank_tuple` del backend (mayor = mejor relevancia).
+ * @returns {[number, number, number, number]}
+ */
+export function kpiRankTuple(kpiBadge) {
+  if (!kpiBadge || typeof kpiBadge !== 'object') return [0, 0, 0, 0];
+  const isActive = kpiBadge.is_active ? 1 : 0;
+  const code = kpiBadge.code != null ? String(kpiBadge.code).trim().toUpperCase() : '';
+  const tier = { ELITE: 4, MASTER: 3, PRO: 2, ASCENSO: 1 }[code] || 0;
+  const score = parseKpiScore(kpiBadge.score) ?? 0;
+  const sample = Number(kpiBadge.sample_points);
+  const samplePoints = Number.isFinite(sample) ? sample : 0;
+  return [isActive, tier, score, samplePoints];
+}
+
+/** Compara dos proveedores por KPI (desc) y rating como desempate. */
+export function compareProvidersByKpiRelevance(a, b) {
+  const ta = kpiRankTuple(a?.kpi_badge);
+  const tb = kpiRankTuple(b?.kpi_badge);
+  for (let i = 0; i < 4; i += 1) {
+    if (tb[i] !== ta[i]) return tb[i] - ta[i];
+  }
+  const ra = parseFloat(a?.calificacion_promedio ?? a?.rating_average ?? 0) || 0;
+  const rb = parseFloat(b?.calificacion_promedio ?? b?.rating_average ?? 0) || 0;
+  if (rb !== ra) return rb - ra;
+  const sa = Number(a?.servicios_completados_count) || 0;
+  const sb = Number(b?.servicios_completados_count) || 0;
+  return sb - sa;
+}
+
 /** Misma escala que backend: ≥90 Elite, ≥75 Máster, ≥55 Pro, si no En ascenso. */
 export function kpiTierCodeFromScore(score) {
   if (score == null || Number.isNaN(score)) return null;
