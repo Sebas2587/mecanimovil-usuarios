@@ -17,6 +17,10 @@ import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { useAgendamiento } from '../../context/AgendamientoContext';
 import ofertasService from '../../services/ofertasService';
+import {
+  confirmarCandidato,
+  buildConfirmarCandidatoPayload,
+} from '../../services/agendamientoAsistidoService';
 import chatService from '../../services/chatService';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -30,7 +34,13 @@ const ComparadorOfertasScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
-  const { solicitudId, ofertas: ofertasIds } = route.params || {};
+  const {
+    solicitudId,
+    ofertas: ofertasIds,
+    modoCatalogo = false,
+    ofertasPreview = [],
+    formPayload = null,
+  } = route.params || {};
 
   const { seleccionarOferta } = useSolicitudes();
   const { cargarTodosLosCarritos } = useAgendamiento();
@@ -43,12 +53,18 @@ const ComparadorOfertasScreen = () => {
 
   useEffect(() => {
     cargarOfertas();
-  }, [ofertasIds, solicitudId]);
+  }, [ofertasIds, solicitudId, modoCatalogo, ofertasPreview]);
 
   const cargarOfertas = async () => {
     try {
       setLoading(true);
       setErrorValidacion(null);
+
+      if (modoCatalogo && Array.isArray(ofertasPreview) && ofertasPreview.length > 0) {
+        setOfertas(ofertasPreview);
+        setLoading(false);
+        return;
+      }
 
       if (solicitudId) {
         try {
@@ -111,6 +127,63 @@ const ComparadorOfertasScreen = () => {
   };
 
   const handleAceptarOferta = async (oferta) => {
+    if (modoCatalogo) {
+      if (!formPayload || !oferta.oferta_servicio_id) {
+        Alert.alert('Error', 'Faltan datos para confirmar el proveedor');
+        return;
+      }
+      const nombre = oferta.nombre_proveedor || oferta.proveedor_nombre || 'el proveedor';
+      Alert.alert(
+        'Confirmar proveedor',
+        `¿Enviar solicitud a ${nombre}? El proveedor deberá confirmar antes de pagar.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Confirmar',
+            onPress: async () => {
+              setProcesando(true);
+              try {
+                const payload = buildConfirmarCandidatoPayload(
+                  formPayload,
+                  oferta.oferta_servicio_id,
+                  { score_match: oferta.score_match }
+                );
+                const resultado = await confirmarCandidato(payload);
+                Alert.alert(
+                  'Solicitud enviada',
+                  'El proveedor fue notificado y debe confirmar la asignación.',
+                  [
+                    {
+                      text: 'Ver solicitud',
+                      onPress: () => {
+                        const sid = resultado?.solicitud_id || resultado?.solicitud?.id;
+                        if (sid) {
+                          navigation.navigate(ROUTES.DETALLE_SOLICITUD || 'DetalleSolicitud', {
+                            solicitudId: sid,
+                          });
+                        } else {
+                          navigation.navigate(ROUTES.MIS_SOLICITUDES || 'MisSolicitudes');
+                        }
+                      },
+                    },
+                  ]
+                );
+              } catch (error) {
+                const mensaje =
+                  error.response?.data?.error
+                  || error.message
+                  || 'No se pudo confirmar el proveedor';
+                Alert.alert('Error', mensaje);
+              } finally {
+                setProcesando(false);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
     if (!solicitudId) {
       Alert.alert('Error', 'No se encontró la solicitud');
       return;

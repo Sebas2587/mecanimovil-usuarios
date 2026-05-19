@@ -64,6 +64,46 @@ export async function confirmarCandidato(payload) {
   return post(`${BASE}/confirmar-candidato/`, payload);
 }
 
+/**
+ * Arma payload para POST confirmar-candidato desde datos del formulario.
+ */
+export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extras = {}) {
+  let lng = null;
+  let lat = null;
+  const ub = formData.ubicacion_servicio;
+  if (ub?.coordinates?.length >= 2) {
+    lng = parseFloat(ub.coordinates[0]);
+    lat = parseFloat(ub.coordinates[1]);
+  } else if (formData.direccion_usuario?.ubicacion?.coordinates?.length >= 2) {
+    lng = parseFloat(formData.direccion_usuario.ubicacion.coordinates[0]);
+    lat = parseFloat(formData.direccion_usuario.ubicacion.coordinates[1]);
+  }
+
+  const servicioIds = (formData.servicios_seleccionados || []).map((s) => s.id).filter(Boolean);
+
+  return {
+    oferta_servicio_id: ofertaServicioId,
+    vehiculo_id: formData.vehiculo?.id,
+    servicio_ids: servicioIds,
+    descripcion_problema: formData.descripcion_problema,
+    urgencia: formData.urgencia || 'normal',
+    requiere_repuestos: formData.requiere_repuestos !== false,
+    fecha_preferida: formData.fecha_preferida,
+    hora_preferida: formData.hora_preferida || null,
+    direccion_servicio_texto:
+      formData.direccion_servicio_texto
+      || formData.direccion_usuario?.direccion
+      || '',
+    detalles_ubicacion: formData.detalles_ubicacion || '',
+    direccion_usuario: formData.direccion_usuario?.id || null,
+    lat,
+    lng,
+    ubicacion_servicio: ub,
+    metadata_ia_entrada: extras.metadata_ia_entrada || null,
+    score_match: extras.score_match,
+  };
+}
+
 export function mapCandidatoToOfertaComparador(candidato) {
   if (!candidato) return null;
   const desglose = candidato.desglose || {};
@@ -81,6 +121,7 @@ export function mapCandidatoToOfertaComparador(candidato) {
     costo_repuestos: desglose.repuestos ?? 0,
     costo_gestion_compra: desglose.gestion ?? 0,
     incluye_repuestos: Boolean(candidato.incluye_repuestos_sugerido),
+    nombre_proveedor: candidato.proveedor?.nombre,
     proveedor_nombre: candidato.proveedor?.nombre,
     tipo_proveedor: candidato.proveedor?.tipo,
     rating_proveedor: candidato.proveedor?.rating,

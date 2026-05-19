@@ -36,7 +36,10 @@ import * as categoriesService from '../../services/categories';
 import { getMediaURL } from '../../services/api';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { useAgendamientoAsistido } from '../../hooks/useAgendamientoAsistido';
-import { isAsistidoHabilitado } from '../../services/agendamientoAsistidoService';
+import {
+  isAsistidoHabilitado,
+  mapCandidatoToOfertaComparador,
+} from '../../services/agendamientoAsistidoService';
 import {
   NecesidadInputStep,
   ServiciosSugeridosList,
@@ -784,8 +787,52 @@ const FormularioSolicitud = ({
   const {
     analisis: analisisIa,
     loadingAnalisis: loadingAnalisisIa,
+    loadingCandidatos: loadingCandidatosIa,
     analizar: analizarNecesidadIa,
+    cargarCandidatos: cargarCandidatosIa,
   } = useAgendamientoAsistido();
+
+  const irAComparadorCatalogo = React.useCallback(async () => {
+    if (!formData.vehiculo?.id) {
+      Alert.alert('Error', 'Selecciona un vehículo');
+      return;
+    }
+    const servicioIds = (formData.servicios_seleccionados || []).map((s) => s.id).filter(Boolean);
+    if (!servicioIds.length) {
+      Alert.alert('Error', 'Selecciona al menos un servicio');
+      return;
+    }
+    let lat = null;
+    let lng = null;
+    const ub = formData.ubicacion_servicio;
+    if (ub?.coordinates?.length >= 2) {
+      lng = ub.coordinates[0];
+      lat = ub.coordinates[1];
+    } else if (formData.direccion_usuario?.ubicacion?.coordinates?.length >= 2) {
+      lng = formData.direccion_usuario.ubicacion.coordinates[0];
+      lat = formData.direccion_usuario.ubicacion.coordinates[1];
+    }
+    const list = await cargarCandidatosIa({
+      vehiculoId: formData.vehiculo.id,
+      servicioIds,
+      lat,
+      lng,
+      requiereRepuestos: formData.requiere_repuestos !== false,
+    });
+    if (!list.length) {
+      Alert.alert(
+        'Sin proveedores',
+        'No encontramos candidatos en tu zona. Prueba otra ubicación o solicitud abierta.',
+      );
+      return;
+    }
+    const ofertasPreview = list.map(mapCandidatoToOfertaComparador).filter(Boolean);
+    navigation.navigate(ROUTES.COMPARADOR_OFERTAS, {
+      modoCatalogo: true,
+      ofertasPreview,
+      formPayload: { ...formData },
+    });
+  }, [formData, cargarCandidatosIa, navigation]);
 
   const handleAnalizarNecesidadIa = React.useCallback(async () => {
     if (!iaAsistidoActivo || !formData.vehiculo?.id) return;
@@ -1001,6 +1048,36 @@ const FormularioSolicitud = ({
       return;
     }
 
+    // Asistente IA: 1→3→5→comparador catálogo (salta paso 4)
+    if (iaAsistidoActivo) {
+      if (pasoActual === 1) {
+        if (!formData.vehiculo) {
+          Alert.alert('Selecciona un vehículo', 'Debes seleccionar un vehículo para continuar.');
+          return;
+        }
+        if (!Array.isArray(formData.servicios_seleccionados) || formData.servicios_seleccionados.length === 0) {
+          Alert.alert('Selecciona un servicio', 'Debes seleccionar al menos un servicio para continuar.');
+          return;
+        }
+        if (!formData.descripcion_problema?.trim()) {
+          setTempDescription(formData.descripcion_problema || '');
+          setTempFotosNecesidad(Array.isArray(formData.fotos_necesidad) ? [...formData.fotos_necesidad] : []);
+          setDescriptionModalVisible(true);
+          return;
+        }
+        setPasoActual(3);
+        return;
+      }
+      if (pasoActual === 3) {
+        setPasoActual(5);
+        return;
+      }
+      if (pasoActual === 5) {
+        irAComparadorCatalogo();
+        return;
+      }
+    }
+
     // Unified normal flow: 1→3→4→5→6 (always skip step 2)
     if (pasoActual === 1) {
       if (!formData.vehiculo) {
@@ -1053,6 +1130,11 @@ const FormularioSolicitud = ({
       if (pasoActual === 3) { setPasoActual(1); }
       else if (pasoActual === 5) { setPasoActual(3); }
       else { setPasoActual(pasoActual - 1); }
+      return;
+    }
+
+    if (iaAsistidoActivo && pasoActual === 5) {
+      setPasoActual(3);
       return;
     }
 
