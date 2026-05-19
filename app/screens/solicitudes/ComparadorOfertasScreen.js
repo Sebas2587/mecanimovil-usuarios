@@ -22,7 +22,6 @@ import {
   confirmarCandidato,
   buildConfirmarCandidatoPayload,
 } from '../../services/agendamientoAsistidoService';
-import chatService from '../../services/chatService';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -279,23 +278,6 @@ const ComparadorOfertasScreen = () => {
     );
   };
 
-  const handleChat = async (oferta) => {
-    try {
-      const conversationId = await chatService.getOrCreateConversation({
-        ofertaId: oferta.id,
-        solicitudId,
-        type: 'service'
-      });
-
-      navigation.navigate(ROUTES.CHAT_DETAIL, {
-        conversationId
-      });
-    } catch (error) {
-      console.error('Error opening chat:', error);
-      Alert.alert('Error', 'No se pudo abrir el chat. Intenta nuevamente.');
-    }
-  };
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -377,7 +359,6 @@ const ComparadorOfertasScreen = () => {
         {modoCatalogo ? (
           <ComparadorCatalogoIaPanel
             ofertas={ofertas}
-            iaSnapshot={formPayload?.ia_analisis_snapshot}
             onAceptar={handleAceptarOferta}
             procesando={procesando}
             requiereRepuestos={formPayload?.requiere_repuestos !== false}
@@ -389,7 +370,6 @@ const ComparadorOfertasScreen = () => {
             onAceptarOferta={solicitud && solicitud.estado === 'adjudicada' ? undefined : handleAceptarOferta}
             solicitudAdjudicada={solicitud && solicitud.estado === 'adjudicada'}
             solicitudId={solicitudId}
-            onChatPress={handleChat}
           />
         )}
       </ScrollView>
