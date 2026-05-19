@@ -35,6 +35,12 @@ import * as providerService from '../../services/providers';
 import * as categoriesService from '../../services/categories';
 import { getMediaURL } from '../../services/api';
 import VehicleHealthService from '../../services/vehicleHealthService';
+import { useAgendamientoAsistido } from '../../hooks/useAgendamientoAsistido';
+import { isAsistidoHabilitado } from '../../services/agendamientoAsistidoService';
+import {
+  NecesidadInputStep,
+  ServiciosSugeridosList,
+} from '../agendamiento-asistido';
 import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProviderAvatarUri } from '../../utils/providerUtils';
 import {
   Car as CarIcon,
@@ -774,6 +780,56 @@ const FormularioSolicitud = ({
     }
   };
 
+  const iaAsistidoActivo = isAsistidoHabilitado() && !isPreCompra && !flujoCuatroPasos;
+  const {
+    analisis: analisisIa,
+    loadingAnalisis: loadingAnalisisIa,
+    analizar: analizarNecesidadIa,
+  } = useAgendamientoAsistido();
+
+  const handleAnalizarNecesidadIa = React.useCallback(async () => {
+    if (!iaAsistidoActivo || !formData.vehiculo?.id) return;
+    const texto = formData.descripcion_problema?.trim() || '';
+    const componentesSalud = (healthComponents || []).map((c) => ({
+      slug: c.slug,
+      nombre: resolveHealthComponentDisplayName(c),
+      nivel_alerta: c.nivel_alerta || c.status,
+      salud_porcentaje: c.salud_porcentaje ?? c.salud,
+      servicios_asociados: c.servicios_asociados,
+    }));
+    const data = await analizarNecesidadIa({
+      texto,
+      vehiculoId: formData.vehiculo.id,
+      componentesSalud,
+      origen: texto ? 'texto' : 'salud',
+      inmediato: true,
+    });
+    if (data?.urgencia_label === 'urgente') {
+      setFormData((prev) => ({ ...prev, urgencia: 'urgente' }));
+    }
+  }, [
+    iaAsistidoActivo,
+    formData.vehiculo?.id,
+    formData.descripcion_problema,
+    healthComponents,
+    analizarNecesidadIa,
+  ]);
+
+  const handleToggleServicioSugeridoIa = React.useCallback(
+    (item) => {
+      const id = item.servicio_id ?? item.id;
+      if (!id) return;
+      const existente = serviciosDisponibles.find((s) => s.id === id);
+      const svc = existente || {
+        id,
+        nombre: item.nombre || 'Servicio',
+        descripcion: item.descripcion || '',
+      };
+      toggleServicioSeleccionado(svc);
+    },
+    [serviciosDisponibles, toggleServicioSeleccionado]
+  );
+
   const toggleProveedorSeleccionado = (proveedor, tipo) => {
     // Prevenir cambios si hay proveedor preseleccionado (desde ProviderDetailScreen), salvo precompra sin vehículo
     if (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado) {
@@ -1429,6 +1485,32 @@ const FormularioSolicitud = ({
                 </TouchableOpacity>
               )}
             </GlassCard>
+
+            {iaAsistidoActivo ? (
+              <View style={{ marginBottom: 20 }}>
+                <NecesidadInputStep
+                  value={formData.descripcion_problema}
+                  onChangeText={(t) => setFormData((prev) => ({ ...prev, descripcion_problema: t }))}
+                  onAnalizar={handleAnalizarNecesidadIa}
+                  loading={loadingAnalisisIa}
+                  temperatura={analisisIa?.temperatura}
+                  urgenciaLabel={analisisIa?.urgencia_label}
+                />
+                {Array.isArray(analisisIa?.servicios_recomendados) &&
+                analisisIa.servicios_recomendados.length > 0 ? (
+                  <View style={{ marginTop: 12 }}>
+                    <Text style={[gs.sectionTitle, { marginBottom: 8 }]}>
+                      Sugeridos según tu necesidad
+                    </Text>
+                    <ServiciosSugeridosList
+                      servicios={analisisIa.servicios_recomendados}
+                      seleccionados={formData.servicios_seleccionados}
+                      onToggle={handleToggleServicioSugeridoIa}
+                    />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
 
             {/* ── Recommendations (Horizontal Scroll) ── */}
             {loadingHealth && healthRecommendations.length === 0 ? (
