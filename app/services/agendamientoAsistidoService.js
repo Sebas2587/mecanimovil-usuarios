@@ -65,6 +65,53 @@ export async function confirmarCandidato(payload) {
 }
 
 /**
+ * Metadatos del análisis IA + salud para persistir al confirmar (alimenta aprendizaje en servidor).
+ * No incluye el texto de consultas efímeras.
+ */
+export function buildMetadataIaEntrada(analisis, componentesSalud) {
+  const hasAnalisis = analisis && (
+    analisis.motor_analisis
+    || analisis.interpretacion
+    || analisis.resumen_salud
+    || (Array.isArray(analisis.sintomas_detectados) && analisis.sintomas_detectados.length)
+    || analisis.coherencia_salud_texto != null
+    || (Array.isArray(analisis.servicios_recomendados) && analisis.servicios_recomendados.length)
+  );
+  const hasSalud = Array.isArray(componentesSalud) && componentesSalud.length > 0;
+  if (!hasAnalisis && !hasSalud) return null;
+
+  const meta = {};
+  if (analisis?.motor_analisis) meta.motor_analisis = analisis.motor_analisis;
+  if (analisis?.interpretacion) {
+    meta.interpretacion = String(analisis.interpretacion).slice(0, 600);
+  }
+  if (analisis?.resumen_salud) {
+    meta.resumen_salud = String(analisis.resumen_salud).slice(0, 600);
+  }
+  if (Array.isArray(analisis?.sintomas_detectados)) {
+    meta.sintomas_detectados = analisis.sintomas_detectados.slice(0, 12);
+  }
+  if (analisis?.coherencia_salud_texto != null) {
+    meta.coherencia_salud_texto = analisis.coherencia_salud_texto;
+  }
+  if (Array.isArray(analisis?.servicios_recomendados)) {
+    meta.servicios_recomendados_ids = analisis.servicios_recomendados
+      .map((r) => r?.servicio_id)
+      .filter(Boolean)
+      .slice(0, 12);
+  }
+  if (hasSalud) {
+    meta.componentes_salud = componentesSalud.slice(0, 12).map((c) => ({
+      slug: c.slug,
+      nombre: String(c.nombre || '').slice(0, 80),
+      nivel_alerta: c.nivel_alerta || c.status,
+      salud_porcentaje: c.salud_porcentaje ?? c.salud,
+    }));
+  }
+  return Object.keys(meta).length ? meta : null;
+}
+
+/**
  * Arma payload para POST confirmar-candidato desde datos del formulario.
  */
 export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extras = {}) {
@@ -99,7 +146,7 @@ export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extra
     lat,
     lng,
     ubicacion_servicio: ub,
-    metadata_ia_entrada: extras.metadata_ia_entrada || null,
+    metadata_ia_entrada: extras.metadata_ia_entrada ?? formData.ia_analisis_snapshot ?? null,
     score_match: extras.score_match,
   };
 }

@@ -38,6 +38,7 @@ import VehicleHealthService from '../../services/vehicleHealthService';
 import { useAgendamientoAsistido } from '../../hooks/useAgendamientoAsistido';
 import {
   isAsistidoHabilitado,
+  buildMetadataIaEntrada,
   mapCandidatoToOfertaComparador,
 } from '../../services/agendamientoAsistidoService';
 import {
@@ -793,6 +794,18 @@ const FormularioSolicitud = ({
     cargarCandidatos: cargarCandidatosIa,
   } = useAgendamientoAsistido();
 
+  const buildComponentesSaludIa = React.useCallback(
+    () =>
+      (healthComponents || []).map((c) => ({
+        slug: c.slug,
+        nombre: resolveHealthComponentDisplayName(c),
+        nivel_alerta: c.nivel_alerta || c.status,
+        salud_porcentaje: c.salud_porcentaje ?? c.salud,
+        servicios_asociados: c.servicios_asociados,
+      })),
+    [healthComponents]
+  );
+
   const irAComparadorCatalogo = React.useCallback(async () => {
     if (!formData.vehiculo?.id) {
       Alert.alert('Error', 'Selecciona un vehículo');
@@ -831,21 +844,12 @@ const FormularioSolicitud = ({
     navigation.navigate(ROUTES.COMPARADOR_OFERTAS, {
       modoCatalogo: true,
       ofertasPreview,
-      formPayload: { ...formData },
+      formPayload: {
+        ...formData,
+        ia_analisis_snapshot: buildMetadataIaEntrada(analisisIa, buildComponentesSaludIa()),
+      },
     });
-  }, [formData, cargarCandidatosIa, navigation]);
-
-  const buildComponentesSaludIa = React.useCallback(
-    () =>
-      (healthComponents || []).map((c) => ({
-        slug: c.slug,
-        nombre: resolveHealthComponentDisplayName(c),
-        nivel_alerta: c.nivel_alerta || c.status,
-        salud_porcentaje: c.salud_porcentaje ?? c.salud,
-        servicios_asociados: c.servicios_asociados,
-      })),
-    [healthComponents]
-  );
+  }, [formData, analisisIa, buildComponentesSaludIa, cargarCandidatosIa, navigation]);
 
   const handleAnalizarNecesidadIa = React.useCallback(
     async ({ texto: textoOverride, inmediato = true } = {}) => {
