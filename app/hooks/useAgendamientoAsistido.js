@@ -33,12 +33,19 @@ export function useAgendamientoAsistido() {
       if (!habilitado) return null;
       cancelarPendiente();
 
+      const trimmed = (texto || '').trim();
+      if (trimmed.length > 0 && trimmed.length < 4) {
+        setAnalisis(null);
+        setError(null);
+        return null;
+      }
+
       const ejecutar = async () => {
         setLoadingAnalisis(true);
         setError(null);
         try {
           const data = await analizarNecesidad({
-            texto: texto || '',
+            texto: trimmed,
             vehiculo_id: vehiculoId,
             componentes_salud: componentesSalud,
             origen,
@@ -46,7 +53,13 @@ export function useAgendamientoAsistido() {
           setAnalisis(data);
           return data;
         } catch (e) {
-          setError(e?.message || 'No se pudo analizar la necesidad');
+          const msg =
+            e?.code === 'agendamiento_ia_deshabilitado'
+              ? 'Asistente IA no disponible en esta versión.'
+              : e?.response?.data?.detail ||
+                e?.message ||
+                'No se pudo analizar la necesidad';
+          setError(typeof msg === 'string' ? msg : 'No se pudo analizar la necesidad');
           setAnalisis(null);
           return null;
         } finally {

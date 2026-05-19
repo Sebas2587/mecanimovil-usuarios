@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MapPin, Wrench } from 'lucide-react-native';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
+import { AGENDAMIENTO_THEME as T } from './theme';
 import {
   calcularDesgloseIvaOferta,
   resolverDesgloseIvaMostrado,
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardSelected: {
-    borderColor: COLORS.primary?.main || COLORS.primary,
+    borderColor: T.primary,
     borderWidth: 2,
   },
   nombre: {

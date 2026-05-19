@@ -788,6 +788,7 @@ const FormularioSolicitud = ({
     analisis: analisisIa,
     loadingAnalisis: loadingAnalisisIa,
     loadingCandidatos: loadingCandidatosIa,
+    error: errorAnalisisIa,
     analizar: analizarNecesidadIa,
     cargarCandidatos: cargarCandidatosIa,
   } = useAgendamientoAsistido();
@@ -834,33 +835,72 @@ const FormularioSolicitud = ({
     });
   }, [formData, cargarCandidatosIa, navigation]);
 
-  const handleAnalizarNecesidadIa = React.useCallback(async () => {
+  const buildComponentesSaludIa = React.useCallback(
+    () =>
+      (healthComponents || []).map((c) => ({
+        slug: c.slug,
+        nombre: resolveHealthComponentDisplayName(c),
+        nivel_alerta: c.nivel_alerta || c.status,
+        salud_porcentaje: c.salud_porcentaje ?? c.salud,
+        servicios_asociados: c.servicios_asociados,
+      })),
+    [healthComponents]
+  );
+
+  const handleAnalizarNecesidadIa = React.useCallback(
+    async ({ texto: textoOverride, inmediato = true } = {}) => {
+      if (!iaAsistidoActivo || !formData.vehiculo?.id) return null;
+      const texto = (textoOverride ?? formData.descripcion_problema ?? '').trim();
+      const data = await analizarNecesidadIa({
+        texto,
+        vehiculoId: formData.vehiculo.id,
+        componentesSalud: buildComponentesSaludIa(),
+        origen: texto ? 'texto' : 'salud',
+        inmediato,
+      });
+      if (data?.urgencia_label === 'urgente') {
+        setFormData((prev) => ({ ...prev, urgencia: 'urgente' }));
+      }
+      return data;
+    },
+    [
+      iaAsistidoActivo,
+      formData.vehiculo?.id,
+      formData.descripcion_problema,
+      buildComponentesSaludIa,
+      analizarNecesidadIa,
+    ]
+  );
+
+  const handleDescripcionProblemaChange = React.useCallback(
+    (text) => {
+      setFormData((prev) => ({ ...prev, descripcion_problema: text }));
+      if (!iaAsistidoActivo || !formData.vehiculo?.id) return;
+      const t = (text || '').trim();
+      if (t.length < 4) return;
+      handleAnalizarNecesidadIa({ texto: t, inmediato: false });
+    },
+    [iaAsistidoActivo, formData.vehiculo?.id, handleAnalizarNecesidadIa]
+  );
+
+  const handleDescripcionModalChange = React.useCallback(
+    (text) => {
+      setTempDescription(text);
+      if (!iaAsistidoActivo || !formData.vehiculo?.id) return;
+      const t = (text || '').trim();
+      if (t.length < 4) return;
+      handleAnalizarNecesidadIa({ texto: t, inmediato: false });
+    },
+    [iaAsistidoActivo, formData.vehiculo?.id, handleAnalizarNecesidadIa]
+  );
+
+  useEffect(() => {
     if (!iaAsistidoActivo || !formData.vehiculo?.id) return;
-    const texto = formData.descripcion_problema?.trim() || '';
-    const componentesSalud = (healthComponents || []).map((c) => ({
-      slug: c.slug,
-      nombre: resolveHealthComponentDisplayName(c),
-      nivel_alerta: c.nivel_alerta || c.status,
-      salud_porcentaje: c.salud_porcentaje ?? c.salud,
-      servicios_asociados: c.servicios_asociados,
-    }));
-    const data = await analizarNecesidadIa({
-      texto,
-      vehiculoId: formData.vehiculo.id,
-      componentesSalud,
-      origen: texto ? 'texto' : 'salud',
-      inmediato: true,
-    });
-    if (data?.urgencia_label === 'urgente') {
-      setFormData((prev) => ({ ...prev, urgencia: 'urgente' }));
+    const t = (formData.descripcion_problema || '').trim();
+    if (t.length >= 4) {
+      handleAnalizarNecesidadIa({ texto: t, inmediato: true });
     }
-  }, [
-    iaAsistidoActivo,
-    formData.vehiculo?.id,
-    formData.descripcion_problema,
-    healthComponents,
-    analizarNecesidadIa,
-  ]);
+  }, [formData.vehiculo?.id, iaAsistidoActivo]);
 
   const handleToggleServicioSugeridoIa = React.useCallback(
     (item) => {
@@ -1572,25 +1612,45 @@ const FormularioSolicitud = ({
               <View style={{ marginBottom: 20 }}>
                 <NecesidadInputStep
                   value={formData.descripcion_problema}
-                  onChangeText={(t) => setFormData((prev) => ({ ...prev, descripcion_problema: t }))}
-                  onAnalizar={handleAnalizarNecesidadIa}
+                  onChangeText={handleDescripcionProblemaChange}
+                  onAnalizar={() => handleAnalizarNecesidadIa({ inmediato: true })}
                   loading={loadingAnalisisIa}
                   temperatura={analisisIa?.temperatura}
                   urgenciaLabel={analisisIa?.urgencia_label}
+                  interpretacion={analisisIa?.interpretacion}
+                  resumenSalud={analisisIa?.resumen_salud}
+                  alertasCruce={analisisIa?.alertas_cruce}
+                  errorMessage={errorAnalisisIa}
                 />
-                {Array.isArray(analisisIa?.servicios_recomendados) &&
-                analisisIa.servicios_recomendados.length > 0 ? (
-                  <View style={{ marginTop: 12 }}>
-                    <Text style={[gs.sectionTitle, { marginBottom: 8 }]}>
-                      Sugeridos según tu necesidad
+                <View style={{ marginTop: 12 }}>
+                  <Text style={[gs.sectionTitle, { marginBottom: 8 }]}>
+                    Sugeridos según tu necesidad
+                  </Text>
+                  {Array.isArray(analisisIa?.preguntas_seguimiento) &&
+                  analisisIa.preguntas_seguimiento.length > 0 ? (
+                    <Text
+                      style={{
+                        color: COLORS.text.secondary,
+                        fontSize: 13,
+                        marginBottom: 8,
+                        lineHeight: 18,
+                      }}
+                    >
+                      {analisisIa.preguntas_seguimiento[0]}
                     </Text>
-                    <ServiciosSugeridosList
-                      servicios={analisisIa.servicios_recomendados}
-                      seleccionados={formData.servicios_seleccionados}
-                      onToggle={handleToggleServicioSugeridoIa}
-                    />
-                  </View>
-                ) : null}
+                  ) : null}
+                  <ServiciosSugeridosList
+                    servicios={analisisIa?.servicios_recomendados || []}
+                    seleccionados={formData.servicios_seleccionados}
+                    onToggle={handleToggleServicioSugeridoIa}
+                    loading={loadingAnalisisIa}
+                    hint={
+                      (formData.descripcion_problema || '').trim().length < 4
+                        ? 'Escribe al menos 4 caracteres para ver sugerencias.'
+                        : 'No encontramos servicios para esa descripción. Prueba con más detalle.'
+                    }
+                  />
+                </View>
               </View>
             ) : null}
 
@@ -2864,24 +2924,52 @@ const FormularioSolicitud = ({
                 <Text style={{ color: COLORS.text.secondary, fontSize: 13, lineHeight: 19, marginBottom: 16 }}>
                   Cuéntanos qué problema tienes para que los proveedores entiendan tu solicitud. Puedes adjuntar hasta 3 fotos.
                 </Text>
-                <TextInput
-                  style={styles.descModalInput}
-                  multiline
-                  numberOfLines={5}
-                  placeholder="Ej: Mi auto hace un ruido al frenar..."
-                  placeholderTextColor={COLORS.text.disabled}
-                  value={tempDescription}
-                  onChangeText={setTempDescription}
-                  textAlignVertical="top"
-                  autoFocus={Platform.OS !== 'web'}
-                  {...(Platform.OS === 'web'
-                    ? {
-                        onPointerDown: (e) => {
-                          e?.stopPropagation?.();
-                        },
+                {iaAsistidoActivo && formData.vehiculo?.id ? (
+                  <>
+                    <NecesidadInputStep
+                      value={tempDescription}
+                      onChangeText={handleDescripcionModalChange}
+                      onAnalizar={() =>
+                        handleAnalizarNecesidadIa({
+                          texto: tempDescription,
+                          inmediato: true,
+                        })
                       }
-                    : {})}
-                />
+                      loading={loadingAnalisisIa}
+                      temperatura={analisisIa?.temperatura}
+                      urgenciaLabel={analisisIa?.urgencia_label}
+                      interpretacion={analisisIa?.interpretacion}
+                      resumenSalud={analisisIa?.resumen_salud}
+                      alertasCruce={analisisIa?.alertas_cruce}
+                      errorMessage={errorAnalisisIa}
+                    />
+                    <ServiciosSugeridosList
+                      servicios={analisisIa?.servicios_recomendados || []}
+                      seleccionados={formData.servicios_seleccionados}
+                      onToggle={handleToggleServicioSugeridoIa}
+                      loading={loadingAnalisisIa}
+                    />
+                  </>
+                ) : (
+                  <TextInput
+                    style={styles.descModalInput}
+                    multiline
+                    numberOfLines={5}
+                    placeholder="Ej: Mi auto hace un ruido al frenar..."
+                    placeholderTextColor={COLORS.text.disabled}
+                    value={tempDescription}
+                    onChangeText={setTempDescription}
+                    textAlignVertical="top"
+                    autoFocus={Platform.OS !== 'web'}
+                    {...(Platform.OS === 'web'
+                      ? {
+                          onPointerDown: (e) => {
+                            e?.stopPropagation?.();
+                          },
+                        }
+                      : {})}
+                  />
+                )}
                 {renderFotosNecesidadEditor(tempFotosNecesidad, setTempFotosNecesidad)}
               </ScrollView>
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
@@ -2896,7 +2984,7 @@ const FormularioSolicitud = ({
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ flex: 1, opacity: tempDescription.trim() ? 1 : 0.4 }}
-                  onPress={() => {
+                  onPress={async () => {
                     if (tempDescription.trim()) {
                       Keyboard.dismiss();
                       setFormData((prev) => ({
@@ -2904,6 +2992,12 @@ const FormularioSolicitud = ({
                         descripcion_problema: tempDescription.trim(),
                         fotos_necesidad: Array.isArray(tempFotosNecesidad) ? [...tempFotosNecesidad] : [],
                       }));
+                      if (iaAsistidoActivo && formData.vehiculo?.id) {
+                        await handleAnalizarNecesidadIa({
+                          texto: tempDescription.trim(),
+                          inmediato: true,
+                        });
+                      }
                       setDescriptionModalVisible(false);
                       setPasoActual(3);
                     }

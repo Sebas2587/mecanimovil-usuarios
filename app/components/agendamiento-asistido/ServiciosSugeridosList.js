@@ -1,18 +1,26 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Check } from 'lucide-react-native';
-import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
+import { AGENDAMIENTO_THEME as T } from './theme';
 
 export default function ServiciosSugeridosList({
   servicios = [],
   seleccionados = [],
   onToggle,
+  loading = false,
+  hint,
 }) {
+  if (loading) {
+    return (
+      <Text style={styles.empty}>Analizando tu descripción…</Text>
+    );
+  }
+
   if (!Array.isArray(servicios) || servicios.length === 0) {
     return (
       <Text style={styles.empty}>
-        Escribe o dicta tu necesidad para ver servicios sugeridos.
+        {hint || 'Escribe al menos 4 caracteres para ver servicios sugeridos.'}
       </Text>
     );
   }
@@ -36,7 +44,7 @@ export default function ServiciosSugeridosList({
             <View style={styles.cardHeader}>
               <Text style={styles.cardTitle}>{item.nombre || 'Servicio'}</Text>
               {selected ? (
-                <Check size={18} color={COLORS.primary?.main || COLORS.primary} />
+                <Check size={18} color={T.primary} />
               ) : null}
             </View>
             {item.razon ? (
@@ -61,19 +69,19 @@ const styles = StyleSheet.create({
   },
   empty: {
     fontSize: 14,
-    color: COLORS.text?.secondary || '#6B7280',
+    color: T.textSecondary,
     paddingVertical: 8,
   },
   card: {
     padding: 14,
     borderRadius: BORDERS.radius?.lg ?? 12,
     borderWidth: 1,
-    borderColor: COLORS.border?.light || '#E5E7EB',
-    backgroundColor: COLORS.background?.paper || '#FFFFFF',
+    borderColor: T.borderLight,
+    backgroundColor: T.backgroundPaper,
   },
   cardSelected: {
-    borderColor: COLORS.primary?.main || COLORS.primary,
-    backgroundColor: COLORS.primary?.light || '#EFF6FF',
+    borderColor: T.primary,
+    backgroundColor: T.primaryLight,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -83,17 +91,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text?.primary || '#111827',
+    color: T.textPrimary,
     flex: 1,
   },
   razon: {
     marginTop: 6,
     fontSize: 13,
-    color: COLORS.text?.secondary || '#6B7280',
+    color: T.textSecondary,
   },
   meta: {
     marginTop: 4,
     fontSize: 12,
-    color: COLORS.text?.disabled || '#9CA3AF',
+    color: T.textDisabled,
   },
 });

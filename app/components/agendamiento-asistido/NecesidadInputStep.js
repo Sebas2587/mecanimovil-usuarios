@@ -8,10 +8,10 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Mic, Sparkles } from 'lucide-react-native';
-import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { useNecesidadSpeech } from '../../hooks/useNecesidadSpeech';
+import { AGENDAMIENTO_THEME as T } from './theme';
 
 /**
  * Paso «¿Qué necesitas?» — texto editable; voz vía STT on-device (sin audio al servidor).
@@ -23,6 +23,10 @@ export default function NecesidadInputStep({
   loading = false,
   temperatura,
   urgenciaLabel,
+  interpretacion,
+  resumenSalud,
+  alertasCruce = [],
+  errorMessage,
 }) {
   const { listening, startListening } = useNecesidadSpeech({
     onTranscript: (text) => onChangeText?.(text),
@@ -36,18 +40,18 @@ export default function NecesidadInputStep({
   return (
     <View style={styles.wrap}>
       <View style={styles.headerRow}>
-        <Sparkles size={20} color={COLORS.primary?.main || COLORS.primary} />
+        <Sparkles size={20} color={T.primary} />
         <Text style={styles.title}>¿Qué necesitas?</Text>
       </View>
       <Text style={styles.subtitle}>
-        Describe el problema o usa el micrófono. El dictado es local; no guardamos audio en el servidor.
+        Describe el problema o usa el micrófono. Al escribir, sugerimos servicios según tu descripción.
       </Text>
 
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
           placeholder="Ej: ruido al frenar, humo blanco..."
-          placeholderTextColor={COLORS.text?.disabled || '#9CA3AF'}
+          placeholderTextColor={T.textDisabled}
           value={value}
           onChangeText={onChangeText}
           onEndEditing={() => onAnalizar?.()}
@@ -60,15 +64,37 @@ export default function NecesidadInputStep({
           accessibilityLabel={listening ? 'Detener dictado' : 'Dictar necesidad'}
         >
           {listening ? (
-            <ActivityIndicator size="small" color={COLORS.primary?.main || COLORS.primary} />
+            <ActivityIndicator size="small" color={T.primary} />
           ) : (
-            <Mic size={22} color={COLORS.primary?.main || COLORS.primary} />
+            <Mic size={22} color={T.primary} />
           )}
         </TouchableOpacity>
       </View>
 
       {listening ? (
         <Text style={styles.listeningHint}>Escuchando… toca el micrófono para terminar</Text>
+      ) : null}
+
+      {resumenSalud ? (
+        <View style={styles.saludBox}>
+          <Text style={styles.saludText}>{resumenSalud}</Text>
+        </View>
+      ) : null}
+
+      {interpretacion ? (
+        <View style={styles.interpretacionBox}>
+          <Text style={styles.interpretacionText}>{interpretacion}</Text>
+        </View>
+      ) : null}
+
+      {Array.isArray(alertasCruce) && alertasCruce.length > 0 ? (
+        <View style={styles.alertasBox}>
+          {alertasCruce.map((msg, idx) => (
+            <Text key={`alerta-${idx}`} style={styles.alertaText}>
+              • {msg}
+            </Text>
+          ))}
+        </View>
       ) : null}
 
       {(temperatura != null || urgenciaLabel) && (
@@ -82,7 +108,11 @@ export default function NecesidadInputStep({
       )}
 
       {loading ? (
-        <ActivityIndicator style={styles.loader} color={COLORS.primary?.main || COLORS.primary} />
+        <ActivityIndicator style={styles.loader} color={T.primary} />
+      ) : null}
+
+      {errorMessage ? (
+        <Text style={styles.errorText}>{errorMessage}</Text>
       ) : null}
     </View>
   );
@@ -101,11 +131,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text?.primary || '#111827',
+    color: T.textPrimary,
   },
   subtitle: {
     fontSize: 14,
-    color: COLORS.text?.secondary || '#6B7280',
+    color: T.textSecondary,
     marginBottom: 12,
     lineHeight: 20,
   },
@@ -118,12 +148,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 96,
     borderWidth: BORDERS.width?.thin ?? 1,
-    borderColor: COLORS.border?.light || '#E5E7EB',
+    borderColor: T.borderLight,
     borderRadius: BORDERS.radius?.lg ?? 12,
     padding: 12,
     fontSize: 16,
-    color: COLORS.text?.primary || '#111827',
-    backgroundColor: COLORS.background?.paper || '#FFFFFF',
+    color: T.textPrimary,
+    backgroundColor: T.backgroundPaper,
     ...SHADOWS.sm,
   },
   micBtn: {
@@ -132,18 +162,59 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.background?.subtle || '#F3F4F6',
+    backgroundColor: T.backgroundSubtle,
     borderWidth: 1,
-    borderColor: COLORS.border?.light || '#E5E7EB',
+    borderColor: T.borderLight,
   },
   micActive: {
-    backgroundColor: COLORS.primary?.light || '#DBEAFE',
+    backgroundColor: T.primaryMuted,
   },
   listeningHint: {
     marginTop: 8,
     fontSize: 12,
-    color: COLORS.primary?.main || COLORS.primary,
+    color: T.primary,
     fontWeight: '600',
+  },
+  saludBox: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: BORDERS.radius?.md ?? 10,
+    backgroundColor: T.backgroundSubtle,
+    borderWidth: 1,
+    borderColor: T.borderLight,
+  },
+  saludText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: T.textSecondary,
+  },
+  interpretacionBox: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: BORDERS.radius?.md ?? 10,
+    backgroundColor: T.primaryLight,
+    borderWidth: 1,
+    borderColor: T.primaryMuted,
+  },
+  alertasBox: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: BORDERS.radius?.md ?? 10,
+    backgroundColor: '#FFF7E6',
+    borderWidth: 1,
+    borderColor: '#F4B00055',
+  },
+  alertaText: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#9E6F00',
+    marginBottom: 4,
+  },
+  interpretacionText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: T.textPrimary,
+    fontWeight: '500',
   },
   badgeRow: {
     flexDirection: 'row',
@@ -154,14 +225,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: BORDERS.radius?.full ?? 999,
-    backgroundColor: COLORS.warning?.light || '#FEF3C7',
+    backgroundColor: T.warningLight,
   },
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.warning?.dark || '#92400E',
+    color: T.warningDark,
   },
   loader: {
     marginTop: 12,
+  },
+  errorText: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#CF202F',
   },
 });
