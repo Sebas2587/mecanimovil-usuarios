@@ -35,6 +35,12 @@ const getEstadoSurfaceConfig = (estadoEfectivo) => {
       border: COLORS.warning[200],
       texto: 'Con Ofertas',
     },
+    pendiente_confirmacion: {
+      color: COLORS.primary[700],
+      bg: COLORS.primary[50],
+      border: COLORS.primary[200],
+      texto: 'Esperando confirmación',
+    },
     esperando_creditos_proveedor: {
       color: COLORS.warning[800],
       bg: COLORS.warning[50],
@@ -161,6 +167,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       seleccionando_servicios: 'list',
       publicada: 'megaphone',
       con_ofertas: 'pricetags',
+      pendiente_confirmacion: 'hourglass-outline',
       esperando_creditos_proveedor: 'hourglass-outline',
       adjudicada: 'checkmark-circle',
       ofertas_adicionales_pendientes: 'mail-unread',

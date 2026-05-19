@@ -21,6 +21,7 @@ import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-syst
 
 // Services & Context
 import chatService from '../../services/chatService';
+import solicitudesService from '../../services/solicitudesService';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { ROUTES } from '../../utils/constants';
 import { requestDetailQueryKey, useRequestDetail } from '../../hooks/useRequests';
@@ -134,6 +135,30 @@ const DetalleSolicitudScreen = () => {
     );
     return conv?.unread_count ?? 0;
   }, [serviceConversations, solicitud?.id]);
+
+  const esPendienteConfirmacion = solicitud?.estado === 'pendiente_confirmacion';
+
+  const ofertasVisibles = useMemo(() => {
+    if (!esPendienteConfirmacion) return ofertas;
+    const detalle = solicitud?.oferta_seleccionada_detail;
+    if (ofertas.length > 0) return ofertas;
+    return detalle ? [detalle] : [];
+  }, [esPendienteConfirmacion, ofertas, solicitud?.oferta_seleccionada_detail]);
+
+  const ofertaCatalogoActiva = useMemo(() => {
+    const selId = solicitud?.oferta_seleccionada;
+    return (
+      ofertasVisibles.find((o) => o && (o.id === selId || String(o.id) === String(selId)))
+      || solicitud?.oferta_seleccionada_detail
+      || ofertasVisibles[0]
+      || null
+    );
+  }, [ofertasVisibles, solicitud?.oferta_seleccionada, solicitud?.oferta_seleccionada_detail]);
+
+  const fechaAlternativaPendiente = Boolean(
+    ofertaCatalogoActiva?.es_fecha_alternativa
+    && ofertaCatalogoActiva?.estado === 'en_chat',
+  );
 
   const [procesando, setProcesando] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
@@ -283,6 +308,36 @@ const DetalleSolicitudScreen = () => {
     );
   }, [solicitudId, cancelarSolicitud, navigation]);
 
+  const handleAceptarFechaCatalogo = useCallback(() => {
+    if (!ofertaCatalogoActiva?.id) return;
+    showConfirm(
+      'Aceptar nueva fecha',
+      '¿Confirmas la fecha propuesta por el proveedor para tu servicio?',
+      {
+        confirmText: 'Aceptar fecha',
+        onConfirm: async () => {
+          try {
+            setProcesando(true);
+            await solicitudesService.aceptarFechaCatalogo(ofertaCatalogoActiva.id);
+            showAlert(
+              'Fecha actualizada',
+              'El proveedor fue notificado. Te avisaremos cuando confirme la asignación.',
+            );
+            refetchRequestDetail();
+          } catch (error) {
+            const msg =
+              error?.response?.data?.error
+              || error?.message
+              || 'No se pudo aceptar la fecha';
+            showAlert('Error', String(msg));
+          } finally {
+            setProcesando(false);
+          }
+        },
+      },
+    );
+  }, [ofertaCatalogoActiva?.id, refetchRequestDetail]);
+
   if (!solicitudId) {
     return (
       <View
@@ -361,6 +416,42 @@ const DetalleSolicitudScreen = () => {
 
         {/* 2) Detalle de Solicitud */}
         <ServiceSummaryCard solicitud={solicitud} />
+
+        {esPendienteConfirmacion ? (
+          <View style={styles.catalogoBanner}>
+            <Ionicons name="hourglass-outline" size={22} color={COLORS.primary[600]} />
+            <View style={styles.catalogoBannerTextWrap}>
+              <Text style={styles.catalogoBannerTitle}>Esperando confirmación del proveedor</Text>
+              <Text style={styles.catalogoBannerSub}>
+                Elegiste un servicio del catálogo. El proveedor debe confirmar antes de que puedas pagar.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {fechaAlternativaPendiente && ofertaCatalogoActiva ? (
+          <View style={styles.fechaAlternativaCard}>
+            <Text style={styles.fechaAlternativaTitle}>Nueva fecha propuesta</Text>
+            <Text style={styles.fechaAlternativaBody}>
+              {ofertaCatalogoActiva.fecha_disponible}
+              {ofertaCatalogoActiva.hora_disponible
+                ? ` · ${String(ofertaCatalogoActiva.hora_disponible).substring(0, 5)}`
+                : ''}
+            </Text>
+            {ofertaCatalogoActiva.motivo_fecha_alternativa ? (
+              <Text style={styles.fechaAlternativaMotivo}>
+                {ofertaCatalogoActiva.motivo_fecha_alternativa}
+              </Text>
+            ) : null}
+            <TouchableOpacity
+              style={styles.fechaAlternativaBtn}
+              onPress={handleAceptarFechaCatalogo}
+              disabled={procesando}
+            >
+              <Text style={styles.fechaAlternativaBtnText}>Aceptar esta fecha</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {Array.isArray(solicitud.fotos_necesidad) && solicitud.fotos_necesidad.length > 0 && (
           <View style={styles.fotosNecesidadSection}>
@@ -459,13 +550,13 @@ const DetalleSolicitudScreen = () => {
           {/* Contenido según tab activo */}
           {tabActivo === TAB_PRINCIPALES && (
             <View style={styles.offersSection}>
-              {ofertas.length > 0 ? (
+              {ofertasVisibles.length > 0 ? (
                 <>
-                  {ofertas.length > 1 && (
+                  {!esPendienteConfirmacion && ofertasVisibles.length > 1 && (
                     <View style={styles.offersHeader}>
                       <View style={styles.offersTitleRow}>
                         <View>
-                          <Text style={styles.offersTitle}>Ofertas Recibidas ({ofertas.length})</Text>
+                          <Text style={styles.offersTitle}>Ofertas Recibidas ({ofertasVisibles.length})</Text>
                           <Text style={styles.offersSubtitle}>Compara y elige la mejor opción</Text>
                         </View>
                         <TouchableOpacity
@@ -478,11 +569,14 @@ const DetalleSolicitudScreen = () => {
                       </View>
                     </View>
                   )}
-                  {ofertas.map((oferta) => {
+                  {esPendienteConfirmacion ? (
+                    <Text style={styles.offersSubtitle}>Tu elección del catálogo</Text>
+                  ) : null}
+                  {ofertasVisibles.map((oferta) => {
                     const postDecisionStates = ['adjudicada', 'pendiente_pago', 'en_proceso', 'checklist_en_progreso', 'checklist_completado', 'completada', 'finalizada', 'calificada', 'cancelada'];
                     const isWinner = solicitud.oferta_seleccionada === oferta.id;
                     const isFinalState = postDecisionStates.includes(solicitud.estado);
-                    const isDisabled = procesando || isFinalState;
+                    const isDisabled = procesando || isFinalState || esPendienteConfirmacion;
                     return (
                       <OfferCardDetailed
                         key={oferta.id}
@@ -493,7 +587,8 @@ const DetalleSolicitudScreen = () => {
                         onAceptarPress={handleAceptarOferta}
                         onProfilePress={handleProfilePress}
                         disabled={isDisabled}
-                        isAccepted={isWinner}
+                        isAccepted={isWinner || esPendienteConfirmacion}
+                        catalogoPendienteConfirmacion={esPendienteConfirmacion && isWinner}
                       />
                     );
                   })}
@@ -501,8 +596,16 @@ const DetalleSolicitudScreen = () => {
               ) : (
                 <View style={styles.emptyState}>
                   <Ionicons name="documents-outline" size={48} color={COLORS.text.disabled} />
-                  <Text style={styles.emptyStateText}>Aún no hay ofertas para esta solicitud.</Text>
-                  <Text style={styles.emptyStateSubtext}>Te notificaremos cuando los proveedores respondan.</Text>
+                  <Text style={styles.emptyStateText}>
+                    {esPendienteConfirmacion
+                      ? 'Cargando tu elección del catálogo…'
+                      : 'Aún no hay ofertas para esta solicitud.'}
+                  </Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    {esPendienteConfirmacion
+                      ? 'Si tarda, actualiza la pantalla.'
+                      : 'Te notificaremos cuando los proveedores respondan.'}
+                  </Text>
                 </View>
               )}
             </View>
@@ -1091,6 +1194,68 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
+  },
+  catalogoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    backgroundColor: COLORS.primary[50],
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
+  },
+  catalogoBannerTextWrap: {
+    flex: 1,
+  },
+  catalogoBannerTitle: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  catalogoBannerSub: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    lineHeight: 20,
+  },
+  fechaAlternativaCard: {
+    marginHorizontal: SPACING.md,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    backgroundColor: COLORS.warning[50],
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.warning[200],
+  },
+  fechaAlternativaTitle: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: '700',
+    color: COLORS.text.primary,
+    marginBottom: 6,
+  },
+  fechaAlternativaBody: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.primary,
+    marginBottom: 4,
+  },
+  fechaAlternativaMotivo: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    marginBottom: 12,
+  },
+  fechaAlternativaBtn: {
+    backgroundColor: COLORS.primary[600],
+    paddingVertical: 12,
+    borderRadius: BORDERS.radius.md,
+    alignItems: 'center',
+  },
+  fechaAlternativaBtnText: {
+    color: COLORS.text.onPrimary,
+    fontWeight: '600',
+    fontSize: TYPOGRAPHY.fontSize.sm,
   },
   fotoLightboxImage: {
     width: '100%',

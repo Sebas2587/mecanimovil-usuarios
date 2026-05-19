@@ -1,21 +1,10 @@
 # Tareas
 
-## Fase 0
-- [x] OpenSpec (backend, usuarios, prov)
+## Fase 0–3
+- [x] Ver backend / prov OpenSpec
 
-## Fase 1 — Backend
-- [x] Migración + modelos
-- [x] motor_necesidad, motor_match
-- [x] AsistenteAgendamientoViewSet + URLs + flag
-- [x] Tests (requieren GDAL/PostGIS en CI local)
-
-## Fase 2 — Usuarios
-- [x] agendamientoAsistidoService.js
-- [x] useAgendamientoAsistido.js
-- [x] Componentes base agendamiento-asistido/
-- [x] Integración FormularioSolicitud + flag
-- [x] Comparador modo catalogo
-- [x] STT on-device (expo-speech-recognition)
-
-## Fase 3 — Proveedores
-- [x] UI confirmación catálogo (en prov repo)
+## Fase 4 — Cierre ciclo catálogo (cliente)
+- [x] Detalle solicitud: banner pendiente confirmación
+- [x] Aceptar fecha alternativa del proveedor
+- [x] Estados en lista y badges
+- [x] Cancelar solicitud en `pendiente_confirmacion`

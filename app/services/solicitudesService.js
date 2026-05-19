@@ -409,6 +409,10 @@ class SolicitudesService {
    * @param {string} ofertaId - ID de la oferta a seleccionar
    * @returns {Promise<Object>} Respuesta con solicitud_tradicional_id
    */
+  async aceptarFechaCatalogo(ofertaId) {
+    return post(`/ordenes/ofertas/${ofertaId}/aceptar-fecha-catalogo/`, {});
+  }
+
   async seleccionarOferta(solicitudId, ofertaId) {
     try {
       console.log('SolicitudesService: Seleccionando oferta:', solicitudId, ofertaId);

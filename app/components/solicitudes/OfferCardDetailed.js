@@ -30,7 +30,8 @@ const OfferCardDetailed = ({
     onProfilePress,
     disabled = false,
     isAccepted = false,
-    esOfertaSecundaria = false
+    esOfertaSecundaria = false,
+    catalogoPendienteConfirmacion = false,
 }) => {
     const [proveedorFotoUrl, setProveedorFotoUrl] = useState(null);
 
@@ -282,7 +283,11 @@ const OfferCardDetailed = ({
                 {/* Botón Aceptar o Badge Aceptado */}
                 {isAccepted ? (
                     <View style={styles.acceptedButton}>
-                        <Text style={styles.acceptButtonText}>Oferta Aceptada</Text>
+                        <Text style={styles.acceptButtonText}>
+                            {catalogoPendienteConfirmacion
+                                ? 'Proveedor elegido'
+                                : 'Oferta Aceptada'}
+                        </Text>
                         <Ionicons name="checkmark-circle" size={18} color={COLORS.text.onPrimary} />
                     </View>
                 ) : (

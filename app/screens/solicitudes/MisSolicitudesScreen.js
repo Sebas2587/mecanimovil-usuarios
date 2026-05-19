@@ -83,6 +83,7 @@ const MisSolicitudesScreen = () => {
     const activas = [
       'publicada',
       'con_ofertas',
+      'pendiente_confirmacion',
       'esperando_creditos_proveedor',
       'adjudicada',
       'pendiente_pago',

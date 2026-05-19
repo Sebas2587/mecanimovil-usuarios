@@ -52,6 +52,9 @@ const ESTADOS_SOLICITUD_PUBLICA_CANCELABLES = new Set([
  */
 export function puedeClienteCancelarSolicitudPublica(solicitud) {
   if (!solicitud || !solicitud.estado) return false;
+  if (solicitud.estado === 'pendiente_confirmacion') {
+    return true;
+  }
   if (!ESTADOS_SOLICITUD_PUBLICA_CANCELABLES.has(solicitud.estado)) return false;
   if (solicitud.oferta_seleccionada != null && solicitud.oferta_seleccionada !== '') return false;
   if (solicitud.oferta_seleccionada_detail != null) return false;
