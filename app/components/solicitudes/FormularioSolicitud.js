@@ -846,7 +846,10 @@ const FormularioSolicitud = ({
       ofertasPreview,
       formPayload: {
         ...formData,
-        ia_analisis_snapshot: buildMetadataIaEntrada(analisisIa, buildComponentesSaludIa()),
+        ia_analisis_snapshot: {
+          ...buildMetadataIaEntrada(analisisIa, buildComponentesSaludIa()),
+          alertas_cruce: analisisIa?.alertas_cruce || [],
+        },
       },
     });
   }, [formData, analisisIa, buildComponentesSaludIa, cargarCandidatosIa, navigation]);

@@ -58,6 +58,11 @@ export default function CandidatosProveedorCard({
       <Text style={styles.iva}>
         IVA incl. {formatCLP(desglose.iva)} · MO/rep. según catálogo
       </Text>
+      {candidato.score_match != null ? (
+        <Text style={styles.match}>
+          Coincidencia {Math.round(Number(candidato.score_match) * 100)}%
+        </Text>
+      ) : null}
       {candidato.explicacion ? (
         <Text style={styles.explicacion}>{candidato.explicacion}</Text>
       ) : null}
@@ -104,6 +109,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.text?.disabled || '#9CA3AF',
     marginTop: 2,
+  },
+  match: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    color: T.primary,
   },
   explicacion: {
     fontSize: 12,

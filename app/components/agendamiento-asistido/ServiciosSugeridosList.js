@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { AGENDAMIENTO_THEME as T } from './theme';
+import { labelFuenteAnalisis } from '../../utils/agendamientoIaLabels';
 
 export default function ServiciosSugeridosList({
   servicios = [],
@@ -53,7 +54,7 @@ export default function ServiciosSugeridosList({
             {item.score != null ? (
               <Text style={styles.meta}>
                 Relevancia {Math.round(Number(item.score) * 100)}%
-                {item.fuente ? ` · ${item.fuente}` : ''}
+                {item.fuente ? ` · ${labelFuenteAnalisis(item.fuente)}` : ''}
               </Text>
             ) : null}
           </TouchableOpacity>

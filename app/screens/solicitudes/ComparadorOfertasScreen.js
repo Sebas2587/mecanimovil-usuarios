@@ -14,6 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
+import ComparadorCatalogoIaPanel from '../../components/agendamiento-asistido/ComparadorCatalogoIaPanel';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { useAgendamiento } from '../../context/AgendamientoContext';
 import ofertasService from '../../services/ofertasService';
@@ -332,7 +333,8 @@ const ComparadorOfertasScreen = () => {
     );
   }
 
-  if (ofertas.length < 2) {
+  const minOfertas = modoCatalogo ? 1 : 2;
+  if (ofertas.length < minOfertas) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
@@ -340,9 +342,13 @@ const ComparadorOfertasScreen = () => {
           <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.warning[50], borderColor: COLORS.warning[200] }]}>
             <MaterialIcons name="compare-arrows" size={48} color={COLORS.warning.main} />
           </View>
-          <Text style={styles.emptyTitle}>Ofertas Insuficientes</Text>
+          <Text style={styles.emptyTitle}>
+            {modoCatalogo ? 'Sin proveedores' : 'Ofertas Insuficientes'}
+          </Text>
           <Text style={styles.emptyText}>
-            Necesitas al menos 2 ofertas para poder compararlas
+            {modoCatalogo
+              ? 'No hay proveedores de catálogo disponibles para comparar.'
+              : 'Necesitas al menos 2 ofertas para poder compararlas'}
           </Text>
           <TouchableOpacity
             style={styles.emptyButton}
@@ -368,14 +374,24 @@ const ComparadorOfertasScreen = () => {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <ComparadorOfertas
-          ofertas={ofertas}
-          solicitud={solicitud}
-          onAceptarOferta={solicitud && solicitud.estado === 'adjudicada' ? undefined : handleAceptarOferta}
-          solicitudAdjudicada={solicitud && solicitud.estado === 'adjudicada'}
-          solicitudId={solicitudId}
-          onChatPress={handleChat}
-        />
+        {modoCatalogo ? (
+          <ComparadorCatalogoIaPanel
+            ofertas={ofertas}
+            iaSnapshot={formPayload?.ia_analisis_snapshot}
+            onAceptar={handleAceptarOferta}
+            procesando={procesando}
+            requiereRepuestos={formPayload?.requiere_repuestos !== false}
+          />
+        ) : (
+          <ComparadorOfertas
+            ofertas={ofertas}
+            solicitud={solicitud}
+            onAceptarOferta={solicitud && solicitud.estado === 'adjudicada' ? undefined : handleAceptarOferta}
+            solicitudAdjudicada={solicitud && solicitud.estado === 'adjudicada'}
+            solicitudId={solicitudId}
+            onChatPress={handleChat}
+          />
+        )}
       </ScrollView>
 
       {procesando && (
