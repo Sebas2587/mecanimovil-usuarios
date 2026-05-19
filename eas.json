@@ -10,6 +10,9 @@
     },
     "preview": {
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_AGENDAMIENTO_IA_ASISTIDO": "true"
+      },
       "android": {
         "buildType": "apk"
       }
@@ -17,6 +20,9 @@
     "production": {
       "channel": "production",
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_AGENDAMIENTO_IA_ASISTIDO": "true"
+      },
       "android": {
         "buildType": "app-bundle"
       }
@@ -26,4 +32,3 @@
     "production": {}
   }
 }
-

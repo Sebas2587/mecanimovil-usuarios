@@ -1,13 +1,24 @@
 /**
  * API del asistente de agendamiento IA (consultas stateless en servidor).
  */
+import Constants from 'expo-constants';
 import { get, post } from './api';
 
 const BASE = '/ordenes/asistente-agendamiento';
 
-function isAsistidoHabilitado() {
-  const v = process.env.EXPO_PUBLIC_AGENDAMIENTO_IA_ASISTIDO;
-  return v === '1' || v === 'true' || v === 'yes';
+function truthyFlag(value) {
+  if (value === true) return true;
+  if (value === false || value == null) return false;
+  const s = String(value).trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'yes';
+}
+
+/** Habilitado si EXPO_PUBLIC, EAS env o app.json extra lo indican (alineado con Render API). */
+export function isAsistidoHabilitado() {
+  if (truthyFlag(process.env.EXPO_PUBLIC_AGENDAMIENTO_IA_ASISTIDO)) {
+    return true;
+  }
+  return truthyFlag(Constants.expoConfig?.extra?.agendamientoIaAsistido);
 }
 
 /**
@@ -80,5 +91,3 @@ export function mapCandidatoToOfertaComparador(candidato) {
     estado: 'catalogo_preview',
   };
 }
-
-export { isAsistidoHabilitado };
