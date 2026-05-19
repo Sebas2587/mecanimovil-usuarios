@@ -132,7 +132,10 @@ export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extra
     oferta_servicio_id: ofertaServicioId,
     vehiculo_id: formData.vehiculo?.id,
     servicio_ids: servicioIds,
-    descripcion_problema: formData.descripcion_problema,
+    descripcion_problema:
+      (formData.descripcion_problema || '').trim()
+      || (formData.servicios_seleccionados || []).map((s) => s.nombre).filter(Boolean).join('. ')
+      || 'Servicio solicitado desde catálogo',
     urgencia: formData.urgencia || 'normal',
     requiere_repuestos: formData.requiere_repuestos !== false,
     fecha_preferida: formData.fecha_preferida,

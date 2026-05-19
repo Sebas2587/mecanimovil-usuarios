@@ -48,7 +48,8 @@ export default function ComparadorCatalogoIaPanel({
     <View style={styles.wrap}>
       <Text style={styles.title}>Elige tu proveedor</Text>
       <Text style={styles.subtitle}>
-        Precios de catálogo. El proveedor debe confirmar antes de pagar.
+        Precios según tu elección de repuestos ({requiereRepuestos ? 'con repuestos' : 'solo mano de obra'}).
+        El proveedor debe confirmar antes de pagar.
       </Text>
 
       {interpretacion ? (

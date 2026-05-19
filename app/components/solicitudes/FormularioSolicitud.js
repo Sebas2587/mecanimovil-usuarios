@@ -41,6 +41,7 @@ import {
   buildMetadataIaEntrada,
   mapCandidatoToOfertaComparador,
 } from '../../services/agendamientoAsistidoService';
+import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
 import {
   NecesidadInputStep,
   ServiciosSugeridosList,
@@ -816,6 +817,10 @@ const FormularioSolicitud = ({
       Alert.alert('Error', 'Selecciona al menos un servicio');
       return;
     }
+    if (!formData.direccion_usuario && !formData.direccion_servicio_texto?.trim()) {
+      Alert.alert('Ubicación requerida', 'Selecciona la dirección donde se realizará el servicio.');
+      return;
+    }
     let lat = null;
     let lng = null;
     const ub = formData.ubicacion_servicio;
@@ -826,11 +831,20 @@ const FormularioSolicitud = ({
       lng = formData.direccion_usuario.ubicacion.coordinates[0];
       lat = formData.direccion_usuario.ubicacion.coordinates[1];
     }
+    if (lat == null || lng == null) {
+      Alert.alert(
+        'Ubicación incompleta',
+        'La dirección seleccionada no tiene coordenadas. Elige otra dirección o actualízala en tu perfil.',
+      );
+      return;
+    }
+    const comunasExtraidas = extraerComunasDesdeDireccion(formData.direccion_usuario);
     const list = await cargarCandidatosIa({
       vehiculoId: formData.vehiculo.id,
       servicioIds,
       lat,
       lng,
+      comunasExtraidas,
       requiereRepuestos: formData.requiere_repuestos !== false,
     });
     if (!list.length) {
@@ -972,7 +986,13 @@ const FormularioSolicitud = ({
   // Si NO hay preselecciones: 6 pasos (flujo normal)
   // Always 5 steps (skip step 2); 4 when provider also preselected
   // Pre-compra marketplace: 4 steps (3→4→5→6, skip vehicle & service selection)
-  const totalPasos = isPreCompra ? 4 : flujoCuatroPasos ? 4 : 5;
+  const totalPasos = isPreCompra
+    ? 4
+    : iaAsistidoActivo
+      ? 4
+      : flujoCuatroPasos
+        ? 4
+        : 5;
 
   // Asegurar que cuando hay proveedor preseleccionado, tipo_solicitud permanezca como 'dirigida'
   // y los proveedores no cambien
@@ -1095,7 +1115,7 @@ const FormularioSolicitud = ({
       return;
     }
 
-    // Asistente IA: 1→3→5→comparador catálogo (salta paso 4)
+    // Catálogo IA: 1 (vehículo+servicio) → 3 (repuestos+urgencia) → 5 (ubicación) → 6 (fecha) → comparador
     if (iaAsistidoActivo) {
       if (pasoActual === 1) {
         if (!formData.vehiculo) {
@@ -1106,12 +1126,6 @@ const FormularioSolicitud = ({
           Alert.alert('Selecciona un servicio', 'Debes seleccionar al menos un servicio para continuar.');
           return;
         }
-        if (!formData.descripcion_problema?.trim()) {
-          setTempDescription(formData.descripcion_problema || '');
-          setTempFotosNecesidad(Array.isArray(formData.fotos_necesidad) ? [...formData.fotos_necesidad] : []);
-          setDescriptionModalVisible(true);
-          return;
-        }
         setPasoActual(3);
         return;
       }
@@ -1120,6 +1134,12 @@ const FormularioSolicitud = ({
         return;
       }
       if (pasoActual === 5) {
+        if (!validarPaso(5)) return;
+        setPasoActual(6);
+        return;
+      }
+      if (pasoActual === 6) {
+        if (!validarPaso(6)) return;
         irAComparadorCatalogo();
         return;
       }
@@ -1180,9 +1200,15 @@ const FormularioSolicitud = ({
       return;
     }
 
-    if (iaAsistidoActivo && pasoActual === 5) {
-      setPasoActual(3);
-      return;
+    if (iaAsistidoActivo) {
+      if (pasoActual === 6) {
+        setPasoActual(5);
+        return;
+      }
+      if (pasoActual === 5) {
+        setPasoActual(3);
+        return;
+      }
     }
 
     // All flows: step 3 goes back to step 1 (skip step 2)
@@ -1282,6 +1308,25 @@ const FormularioSolicitud = ({
         }
         return true;
       case 6:
+        if (iaAsistidoActivo) {
+          if (!formData.fecha_preferida || !formData.fecha_preferida.trim()) {
+            Alert.alert('Error', 'Selecciona la fecha preferida del servicio');
+            return false;
+          }
+          if (!validarFecha(formData.fecha_preferida)) {
+            Alert.alert('Error', 'La fecha debe ser válida y futura (YYYY-MM-DD)');
+            return false;
+          }
+          if (
+            formData.hora_preferida
+            && formData.hora_preferida.trim()
+            && !validarHora(formData.hora_preferida)
+          ) {
+            Alert.alert('Error', 'La hora debe tener el formato HH:MM');
+            return false;
+          }
+          return true;
+        }
         // Solo validar fecha si estamos intentando hacer submit (no al llegar al paso)
         // La validación se hace en handleSubmit, no aquí
         // Solo validar si hay algo en fecha_preferida (para detectar formato incorrecto)
@@ -2757,6 +2802,12 @@ const FormularioSolicitud = ({
       return mapaPasos[pasoActual] || pasoActual;
     }
 
+    // Catálogo IA: 1→3→5→6
+    if (iaAsistidoActivo) {
+      const mapaPasos = { 1: 1, 3: 2, 5: 3, 6: 4 };
+      return mapaPasos[pasoActual] || pasoActual;
+    }
+
     // flujoCuatroPasos: 4 visual steps (1→3→5→6)
     if (flujoCuatroPasos) {
       const mapaPasos = { 1: 1, 3: 2, 5: 3, 6: 4 };
@@ -2785,6 +2836,9 @@ const FormularioSolicitud = ({
 
   // Determinar si estamos en el último paso real
   const esUltimoPaso = () => {
+    if (iaAsistidoActivo) {
+      return false;
+    }
     if (flujoCuatroPasos) {
       // Flujo de 4 pasos: 1→3→5→6 (paso 6 es el último)
       return pasoActual === 6;
@@ -2860,7 +2914,13 @@ const FormularioSolicitud = ({
         <TouchableOpacity onPress={handleNext} style={{ flex: 2 }} activeOpacity={0.8}>
           <View style={[styles.navNextBtn, { backgroundColor: COLORS.primary[500] }]}>
             {esUltimoPaso() && <Send size={16} color={COLORS.text.onPrimary} style={{ marginRight: 6 }} />}
-            <Text style={styles.navNextText}>{esUltimoPaso() ? 'Crear Solicitud' : 'Siguiente'}</Text>
+            <Text style={styles.navNextText}>
+              {esUltimoPaso()
+                ? 'Crear Solicitud'
+                : iaAsistidoActivo && pasoActual === 6
+                  ? 'Ver proveedores'
+                  : 'Siguiente'}
+            </Text>
           </View>
         </TouchableOpacity>
       </View>
