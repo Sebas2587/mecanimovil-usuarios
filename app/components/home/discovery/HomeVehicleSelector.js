@@ -12,6 +12,8 @@ const HomeVehicleSelector = ({
   vehicles = [],
   vehiclesLoading,
   selectedVehicle,
+  healthScore = null,
+  healthScoreColor = null,
   onOpenSelector,
   onAddVehicle,
 }) => {
@@ -39,6 +41,18 @@ const HomeVehicleSelector = ({
               {selectedVehicle.year || ''} · {selectedVehicle.patente || ''}
             </Text>
           </View>
+          {healthScore != null ? (
+            <View
+              style={[
+                styles.healthChip,
+                healthScoreColor ? { borderColor: healthScoreColor } : null,
+              ]}
+            >
+              <Text style={[styles.healthChipText, healthScoreColor ? { color: healthScoreColor } : null]}>
+                {Math.round(healthScore)}%
+              </Text>
+            </View>
+          ) : null}
           <ChevronDown size={20} color={COLORS.text.tertiary} />
         </View>
       </HomePanelCard>
@@ -106,6 +120,20 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
     marginTop: 2,
+  },
+  healthChip: {
+    marginRight: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BORDERS.radius.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary[300],
+    backgroundColor: COLORS.primary[50],
+  },
+  healthChipText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.primary[600],
   },
   loadingCard: {
     alignItems: 'center',

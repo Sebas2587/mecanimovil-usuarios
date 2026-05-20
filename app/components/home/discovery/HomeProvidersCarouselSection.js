@@ -98,6 +98,7 @@ const HomeProvidersCarouselSection = ({
                     provider={p}
                     typeLabel={kindLabel}
                     specialty={card.specialty || 'Servicios y diagnóstico'}
+                    serviceOffers={card.serviceOffers}
                     kpiBadge={p.kpi_badge || null}
                     appearance="light"
                     width={nearbyCardW}

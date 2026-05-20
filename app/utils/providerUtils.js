@@ -371,6 +371,13 @@ export const getProviderDistance = (provider) => {
  * Usar esta función en UserPanelScreen, TalleresScreen, MecanicosScreen
  * y cualquier otra pantalla que muestre ProviderPreviewCard.
  */
+/** Ofertas resumidas del panel (`panel_servicios` del backend). */
+export const getPanelServicios = (provider) => {
+  const raw = provider?.panel_servicios;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item) => item && (item.nombre || item.servicio_id));
+};
+
 export const formatProviderForCard = (provider) => {
   const candidates = getProviderImageCandidatesResolved(provider);
   return {
@@ -383,5 +390,6 @@ export const formatProviderForCard = (provider) => {
     verified: provider?.verificado ?? false,
     image: candidates[0] || null,
     imageCandidates: candidates,
+    serviceOffers: getPanelServicios(provider),
   };
 };

@@ -3,7 +3,12 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
-import { getKpiTierPresentation, getProviderImageCandidatesResolved } from '../../utils/providerUtils';
+import {
+  getKpiTierPresentation,
+  getProviderImageCandidatesResolved,
+  getPanelServicios,
+} from '../../utils/providerUtils';
+import ProviderServiceChipsRow from './ProviderServiceChipsRow';
 import { getAxiosMediaBaseSync } from '../../services/api';
 
 /**
@@ -27,6 +32,7 @@ const ProviderPreviewCard = ({
   appearance = 'light',
   typeLabel = null,
   omitRightMargin = false,
+  serviceOffers = null,
 }) => {
   const imageHeight = Math.max(96, Math.round(width * 0.54));
   const containerRadius = BORDERS.radius.card?.lg ?? BORDERS.radius.lg;
@@ -65,6 +71,10 @@ const ProviderPreviewCard = ({
 
   const ratingLabel = rating != null && rating !== '' ? String(rating) : '—';
   const distanceLabel = distance != null && distance !== '' ? String(distance) : '—';
+
+  const panelOffers =
+    serviceOffers != null ? serviceOffers : providerRaw ? getPanelServicios(providerRaw) : [];
+  const hasOfferChips = panelOffers.length > 0;
 
   const kpiPresentation = getKpiTierPresentation(kpiBadge);
   const showTier = !!kpiPresentation;
@@ -146,9 +156,13 @@ const ProviderPreviewCard = ({
             </View>
           ) : null}
         </View>
-        <Text style={styles.specialtyText} numberOfLines={2}>
-          {specialty}
-        </Text>
+        {hasOfferChips ? (
+          <ProviderServiceChipsRow offers={panelOffers} compact={width < 180} />
+        ) : (
+          <Text style={styles.specialtyText} numberOfLines={2}>
+            {specialty}
+          </Text>
+        )}
 
         <View style={styles.ratingDistanceRow}>
           <View style={styles.ratingPill}>

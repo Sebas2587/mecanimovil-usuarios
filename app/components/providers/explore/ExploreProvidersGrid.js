@@ -33,6 +33,7 @@ const ExploreProvidersGrid = ({
             provider={item}
             typeLabel={kindLabel}
             specialty={card.specialty || 'Servicios y diagnóstico'}
+            serviceOffers={card.serviceOffers}
             kpiBadge={item.kpi_badge || null}
             appearance="light"
             width={GRID_CARD_W}

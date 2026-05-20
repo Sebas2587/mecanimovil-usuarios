@@ -874,6 +874,9 @@ export const getNearbyMechanics = async (lat, lng, radius = 10) => {
   }
 };
 
+/** Query param para ofertas resumidas en cards del home (fase 5). */
+export const PANEL_SERVICIOS_QUERY = { include_panel_servicios: 'true' };
+
 /**
  * Proveedores «Para ti»: marca del vehículo + orden KPI (`proveedores_filtrados`).
  * Opcionalmente enriquece `distance` si se pasan coordenadas (mapa desde `/cerca/`).
@@ -883,7 +886,7 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
   if (!vehiculoId) return [];
 
   try {
-    const params = { vehiculo_id: vehiculoId };
+    const params = { vehiculo_id: vehiculoId, ...PANEL_SERVICIOS_QUERY };
     const [tRes, mRes] = await Promise.all([
       get('/usuarios/talleres/proveedores_filtrados/', params),
       get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params),
@@ -924,8 +927,20 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
   const distTaller = options.distTaller ?? 12;
   const distMecanico = options.distMecanico ?? 15;
   try {
-    const paramsTaller = { lat, lng, dist: distTaller, ordenar_por: 'distancia' };
-    const paramsMec = { lat, lng, dist: distMecanico, ordenar_por: 'distancia' };
+    const paramsTaller = {
+      lat,
+      lng,
+      dist: distTaller,
+      ordenar_por: 'distancia',
+      ...PANEL_SERVICIOS_QUERY,
+    };
+    const paramsMec = {
+      lat,
+      lng,
+      dist: distMecanico,
+      ordenar_por: 'distancia',
+      ...PANEL_SERVICIOS_QUERY,
+    };
     if (marcaId != null && marcaId !== '') {
       paramsTaller.marca = marcaId;
       paramsMec.marca = marcaId;

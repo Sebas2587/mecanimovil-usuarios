@@ -4,3 +4,4 @@ export * from './homeVehicleUtils';
 export { HomePanelCard, HomeSoftButton } from './HomePanelCard';
 export { default as HomeSectionHeader } from './HomeSectionHeader';
 export { default as HomeSectionSeeAll } from './HomeSectionSeeAll';
+export { default as HomeCollapsibleSection } from './HomeCollapsibleSection';
