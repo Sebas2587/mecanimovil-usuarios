@@ -108,7 +108,19 @@ const CrearSolicitudScreen = () => {
     isPreCompra, // Inspección pre-compra marketplace
     targetVehicleId, // ID del vehículo del vendedor (pre-compra)
     ofertaId, // ID de la oferta marketplace aceptada
+    slotSeleccionado,
   } = route.params || {};
+
+  // Horario elegido en CalendarioProveedorScreen
+  useEffect(() => {
+    if (!slotSeleccionado?.fecha) return;
+    setInitialData((prev) => ({
+      ...(prev || {}),
+      fecha_preferida: slotSeleccionado.fecha,
+      hora_preferida: slotSeleccionado.hora || '',
+    }));
+    navigation.setParams({ slotSeleccionado: undefined });
+  }, [slotSeleccionado?.fecha, slotSeleccionado?.hora, navigation]);
 
   // Clave estable para useFocusEffect: `route.params` suele ser un objeto nuevo en cada render del
   // navigator y recreaba el callback → doble foco / refetch y setInitialData en momentos raros.

@@ -266,6 +266,7 @@ export const ROUTES = {
   SELECCIONAR_SERVICIOS: 'SeleccionarServicios',
   SELECCIONAR_PROVEEDORES: 'SeleccionarProveedores',
   COMPARADOR_OFERTAS: 'ComparadorOfertas',
+  CALENDARIO_PROVEEDOR: 'CalendarioProveedor',
   CHAT_OFERTA: 'ChatOferta',
   CHAT_DETAIL: 'ChatDetail', // New Generic Chat
   CHATS_LIST: 'ChatsList',

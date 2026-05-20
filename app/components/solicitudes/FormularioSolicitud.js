@@ -16,7 +16,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -48,6 +48,11 @@ import {
 } from '../home/shared/providerCatalogSchedule';
 import ProviderCatalogScheduleCard from './ProviderCatalogScheduleCard';
 import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProviderAvatarUri } from '../../utils/providerUtils';
+import {
+  navigateCalendarioProveedor,
+  resolveOfertaServicioId,
+  resolveProveedorEntityId,
+} from '../../utils/calendarioProveedorNavigation';
 import {
   Car as CarIcon,
   TriangleAlert as AlertTriangleIcon,
@@ -219,6 +224,7 @@ const FormularioSolicitud = ({
   // (tieneServicioPreseleccionado, tieneProveedorPreseleccionado, flujoCuatroPasos defined above queries)
 
   const navigation = useNavigation();
+  const route = useRoute();
 
   // Health components via TanStack Query (instant from cache when navigating back)
   const {
@@ -916,9 +922,13 @@ const FormularioSolicitud = ({
         return;
       }
       // Guardar proveedor con usuario.id para facilitar el envío al backend
+      const proveedorEntityId = resolveProveedorEntityId(proveedor, tipo);
       setFormData({
         ...formData,
-        proveedores_dirigidos: [...proveedores, { ...proveedor, tipo, usuario_id: usuarioId }]
+        proveedores_dirigidos: [
+          ...proveedores,
+          { ...proveedor, tipo, usuario_id: usuarioId, proveedor_entity_id: proveedorEntityId },
+        ],
       });
     }
   };
@@ -932,7 +942,7 @@ const FormularioSolicitud = ({
   const totalPasos = isPreCompra
     ? 4
     : iaAsistidoActivo
-      ? 4
+      ? 3
       : flujoCuatroPasos
         ? 4
         : 5;
@@ -1040,6 +1050,33 @@ const FormularioSolicitud = ({
     formData.requiere_repuestos,
   ]);
 
+  const debeElegirHorarioEnAgenda = () => {
+    if (formData.fecha_preferida?.trim()) return false;
+    if (iaAsistidoActivo || flujoComparadorCatalogo) return false;
+    if (formData.tipo_solicitud === 'global') return false;
+    const provs = formData.proveedores_dirigidos || [];
+    return provs.length >= 1;
+  };
+
+  const irACalendarioDesdeFormulario = (siguientePaso) => {
+    const prov = (formData.proveedores_dirigidos || [])[0];
+    if (!prov) {
+      Alert.alert('Proveedor', 'Selecciona un proveedor para ver su agenda.');
+      return false;
+    }
+    const ok = navigateCalendarioProveedor(navigation, {
+      proveedor: prov,
+      tipoProveedor: prov.tipo || prov.tipo_proveedor,
+      ofertaServicioId: resolveOfertaServicioId(formData.servicios_seleccionados),
+      returnParams: { ...route.params },
+    });
+    if (!ok) {
+      Alert.alert('Error', 'No se pudo abrir la agenda del proveedor.');
+      return false;
+    }
+    return true;
+  };
+
   const handleNext = () => {
     if (!validarPaso(pasoActual)) return;
 
@@ -1050,10 +1087,13 @@ const FormularioSolicitud = ({
       return;
     }
 
-    // flujoCuatroPasos: 1→3→5→6 (skip step 2 and 4)
+    // flujoCuatroPasos: 1→3→[calendario]→5→6 (skip step 2 and 4)
     if (flujoCuatroPasos) {
       if (pasoActual === 1) { setPasoActual(3); }
-      else if (pasoActual === 3) { setPasoActual(5); }
+      else if (pasoActual === 3) {
+        if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
+        setPasoActual(5);
+      }
       else if (pasoActual === 5) { setPasoActual(6); }
       else if (pasoActual === 6) { handleSubmit(); }
       else { setPasoActual(pasoActual + 1); }
@@ -1080,11 +1120,6 @@ const FormularioSolicitud = ({
       }
       if (pasoActual === 5) {
         if (!validarPaso(5)) return;
-        setPasoActual(6);
-        return;
-      }
-      if (pasoActual === 6) {
-        if (!validarPaso(6)) return;
         irAComparadorCatalogo();
         return;
       }
@@ -1107,6 +1142,9 @@ const FormularioSolicitud = ({
           return;
         }
         setPasoActual(3);
+      } else if (pasoActual === 4) {
+        if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
+        setPasoActual(5);
       } else if (pasoActual === 6) {
         handleSubmit();
       } else {
@@ -1115,7 +1153,7 @@ const FormularioSolicitud = ({
       return;
     }
 
-    // Flujo legacy (precompra u otros): 1→3→4→5→6
+    // Flujo legacy (precompra u otros): 1→3→4→[calendario]→5→6
     if (pasoActual === 1) {
       if (!formData.vehiculo) {
         Alert.alert('Selecciona un vehículo', 'Debes seleccionar un vehículo para continuar.');
@@ -1132,6 +1170,9 @@ const FormularioSolicitud = ({
         return;
       }
       setPasoActual(3);
+    } else if (pasoActual === 4) {
+      if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
+      setPasoActual(5);
     } else if (pasoActual === 6) {
       if (!validarPaso(6)) return;
       irAComparadorCatalogo();
@@ -1172,8 +1213,8 @@ const FormularioSolicitud = ({
     }
 
     if (iaAsistidoActivo) {
-      if (pasoActual === 6) {
-        setPasoActual(5);
+      if (pasoActual === 5) {
+        setPasoActual(3);
         return;
       }
       if (pasoActual === 5) {
@@ -2691,6 +2732,8 @@ const FormularioSolicitud = ({
   ];
 
   const renderPaso6 = () => {
+    if (iaAsistidoActivo) return null;
+
     const calendario = generarCalendario();
     const horasDisponibles = generarHorasDisponibles();
 
@@ -2860,7 +2903,11 @@ const FormularioSolicitud = ({
     }
 
     // Catálogo IA: 1→3→5→6
-    if (iaAsistidoActivo || flujoComparadorCatalogo) {
+    if (iaAsistidoActivo) {
+      const mapaPasos = { 1: 1, 3: 2, 5: 3 };
+      return mapaPasos[pasoActual] || pasoActual;
+    }
+    if (flujoComparadorCatalogo) {
       const mapaPasos = { 1: 1, 3: 2, 5: 3, 6: 4 };
       return mapaPasos[pasoActual] || pasoActual;
     }
@@ -2893,7 +2940,10 @@ const FormularioSolicitud = ({
 
   // Determinar si estamos en el último paso real
   const esUltimoPaso = () => {
-    if (iaAsistidoActivo || flujoComparadorCatalogo) {
+    if (iaAsistidoActivo) {
+      return pasoActual === 5;
+    }
+    if (flujoComparadorCatalogo) {
       return false;
     }
     if (flujoCuatroPasos) {
@@ -2984,8 +3034,8 @@ const FormularioSolicitud = ({
               {loadingCandidatosIa
                 ? 'Buscando proveedores…'
                 : esUltimoPaso()
-                  ? 'Crear Solicitud'
-                  : (iaAsistidoActivo || flujoComparadorCatalogo) && pasoActual === 6
+                  ? (iaAsistidoActivo ? 'Ver proveedores' : 'Crear Solicitud')
+                  : flujoComparadorCatalogo && pasoActual === 6
                     ? 'Ver proveedores'
                     : 'Siguiente'}
             </Text>

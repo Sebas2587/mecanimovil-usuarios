@@ -6,6 +6,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, Car, ShoppingBag } from 'lucide-react-native';
 import CustomHeader from '../components/navigation/Header/Header';
+import ProfileTabIcon from '../components/navigation/ProfileTabIcon';
 import { COLORS, TYPOGRAPHY, BORDERS, SPACING } from '../design-system/tokens';
 
 import UserPanelScreen from '../screens/main/UserPanelScreen';
@@ -23,6 +24,7 @@ import AppointmentDetailScreen from '../screens/appointments/AppointmentDetailSc
 import ServiceHistoryScreen from '../screens/appointments/ServiceHistoryScreen';
 import MisCitasScreen from '../screens/appointments/MisCitasScreen';
 import DateTimePickerScreen from '../screens/booking/DateTimePickerScreen';
+import CalendarioProveedorScreen from '../screens/booking/CalendarioProveedorScreen';
 import BookingCartScreen from '../screens/booking/BookingCartScreen';
 import BookingConfirmationScreen from '../screens/booking/BookingConfirmationScreen';
 import SupportScreen from '../screens/support/SupportScreen';
@@ -113,13 +115,25 @@ const getProfileMainHeaderOptions = (title) =>
     headerStyle: PROFILE_HEADER_NO_DIVIDER,
   });
 
+/** Perfil como tab raíz: sin botón atrás (se cambia de pestaña). */
+const getProfileTabMainHeaderOptions = (title) =>
+  getHeaderOptions(title, {
+    showBack: false,
+    ...DARK_GLASS_HEADER,
+    headerStyle: PROFILE_HEADER_NO_DIVIDER,
+  });
+
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const ProfileStack = createStackNavigator();
 
-const ProfileStackNavigator = () => (
+const ProfileStackNavigator = ({ tabRoot = false }) => (
   <ProfileStack.Navigator screenOptions={{ headerShown: true }}>
-    <ProfileStack.Screen name="UserProfileMain" component={UserProfileScreen} options={getProfileMainHeaderOptions("Mi Perfil")} />
+    <ProfileStack.Screen
+      name="UserProfileMain"
+      component={UserProfileScreen}
+      options={tabRoot ? getProfileTabMainHeaderOptions('Mi Perfil') : getProfileMainHeaderOptions('Mi Perfil')}
+    />
     <ProfileStack.Screen name={ROUTES.EDIT_PROFILE} component={EditProfileScreen} options={getDarkGlassHeaderOptions("Editar Perfil")} />
     <ProfileStack.Screen name={ROUTES.VEHICLES_LIST} component={MisVehiculosScreen} options={getHeaderOptions("Vehículos")} />
     <ProfileStack.Screen name="VehicleProviders" component={VehicleProvidersScreen} options={getHeaderOptions("Proveedores")} />
@@ -177,11 +191,23 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
         else if (route.name === ROUTES.MARKETPLACE) IconComponent = ShoppingBag;
 
         const color = isFocused ? COLORS.primary[500] : COLORS.text.tertiary;
+        const isProfileTab = route.name === ROUTES.PROFILE;
 
         return (
-          <TouchableOpacity key={route.key} onPress={onPress} style={tabStyles.tab} activeOpacity={0.7}>
+          <TouchableOpacity
+            key={route.key}
+            onPress={onPress}
+            style={tabStyles.tab}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={isProfileTab ? 'Mi perfil' : label}
+          >
             {isFocused && <View style={tabStyles.activeIndicator} />}
-            <IconComponent size={24} color={color} strokeWidth={isFocused ? 2.25 : 2} />
+            {isProfileTab ? (
+              <ProfileTabIcon focused={isFocused} />
+            ) : (
+              <IconComponent size={24} color={color} strokeWidth={isFocused ? 2.25 : 2} />
+            )}
             <Text
               style={[
                 tabStyles.label,
@@ -232,12 +258,15 @@ const tabStyles = StyleSheet.create({
   },
 });
 
-// ── Tab Navigator (3 tabs: Panel, Mis Autos, Marketplace) ──
+// ── Tab Navigator (4 tabs: Panel, Mis Autos, Marketplace, Perfil) ──
+const ProfileTabNavigator = () => <ProfileStackNavigator tabRoot />;
+
 const TabNavigator = () => (
   <Tab.Navigator tabBar={(props) => <GlassTabBar {...props} />} screenOptions={{ headerShown: false }}>
     <Tab.Screen name={ROUTES.HOME} component={HomeNavigator} options={{ tabBarLabel: 'Panel' }} />
     <Tab.Screen name={ROUTES.MIS_VEHICULOS} component={MisVehiculosScreen} options={{ tabBarLabel: 'Mis Autos' }} />
     <Tab.Screen name={ROUTES.MARKETPLACE} component={MarketplaceScreen} options={{ tabBarLabel: 'Marketplace' }} />
+    <Tab.Screen name={ROUTES.PROFILE} component={ProfileTabNavigator} options={{ tabBarLabel: 'Perfil' }} />
   </Tab.Navigator>
 );
 
@@ -264,6 +293,7 @@ const AppNavigator = () => (
     <Stack.Screen name={ROUTES.SELECCIONAR_SERVICIOS} component={SeleccionarServiciosScreen} />
     <Stack.Screen name={ROUTES.SELECCIONAR_PROVEEDORES} component={SeleccionarProveedoresScreen} />
     <Stack.Screen name={ROUTES.COMPARADOR_OFERTAS} component={ComparadorOfertasScreen} options={getHeaderOptions("Comparar Ofertas", { ...DARK_GLASS_HEADER, headerStyle: PROFILE_HEADER_NO_DIVIDER })} />
+    <Stack.Screen name={ROUTES.CALENDARIO_PROVEEDOR} component={CalendarioProveedorScreen} options={{ headerShown: false }} />
 
     {/* Chats */}
     <Stack.Screen name={ROUTES.CHATS_LIST} component={ChatsListScreen} />
@@ -276,8 +306,6 @@ const AppNavigator = () => (
     <Stack.Screen name={ROUTES.MY_VEHICLES} component={MisVehiculosScreen} options={getHeaderOptions("Mis Vehículos", { showProfile: true })} />
     <Stack.Screen name="VehicleRegistration" component={VehicleRegistrationScreen} />
 
-    {/* Profile */}
-    <Stack.Screen name={ROUTES.PROFILE} component={ProfileStackNavigator} />
     <Stack.Screen
       name={ROUTES.NOTIFICATION_CENTER}
       component={NotificationCenterScreen}

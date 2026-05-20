@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
   buildConfirmarCandidatoPayload,
 } from '../../services/agendamientoAsistidoService';
 import { COLORS } from '../../design-system/tokens/colors';
+import { ROUTES as APP_ROUTES } from '../../utils/constants';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 
@@ -40,6 +41,8 @@ const ComparadorOfertasScreen = () => {
     modoCatalogo = false,
     ofertasPreview = [],
     formPayload = null,
+    slotSeleccionado,
+    pendingConfirmOferta,
   } = route.params || {};
 
   const { seleccionarOferta } = useSolicitudes();
@@ -50,10 +53,65 @@ const ComparadorOfertasScreen = () => {
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState(null);
+  const confirmandoHorarioRef = useRef(false);
 
   useEffect(() => {
     cargarOfertas();
   }, [ofertasIds, solicitudId, modoCatalogo, ofertasPreview]);
+
+  const confirmarCandidatoConHorario = useCallback(async () => {
+    if (!formPayload || !pendingConfirmOferta?.oferta_servicio_id || !slotSeleccionado?.fecha) {
+      return;
+    }
+    if (confirmandoHorarioRef.current) return;
+    confirmandoHorarioRef.current = true;
+    setProcesando(true);
+    try {
+      const payload = buildConfirmarCandidatoPayload(
+        {
+          ...formPayload,
+          fecha_preferida: slotSeleccionado.fecha,
+          hora_preferida: slotSeleccionado.hora || null,
+        },
+        pendingConfirmOferta.oferta_servicio_id,
+        { score_match: pendingConfirmOferta.score_match },
+      );
+      const resultado = await confirmarCandidato(payload);
+      navigation.setParams({ slotSeleccionado: undefined, pendingConfirmOferta: undefined });
+      Alert.alert(
+        'Solicitud enviada',
+        'El proveedor fue notificado con tu horario preferido.',
+        [
+          {
+            text: 'Ver solicitud',
+            onPress: () => {
+              const sid = resultado?.solicitud_id || resultado?.solicitud?.id;
+              if (sid) {
+                navigation.navigate(ROUTES.DETALLE_SOLICITUD || 'DetalleSolicitud', { solicitudId: sid });
+              } else {
+                navigation.navigate(ROUTES.MIS_SOLICITUDES || 'MisSolicitudes');
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      const mensaje =
+        error.response?.data?.error
+        || error.message
+        || 'No se pudo confirmar el proveedor';
+      Alert.alert('Error', mensaje);
+    } finally {
+      setProcesando(false);
+      confirmandoHorarioRef.current = false;
+    }
+  }, [formPayload, pendingConfirmOferta, slotSeleccionado, navigation]);
+
+  useEffect(() => {
+    if (modoCatalogo && slotSeleccionado?.fecha && pendingConfirmOferta?.oferta_servicio_id) {
+      confirmarCandidatoConHorario();
+    }
+  }, [modoCatalogo, slotSeleccionado?.fecha, pendingConfirmOferta?.oferta_servicio_id, confirmarCandidatoConHorario]);
 
   const cargarOfertas = async () => {
     try {
@@ -132,55 +190,29 @@ const ComparadorOfertasScreen = () => {
         Alert.alert('Error', 'Faltan datos para confirmar el proveedor');
         return;
       }
+      const tipoProv = oferta.tipo_proveedor === 'mecanico' ? 'mecanico' : 'taller';
+      const proveedorId = oferta.proveedor_id;
+      if (!proveedorId) {
+        Alert.alert('Error', 'No se pudo identificar el proveedor para la agenda.');
+        return;
+      }
       const nombre = oferta.nombre_proveedor || oferta.proveedor_nombre || 'el proveedor';
-      Alert.alert(
-        'Confirmar proveedor',
-        `¿Enviar solicitud a ${nombre}? El proveedor deberá confirmar antes de pagar.`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Confirmar',
-            onPress: async () => {
-              setProcesando(true);
-              try {
-                const payload = buildConfirmarCandidatoPayload(
-                  formPayload,
-                  oferta.oferta_servicio_id,
-                  { score_match: oferta.score_match }
-                );
-                const resultado = await confirmarCandidato(payload);
-                Alert.alert(
-                  'Solicitud enviada',
-                  'El proveedor fue notificado y debe confirmar la asignación.',
-                  [
-                    {
-                      text: 'Ver solicitud',
-                      onPress: () => {
-                        const sid = resultado?.solicitud_id || resultado?.solicitud?.id;
-                        if (sid) {
-                          navigation.navigate(ROUTES.DETALLE_SOLICITUD || 'DetalleSolicitud', {
-                            solicitudId: sid,
-                          });
-                        } else {
-                          navigation.navigate(ROUTES.MIS_SOLICITUDES || 'MisSolicitudes');
-                        }
-                      },
-                    },
-                  ]
-                );
-              } catch (error) {
-                const mensaje =
-                  error.response?.data?.error
-                  || error.message
-                  || 'No se pudo confirmar el proveedor';
-                Alert.alert('Error', mensaje);
-              } finally {
-                setProcesando(false);
-              }
-            },
+      navigation.navigate(APP_ROUTES.CALENDARIO_PROVEEDOR, {
+        tipoProveedor: tipoProv,
+        proveedorId,
+        proveedorNombre: nombre,
+        ofertaServicioId: oferta.oferta_servicio_id,
+        returnRoute: ROUTES.COMPARADOR_OFERTAS,
+        returnParams: {
+          modoCatalogo: true,
+          ofertasPreview,
+          formPayload,
+          pendingConfirmOferta: {
+            oferta_servicio_id: oferta.oferta_servicio_id,
+            score_match: oferta.score_match,
           },
-        ]
-      );
+        },
+      });
       return;
     }
 

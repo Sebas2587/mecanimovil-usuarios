@@ -174,6 +174,7 @@ export function mapCandidatoToOfertaComparador(candidato) {
     nombre_proveedor: candidato.proveedor?.nombre,
     proveedor_nombre: candidato.proveedor?.nombre,
     tipo_proveedor: candidato.proveedor?.tipo,
+    proveedor_id: candidato.proveedor?.proveedor_id,
     rating_proveedor: candidato.proveedor?.rating,
     a_domicilio: candidato.a_domicilio,
     score_match: candidato.score_match,
