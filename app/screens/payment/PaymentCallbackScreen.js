@@ -19,6 +19,10 @@ import { Ionicons } from '@expo/vector-icons';
 import MercadoPagoService from '../../services/mercadopago';
 import { COLORS, ROUTES } from '../../utils/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  resolveOfertaIdForPago,
+  isOfertaNotFoundError,
+} from '../../utils/pagoOfertaId';
 
 const PaymentCallbackScreen = () => {
   const navigation = useNavigation();
@@ -356,16 +360,10 @@ const PaymentCallbackScreen = () => {
           }).catch(() => {});
           // #endregion
           
-          // Intentar obtener el estado del pago desde el backend
-          // Usar ofertaId directamente si está disponible, o extraerlo del external_reference
-          let ofertaId = route.params?.ofertaId || pagoPendienteData.ofertaId;
-          
-          if (!ofertaId && pagoPendienteData.externalReference) {
-            const parts = pagoPendienteData.externalReference.split('_');
-            if (parts.length >= 2 && parts[0] === 'oferta') {
-              ofertaId = parts[1];
-            }
-          }
+          let ofertaId = resolveOfertaIdForPago({
+            ofertaId: route.params?.ofertaId,
+            pagoPendienteData,
+          });
           
           if (ofertaId) {
             try {
@@ -541,8 +539,24 @@ const PaymentCallbackScreen = () => {
         console.log('   - Todos los parámetros recibidos:', paymentParams);
 
         const normStatus = String(finalStatus || '').toLowerCase();
-        const verifyOfertaId =
-          paymentParams.ofertaId || paymentParams.oferta_id || null;
+        let pagoPendienteData = null;
+        try {
+          const raw = await AsyncStorage.getItem('pago_pendiente_data');
+          if (raw) pagoPendienteData = JSON.parse(raw);
+        } catch (_) {
+          pagoPendienteData = null;
+        }
+
+        const verifyOfertaId = resolveOfertaIdForPago({
+          ofertaId:
+            paymentParams.ofertaId
+            || paymentParams.oferta_id
+            || route.params?.ofertaId,
+          externalReference:
+            finalExternalReference
+            || paymentParams.external_reference,
+          pagoPendienteData,
+        });
         const isAppInternalVerifyOnly =
           normStatus === 'processing' &&
           (paymentParams.from_foreground || paymentParams.from_storage) &&
@@ -607,12 +621,67 @@ const PaymentCallbackScreen = () => {
             }
           } catch (e) {
             console.error('Error verificando estado tras volver del checkout:', e);
+
+            if (isOfertaNotFoundError(e)) {
+              await AsyncStorage.multiRemove([
+                'pago_pendiente',
+                'pago_pendiente_data',
+                'expected_deep_link',
+                'pending_deep_link',
+              ]);
+            }
+
+            const tipoPagoFallback = pagoPendienteData?.tipoPago || 'total';
+            if (isOfertaNotFoundError(e) && verifyOfertaId) {
+              try {
+                const verificacion = await MercadoPagoService.verificarPagoMercadoPago(
+                  verifyOfertaId,
+                  tipoPagoFallback,
+                );
+                if (verificacion?.payment_approved || verificacion?.success) {
+                  setStatus('success');
+                  setMessage(verificacion.message || '¡Pago confirmado!');
+                  await AsyncStorage.multiRemove([
+                    'pago_pendiente',
+                    'pago_pendiente_data',
+                    'expected_deep_link',
+                    'pending_deep_link',
+                  ]);
+                  setTimeout(() => {
+                    Alert.alert(
+                      '¡Pago Exitoso!',
+                      'Tu pago fue verificado correctamente.',
+                      [
+                        {
+                          text: 'Ver mis solicitudes',
+                          onPress: () => {
+                            navigation.reset({
+                              index: 0,
+                              routes: [{
+                                name: 'TabNavigator',
+                                params: { screen: ROUTES.MIS_SOLICITUDES },
+                              }],
+                            });
+                          },
+                        },
+                      ],
+                    );
+                  }, 500);
+                  return;
+                }
+              } catch (verErr) {
+                console.warn('Fallback verificarPagoMercadoPago falló:', verErr);
+              }
+            }
+
             setStatus('error');
             setMessage('No pudimos verificar el pago');
             setTimeout(() => {
               Alert.alert(
                 'Error de verificación',
-                'No pudimos confirmar el estado del pago. Revisa «Mis solicitudes» o inténtalo de nuevo.',
+                isOfertaNotFoundError(e)
+                  ? 'No encontramos la oferta asociada a este pago (datos desactualizados). Revisa «Mis solicitudes»; si ya pagaste, el estado debería actualizarse en unos minutos.'
+                  : 'No pudimos confirmar el estado del pago. Revisa «Mis solicitudes» o inténtalo de nuevo.',
                 [
                   {
                     text: 'OK',
@@ -626,7 +695,7 @@ const PaymentCallbackScreen = () => {
                       });
                     },
                   },
-                ]
+                ],
               );
             }, 400);
           }

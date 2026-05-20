@@ -16,6 +16,10 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MercadoPagoService from '../../services/mercadopago';
 import { MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
+import {
+  resolveOfertaIdForPago,
+  isOfertaNotFoundError,
+} from '../../utils/pagoOfertaId';
 
 /**
  * Pantalla modal con WebView para procesar pagos de Mercado Pago
@@ -52,11 +56,15 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
 
           // IMPORTANTE: Verificar el estado inicial del pago ANTES de abrir el WebView
           // Si el pago ya está pagado, no abrir el WebView y mostrar mensaje
-          if (pagoPendienteDataRef.current.ofertaId) {
+          const ofertaIdResuelto = resolveOfertaIdForPago({
+            pagoPendienteData: pagoPendienteDataRef.current,
+          });
+          if (ofertaIdResuelto) {
+            pagoPendienteDataRef.current.ofertaId = ofertaIdResuelto;
             try {
               console.log('🔍 Verificando estado inicial del pago antes de abrir WebView...');
               const estadoInicial = await MercadoPagoService.getEstadoPagoOferta(
-                pagoPendienteDataRef.current.ofertaId
+                ofertaIdResuelto,
               );
               estadoInicialPagoRef.current = estadoInicial;
 
@@ -90,7 +98,13 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
               console.log('✅ Pago pendiente, continuando con el flujo normal');
             } catch (error) {
               console.error('❌ Error verificando estado inicial del pago:', error);
-              // Continuar con el flujo normal si hay error
+              if (isOfertaNotFoundError(error)) {
+                await AsyncStorage.multiRemove([
+                  'pago_pendiente_data',
+                  'pago_pendiente',
+                  'expected_deep_link',
+                ]);
+              }
             }
           }
         }

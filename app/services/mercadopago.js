@@ -251,11 +251,14 @@ class MercadoPagoService {
    * @returns {Promise<object>} Estado de pago de la oferta
    */
   async getEstadoPagoOferta(ofertaId) {
+    if (!ofertaId) {
+      throw new Error('Falta el identificador de la oferta');
+    }
     try {
       console.log('📥 Obteniendo estado de pago de oferta:', ofertaId);
 
       const response = await get(
-        `/mercadopago/estado-pago-oferta/${ofertaId}/`,
+        `/mercadopago/estado-pago-oferta/${encodeURIComponent(String(ofertaId))}/`,
         {},
         { requiresAuth: true }
       );

@@ -18,6 +18,7 @@ import { useAgendamiento } from '../../context/AgendamientoContext';
 import { ROUTES, MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
 import { getMediaURL } from '../../services/api';
 import MercadoPagoService from '../../services/mercadopago';
+import { parseOfertaIdFromExternalReference } from '../../utils/pagoOfertaId';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { TOKENS, withOpacity } from '../../design-system/tokens';
 import AcuerdoServicioModal from '../../components/modals/AcuerdoServicioModal';
@@ -613,9 +614,14 @@ const OpcionesPagoScreen = () => {
         console.log('   - Init Point:', preferencia.init_point);
         console.log('   - Sandbox Init Point:', preferencia.sandbox_init_point);
 
+        const ofertaIdCanonico =
+          parseOfertaIdFromExternalReference(preferencia.external_reference)
+          || resumenGlobal?.ofertaId;
+
         // Guardar el pago pendiente para confirmarlo cuando regrese de MP
         const pagoPendienteData = {
-          ofertaId: resumenGlobal?.ofertaId,
+          ofertaId: ofertaIdCanonico,
+          solicitudId: solicitudId || undefined,
           tipoPago: tipoPagoFinal,
           externalReference: preferencia.external_reference,
           monto: preferencia.monto,
