@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo, memo } from 'react';
 import {
     View,
     Text,
@@ -59,10 +59,95 @@ const PaperCard = ({ children, style }) => (
     <View style={[styles.paperCard, style]}>{children}</View>
 );
 
+const MAINTENANCE_WIDE_BREAKPOINT = 600;
+
+const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
+    item,
+    isChecked,
+    kmVal,
+    isWideLayout,
+    onToggle,
+    onKmChange,
+}) {
+    const kmField = isChecked ? (
+        <View
+            style={[
+                styles.maintenanceKmBlock,
+                isWideLayout && styles.maintenanceKmBlockWide,
+            ]}
+        >
+            {!isWideLayout && (
+                <Text style={styles.maintenanceKmLabel}>Km del odómetro al cambiar</Text>
+            )}
+            <View
+                style={[
+                    styles.maintenanceKmInputWrapper,
+                    isWideLayout && styles.maintenanceKmInputWrapperWide,
+                ]}
+            >
+                <TextInput
+                    style={styles.maintenanceKmInput}
+                    value={kmVal === '' ? '' : String(kmVal)}
+                    onChangeText={onKmChange}
+                    placeholder="Ej: 125000"
+                    keyboardType="numeric"
+                    placeholderTextColor={COLORS.text.tertiary}
+                />
+                <Text style={styles.maintenanceKmSuffix}>km</Text>
+            </View>
+        </View>
+    ) : null;
+
+    if (isWideLayout) {
+        return (
+            <View style={styles.maintenanceItem}>
+                <View style={styles.maintenanceItemRowWide}>
+                    <TouchableOpacity
+                        style={styles.maintenanceItemHeaderWide}
+                        onPress={onToggle}
+                        activeOpacity={0.7}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: isChecked }}
+                    >
+                        <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
+                            {isChecked && (
+                                <Ionicons name="checkmark" size={16} color={COLORS.text.inverse} />
+                            )}
+                        </View>
+                        <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
+                    </TouchableOpacity>
+                    {kmField}
+                </View>
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.maintenanceItem}>
+            <TouchableOpacity
+                style={styles.maintenanceItemHeader}
+                onPress={onToggle}
+                activeOpacity={0.7}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isChecked }}
+            >
+                <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
+                    {isChecked && (
+                        <Ionicons name="checkmark" size={16} color={COLORS.text.inverse} />
+                    )}
+                </View>
+                <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
+            </TouchableOpacity>
+            {kmField}
+        </View>
+    );
+});
+
 const VehicleRegistrationScreen = () => {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
-    const { height: windowHeight } = useWindowDimensions();
+    const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+    const isWideLayout = windowWidth >= MAINTENANCE_WIDE_BREAKPOINT;
 
     const webRootFrame =
         Platform.OS === 'web'
@@ -540,6 +625,69 @@ const VehicleRegistrationScreen = () => {
     const requiereValorMercadoManual =
         step === 'success' && vehicleData && necesitaValorMercadoManual(vehicleData);
 
+    const maintenanceItemHandlers = useMemo(() => {
+        const map = new Map();
+        for (const item of checklistItems) {
+            map.set(item.id, {
+                onToggle: () => toggleMaintenanceCheck(item.id),
+                onKmChange: (t) => setMaintenanceKm(item.id, t),
+            });
+        }
+        return map;
+    }, [checklistItems, toggleMaintenanceCheck, setMaintenanceKm]);
+
+    const valorMercadoBlock = requiereValorMercadoManual ? (
+        <>
+            {showValorMercadoAlert && (
+                <View style={[styles.warningCard, styles.warningCardRow]}>
+                    <Ionicons
+                        name="information-circle-outline"
+                        size={22}
+                        color={COLORS.warning[600]}
+                        style={styles.warningIcon}
+                    />
+                    <View style={styles.warningCardBody}>
+                        <Text style={styles.warningText}>
+                            <Text style={styles.warningTextStrong}>Aviso:</Text> No hay valor de mercado
+                            registrado para este vehículo. Ingresa un valor referencial aproximado.
+                        </Text>
+                    </View>
+                    <TouchableOpacity
+                        onPress={() => setShowValorMercadoAlert(false)}
+                        style={styles.warningDismiss}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                        <Ionicons name="close" size={20} color={COLORS.warning[600]} />
+                    </TouchableOpacity>
+                </View>
+            )}
+            <PaperCard style={styles.formSectionCard}>
+                <Text style={styles.sectionLabel}>Valor de Mercado Referencial</Text>
+                <View style={styles.kmInputWrapper}>
+                    <Text style={[styles.kmSuffix, styles.currencyPrefix]}>$</Text>
+                    <TextInput
+                        style={styles.kmInput}
+                        value={valorMercado}
+                        onChangeText={(text) => setValorMercado(text.replace(/[^0-9]/g, ''))}
+                        placeholder="0"
+                        keyboardType="numeric"
+                        placeholderTextColor={COLORS.text.tertiary}
+                    />
+                </View>
+            </PaperCard>
+        </>
+    ) : null;
+
+    const valorMercadoApiBlock =
+        vehicleData && tieneValorMercadoDesdeApi(vehicleData) ? (
+            <PaperCard style={styles.formSectionCard}>
+                <Text style={styles.sectionLabel}>Valor de mercado (registro)</Text>
+                <Text style={styles.valorMercadoRegistrado}>
+                    ${Number(vehicleData.precio_mercado_promedio || 0).toLocaleString('es-CL')}
+                </Text>
+            </PaperCard>
+        ) : null;
+
     return (
         <View style={[styles.container, webRootFrame]}>
             <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
@@ -717,8 +865,11 @@ const VehicleRegistrationScreen = () => {
                                 </View>
                             </PaperCard>
 
+                            {valorMercadoBlock}
+                            {valorMercadoApiBlock}
+
                             {/* Kilometraje Input */}
-                            <PaperCard style={styles.kilometerSection}>
+                            <PaperCard style={styles.formSectionCard}>
                                 <Text style={styles.sectionLabel}>Kilometraje Actual</Text>
                                 {hayMileageSii && mileageSiiRegistro != null ? (
                                     <Text style={styles.kmReferenciaSii}>
@@ -772,49 +923,6 @@ const VehicleRegistrationScreen = () => {
                                 ) : null}
                             </PaperCard>
 
-                            {/* Valor mercado: solo si GetAPI no entregó tasación */}
-                            {requiereValorMercadoManual && (
-                                <>
-                                    {showValorMercadoAlert && (
-                                        <View style={[styles.warningCard, styles.warningCardRow]}>
-                                            <Ionicons name="information-circle-outline" size={22} color={COLORS.warning[600]} style={{ marginRight: SPACING.xs, marginTop: 2 }} />
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.warningText}>
-                                                    <Text style={styles.warningTextStrong}>Aviso:</Text> No hay valor de mercado registrado para este vehículo. Ingresa un valor referencial aproximado.
-                                                </Text>
-                                            </View>
-                                            <TouchableOpacity onPress={() => setShowValorMercadoAlert(false)} style={{ padding: 4 }}>
-                                                <Ionicons name="close" size={20} color={COLORS.warning[600]} />
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                    <PaperCard style={[styles.kilometerSection, { marginTop: SPACING.md }]}>
-                                        <Text style={styles.sectionLabel}>Valor de Mercado Referencial</Text>
-                                        <View style={styles.kmInputWrapper}>
-                                            <Text style={[styles.kmSuffix, { marginRight: 8, marginLeft: 0 }]}>$</Text>
-                                            <TextInput
-                                                style={styles.kmInput}
-                                                value={valorMercado}
-                                                onChangeText={text => setValorMercado(text.replace(/[^0-9]/g, ''))}
-                                                placeholder="0"
-                                                keyboardType="numeric"
-                                                placeholderTextColor={COLORS.text.tertiary}
-                                            />
-                                        </View>
-                                    </PaperCard>
-                                </>
-                            )}
-
-                            {tieneValorMercadoDesdeApi(vehicleData) && (
-                                <PaperCard style={[styles.kilometerSection, { marginTop: SPACING.md }]}>
-                                    <Text style={styles.sectionLabel}>Valor de mercado (registro)</Text>
-                                    <Text style={styles.valorMercadoRegistrado}>
-                                        $
-                                        {Number(vehicleData.precio_mercado_promedio || 0).toLocaleString('es-CL')}
-                                    </Text>
-                                </PaperCard>
-                            )}
-
                             {/* Mantenimientos Recientes (Opcional) */}
                             <PaperCard style={styles.maintenanceSection}>
                                 <TouchableOpacity
@@ -830,38 +938,33 @@ const VehicleRegistrationScreen = () => {
                                 </TouchableOpacity>
                                 {maintenanceExpanded && checklistItems.length > 0 && (
                                     <View style={styles.maintenanceList}>
-                                        <Text style={styles.maintenanceQuestion}>¿Has cambiado o mantenido alguno de estos componentes?</Text>
-                                        <Text style={styles.maintenanceHint}>Ingresa los km del odómetro que marcaba el auto cuando hiciste el cambio (ej: si tienes 145.000 km ahora y lo cambiaste a los 125.000, escribe 125000).</Text>
-                                        {checklistItems.map((item) => {
-                                            const isChecked = maintenanceSelections[item.id] !== undefined;
-                                            const kmVal = maintenanceSelections[item.id];
-                                            const kmNum = typeof kmVal === 'number' ? kmVal : (kmVal === '' ? '' : parseInt(String(kmVal), 10));
-                                            return (
-                                                <View key={item.id} style={styles.maintenanceRow}>
-                                                    <TouchableOpacity
-                                                        style={[styles.checkbox, isChecked && styles.checkboxChecked]}
-                                                        onPress={() => toggleMaintenanceCheck(item.id)}
-                                                    >
-                                                        {isChecked && <Ionicons name="checkmark" size={16} color={COLORS.text.inverse} />}
-                                                    </TouchableOpacity>
-                                                    <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
-                                                    {isChecked && (
-                                                        <View style={styles.kmInputInline}>
-                                                            <TextInput
-                                                                style={styles.kmInputSmall}
-                                                                value={kmVal === '' ? '' : String(kmVal)}
-                                                                onChangeText={t => setMaintenanceKm(item.id, t)}
-                                                                placeholder="Ej: 125000"
-                                                                keyboardType="numeric"
-                                                                placeholderTextColor={COLORS.text.tertiary}
-                                                            />
-                                                            <Text style={styles.kmSuffixSmall}>km</Text>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            );
-                                        })}
-                                        <TouchableOpacity onPress={() => setMaintenanceSelections({})} style={styles.skipLink}>
+                                        <Text style={styles.maintenanceQuestion}>
+                                            ¿Has cambiado o mantenido alguno de estos componentes?
+                                        </Text>
+                                        <Text style={styles.maintenanceHint}>
+                                            Ingresa los km del odómetro al momento del cambio (ej: si hoy tienes
+                                            145.000 km y lo cambiaste a los 125.000, escribe 125000).
+                                        </Text>
+                                        <View style={styles.maintenanceItems}>
+                                            {checklistItems.map((item) => {
+                                                const handlers = maintenanceItemHandlers.get(item.id);
+                                                return (
+                                                    <MaintenanceChecklistItem
+                                                        key={item.id}
+                                                        item={item}
+                                                        isChecked={maintenanceSelections[item.id] !== undefined}
+                                                        kmVal={maintenanceSelections[item.id]}
+                                                        isWideLayout={isWideLayout}
+                                                        onToggle={handlers?.onToggle}
+                                                        onKmChange={handlers?.onKmChange}
+                                                    />
+                                                );
+                                            })}
+                                        </View>
+                                        <TouchableOpacity
+                                            onPress={() => setMaintenanceSelections({})}
+                                            style={styles.skipLink}
+                                        >
                                             <Text style={styles.skipLinkText}>Continuar sin especificar</Text>
                                         </TouchableOpacity>
                                     </View>
@@ -1048,7 +1151,14 @@ const styles = StyleSheet.create({
 
     successScroll: {
         flexGrow: 1,
-        paddingBottom: 40,
+        paddingBottom: SPACING['2xl'],
+        ...(Platform.OS === 'web'
+            ? {
+                  maxWidth: 640,
+                  alignSelf: 'center',
+                  width: '100%',
+              }
+            : {}),
     },
     valorMercadoRegistrado: {
         fontSize: TYPOGRAPHY.fontSize.xl,
@@ -1213,54 +1323,92 @@ const styles = StyleSheet.create({
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
         fontSize: 14,
     },
-    kilometerSection: {
-        marginBottom: SPACING.xl,
+    formSectionCard: {
+        marginBottom: SPACING.lg,
+    },
+    currencyPrefix: {
+        marginRight: SPACING.xs,
+        marginLeft: 0,
+    },
+    warningIcon: {
+        marginRight: SPACING.xs,
+        marginTop: 2,
+    },
+    warningCardBody: {
+        flex: 1,
+    },
+    warningDismiss: {
+        padding: SPACING.xxs,
     },
     maintenanceSection: {
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.lg,
     },
     maintenanceHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
+        gap: SPACING.sm,
     },
     maintenanceSubtitle: {
-        fontSize: 13,
+        fontSize: TYPOGRAPHY.fontSize.sm,
         color: COLORS.text.secondary,
         marginTop: SPACING.xxs,
+        lineHeight: 20,
+        maxWidth: 520,
     },
     maintenanceList: {
         marginTop: SPACING.md,
         paddingTop: SPACING.md,
         borderTopWidth: BORDERS.width.thin,
-        borderTopColor: COLORS.neutral.gray[200],
+        borderTopColor: COLORS.border.light,
     },
     maintenanceQuestion: {
         fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.text.primary,
-        marginBottom: SPACING.xs,
+        marginBottom: SPACING.xxs,
     },
     maintenanceHint: {
         fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.tertiary,
-        lineHeight: 18,
-        marginBottom: SPACING.sm,
-        fontStyle: 'italic',
+        color: COLORS.text.secondary,
+        lineHeight: 20,
+        marginBottom: SPACING.md,
     },
-    maintenanceRow: {
+    maintenanceItems: {
+        gap: 0,
+    },
+    maintenanceItem: {
+        paddingVertical: SPACING.sm,
+        borderBottomWidth: BORDERS.width.thin,
+        borderBottomColor: COLORS.border.light,
+    },
+    maintenanceItemHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 12,
+        minHeight: 44,
+    },
+    maintenanceItemRowWide: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.md,
+        minHeight: 44,
+    },
+    maintenanceItemHeaderWide: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        minHeight: 44,
     },
     checkbox: {
-        width: 24,
-        height: 24,
-        borderRadius: 6,
+        width: 22,
+        height: 22,
+        borderRadius: BORDERS.radius.xs,
         borderWidth: BORDERS.width.medium,
         borderColor: COLORS.border.light,
         marginRight: SPACING.sm,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: COLORS.background.paper,
     },
     checkboxChecked: {
         backgroundColor: COLORS.primary[500],
@@ -1268,28 +1416,51 @@ const styles = StyleSheet.create({
     },
     maintenanceLabel: {
         flex: 1,
-        fontSize: 15,
+        fontSize: TYPOGRAPHY.fontSize.base,
         color: COLORS.text.primary,
+        lineHeight: 22,
     },
-    kmInputInline: {
+    maintenanceKmBlock: {
+        marginTop: SPACING.sm,
+        marginLeft: 30,
+        gap: SPACING.xxs,
+    },
+    maintenanceKmBlockWide: {
+        marginTop: 0,
+        marginLeft: 0,
+        flexShrink: 0,
+    },
+    maintenanceKmLabel: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
+        marginBottom: SPACING.xxs,
+    },
+    maintenanceKmInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.neutral.gray[100],
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
-        borderRadius: BORDERS.radius.sm,
-        paddingHorizontal: 10,
-        width: 100,
+        borderRadius: BORDERS.radius.input?.md ?? BORDERS.radius.md,
+        paddingHorizontal: SPACING.sm,
+        minHeight: 48,
     },
-    kmInputSmall: {
+    maintenanceKmInputWrapperWide: {
+        width: 200,
+        maxWidth: '100%',
+    },
+    maintenanceKmInput: {
         flex: 1,
         fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
         color: COLORS.text.primary,
-        paddingVertical: 6,
+        paddingVertical: Platform.OS === 'web' ? SPACING.xs : SPACING.sm,
+        ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
     },
-    kmSuffixSmall: {
+    maintenanceKmSuffix: {
         fontSize: TYPOGRAPHY.fontSize.sm,
         color: COLORS.text.tertiary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
         marginLeft: SPACING.xxs,
     },
     skipLink: {
