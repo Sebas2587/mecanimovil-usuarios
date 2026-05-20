@@ -2,6 +2,10 @@ import { get } from './api';
 import { getMediaURL } from './api';
 import * as locationService from './location';
 import { compareProvidersByKpiRelevance } from '../utils/providerUtils';
+import { mergeProviderLists, sortProvidersForExploreMode } from '../utils/exploreProviderUtils';
+
+/** Query param para ofertas resumidas en cards del home (fase 5). */
+export const PANEL_SERVICIOS_QUERY = { include_panel_servicios: 'true' };
 
 /**
  * Servicios para manejo de proveedores (talleres y mecánicos)
@@ -60,7 +64,8 @@ export const getProvidersByVehiculoAndService = async (vehiculoId, servicioIds =
     // Construir parámetros para la consulta
     // El backend espera servicio_ids[]=1&servicio_ids[]=2 para arrays
     const params = {
-      vehiculo_id: vehiculoId
+      vehiculo_id: vehiculoId,
+      ...PANEL_SERVICIOS_QUERY,
     };
 
     // Agregar servicio_ids si están presentes
@@ -874,8 +879,50 @@ export const getNearbyMechanics = async (lat, lng, radius = 10) => {
   }
 };
 
-/** Query param para ofertas resumidas en cards del home (fase 5). */
-export const PANEL_SERVICIOS_QUERY = { include_panel_servicios: 'true' };
+/**
+ * Proveedores filtrados por servicios de una categoría (proveedores_filtrados + servicio_ids).
+ */
+export const getExploreProvidersByServicios = async (vehiculoId, servicioIds, options = {}) => {
+  const limit = options.limit ?? 60;
+  if (!vehiculoId || !servicioIds?.length) return [];
+
+  try {
+    const { talleres, mecanicos } = await getProvidersByVehiculoAndService(vehiculoId, servicioIds);
+    let merged = mergeProviderLists(talleres, mecanicos);
+    merged = sortProvidersForExploreMode(merged, options.sortMode === 'para_ti' ? 'para_ti' : 'cerca');
+
+    const { lat, lng, marcaId } = options;
+    if (lat != null && lng != null && options.sortMode !== 'para_ti') {
+      try {
+        const nearby = await getNearbyProvidersForPanel(lat, lng, marcaId, { limit: 100 });
+        const distMap = new Map(nearby.map((p) => [`${p._panelKind}-${p.id}`, p.distance]));
+        merged = merged.map((p) => {
+          const d = distMap.get(`${p._panelKind}-${p.id}`);
+          return d != null ? { ...p, distance: d } : p;
+        });
+        merged = sortProvidersForExploreMode(merged, 'cerca');
+      } catch (e) {
+        console.warn('Distancia en explore por categoría:', e);
+      }
+    } else if (lat != null && lng != null && options.sortMode === 'para_ti') {
+      try {
+        const nearby = await getNearbyProvidersForPanel(lat, lng, marcaId, { limit: 80 });
+        const distMap = new Map(nearby.map((p) => [`${p._panelKind}-${p.id}`, p.distance]));
+        merged = merged.map((p) => {
+          const d = distMap.get(`${p._panelKind}-${p.id}`);
+          return d != null ? { ...p, distance: d } : p;
+        });
+      } catch (e) {
+        console.warn('Distancia en Para ti por categoría:', e);
+      }
+    }
+
+    return merged.slice(0, limit);
+  } catch (error) {
+    console.error('Error explore por servicios:', error);
+    return [];
+  }
+};
 
 /**
  * Proveedores «Para ti»: marca del vehículo + orden KPI (`proveedores_filtrados`).

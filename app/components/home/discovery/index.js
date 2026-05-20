@@ -7,3 +7,4 @@ export { default as HomeProvidersCarouselSection } from './HomeProvidersCarousel
 export { default as HomeParaTiSection } from './HomeParaTiSection';
 export { default as HomeNearbySection } from './HomeNearbySection';
 export { default as HomeMarketActivitySection } from './HomeMarketActivitySection';
+export { default as HomeDiscoveryHub } from './HomeDiscoveryHub';

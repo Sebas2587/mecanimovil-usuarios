@@ -1,3 +1,4 @@
+export { default as HomeVehicleVitalityStrip } from './HomeVehicleVitalityStrip';
 export { default as HomeVehicleDashboardFold } from './HomeVehicleDashboardFold';
 export { default as HomePatrimonyHeroSection } from './HomePatrimonyHeroSection';
 export { default as HomeTelemetrySection } from './HomeTelemetrySection';

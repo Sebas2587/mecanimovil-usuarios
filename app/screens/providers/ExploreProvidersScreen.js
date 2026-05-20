@@ -2,17 +2,17 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { MapPin } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { H_PAD } from '../../components/home/shared/homeLayoutConstants';
 import { useExploreProviders } from '../../hooks/useExploreProviders';
-import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 import {
   ExploreProvidersTabs,
-  ExploreProvidersLocationBar,
   ExploreProvidersGrid,
+  ExploreModeSegment,
+  ExploreAddressHint,
+  ExploreSearchBar,
   EXPLORE_TAB_ALL,
   EXPLORE_MODE_CERCA,
   EXPLORE_MODE_PARA_TI,
@@ -20,45 +20,48 @@ import {
 } from '../../components/providers/explore';
 
 /**
- * Listado completo de proveedores: modo cerca (distancia) o para_ti (KPI + marca).
+ * Explorar proveedores: segmento Para ti / Cerca, búsqueda, categoría y tipo.
+ * La dirección se define solo en el inicio (sin selector duplicado).
  */
 const ExploreProvidersScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
   const vehicle = route.params?.vehicle ?? null;
-  const mode = route.params?.mode === EXPLORE_MODE_PARA_TI ? EXPLORE_MODE_PARA_TI : EXPLORE_MODE_CERCA;
-  const isParaTi = mode === EXPLORE_MODE_PARA_TI;
-  const initialTab = route.params?.initialTab ?? EXPLORE_TAB_ALL;
+  const address = route.params?.address ?? null;
+  const categoryId = route.params?.categoryId ?? null;
+  const categoryName = route.params?.categoryName ?? null;
 
-  const [activeTab, setActiveTab] = useState(initialTab);
-  const [selectedAddress, setSelectedAddress] = useState(route.params?.address ?? null);
-  const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const initialMode =
+    route.params?.mode === EXPLORE_MODE_PARA_TI ? EXPLORE_MODE_PARA_TI : EXPLORE_MODE_CERCA;
+  const [exploreMode, setExploreMode] = useState(initialMode);
+  const [activeTab, setActiveTab] = useState(route.params?.initialTab ?? EXPLORE_TAB_ALL);
+  const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery ?? '');
 
   useEffect(() => {
-    if (route.params?.initialTab) {
-      setActiveTab(route.params.initialTab);
-    }
+    setExploreMode(initialMode);
+  }, [initialMode]);
+
+  useEffect(() => {
+    if (route.params?.initialTab) setActiveTab(route.params.initialTab);
   }, [route.params?.initialTab]);
 
-  useEffect(() => {
-    if (route.params?.address) {
-      setSelectedAddress(route.params.address);
-    }
-  }, [route.params?.address]);
-
-  const needsAddress = !isParaTi;
+  const isParaTi = exploreMode === EXPLORE_MODE_PARA_TI;
+  const needsAddress = !isParaTi && !categoryId;
 
   const {
     providers,
     isLoading,
     isRefetching,
     refetch,
+    hasCategory,
   } = useExploreProviders({
-    mode,
+    mode: exploreMode,
     vehicle,
-    address: selectedAddress,
-    enabled: !!vehicle && (!needsAddress || !!selectedAddress),
+    address,
+    categoryId,
+    searchQuery,
+    enabled: !!vehicle && (!needsAddress || !!address),
   });
 
   const filteredProviders = useMemo(
@@ -93,46 +96,49 @@ const ExploreProvidersScreen = () => {
     [navigation],
   );
 
-  const handleSelectAddress = useCallback((addr) => {
-    if (addr) setSelectedAddress(addr);
-    setAddressModalOpen(false);
-  }, []);
-
-  const showLocationBar = isParaTi ? !!selectedAddress : true;
-  const showMainList = isParaTi ? !!vehicle : !!selectedAddress;
+  const showList = !!vehicle && (isParaTi || !!address || hasCategory);
+  const modeHint = isParaTi
+    ? 'Ordenados por desempeño y compatibilidad con tu marca'
+    : 'Ordenados por distancia desde tu dirección del inicio';
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.body}>
-        {showLocationBar && selectedAddress ? (
-          <ExploreProvidersLocationBar
-            selectedAddress={selectedAddress}
-            vehicleLabel={vehicleLabel}
-            onPressChangeAddress={() => setAddressModalOpen(true)}
-          />
-        ) : needsAddress && !selectedAddress ? (
-          <View style={styles.noAddressBox}>
-            <MapPin size={28} color={COLORS.primary[500]} />
-            <Text style={styles.noAddressTitle}>Elige dónde necesitas el servicio</Text>
-            <Text style={styles.noAddressText}>
-              Selecciona una dirección para ordenar proveedores por cercanía.
-            </Text>
-            <TouchableOpacity
-              style={styles.noAddressBtn}
-              onPress={() => setAddressModalOpen(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.noAddressBtnText}>Seleccionar dirección</Text>
-            </TouchableOpacity>
-          </View>
-        ) : isParaTi && vehicle ? (
-          <Text style={styles.paraTiBanner}>
-            Especialistas destacados para tu vehículo · ordenados por desempeño
+        {categoryName ? (
+          <Text style={styles.categoryBanner}>
+            Categoría: {categoryName}
           </Text>
         ) : null}
 
-        {showMainList ? (
+        <ExploreModeSegment value={exploreMode} onChange={setExploreMode} />
+
+        <Text style={styles.modeHint}>{modeHint}</Text>
+
+        {address ? (
+          <ExploreAddressHint address={address} vehicleLabel={vehicleLabel} />
+        ) : needsAddress ? (
+          <View style={styles.noAddressBox}>
+            <Text style={styles.noAddressTitle}>Falta dirección de servicio</Text>
+            <Text style={styles.noAddressText}>
+              En «Cerca de ti» usamos la dirección que eliges en el inicio. Vuelve al panel y tócala en la barra superior.
+            </Text>
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+              <Text style={styles.backBtnText}>Volver al inicio</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {showList ? (
           <>
+            <ExploreSearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={
+                categoryName
+                  ? `Buscar en ${categoryName}…`
+                  : 'Buscar taller o servicio…'
+              }
+            />
             <ExploreProvidersTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
@@ -145,34 +151,23 @@ const ExploreProvidersScreen = () => {
               onRefresh={refetch}
               onProviderPress={openProvider}
               emptyTitle={
-                activeTab === EXPLORE_TAB_ALL
-                  ? isParaTi
-                    ? 'Sin destacados para tu marca'
-                    : 'No hay proveedores en esta zona'
-                  : 'Nada en esta categoría'
+                searchQuery.trim()
+                  ? 'Sin resultados'
+                  : isParaTi
+                    ? 'Sin destacados'
+                    : 'Nada en esta zona'
               }
               emptyMessage={
-                isParaTi
-                  ? 'Cuando haya talleres o mecánicos con buen desempeño para tu marca, aparecerán aquí.'
-                  : 'Prueba otra dirección o crea una solicitud desde el inicio.'
+                searchQuery.trim()
+                  ? 'Prueba otro término o cambia entre Para ti y Cerca de ti.'
+                  : isParaTi
+                    ? 'Aún no hay especialistas con buen desempeño para tu marca en esta búsqueda.'
+                    : 'Prueba otra categoría o vuelve al inicio para cambiar la dirección.'
               }
             />
           </>
         ) : null}
       </View>
-
-      <AddressSelectionModal
-        visible={addressModalOpen}
-        onClose={() => setAddressModalOpen(false)}
-        variant="default"
-        heroSubtitle={
-          isParaTi
-            ? 'Opcional: muestra distancia aproximada en las fichas.'
-            : 'Usamos tu ubicación para ordenar proveedores de más cercano a más lejano.'
-        }
-        currentAddress={selectedAddress}
-        onSelectAddress={handleSelectAddress}
-      />
     </SafeAreaView>
   );
 };
@@ -187,41 +182,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: H_PAD,
     paddingTop: SPACING.sm,
   },
-  paraTiBanner: {
+  categoryBanner: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    marginBottom: 8,
+  },
+  modeHint: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
-    marginBottom: 12,
+    marginBottom: 8,
     lineHeight: 18,
   },
   noAddressBox: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 16,
+    paddingVertical: 24,
     gap: 10,
   },
   noAddressTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
-    textAlign: 'center',
   },
   noAddressText: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.secondary,
-    textAlign: 'center',
     lineHeight: 22,
   },
-  noAddressBtn: {
+  backBtn: {
+    alignSelf: 'flex-start',
     marginTop: 8,
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 999,
+    backgroundColor: COLORS.primary[500],
   },
-  noAddressBtnText: {
+  backBtnText: {
     color: COLORS.text.inverse,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
   },
 });
 

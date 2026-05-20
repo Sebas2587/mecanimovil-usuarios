@@ -30,11 +30,13 @@ import {
   HomeParaTiSection,
   HomeNearbySection,
   HomeMarketActivitySection,
+  HomeDiscoveryHub,
 } from '../../components/home/discovery';
 import { EXPLORE_MODE_CERCA, EXPLORE_MODE_PARA_TI } from '../../components/providers/explore';
 import { useParaTiProviders } from '../../hooks/useParaTiProviders';
 import { useHomeTripTracking } from '../../hooks/useHomeTripTracking';
 import {
+  HomeVehicleVitalityStrip,
   HomeVehicleDashboardFold,
   HomeWeatherDetailModal,
   HomeTripCompletionModal,
@@ -91,6 +93,7 @@ const UserPanelScreen = () => {
   const [selectorVisible, setSelectorVisible] = useState(false);
 
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
+  const [vehicleHubExpanded, setVehicleHubExpanded] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
   const weatherForceRefreshRef = useRef(false);
@@ -361,6 +364,11 @@ const UserPanelScreen = () => {
 
   const trip = useHomeTripTracking(selectedVehicle, odometer);
 
+  useEffect(() => {
+    if (trip.tripActive) setVehicleHubExpanded(true);
+    else if (healthScore != null && healthScore < 60) setVehicleHubExpanded(true);
+  }, [trip.tripActive, healthScore]);
+
   // ── Refresh ──
   const onRefresh = useCallback(async () => {
     const extras = [];
@@ -466,6 +474,76 @@ const UserPanelScreen = () => {
           onAddVehicle={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
         />
 
+        {selectedVehicle ? (
+          <HomeVehicleVitalityStrip
+            healthScore={healthScore}
+            healthScoreColor={healthScoreColor}
+            odometer={odometer}
+            valuation={valuation}
+            tripActive={trip.tripActive}
+            tripKm={trip.tripKm}
+            climateRiskPct={weatherDerived.climateRiskPct}
+            weatherAvailable={weatherDerived.weatherAvailable}
+            onPressHealth={() =>
+              navigation.navigate(ROUTES.VEHICLE_HEALTH, {
+                vehicleId: selectedVehicle.id,
+                vehicle: selectedVehicle,
+              })
+            }
+            onPressDetails={() => setVehicleHubExpanded((v) => !v)}
+          />
+        ) : null}
+
+        {selectedVehicle ? (
+          <HomeVehicleDashboardFold
+            visible
+            expanded={vehicleHubExpanded}
+            onToggle={() => setVehicleHubExpanded((v) => !v)}
+            tripActive={trip.tripActive}
+            valuation={valuation}
+            priceDelta={priceDelta}
+            healthScore={healthScore}
+            healthScoreColor={healthScoreColor}
+            odometer={odometer}
+            motorType={selectedVehicle?.tipo_motor}
+            onPressHealth={() =>
+              navigation.navigate(ROUTES.VEHICLE_HEALTH, {
+                vehicleId: selectedVehicle.id,
+                vehicle: selectedVehicle,
+              })
+            }
+            telemetry={{
+              tripActive: trip.tripActive,
+              tripKm: trip.tripKm,
+              tripElapsed: trip.tripElapsed,
+              currentSpeed: trip.currentSpeed,
+              onStartTrip: trip.startTrip,
+              onStopTrip: trip.stopTrip,
+            }}
+            weather={{
+              loading: weatherLoading,
+              available: weatherDerived.weatherAvailable,
+              unavailableReason: weatherDerived.unavailableReason,
+              overallRiskLevel: weatherDerived.overallRiskLevel,
+              overallRiskLabel: weatherDerived.overallRiskLabel,
+              climateRiskPct: weatherDerived.climateRiskPct,
+              weatherCity: weatherDerived.weatherCity,
+              weatherCondition: weatherDerived.weatherCondition,
+              weatherTemp: weatherDerived.weatherTemp,
+              weatherAgeLabel: weatherDerived.weatherAgeLabel,
+              frenoWearPct: weatherDerived.frenoWearPct,
+              gomaWearPct: weatherDerived.gomaWearPct,
+              onPressOpenDetail: () => setIsWeatherModalOpen(true),
+            }}
+          />
+        ) : null}
+
+        <HomeDiscoveryHub
+          navigation={navigation}
+          selectedVehicle={selectedVehicle}
+          selectedAddress={selectedAddress}
+        />
+
         <HomeQuickActions items={quickActionItems} />
 
         <HomeParaTiSection
@@ -489,46 +567,6 @@ const UserPanelScreen = () => {
           selectedVehicle={selectedVehicle}
           activity={panelMarketActivity}
           loading={panelActivityLoading}
-        />
-
-        <HomeVehicleDashboardFold
-          visible={!!selectedVehicle}
-          tripActive={trip.tripActive}
-          valuation={valuation}
-          priceDelta={priceDelta}
-          healthScore={healthScore}
-          healthScoreColor={healthScoreColor}
-          odometer={odometer}
-          motorType={selectedVehicle?.tipo_motor}
-          onPressHealth={() =>
-            navigation.navigate(ROUTES.VEHICLE_HEALTH, {
-              vehicleId: selectedVehicle.id,
-              vehicle: selectedVehicle,
-            })
-          }
-          telemetry={{
-            tripActive: trip.tripActive,
-            tripKm: trip.tripKm,
-            tripElapsed: trip.tripElapsed,
-            currentSpeed: trip.currentSpeed,
-            onStartTrip: trip.startTrip,
-            onStopTrip: trip.stopTrip,
-          }}
-          weather={{
-            loading: weatherLoading,
-            available: weatherDerived.weatherAvailable,
-            unavailableReason: weatherDerived.unavailableReason,
-            overallRiskLevel: weatherDerived.overallRiskLevel,
-            overallRiskLabel: weatherDerived.overallRiskLabel,
-            climateRiskPct: weatherDerived.climateRiskPct,
-            weatherCity: weatherDerived.weatherCity,
-            weatherCondition: weatherDerived.weatherCondition,
-            weatherTemp: weatherDerived.weatherTemp,
-            weatherAgeLabel: weatherDerived.weatherAgeLabel,
-            frenoWearPct: weatherDerived.frenoWearPct,
-            gomaWearPct: weatherDerived.gomaWearPct,
-            onPressOpenDetail: () => setIsWeatherModalOpen(true),
-          }}
         />
       </ScrollView>
 

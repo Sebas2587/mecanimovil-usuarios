@@ -6,11 +6,11 @@ import { coordsFromSavedAddress, resolveVehicleMarcaId } from '../components/hom
 /**
  * Proveedores destacados por KPI para la sección «Para ti» del home.
  */
-export function useParaTiProviders({ vehicle, address, enabled = true }) {
+export function useParaTiProviders({ vehicle, address, enabled = true, limit = 12 }) {
   const marcaId = resolveVehicleMarcaId(vehicle);
 
   return useQuery({
-    queryKey: ['homeParaTiProviders', vehicle?.id, address?.id, marcaId],
+    queryKey: ['homeParaTiProviders', vehicle?.id, address?.id, marcaId, limit],
     enabled: enabled && !!vehicle?.id,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 20,
@@ -23,7 +23,7 @@ export function useParaTiProviders({ vehicle, address, enabled = true }) {
         }
       }
       return getParaTiProvidersForPanel(vehicle.id, {
-        limit: 12,
+        limit,
         lat: coords?.lat,
         lng: coords?.lng,
         marcaId,

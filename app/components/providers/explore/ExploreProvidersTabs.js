@@ -1,15 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
 import { EXPLORE_TABS } from './exploreProvidersConstants';
 
+/** Pestañas tipo segmento (Todos / Talleres / A domicilio). */
 const ExploreProvidersTabs = ({ activeTab, onTabChange, counts = {} }) => (
-  <ScrollView
-    horizontal
-    showsHorizontalScrollIndicator={false}
-    contentContainerStyle={styles.row}
-    keyboardShouldPersistTaps="handled"
-  >
+  <View style={styles.track} accessibilityRole="tablist">
     {EXPLORE_TABS.map((tab) => {
       const active = activeTab === tab.id;
       const count = counts[tab.id];
@@ -18,44 +14,47 @@ const ExploreProvidersTabs = ({ activeTab, onTabChange, counts = {} }) => (
       return (
         <TouchableOpacity
           key={tab.id}
-          style={[styles.chip, active && styles.chipActive]}
+          style={[styles.tab, active && styles.tabActive]}
           onPress={() => onTabChange(tab.id)}
           activeOpacity={0.85}
           accessibilityRole="tab"
           accessibilityState={{ selected: active }}
         >
-          <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+          <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
+            {label}
+          </Text>
         </TouchableOpacity>
       );
     })}
-  </ScrollView>
+  </View>
 );
 
 const styles = StyleSheet.create({
-  row: {
+  track: {
     flexDirection: 'row',
-    gap: 8,
-    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.light,
+    marginBottom: 12,
   },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    marginBottom: -1,
   },
-  chipActive: {
-    backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
+  tabActive: {
+    borderBottomColor: COLORS.primary[500],
   },
-  chipText: {
+  tabText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
   },
-  chipTextActive: {
-    color: COLORS.text.inverse,
+  tabTextActive: {
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[600],
   },
 });
 

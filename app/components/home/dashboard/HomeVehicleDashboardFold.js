@@ -11,6 +11,8 @@ import { formatCLP } from '../shared/homeFormatters';
 const HomeVehicleDashboardFold = ({
   visible,
   tripActive,
+  expanded: expandedProp,
+  onToggle,
   valuation,
   priceDelta,
   healthScore,
@@ -21,11 +23,17 @@ const HomeVehicleDashboardFold = ({
   telemetry,
   weather,
 }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expandedInternal, setExpandedInternal] = useState(false);
+  const expanded = expandedProp != null ? expandedProp : expandedInternal;
+
+  const handleToggle = () => {
+    if (onToggle) onToggle();
+    else setExpandedInternal((v) => !v);
+  };
 
   useEffect(() => {
-    if (tripActive) setExpanded(true);
-  }, [tripActive]);
+    if (tripActive && expandedProp == null) setExpandedInternal(true);
+  }, [tripActive, expandedProp]);
 
   const collapsedSubtitle = useMemo(() => {
     if (!visible) return '';
@@ -45,10 +53,10 @@ const HomeVehicleDashboardFold = ({
 
   return (
     <HomeCollapsibleSection
-      title="Patrimonio, clima y viajes"
-      subtitle={expanded ? 'Valor de mercado, salud, GPS y entorno' : collapsedSubtitle}
+      title="Tu vehículo en detalle"
+      subtitle={expanded ? 'Patrimonio, viaje GPS y clima' : collapsedSubtitle}
       expanded={expanded}
-      onToggle={() => setExpanded((v) => !v)}
+      onToggle={handleToggle}
       highlightHeader={tripActive && !expanded}
     >
       <HomePatrimonyHeroSection
