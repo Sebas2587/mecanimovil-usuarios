@@ -2,13 +2,14 @@ import React, { useCallback } from 'react';
 import {
   View,
   Text,
+  TouchableOpacity,
   FlatList,
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
 } from 'react-native';
 import { Wrench } from 'lucide-react-native';
-import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
+import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import ProviderPreviewCard from '../../home/ProviderPreviewCard';
 import { formatProviderForCard } from '../../../utils/providerUtils';
 import { CARD_GAP, GRID_CARD_W } from '../../home/shared/homeLayoutConstants';
@@ -19,6 +20,7 @@ const ExploreProvidersGrid = ({
   refreshing,
   onRefresh,
   onProviderPress,
+  onSchedulePress,
   emptyTitle = 'No hay proveedores',
   emptyMessage = 'Prueba otra dirección o amplía tu zona de búsqueda.',
 }) => {
@@ -40,10 +42,19 @@ const ExploreProvidersGrid = ({
             omitRightMargin
             onPress={() => onProviderPress(item)}
           />
+          {onSchedulePress ? (
+            <TouchableOpacity
+              style={styles.agendarBtn}
+              onPress={() => onSchedulePress(item)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.agendarText}>Agendar</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       );
     },
-    [onProviderPress],
+    [onProviderPress, onSchedulePress],
   );
 
   if (loading && providers.length === 0) {
@@ -100,6 +111,18 @@ const styles = StyleSheet.create({
   },
   cell: {
     width: GRID_CARD_W,
+  },
+  agendarBtn: {
+    marginTop: 6,
+    paddingVertical: 8,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[500],
+    alignItems: 'center',
+  },
+  agendarText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.inverse,
   },
   centered: {
     flex: 1,

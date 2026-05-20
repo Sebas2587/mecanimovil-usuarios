@@ -1,27 +1,30 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { ROUTES } from '../../utils/constants';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { H_PAD } from '../../components/home/shared/homeLayoutConstants';
+import { navigateCrearSolicitudConProveedor } from '../../components/home/shared/homeScheduleNavigation';
 import { useExploreProviders } from '../../hooks/useExploreProviders';
 import {
   ExploreProvidersTabs,
   ExploreProvidersGrid,
   ExploreModeSegment,
-  ExploreAddressHint,
   ExploreSearchBar,
   EXPLORE_TAB_ALL,
   EXPLORE_MODE_CERCA,
   EXPLORE_MODE_PARA_TI,
   filterProvidersByExploreTab,
 } from '../../components/providers/explore';
+import {
+  EXPLORE_MODE_SEGMENTS_CATEGORY,
+  EXPLORE_MODE_SEGMENTS_HOME,
+} from '../../components/providers/explore/exploreProvidersConstants';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 
 /**
- * Explorar proveedores: segmento Para ti / Cerca, búsqueda, categoría y tipo.
- * La dirección se define solo en el inicio (sin selector duplicado).
+ * Explorar proveedores: segmento, búsqueda, categoría y agendar desde la card.
  */
 const ExploreProvidersScreen = () => {
   const navigation = useNavigation();
@@ -78,10 +81,6 @@ const ExploreProvidersScreen = () => {
     [providers],
   );
 
-  const vehicleLabel = vehicle
-    ? `${vehicle.marca_nombre || vehicle.marca || ''} ${vehicle.modelo_nombre || vehicle.modelo || ''}`.trim()
-    : null;
-
   const openProvider = useCallback(
     (item) => {
       if (!item?.id) return;
@@ -91,41 +90,45 @@ const ExploreProvidersScreen = () => {
         type: tipo,
         providerType: tipo,
         provider: item,
+        vehicle: vehicle ?? undefined,
       });
     },
-    [navigation],
+    [navigation, vehicle],
+  );
+
+  const scheduleProvider = useCallback(
+    (item) => {
+      if (!vehicle?.id || !item?.id) return;
+      navigateCrearSolicitudConProveedor(navigation, { vehicle, provider: item });
+    },
+    [navigation, vehicle],
   );
 
   const showList = !!vehicle && (isParaTi || !!address || hasCategory);
-  const modeHint = isParaTi
-    ? 'Ordenados por desempeño y compatibilidad con tu marca'
-    : 'Ordenados por distancia desde tu dirección del inicio';
+  const modeSegments = categoryId ? EXPLORE_MODE_SEGMENTS_CATEGORY : EXPLORE_MODE_SEGMENTS_HOME;
+
+  const screenTitle = categoryName
+    ? categoryName
+    : isParaTi
+      ? 'Destacados para ti'
+      : 'Cerca de ti';
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.body}>
-        {categoryName ? (
-          <Text style={styles.categoryBanner}>
-            Categoría: {categoryName}
+        <Text style={styles.screenTitle}>{screenTitle}</Text>
+
+        <ExploreModeSegment
+          value={exploreMode}
+          onChange={setExploreMode}
+          segments={modeSegments}
+          style={styles.segment}
+        />
+
+        {needsAddress && !address ? (
+          <Text style={styles.hintWarn}>
+            Elige una dirección en el inicio para ver proveedores cercanos.
           </Text>
-        ) : null}
-
-        <ExploreModeSegment value={exploreMode} onChange={setExploreMode} />
-
-        <Text style={styles.modeHint}>{modeHint}</Text>
-
-        {address ? (
-          <ExploreAddressHint address={address} vehicleLabel={vehicleLabel} />
-        ) : needsAddress ? (
-          <View style={styles.noAddressBox}>
-            <Text style={styles.noAddressTitle}>Falta dirección de servicio</Text>
-            <Text style={styles.noAddressText}>
-              En «Cerca de ti» usamos la dirección que eliges en el inicio. Vuelve al panel y tócala en la barra superior.
-            </Text>
-            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-              <Text style={styles.backBtnText}>Volver al inicio</Text>
-            </TouchableOpacity>
-          </View>
         ) : null}
 
         {showList ? (
@@ -133,11 +136,7 @@ const ExploreProvidersScreen = () => {
             <ExploreSearchBar
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder={
-                categoryName
-                  ? `Buscar en ${categoryName}…`
-                  : 'Buscar taller o servicio…'
-              }
+              placeholder={categoryName ? `Buscar en ${categoryName}…` : 'Buscar taller…'}
             />
             <ExploreProvidersTabs
               activeTab={activeTab}
@@ -150,19 +149,12 @@ const ExploreProvidersScreen = () => {
               refreshing={isRefetching}
               onRefresh={refetch}
               onProviderPress={openProvider}
-              emptyTitle={
-                searchQuery.trim()
-                  ? 'Sin resultados'
-                  : isParaTi
-                    ? 'Sin destacados'
-                    : 'Nada en esta zona'
-              }
+              onSchedulePress={scheduleProvider}
+              emptyTitle={searchQuery.trim() ? 'Sin resultados' : 'Sin proveedores'}
               emptyMessage={
                 searchQuery.trim()
-                  ? 'Prueba otro término o cambia entre Para ti y Cerca de ti.'
-                  : isParaTi
-                    ? 'Aún no hay especialistas con buen desempeño para tu marca en esta búsqueda.'
-                    : 'Prueba otra categoría o vuelve al inicio para cambiar la dirección.'
+                  ? 'Prueba otro término.'
+                  : 'Amplía la zona o cambia el modo de orden.'
               }
             />
           </>
@@ -182,43 +174,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: H_PAD,
     paddingTop: SPACING.sm,
   },
-  categoryBanner: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  screenTitle: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.text.primary,
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: -0.3,
   },
-  modeHint: {
+  segment: {
+    marginBottom: 12,
+  },
+  hintWarn: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    marginBottom: 8,
+    color: COLORS.warning.dark,
+    marginBottom: 12,
     lineHeight: 18,
-  },
-  noAddressBox: {
-    paddingVertical: 24,
-    gap: 10,
-  },
-  noAddressTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
-  noAddressText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.text.secondary,
-    lineHeight: 22,
-  },
-  backBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: COLORS.primary[500],
-  },
-  backBtnText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
 });
 

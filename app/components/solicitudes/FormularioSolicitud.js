@@ -42,6 +42,11 @@ import {
   mapCandidatoToOfertaComparador,
 } from '../../services/agendamientoAsistidoService';
 import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
+import {
+  catalogoIncluyeRepuestos,
+  formatPrecioCatalogoServicio,
+} from '../home/shared/providerCatalogSchedule';
+import ProviderCatalogScheduleCard from './ProviderCatalogScheduleCard';
 import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProviderAvatarUri } from '../../utils/providerUtils';
 import {
   Car as CarIcon,
@@ -66,6 +71,7 @@ import {
   Building2,
   Wrench,
   Package,
+  Sparkles,
 } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -154,13 +160,19 @@ const FormularioSolicitud = ({
 
 
   // Detectar si hay servicio o proveedor preseleccionado (needed before queries)
+  const esAgendamientoInteligente = initialData?.agendamientoInteligente === true;
+  const flujoCatalogoProveedor = initialData?.flujoCatalogoProveedor === true;
   const tieneServicioPreseleccionado = initialData?.servicios_seleccionados &&
     initialData.servicios_seleccionados.length > 0;
-  const tieneProveedorPreseleccionado = initialData?.fromProviderDetail &&
+  const tieneProveedorPreseleccionado = !esAgendamientoInteligente &&
+    initialData?.fromProviderDetail &&
     initialData?.proveedores_dirigidos &&
     initialData.proveedores_dirigidos.length > 0 &&
     initialData?.tipo_solicitud === 'dirigida';
-  const flujoCuatroPasos = tieneProveedorPreseleccionado && tieneServicioPreseleccionado && !formData.sin_vehiculo_registrado;
+  const flujoCuatroPasos =
+    (tieneProveedorPreseleccionado && tieneServicioPreseleccionado && !formData.sin_vehiculo_registrado)
+    || (flujoCatalogoProveedor && tieneServicioPreseleccionado && !formData.sin_vehiculo_registrado);
+  const ocultarSelectorServicios = flujoCuatroPasos;
 
   // ── TanStack Query for services, categories, and health ──
   const vehiculoId = formData.vehiculo?.id;
@@ -781,7 +793,16 @@ const FormularioSolicitud = ({
     }
   };
 
-  const iaAsistidoActivo = isAsistidoHabilitado() && !isPreCompra && !flujoCuatroPasos;
+  /** Solicitud desde cero (sin proveedor/catálogo): comparador al final, sin paso global/dirigida. */
+  const flujoComparadorCatalogo =
+    !isPreCompra && !flujoCuatroPasos && !flujoCatalogoProveedor && !tieneProveedorPreseleccionado;
+
+  const iaAsistidoActivo =
+    flujoComparadorCatalogo
+    || (isAsistidoHabilitado()
+      && !isPreCompra
+      && !flujoCuatroPasos
+      && esAgendamientoInteligente);
   const { loadingCandidatos: loadingCandidatosIa, cargarCandidatos: cargarCandidatosIa } =
     useAgendamientoAsistido();
 
@@ -916,6 +937,17 @@ const FormularioSolicitud = ({
         ? 4
         : 5;
 
+  // Flujo inteligente: nunca arrastrar proveedor de una solicitud dirigida anterior
+  useEffect(() => {
+    if (!esAgendamientoInteligente) return;
+    setFormData((prev) => {
+      if (prev.tipo_solicitud === 'global' && !(prev.proveedores_dirigidos?.length > 0)) {
+        return prev;
+      }
+      return { ...prev, tipo_solicitud: 'global', proveedores_dirigidos: [] };
+    });
+  }, [esAgendamientoInteligente]);
+
   // Asegurar que cuando hay proveedor preseleccionado, tipo_solicitud permanezca como 'dirigida'
   // y los proveedores no cambien
   useEffect(() => {
@@ -993,6 +1025,21 @@ const FormularioSolicitud = ({
     }
   }, [formData.sin_vehiculo_registrado, formData.requiere_repuestos]);
 
+  // Catálogo desde perfil: fijar con/sin repuestos según la oferta elegida
+  useEffect(() => {
+    if (!flujoCatalogoProveedor) return;
+    const s = formData.servicios_seleccionados?.[0];
+    if (!s?.tipo_servicio) return;
+    const req = catalogoIncluyeRepuestos(s);
+    if (formData.requiere_repuestos !== req) {
+      setFormData((prev) => ({ ...prev, requiere_repuestos: req }));
+    }
+  }, [
+    flujoCatalogoProveedor,
+    formData.servicios_seleccionados?.[0]?.tipo_servicio,
+    formData.requiere_repuestos,
+  ]);
+
   const handleNext = () => {
     if (!validarPaso(pasoActual)) return;
 
@@ -1013,31 +1060,7 @@ const FormularioSolicitud = ({
       return;
     }
 
-    // tieneServicioPreseleccionado: 1→3→4→5→6 (skip step 2)
-    if (tieneServicioPreseleccionado) {
-      if (pasoActual === 1) {
-        if (formData.sin_vehiculo_registrado) {
-          if (!formData.servicios_seleccionados?.length) {
-            Alert.alert('Error', 'Debes tener el servicio seleccionado');
-            return;
-          }
-          setPasoActual(3);
-          return;
-        }
-        if (!formData.vehiculo) {
-          Alert.alert('Error', 'Debes seleccionar un vehículo para continuar');
-          return;
-        }
-        setPasoActual(3);
-      } else if (pasoActual === 6) {
-        handleSubmit();
-      } else {
-        setPasoActual(pasoActual + 1);
-      }
-      return;
-    }
-
-    // Catálogo IA: 1 (vehículo+servicio) → 3 (repuestos+urgencia) → 5 (ubicación) → 6 (fecha) → comparador
+    // Comparador / agendamiento inteligente: 1→3→5→6 (sin paso 4) → elegir proveedor recomendado
     if (iaAsistidoActivo) {
       if (pasoActual === 1) {
         if (!formData.vehiculo) {
@@ -1065,9 +1088,34 @@ const FormularioSolicitud = ({
         irAComparadorCatalogo();
         return;
       }
+      return;
     }
 
-    // Unified normal flow: 1→3→4→5→6 (always skip step 2)
+    // Servicio preseleccionado con paso de proveedores manual (solo si no usa comparador)
+    if (tieneServicioPreseleccionado) {
+      if (pasoActual === 1) {
+        if (formData.sin_vehiculo_registrado) {
+          if (!formData.servicios_seleccionados?.length) {
+            Alert.alert('Error', 'Debes tener el servicio seleccionado');
+            return;
+          }
+          setPasoActual(3);
+          return;
+        }
+        if (!formData.vehiculo) {
+          Alert.alert('Error', 'Debes seleccionar un vehículo para continuar');
+          return;
+        }
+        setPasoActual(3);
+      } else if (pasoActual === 6) {
+        handleSubmit();
+      } else {
+        setPasoActual(pasoActual + 1);
+      }
+      return;
+    }
+
+    // Flujo legacy (precompra u otros): 1→3→4→5→6
     if (pasoActual === 1) {
       if (!formData.vehiculo) {
         Alert.alert('Selecciona un vehículo', 'Debes seleccionar un vehículo para continuar.');
@@ -1085,7 +1133,8 @@ const FormularioSolicitud = ({
       }
       setPasoActual(3);
     } else if (pasoActual === 6) {
-      handleSubmit();
+      if (!validarPaso(6)) return;
+      irAComparadorCatalogo();
     } else {
       setPasoActual(pasoActual + 1);
     }
@@ -1582,6 +1631,50 @@ const FormularioSolicitud = ({
               )}
             </GlassCard>
 
+            {esAgendamientoInteligente ? (
+              <View style={[styles.infoBox, { marginBottom: 16, backgroundColor: COLORS.primary[50] }]}>
+                <Sparkles size={20} color={COLORS.primary[600]} style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.infoBoxText, { fontWeight: '700', color: COLORS.primary[800] }]}>
+                    Agendamiento inteligente
+                  </Text>
+                  <Text style={[styles.infoBoxText, { marginTop: 4 }]}>
+                    Al continuar verás proveedores recomendados para tu vehículo y podrás elegir el ideal. No
+                    uses este flujo si ya elegiste un taller en Explorar.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {flujoCatalogoProveedor
+              && formData.servicios_seleccionados?.[0]
+              && formData.proveedores_dirigidos?.[0] ? (
+              <ProviderCatalogScheduleCard
+                proveedor={formData.proveedores_dirigidos[0]}
+                servicio={formData.servicios_seleccionados[0]}
+                tipoProveedor={
+                  formData.proveedores_dirigidos[0]?.tipo
+                  || initialData?.tipoProveedorPreseleccionado
+                }
+              />
+            ) : null}
+
+            {tieneProveedorPreseleccionado
+              && !flujoCatalogoProveedor
+              && formData.proveedores_dirigidos.length > 0 ? (
+              <View style={[styles.infoBox, { marginBottom: 16 }]}>
+                <Ionicons name="business" size={20} color={COLORS.neutral.gray[700]} style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.infoBoxText, { fontWeight: '700' }]}>
+                    Agendando con {formData.proveedores_dirigidos[0]?.nombre || 'tu proveedor'}
+                  </Text>
+                  <Text style={[styles.infoBoxText, { marginTop: 4 }]}>
+                    Solicitud dirigida: el servicio se enviará a este proveedor.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
             {iaAsistidoActivo ? (
               <View style={{ marginBottom: 20 }}>
                 <Text style={[gs.sectionTitle, { marginBottom: 6 }]}>
@@ -1606,12 +1699,12 @@ const FormularioSolicitud = ({
             ) : null}
 
             {/* ── Recommendations (Horizontal Scroll) ── */}
-            {loadingHealth && healthRecommendations.length === 0 ? (
+            {!ocultarSelectorServicios && loadingHealth && healthRecommendations.length === 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, paddingVertical: 12 }}>
                 <ActivityIndicator size="small" color={COLORS.success[600]} />
                 <Text style={{ color: COLORS.text.secondary, fontSize: 13 }}>Analizando estado del vehículo...</Text>
               </View>
-            ) : healthRecommendations.length > 0 ? (
+            ) : !ocultarSelectorServicios && healthRecommendations.length > 0 ? (
               <View style={{ marginBottom: 20 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <ShieldAlertIcon size={18} color={COLORS.warning[500]} />
@@ -1671,6 +1764,7 @@ const FormularioSolicitud = ({
             ) : null}
 
             {/* ── Services Section ── */}
+            {!ocultarSelectorServicios ? (
             <View style={{ marginBottom: 16 }}>
               <Text style={gs.sectionTitle}>Servicios disponibles</Text>
               <Text style={[gs.sectionSub, { marginBottom: 12 }]}>
@@ -1738,16 +1832,19 @@ const FormularioSolicitud = ({
                 </GlassCard>
               )}
             </View>
+            ) : null}
 
             {/* ── Selected Counter ── */}
-            {Array.isArray(formData.servicios_seleccionados) && formData.servicios_seleccionados.length > 0 && (
+            {!ocultarSelectorServicios
+              && Array.isArray(formData.servicios_seleccionados)
+              && formData.servicios_seleccionados.length > 0 ? (
               <View style={gs.selectedBadge}>
                 <CheckCircle2Icon size={16} color={COLORS.success[500]} />
                 <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '600' }}>
                   {formData.servicios_seleccionados.length} servicio{formData.servicios_seleccionados.length !== 1 ? 's' : ''} seleccionado{formData.servicios_seleccionados.length !== 1 ? 's' : ''}
                 </Text>
               </View>
-            )}
+            ) : null}
           </>
         )}
       </View>
@@ -2082,11 +2179,71 @@ const FormularioSolicitud = ({
             }
           }
 
-          // Mostrar la sección de repuestos
+          const catalogoServicio = serviciosSeleccionados[0];
+          const catalogoFijaRepuestos =
+            flujoCatalogoProveedor && catalogoServicio?.tipo_servicio;
+          const catalogoConRepuestos = catalogoFijaRepuestos
+            && catalogoIncluyeRepuestos(catalogoServicio);
+
+          if (catalogoFijaRepuestos) {
+            const conRep = catalogoConRepuestos;
+            return (
+              <>
+                <Text style={styles.pasoTitle}>Repuestos</Text>
+                <Text style={styles.pasoDescripcion}>
+                  Este servicio del catálogo del proveedor ya está configurado
+                  {conRep ? ' con repuestos incluidos' : ' solo con mano de obra'}.
+                </Text>
+                <GlassCard
+                  style={[{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    marginBottom: 10,
+                    borderColor: conRep ? COLORS.primary[400] : COLORS.neutral.gray[600],
+                    backgroundColor: conRep ? COLORS.primary[50] : COLORS.neutral.gray[100],
+                  }]}
+                >
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: conRep ? COLORS.primary[100] : COLORS.neutral.gray[200],
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  >
+                    {conRep ? (
+                      <Package size={20} color={COLORS.primary[500]} />
+                    ) : (
+                      <Wrench size={20} color={COLORS.primary[700]} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.opcionTitle}>
+                      {conRep ? 'Con repuestos' : 'Sin repuestos'}
+                    </Text>
+                    <Text style={styles.opcionDescripcion}>
+                      {conRep
+                        ? 'Precio y repuestos según el catálogo del proveedor.'
+                        : 'Solo mano de obra según el catálogo del proveedor.'}
+                    </Text>
+                  </View>
+                  <CheckCircle2Icon
+                    size={22}
+                    color={conRep ? COLORS.primary[500] : COLORS.primary[700]}
+                  />
+                </GlassCard>
+              </>
+            );
+          }
+
           return (
             <>
               <Text style={styles.pasoTitle}>¿Necesitas repuestos?</Text>
-              <Text style={styles.pasoDescripcion}>Selecciona si el servicio requiere repuestos o solo mano de obra</Text>
+              <Text style={styles.pasoDescripcion}>
+                Selecciona si el servicio requiere repuestos o solo mano de obra
+              </Text>
 
               <GlassCard
                 style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
@@ -2233,6 +2390,7 @@ const FormularioSolicitud = ({
   };
 
   const renderPaso4 = () => {
+    if (iaAsistidoActivo || flujoComparadorCatalogo) return null;
     if (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado) return null;
 
     if (!formData.vehiculo && !formData.sin_vehiculo_registrado) {
@@ -2702,7 +2860,7 @@ const FormularioSolicitud = ({
     }
 
     // Catálogo IA: 1→3→5→6
-    if (iaAsistidoActivo) {
+    if (iaAsistidoActivo || flujoComparadorCatalogo) {
       const mapaPasos = { 1: 1, 3: 2, 5: 3, 6: 4 };
       return mapaPasos[pasoActual] || pasoActual;
     }
@@ -2735,7 +2893,7 @@ const FormularioSolicitud = ({
 
   // Determinar si estamos en el último paso real
   const esUltimoPaso = () => {
-    if (iaAsistidoActivo) {
+    if (iaAsistidoActivo || flujoComparadorCatalogo) {
       return false;
     }
     if (flujoCuatroPasos) {
@@ -2827,7 +2985,7 @@ const FormularioSolicitud = ({
                 ? 'Buscando proveedores…'
                 : esUltimoPaso()
                   ? 'Crear Solicitud'
-                  : iaAsistidoActivo && pasoActual === 6
+                  : (iaAsistidoActivo || flujoComparadorCatalogo) && pasoActual === 6
                     ? 'Ver proveedores'
                     : 'Siguiente'}
             </Text>

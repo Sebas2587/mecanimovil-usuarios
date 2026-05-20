@@ -9,13 +9,22 @@ import {
   Platform,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { Star, ChevronRight, MessageCircle, MapPin, Award } from 'lucide-react-native';
 
+import { useQuery } from '@tanstack/react-query';
 import { ROUTES } from '../../utils/constants';
+import { getUserVehicles } from '../../services/vehicle';
+import { navigateCrearSolicitudConProveedorYServicio } from '../../components/home/shared/homeScheduleNavigation';
+import {
+  formatPrecioCatalogoServicio,
+  labelTipoServicioCatalogo,
+  resolveServicioId,
+} from '../../components/home/shared/providerCatalogSchedule';
 import { buildPublicProviderUrl, buildDeepLinkProviderUrl } from '../../config/publicListing';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
@@ -35,17 +44,26 @@ import {
   useProviderCompletedJobs,
 } from '../../hooks/useProviders';
 import { getPublicProviderFromWebPath } from '../../utils/publicListingRoute';
-import { useAuth } from '../../context/AuthContext';
+import { filtrarServiciosPorVehiculo } from '../../utils/servicioVehiculoCompat';
 import { useFavorites } from '../../context/FavoritesContext';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 
 const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
 
 const ProviderDetailScreen = () => {
-  const navigation = useNavigation();
   const route = useRoute();
-  const { vehicles: userVehicles = [] } = useAuth();
+  const { data: vehiclesQuery = [] } = useQuery({
+    queryKey: ['userVehicles'],
+    queryFn: getUserVehicles,
+    staleTime: 1000 * 60 * 5,
+  });
 
+  const userVehicles = useMemo(() => {
+    if (Array.isArray(vehiclesQuery)) return vehiclesQuery;
+    return vehiclesQuery?.results || [];
+  }, [vehiclesQuery]);
+
+  const navigation = useNavigation();
   const params = route.params || {};
   const {
     provider: initialProvider,
@@ -53,6 +71,7 @@ const ProviderDetailScreen = () => {
     id: paramId,
     type,
     providerType: paramProviderType,
+    vehicle: vehicleFromRoute,
   } = params;
 
   const webParsed = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
@@ -118,6 +137,40 @@ const ProviderDetailScreen = () => {
   const { isFavorite, toggleFavorite } = useFavorites();
   const favorite = isFavorite(idToLoad, providerType);
   const handleToggleFavorite = () => toggleFavorite(provider, providerType);
+
+  const vehicleForSchedule = useMemo(() => {
+    if (vehicleFromRoute?.id) return vehicleFromRoute;
+    const active = userVehicles.find((v) => v.is_active !== false);
+    return active || userVehicles[0] || null;
+  }, [vehicleFromRoute, userVehicles]);
+
+  const serviciosVisibles = useMemo(() => {
+    const todos = provider?.servicios || [];
+    return filtrarServiciosPorVehiculo(todos, vehicleForSchedule);
+  }, [provider?.servicios, vehicleForSchedule]);
+
+  const handleScheduleService = useCallback(
+    (servicio) => {
+      if (!vehicleForSchedule?.id) {
+        Alert.alert(
+          'Selecciona un vehículo',
+          'Elige un vehículo en el inicio de la app para agendar con este proveedor.',
+        );
+        return;
+      }
+      if (!resolveServicioId(servicio)) {
+        Alert.alert('Servicio no disponible', 'No pudimos identificar este servicio. Intenta de nuevo.');
+        return;
+      }
+      navigateCrearSolicitudConProveedorYServicio(navigation, {
+        vehicle: vehicleForSchedule,
+        provider,
+        providerType,
+        servicio,
+      });
+    },
+    [vehicleForSchedule, provider, providerType, navigation],
+  );
 
   const handleShare = async () => {
     if (!idToLoad) return;
@@ -333,35 +386,41 @@ const ProviderDetailScreen = () => {
         <TrustSection documents={documents || []} />
 
         {/* SECCIÓN DE SERVICIOS */}
-        {provider.servicios && provider.servicios.length > 0 && (
+        {(provider.servicios?.length > 0 || serviciosVisibles.length > 0) && (
           <View style={styles.section}>
             <View style={styles.iconTitleRow}>
               <Award size={18} color={COLORS.primary[500]} />
               <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
             </View>
             <Text style={styles.sectionHint}>
-              Revisa si el servicio o especialidad que necesitas es compatible con la marca de tus
-              vehículos registrados.
+              {vehicleForSchedule?.id
+                ? `Servicios de este proveedor para tu ${vehicleForSchedule.marca_nombre || vehicleForSchedule.marca || 'vehículo'}.`
+                : 'Toca un servicio para agendar. Selecciona un vehículo en el inicio para ver solo los de tu marca.'}
             </Text>
+            {!vehicleForSchedule?.id ? (
+              <Text style={styles.noVehicleHint}>
+                Selecciona un vehículo en el inicio para poder agendar.
+              </Text>
+            ) : null}
+            {vehicleForSchedule?.id && serviciosVisibles.length === 0 ? (
+              <Text style={styles.noVehicleHint}>
+                Este proveedor no tiene servicios configurados para la marca de tu vehículo.
+              </Text>
+            ) : null}
             <View style={styles.servicesGrid}>
-              {provider.servicios.map((servicio, idx) => {
-                const providerBrands =
-                  provider.marcas_atendidas_nombres?.map((b) => b.toLowerCase()) || [];
-                let isCompatible = false;
-
-                if (providerBrands.includes('multimarca')) {
-                  isCompatible = true;
-                } else if (userVehicles.length > 0) {
-                  userVehicles.forEach((uv) => {
-                    const uM = (uv.marca_nombre || uv.marca || '').toLowerCase();
-                    if (providerBrands.some((pb) => pb.includes(uM) || uM.includes(pb))) {
-                      isCompatible = true;
-                    }
-                  });
-                }
+              {serviciosVisibles.map((servicio, idx) => {
+                const servicioId = resolveServicioId(servicio);
+                const canSchedule = !!vehicleForSchedule?.id && !!servicioId;
+                const precioLabel = formatPrecioCatalogoServicio(servicio);
+                const tipoLabel = labelTipoServicioCatalogo(servicio);
 
                 return (
-                  <View key={`${servicio.id || idx}`} style={styles.serviceCardShell}>
+                  <TouchableOpacity
+                    key={`${servicio.oferta_id || servicioId || idx}-${servicio.tipo_servicio || 'o'}`}
+                    style={[styles.serviceCardShell, canSchedule && styles.serviceCardTappable]}
+                    onPress={() => handleScheduleService(servicio)}
+                    activeOpacity={0.88}
+                  >
                     {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
                       <ServicePhotosCarousel photos={servicio.fotos_servicio} height={120} />
                     ) : null}
@@ -370,26 +429,40 @@ const ProviderDetailScreen = () => {
                       <Text style={styles.serviceName} numberOfLines={2}>
                         {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
                       </Text>
-                      {servicio.categoria && (
+                      {servicio.categoria ? (
                         <Text style={styles.serviceCategory} numberOfLines={1}>
                           {servicio.categoria}
                         </Text>
-                      )}
+                      ) : null}
+                      <View style={styles.serviceTipoBadge}>
+                        <Text style={styles.serviceTipoBadgeText}>{tipoLabel}</Text>
+                      </View>
+                      {precioLabel ? (
+                        <Text style={styles.servicePrice}>{precioLabel}</Text>
+                      ) : null}
+                      {servicio.duracion_estimada ? (
+                        <Text style={styles.serviceMeta}>
+                          ~{servicio.duracion_estimada}
+                        </Text>
+                      ) : null}
 
-                      {isCompatible ? (
-                        <View style={styles.serviceFooter}>
+                      <View style={styles.serviceFooter}>
+                        {vehicleForSchedule?.id ? (
                           <View style={styles.compatibilityBadge}>
                             <Ionicons
                               name="checkmark-circle"
                               size={12}
                               color={COLORS.success.main}
                             />
-                            <Text style={styles.compatibilityText}>Compatible</Text>
+                            <Text style={styles.compatibilityText}>Para tu vehículo</Text>
                           </View>
+                        ) : null}
+                        <View style={styles.agendarServicioBtn}>
+                          <Text style={styles.agendarServicioText}>Agendar</Text>
                         </View>
-                      ) : null}
+                      </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -548,15 +621,69 @@ const styles = StyleSheet.create({
     color: COLORS.primary[500],
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
+    marginBottom: 4,
+  },
+  serviceTipoBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.primary[50],
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  serviceTipoBadgeText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[800],
+  },
+  servicePrice: {
+    color: COLORS.success[700],
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    marginBottom: 4,
+  },
+  serviceMeta: {
+    color: COLORS.text.tertiary,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    marginBottom: 8,
+  },
+  noVehicleHint: {
+    color: COLORS.warning.dark,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     marginBottom: 12,
+    lineHeight: 18,
+  },
+  serviceCardTappable: {
+    borderColor: COLORS.primary[200],
   },
   serviceFooter: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
     marginTop: 4,
     borderTopWidth: 1,
     borderTopColor: COLORS.border.light,
     paddingTop: 10,
+  },
+  incompatibleHint: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.tertiary,
+  },
+  agendarServicioBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.primary[500],
+    opacity: 1,
+  },
+  agendarServicioText: {
+    color: COLORS.text.onPrimary,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   compatibilityBadge: {
     flexDirection: 'row',

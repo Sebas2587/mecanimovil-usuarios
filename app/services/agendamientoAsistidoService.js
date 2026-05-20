@@ -37,11 +37,6 @@ export async function analizarNecesidad(payload) {
  * @param {Object} params - vehiculo_id, servicio_ids, lat, lng, comunas_extraidas, requiere_repuestos
  */
 export async function obtenerCandidatosProveedor(params) {
-  if (!isAsistidoHabilitado()) {
-    const err = new Error('Asistente IA no habilitado');
-    err.code = 'agendamiento_ia_deshabilitado';
-    throw err;
-  }
   const query = new URLSearchParams();
   Object.entries(params || {}).forEach(([key, value]) => {
     if (value === undefined || value === null || value === '') return;
@@ -61,6 +56,11 @@ export async function confirmarCandidato(payload) {
     err.code = 'agendamiento_ia_deshabilitado';
     throw err;
   }
+  return post(`${BASE}/confirmar-candidato/`, payload);
+}
+
+/** Confirmación catálogo desde perfil de proveedor (no depende del flag IA en cliente). */
+export async function confirmarCatalogoProveedor(payload) {
   return post(`${BASE}/confirmar-candidato/`, payload);
 }
 

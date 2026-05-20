@@ -6,17 +6,35 @@ export function mergeProviderLists(talleres = [], mecanicos = []) {
   return [...withKind(talleres, 'taller'), ...withKind(mecanicos, 'mecanico')];
 }
 
+export function providerDistanceKm(provider) {
+  const d = provider?.distance ?? provider?.distancia_km;
+  if (d == null || d === '') return 1e9;
+  const n = typeof d === 'number' ? d : parseFloat(String(d));
+  return Number.isFinite(n) ? n : 1e9;
+}
+
+/** Cerca primero; a igual distancia, mejor KPI (evita empates arbitrarios con el mismo servicio). */
+export function compareProvidersByDistanceThenKpi(a, b) {
+  const da = providerDistanceKm(a);
+  const db = providerDistanceKm(b);
+  if (da !== db) return da - db;
+  return compareProvidersByKpiRelevance(a, b);
+}
+
+/** KPI primero; a igual relevancia, más cercano (mejor desempate en categorías saturadas). */
+export function compareProvidersByKpiThenDistance(a, b) {
+  const kpi = compareProvidersByKpiRelevance(a, b);
+  if (kpi !== 0) return kpi;
+  return providerDistanceKm(a) - providerDistanceKm(b);
+}
+
 export function sortProvidersForExploreMode(providers, mode) {
   const list = [...(providers || [])];
   if (mode === 'para_ti') {
-    list.sort(compareProvidersByKpiRelevance);
+    list.sort(compareProvidersByKpiThenDistance);
     return list;
   }
-  list.sort((a, b) => {
-    const da = a.distance ?? a.distancia_km ?? 1e9;
-    const db = b.distance ?? b.distancia_km ?? 1e9;
-    return da - db;
-  });
+  list.sort(compareProvidersByDistanceThenKpi);
   return list;
 }
 

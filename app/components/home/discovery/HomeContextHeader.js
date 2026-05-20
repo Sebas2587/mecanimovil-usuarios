@@ -1,0 +1,274 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
+import { Bell, User, Car, ChevronDown, MapPin, Plus } from 'lucide-react-native';
+import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
+
+/**
+ * Header compacto: vehículo + dirección + notificaciones (estilo Uber Eats).
+ */
+const HomeContextHeader = ({
+  selectedVehicle,
+  vehiclesLoading,
+  healthScore,
+  healthScoreColor,
+  onOpenVehicleSelector,
+  onAddVehicle,
+  hasAddresses,
+  selectedAddress,
+  onPressSelectAddress,
+  unreadCount = 0,
+  user,
+  onPressNotifications,
+  onPressProfile,
+}) => (
+  <View style={styles.wrap}>
+    <View style={styles.topRow}>
+      {selectedVehicle ? (
+        <TouchableOpacity
+          style={styles.vehiclePill}
+          onPress={onOpenVehicleSelector}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar vehículo"
+        >
+          {selectedVehicle.foto ? (
+            <Image source={{ uri: selectedVehicle.foto }} style={styles.vehicleThumb} contentFit="cover" />
+          ) : (
+            <View style={[styles.vehicleThumb, styles.vehicleThumbFallback]}>
+              <Car size={16} color={COLORS.primary[500]} />
+            </View>
+          )}
+          <View style={styles.vehicleTextCol}>
+            <Text style={styles.vehicleTitle} numberOfLines={1}>
+              {selectedVehicle.marca_nombre || selectedVehicle.marca || '—'}{' '}
+              {selectedVehicle.modelo_nombre || selectedVehicle.modelo || ''}
+            </Text>
+            <Text style={styles.vehicleSub} numberOfLines={1}>
+              {selectedVehicle.patente || selectedVehicle.year || 'Toca para cambiar'}
+            </Text>
+          </View>
+          {healthScore != null ? (
+            <View
+              style={[
+                styles.healthChip,
+                healthScoreColor ? { borderColor: healthScoreColor } : null,
+              ]}
+            >
+              <Text style={[styles.healthChipText, healthScoreColor ? { color: healthScoreColor } : null]}>
+                {Math.round(healthScore)}%
+              </Text>
+            </View>
+          ) : null}
+          <ChevronDown size={18} color={COLORS.text.tertiary} />
+        </TouchableOpacity>
+      ) : vehiclesLoading ? (
+        <View style={styles.loadingPill}>
+          <ActivityIndicator size="small" color={COLORS.primary[500]} />
+          <Text style={styles.loadingText}>Cargando vehículos…</Text>
+        </View>
+      ) : (
+        <TouchableOpacity style={styles.addVehiclePill} onPress={onAddVehicle} activeOpacity={0.85}>
+          <Plus size={18} color={COLORS.primary[500]} />
+          <Text style={styles.addVehicleText}>Agregar vehículo</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        style={styles.iconBtn}
+        onPress={onPressNotifications}
+        activeOpacity={0.85}
+        accessibilityLabel="Notificaciones"
+      >
+        <Bell size={20} color={COLORS.text.primary} />
+        {unreadCount > 0 ? (
+          <View style={styles.bellBadge}>
+            <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+          </View>
+        ) : null}
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.avatarBtn} onPress={onPressProfile} activeOpacity={0.85}>
+        {user?.foto_perfil_url || user?.foto_perfil ? (
+          <Image
+            source={{ uri: user.foto_perfil_url || user.foto_perfil }}
+            style={styles.avatar}
+            contentFit="cover"
+          />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <User size={18} color={COLORS.primary[500]} />
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
+
+    <TouchableOpacity
+      style={styles.addressRow}
+      onPress={onPressSelectAddress}
+      activeOpacity={0.85}
+      disabled={!onPressSelectAddress}
+      accessibilityRole="button"
+      accessibilityLabel="Cambiar dirección de servicio"
+    >
+      <MapPin size={16} color={COLORS.primary[500]} />
+      <Text style={styles.addressText} numberOfLines={1}>
+        {hasAddresses && selectedAddress
+          ? selectedAddress.direccion || selectedAddress.etiqueta || 'Dirección'
+          : 'Agrega una dirección para ver talleres cercanos'}
+      </Text>
+      <ChevronDown size={16} color={COLORS.text.tertiary} />
+    </TouchableOpacity>
+  </View>
+);
+
+const styles = StyleSheet.create({
+  wrap: {
+    marginBottom: 14,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  vehiclePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    minWidth: 0,
+    ...SHADOWS.sm,
+  },
+  vehicleThumb: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.neutral.gray[100],
+  },
+  vehicleThumbFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary[50],
+  },
+  vehicleTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  vehicleTitle: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  vehicleSub: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+    marginTop: 1,
+  },
+  healthChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDERS.radius.full,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary[300],
+    backgroundColor: COLORS.primary[50],
+  },
+  healthChipText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.primary[600],
+  },
+  loadingPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  loadingText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+  },
+  addVehiclePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: COLORS.primary[50],
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary[200],
+  },
+  addVehicleText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[600],
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...SHADOWS.sm,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: COLORS.error.main,
+    borderRadius: BORDERS.radius.full,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: COLORS.background.paper,
+  },
+  bellBadgeText: {
+    color: COLORS.text.inverse,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
+  avatarBtn: {
+    width: 40,
+    height: 40,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.neutral.gray[100],
+  },
+  avatarFallback: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary[50],
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+  },
+  addressText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.primary,
+  },
+});
+
+export default React.memo(HomeContextHeader);

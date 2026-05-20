@@ -2,7 +2,11 @@ import { get } from './api';
 import { getMediaURL } from './api';
 import * as locationService from './location';
 import { compareProvidersByKpiRelevance } from '../utils/providerUtils';
-import { mergeProviderLists, sortProvidersForExploreMode } from '../utils/exploreProviderUtils';
+import {
+  mergeProviderLists,
+  sortProvidersForExploreMode,
+  compareProvidersByKpiThenDistance,
+} from '../utils/exploreProviderUtils';
 
 /** Query param para ofertas resumidas en cards del home (fase 5). */
 export const PANEL_SERVICIOS_QUERY = { include_panel_servicios: 'true' };
@@ -941,7 +945,7 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
 
     const talleres = (tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' }));
     const mecanicos = (mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' }));
-    let merged = [...talleres, ...mecanicos].sort(compareProvidersByKpiRelevance);
+    let merged = [...talleres, ...mecanicos].sort(compareProvidersByKpiThenDistance);
 
     const { lat, lng, marcaId } = options;
     if (lat != null && lng != null) {
@@ -1001,10 +1005,10 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
     const withKind = (arr, kind) =>
       (Array.isArray(arr) ? arr : []).map((p) => ({ ...p, _panelKind: kind }));
     const merged = [...withKind(talleres, 'taller'), ...withKind(mecanicos, 'mecanico')];
-    merged.sort((a, b) => (a.distance ?? 1e9) - (b.distance ?? 1e9));
+    const sorted = sortProvidersForExploreMode(merged, 'cerca');
     const limit = options.limit ?? 18;
-    if (limit == null || limit <= 0) return merged;
-    return merged.slice(0, limit);
+    if (limit == null || limit <= 0) return sorted;
+    return sorted.slice(0, limit);
   } catch (error) {
     console.error('Error obteniendo proveedores cercanos para panel:', error);
     return [];

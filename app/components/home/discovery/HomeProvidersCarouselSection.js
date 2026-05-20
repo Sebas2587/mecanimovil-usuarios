@@ -50,15 +50,19 @@ const HomeProvidersCarouselSection = ({
 
   const showContent = !emptyRequiresAddress || hasSelectedAddress;
 
+  const showHeader = !!(icon || title || hint || showSeeAll);
+
   return (
-    <View style={styles.section}>
-      <HomeSectionHeader
-        icon={icon}
-        title={title}
-        hint={hint}
-        onSeeAll={showSeeAll ? onSeeAll : undefined}
-        seeAllDisabled={!showSeeAll}
-      />
+    <View style={[styles.section, !showHeader && styles.sectionFlush]}>
+      {showHeader ? (
+        <HomeSectionHeader
+          icon={icon}
+          title={title}
+          hint={hint}
+          onSeeAll={showSeeAll ? onSeeAll : undefined}
+          seeAllDisabled={!showSeeAll}
+        />
+      ) : null}
 
       {!showContent ? (
         <HomePanelCard innerStyle={styles.emptyCard}>
@@ -119,6 +123,9 @@ const HomeProvidersCarouselSection = ({
 const styles = StyleSheet.create({
   section: {
     marginBottom: 18,
+  },
+  sectionFlush: {
+    marginBottom: 0,
   },
   emptyCard: {
     paddingVertical: 16,

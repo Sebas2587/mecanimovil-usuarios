@@ -1,5 +1,6 @@
 export { default as HomeVehicleVitalityStrip } from './HomeVehicleVitalityStrip';
 export { default as HomeVehicleDashboardFold } from './HomeVehicleDashboardFold';
+export { default as HomeVehicleDashboardCard } from './HomeVehicleDashboardCard';
 export { default as HomePatrimonyHeroSection } from './HomePatrimonyHeroSection';
 export { default as HomeTelemetrySection } from './HomeTelemetrySection';
 export { default as HomeWeatherPreviewSection } from './HomeWeatherPreviewSection';

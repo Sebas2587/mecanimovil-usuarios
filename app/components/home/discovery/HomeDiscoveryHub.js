@@ -5,7 +5,10 @@ import { Search, HeartPulse } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import { getMainCategories } from '../../../services/categories';
 import { ROUTES } from '../../../utils/constants';
-import { EXPLORE_MODE_CERCA } from '../../providers/explore/exploreProvidersConstants';
+import {
+  EXPLORE_MODE_CERCA,
+  EXPLORE_MODE_PARA_TI,
+} from '../../providers/explore/exploreProvidersConstants';
 
 const HEALTH_CHIP = { id: '__salud__', nombre: 'Salud del auto', isHealth: true };
 
@@ -47,7 +50,7 @@ const HomeDiscoveryHub = ({
       return;
     }
     openExplore({
-      mode: EXPLORE_MODE_CERCA,
+      mode: EXPLORE_MODE_PARA_TI,
       categoryId: cat.id,
       categoryName: cat.nombre,
       initialTab: 'all',

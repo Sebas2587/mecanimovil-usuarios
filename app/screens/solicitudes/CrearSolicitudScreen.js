@@ -19,6 +19,10 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import FormularioSolicitud from '../../components/solicitudes/FormularioSolicitud';
+import {
+  buildConfirmarCandidatoPayload,
+  confirmarCatalogoProveedor,
+} from '../../services/agendamientoAsistidoService';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import * as vehicleService from '../../services/vehicle';
 import * as locationService from '../../services/location';
@@ -97,7 +101,10 @@ const CrearSolicitudScreen = () => {
     categoriaNombre,
     vehicle, // Vehículo preseleccionado (desde alertas)
     descripcionPrellenada, // Descripción pre-rellenada (desde alertas)
-    fromDashboard, // Flag para flujo desde dashboard predictivo
+    fromDashboard, // Bloqueo de vehículo desde home
+    agendamientoInteligente, // Comparador IA; sin proveedor fijo
+    flujoCatalogoProveedor, // Perfil proveedor → oferta catálogo
+    ofertaServicioId,
     isPreCompra, // Inspección pre-compra marketplace
     targetVehicleId, // ID del vehículo del vendedor (pre-compra)
     ofertaId, // ID de la oferta marketplace aceptada
@@ -119,6 +126,9 @@ const CrearSolicitudScreen = () => {
         tpp: tipoProveedorPreseleccionado ?? null,
         desc: descripcionPrellenada ?? null,
         fd: !!fromDashboard,
+        ai: !!agendamientoInteligente,
+        cat: !!flujoCatalogoProveedor,
+        osid: ofertaServicioId ?? null,
         cid: categoriaId ?? null,
       }),
     [
@@ -131,6 +141,9 @@ const CrearSolicitudScreen = () => {
       tipoProveedorPreseleccionado,
       descripcionPrellenada,
       fromDashboard,
+      agendamientoInteligente,
+      flujoCatalogoProveedor,
+      ofertaServicioId,
       categoriaId,
     ]
   );
@@ -142,25 +155,81 @@ const CrearSolicitudScreen = () => {
     return n.includes('precompra') || n.includes('pre-compra') || n.includes('pre compra');
   };
 
-  // Estado inicial síncrono si ya viene servicio como objeto (modal salud) → Formulario ve paso 1→3 al instante
+  // Estado inicial síncrono si ya viene servicio/proveedor → Formulario salta pasos de selección
   const buildInitialFromParams = () => {
+    const buildServicioEntry = (s) => ({
+      id: s.id,
+      nombre: s.nombre || 'Servicio',
+      descripcion: s.descripcion || '',
+      precio_referencia: s.precio_referencia ?? s.precio_publicado_cliente,
+      categoria_id: s.categoria_id ?? s.categoria,
+      tipo_servicio: s.tipo_servicio,
+      oferta_id: s.oferta_id ?? s.oferta_servicio_id ?? ofertaServicioId,
+      oferta_servicio_id: s.oferta_servicio_id ?? s.oferta_id ?? ofertaServicioId,
+      precio_publicado_cliente: s.precio_publicado_cliente,
+      precio_con_repuestos: s.precio_con_repuestos,
+      precio_sin_repuestos: s.precio_sin_repuestos,
+      costo_mano_de_obra_sin_iva: s.costo_mano_de_obra_sin_iva,
+      costo_repuestos_sin_iva: s.costo_repuestos_sin_iva,
+      desglose_precios: s.desglose_precios,
+      duracion_estimada: s.duracion_estimada,
+    });
+
+    const baseCampos = {
+      vehiculo: vehicle || null,
+      descripcion_problema: descripcionPrellenada || '',
+      urgencia: 'normal',
+      direccion_usuario: null,
+      direccion_servicio_texto: '',
+      detalles_ubicacion: '',
+      fecha_preferida: '',
+      hora_preferida: '',
+      ubicacion_servicio: null,
+    };
+
+    if (servicioPreseleccionado?.id && proveedorPreseleccionado && fromProviderDetail) {
+      const s = servicioPreseleccionado;
+      const usuarioId =
+        proveedorPreseleccionado.usuario_id
+        ?? proveedorPreseleccionado.usuario?.id
+        ?? proveedorPreseleccionado.usuario;
+      return {
+        ...baseCampos,
+        servicios_seleccionados: [buildServicioEntry(s)],
+        tipo_solicitud: 'dirigida',
+        proveedores_dirigidos: [
+          {
+            ...proveedorPreseleccionado,
+            tipo: tipoProveedorPreseleccionado,
+            usuario_id: usuarioId,
+          },
+        ],
+        fromProviderDetail: true,
+        flujoCatalogoProveedor: !!flujoCatalogoProveedor,
+        requiere_repuestos: s.tipo_servicio !== 'sin_repuestos',
+        sin_vehiculo_registrado: esServicioSinVehiculo(s),
+      };
+    }
+
     if (servicioPreseleccionado && servicioPreseleccionado.id) {
       const s = servicioPreseleccionado;
       return {
-        servicios_seleccionados: [
-          {
-            id: s.id,
-            nombre: s.nombre || 'Servicio',
-            descripcion: s.descripcion || '',
-            precio_referencia: s.precio_referencia,
-            categoria_id: s.categoria_id ?? s.categoria,
-            tipo_servicio: s.tipo_servicio,
-          },
-        ],
+        ...baseCampos,
+        servicios_seleccionados: [buildServicioEntry(s)],
         tipo_solicitud: 'global',
         proveedores_dirigidos: [],
-        vehiculo: vehicle || null,
+        agendamientoInteligente: agendamientoInteligente || false,
+        sin_vehiculo_registrado: esServicioSinVehiculo(s),
+      };
+    }
+    if (agendamientoInteligente && vehicle) {
+      return {
+        vehiculo: vehicle,
+        tipo_solicitud: 'global',
+        proveedores_dirigidos: [],
+        agendamientoInteligente: true,
         descripcion_problema: descripcionPrellenada || '',
+        servicios_seleccionados: [],
         urgencia: 'normal',
         direccion_usuario: null,
         direccion_servicio_texto: '',
@@ -168,8 +237,6 @@ const CrearSolicitudScreen = () => {
         fecha_preferida: '',
         hora_preferida: '',
         ubicacion_servicio: null,
-        // Inspección precompra u otros servicios sin vehículo registrado
-        sin_vehiculo_registrado: esServicioSinVehiculo(s),
       };
     }
     return {};
@@ -339,6 +406,9 @@ const CrearSolicitudScreen = () => {
             proveedorPreseleccionado?.id ?? proveedorPreseleccionado?.usuario?.id ?? '',
             vehicle?.id ?? '',
             fromProviderDetail ? '1' : '',
+            agendamientoInteligente ? 'ai' : '',
+            flujoCatalogoProveedor ? 'cat' : '',
+            ofertaServicioId ?? '',
             tipoProveedorPreseleccionado ?? '',
           ].join('|');
 
@@ -425,6 +495,8 @@ const CrearSolicitudScreen = () => {
               proveedores_dirigidos: proveedorFormato ? [proveedorFormato] : [],
               fromProviderDetail: fromProviderDetail || false,
               fromDashboard: fromDashboard || false,
+              agendamientoInteligente: agendamientoInteligente || false,
+              flujoCatalogoProveedor: flujoCatalogoProveedor || false,
               descripcion_problema: descripcionPrellenada || '',
               urgencia: 'normal',
               direccion_usuario: null,
@@ -849,7 +921,45 @@ const CrearSolicitudScreen = () => {
         esArraySolicitudData: Array.isArray(solicitudData.servicios_solicitados)
       });
 
-      // Crear la solicitud
+      const catalogoOfertaId =
+        ofertaServicioId
+        ?? formData.servicios_seleccionados?.[0]?.oferta_servicio_id
+        ?? formData.servicios_seleccionados?.[0]?.oferta_id;
+
+      if (flujoCatalogoProveedor && catalogoOfertaId) {
+        try {
+          const payload = buildConfirmarCandidatoPayload(formData, catalogoOfertaId, {});
+          const resultado = await confirmarCatalogoProveedor(payload);
+          const solicitudId = resultado?.solicitud_id || resultado?.solicitud?.id;
+
+          if (user?.id && solicitudId) {
+            const paraLista = normalizarSolicitudPublica(resultado?.solicitud) || {
+              id: solicitudId,
+              estado: resultado?.estado || 'pendiente_confirmacion',
+            };
+            await syncSolicitudesListAfterChange(queryClient, user.id, paraLista);
+          }
+
+          setSubmitCount((prev) => prev + 1);
+
+          alertSuccessAndGoToPanel(
+            navigation,
+            'Solicitud enviada',
+            'El proveedor recibió tu solicitud con el precio de su catálogo y debe confirmar la asignación.',
+          );
+        } catch (error) {
+          const mensaje =
+            error.response?.data?.error
+            || error.message
+            || 'No se pudo confirmar el servicio con el proveedor.';
+          Alert.alert('Error', mensaje);
+        } finally {
+          setCreando(false);
+        }
+        return;
+      }
+
+      // Crear la solicitud (flujo estándar sin catálogo fijo)
       const solicitudCreada = await solicitudesService.crearSolicitud(solicitudData);
       console.log('CrearSolicitudScreen: Solicitud creada exitosamente:', solicitudCreada);
 
@@ -1097,14 +1207,14 @@ const CrearSolicitudScreen = () => {
       )}
 
       <FormularioSolicitud
-        key={String(submitCount)}
+        key={`${submitCount}-${focusEffectRouteKey}`}
         onSubmit={handleSubmit}
         initialData={initialData || {}}
         vehiculos={vehiculos}
         direcciones={direcciones}
         contentPaddingBottom={totalBottomPadding}
         onExit={() => navigation.goBack()}
-        bloquearCambioVehiculo={!!(vehicle && fromDashboard)}
+        bloquearCambioVehiculo={!!(vehicle && (fromDashboard || agendamientoInteligente))}
         isPreCompra={!!isPreCompra}
       />
     </GlassShell>

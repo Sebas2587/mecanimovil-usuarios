@@ -8,9 +8,9 @@ const SEGMENTS = [
   { id: EXPLORE_MODE_CERCA, label: 'Cerca de ti' },
 ];
 
-const ExploreModeSegment = ({ value, onChange }) => (
-  <View style={styles.track} accessibilityRole="tablist">
-    {SEGMENTS.map((seg) => {
+const ExploreModeSegment = ({ value, onChange, segments = SEGMENTS, style }) => (
+  <View style={[styles.track, style]} accessibilityRole="tablist">
+    {segments.map((seg) => {
       const active = value === seg.id;
       return (
         <TouchableOpacity

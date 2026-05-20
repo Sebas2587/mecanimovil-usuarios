@@ -148,73 +148,64 @@ export const useProviderServices = (id, type, providerName) => {
 
             if (ofertas.length === 0) return [];
 
-            // El backend ahora embebe categorias_info y modelos_info directamente
-            // en oferta.servicio_info, eliminando la necesidad de N requests adicionales.
-            const serviciosMap = new Map();
+            // Una entrada por oferta de catálogo (con/sin repuestos son ofertas distintas).
+            return ofertas
+                .map((oferta) => {
+                    const info = oferta.servicio_info || {};
+                    const servicioId = info.id || oferta.servicio;
+                    if (!servicioId) return null;
 
-            ofertas.forEach((oferta) => {
-                const info = oferta.servicio_info || {};
-                const servicioId = info.id || oferta.servicio || oferta.id;
-                if (!servicioId) return;
+                    const categoriasInfo = info.categorias_info || [];
+                    const modelosInfo = info.modelos_info || [];
 
-                const categoriasInfo = info.categorias_info || [];
-                const modelosInfo = info.modelos_info || [];
+                    return {
+                        id: servicioId,
+                        nombre: info.nombre || 'Servicio',
+                        descripcion: info.descripcion || '',
+                        categoria: categoriasInfo[0]?.nombre || 'General',
+                        foto: info.foto || null,
+                        duracion_estimada_base: info.duracion_estimada_base || null,
+                        precio_referencia: info.precio_referencia || null,
+                        categorias_completas: categoriasInfo,
+                        modelos_info: modelosInfo,
+                        modelos_compatibles: modelosInfo.map((m) => {
+                            const marca = m.marca_nombre || '';
+                            const nom = m.nombre || m.modelo_nombre || '';
+                            return `${marca} ${nom}`.trim() || String(m.id || '');
+                        }),
 
-                const servicioFinal = {
-                    id: servicioId,
-                    nombre: info.nombre || 'Servicio',
-                    descripcion: info.descripcion || '',
-                    categoria: categoriasInfo[0]?.nombre || 'General',
-                    foto: info.foto || null,
-                    duracion_estimada_base: info.duracion_estimada_base || null,
-                    precio_referencia: info.precio_referencia || null,
-                    categorias_completas: categoriasInfo,
-                    modelos_info: modelosInfo,
-                    modelos_compatibles: modelosInfo.map((m) => {
-                        const marca = m.marca_nombre || '';
-                        const nom = m.nombre || m.modelo_nombre || '';
-                        return `${marca} ${nom}`.trim() || String(m.id || '');
-                    }),
+                        precio_con_repuestos: oferta.precio_con_repuestos,
+                        precio_sin_repuestos: oferta.precio_sin_repuestos,
+                        tipo_servicio: oferta.tipo_servicio || 'con_repuestos',
+                        costo_mano_de_obra_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0),
+                        costo_repuestos_sin_iva: parseFloat(oferta.costo_repuestos_sin_iva || 0),
+                        precio_real_sin_iva:
+                            parseFloat(oferta.costo_mano_de_obra_sin_iva || 0)
+                            + parseFloat(oferta.costo_repuestos_sin_iva || 0),
+                        precio_publicado_cliente: parseFloat(oferta.precio_publicado_cliente || 0),
+                        fotos_servicio: oferta.fotos_servicio || [],
+                        desglose_precios: oferta.desglose_precios || {},
+                        marca_vehiculo_id:
+                            oferta.marca_vehiculo_seleccionada
+                            ?? oferta.marca_vehiculo_info?.id
+                            ?? null,
+                        marca_vehiculo_seleccionada: oferta.marca_vehiculo_seleccionada ?? null,
+                        marca_vehiculo_nombre: oferta.marca_vehiculo_info?.nombre || null,
+                        marca_vehiculo_info: oferta.marca_vehiculo_info || null,
+                        oferta_id: oferta.id,
+                        duracion_estimada: oferta.duracion_estimada,
+                        incluye_garantia: oferta.incluye_garantia,
+                        duracion_garantia: oferta.duracion_garantia,
 
-                    // Precios y detalles de la oferta
-                    precio_con_repuestos: oferta.precio_con_repuestos,
-                    precio_sin_repuestos: oferta.precio_sin_repuestos,
-                    tipo_servicio: oferta.tipo_servicio || 'sin_repuestos',
-                    costo_mano_de_obra_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0),
-                    costo_repuestos_sin_iva: parseFloat(oferta.costo_repuestos_sin_iva || 0),
-                    precio_real_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0) + parseFloat(oferta.costo_repuestos_sin_iva || 0),
-                    precio_publicado_cliente: parseFloat(oferta.precio_publicado_cliente || 0),
-                    fotos_servicio: oferta.fotos_servicio || [],
-                    desglose_precios: oferta.desglose_precios || {},
-                    oferta_id: oferta.id,
-                    duracion_estimada: oferta.duracion_estimada,
-                    incluye_garantia: oferta.incluye_garantia,
-                    duracion_garantia: oferta.duracion_garantia,
-
-                    tipo_proveedor: type,
-                    [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
-                    [type === 'taller' ? 'taller_info' : 'mecanico_info']: {
-                        id,
-                        nombre: providerName || 'Sin nombre',
-                    },
-                };
-
-                // Si ya hay un servicio con este id y tiene fotos, fusionar fotos
-                // para no perderlas cuando múltiples ofertas tienen el mismo servicio.
-                const existing = serviciosMap.get(servicioId);
-                if (existing) {
-                    const existingFotos = existing.fotos_servicio || [];
-                    const newFotos = servicioFinal.fotos_servicio || [];
-                    const allFotos = [...existingFotos, ...newFotos].filter(
-                        (f, i, arr) => arr.findIndex((x) => x.id === f.id) === i
-                    );
-                    serviciosMap.set(servicioId, { ...servicioFinal, fotos_servicio: allFotos });
-                } else {
-                    serviciosMap.set(servicioId, servicioFinal);
-                }
-            });
-
-            return Array.from(serviciosMap.values());
+                        tipo_proveedor: type,
+                        [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
+                        [type === 'taller' ? 'taller_info' : 'mecanico_info']: {
+                            id,
+                            nombre: providerName || 'Sin nombre',
+                        },
+                    };
+                })
+                .filter(Boolean);
         },
         enabled: !!id && !!type,
         staleTime: 0,                // siempre considerar datos desactualizados

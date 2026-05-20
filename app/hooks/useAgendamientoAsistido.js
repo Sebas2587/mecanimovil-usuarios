@@ -91,7 +91,7 @@ export function useAgendamientoAsistido() {
       direccionTexto,
       requiereRepuestos = true,
     }) => {
-      if (!habilitado || !vehiculoId || !Array.isArray(servicioIds) || servicioIds.length === 0) {
+      if (!vehiculoId || !Array.isArray(servicioIds) || servicioIds.length === 0) {
         setCandidatos([]);
         return [];
       }
