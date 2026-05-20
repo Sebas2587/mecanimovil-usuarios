@@ -1,4 +1,4 @@
-import { get, post, patch } from './api';
+import { get, post, patch, delete_ } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../config/serverConfig';
 
@@ -73,6 +73,13 @@ class ChatService {
 
     async markRead(conversationId) {
         return await post(`/chat/conversations/${conversationId}/mark_read/`);
+    }
+
+    /**
+     * Elimina la conversación y todo el historial asociado en base de datos.
+     */
+    async deleteConversation(conversationId) {
+        return await delete_(`/chat/conversations/${conversationId}/`);
     }
 
     async connect(conversationId, onMessageCallback) {

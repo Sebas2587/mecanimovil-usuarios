@@ -8,6 +8,8 @@ import {
   StatusBar,
   RefreshControl,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,12 +20,17 @@ import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
-import { useConversationsList } from '../../hooks/useChats';
+import { useQueryClient } from '@tanstack/react-query';
+import { useConversationsList, CONVERSATIONS_KEYS } from '../../hooks/useChats';
 import ChatsListSkeleton from '../../components/utils/ChatsListSkeleton';
+import chatService from '../../services/chatService';
+import ChatSwipeableRow from '../../components/chats/ChatSwipeableRow';
 
 const ChatsListScreen = () => {
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('service');
+  const [deletingId, setDeletingId] = useState(null);
 
   const {
     data: conversations = [],
@@ -32,6 +39,22 @@ const ChatsListScreen = () => {
   } = useConversationsList(activeTab);
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
+
+  const deleteConversation = useCallback(
+    async (conversationId) => {
+      setDeletingId(conversationId);
+      try {
+        await chatService.deleteConversation(conversationId);
+        await queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEYS.all });
+      } catch (e) {
+        Alert.alert('Error', e?.message || 'No se pudo eliminar la conversación');
+        throw e;
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [queryClient],
+  );
 
   const onRefresh = useCallback(() => {
     setPullRefreshing(true);
@@ -66,12 +89,20 @@ const ChatsListScreen = () => {
         : '';
       const unread = item.unread_count > 0;
 
+      const isDeleting = deletingId === item.id;
+
       return (
-        <TouchableOpacity
-          style={styles.card}
-          onPress={() => navigation.navigate(ROUTES.CHAT_DETAIL, { conversationId: item.id })}
-          activeOpacity={0.8}
+        <ChatSwipeableRow
+          rowKey={String(item.id)}
+          disabled={isDeleting}
+          onDelete={() => deleteConversation(item.id)}
         >
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => navigation.navigate(ROUTES.CHAT_DETAIL, { conversationId: item.id })}
+            activeOpacity={0.8}
+            disabled={isDeleting}
+          >
           <Text style={styles.serviceTitle} numberOfLines={1}>
             {serviceTitle}
           </Text>
@@ -111,9 +142,10 @@ const ChatsListScreen = () => {
             </View>
           </View>
         </TouchableOpacity>
+        </ChatSwipeableRow>
       );
     },
-    [navigation]
+    [navigation, deletingId, deleteConversation]
   );
 
   const listEmpty = useMemo(
@@ -276,7 +308,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background.paper,
     padding: SPACING.md,
     borderRadius: BORDERS.radius.lg,
-    marginBottom: SPACING.md,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     ...SHADOWS.sm,
