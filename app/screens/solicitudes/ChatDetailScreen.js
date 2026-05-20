@@ -17,6 +17,7 @@ import chatService from '../../services/chatService';
 import websocketService from '../../services/websocketService'; // Global WS for broadcasts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../../config/serverConfig';
+import { isChatAttachmentImage, resolveChatAttachmentUri } from '../../utils/chatAttachmentMedia';
 import { ROUTES } from '../../utils/constants';
 import { CONVERSATIONS_KEYS } from '../../hooks/useChats';
 
@@ -125,6 +126,7 @@ const ChatDetailScreen = () => {
             const loadedList = (Array.isArray(raw) ? raw : []).map((m) => ({
                 ...m,
                 content: m.content ?? m.message ?? m.mensaje ?? '',
+                attachment: m.attachment ?? m.archivo_adjunto ?? null,
             }));
 
             isLoadedRef.current = true;
@@ -177,6 +179,7 @@ const ChatDetailScreen = () => {
                 timestamp: raw.timestamp ?? raw.created_at,
                 created_at: raw.created_at ?? raw.timestamp,
                 attachment: raw.attachment ?? raw.archivo_adjunto ?? null,
+                archivo_adjunto: raw.archivo_adjunto ?? raw.attachment ?? null,
                 is_read: raw.is_read ?? false,
             };
             addMessageToState(normalized);
@@ -376,7 +379,17 @@ const ChatDetailScreen = () => {
             }
 
             // Replace temp message with real one
-            setMessages(prev => prev.map(m => m.id === tempMsg.id ? realMsg : m));
+            setMessages(prev =>
+                prev.map((m) =>
+                    m.id === tempMsg.id
+                        ? {
+                              ...realMsg,
+                              content: realMsg.content ?? realMsg.message ?? realMsg.mensaje ?? text,
+                              attachment: realMsg.attachment ?? realMsg.archivo_adjunto ?? null,
+                          }
+                        : m,
+                ),
+            );
         } catch (error) {
             console.error('Error sending message:', error);
             // Remove temp message on error
@@ -461,6 +474,10 @@ const ChatDetailScreen = () => {
         const messageBody = item.content ?? item.message ?? item.mensaje ?? '';
         const attachmentUri = item.attachment ?? item.archivo_adjunto;
         const hasAttachment = !!attachmentUri;
+        const imageUri = hasAttachment
+            ? resolveChatAttachmentUri(attachmentUri, () => serverConfig.getMediaURL())
+            : '';
+        const showAsImage = hasAttachment && isChatAttachmentImage(attachmentUri);
 
         return (
             <View style={[
@@ -475,41 +492,23 @@ const ChatDetailScreen = () => {
                 ]}>
                     {hasAttachment && (
                         <View style={styles.attachmentContainer}>
-                            {/* Simple logic: if it ends in jpg/png/jpeg it's image, else doc */}
-                            {(() => {
-                                const att = attachmentUri;
-                                const isImage = typeof att === 'string' && (att.match(/\.(jpeg|jpg|png|gif|webp|bmp)$/i) || att.startsWith('file://'));
-
-                                let imageUri = att;
-                                if (typeof att === 'string' && !att.startsWith('http') && !att.startsWith('file://')) {
-                                    // It's a relative path from backend
-                                    const baseUrl = serverConfig.getMediaURL();
-                                    if (baseUrl) {
-                                        imageUri = `${baseUrl}${att.startsWith('/') ? '' : '/'}${att}`;
-                                    }
-                                }
-
-                                if (isImage) {
-                                    return <TouchableOpacity onPress={() => setSelectedImage(imageUri)}>
-                                        <Image
-                                            source={{ uri: imageUri }}
-                                            style={styles.messageImage}
-                                            contentFit="cover"
-                                            cachePolicy="disk"
-                                        />
-                                    </TouchableOpacity>
-
-                                } else {
-                                    return (
-                                        <View style={styles.documentAttachment}>
-                                            <Ionicons name="document-text" size={24} color={isMe ? COLORS.text.onPrimary : COLORS.primary[600]} />
-                                            <Text style={[styles.documentText, isMe ? { color: COLORS.text.onPrimary } : { color: COLORS.text.primary }]} numberOfLines={1}>
-                                                {typeof att === 'string' ? att.split('/').pop() : 'Documento'}
-                                            </Text>
-                                        </View>
-                                    );
-                                }
-                            })()}
+                            {showAsImage && imageUri ? (
+                                <TouchableOpacity onPress={() => setSelectedImage(imageUri)}>
+                                    <Image
+                                        source={{ uri: imageUri }}
+                                        style={styles.messageImage}
+                                        contentFit="cover"
+                                        cachePolicy="disk"
+                                    />
+                                </TouchableOpacity>
+                            ) : (
+                                <View style={styles.documentAttachment}>
+                                    <Ionicons name="document-text" size={24} color={isMe ? COLORS.text.onPrimary : COLORS.primary[600]} />
+                                    <Text style={[styles.documentText, isMe ? { color: COLORS.text.onPrimary } : { color: COLORS.text.primary }]} numberOfLines={1}>
+                                        {typeof attachmentUri === 'string' ? attachmentUri.split('?')[0].split('/').pop() : 'Documento'}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                     )}
 
