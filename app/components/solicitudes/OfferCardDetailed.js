@@ -5,6 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { getMediaURL } from '../../services/api';
 import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
+import {
+    resolveLineasServicioOferta,
+    resolveServiciosSolicitud,
+    formatServiciosTitulo,
+    formatCLPServicio,
+} from '../../utils/solicitudServicios';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -87,17 +93,34 @@ const OfferCardDetailed = ({
     const rating = oferta.rating_proveedor || 0;
     const reviewsCount = oferta.total_reviews || 0;
 
-    const nombreServicio = solicitud?.servicio_nombre
-        || (solicitud?.servicios_solicitados_detail && solicitud.servicios_solicitados_detail[0]?.nombre)
-        || (solicitud?.servicios_solicitados && solicitud.servicios_solicitados[0]?.nombre)
-        || null;
+    const lineasServicio = resolveLineasServicioOferta(oferta, solicitud);
+    const serviciosSolicitud = resolveServiciosSolicitud(solicitud);
+    const multiServicio = lineasServicio.length > 1 || serviciosSolicitud.length > 1;
+    const etiquetaServicios = multiServicio
+        ? formatServiciosTitulo(serviciosSolicitud.length ? serviciosSolicitud : lineasServicio)
+        : (lineasServicio[0]?.nombre || serviciosSolicitud[0]?.nombre || solicitud?.servicio_nombre || null);
+    const lineasConPrecio = lineasServicio.filter((l) => l.precio > 0);
 
     return (
         <View style={styles.card}>
-            {nombreServicio ? (
+            {etiquetaServicios ? (
                 <View style={styles.servicioLabelRow}>
                     <Ionicons name="construct-outline" size={14} color={COLORS.text.tertiary} />
-                    <Text style={styles.servicioLabelText}>{nombreServicio}</Text>
+                    <Text style={styles.servicioLabelText}>{etiquetaServicios}</Text>
+                </View>
+            ) : null}
+            {multiServicio && lineasServicio.length > 0 ? (
+                <View style={styles.serviciosLista}>
+                    {lineasServicio.map((linea) => (
+                        <View key={String(linea.id ?? linea.nombre)} style={styles.servicioLineaRow}>
+                            <Text style={styles.servicioLineaNombre} numberOfLines={2}>
+                                {linea.nombre}
+                            </Text>
+                            {linea.precio > 0 ? (
+                                <Text style={styles.servicioLineaPrecio}>{formatCLPServicio(linea.precio)}</Text>
+                            ) : null}
+                        </View>
+                    ))}
                 </View>
             ) : null}
             {/* 1. Perfil del Ofertante */}
@@ -151,6 +174,18 @@ const OfferCardDetailed = ({
 
             {/* 3. Desglose de Costos (Container Gris) */}
             <View style={styles.costContainer}>
+                {multiServicio && lineasConPrecio.length > 1 && !mostrarLineasProveedor ? (
+                    <>
+                        <Text style={styles.costSectionLabel}>Por servicio</Text>
+                        {lineasConPrecio.map((linea) => (
+                            <View key={String(linea.id ?? linea.nombre)} style={styles.costRow}>
+                                <Text style={styles.costLabel} numberOfLines={2}>{linea.nombre}</Text>
+                                <Text style={styles.costValue}>{formatCLPServicio(linea.precio)}</Text>
+                            </View>
+                        ))}
+                        <View style={styles.divider} />
+                    </>
+                ) : null}
                 {mostrarLineasProveedor && (
                     <>
                         {costoManoObra > 0 && (
@@ -328,6 +363,34 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.sm,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.text.secondary,
+    },
+    serviciosLista: {
+        marginBottom: SPACING.sm,
+        gap: SPACING.xs,
+    },
+    servicioLineaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: SPACING.sm,
+    },
+    servicioLineaNombre: {
+        flex: 1,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.primary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    servicioLineaPrecio: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
+    },
+    costSectionLabel: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.text.tertiary,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        textTransform: 'uppercase',
+        marginBottom: SPACING.xs,
     },
     header: {
         flexDirection: 'row',

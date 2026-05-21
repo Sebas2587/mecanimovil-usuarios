@@ -63,6 +63,13 @@ export function mapOfertaCatalogoParaSolicitud(servicio, provider, providerType)
     descripcion: servicio.descripcion || '',
     precio_referencia: servicio.precio_referencia ?? servicio.precio_publicado_cliente,
     categoria_id: servicio.categoria_id ?? servicio.categoria,
+    categoria_nombre:
+      servicio.categoria_nombre
+      || servicio.categoria
+      || servicio.categorias_completas?.[0]?.nombre
+      || servicio.categorias_info?.[0]?.nombre
+      || null,
+    es_diagnostico: servicio.es_diagnostico,
     tipo_servicio: servicio.tipo_servicio,
     oferta_id: ofertaId,
     oferta_servicio_id: ofertaId,

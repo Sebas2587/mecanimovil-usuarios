@@ -60,6 +60,10 @@ import {
 } from '../../utils/calendarioProveedorNavigation';
 import SolicitudResumenTicket from './SolicitudResumenTicket';
 import { validarSinServicioActivoDuplicado } from '../../utils/solicitudActivaGuard';
+import {
+  esServicioDiagnosticoInspeccion,
+  todosServiciosSonDiagnosticoInspeccion,
+} from '../../utils/servicioDiagnosticoInspeccion';
 import solicitudesService from '../../services/solicitudesService';
 import {
   Car as CarIcon,
@@ -797,6 +801,38 @@ const FormularioSolicitud = ({
     || flujoComparadorCatalogo
     || (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado);
 
+  const necesitaSeleccionarVehiculoEnPaso3 =
+    tieneProveedorPreseleccionado
+    && tieneServicioPreseleccionado
+    && !formData.vehiculo
+    && !formData.sin_vehiculo_registrado;
+
+  const contextoDiagnostico = useMemo(
+    () => ({ serviciosDisponibles, categorias }),
+    [serviciosDisponibles, categorias],
+  );
+
+  /** Paso 3 = con/sin repuestos; no aplica a diagnóstico/inspección. */
+  const omitirPasoRepuestos = useMemo(() => {
+    if (isPreCompra || necesitaSeleccionarVehiculoEnPaso3) return false;
+    return todosServiciosSonDiagnosticoInspeccion(
+      formData.servicios_seleccionados,
+      contextoDiagnostico,
+    );
+  }, [
+    isPreCompra,
+    necesitaSeleccionarVehiculoEnPaso3,
+    formData.servicios_seleccionados,
+    contextoDiagnostico,
+  ]);
+
+  const pasoTrasRepuestos = () => {
+    if (flujoCuatroPasos || omitirPasoSeleccionProveedores) return 5;
+    return 4;
+  };
+
+  const pasoTrasContexto = () => (omitirPasoRepuestos ? pasoTrasRepuestos() : 3);
+
   const { loadingCandidatos: loadingCandidatosIa, cargarCandidatos: cargarCandidatosIa } =
     useAgendamientoAsistido();
 
@@ -922,13 +958,16 @@ const FormularioSolicitud = ({
   // Si NO hay preselecciones: 6 pasos (flujo normal)
   // Always 5 steps (skip step 2); 4 when provider also preselected
   // Pre-compra marketplace: 4 steps (3→4→5→6, skip vehicle & service selection)
-  const totalPasos = isPreCompra
+  const totalPasosBase = isPreCompra
     ? 4
     : iaAsistidoActivo
       ? 4
       : flujoCuatroPasos
         ? 4
         : 6;
+  const totalPasos = omitirPasoRepuestos
+    ? Math.max(3, totalPasosBase - 1)
+    : totalPasosBase;
 
   // Flujo inteligente: nunca arrastrar proveedor de una solicitud dirigida anterior
   useEffect(() => {
@@ -1011,9 +1050,15 @@ const FormularioSolicitud = ({
     }
   }, [formData.sin_vehiculo_registrado, formData.requiere_repuestos]);
 
-  // Catálogo desde perfil: fijar con/sin repuestos según la oferta elegida
+  // Diagnóstico/inspección: sin repuestos y sin paso 3
   useEffect(() => {
-    if (!flujoCatalogoProveedor) return;
+    if (!omitirPasoRepuestos || formData.requiere_repuestos === false) return;
+    setFormData((prev) => ({ ...prev, requiere_repuestos: false }));
+  }, [omitirPasoRepuestos, formData.requiere_repuestos]);
+
+  // Catálogo desde perfil: fijar con/sin repuestos según la oferta elegida (salvo diagnóstico)
+  useEffect(() => {
+    if (!flujoCatalogoProveedor || omitirPasoRepuestos) return;
     const s = formData.servicios_seleccionados?.[0];
     if (!s?.tipo_servicio) return;
     const req = catalogoIncluyeRepuestos(s);
@@ -1022,8 +1067,23 @@ const FormularioSolicitud = ({
     }
   }, [
     flujoCatalogoProveedor,
+    omitirPasoRepuestos,
     formData.servicios_seleccionados?.[0]?.tipo_servicio,
     formData.requiere_repuestos,
+  ]);
+
+  // Si se reanuda en paso 3 vacío (solo repuestos), saltar
+  useEffect(() => {
+    if (!omitirPasoRepuestos || isPreCompra || pasoActual !== 3) return;
+    if (necesitaSeleccionarVehiculoEnPaso3) return;
+    setPasoActual(pasoTrasRepuestos());
+  }, [
+    omitirPasoRepuestos,
+    isPreCompra,
+    pasoActual,
+    necesitaSeleccionarVehiculoEnPaso3,
+    flujoCuatroPasos,
+    omitirPasoSeleccionProveedores,
   ]);
 
   const debeElegirHorarioEnAgenda = () => {
@@ -1164,9 +1224,14 @@ const FormularioSolicitud = ({
       return;
     }
 
-    // flujoCuatroPasos: 1→2→3→[calendario]→5→6 (skip step 4)
+    // flujoCuatroPasos: 1→2→3→[calendario]→5→6 (skip step 4; paso 3 opcional)
     if (flujoCuatroPasos) {
       if (pasoActual === 6) { handleSubmit(); }
+      else if (pasoActual === 2) {
+        const siguiente = pasoTrasContexto();
+        if (siguiente === 5 && debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
+        setPasoActual(siguiente);
+      }
       else if (pasoActual === 3) {
         if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
         setPasoActual(5);
@@ -1188,6 +1253,10 @@ const FormularioSolicitud = ({
           return;
         }
         setPasoActual(2);
+        return;
+      }
+      if (pasoActual === 2) {
+        setPasoActual(pasoTrasContexto());
         return;
       }
       if (pasoActual === 3) {
@@ -1229,6 +1298,10 @@ const FormularioSolicitud = ({
           return;
         }
         setPasoActual(2);
+      } else if (pasoActual === 2) {
+        const siguiente = pasoTrasContexto();
+        if (siguiente === 5 && omitirPasoSeleccionProveedores && debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
+        setPasoActual(siguiente);
       } else if (pasoActual === 3 && omitirPasoSeleccionProveedores) {
         if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
         setPasoActual(5);
@@ -1254,6 +1327,8 @@ const FormularioSolicitud = ({
         return;
       }
       setPasoActual(2);
+    } else if (pasoActual === 2) {
+      setPasoActual(pasoTrasContexto());
     } else if (pasoActual === 3 && omitirPasoSeleccionProveedores) {
       setPasoActual(5);
     } else if (pasoActual === 4) {
@@ -1295,26 +1370,33 @@ const FormularioSolicitud = ({
       return;
     }
 
+    const pasoAnteriorTrasRepuestos = () => (omitirPasoRepuestos ? 2 : 3);
+
     // flujoCuatroPasos: skip step 4 going back
     if (flujoCuatroPasos) {
-      if (pasoActual === 5) { setPasoActual(3); }
+      if (pasoActual === 5) { setPasoActual(pasoAnteriorTrasRepuestos()); }
       else { setPasoActual(pasoActual - 1); }
       return;
     }
 
     if (iaAsistidoActivo) {
       if (pasoActual === 5) {
-        setPasoActual(3);
+        setPasoActual(pasoAnteriorTrasRepuestos());
         return;
       }
       if (pasoActual === 4) {
-        setPasoActual(3);
+        setPasoActual(pasoAnteriorTrasRepuestos());
         return;
       }
     }
 
     if (omitirPasoSeleccionProveedores && pasoActual === 5) {
-      setPasoActual(3);
+      setPasoActual(pasoAnteriorTrasRepuestos());
+      return;
+    }
+
+    if (pasoActual === 4) {
+      setPasoActual(pasoAnteriorTrasRepuestos());
       return;
     }
 
@@ -2191,75 +2273,15 @@ const FormularioSolicitud = ({
             return null;
           }
 
-          // Verificar si todos los servicios seleccionados son SOLO de "diagnóstico e inspección"
-          const serviciosSeleccionados = Array.isArray(formData.servicios_seleccionados) ? formData.servicios_seleccionados : [];
+          const serviciosSeleccionados = Array.isArray(formData.servicios_seleccionados)
+            ? formData.servicios_seleccionados
+            : [];
 
-          // Si no hay servicios seleccionados, mostrar la sección de repuestos
-          if (serviciosSeleccionados.length === 0) {
-            // Mostrar siempre si no hay servicios (caso por defecto)
-          } else {
-            // Buscar información de categoría en cada servicio seleccionado
-            // Primero intentar desde el servicio seleccionado, luego buscar en serviciosDisponibles
-            const todosSonDiagnosticoInspeccion = serviciosSeleccionados.every(servicioSeleccionado => {
-              if (!servicioSeleccionado) return false;
-
-              // Intentar obtener el nombre de la categoría desde diferentes fuentes
-              let categoriaNombre = '';
-
-              // 1. Desde el servicio seleccionado directamente
-              categoriaNombre = servicioSeleccionado.categoria_nombre || '';
-
-              // 2. Si no está en el servicio seleccionado, buscar en serviciosDisponibles
-              if (!categoriaNombre && servicioSeleccionado.id) {
-                const servicioCompleto = serviciosDisponibles.find(s => s.id === servicioSeleccionado.id);
-                if (servicioCompleto) {
-                  categoriaNombre = servicioCompleto.categoria_nombre || '';
-
-                  // También buscar en categorías de las categorías cargadas
-                  if (!categoriaNombre && servicioCompleto.categorias_ids && servicioCompleto.categorias_ids.length > 0) {
-                    const categoriaId = servicioCompleto.categorias_ids[0];
-                    const categoriaEncontrada = categorias.find(c => c.id === categoriaId);
-                    if (categoriaEncontrada) {
-                      categoriaNombre = categoriaEncontrada.nombre || '';
-                    }
-                  }
-                }
-              }
-
-              // Normalizar el nombre de la categoría
-              categoriaNombre = (categoriaNombre || '').toLowerCase().trim();
-
-              // Debug log
-              console.log('🔍 Verificando categoría de servicio:', {
-                servicioId: servicioSeleccionado.id,
-                servicioNombre: servicioSeleccionado.nombre,
-                categoriaNombre: categoriaNombre,
-                esDiagnostico: categoriaNombre.includes('diagnóstico') || categoriaNombre.includes('diagnostico') || categoriaNombre.includes('inspección') || categoriaNombre.includes('inspeccion')
-              });
-
-              // Verificar si contiene palabras clave de diagnóstico e inspección
-              const esDiagnosticoInspeccion =
-                categoriaNombre.includes('diagnóstico') ||
-                categoriaNombre.includes('diagnostico') ||
-                categoriaNombre.includes('inspección') ||
-                categoriaNombre.includes('inspeccion') ||
-                categoriaNombre === 'diagnóstico e inspección' ||
-                categoriaNombre === 'diagnostico e inspeccion' ||
-                categoriaNombre.startsWith('diagnóstico') ||
-                categoriaNombre.startsWith('diagnostico');
-
-              return esDiagnosticoInspeccion;
-            });
-
-            console.log('✅ Resultado verificación diagnóstico:', {
-              totalServicios: serviciosSeleccionados.length,
-              todosSonDiagnostico: todosSonDiagnosticoInspeccion
-            });
-
-            // Si TODOS los servicios son SOLO de diagnóstico e inspección, NO mostrar la sección
-            if (todosSonDiagnosticoInspeccion) {
-              return null; // No mostrar la sección de repuestos
-            }
+          if (
+            serviciosSeleccionados.length > 0
+            && todosServiciosSonDiagnosticoInspeccion(serviciosSeleccionados, contextoDiagnostico)
+          ) {
+            return null;
           }
 
           const catalogoServicio = serviciosSeleccionados[0];
@@ -2963,32 +2985,33 @@ const FormularioSolicitud = ({
       return mapaPasos[pasoActual] || pasoActual;
     }
 
-    // Catálogo IA: 1→2→3→5→6
+    // Catálogo IA: 1→2→3→5 (sin paso 4 ni 6 en formulario)
     if (iaAsistidoActivo) {
-      const mapaPasos = { 1: 1, 2: 2, 3: 3, 5: 4 };
+      const mapaPasos = omitirPasoRepuestos
+        ? { 1: 1, 2: 2, 5: 3 }
+        : { 1: 1, 2: 2, 3: 3, 5: 4 };
       return mapaPasos[pasoActual] || pasoActual;
     }
     if (flujoComparadorCatalogo) {
-      const mapaPasos = { 1: 1, 2: 2, 3: 3, 5: 4, 6: 5 };
+      const mapaPasos = omitirPasoRepuestos
+        ? { 1: 1, 2: 2, 5: 3, 6: 4 }
+        : { 1: 1, 2: 2, 3: 3, 5: 4, 6: 5 };
       return mapaPasos[pasoActual] || pasoActual;
     }
 
     // flujoCuatroPasos: 2→3→5→6 (sin paso 1 ni 4)
     if (flujoCuatroPasos) {
-      const mapaPasos = { 2: 1, 3: 2, 5: 3, 6: 4 };
+      const mapaPasos = omitirPasoRepuestos
+        ? { 2: 1, 5: 2, 6: 3 }
+        : { 2: 1, 3: 2, 5: 3, 6: 4 };
       return mapaPasos[pasoActual] || pasoActual;
     }
 
     // Flujo estándar: 1→2→3→4→5→6
     {
-      const mapaPasos = {
-        1: 1,
-        2: 2,
-        3: 3,
-        4: 4,
-        5: 5,
-        6: 6,
-      };
+      const mapaPasos = omitirPasoRepuestos
+        ? { 1: 1, 2: 2, 4: 3, 5: 4, 6: 5 }
+        : { 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6 };
       return mapaPasos[pasoActual] || pasoActual;
     }
 

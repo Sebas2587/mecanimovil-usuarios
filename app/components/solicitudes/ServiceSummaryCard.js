@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
+import {
+    resolveServiciosSolicitud,
+    formatServiciosTitulo,
+    formatCLPServicio,
+} from '../../utils/solicitudServicios';
 
 /** Colores de badge alineados a estados de solicitud pública (Coinbase / superficies suaves). */
 export function getEstadoBadgeMeta(solicitud) {
@@ -118,6 +123,21 @@ const ServiceSummaryCard = ({ solicitud }) => {
     const fechaPreferida = solicitud.fecha_preferida || solicitud.fecha_creacion;
     const horaPreferida = solicitud.hora_preferida || solicitud.preferencia_horario;
 
+    const serviciosSolicitud = useMemo(() => resolveServiciosSolicitud(solicitud), [solicitud]);
+    const multiServicio = serviciosSolicitud.length > 1;
+    const tituloServicios = solicitud.servicio_nombre || formatServiciosTitulo(serviciosSolicitud);
+
+    const lineasOfertaCatalogo = useMemo(() => {
+        const oferta = solicitud?.oferta_seleccionada_detail;
+        const detalles = oferta?.detalles_servicios;
+        if (!Array.isArray(detalles) || detalles.length <= 1) return [];
+        return detalles.map((d) => ({
+            id: d.id ?? d.servicio,
+            nombre: d.servicio_nombre || 'Servicio',
+            precio: parseFloat(d.precio_servicio || 0),
+        }));
+    }, [solicitud?.oferta_seleccionada_detail]);
+
     return (
         <View style={styles.card}>
             <View style={styles.header}>
@@ -130,12 +150,44 @@ const ServiceSummaryCard = ({ solicitud }) => {
                 <Text style={styles.idText}>#{solicitud.id ? solicitud.id.slice(0, 8) : '---'}</Text>
             </View>
 
-            <Text style={styles.title}>
-                {solicitud.servicio_nombre ||
-                    (solicitud.servicios_solicitados_detail && solicitud.servicios_solicitados_detail.length > 0
-                        ? solicitud.servicios_solicitados_detail[0].nombre
-                        : 'Servicio Mecánico')}
-            </Text>
+            <Text style={styles.title}>{tituloServicios}</Text>
+
+            {multiServicio ? (
+                <View style={styles.serviciosLista}>
+                    {serviciosSolicitud.map((s) => (
+                        <View key={String(s.id ?? s.nombre)} style={styles.servicioRow}>
+                            <Ionicons name="construct-outline" size={14} color={COLORS.text.tertiary} />
+                            <Text style={styles.servicioNombre} numberOfLines={2}>
+                                {s.nombre}
+                            </Text>
+                        </View>
+                    ))}
+                </View>
+            ) : null}
+
+            {lineasOfertaCatalogo.length > 0 ? (
+                <View style={styles.ofertaPreciosBlock}>
+                    <Text style={styles.ofertaPreciosLabel}>Precio por servicio (oferta seleccionada)</Text>
+                    {lineasOfertaCatalogo.map((linea) => (
+                        <View key={String(linea.id ?? linea.nombre)} style={styles.servicioRow}>
+                            <Text style={styles.servicioNombre} numberOfLines={2}>
+                                {linea.nombre}
+                            </Text>
+                            {linea.precio > 0 ? (
+                                <Text style={styles.servicioPrecio}>{formatCLPServicio(linea.precio)}</Text>
+                            ) : null}
+                        </View>
+                    ))}
+                    {solicitud?.oferta_seleccionada_detail?.precio_total_ofrecido != null ? (
+                        <View style={styles.totalOfertaRow}>
+                            <Text style={styles.totalOfertaLabel}>Total oferta</Text>
+                            <Text style={styles.totalOfertaValue}>
+                                {formatCLPServicio(solicitud.oferta_seleccionada_detail.precio_total_ofrecido)}
+                            </Text>
+                        </View>
+                    ) : null}
+                </View>
+            ) : null}
 
             {solicitud.descripcion_problema && (
                 <Text style={styles.description} numberOfLines={3}>
@@ -262,6 +314,61 @@ const styles = StyleSheet.create({
         color: COLORS.text.primary,
         marginBottom: SPACING.xs,
         letterSpacing: TYPOGRAPHY.letterSpacing.tight,
+    },
+    serviciosLista: {
+        marginBottom: SPACING.sm,
+        gap: SPACING.xs,
+    },
+    servicioRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xs,
+    },
+    servicioNombre: {
+        flex: 1,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    servicioPrecio: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
+    },
+    ofertaPreciosBlock: {
+        backgroundColor: COLORS.neutral.gray[100],
+        borderRadius: BORDERS.radius.md,
+        padding: SPACING.sm,
+        marginBottom: SPACING.sm,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        gap: SPACING.xs,
+    },
+    ofertaPreciosLabel: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.text.tertiary,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        textTransform: 'uppercase',
+        marginBottom: SPACING.xxs,
+    },
+    totalOfertaRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: SPACING.xs,
+        paddingTop: SPACING.xs,
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.border.light,
+    },
+    totalOfertaLabel: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
+    },
+    totalOfertaValue: {
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.primary[700],
     },
     description: {
         fontSize: TYPOGRAPHY.fontSize.base,

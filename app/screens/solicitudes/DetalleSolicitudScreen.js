@@ -27,6 +27,7 @@ import { ROUTES } from '../../utils/constants';
 import { requestDetailQueryKey, useRequestDetail } from '../../hooks/useRequests';
 import { useConversationsList } from '../../hooks/useChats';
 import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
+import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
 import { showAlert, showConfirm, showAlertButtons } from '../../utils/platformAlert';
 
 // New Components
@@ -135,6 +136,11 @@ const DetalleSolicitudScreen = () => {
     );
     return conv?.unread_count ?? 0;
   }, [serviceConversations, solicitud?.id]);
+
+  const serviciosResumenTexto = useMemo(
+    () => formatServiciosListaTexto(resolveServiciosSolicitud(solicitud)),
+    [solicitud],
+  );
 
   const esPendienteConfirmacion = solicitud?.estado === 'pendiente_confirmacion';
 
@@ -491,10 +497,9 @@ const DetalleSolicitudScreen = () => {
             solicitud?.oferta_seleccionada_detail?.proveedor?.nombre ||
             solicitud?.oferta_seleccionada_detail?.proveedor_nombre ||
             null;
-          const servicioNombre =
-            solicitud?.servicios_solicitados?.[0]?.nombre ||
-            solicitud?.servicios_solicitados?.[0]?.nombre_servicio ||
-            'Servicio contratado';
+          const servicioNombre = serviciosResumenTexto !== 'Sin servicios'
+            ? serviciosResumenTexto
+            : 'Servicio contratado';
           return (
             <PendingClientSignatureCard
               ordenId={ordenIdParaFirma}
@@ -627,10 +632,9 @@ const DetalleSolicitudScreen = () => {
                 const fechaOriginal = oferta.oferta_original_info?.fecha_envio
                   ? new Date(oferta.oferta_original_info.fecha_envio).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
                   : null;
-                const nombreServicio = solicitud?.servicio_nombre
-                  || (solicitud?.servicios_solicitados_detail && solicitud.servicios_solicitados_detail[0]?.nombre)
-                  || (solicitud?.servicios_solicitados && solicitud.servicios_solicitados[0]?.nombre)
-                  || 'Servicio';
+                const nombreServicio = serviciosResumenTexto !== 'Sin servicios'
+                  ? serviciosResumenTexto
+                  : 'Servicio';
                 return (
                   <View key={oferta.id} style={styles.ofertaSecundariaWrapper}>
                     <View style={styles.referenciaSolicitudBar}>
@@ -802,7 +806,7 @@ const DetalleSolicitudScreen = () => {
           visible={showChecklistModal}
           onClose={closeChecklistModal}
           ordenId={checklistOrdenId ?? ordenIdParaChecklist}
-          servicioNombre={solicitud?.servicios_solicitados?.[0]?.nombre || solicitud?.servicios_solicitados?.[0]?.nombre_servicio || 'Servicio'}
+          servicioNombre={serviciosResumenTexto !== 'Sin servicios' ? serviciosResumenTexto : 'Servicio'}
         />
       )}
 

@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import CountdownTimer from '../common/CountdownTimer';
 import { isSolicitudSinVehiculoEnCuenta } from '../../utils/solicitudVehicle';
+import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -125,12 +126,10 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
     return timeString.substring(0, 5);
   };
 
-  const serviciosNombres = useMemo(() => {
-    return solicitud.servicios_solicitados_detail
-      ?.slice(0, 2)
-      .map(s => s.nombre)
-      .join(', ') || 'Sin servicios';
-  }, [solicitud.servicios_solicitados_detail]);
+  const serviciosNombres = useMemo(
+    () => formatServiciosListaTexto(resolveServiciosSolicitud(solicitud)),
+    [solicitud],
+  );
 
   const fechaFormateada = useMemo(() => formatDate(solicitud.fecha_preferida), [solicitud.fecha_preferida]);
   const horaFormateada = useMemo(() =>
@@ -195,9 +194,8 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
             <Ionicons name={getEstadoIcon()} size={24} color={estadoConfig.color} />
           </View>
           <View style={styles.titleContainer}>
-            <Text style={styles.title} numberOfLines={2}>
+            <Text style={styles.title} numberOfLines={3}>
               {serviciosNombres}
-              {solicitud.servicios_solicitados_detail?.length > 2 && '...'}
             </Text>
             {ofertasNuevasCount > 0 && (
               <View style={styles.ofertasNuevasBadge}>

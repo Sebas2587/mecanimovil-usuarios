@@ -20,6 +20,7 @@ import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import FormularioSolicitud from '../../components/solicitudes/FormularioSolicitud';
 import { resolveProveedorEntityId } from '../../utils/calendarioProveedorNavigation';
+import { esServicioDiagnosticoInspeccion } from '../../utils/servicioDiagnosticoInspeccion';
 import {
   buildConfirmarCandidatoPayload,
   confirmarCatalogoProveedor,
@@ -187,6 +188,13 @@ const CrearSolicitudScreen = () => {
       descripcion: s.descripcion || '',
       precio_referencia: s.precio_referencia ?? s.precio_publicado_cliente,
       categoria_id: s.categoria_id ?? s.categoria,
+      categoria_nombre:
+        s.categoria_nombre
+        || s.categoria
+        || s.categorias_completas?.[0]?.nombre
+        || s.categorias_info?.[0]?.nombre
+        || null,
+      es_diagnostico: s.es_diagnostico,
       tipo_servicio: s.tipo_servicio,
       oferta_id: s.oferta_id ?? s.oferta_servicio_id ?? ofertaServicioId,
       oferta_servicio_id: s.oferta_servicio_id ?? s.oferta_id ?? ofertaServicioId,
@@ -245,7 +253,9 @@ const CrearSolicitudScreen = () => {
         ],
         fromProviderDetail: true,
         flujoCatalogoProveedor: !!flujoCatalogoProveedor,
-        requiere_repuestos: s.tipo_servicio !== 'sin_repuestos',
+        requiere_repuestos: esServicioDiagnosticoInspeccion(s)
+          ? false
+          : s.tipo_servicio !== 'sin_repuestos',
         sin_vehiculo_registrado: esServicioSinVehiculo(s),
       };
     }
@@ -258,6 +268,7 @@ const CrearSolicitudScreen = () => {
         tipo_solicitud: 'global',
         proveedores_dirigidos: [],
         agendamientoInteligente: agendamientoInteligente || false,
+        requiere_repuestos: !esServicioDiagnosticoInspeccion(s),
         sin_vehiculo_registrado: esServicioSinVehiculo(s),
       };
     }
