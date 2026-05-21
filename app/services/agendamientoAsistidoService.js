@@ -179,6 +179,9 @@ export function mapCandidatoToOfertaComparador(candidato) {
     a_domicilio: candidato.a_domicilio,
     score_match: candidato.score_match,
     explicacion: candidato.explicacion,
+    distancia_km: candidato.distancia_km,
+    dentro_radio_km: candidato.dentro_radio_km,
+    es_recomendado: candidato.es_recomendado,
     servicios: candidato.servicio ? [candidato.servicio] : [],
     estado: 'catalogo_preview',
   };

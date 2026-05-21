@@ -42,11 +42,13 @@ import {
   mapCandidatoToOfertaComparador,
 } from '../../services/agendamientoAsistidoService';
 import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
+import { filtrarServiciosConProveedores } from '../../utils/servicioProveedores';
 import {
   catalogoIncluyeRepuestos,
   formatPrecioCatalogoServicio,
 } from '../home/shared/providerCatalogSchedule';
-import ProviderCatalogScheduleCard from './ProviderCatalogScheduleCard';
+import SolicitudCatalogContextBanner from './SolicitudCatalogContextBanner';
+import SolicitudPaso1ServiceCard from './SolicitudPaso1ServiceCard';
 import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProviderAvatarUri } from '../../utils/providerUtils';
 import {
   navigateCalendarioProveedor,
@@ -64,7 +66,6 @@ import {
   Clock as ClockIcon,
   FileText as FileTextIcon,
   ChevronRight as ChevronRightIcon,
-  ShieldAlert as ShieldAlertIcon,
   Star,
   MapPin,
   Eye,
@@ -209,6 +210,11 @@ const FormularioSolicitud = ({
     select: (data) => (Array.isArray(data) ? data : []),
   });
 
+  const serviciosConProveedor = useMemo(
+    () => filtrarServiciosConProveedores(serviciosDisponibles),
+    [serviciosDisponibles],
+  );
+
   const {
     data: categorias = [],
   } = useQuery({
@@ -240,7 +246,6 @@ const FormularioSolicitud = ({
   // Health components via TanStack Query (instant from cache when navigating back)
   const {
     data: healthComponentsQuery = [],
-    isLoading: loadingHealth,
   } = useQuery({
     queryKey: ['vehicleHealthComponents', vehiculoId],
     queryFn: () => VehicleHealthService.getComponents(vehiculoId),
@@ -640,59 +645,6 @@ const FormularioSolicitud = ({
     }
   }, [formData.servicios_seleccionados]);
 
-  // Build recommendations from critical health components.
-  // REGLA: Solo mostrar recomendaciones que estén asociadas a servicios disponibles del vehículo.
-  // (Evita cards "Revisión sugerida" sin servicio clickeable).
-  const healthRecommendations = React.useMemo(() => {
-    if (!healthComponents?.length) return [];
-
-    const availableById = new Map();
-    if (Array.isArray(serviciosDisponibles)) {
-      for (const s of serviciosDisponibles) {
-        if (s?.id) availableById.set(s.id, s);
-      }
-    }
-
-    const recs = [];
-    const seenServiceIds = new Set();
-    const critical = [...healthComponents]
-      .filter((c) => {
-        const level = c.nivel_alerta || c.status || 'OPTIMO';
-        return level !== 'OPTIMO';
-      })
-      .sort(
-        (a, b) =>
-          (a.salud_porcentaje ?? a.salud ?? 100) - (b.salud_porcentaje ?? b.salud ?? 100)
-      )
-      .slice(0, 5);
-
-    for (const comp of critical) {
-      const compName = resolveHealthComponentDisplayName(comp);
-      const compHealth = comp.salud_porcentaje ?? comp.salud ?? 0;
-      const compLevel = comp.nivel_alerta || comp.status || 'ATENCION';
-      const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
-      const services = Array.isArray(comp.servicios_asociados) ? comp.servicios_asociados : [];
-
-      for (const svcCandidate of services) {
-        const svcId = svcCandidate?.id;
-        if (!svcId || seenServiceIds.has(svcId)) continue;
-        const svc = availableById.get(svcId);
-        if (!svc) continue;
-
-        seenServiceIds.add(svcId);
-        recs.push({
-          componentName: compName,
-          componentHealth: compHealth,
-          componentLevel: compLevel,
-          kmRestantes: kmRest,
-          service: svc,
-        });
-      }
-    }
-
-    return recs;
-  }, [healthComponents, serviciosDisponibles]);
-
   /** Cargar talleres/mecánicos que ofrecen los servicios seleccionados sin vehículo (precompra) */
   const cargarProveedoresPorServicioSinVehiculo = async () => {
     const servicioIds = formData.servicios_seleccionados?.map(s => (typeof s === 'object' ? s.id : s)).filter(Boolean) || [];
@@ -873,7 +825,7 @@ const FormularioSolicitud = ({
       formData.direccion_servicio_texto?.trim()
       || formData.direccion_usuario?.direccion?.trim()
       || '';
-    const list = await cargarCandidatosIa({
+    const { recomendados, otros, radioKm } = await cargarCandidatosIa({
       vehiculoId: formData.vehiculo.id,
       servicioIds,
       lat,
@@ -882,17 +834,21 @@ const FormularioSolicitud = ({
       direccionTexto,
       requiereRepuestos: formData.requiere_repuestos !== false,
     });
-    if (!list.length) {
+    if (!recomendados.length && !otros.length) {
       Alert.alert(
         'Sin proveedores',
         'No encontramos candidatos en tu zona. Prueba otra ubicación o solicitud abierta.',
       );
       return;
     }
-    const ofertasPreview = list.map(mapCandidatoToOfertaComparador).filter(Boolean);
+    const ofertasRecomendadas = recomendados.map(mapCandidatoToOfertaComparador).filter(Boolean);
+    const ofertasOtros = otros.map(mapCandidatoToOfertaComparador).filter(Boolean);
     navigation.navigate(ROUTES.COMPARADOR_OFERTAS, {
       modoCatalogo: true,
-      ofertasPreview,
+      ofertasPreview: ofertasRecomendadas,
+      ofertasRecomendadas,
+      ofertasOtros,
+      radioKm,
       formPayload: {
         ...formData,
         ia_analisis_snapshot: buildMetadataIaEntrada(null, buildComponentesSaludIa()),
@@ -1324,12 +1280,12 @@ const FormularioSolicitud = ({
           !tieneServicioPreseleccionado &&
           !!vehiculoId &&
           !cargandoServicios &&
-          Array.isArray(serviciosDisponibles) &&
-          serviciosDisponibles.length === 0
+          Array.isArray(serviciosConProveedor) &&
+          serviciosConProveedor.length === 0
         ) {
           Alert.alert(
             'No disponible',
-            'Este vehículo no tiene servicios asociados, por lo que no es posible crear una solicitud.'
+            'No hay servicios con proveedores disponibles para este vehículo.'
           );
           return false;
         }
@@ -1647,25 +1603,20 @@ const FormularioSolicitud = ({
     const vehiculosDisponibles = vehiculos && vehiculos.length > 0 ? vehiculos : [];
 
     const getScoreColor = (s) => getHealthColorToken(COLORS, s);
-    const getLevelColor = (level) => {
-      if (level === 'CRITICO') return COLORS.error.main;
-      if (level === 'URGENTE') return COLORS.warning[600];
-      return COLORS.warning[500];
-    };
 
     const categoriasConServicios = categorias.filter((cat) =>
-      serviciosDisponibles.some((s) => {
+      serviciosConProveedor.some((s) => {
         if (s.categorias_ids && Array.isArray(s.categorias_ids)) return s.categorias_ids.includes(cat.id);
         return s.categoria === cat.id;
       })
     );
 
     const serviciosFiltrados = categoriaSeleccionada
-      ? serviciosDisponibles.filter((s) => {
+      ? serviciosConProveedor.filter((s) => {
           if (s.categorias_ids && Array.isArray(s.categorias_ids)) return s.categorias_ids.includes(categoriaSeleccionada.id);
           return s.categoria === categoriaSeleccionada.id;
         })
-      : serviciosDisponibles;
+      : serviciosConProveedor;
 
     // Un solo ScrollView vertical vive en el padre (contenido del formulario). Anidar otro aquí
     // hacía que al cambiar altura (servicios/salud) Android/iOS resetearan el scroll y parecía un “reload”
@@ -1778,7 +1729,7 @@ const FormularioSolicitud = ({
             {flujoCatalogoProveedor
               && formData.servicios_seleccionados?.[0]
               && formData.proveedores_dirigidos?.[0] ? (
-              <ProviderCatalogScheduleCard
+              <SolicitudCatalogContextBanner
                 proveedor={formData.proveedores_dirigidos[0]}
                 servicio={formData.servicios_seleccionados[0]}
                 tipoProveedor={
@@ -1791,16 +1742,11 @@ const FormularioSolicitud = ({
             {tieneProveedorPreseleccionado
               && !flujoCatalogoProveedor
               && formData.proveedores_dirigidos.length > 0 ? (
-              <View style={[styles.infoBox, { marginBottom: 16 }]}>
-                <Ionicons name="business" size={20} color={COLORS.neutral.gray[700]} style={{ marginRight: 8 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.infoBoxText, { fontWeight: '700' }]}>
-                    Agendando con {formData.proveedores_dirigidos[0]?.nombre || 'tu proveedor'}
-                  </Text>
-                  <Text style={[styles.infoBoxText, { marginTop: 4 }]}>
-                    Solicitud dirigida: el servicio se enviará a este proveedor.
-                  </Text>
-                </View>
+              <View style={gs.proveedorChip}>
+                <Text style={gs.proveedorChipLabel}>Proveedor</Text>
+                <Text style={gs.proveedorChipNombre} numberOfLines={1}>
+                  {formData.proveedores_dirigidos[0]?.nombre || 'Seleccionado'}
+                </Text>
               </View>
             ) : null}
 
@@ -1827,70 +1773,7 @@ const FormularioSolicitud = ({
               </View>
             ) : null}
 
-            {/* ── Recommendations (Horizontal Scroll) ── */}
-            {!ocultarSelectorServicios && loadingHealth && healthRecommendations.length === 0 ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20, paddingVertical: 12 }}>
-                <ActivityIndicator size="small" color={COLORS.success[600]} />
-                <Text style={{ color: COLORS.text.secondary, fontSize: 13 }}>Analizando estado del vehículo...</Text>
-              </View>
-            ) : !ocultarSelectorServicios && healthRecommendations.length > 0 ? (
-              <View style={{ marginBottom: 20 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <ShieldAlertIcon size={18} color={COLORS.warning[500]} />
-                  <Text style={gs.sectionTitle}>Recomendaciones según desgaste</Text>
-                </View>
-                <Text style={[gs.sectionSub, { marginBottom: 12 }]}>Servicios sugeridos según el estado de tu vehículo</Text>
-
-                <FlatList
-                  horizontal
-                  data={healthRecommendations}
-                  keyExtractor={(_, idx) => `rec-${idx}`}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingRight: 8 }}
-                  renderItem={({ item: rec }) => {
-                    const svc = rec.service;
-                    const isSelected = svc && Array.isArray(formData.servicios_seleccionados) &&
-                      formData.servicios_seleccionados.some((s) => s.id === svc.id);
-                    return (
-                      <TouchableOpacity
-                        style={[gs.recCard, isSelected && gs.recCardSelected]}
-                        onPress={() => svc && toggleServicioSeleccionado(svc)}
-                        activeOpacity={0.8}
-                        disabled={!svc}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getLevelColor(rec.componentLevel) }} />
-                          <Text style={{ color: COLORS.text.primary, fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={2}>
-                            {svc?.nombre?.trim() ||
-                              `Revisión sugerida (${rec.componentName})`}
-                          </Text>
-                          {isSelected && <CheckCircle2Icon size={18} color={COLORS.success[500]} />}
-                        </View>
-                        <Text style={{ color: COLORS.text.secondary, fontSize: 12, marginBottom: 10, lineHeight: 17 }} numberOfLines={3}>
-                          Desgaste estimado en «{rec.componentName}»: {Math.round(rec.componentHealth)}% de vida útil
-                          {rec.kmRestantes != null
-                            ? ` · ~${rec.kmRestantes.toLocaleString()} km hasta próx. revisión`
-                            : ''}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
-                          {svc?.precio_referencia != null && (
-                            <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '700' }}>
-                              ~${Number(svc.precio_referencia).toLocaleString('es-CL')}
-                            </Text>
-                          )}
-                          {svc?.duracion_estimada && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <ClockIcon size={11} color={COLORS.text.tertiary} />
-                              <Text style={{ color: COLORS.text.tertiary, fontSize: 11 }}>{svc.duracion_estimada}</Text>
-                            </View>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  }}
-                />
-              </View>
-            ) : null}
+            {/* Desgaste: ver HomeHealthServicesRow en el panel; aquí solo elegir servicio */}
 
             {/* ── Services Section ── */}
             {!ocultarSelectorServicios ? (
@@ -1928,36 +1811,32 @@ const FormularioSolicitud = ({
                   <Text style={{ color: COLORS.text.secondary, marginTop: 10, fontSize: 13 }}>Cargando servicios...</Text>
                 </View>
               ) : serviciosFiltrados.length > 0 ? (
-                <View style={{ gap: 10 }}>
-                  {serviciosFiltrados.map((servicio) => {
-                    const isSelected = Array.isArray(formData.servicios_seleccionados) &&
-                      formData.servicios_seleccionados.some((s) => s.id === servicio.id);
+                <FlatList
+                  data={serviciosFiltrados}
+                  keyExtractor={(item) => `svc-${item.id}`}
+                  numColumns={2}
+                  scrollEnabled={false}
+                  columnWrapperStyle={gs.serviceGridRow}
+                  contentContainerStyle={gs.serviceGridContent}
+                  renderItem={({ item: servicio }) => {
+                    const isSelected =
+                      Array.isArray(formData.servicios_seleccionados)
+                      && formData.servicios_seleccionados.some((s) => s.id === servicio.id);
                     return (
-                      <GlassCard
-                        key={servicio.id}
-                        style={[{ gap: 6 }, isSelected && { borderColor: COLORS.success[400], backgroundColor: COLORS.success.light }]}
+                      <SolicitudPaso1ServiceCard
+                        servicio={servicio}
+                        selected={isSelected}
                         onPress={() => toggleServicioSeleccionado(servicio)}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <Text style={{ color: COLORS.text.primary, fontSize: 14, fontWeight: '600', flex: 1 }} numberOfLines={2}>{servicio.nombre}</Text>
-                          {isSelected && <CheckCircle2Icon size={20} color={COLORS.success[500]} />}
-                        </View>
-                        {servicio.descripcion ? (
-                          <Text style={{ color: COLORS.text.tertiary, fontSize: 12, lineHeight: 17 }} numberOfLines={2}>{servicio.descripcion}</Text>
-                        ) : null}
-                        {servicio.precio_referencia != null ? (
-                          <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '600' }}>
-                            Desde ${Number(servicio.precio_referencia).toLocaleString('es-CL')}
-                          </Text>
-                        ) : null}
-                      </GlassCard>
+                      />
                     );
-                  })}
-                </View>
+                  }}
+                />
               ) : (
                 <GlassCard style={{ alignItems: 'center', paddingVertical: 24 }}>
                   <Wrench size={28} color={COLORS.neutral.gray[400]} />
-                  <Text style={{ color: COLORS.text.secondary, marginTop: 8, fontSize: 13 }}>No hay servicios disponibles para este vehículo</Text>
+                  <Text style={{ color: COLORS.text.secondary, marginTop: 8, fontSize: 13 }}>
+                    No hay servicios con proveedores para este vehículo
+                  </Text>
                 </GlassCard>
               )}
             </View>
@@ -3281,17 +3160,38 @@ const FormularioSolicitud = ({
 const gs = StyleSheet.create({
   sectionTitle: { color: COLORS.text.primary, fontSize: 17, fontWeight: '700', letterSpacing: 0.2 },
   sectionSub: { color: COLORS.text.secondary, fontSize: 13, lineHeight: 19, marginTop: 4 },
-  recCard: {
-    width: SCREEN_WIDTH * 0.7,
-    marginRight: 12,
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
-    borderWidth: BORDERS.width.thin,
+  proveedorChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.md,
+    borderWidth: 1,
     borderColor: COLORS.border.light,
-    padding: 14,
-    ...SHADOWS.sm,
   },
-  recCardSelected: { borderColor: COLORS.success[400], backgroundColor: COLORS.success.light },
+  proveedorChipLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.text.tertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  proveedorChipNombre: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  serviceGridRow: {
+    gap: 10,
+    marginBottom: 10,
+  },
+  serviceGridContent: {
+    paddingBottom: 4,
+  },
   catTab: {
     paddingHorizontal: 16,
     paddingVertical: 8,

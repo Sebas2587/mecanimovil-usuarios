@@ -40,6 +40,9 @@ const ComparadorOfertasScreen = () => {
     ofertas: ofertasIds,
     modoCatalogo = false,
     ofertasPreview = [],
+    ofertasRecomendadas = [],
+    ofertasOtros = [],
+    radioKm = 80,
     formPayload = null,
     slotSeleccionado,
     pendingConfirmOferta,
@@ -49,6 +52,8 @@ const ComparadorOfertasScreen = () => {
   const { cargarTodosLosCarritos } = useAgendamiento();
 
   const [ofertas, setOfertas] = useState([]);
+  const [ofertasOtrosState, setOfertasOtrosState] = useState([]);
+  const [radioKmState, setRadioKmState] = useState(radioKm);
   const [solicitud, setSolicitud] = useState(null);
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(false);
@@ -118,10 +123,18 @@ const ComparadorOfertasScreen = () => {
       setLoading(true);
       setErrorValidacion(null);
 
-      if (modoCatalogo && Array.isArray(ofertasPreview) && ofertasPreview.length > 0) {
-        setOfertas(ofertasPreview);
-        setLoading(false);
-        return;
+      if (modoCatalogo) {
+        const rec = Array.isArray(ofertasRecomendadas) && ofertasRecomendadas.length > 0
+          ? ofertasRecomendadas
+          : (Array.isArray(ofertasPreview) ? ofertasPreview : []);
+        const otros = Array.isArray(ofertasOtros) ? ofertasOtros : [];
+        if (rec.length > 0 || otros.length > 0) {
+          setOfertas(rec);
+          setOfertasOtrosState(otros);
+          setRadioKmState(radioKm);
+          setLoading(false);
+          return;
+        }
       }
 
       if (solicitudId) {
@@ -205,7 +218,10 @@ const ComparadorOfertasScreen = () => {
         returnRoute: ROUTES.COMPARADOR_OFERTAS,
         returnParams: {
           modoCatalogo: true,
-          ofertasPreview,
+          ofertasPreview: ofertas,
+          ofertasRecomendadas: ofertas,
+          ofertasOtros: ofertasOtrosState,
+          radioKm: radioKmState,
           formPayload,
           pendingConfirmOferta: {
             oferta_servicio_id: oferta.oferta_servicio_id,
@@ -347,8 +363,9 @@ const ComparadorOfertasScreen = () => {
     );
   }
 
+  const totalCatalogo = ofertas.length + ofertasOtrosState.length;
   const minOfertas = modoCatalogo ? 1 : 2;
-  if (ofertas.length < minOfertas) {
+  if ((modoCatalogo ? totalCatalogo : ofertas.length) < minOfertas) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
@@ -390,7 +407,9 @@ const ComparadorOfertasScreen = () => {
       >
         {modoCatalogo ? (
           <ComparadorCatalogoIaPanel
-            ofertas={ofertas}
+            ofertasRecomendadas={ofertas}
+            ofertasOtros={ofertasOtrosState}
+            radioKm={radioKmState}
             onAceptar={handleAceptarOferta}
             procesando={procesando}
             requiereRepuestos={formPayload?.requiere_repuestos !== false}

@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { MapPin, Wrench } from 'lucide-react-native';
-import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS } from '../../design-system/tokens/borders';
+import { View, Text, StyleSheet } from 'react-native';
+import { MapPin, Star, Wrench } from 'lucide-react-native';
+import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { AGENDAMIENTO_THEME as T } from './theme';
 import {
   calcularDesgloseIvaOferta,
@@ -14,15 +13,17 @@ function formatCLP(n) {
   return `$${v.toLocaleString('es-CL')}`;
 }
 
+/**
+ * Card de proveedor en comparador catálogo (Coinbase-light).
+ */
 export default function CandidatosProveedorCard({
   candidato,
   selected = false,
-  onPress,
-  requiereRepuestos = true,
+  variant = 'recomendado',
 }) {
   const desglose = useMemo(() => {
     const d = candidato?.desglose || {};
-    const total = requiereRepuestos
+    const total = candidato?.incluye_repuestos_sugerido !== false
       ? candidato?.precio_con_repuestos
       : candidato?.precio_sin_repuestos;
     const calc = calcularDesgloseIvaOferta({
@@ -32,93 +33,134 @@ export default function CandidatosProveedorCard({
       precioTotalOfrecido: total ?? d.precio_publicado_cliente,
     });
     return resolverDesgloseIvaMostrado(null, calc);
-  }, [candidato, requiereRepuestos]);
+  }, [candidato]);
 
   if (!candidato) return null;
 
   const nombre = candidato.proveedor?.nombre || 'Proveedor';
-  const tipo = candidato.a_domicilio ? 'A domicilio' : 'Taller';
+  const tipo = candidato.a_domicilio ? 'A domicilio' : 'En taller';
+  const rating = candidato.proveedor?.rating;
+  const distKm = candidato.distancia_km;
+  const matchPct =
+    candidato.score_match != null ? Math.round(Number(candidato.score_match) * 100) : null;
+  const servicioNombre = candidato.servicio?.nombre;
+  const esRecomendado = variant === 'recomendado' || candidato.es_recomendado;
 
   return (
-    <TouchableOpacity
-      style={[styles.card, selected && styles.cardSelected]}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
-      <Text style={styles.nombre}>{nombre}</Text>
-      <View style={styles.row}>
-        <Wrench size={14} color={COLORS.text?.secondary} />
-        <Text style={styles.meta}>{candidato.servicio?.nombre}</Text>
+    <View style={[styles.card, selected && styles.cardSelected]}>
+      <View style={styles.header}>
+        <Text style={styles.nombre} numberOfLines={2}>
+          {nombre}
+        </Text>
+        {esRecomendado && matchPct != null ? (
+          <View style={styles.matchPill}>
+            <Text style={styles.matchPillText}>{matchPct}% match</Text>
+          </View>
+        ) : null}
       </View>
-      <View style={styles.row}>
-        <MapPin size={14} color={COLORS.text?.secondary} />
-        <Text style={styles.meta}>{tipo}</Text>
+
+      {servicioNombre ? (
+        <View style={styles.metaRow}>
+          <Wrench size={13} color={COLORS.text.tertiary} />
+          <Text style={styles.meta} numberOfLines={1}>
+            {servicioNombre}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={styles.metaRow}>
+        <MapPin size={13} color={COLORS.text.tertiary} />
+        <Text style={styles.meta}>
+          {tipo}
+          {distKm != null && distKm < 999 ? ` · ${distKm} km` : ''}
+        </Text>
       </View>
+
+      {rating != null && Number(rating) > 0 ? (
+        <View style={styles.metaRow}>
+          <Star size={13} color={COLORS.warning.main} fill={COLORS.warning.main} />
+          <Text style={styles.meta}>{Number(rating).toFixed(1)}</Text>
+        </View>
+      ) : null}
+
       <Text style={styles.precio}>{formatCLP(desglose.total)}</Text>
-      <Text style={styles.iva}>
-        IVA incl. {formatCLP(desglose.iva)} · MO/rep. según catálogo
-      </Text>
-      {candidato.score_match != null ? (
-        <Text style={styles.match}>
-          Coincidencia {Math.round(Number(candidato.score_match) * 100)}%
+      <Text style={styles.precioHint}>Precio estimado · IVA incluido</Text>
+
+      {candidato.explicacion ? (
+        <Text style={styles.explicacion} numberOfLines={3}>
+          {candidato.explicacion}
         </Text>
       ) : null}
-      {candidato.explicacion ? (
-        <Text style={styles.explicacion}>{candidato.explicacion}</Text>
-      ) : null}
-    </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     padding: 14,
-    borderRadius: BORDERS.radius?.lg ?? 12,
+    borderRadius: BORDERS.radius.lg,
     borderWidth: 1,
-    borderColor: COLORS.border?.light || '#E5E7EB',
-    backgroundColor: COLORS.background?.paper || '#FFFFFF',
-    marginBottom: 10,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   cardSelected: {
     borderColor: T.primary,
     borderWidth: 2,
+    backgroundColor: COLORS.primary[50],
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 6,
   },
   nombre: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text?.primary || '#111827',
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    lineHeight: 22,
   },
-  row: {
+  matchPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.primary[100],
+  },
+  matchPillText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[700],
+    fontVariant: ['tabular-nums'],
+  },
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 6,
+    marginTop: 4,
   },
   meta: {
-    fontSize: 13,
-    color: COLORS.text?.secondary || '#6B7280',
     flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
   },
   precio: {
-    marginTop: 10,
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text?.primary || '#111827',
+    marginTop: 12,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    fontVariant: ['tabular-nums'],
   },
-  iva: {
-    fontSize: 12,
-    color: COLORS.text?.disabled || '#9CA3AF',
+  precioHint: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.tertiary,
     marginTop: 2,
   },
-  match: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '600',
-    color: T.primary,
-  },
   explicacion: {
-    fontSize: 12,
-    color: COLORS.text?.secondary || '#6B7280',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
     marginTop: 8,
+    lineHeight: 17,
   },
 });

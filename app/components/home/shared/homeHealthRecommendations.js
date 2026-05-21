@@ -73,6 +73,8 @@ export function buildHealthServiceRecommendations(healthComponents = [], servici
         kmRestantes: kmRest,
         service: svc,
       });
+      // Un servicio por componente: evita varias cards con el mismo desgaste
+      break;
     }
   }
 

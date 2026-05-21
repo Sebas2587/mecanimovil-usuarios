@@ -14,10 +14,11 @@ const HomePatrimonyHeroSection = ({
   odometer,
   motorType,
   onPressHealth,
+  showHealthRing = true,
 }) => (
   <HomePanelCard style={styles.card}>
     <View style={styles.heroRow}>
-      <View style={styles.heroMain}>
+      <View style={[styles.heroMain, !showHealthRing && styles.heroMainFull]}>
         <View style={styles.labelRow}>
           <TrendingUp size={14} color={COLORS.success.main} />
           <Text style={styles.labelText}>Valor estimado</Text>
@@ -34,22 +35,31 @@ const HomePatrimonyHeroSection = ({
             {formatCLP(Math.abs(priceDelta))} vs mercado
           </Text>
         ) : null}
+        {!showHealthRing && healthScore != null ? (
+          <TouchableOpacity onPress={onPressHealth} activeOpacity={0.85}>
+            <Text style={[styles.healthInline, { color: healthScoreColor }]}>
+              Salud {Math.round(healthScore)}% · {getHealthLabel(healthScore)}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      <TouchableOpacity
-        style={styles.healthCircleWrap}
-        onPress={onPressHealth}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel={`Salud del vehículo ${Math.round(healthScore)} por ciento, ${getHealthLabel(healthScore)}`}
-      >
-        <View style={[styles.healthCircle, { borderColor: healthScoreColor }]}>
-          <Text style={[styles.healthCirclePct, { color: healthScoreColor }]}>
-            {Math.round(healthScore)}%
-          </Text>
-          <Text style={styles.healthCircleSaludLabel}>Salud</Text>
-        </View>
-      </TouchableOpacity>
+      {showHealthRing ? (
+        <TouchableOpacity
+          style={styles.healthCircleWrap}
+          onPress={onPressHealth}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`Salud del vehículo ${Math.round(healthScore)} por ciento, ${getHealthLabel(healthScore)}`}
+        >
+          <View style={[styles.healthCircle, { borderColor: healthScoreColor }]}>
+            <Text style={[styles.healthCirclePct, { color: healthScoreColor }]}>
+              {Math.round(healthScore)}%
+            </Text>
+            <Text style={styles.healthCircleSaludLabel}>Salud</Text>
+          </View>
+        </TouchableOpacity>
+      ) : null}
     </View>
 
     <View style={styles.odometerRow}>
@@ -72,6 +82,15 @@ const styles = StyleSheet.create({
   },
   heroMain: {
     flex: 1,
+  },
+  heroMainFull: {
+    flex: 1,
+    marginRight: 0,
+  },
+  healthInline: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    marginTop: 8,
   },
   labelRow: {
     flexDirection: 'row',

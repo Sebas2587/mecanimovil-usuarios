@@ -1,10 +1,9 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import HomeVehicleVitalityStrip from './HomeVehicleVitalityStrip';
 import HomeVehicleDashboardFold from './HomeVehicleDashboardFold';
 
 /**
- * Bloque del vehículo al final del home: resumen + detalle colapsable.
+ * Bloque único del vehículo al final del home (resumen + detalle colapsable).
  */
 const HomeVehicleDashboardCard = ({
   selectedVehicle,
@@ -28,18 +27,6 @@ const HomeVehicleDashboardCard = ({
 
   return (
     <View style={styles.wrap}>
-      <HomeVehicleVitalityStrip
-        healthScore={healthScore}
-        healthScoreColor={healthScoreColor}
-        odometer={odometer}
-        valuation={valuation}
-        tripActive={tripActive}
-        tripKm={tripKm}
-        climateRiskPct={climateRiskPct}
-        weatherAvailable={weatherAvailable}
-        onPressHealth={onPressHealth}
-        onPressDetails={onToggle}
-      />
       <HomeVehicleDashboardFold
         visible
         expanded={expanded}
@@ -52,6 +39,9 @@ const HomeVehicleDashboardCard = ({
         odometer={odometer}
         motorType={motorType}
         onPressHealth={onPressHealth}
+        tripKm={tripKm}
+        climateRiskPct={climateRiskPct}
+        weatherAvailable={weatherAvailable}
         telemetry={telemetry}
         weather={weather}
       />

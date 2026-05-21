@@ -93,7 +93,7 @@ export function useAgendamientoAsistido() {
     }) => {
       if (!vehiculoId || !Array.isArray(servicioIds) || servicioIds.length === 0) {
         setCandidatos([]);
-        return [];
+        return { recomendados: [], otros: [], radioKm: null, raw: null };
       }
       setLoadingCandidatos(true);
       setError(null);
@@ -107,13 +107,21 @@ export function useAgendamientoAsistido() {
           direccion_texto: direccionTexto,
           requiere_repuestos: requiereRepuestos,
         });
-        const list = Array.isArray(data?.candidatos) ? data.candidatos : [];
-        setCandidatos(list);
-        return list;
+        const recomendados = Array.isArray(data?.candidatos_recomendados)
+          ? data.candidatos_recomendados
+          : (Array.isArray(data?.candidatos) ? data.candidatos : []);
+        const otros = Array.isArray(data?.otros_candidatos) ? data.otros_candidatos : [];
+        setCandidatos(recomendados);
+        return {
+          recomendados,
+          otros,
+          radioKm: data?.radio_km ?? null,
+          raw: data,
+        };
       } catch (e) {
         setError(e?.message || 'No se pudieron cargar proveedores');
         setCandidatos([]);
-        return [];
+        return { recomendados: [], otros: [], radioKm: null, raw: null };
       } finally {
         setLoadingCandidatos(false);
       }

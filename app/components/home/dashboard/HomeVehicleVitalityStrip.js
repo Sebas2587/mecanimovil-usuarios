@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { Gauge, CloudRain, Navigation, TrendingUp, ChevronRight } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
+import { Gauge, CloudRain, Navigation, TrendingUp, ChevronDown } from 'lucide-react-native';
+import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import { formatCLP, formatKm } from '../shared/homeFormatters';
 
 /**
- * Resumen vital del vehículo activo (siempre visible, ligado al auto seleccionado).
+ * Resumen vital del vehículo (cabecera del bloque colapsable o standalone).
  */
 const HomeVehicleVitalityStrip = ({
   healthScore,
@@ -17,22 +17,19 @@ const HomeVehicleVitalityStrip = ({
   climateRiskPct,
   weatherAvailable,
   onPressHealth,
-  onPressDetails,
+  embedded = false,
+  expanded = false,
 }) => {
   if (healthScore == null && !valuation) return null;
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPressDetails}
-      activeOpacity={0.9}
-      accessibilityRole="button"
-      accessibilityLabel="Detalle de salud, patrimonio, viaje y clima de tu vehículo"
-    >
+    <View style={[styles.inner, embedded && styles.innerEmbedded]}>
       <TouchableOpacity
         style={[styles.healthRing, { borderColor: healthScoreColor || COLORS.primary[300] }]}
         onPress={onPressHealth}
         hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={`Salud del vehículo ${healthScore != null ? Math.round(healthScore) : ''} por ciento`}
       >
         <Text style={[styles.healthPct, { color: healthScoreColor || COLORS.primary[600] }]}>
           {healthScore != null ? `${Math.round(healthScore)}%` : '—'}
@@ -67,16 +64,19 @@ const HomeVehicleVitalityStrip = ({
         ) : null}
       </View>
 
-      <View style={styles.chevron}>
-        <Text style={styles.more}>Detalle</Text>
-        <ChevronRight size={16} color={COLORS.text.tertiary} />
-      </View>
-    </TouchableOpacity>
+      {embedded ? (
+        <ChevronDown
+          size={20}
+          color={COLORS.text.tertiary}
+          style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}
+        />
+      ) : null}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
+  inner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -86,7 +86,15 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.lg,
     borderWidth: 1,
     borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
+  },
+  innerEmbedded: {
+    flex: 1,
+    width: '100%',
+    marginBottom: 0,
+    padding: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 0,
   },
   healthRing: {
     width: 56,
@@ -131,15 +139,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.primary[600],
-  },
-  chevron: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  more: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.tertiary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
 });
 

@@ -8,25 +8,77 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { ShieldAlert } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
+import { Wrench, ChevronRight } from 'lucide-react-native';
+import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import VehicleHealthService from '../../../services/vehicleHealthService';
 import { getServicesByVehiculo } from '../../../services/service';
+import { getHealthColorToken } from '../../../utils/healthFormat';
 import {
   buildHealthServiceRecommendations,
   normalizeHealthComponentsList,
 } from '../shared/homeHealthRecommendations';
 
-function levelColor(level) {
-  const l = String(level || '').toUpperCase();
-  if (l === 'CRITICO' || l === 'CRÍTICO') return COLORS.error.main;
-  if (l === 'ATENCION' || l === 'ATENCIÓN') return COLORS.warning.main;
-  return COLORS.primary[500];
+function formatKm(km) {
+  if (km == null || Number.isNaN(Number(km))) return null;
+  return `~${Math.round(Number(km)).toLocaleString('es-CL')} km`;
+}
+
+function HealthWearServiceCard({ rec, onAgendar }) {
+  const svc = rec.service;
+  const pct = Math.round(rec.componentHealth ?? 0);
+  const accent = getHealthColorToken(COLORS, pct);
+  const kmLine = formatKm(rec.kmRestantes);
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.topRow}>
+        <View style={styles.iconWrap}>
+          <Wrench size={16} color={COLORS.primary[500]} />
+        </View>
+        <View style={styles.topText}>
+          <Text style={styles.componentLabel} numberOfLines={1}>
+            {rec.componentName}
+          </Text>
+          <View style={styles.pctRow}>
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${Math.min(100, Math.max(0, pct))}%`,
+                    backgroundColor: accent,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={[styles.pctText, { color: accent }]}>{pct}%</Text>
+          </View>
+        </View>
+      </View>
+
+      <Text style={styles.svcName} numberOfLines={2}>
+        {svc.nombre}
+      </Text>
+
+      {kmLine ? <Text style={styles.kmLine}>{kmLine}</Text> : null}
+
+      <TouchableOpacity
+        style={styles.agendarLink}
+        onPress={() => onAgendar?.(svc)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Agendar ${svc.nombre}`}
+      >
+        <Text style={styles.agendarLinkText}>Agendar</Text>
+        <ChevronRight size={16} color={COLORS.primary[500]} />
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 /**
- * Servicios sugeridos por desgaste / salud del vehículo (tap → nueva solicitud).
+ * Servicios sugeridos por desgaste (un servicio por componente crítico).
  */
 const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
   const vehicleId = selectedVehicle?.id;
@@ -61,9 +113,9 @@ const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
   return (
     <View style={styles.section}>
       <HomeSectionHeader
-        icon={<ShieldAlert size={16} color={COLORS.warning.main} />}
-        title="Según el desgaste de tu vehículo"
-        hint={`Servicios recomendados para tu ${marca}`}
+        icon={<Wrench size={16} color={COLORS.primary[500]} />}
+        title="Mantenimiento sugerido"
+        hint={`Por desgaste en tu ${marca}`}
       />
 
       {loading ? (
@@ -75,37 +127,13 @@ const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
           contentContainerStyle={styles.row}
           keyboardShouldPersistTaps="handled"
         >
-          {recommendations.map((rec) => {
-            const svc = rec.service;
-            return (
-              <View key={`health-svc-${svc.id}`} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <View
-                    style={[styles.dot, { backgroundColor: levelColor(rec.componentLevel) }]}
-                  />
-                  <Text style={styles.compName} numberOfLines={1}>
-                    {rec.componentName}
-                  </Text>
-                </View>
-                <Text style={styles.svcName} numberOfLines={2}>
-                  {svc.nombre}
-                </Text>
-                <Text style={styles.wear} numberOfLines={2}>
-                  Vida útil ~{Math.round(rec.componentHealth)}%
-                  {rec.kmRestantes != null
-                    ? ` · ${Number(rec.kmRestantes).toLocaleString('es-CL')} km`
-                    : ''}
-                </Text>
-                <TouchableOpacity
-                  style={styles.agendarBtn}
-                  onPress={() => onAgendarServicio?.(svc)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.agendarText}>Agendar</Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
+          {recommendations.map((rec) => (
+            <HealthWearServiceCard
+              key={`health-${rec.componentName}-${rec.service.id}`}
+              rec={rec}
+              onAgendar={onAgendarServicio}
+            />
+          ))}
         </ScrollView>
       )}
     </View>
@@ -121,60 +149,92 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
     paddingRight: 8,
   },
   card: {
-    width: 168,
+    width: 172,
     padding: 14,
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
     borderWidth: 1,
     borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
-  cardTop: {
+  topRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 10,
+  },
+  iconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
+    justifyContent: 'center',
   },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  compName: {
+  topText: {
     flex: 1,
+    minWidth: 0,
+  },
+  componentLabel: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.secondary,
     textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  pctRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.neutral.gray[200],
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  pctText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
+    minWidth: 34,
+    textAlign: 'right',
   },
   svcName: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
-    lineHeight: 18,
+    lineHeight: 21,
     marginBottom: 4,
-    minHeight: 36,
+    minHeight: 42,
   },
-  wear: {
+  kmLine: {
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
-    lineHeight: 16,
-    marginBottom: 10,
+    color: COLORS.text.tertiary,
+    marginBottom: 6,
   },
-  agendarBtn: {
+  agendarLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[500],
+    gap: 2,
+    marginTop: 2,
+    paddingVertical: 4,
   },
-  agendarText: {
+  agendarLinkText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.inverse,
+    color: COLORS.primary[500],
   },
 });
 
