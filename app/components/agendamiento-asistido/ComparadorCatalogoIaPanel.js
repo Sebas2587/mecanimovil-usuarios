@@ -123,7 +123,8 @@ export default function ComparadorCatalogoIaPanel({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Otros proveedores</Text>
           <Text style={styles.sectionSub}>
-            Mismo servicio dentro de {radioLabel} km desde tu dirección.
+            Mismo servicio con menor coincidencia (ubicación, perfil o ranking), dentro de{' '}
+            {radioLabel} km cuando aplica.
           </Text>
           {otros.map((oferta) => (
             <ProveedorOfertaBlock

@@ -44,7 +44,11 @@ export default function CandidatosProveedorCard({
   const matchPct =
     candidato.score_match != null ? Math.round(Number(candidato.score_match) * 100) : null;
   const servicioNombre = candidato.servicio?.nombre;
-  const esRecomendado = variant === 'recomendado' || candidato.es_recomendado;
+  const esExacta =
+    variant === 'recomendado'
+    || candidato.es_coincidencia_exacta
+    || candidato.es_recomendado
+    || candidato.nivel_coincidencia === 'exacta';
 
   return (
     <View style={[styles.card, selected && styles.cardSelected]}>
@@ -52,9 +56,11 @@ export default function CandidatosProveedorCard({
         <Text style={styles.nombre} numberOfLines={2}>
           {nombre}
         </Text>
-        {esRecomendado && matchPct != null ? (
-          <View style={styles.matchPill}>
-            <Text style={styles.matchPillText}>{matchPct}% match</Text>
+        {matchPct != null ? (
+          <View style={[styles.matchPill, !esExacta && styles.matchPillParcial]}>
+            <Text style={[styles.matchPillText, !esExacta && styles.matchPillTextParcial]}>
+              {matchPct}% {esExacta ? 'match' : 'parcial'}
+            </Text>
           </View>
         ) : null}
       </View>
@@ -136,6 +142,12 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.primary[700],
     fontVariant: ['tabular-nums'],
+  },
+  matchPillParcial: {
+    backgroundColor: COLORS.neutral.gray[100],
+  },
+  matchPillTextParcial: {
+    color: COLORS.text.secondary,
   },
   metaRow: {
     flexDirection: 'row',

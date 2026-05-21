@@ -182,6 +182,8 @@ export function mapCandidatoToOfertaComparador(candidato) {
     distancia_km: candidato.distancia_km,
     dentro_radio_km: candidato.dentro_radio_km,
     es_recomendado: candidato.es_recomendado,
+    es_coincidencia_exacta: candidato.es_coincidencia_exacta,
+    nivel_coincidencia: candidato.nivel_coincidencia,
     servicios: candidato.servicio ? [candidato.servicio] : [],
     estado: 'catalogo_preview',
   };
