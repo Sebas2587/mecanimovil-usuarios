@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Package } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import CandidatosProveedorCard from './CandidatosProveedorCard';
-import { parseDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
+import { resolveDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
 
 function sortPorDistancia(ofertas) {
   return [...ofertas].sort((a, b) => {
@@ -16,7 +15,7 @@ function sortPorDistancia(ofertas) {
   });
 }
 
-function toCandidato(oferta, requiereRepuestos) {
+function toCandidato(oferta, requiereRepuestos, userCoords) {
   const conRepuestos = requiereRepuestos !== false;
   const precioRep = oferta.precio_con_repuestos ?? oferta.precio_total_ofrecido;
   const precioSin = oferta.precio_sin_repuestos ?? oferta.precio_total_ofrecido;
@@ -50,7 +49,7 @@ function toCandidato(oferta, requiereRepuestos) {
     incluye_repuestos_sugerido: conRepuestos,
     score_match: oferta.score_match,
     explicacion: oferta.explicacion,
-    distancia_km: parseDistanciaKmCandidato(oferta.distancia_km),
+    distancia_km: resolveDistanciaKmCandidato(oferta, userCoords),
     es_recomendado: oferta.es_recomendado,
     es_coincidencia_exacta: oferta.es_coincidencia_exacta,
     nivel_coincidencia: oferta.nivel_coincidencia,
@@ -68,6 +67,7 @@ export default function ComparadorCatalogoIaPanel({
   onAceptar,
   procesando = false,
   requiereRepuestos = true,
+  userCoords = null,
 }) {
   const [confirmandoId, setConfirmandoId] = useState(null);
 
@@ -86,7 +86,7 @@ export default function ComparadorCatalogoIaPanel({
   };
 
   const renderOferta = (oferta, variant) => {
-    const candidato = toCandidato(oferta, requiereRepuestos);
+    const candidato = toCandidato(oferta, requiereRepuestos, userCoords);
     const id = oferta.oferta_servicio_id || oferta.id;
     return (
       <CandidatosProveedorCard
@@ -103,14 +103,6 @@ export default function ComparadorCatalogoIaPanel({
 
   return (
     <View style={styles.wrap}>
-      <View style={styles.contextPill}>
-        <Package size={14} color={COLORS.primary[500]} />
-        <Text style={styles.contextPillText}>
-          {requiereRepuestos !== false
-            ? 'Búsqueda y precios con repuestos (paso 2)'
-            : 'Búsqueda y precios solo mano de obra (paso 2)'}
-        </Text>
-      </View>
       <Text style={styles.lead}>
         El proveedor confirma el servicio antes de pagar. Los candidatos coinciden con tu
         vehículo, servicio y ubicación.
@@ -146,25 +138,6 @@ export default function ComparadorCatalogoIaPanel({
 const styles = StyleSheet.create({
   wrap: {
     gap: 0,
-  },
-  contextPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
-    borderWidth: 1,
-    borderColor: COLORS.primary[200],
-    marginBottom: 12,
-  },
-  contextPillText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[800],
-    lineHeight: 18,
   },
   lead: {
     fontSize: TYPOGRAPHY.fontSize.sm,

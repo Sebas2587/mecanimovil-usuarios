@@ -10,7 +10,7 @@ import { Image } from 'expo-image';
 import { MapPin, Star, Wrench, Package, User } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { buildProviderAvatarUri } from '../../utils/providerUtils';
-import { parseDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
+import { formatDistance } from '../../utils/geoUtils';
 import {
   calcularDesgloseIvaOferta,
   resolverDesgloseIvaMostrado,
@@ -80,7 +80,7 @@ export default function CandidatosProveedorCard({
   const nombre = candidato.proveedor?.nombre || 'Proveedor';
   const tipo = candidato.a_domicilio ? 'A domicilio' : 'En taller';
   const rating = candidato.proveedor?.rating;
-  const distKm = parseDistanciaKmCandidato(candidato.distancia_km);
+  const distKm = candidato.distancia_km;
   const matchPct =
     candidato.score_match != null ? Math.round(Number(candidato.score_match) * 100) : null;
   const servicioNombre = candidato.servicio?.nombre;
@@ -153,7 +153,7 @@ export default function CandidatosProveedorCard({
         <MapPin size={14} color={COLORS.primary[500]} />
         <Text style={styles.distanciaText}>
           {distKm != null
-            ? `${distKm} km desde tu dirección`
+            ? `${formatDistance(distKm)} desde tu dirección`
             : 'Distancia no disponible'}
         </Text>
       </View>

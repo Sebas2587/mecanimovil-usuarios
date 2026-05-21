@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -369,6 +369,10 @@ const ComparadorOfertasScreen = () => {
   };
 
   const requiereRepuestos = formPayload?.requiere_repuestos !== false;
+  const userCoords = useMemo(
+    () => (formPayload ? resolveCoordenadasServicio(formPayload) : null),
+    [formPayload],
+  );
 
   const shell = (body) => (
     <View style={styles.container}>
@@ -458,6 +462,7 @@ const ComparadorOfertasScreen = () => {
             onAceptar={handleAceptarOferta}
             procesando={procesando}
             requiereRepuestos={requiereRepuestos}
+            userCoords={userCoords}
           />
         ) : (
           <ComparadorOfertas

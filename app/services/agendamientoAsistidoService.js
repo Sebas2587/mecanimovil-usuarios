@@ -3,6 +3,8 @@
  */
 import Constants from 'expo-constants';
 import { get, post } from './api';
+import { validarCoordenadasChile } from '../utils/coordenadasServicio';
+import { calculateDistance } from '../utils/geoUtils';
 
 const BASE = '/ordenes/asistente-agendamiento';
 
@@ -159,7 +161,43 @@ export function parseDistanciaKmCandidato(value) {
   if (value == null || value === '') return null;
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0 || n >= 999) return null;
-  return Math.round(n * 10) / 10;
+  if (n === 0) return null;
+  return n < 1 ? Math.round(n * 100) / 100 : Math.round(n * 10) / 10;
+}
+
+/** Extrae km desde texto de explicación del motor (ej. "12.3 km"). */
+function extractKmFromExplicacion(text) {
+  if (!text) return null;
+  const m = String(text).match(/(\d+(?:[.,]\d+)?)\s*km/i);
+  if (!m) return null;
+  const n = Number(String(m[1]).replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0 || n >= 999) return null;
+  return n < 1 ? Math.round(n * 100) / 100 : Math.round(n * 10) / 10;
+}
+
+/**
+ * Distancia para cards del comparador: API, explicación o cálculo local con coords del usuario.
+ */
+export function resolveDistanciaKmCandidato(oferta, userCoords = null) {
+  const fromApi = parseDistanciaKmCandidato(oferta?.distancia_km);
+  if (fromApi != null) return fromApi;
+
+  const fromExpl = extractKmFromExplicacion(oferta?.explicacion);
+  if (fromExpl != null) return fromExpl;
+
+  if (!userCoords?.lat || !userCoords?.lng) return null;
+
+  const p = oferta?.proveedor || {};
+  const lat = p.lat ?? p.latitude ?? oferta.proveedor_lat;
+  const lng = p.lng ?? p.longitude ?? oferta.proveedor_lng;
+  if (lat == null || lng == null) return null;
+
+  const prov = validarCoordenadasChile(lat, lng);
+  if (!prov) return null;
+  const km = calculateDistance(userCoords.lat, userCoords.lng, prov.lat, prov.lng);
+  if (!Number.isFinite(km) || km < 0 || km >= 999) return null;
+  if (km < 0.05) return 0.1;
+  return km < 1 ? Math.round(km * 100) / 100 : Math.round(km * 10) / 10;
 }
 
 export function mapCandidatoToOfertaComparador(candidato) {
