@@ -7,8 +7,10 @@ import {
   getKpiTierPresentation,
   getProviderImageCandidatesResolved,
   getPanelServicios,
+  getProviderCompletedServicesCount,
 } from '../../utils/providerUtils';
 import ProviderServiceChipsRow from './ProviderServiceChipsRow';
+import ProviderCardRatingBadge from './ProviderCardRatingBadge';
 import { getAxiosMediaBaseSync } from '../../services/api';
 
 /**
@@ -33,6 +35,10 @@ const ProviderPreviewCard = ({
   typeLabel = null,
   omitRightMargin = false,
   serviceOffers = null,
+  /** 'offers' = chips de servicios; 'bookings' = contrataciones (Destacados / Cerca en home). */
+  cardFooterVariant = 'offers',
+  reviews = 0,
+  bookingsCount = null,
 }) => {
   const imageHeight = Math.max(96, Math.round(width * 0.54));
   const containerRadius = BORDERS.radius.card?.lg ?? BORDERS.radius.lg;
@@ -71,12 +77,23 @@ const ProviderPreviewCard = ({
 
   const ratingLabel = rating != null && rating !== '' ? String(rating) : '—';
   const distanceLabel = distance != null && distance !== '' ? String(distance) : '—';
+  const useSocialMetrics = cardFooterVariant === 'bookings';
+  const reviewsCount = Number(reviews) || 0;
+  const resolvedBookings =
+    bookingsCount != null
+      ? Math.max(0, Math.floor(Number(bookingsCount) || 0))
+      : providerRaw
+        ? getProviderCompletedServicesCount(providerRaw)
+        : 0;
 
   const panelOffers =
     serviceOffers != null ? serviceOffers : providerRaw ? getPanelServicios(providerRaw) : [];
-  const hasOfferChips = panelOffers.length > 0;
+  const showOfferChips = !useSocialMetrics && panelOffers.length > 0;
+  const showBookingsBadge = useSocialMetrics && resolvedBookings > 0;
+  const showSpecialtyFallback = !showOfferChips && !showBookingsBadge;
+  const compactMetrics = width < 180;
 
-  const kpiPresentation = getKpiTierPresentation(kpiBadge);
+  const kpiPresentation = getKpiTierPresentation(kpiBadge, providerRaw);
   const showTier = !!kpiPresentation;
   const kpiFloatBg = kpiPresentation ? withOpacity(kpiPresentation.bg_color, 0.95) : undefined;
   const kpiFloatBorder = kpiPresentation ? kpiPresentation.border_color : undefined;
@@ -156,19 +173,35 @@ const ProviderPreviewCard = ({
             </View>
           ) : null}
         </View>
-        {hasOfferChips ? (
-          <ProviderServiceChipsRow offers={panelOffers} compact={width < 180} />
-        ) : (
+        {showOfferChips ? (
+          <ProviderServiceChipsRow offers={panelOffers} compact={compactMetrics} />
+        ) : null}
+        {showBookingsBadge ? (
+          <ProviderServiceChipsRow
+            variant="bookings"
+            bookingsCount={resolvedBookings}
+            compact={compactMetrics}
+          />
+        ) : null}
+        {showSpecialtyFallback ? (
           <Text style={styles.specialtyText} numberOfLines={2}>
             {specialty}
           </Text>
-        )}
+        ) : null}
 
         <View style={styles.ratingDistanceRow}>
-          <View style={styles.ratingPill}>
-            <Ionicons name="star" size={11} color={COLORS.warning.main} />
-            <Text style={styles.ratingPillText}>{ratingLabel}</Text>
-          </View>
+          {useSocialMetrics ? (
+            <ProviderCardRatingBadge
+              rating={rating}
+              reviewsCount={reviewsCount}
+              compact={compactMetrics}
+            />
+          ) : (
+            <View style={styles.ratingPill}>
+              <Ionicons name="star" size={11} color={COLORS.warning.main} />
+              <Text style={styles.ratingPillText}>{ratingLabel}</Text>
+            </View>
+          )}
           <View style={styles.distanceContainer}>
             <Ionicons name="location-outline" size={12} color={COLORS.text.tertiary} />
             <Text style={styles.distanceText} numberOfLines={1}>
@@ -283,6 +316,7 @@ const getStyles = (width, omitRightMargin, imageHeight, containerRadius) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 8,
+      marginTop: 2,
       marginBottom: 0,
     },
     ratingPill: {

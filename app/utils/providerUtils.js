@@ -146,6 +146,32 @@ function isValidHexColor(s) {
 }
 
 /**
+ * Servicios terminados en ventana KPI (checklist inicio+fin) o histórico en listados.
+ */
+export const getProviderTerminatedServicesInPeriod = (provider, kpiBadge) => {
+  const fromBadge = kpiBadge?.servicios_terminados_en_periodo;
+  if (fromBadge != null && fromBadge !== '') {
+    const n = Number(fromBadge);
+    if (Number.isFinite(n) && n >= 0) return Math.floor(n);
+  }
+  return getProviderCompletedServicesCount(provider);
+};
+
+/**
+ * Si debe mostrarse insignia KPI alta en cards de usuarios (Elite/Máster/Pro).
+ */
+export const shouldShowPublicKpiTier = (kpiBadge, provider) => {
+  if (!kpiBadge || typeof kpiBadge !== 'object') return false;
+  const code = kpiBadge.code != null ? String(kpiBadge.code).trim().toUpperCase() : '';
+  if (!code || code === 'SIN_ACTIVIDAD') return false;
+  const highTier = code === 'ELITE' || code === 'MASTER' || code === 'PRO';
+  const terminados = getProviderTerminatedServicesInPeriod(provider, kpiBadge);
+  if (highTier && terminados < 1) return false;
+  if (highTier && !kpiBadge.is_active) return false;
+  return true;
+};
+
+/**
  * Texto corto de etiqueta de nivel (sin % ni métricas). Alineado con kpi_badge del backend.
  */
 export const getProviderTierLabel = (kpiBadge) => {
@@ -162,10 +188,18 @@ export const getProviderTierLabel = (kpiBadge) => {
  * Etiqueta + colores para pills KPI en cards (prioriza API; infiere tier por score si falta code).
  * @returns {{ label: string, bg_color: string, text_color: string, border_color: string, styleCode: string } | null}
  */
-export const getKpiTierPresentation = (kpiBadge) => {
+export const getKpiTierPresentation = (kpiBadge, provider = null) => {
   if (!kpiBadge || typeof kpiBadge !== 'object') return null;
 
   const apiCode = kpiBadge.code != null ? String(kpiBadge.code).trim().toUpperCase() : '';
+  const highTier = apiCode === 'ELITE' || apiCode === 'MASTER' || apiCode === 'PRO';
+  if (highTier && provider != null && !shouldShowPublicKpiTier(kpiBadge, provider)) {
+    return null;
+  }
+  if (highTier && provider == null) {
+    const terminados = getProviderTerminatedServicesInPeriod(null, kpiBadge);
+    if (terminados < 1 || !kpiBadge.is_active) return null;
+  }
   const score = parseKpiScore(kpiBadge.score);
   const staticSample = apiCode === 'EN_PROGRESO' || apiCode === 'SIN_ACTIVIDAD';
   const knownTier = apiCode === 'ELITE' || apiCode === 'MASTER' || apiCode === 'PRO' || apiCode === 'ASCENSO';
@@ -378,6 +412,38 @@ export const getPanelServicios = (provider) => {
   return raw.filter((item) => item && (item.nombre || item.servicio_id));
 };
 
+/** Servicios completados en plataforma (`servicios_completados` / anotación en listados). */
+export const getProviderCompletedServicesCount = (provider) => {
+  const raw =
+    provider?.servicios_completados ??
+    provider?.servicios_completados_count ??
+    provider?.trabajos_realizados ??
+    0;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.floor(n);
+};
+
+/** Etiqueta corta para badge de demanda en card (Coinbase). */
+export const formatProviderBookingsBadgeLabel = (countOrProvider) => {
+  const n =
+    typeof countOrProvider === 'number'
+      ? Math.max(0, Math.floor(countOrProvider))
+      : getProviderCompletedServicesCount(countOrProvider);
+  if (n <= 0) return null;
+  if (n === 1) return '1 contratación';
+  if (n >= 1000) return `${Math.floor(n / 1000)}k+ contrataciones`;
+  return `${n} contrataciones`;
+};
+
+export const formatProviderReviewsBadgeLabel = (count, { emptyLabel = null } = {}) => {
+  const n = Math.max(0, Math.floor(Number(count) || 0));
+  if (n <= 0) return emptyLabel;
+  if (n === 1) return '1 reseña';
+  if (n >= 1000) return `${Math.floor(n / 1000)}k+ reseñas`;
+  return `${n} reseñas`;
+};
+
 export const formatProviderForCard = (provider) => {
   const candidates = getProviderImageCandidatesResolved(provider);
   return {
@@ -386,6 +452,7 @@ export const formatProviderForCard = (provider) => {
     specialty: getProviderSpecialty(provider),
     rating: getProviderRating(provider),
     reviews: getProviderReviews(provider),
+    bookingsCount: getProviderCompletedServicesCount(provider),
     distance: getProviderDistance(provider),
     verified: provider?.verificado ?? false,
     image: candidates[0] || null,
