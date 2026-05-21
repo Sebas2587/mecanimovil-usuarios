@@ -68,13 +68,16 @@ export default function CandidatosProveedorCard({
         </View>
       ) : null}
 
-      <View style={styles.metaRow}>
-        <MapPin size={13} color={COLORS.text.tertiary} />
-        <Text style={styles.meta}>
-          {tipo}
-          {distKm != null && distKm < 999 ? ` · ${distKm} km` : ''}
+      <View style={styles.distanciaRow}>
+        <MapPin size={14} color={COLORS.primary[500]} />
+        <Text style={styles.distanciaText}>
+          {distKm != null && distKm < 999
+            ? `${distKm} km desde tu dirección`
+            : 'Distancia no disponible'}
         </Text>
       </View>
+
+      <Text style={styles.tipoText}>{tipo}</Text>
 
       {rating != null && Number(rating) > 0 ? (
         <View style={styles.metaRow}>
@@ -144,6 +147,24 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
+  },
+  distanciaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  distanciaText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[700],
+    fontVariant: ['tabular-nums'],
+  },
+  tipoText: {
+    marginTop: 4,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.tertiary,
   },
   precio: {
     marginTop: 12,

@@ -43,6 +43,7 @@ import {
 } from '../../services/agendamientoAsistidoService';
 import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
 import { filtrarServiciosConProveedores } from '../../utils/servicioProveedores';
+import { resolveCoordenadasServicio } from '../../utils/coordenadasServicio';
 import {
   catalogoIncluyeRepuestos,
   formatPrecioCatalogoServicio,
@@ -803,17 +804,8 @@ const FormularioSolicitud = ({
       Alert.alert('Ubicación requerida', 'Selecciona la dirección donde se realizará el servicio.');
       return;
     }
-    let lat = null;
-    let lng = null;
-    const ub = formData.ubicacion_servicio;
-    if (ub?.coordinates?.length >= 2) {
-      lng = ub.coordinates[0];
-      lat = ub.coordinates[1];
-    } else if (formData.direccion_usuario?.ubicacion?.coordinates?.length >= 2) {
-      lng = formData.direccion_usuario.ubicacion.coordinates[0];
-      lat = formData.direccion_usuario.ubicacion.coordinates[1];
-    }
-    if (lat == null || lng == null) {
+    const coords = resolveCoordenadasServicio(formData);
+    if (!coords) {
       Alert.alert(
         'Ubicación incompleta',
         'La dirección seleccionada no tiene coordenadas. Elige otra dirección o actualízala en tu perfil.',
@@ -828,8 +820,8 @@ const FormularioSolicitud = ({
     const { recomendados, otros, radioKm } = await cargarCandidatosIa({
       vehiculoId: formData.vehiculo.id,
       servicioIds,
-      lat,
-      lng,
+      lat: coords.lat,
+      lng: coords.lng,
       comunasExtraidas,
       direccionTexto,
       requiereRepuestos: formData.requiere_repuestos !== false,

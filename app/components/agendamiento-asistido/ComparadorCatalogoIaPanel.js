@@ -5,6 +5,17 @@ import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { AGENDAMIENTO_THEME as T } from './theme';
 import CandidatosProveedorCard from './CandidatosProveedorCard';
 
+function sortPorDistancia(ofertas) {
+  return [...ofertas].sort((a, b) => {
+    const da = a.distancia_km;
+    const db = b.distancia_km;
+    if (da == null && db == null) return 0;
+    if (da == null) return 1;
+    if (db == null) return -1;
+    return da - db;
+  });
+}
+
 function toCandidato(oferta) {
   return {
     ...oferta,
@@ -73,10 +84,12 @@ export default function ComparadorCatalogoIaPanel({
   procesando = false,
   requiereRepuestos = true,
 }) {
-  const recomendadas = Array.isArray(ofertasRecomendadas) && ofertasRecomendadas.length > 0
-    ? ofertasRecomendadas
-    : ofertas;
-  const otros = Array.isArray(ofertasOtros) ? ofertasOtros : [];
+  const recomendadas = sortPorDistancia(
+    Array.isArray(ofertasRecomendadas) && ofertasRecomendadas.length > 0
+      ? ofertasRecomendadas
+      : ofertas,
+  );
+  const otros = sortPorDistancia(Array.isArray(ofertasOtros) ? ofertasOtros : []);
   const radioLabel = radioKm != null ? Math.round(Number(radioKm)) : 80;
 
   return (
