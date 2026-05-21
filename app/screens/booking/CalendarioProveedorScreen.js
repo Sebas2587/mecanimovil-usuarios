@@ -22,6 +22,7 @@ import {
   obtenerDisponibilidadConDuracion,
   resolverFechasAgendaReales,
 } from '../../services/disponibilidadProveedorService';
+import { resolveAgendaParams } from '../../utils/calendarioProveedorNavigation';
 import { ROUTES } from '../../utils/constants';
 
 /**
@@ -32,15 +33,37 @@ export default function CalendarioProveedorScreen() {
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
+  const routeParams = route.params || {};
   const {
-    tipoProveedor = 'taller',
-    proveedorId,
     proveedorNombre = 'Proveedor',
-    ofertaServicioId,
     returnRoute = ROUTES.CREAR_SOLICITUD,
     returnParams = {},
     resumePasoFormulario = null,
-  } = route.params || {};
+  } = routeParams;
+
+  const agendaParams = useMemo(() => {
+    const ctx = routeParams.agendaContext;
+    if (ctx?.tipoProveedor && ctx?.proveedorId) {
+      return {
+        tipoProveedor: ctx.tipoProveedor,
+        proveedorId: ctx.proveedorId,
+        ofertaServicioId: ctx.ofertaServicioId ?? null,
+      };
+    }
+    return resolveAgendaParams({
+      routeParams: { ...returnParams, ...routeParams },
+      servicios: returnParams?.servicios_seleccionados,
+    });
+  }, [routeParams, returnParams]);
+
+  const tipoNorm =
+    agendaParams.tipoProveedor === 'mecanico' || agendaParams.tipoProveedor === 'domicilio'
+      ? 'mecanico'
+      : agendaParams.tipoProveedor === 'taller'
+        ? 'taller'
+        : null;
+  const proveedorId = agendaParams.proveedorId;
+  const ofertaServicioId = agendaParams.ofertaServicioId;
 
   const diasBase = useMemo(() => generarDiasCalendario(14), []);
   const [fechasHabilitadas, setFechasHabilitadas] = useState(null);
@@ -52,11 +75,13 @@ export default function CalendarioProveedorScreen() {
   const [error, setError] = useState(null);
   const [agendaSinDias, setAgendaSinDias] = useState(false);
 
-  const tipoNorm = tipoProveedor === 'mecanico' || tipoProveedor === 'domicilio' ? 'mecanico' : 'taller';
-
   const cargarDias = useCallback(async () => {
-    if (!proveedorId) {
-      setError('Proveedor no válido');
+    if (!proveedorId || !tipoNorm) {
+      setError(
+        !tipoNorm
+          ? 'No se pudo identificar el tipo de proveedor (taller o mecánico a domicilio).'
+          : 'Proveedor no válido',
+      );
       setLoadingDias(false);
       return;
     }

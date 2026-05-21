@@ -20,7 +20,12 @@ export function diaSemanaDesdeFecha(fechaYmd) {
 /** Solo filas persistidas en BD (id presente), no horarios sintéticos. */
 export function horariosSemanalesConfigurados(horarios) {
   if (!Array.isArray(horarios)) return [];
-  return horarios.filter((h) => h?.id != null && h?.activo !== false);
+  return horarios.filter((h) => {
+    if (h?.id == null && h?.id !== 0) return false;
+    const activo = h.activo;
+    if (activo === false || activo === 0 || activo === '0' || activo === 'false') return false;
+    return true;
+  });
 }
 
 export async function obtenerHorariosSemanalesProveedor({
@@ -79,7 +84,32 @@ export async function resolverFechasAgendaReales({
     };
   }
 
-  const diasLaborables = new Set(semanaReal.map((h) => h.dia_semana));
+  const diasLaborables = new Set(
+    semanaReal.map((h) => Number(h.dia_semana)).filter((n) => Number.isFinite(n)),
+  );
+
+  // API agregada (menos llamadas; mismo criterio que disponibilidad_con_duracion)
+  try {
+    const diasRes = await obtenerDiasDisponiblesAgenda({
+      tipoProveedor,
+      proveedorId,
+      ofertaServicioId,
+      dias: diasCalendario.length || 14,
+    });
+    const fechasApi = Array.isArray(diasRes?.fechas_disponibles)
+      ? diasRes.fechas_disponibles
+      : [];
+    if (fechasApi.length > 0) {
+      return {
+        fechas: fechasApi.sort(),
+        sinHorarioConfigurado: false,
+        diasLaborables,
+      };
+    }
+  } catch {
+    /* fallback por día */
+  }
+
   const candidatos = diasCalendario.filter((d) =>
     diasLaborables.has(diaSemanaDesdeFecha(d.fecha)),
   );

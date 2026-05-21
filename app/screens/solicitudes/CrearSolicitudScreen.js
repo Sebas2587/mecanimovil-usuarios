@@ -226,10 +226,16 @@ const CrearSolicitudScreen = () => {
         ...baseCampos,
         servicios_seleccionados: [buildServicioEntry(s)],
         tipo_solicitud: 'dirigida',
+        tipo_proveedor_preseleccionado: tipoProveedorPreseleccionado,
+        proveedor_entity_id: entityId,
+        oferta_servicio_id_preseleccionada:
+          s.oferta_servicio_id ?? s.oferta_id ?? ofertaServicioId ?? null,
         proveedores_dirigidos: [
           {
             ...proveedorPreseleccionado,
+            id: entityId,
             tipo: tipoProveedorPreseleccionado,
+            tipo_proveedor: tipoProveedorPreseleccionado,
             usuario_id: usuarioId,
             proveedor_entity_id: entityId,
             ...(tipoProveedorPreseleccionado === 'taller'
@@ -465,9 +471,28 @@ const CrearSolicitudScreen = () => {
             let proveedorFormato = null;
             let serviciosParaInitialData = [];
 
+            const buildServicioEntry = (s) => ({
+              id: s.id,
+              nombre: s.nombre || 'Servicio',
+              descripcion: s.descripcion || '',
+              precio_referencia: s.precio_referencia ?? s.precio_publicado_cliente,
+              categoria_id: s.categoria_id ?? s.categoria,
+              tipo_servicio: s.tipo_servicio,
+              oferta_id: s.oferta_id ?? s.oferta_servicio_id ?? ofertaServicioId,
+              oferta_servicio_id: s.oferta_servicio_id ?? s.oferta_id ?? ofertaServicioId,
+              precio_publicado_cliente: s.precio_publicado_cliente,
+              precio_con_repuestos: s.precio_con_repuestos,
+              precio_sin_repuestos: s.precio_sin_repuestos,
+              costo_mano_de_obra_sin_iva: s.costo_mano_de_obra_sin_iva,
+              costo_repuestos_sin_iva: s.costo_repuestos_sin_iva,
+              desglose_precios: s.desglose_precios,
+              duracion_estimada: s.duracion_estimada,
+              fotos_servicio: Array.isArray(s.fotos_servicio) ? s.fotos_servicio : [],
+            });
+
             // Si hay servicio como objeto (desde categorías o proveedor)
             if (tieneServicioObjeto) {
-              serviciosParaInitialData = [servicioPreseleccionado];
+              serviciosParaInitialData = [buildServicioEntry(servicioPreseleccionado)];
             }
             // Si hay servicios como array de IDs (desde alertas)
             else if (tieneServiciosArray) {
@@ -521,7 +546,9 @@ const CrearSolicitudScreen = () => {
               );
               proveedorFormato = {
                 ...proveedorPreseleccionado,
+                id: entityId,
                 tipo: tipoProveedorPreseleccionado,
+                tipo_proveedor: tipoProveedorPreseleccionado,
                 usuario_id: usuarioId,
                 proveedor_entity_id: entityId,
                 ...(tipoProveedorPreseleccionado === 'taller'
@@ -538,6 +565,10 @@ const CrearSolicitudScreen = () => {
               servicios_seleccionados: serviciosParaInitialData,
               tipo_solicitud: proveedorFormato ? 'dirigida' : 'global',
               proveedores_dirigidos: proveedorFormato ? [proveedorFormato] : [],
+              tipo_proveedor_preseleccionado: tipoProveedorPreseleccionado || null,
+              proveedor_entity_id: proveedorFormato?.proveedor_entity_id ?? null,
+              oferta_servicio_id_preseleccionada:
+                serviciosParaInitialData[0]?.oferta_servicio_id ?? ofertaServicioId ?? null,
               fromProviderDetail: fromProviderDetail || false,
               fromDashboard: fromDashboard || false,
               agendamientoInteligente: agendamientoInteligente || false,

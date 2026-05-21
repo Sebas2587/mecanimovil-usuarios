@@ -252,11 +252,20 @@ const ComparadorOfertasScreen = () => {
         return;
       }
       const nombre = oferta.nombre_proveedor || oferta.proveedor_nombre || 'el proveedor';
-      navigation.navigate(APP_ROUTES.CALENDARIO_PROVEEDOR, {
+      const agendaContext = {
         tipoProveedor: tipoProv,
         proveedorId,
+        proveedorEntityId: proveedorId,
+        ofertaServicioId: oferta.oferta_servicio_id,
+      };
+      navigation.navigate(APP_ROUTES.CALENDARIO_PROVEEDOR, {
+        ...agendaContext,
+        tipoProveedor: tipoProv,
+        proveedorId,
+        proveedorEntityId: proveedorId,
         proveedorNombre: nombre,
         ofertaServicioId: oferta.oferta_servicio_id,
+        agendaContext,
         returnRoute: ROUTES.COMPARADOR_OFERTAS,
         returnParams: {
           modoCatalogo: true,

@@ -93,6 +93,8 @@ export function buildProviderForSolicitud(provider, providerType) {
   return {
     ...provider,
     id: entityId,
+    tipo: panelKind,
+    tipo_proveedor: panelKind,
     proveedor_entity_id: entityId,
     taller_id: panelKind === 'taller' ? entityId : provider?.taller_id,
     mecanico_id: panelKind === 'mecanico' ? entityId : provider?.mecanico_id,

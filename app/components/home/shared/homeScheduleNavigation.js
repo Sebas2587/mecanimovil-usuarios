@@ -57,6 +57,8 @@ export function navigateCrearSolicitudConProveedorYServicio(
     servicioPreseleccionado: servicioMapeado,
     proveedorPreseleccionado: providerNorm,
     tipoProveedorPreseleccionado: tipo,
+    proveedorEntityId: providerNorm.proveedor_entity_id,
+    oferta_servicio_id_preseleccionada: ofertaId,
     fromProviderDetail: true,
     flujoCatalogoProveedor: true,
     ofertaServicioId: ofertaId,

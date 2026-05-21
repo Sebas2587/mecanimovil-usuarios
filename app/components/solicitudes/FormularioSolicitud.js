@@ -54,8 +54,8 @@ import SolicitudPaso2Contexto from './SolicitudPaso2Contexto';
 import SolicitudPaso1ServiceCard from './SolicitudPaso1ServiceCard';
 import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProviderAvatarUri } from '../../utils/providerUtils';
 import {
+  buildAgendaContext,
   navigateCalendarioProveedor,
-  resolveOfertaServicioId,
   resolveProveedorEntityId,
 } from '../../utils/calendarioProveedorNavigation';
 import SolicitudResumenTicket from './SolicitudResumenTicket';
@@ -1086,12 +1086,56 @@ const FormularioSolicitud = ({
       Alert.alert('Proveedor', 'Selecciona un proveedor para ver su agenda.');
       return false;
     }
+    const agenda = buildAgendaContext({
+      proveedor: prov,
+      tipoProveedor:
+        prov.tipo
+        || prov.tipo_proveedor
+        || initialData?.tipo_proveedor_preseleccionado
+        || initialData?.tipoProveedorPreseleccionado,
+      servicios: formData.servicios_seleccionados,
+      routeParams: {
+        ...route.params,
+        ...initialData,
+        proveedor_entity_id:
+          prov.proveedor_entity_id
+          ?? initialData?.proveedor_entity_id
+          ?? initialData?.proveedorEntityId,
+        oferta_servicio_id_preseleccionada:
+          formData.servicios_seleccionados?.[0]?.oferta_servicio_id
+          ?? formData.servicios_seleccionados?.[0]?.oferta_id
+          ?? initialData?.oferta_servicio_id_preseleccionada
+          ?? initialData?.ofertaServicioId,
+      },
+      requireOferta: flujoCatalogoProveedor || flujoCuatroPasos,
+    });
+    if (!agenda.valid) {
+      Alert.alert(
+        'Agenda',
+        agenda.tipoProveedor && agenda.proveedorId && !agenda.ofertaServicioId
+          ? 'Falta la oferta del servicio para calcular horarios. Vuelve al perfil y elige el servicio de nuevo.'
+          : 'No se pudo identificar el proveedor (taller o mecánico a domicilio). Vuelve al perfil e intenta de nuevo.',
+      );
+      return false;
+    }
     const ok = navigateCalendarioProveedor(navigation, {
       proveedor: prov,
-      tipoProveedor: prov.tipo || prov.tipo_proveedor,
-      ofertaServicioId: resolveOfertaServicioId(formData.servicios_seleccionados),
-      returnParams: { ...route.params },
+      tipoProveedor: agenda.tipoProveedor,
+      ofertaServicioId: agenda.ofertaServicioId,
+      servicios: formData.servicios_seleccionados,
+      returnParams: {
+        ...route.params,
+        ...initialData,
+        servicios_seleccionados: formData.servicios_seleccionados,
+        proveedores_dirigidos: formData.proveedores_dirigidos,
+        proveedorEntityId: agenda.proveedorId,
+        ofertaServicioId: agenda.ofertaServicioId,
+        tipoProveedorPreseleccionado: agenda.tipoProveedor,
+        tipo_proveedor_preseleccionado: agenda.tipoProveedor,
+        oferta_servicio_id_preseleccionada: agenda.ofertaServicioId,
+      },
       resumePasoFormulario: pasoActual,
+      requireOferta: flujoCatalogoProveedor || flujoCuatroPasos,
     });
     if (!ok) {
       Alert.alert('Error', 'No se pudo abrir la agenda del proveedor.');
