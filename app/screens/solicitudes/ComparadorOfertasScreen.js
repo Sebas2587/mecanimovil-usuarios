@@ -22,7 +22,11 @@ import ofertasService from '../../services/ofertasService';
 import {
   confirmarCandidato,
   buildConfirmarCandidatoPayload,
+  mapCandidatoToOfertaComparador,
 } from '../../services/agendamientoAsistidoService';
+import { useAgendamientoAsistido } from '../../hooks/useAgendamientoAsistido';
+import { resolveCoordenadasServicio } from '../../utils/coordenadasServicio';
+import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
 import { COLORS } from '../../design-system/tokens/colors';
 import { ROUTES as APP_ROUTES } from '../../utils/constants';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -51,6 +55,7 @@ const ComparadorOfertasScreen = () => {
 
   const { seleccionarOferta } = useSolicitudes();
   const { cargarTodosLosCarritos } = useAgendamiento();
+  const { cargarCandidatos } = useAgendamientoAsistido();
 
   const [ofertas, setOfertas] = useState([]);
   const [ofertasOtrosState, setOfertasOtrosState] = useState([]);
@@ -63,7 +68,7 @@ const ComparadorOfertasScreen = () => {
 
   useEffect(() => {
     cargarOfertas();
-  }, [ofertasIds, solicitudId, modoCatalogo, ofertasPreview]);
+  }, [ofertasIds, solicitudId, modoCatalogo, ofertasPreview, formPayload?.vehiculo?.id]);
 
   const confirmarCandidatoConHorario = useCallback(async () => {
     if (!formPayload || !pendingConfirmOferta?.oferta_servicio_id || !slotSeleccionado?.fecha) {
@@ -125,6 +130,42 @@ const ComparadorOfertasScreen = () => {
       setErrorValidacion(null);
 
       if (modoCatalogo) {
+        if (formPayload?.vehiculo?.id) {
+          const servicioIds = (formPayload.servicios_seleccionados || [])
+            .map((s) => s.id)
+            .filter(Boolean);
+          const coords = resolveCoordenadasServicio(formPayload);
+          if (coords && servicioIds.length > 0) {
+            try {
+              const comunasExtraidas = extraerComunasDesdeDireccion(formPayload.direccion_usuario);
+              const direccionTexto =
+                formPayload.direccion_servicio_texto?.trim()
+                || formPayload.direccion_usuario?.direccion?.trim()
+                || '';
+              const { recomendados, otros, radioKm: radioApi } = await cargarCandidatos({
+                vehiculoId: formPayload.vehiculo.id,
+                servicioIds,
+                lat: coords.lat,
+                lng: coords.lng,
+                comunasExtraidas,
+                direccionTexto,
+                requiereRepuestos: formPayload.requiere_repuestos !== false,
+              });
+              const recApi = recomendados.map(mapCandidatoToOfertaComparador).filter(Boolean);
+              const otrosApi = otros.map(mapCandidatoToOfertaComparador).filter(Boolean);
+              if (recApi.length > 0 || otrosApi.length > 0) {
+                setOfertas(recApi);
+                setOfertasOtrosState(otrosApi);
+                setRadioKmState(radioApi ?? radioKm);
+                setLoading(false);
+                return;
+              }
+            } catch (err) {
+              console.warn('Comparador catálogo: refetch candidatos', err?.message || err);
+            }
+          }
+        }
+
         const rec = Array.isArray(ofertasRecomendadas) && ofertasRecomendadas.length > 0
           ? ofertasRecomendadas
           : (Array.isArray(ofertasPreview) ? ofertasPreview : []);

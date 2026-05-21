@@ -154,6 +154,14 @@ export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extra
   };
 }
 
+/** Normaliza distancia_km del API (número o string) para UI. */
+export function parseDistanciaKmCandidato(value) {
+  if (value == null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n >= 999) return null;
+  return Math.round(n * 10) / 10;
+}
+
 export function mapCandidatoToOfertaComparador(candidato) {
   if (!candidato) return null;
   const desglose = candidato.desglose || {};
@@ -182,7 +190,7 @@ export function mapCandidatoToOfertaComparador(candidato) {
     a_domicilio: candidato.a_domicilio,
     score_match: candidato.score_match,
     explicacion: candidato.explicacion,
-    distancia_km: candidato.distancia_km,
+    distancia_km: parseDistanciaKmCandidato(candidato.distancia_km),
     dentro_radio_km: candidato.dentro_radio_km,
     es_recomendado: candidato.es_recomendado,
     es_coincidencia_exacta: candidato.es_coincidencia_exacta,

@@ -10,6 +10,7 @@ import { Image } from 'expo-image';
 import { MapPin, Star, Wrench, Package, User } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { buildProviderAvatarUri } from '../../utils/providerUtils';
+import { parseDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
 import {
   calcularDesgloseIvaOferta,
   resolverDesgloseIvaMostrado,
@@ -47,11 +48,15 @@ export default function CandidatosProveedorCard({
 
   const providerForAvatar = useMemo(() => {
     const p = candidato?.proveedor || {};
+    const foto =
+      p.foto_perfil_url || p.foto_perfil
+      || candidato?.foto_perfil_url || candidato?.proveedor_foto_url;
     return {
       ...p,
-      foto_perfil_url: p.foto_perfil_url || p.foto_perfil,
-      tipo_proveedor: p.tipo || candidato?.a_domicilio ? 'mecanico' : 'taller',
-      id: p.proveedor_id,
+      foto_perfil_url: foto,
+      foto_perfil: p.foto_perfil || candidato?.foto_perfil || foto,
+      tipo_proveedor: p.tipo || candidato?.tipo_proveedor || (candidato?.a_domicilio ? 'mecanico' : 'taller'),
+      id: p.proveedor_id || candidato?.proveedor_id,
     };
   }, [candidato]);
 
@@ -75,7 +80,7 @@ export default function CandidatosProveedorCard({
   const nombre = candidato.proveedor?.nombre || 'Proveedor';
   const tipo = candidato.a_domicilio ? 'A domicilio' : 'En taller';
   const rating = candidato.proveedor?.rating;
-  const distKm = candidato.distancia_km;
+  const distKm = parseDistanciaKmCandidato(candidato.distancia_km);
   const matchPct =
     candidato.score_match != null ? Math.round(Number(candidato.score_match) * 100) : null;
   const servicioNombre = candidato.servicio?.nombre;
@@ -147,7 +152,7 @@ export default function CandidatosProveedorCard({
       <View style={styles.distanciaRow}>
         <MapPin size={14} color={COLORS.primary[500]} />
         <Text style={styles.distanciaText}>
-          {distKm != null && distKm < 999
+          {distKm != null
             ? `${distKm} km desde tu dirección`
             : 'Distancia no disponible'}
         </Text>

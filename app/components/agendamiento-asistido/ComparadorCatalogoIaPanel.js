@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Package } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import CandidatosProveedorCard from './CandidatosProveedorCard';
+import { parseDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
 
 function sortPorDistancia(ofertas) {
   return [...ofertas].sort((a, b) => {
@@ -19,16 +20,22 @@ function toCandidato(oferta, requiereRepuestos) {
   const conRepuestos = requiereRepuestos !== false;
   const precioRep = oferta.precio_con_repuestos ?? oferta.precio_total_ofrecido;
   const precioSin = oferta.precio_sin_repuestos ?? oferta.precio_total_ofrecido;
+  const p = oferta.proveedor || {};
+  const fotoUrl =
+    p.foto_perfil_url || p.foto_perfil
+    || oferta.foto_perfil_url || oferta.proveedor_foto_url;
+  const proveedor = {
+    ...p,
+    nombre: p.nombre || oferta.nombre_proveedor || oferta.proveedor_nombre || 'Proveedor',
+    tipo: p.tipo || oferta.tipo_proveedor,
+    rating: p.rating ?? oferta.rating_proveedor,
+    proveedor_id: p.proveedor_id ?? oferta.proveedor_id,
+    foto_perfil_url: fotoUrl,
+    foto_perfil: p.foto_perfil || oferta.foto_perfil || fotoUrl,
+  };
   return {
     ...oferta,
-    proveedor: oferta.proveedor || {
-      nombre: oferta.nombre_proveedor || oferta.proveedor_nombre || 'Proveedor',
-      tipo: oferta.tipo_proveedor,
-      rating: oferta.rating_proveedor,
-      proveedor_id: oferta.proveedor_id,
-      foto_perfil_url: oferta.foto_perfil_url || oferta.proveedor_foto_url,
-      foto_perfil: oferta.foto_perfil || oferta.proveedor_foto,
-    },
+    proveedor,
     servicio: oferta.servicio || (oferta.servicios?.[0]
       ? { nombre: oferta.servicios[0].nombre }
       : null),
@@ -43,7 +50,7 @@ function toCandidato(oferta, requiereRepuestos) {
     incluye_repuestos_sugerido: conRepuestos,
     score_match: oferta.score_match,
     explicacion: oferta.explicacion,
-    distancia_km: oferta.distancia_km,
+    distancia_km: parseDistanciaKmCandidato(oferta.distancia_km),
     es_recomendado: oferta.es_recomendado,
     es_coincidencia_exacta: oferta.es_coincidencia_exacta,
     nivel_coincidencia: oferta.nivel_coincidencia,
