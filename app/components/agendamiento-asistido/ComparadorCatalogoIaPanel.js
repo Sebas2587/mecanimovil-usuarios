@@ -38,6 +38,20 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     servicio: oferta.servicio || (oferta.servicios?.[0]
       ? { nombre: oferta.servicios[0].nombre }
       : null),
+    servicios_ofrecidos: oferta.servicios_ofrecidos
+      || (oferta.servicios?.length
+        ? oferta.servicios.map((s) => ({
+            id: s.id,
+            nombre: s.nombre,
+            precio: s.precio,
+            oferta_servicio_id: s.oferta_servicio_id,
+          }))
+        : null),
+    servicios_cubiertos: oferta.servicios_cubiertos,
+    servicios_pedidos: oferta.servicios_pedidos,
+    cobertura_pct: oferta.cobertura_pct,
+    precio_total: oferta.precio_total ?? oferta.precio_total_ofrecido,
+    oferta_servicio_ids: oferta.oferta_servicio_ids,
     desglose: oferta.desglose || {
       mano_obra: oferta.costo_mano_obra,
       repuestos: oferta.costo_repuestos,

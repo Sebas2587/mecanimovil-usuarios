@@ -117,6 +117,11 @@ export function buildMetadataIaEntrada(analisis, componentesSalud) {
  * Arma payload para POST confirmar-candidato desde datos del formulario.
  */
 export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extras = {}) {
+  const ofertaIds = Array.isArray(extras.oferta_servicio_ids) && extras.oferta_servicio_ids.length
+    ? extras.oferta_servicio_ids.filter(Boolean)
+    : ofertaServicioId
+      ? [ofertaServicioId]
+      : [];
   let lng = null;
   let lat = null;
   const ub = formData.ubicacion_servicio;
@@ -131,7 +136,8 @@ export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extra
   const servicioIds = (formData.servicios_seleccionados || []).map((s) => s.id).filter(Boolean);
 
   return {
-    oferta_servicio_id: ofertaServicioId,
+    oferta_servicio_id: ofertaIds[0] ?? ofertaServicioId,
+    oferta_servicio_ids: ofertaIds,
     vehiculo_id: formData.vehiculo?.id,
     servicio_ids: servicioIds,
     descripcion_problema:
@@ -203,16 +209,38 @@ export function resolveDistanciaKmCandidato(oferta, userCoords = null) {
 export function mapCandidatoToOfertaComparador(candidato) {
   if (!candidato) return null;
   const desglose = candidato.desglose || {};
-  const total = desglose.precio_publicado_cliente
+  const total = candidato.precio_total
+    ?? desglose.precio_publicado_cliente
     ?? (candidato.incluye_repuestos_sugerido
       ? candidato.precio_con_repuestos
       : candidato.precio_sin_repuestos)
     ?? 0;
+  const serviciosOfrecidos = Array.isArray(candidato.servicios_ofrecidos)
+    ? candidato.servicios_ofrecidos
+    : candidato.servicio
+      ? [{
+          id: candidato.servicio.id,
+          nombre: candidato.servicio.nombre,
+          precio: total,
+          oferta_servicio_id: candidato.oferta_servicio_id,
+        }]
+      : [];
+  const ofertaIds = Array.isArray(candidato.oferta_servicio_ids) && candidato.oferta_servicio_ids.length
+    ? candidato.oferta_servicio_ids
+    : candidato.oferta_servicio_id
+      ? [candidato.oferta_servicio_id]
+      : serviciosOfrecidos.map((s) => s.oferta_servicio_id).filter(Boolean);
   return {
-    id: `catalogo-${candidato.oferta_servicio_id}`,
+    id: `catalogo-${ofertaIds.join('-') || candidato.oferta_servicio_id}`,
     oferta_servicio_id: candidato.oferta_servicio_id,
+    oferta_servicio_ids: ofertaIds,
     origen_catalogo: true,
     precio_total_ofrecido: total,
+    precio_total: total,
+    servicios_ofrecidos: serviciosOfrecidos,
+    servicios_cubiertos: candidato.servicios_cubiertos,
+    servicios_pedidos: candidato.servicios_pedidos,
+    cobertura_pct: candidato.cobertura_pct,
     costo_mano_obra: desglose.mano_obra ?? 0,
     costo_repuestos: desglose.repuestos ?? 0,
     costo_gestion_compra: desglose.gestion ?? 0,
@@ -233,7 +261,11 @@ export function mapCandidatoToOfertaComparador(candidato) {
     es_recomendado: candidato.es_recomendado,
     es_coincidencia_exacta: candidato.es_coincidencia_exacta,
     nivel_coincidencia: candidato.nivel_coincidencia,
-    servicios: candidato.servicio ? [candidato.servicio] : [],
+    servicios: serviciosOfrecidos.length
+      ? serviciosOfrecidos.map((s) => ({ id: s.id, nombre: s.nombre }))
+      : candidato.servicio
+        ? [candidato.servicio]
+        : [],
     estado: 'catalogo_preview',
   };
 }

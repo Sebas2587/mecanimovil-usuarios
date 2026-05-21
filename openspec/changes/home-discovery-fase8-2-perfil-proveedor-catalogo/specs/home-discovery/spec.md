@@ -11,3 +11,9 @@ Al enviar el formulario en flujo catálogo, la app **SHALL** llamar `POST .../co
 
 ### REQ-PROVIDER-CATALOG-UX
 El paso 1 del formulario **SHALL NOT** mostrar selector de servicios ni proveedores; solo resumen, ubicación y fecha.
+
+### REQ-PROVIDER-CATALOG-CALENDAR
+Tras ubicación/detalles en flujo catálogo, el calendario **SHALL** recibir `agendaContext`
+(`tipoProveedor`, `proveedorEntityId`, `ofertaServicioId`) igual que el flujo normal.
+
+Ver: `openspec/specs/agendamiento-calendario-proveedor/spec.md`.

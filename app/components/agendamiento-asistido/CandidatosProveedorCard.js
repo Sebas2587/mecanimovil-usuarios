@@ -32,11 +32,29 @@ export default function CandidatosProveedorCard({
   procesando = false,
   confirmandoEsta = false,
 }) {
+  const serviciosOfrecidos = useMemo(() => {
+    if (Array.isArray(candidato?.servicios_ofrecidos) && candidato.servicios_ofrecidos.length) {
+      return candidato.servicios_ofrecidos;
+    }
+    if (candidato?.servicio?.nombre) {
+      return [{
+        id: candidato.servicio.id,
+        nombre: candidato.servicio.nombre,
+        precio: requiereRepuestos
+          ? candidato?.precio_con_repuestos
+          : candidato?.precio_sin_repuestos,
+        oferta_servicio_id: candidato?.oferta_servicio_id,
+      }];
+    }
+    return [];
+  }, [candidato, requiereRepuestos]);
+
   const desglose = useMemo(() => {
     const d = candidato?.desglose || {};
-    const total = requiereRepuestos
-      ? candidato?.precio_con_repuestos
-      : candidato?.precio_sin_repuestos;
+    const total = candidato?.precio_total
+      ?? (requiereRepuestos
+        ? candidato?.precio_con_repuestos
+        : candidato?.precio_sin_repuestos);
     const calc = calcularDesgloseIvaOferta({
       costoManoObra: d.mano_obra,
       costoRepuestos: d.repuestos,
@@ -84,6 +102,10 @@ export default function CandidatosProveedorCard({
   const matchPct =
     candidato.score_match != null ? Math.round(Number(candidato.score_match) * 100) : null;
   const servicioNombre = candidato.servicio?.nombre;
+  const multiServicio = serviciosOfrecidos.length > 1;
+  const coberturaParcial = candidato.servicios_pedidos != null
+    && candidato.servicios_cubiertos != null
+    && candidato.servicios_cubiertos < candidato.servicios_pedidos;
   const esExacta =
     variant === 'recomendado'
     || candidato.es_coincidencia_exacta
@@ -140,11 +162,31 @@ export default function CandidatosProveedorCard({
         </View>
       </View>
 
-      {servicioNombre ? (
+      {multiServicio ? (
+        <View style={styles.serviciosLista}>
+          {serviciosOfrecidos.map((s) => (
+            <View key={`${s.id}-${s.oferta_servicio_id}`} style={styles.servicioRow}>
+              <Wrench size={13} color={COLORS.text.tertiary} />
+              <Text style={styles.servicioNombre} numberOfLines={2}>
+                {s.nombre || 'Servicio'}
+              </Text>
+              <Text style={styles.servicioPrecio}>{formatCLP(s.precio)}</Text>
+            </View>
+          ))}
+        </View>
+      ) : servicioNombre ? (
         <View style={styles.metaRow}>
           <Wrench size={13} color={COLORS.text.tertiary} />
           <Text style={styles.meta} numberOfLines={2}>
             {servicioNombre}
+          </Text>
+        </View>
+      ) : null}
+
+      {coberturaParcial ? (
+        <View style={styles.coberturaBadge}>
+          <Text style={styles.coberturaText}>
+            Cubre {candidato.servicios_cubiertos}/{candidato.servicios_pedidos} servicios solicitados
           </Text>
         </View>
       ) : null}
@@ -170,7 +212,9 @@ export default function CandidatosProveedorCard({
       <View style={styles.precioBlock}>
         <Text style={styles.precio}>{formatCLP(desglose.total)}</Text>
         <Text style={styles.precioHint}>
-          Precio estimado según tu elección · IVA incluido
+          {multiServicio
+            ? `Total ${serviciosOfrecidos.length} servicios · IVA incluido`
+            : 'Precio estimado según tu elección · IVA incluido'}
         </Text>
       </View>
 
@@ -298,6 +342,40 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
+  },
+  serviciosLista: {
+    marginTop: 8,
+    gap: 6,
+  },
+  servicioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  servicioNombre: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.primary,
+  },
+  servicioPrecio: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+    fontVariant: ['tabular-nums'],
+  },
+  coberturaBadge: {
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.warning[50],
+    borderWidth: 1,
+    borderColor: COLORS.warning[200],
+  },
+  coberturaText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.warning[800],
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   distanciaRow: {
     flexDirection: 'row',

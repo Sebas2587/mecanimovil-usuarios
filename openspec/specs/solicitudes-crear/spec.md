@@ -4,6 +4,9 @@
 Flujo para que el usuario cree una solicitud de servicio mecánico. Incluye selección
 de vehículo, tipo de servicio, descripción del problema y confirmación.
 
+**Agenda / calendario del proveedor:** ver `openspec/specs/agendamiento-calendario-proveedor/spec.md`
+y `openspec/changes/agendamiento-calendario-contexto-unificado/design.md`.
+
 ## Requirements
 
 ### Requirement: Crear solicitud de servicio

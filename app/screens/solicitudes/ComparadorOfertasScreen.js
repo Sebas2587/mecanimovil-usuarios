@@ -85,7 +85,10 @@ const ComparadorOfertasScreen = () => {
           hora_preferida: slotSeleccionado.hora || null,
         },
         pendingConfirmOferta.oferta_servicio_id,
-        { score_match: pendingConfirmOferta.score_match },
+        {
+          score_match: pendingConfirmOferta.score_match,
+          oferta_servicio_ids: pendingConfirmOferta.oferta_servicio_ids,
+        },
       );
       const resultado = await confirmarCandidato(payload);
       navigation.setParams({ slotSeleccionado: undefined, pendingConfirmOferta: undefined });
@@ -241,7 +244,12 @@ const ComparadorOfertasScreen = () => {
 
   const handleAceptarOferta = async (oferta) => {
     if (modoCatalogo) {
-      if (!formPayload || !oferta.oferta_servicio_id) {
+      const ofertaIds = Array.isArray(oferta.oferta_servicio_ids) && oferta.oferta_servicio_ids.length
+        ? oferta.oferta_servicio_ids
+        : oferta.oferta_servicio_id
+          ? [oferta.oferta_servicio_id]
+          : [];
+      if (!formPayload || !ofertaIds.length) {
         Alert.alert('Error', 'Faltan datos para confirmar el proveedor');
         return;
       }
@@ -256,7 +264,7 @@ const ComparadorOfertasScreen = () => {
         tipoProveedor: tipoProv,
         proveedorId,
         proveedorEntityId: proveedorId,
-        ofertaServicioId: oferta.oferta_servicio_id,
+        ofertaServicioId: ofertaIds[0],
       };
       navigation.navigate(APP_ROUTES.CALENDARIO_PROVEEDOR, {
         ...agendaContext,
@@ -264,8 +272,11 @@ const ComparadorOfertasScreen = () => {
         proveedorId,
         proveedorEntityId: proveedorId,
         proveedorNombre: nombre,
-        ofertaServicioId: oferta.oferta_servicio_id,
-        agendaContext,
+        ofertaServicioId: ofertaIds[0],
+        agendaContext: {
+          ...agendaContext,
+          ofertaServicioId: ofertaIds[0],
+        },
         returnRoute: ROUTES.COMPARADOR_OFERTAS,
         returnParams: {
           modoCatalogo: true,
@@ -275,7 +286,8 @@ const ComparadorOfertasScreen = () => {
           radioKm: radioKmState,
           formPayload,
           pendingConfirmOferta: {
-            oferta_servicio_id: oferta.oferta_servicio_id,
+            oferta_servicio_id: ofertaIds[0],
+            oferta_servicio_ids: ofertaIds,
             score_match: oferta.score_match,
           },
         },
