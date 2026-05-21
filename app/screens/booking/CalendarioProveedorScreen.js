@@ -19,8 +19,8 @@ import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import {
   generarDiasCalendario,
-  obtenerDiasDisponiblesAgenda,
   obtenerDisponibilidadConDuracion,
+  resolverFechasAgendaReales,
 } from '../../services/disponibilidadProveedorService';
 import { ROUTES } from '../../utils/constants';
 
@@ -50,6 +50,7 @@ export default function CalendarioProveedorScreen() {
   const [loadingDias, setLoadingDias] = useState(true);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState(null);
+  const [agendaSinDias, setAgendaSinDias] = useState(false);
 
   const tipoNorm = tipoProveedor === 'mecanico' || tipoProveedor === 'domicilio' ? 'mecanico' : 'taller';
 
@@ -62,23 +63,30 @@ export default function CalendarioProveedorScreen() {
     try {
       setLoadingDias(true);
       setError(null);
-      const res = await obtenerDiasDisponiblesAgenda({
+      setAgendaSinDias(false);
+      const { fechas, sinHorarioConfigurado } = await resolverFechasAgendaReales({
         tipoProveedor: tipoNorm,
         proveedorId,
         ofertaServicioId,
+        diasCalendario: diasBase,
       });
-      if (res?.error) {
-        setError(res.error);
+      if (sinHorarioConfigurado) {
+        setError(
+          'Este proveedor aún no configuró su horario de atención semanal en la app de proveedor.',
+        );
         setFechasHabilitadas(new Set());
+        setAgendaSinDias(true);
+        setFechaSeleccionada(null);
         return;
       }
-      const setFechas = new Set(res?.fechas_disponibles || []);
+      const setFechas = new Set(fechas);
       setFechasHabilitadas(setFechas);
       const primera = diasBase.find((d) => setFechas.has(d.fecha));
       if (primera) {
         setFechaSeleccionada(primera.fecha);
-      } else if (setFechas.size === 0) {
-        setError('Este proveedor no tiene días con horario disponible en las próximas dos semanas.');
+      } else {
+        setAgendaSinDias(true);
+        setFechaSeleccionada(null);
       }
     } catch (e) {
       setError(e?.message || 'No se pudo cargar la agenda');
@@ -198,31 +206,38 @@ export default function CalendarioProveedorScreen() {
         <Text style={styles.sectionLabel}>Fecha</Text>
         {loadingDias ? (
           <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 16 }} />
-        ) : error ? (
-          <Text style={styles.errorText}>{error}</Text>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.diasRow}>
-            {diasBase.map((dia) => {
-              const habilitado = fechasHabilitadas?.has(dia.fecha);
-              const sel = fechaSeleccionada === dia.fecha;
-              return (
-                <TouchableOpacity
-                  key={dia.fecha}
-                  style={[
-                    styles.diaChip,
-                    !habilitado && styles.diaChipDisabled,
-                    sel && styles.diaChipSelected,
-                  ]}
-                  disabled={!habilitado}
-                  onPress={() => setFechaSeleccionada(dia.fecha)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.diaLabel, sel && styles.diaLabelSelected]}>{dia.label}</Text>
-                  <Text style={[styles.diaNum, sel && styles.diaNumSelected]}>{dia.diaNum}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {agendaSinDias && !error ? (
+              <Text style={styles.hint}>
+                No hay horarios libres en los próximos 14 días según su agenda y la duración de este
+                servicio (puede haber citas ya reservadas).
+              </Text>
+            ) : null}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.diasRow}>
+              {diasBase.map((dia) => {
+                const habilitado = fechasHabilitadas?.has(dia.fecha);
+                const sel = fechaSeleccionada === dia.fecha;
+                return (
+                  <TouchableOpacity
+                    key={dia.fecha}
+                    style={[
+                      styles.diaChip,
+                      !habilitado && styles.diaChipDisabled,
+                      sel && styles.diaChipSelected,
+                    ]}
+                    disabled={!habilitado}
+                    onPress={() => setFechaSeleccionada(dia.fecha)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.diaLabel, sel && styles.diaLabelSelected]}>{dia.label}</Text>
+                    <Text style={[styles.diaNum, sel && styles.diaNumSelected]}>{dia.diaNum}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </>
         )}
 
         <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>Horario</Text>
