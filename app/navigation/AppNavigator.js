@@ -292,7 +292,7 @@ const AppNavigator = () => (
     <Stack.Screen name={ROUTES.DETALLE_SOLICITUD} component={DetalleSolicitudScreen} />
     <Stack.Screen name={ROUTES.SELECCIONAR_SERVICIOS} component={SeleccionarServiciosScreen} />
     <Stack.Screen name={ROUTES.SELECCIONAR_PROVEEDORES} component={SeleccionarProveedoresScreen} />
-    <Stack.Screen name={ROUTES.COMPARADOR_OFERTAS} component={ComparadorOfertasScreen} options={getHeaderOptions("Comparar Ofertas", { ...DARK_GLASS_HEADER, headerStyle: PROFILE_HEADER_NO_DIVIDER })} />
+    <Stack.Screen name={ROUTES.COMPARADOR_OFERTAS} component={ComparadorOfertasScreen} options={{ headerShown: false }} />
     <Stack.Screen name={ROUTES.CALENDARIO_PROVEEDOR} component={CalendarioProveedorScreen} options={{ headerShown: false }} />
 
     {/* Chats */}

@@ -1,8 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Package } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
-import { AGENDAMIENTO_THEME as T } from './theme';
 import CandidatosProveedorCard from './CandidatosProveedorCard';
 
 function sortPorDistancia(ofertas) {
@@ -16,13 +15,19 @@ function sortPorDistancia(ofertas) {
   });
 }
 
-function toCandidato(oferta) {
+function toCandidato(oferta, requiereRepuestos) {
+  const conRepuestos = requiereRepuestos !== false;
+  const precioRep = oferta.precio_con_repuestos ?? oferta.precio_total_ofrecido;
+  const precioSin = oferta.precio_sin_repuestos ?? oferta.precio_total_ofrecido;
   return {
     ...oferta,
     proveedor: oferta.proveedor || {
       nombre: oferta.nombre_proveedor || oferta.proveedor_nombre || 'Proveedor',
       tipo: oferta.tipo_proveedor,
       rating: oferta.rating_proveedor,
+      proveedor_id: oferta.proveedor_id,
+      foto_perfil_url: oferta.foto_perfil_url || oferta.proveedor_foto_url,
+      foto_perfil: oferta.foto_perfil || oferta.proveedor_foto,
     },
     servicio: oferta.servicio || (oferta.servicios?.[0]
       ? { nombre: oferta.servicios[0].nombre }
@@ -31,45 +36,18 @@ function toCandidato(oferta) {
       mano_obra: oferta.costo_mano_obra,
       repuestos: oferta.costo_repuestos,
       gestion: oferta.costo_gestion_compra,
-      precio_publicado_cliente: oferta.precio_total_ofrecido,
+      precio_publicado_cliente: conRepuestos ? precioRep : precioSin,
     },
-    precio_con_repuestos: oferta.precio_total_ofrecido,
-    precio_sin_repuestos: oferta.precio_total_ofrecido,
-    incluye_repuestos_sugerido: oferta.incluye_repuestos,
+    precio_con_repuestos: precioRep,
+    precio_sin_repuestos: precioSin,
+    incluye_repuestos_sugerido: conRepuestos,
     score_match: oferta.score_match,
     explicacion: oferta.explicacion,
     distancia_km: oferta.distancia_km,
     es_recomendado: oferta.es_recomendado,
+    es_coincidencia_exacta: oferta.es_coincidencia_exacta,
+    nivel_coincidencia: oferta.nivel_coincidencia,
   };
-}
-
-function ProveedorOfertaBlock({
-  oferta,
-  variant,
-  procesando,
-  onAceptar,
-}) {
-  const candidato = toCandidato(oferta);
-  const key = oferta.id || oferta.oferta_servicio_id;
-
-  return (
-    <View key={key} style={styles.cardWrap}>
-      <CandidatosProveedorCard candidato={candidato} variant={variant} />
-      <TouchableOpacity
-        style={styles.confirmLink}
-        onPress={() => onAceptar?.(oferta)}
-        disabled={procesando}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel="Confirmar con este proveedor"
-      >
-        <Text style={[styles.confirmLinkText, procesando && styles.confirmLinkDisabled]}>
-          {procesando ? 'Enviando…' : 'Confirmar con este proveedor'}
-        </Text>
-        {!procesando ? <ChevronRight size={18} color={COLORS.primary[500]} /> : null}
-      </TouchableOpacity>
-    </View>
-  );
 }
 
 /**
@@ -84,6 +62,8 @@ export default function ComparadorCatalogoIaPanel({
   procesando = false,
   requiereRepuestos = true,
 }) {
+  const [confirmandoId, setConfirmandoId] = useState(null);
+
   const recomendadas = sortPorDistancia(
     Array.isArray(ofertasRecomendadas) && ofertasRecomendadas.length > 0
       ? ofertasRecomendadas
@@ -92,30 +72,52 @@ export default function ComparadorCatalogoIaPanel({
   const otros = sortPorDistancia(Array.isArray(ofertasOtros) ? ofertasOtros : []);
   const radioLabel = radioKm != null ? Math.round(Number(radioKm)) : 80;
 
+  const handleConfirmar = (oferta) => {
+    const id = oferta.oferta_servicio_id || oferta.id;
+    setConfirmandoId(id);
+    onAceptar?.(oferta);
+  };
+
+  const renderOferta = (oferta, variant) => {
+    const candidato = toCandidato(oferta, requiereRepuestos);
+    const id = oferta.oferta_servicio_id || oferta.id;
+    return (
+      <CandidatosProveedorCard
+        key={id}
+        candidato={candidato}
+        variant={variant}
+        requiereRepuestos={requiereRepuestos !== false}
+        onConfirmar={() => handleConfirmar(oferta)}
+        procesando={procesando}
+        confirmandoEsta={confirmandoId === id}
+      />
+    );
+  };
+
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>Comparar ofertas</Text>
-      <Text style={styles.subtitle}>
-        Precios según tu elección de repuestos (
-        {requiereRepuestos ? 'con repuestos' : 'solo mano de obra'}
-        ). El proveedor confirma antes de pagar.
+      <View style={styles.contextPill}>
+        <Package size={14} color={COLORS.primary[500]} />
+        <Text style={styles.contextPillText}>
+          {requiereRepuestos !== false
+            ? 'Búsqueda y precios con repuestos (paso 2)'
+            : 'Búsqueda y precios solo mano de obra (paso 2)'}
+        </Text>
+      </View>
+      <Text style={styles.lead}>
+        El proveedor confirma el servicio antes de pagar. Los candidatos coinciden con tu
+        vehículo, servicio y ubicación.
       </Text>
 
       {recomendadas.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Coincidencia exacta</Text>
           <Text style={styles.sectionSub}>
-            Los proveedores más recomendados para tu servicio y ubicación.
+            Mejor ajuste a tu servicio, vehículo y dirección.
           </Text>
-          {recomendadas.map((oferta) => (
-            <ProveedorOfertaBlock
-              key={oferta.id || oferta.oferta_servicio_id}
-              oferta={oferta}
-              variant="recomendado"
-              procesando={procesando}
-              onAceptar={onAceptar}
-            />
-          ))}
+          <View style={styles.cardList}>
+            {recomendadas.map((oferta) => renderOferta(oferta, 'recomendado'))}
+          </View>
         </View>
       ) : null}
 
@@ -123,18 +125,11 @@ export default function ComparadorCatalogoIaPanel({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Otros proveedores</Text>
           <Text style={styles.sectionSub}>
-            Mismo servicio con menor coincidencia (ubicación, perfil o ranking), dentro de{' '}
-            {radioLabel} km cuando aplica.
+            Mismo servicio con coincidencia parcial, dentro de {radioLabel} km cuando aplica.
           </Text>
-          {otros.map((oferta) => (
-            <ProveedorOfertaBlock
-              key={oferta.id || oferta.oferta_servicio_id}
-              oferta={oferta}
-              variant="otro"
-              procesando={procesando}
-              onAceptar={onAceptar}
-            />
-          ))}
+          <View style={styles.cardList}>
+            {otros.map((oferta) => renderOferta(oferta, 'otro'))}
+          </View>
         </View>
       ) : null}
     </View>
@@ -143,21 +138,35 @@ export default function ComparadorCatalogoIaPanel({
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: 4,
+    gap: 0,
   },
-  title: {
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
+  contextPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
+    borderWidth: 1,
+    borderColor: COLORS.primary[200],
+    marginBottom: 12,
   },
-  subtitle: {
+  contextPillText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[800],
+    lineHeight: 18,
+  },
+  lead: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
-    marginBottom: 16,
+    marginBottom: 20,
     lineHeight: 20,
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.fontSize.md,
@@ -171,23 +180,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     lineHeight: 19,
   },
-  cardWrap: {
-    marginBottom: 14,
-    gap: 8,
-  },
-  confirmLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-    gap: 2,
-  },
-  confirmLinkText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: T.primary,
-  },
-  confirmLinkDisabled: {
-    color: COLORS.text.disabled,
+  cardList: {
+    gap: 14,
   },
 });

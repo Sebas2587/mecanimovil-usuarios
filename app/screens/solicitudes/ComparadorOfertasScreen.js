@@ -7,14 +7,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  StatusBar,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { GitCompare } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
 import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
 import ComparadorCatalogoIaPanel from '../../components/agendamiento-asistido/ComparadorCatalogoIaPanel';
+import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { useAgendamiento } from '../../context/AgendamientoContext';
 import ofertasService from '../../services/ofertasService';
@@ -326,10 +327,22 @@ const ComparadorOfertasScreen = () => {
     );
   };
 
+  const requiereRepuestos = formPayload?.requiere_repuestos !== false;
+
+  const shell = (body) => (
+    <View style={styles.container}>
+      <SolicitudFlowHeader
+        title="Comparar ofertas"
+        subtitle={modoCatalogo ? 'Elige tu proveedor' : undefined}
+        icon={GitCompare}
+        onBack={() => navigation.goBack()}
+      />
+      {body}
+    </View>
+  );
+
   if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
+    return shell(
         <View style={styles.loadingContainer}>
           <View style={styles.loadingCard}>
             <ActivityIndicator size="large" color={COLORS.primary[500]} />
@@ -337,14 +350,11 @@ const ComparadorOfertasScreen = () => {
             <Text style={styles.loadingSubtitle}>Preparando la comparación...</Text>
           </View>
         </View>
-      </SafeAreaView>
     );
   }
 
   if (errorValidacion) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
+    return shell(
         <View style={styles.emptyContainer}>
           <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.error[50], borderColor: COLORS.error[200] }]}>
             <Ionicons name="alert-circle" size={48} color={COLORS.error.main} />
@@ -359,16 +369,13 @@ const ComparadorOfertasScreen = () => {
             <Text style={styles.emptyButtonText}>Volver</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
     );
   }
 
   const totalCatalogo = ofertas.length + ofertasOtrosState.length;
   const minOfertas = modoCatalogo ? 1 : 2;
   if ((modoCatalogo ? totalCatalogo : ofertas.length) < minOfertas) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
+    return shell(
         <View style={styles.emptyContainer}>
           <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.warning[50], borderColor: COLORS.warning[200] }]}>
             <MaterialIcons name="compare-arrows" size={48} color={COLORS.warning.main} />
@@ -389,19 +396,16 @@ const ComparadorOfertasScreen = () => {
             <Text style={styles.emptyButtonText}>Volver a Ofertas</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
     );
   }
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
-
+  return shell(
+    <>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + 24 }
+          { paddingBottom: insets.bottom + 24 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -412,7 +416,7 @@ const ComparadorOfertasScreen = () => {
             radioKm={radioKmState}
             onAceptar={handleAceptarOferta}
             procesando={procesando}
-            requiereRepuestos={formPayload?.requiere_repuestos !== false}
+            requiereRepuestos={requiereRepuestos}
           />
         ) : (
           <ComparadorOfertas
@@ -425,15 +429,15 @@ const ComparadorOfertasScreen = () => {
         )}
       </ScrollView>
 
-      {procesando && (
+      {procesando ? (
         <View style={styles.processingOverlay}>
           <View style={styles.processingCard}>
             <ActivityIndicator size="large" color={COLORS.primary[500]} />
             <Text style={styles.processingText}>Procesando oferta...</Text>
           </View>
         </View>
-      )}
-    </SafeAreaView>
+      ) : null}
+    </>
   );
 };
 
@@ -452,7 +456,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 24,
   },
   loadingCard: {
     borderRadius: BORDERS.radius.xl,
@@ -478,7 +482,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 24,
   },
   emptyIconContainer: {
     width: 80,
