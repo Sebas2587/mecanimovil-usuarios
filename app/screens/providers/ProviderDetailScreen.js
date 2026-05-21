@@ -394,7 +394,7 @@ const ProviderDetailScreen = () => {
             </View>
             <Text style={styles.sectionHint}>
               {vehicleForSchedule?.id
-                ? `Servicios de este proveedor para tu ${vehicleForSchedule.marca_nombre || vehicleForSchedule.marca || 'vehículo'}.`
+                ? 'Toca un servicio para continuar con el agendamiento.'
                 : 'Toca un servicio para agendar. Selecciona un vehículo en el inicio para ver solo los de tu marca.'}
             </Text>
             {!vehicleForSchedule?.id ? (
@@ -445,22 +445,6 @@ const ProviderDetailScreen = () => {
                           ~{servicio.duracion_estimada}
                         </Text>
                       ) : null}
-
-                      <View style={styles.serviceFooter}>
-                        {vehicleForSchedule?.id ? (
-                          <View style={styles.compatibilityBadge}>
-                            <Ionicons
-                              name="checkmark-circle"
-                              size={12}
-                              color={COLORS.success.main}
-                            />
-                            <Text style={styles.compatibilityText}>Para tu vehículo</Text>
-                          </View>
-                        ) : null}
-                        <View style={styles.agendarServicioBtn}>
-                          <Text style={styles.agendarServicioText}>Agendar</Text>
-                        </View>
-                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -646,7 +630,7 @@ const styles = StyleSheet.create({
   serviceMeta: {
     color: COLORS.text.tertiary,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    marginBottom: 8,
+    marginBottom: 0,
   },
   noVehicleHint: {
     color: COLORS.warning.dark,
@@ -656,50 +640,6 @@ const styles = StyleSheet.create({
   },
   serviceCardTappable: {
     borderColor: COLORS.primary[200],
-  },
-  serviceFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border.light,
-    paddingTop: 10,
-  },
-  incompatibleHint: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.tertiary,
-  },
-  agendarServicioBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[500],
-    opacity: 1,
-  },
-  agendarServicioText: {
-    color: COLORS.text.onPrimary,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  compatibilityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.success.light,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BORDERS.radius.full,
-    gap: 4,
-    borderWidth: 1,
-    borderColor: COLORS.success.main,
-  },
-  compatibilityText: {
-    color: COLORS.success.main,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   errorText: {
     color: COLORS.text.primary,

@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  StatusBar,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ArrowLeft, Clock, CalendarDays } from 'lucide-react-native';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
@@ -38,6 +39,7 @@ export default function CalendarioProveedorScreen() {
     ofertaServicioId,
     returnRoute = ROUTES.CREAR_SOLICITUD,
     returnParams = {},
+    resumePasoFormulario = null,
   } = route.params || {};
 
   const diasBase = useMemo(() => generarDiasCalendario(14), []);
@@ -113,63 +115,77 @@ export default function CalendarioProveedorScreen() {
       Alert.alert('Selecciona horario', 'Elige un día y una hora disponible.');
       return;
     }
+    const paramsVuelta = {
+      ...returnParams,
+      slotSeleccionado: {
+        fecha: fechaSeleccionada,
+        hora: slotSeleccionado.hora,
+        hora_fin_estimada: slotSeleccionado.hora_fin_estimada,
+      },
+    };
+    if (resumePasoFormulario != null) {
+      paramsVuelta.resumePasoFormulario = resumePasoFormulario;
+    }
     navigation.navigate({
       name: returnRoute,
-      params: {
-        ...returnParams,
-        slotSeleccionado: {
-          fecha: fechaSeleccionada,
-          hora: slotSeleccionado.hora,
-          hora_fin_estimada: slotSeleccionado.hora_fin_estimada,
-        },
-      },
+      params: paramsVuelta,
       merge: true,
     });
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
           <ArrowLeft size={22} color={COLORS.text.primary} />
         </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Agenda del proveedor</Text>
-          <Text style={styles.headerSub} numberOfLines={1}>{proveedorNombre}</Text>
+        <View style={styles.headerCenter}>
+          <CalendarDays size={16} color={COLORS.primary[500]} />
+          <View style={styles.headerTitles}>
+            <Text style={styles.headerTitle}>Elegir horario</Text>
+            <Text style={styles.headerSub} numberOfLines={1}>
+              {proveedorNombre}
+            </Text>
+          </View>
         </View>
+        <View style={styles.headerSpacer} />
       </View>
 
-      {estadoActual?.ocupado && (
-        <View style={styles.badgeOcupado}>
-          <Clock size={16} color={COLORS.warning[700]} />
-          <Text style={styles.badgeOcupadoText}>
-            {estadoActual.servicio_en_curso
-              ? `En servicio: ${estadoActual.servicio_en_curso}. `
-              : ''}
-            Libre hoy a las {estadoActual.hora_estimada_libre || '—'}
-            {estadoActual.minutos_restantes > 0
-              ? ` (~${estadoActual.minutos_restantes} min)`
-              : ''}
-          </Text>
-        </View>
-      )}
-
-      {!estadoActual?.ocupado && fechaSeleccionada === diasBase[0]?.fecha && (
-        <View style={styles.badgeLibre}>
-          <Text style={styles.badgeLibreText}>Disponible para agendar hoy</Text>
-        </View>
-      )}
-
-      {duracion?.etiqueta && (
-        <Text style={styles.duracionHint}>
-          Duración estimada del servicio: {duracion.etiqueta}
-        </Text>
-      )}
-
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 88 }]}
         showsVerticalScrollIndicator={false}
       >
+        {estadoActual?.ocupado && (
+          <View style={styles.badgeOcupado}>
+            <Clock size={16} color={COLORS.warning[700]} />
+            <Text style={styles.badgeOcupadoText}>
+              {estadoActual.servicio_en_curso
+                ? `En servicio: ${estadoActual.servicio_en_curso}. `
+                : ''}
+              Libre hoy a las {estadoActual.hora_estimada_libre || '—'}
+              {estadoActual.minutos_restantes > 0
+                ? ` (~${estadoActual.minutos_restantes} min)`
+                : ''}
+            </Text>
+          </View>
+        )}
+
+        {!estadoActual?.ocupado && fechaSeleccionada === diasBase[0]?.fecha && (
+          <View style={styles.badgeLibre}>
+            <Text style={styles.badgeLibreText}>Disponible para agendar hoy</Text>
+          </View>
+        )}
+
+        {duracion?.etiqueta ? (
+          <Text style={styles.duracionHint}>
+            Duración estimada: {duracion.etiqueta}
+          </Text>
+        ) : null}
+        <Text style={styles.preferenciaHint}>
+          Elige el horario que prefieres. El proveedor lo confirma al responder tu solicitud.
+        </Text>
         <Text style={styles.sectionLabel}>Fecha</Text>
         {loadingDias ? (
           <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 16 }} />
@@ -234,22 +250,22 @@ export default function CalendarioProveedorScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
         <TouchableOpacity
           style={[styles.confirmBtn, (!fechaSeleccionada || !slotSeleccionado) && styles.confirmBtnDisabled]}
           onPress={handleConfirmar}
           disabled={!fechaSeleccionada || !slotSeleccionado}
           activeOpacity={0.9}
         >
-          <Text style={styles.confirmBtnText}>Confirmar horario</Text>
+          <Text style={styles.confirmBtnText}>Usar este horario</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  container: {
     flex: 1,
     backgroundColor: COLORS.background.default,
   },
@@ -258,8 +274,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: BORDERS.width.thin,
     borderBottomColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   backBtn: {
     width: 40,
@@ -267,27 +284,45 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
-  headerText: {
+  headerCenter: {
     flex: 1,
-    marginLeft: SPACING.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.xs,
+  },
+  headerTitles: {
+    alignItems: 'center',
+    maxWidth: '85%',
   },
   headerTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontSize: 18,
+    fontWeight: '700',
     color: COLORS.text.primary,
+    letterSpacing: 0.3,
   },
   headerSub: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
     marginTop: 2,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  scrollView: {
+    flex: 1,
   },
   badgeOcupado: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginHorizontal: SPACING.md,
     marginTop: SPACING.sm,
     padding: SPACING.sm,
     borderRadius: BORDERS.radius.md,
@@ -301,7 +336,6 @@ const styles = StyleSheet.create({
     color: COLORS.warning[800],
   },
   badgeLibre: {
-    marginHorizontal: SPACING.md,
     marginTop: SPACING.sm,
     paddingVertical: 6,
     paddingHorizontal: SPACING.sm,
@@ -315,14 +349,20 @@ const styles = StyleSheet.create({
     color: COLORS.success[700],
   },
   duracionHint: {
-    marginHorizontal: SPACING.md,
     marginTop: SPACING.xs,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.tertiary,
   },
+  preferenciaHint: {
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    lineHeight: 20,
+  },
   scroll: {
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.sm,
   },
   sectionLabel: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -425,14 +465,10 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.md,
   },
   footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.sm,
-    backgroundColor: COLORS.background.default,
-    borderTopWidth: 1,
+    backgroundColor: COLORS.background.paper,
+    borderTopWidth: BORDERS.width.thin,
     borderTopColor: COLORS.border.light,
   },
   confirmBtn: {

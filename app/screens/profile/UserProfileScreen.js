@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TAB_BAR_BASE_HEIGHT } from '../../components/home/shared/homeLayoutConstants';
 import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
@@ -14,9 +16,11 @@ import ProfileMenuItem from '../../components/profile/ProfileMenuItem';
 
 const UserProfileScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { height: windowHeight } = useWindowDimensions();
   const { user, logout } = useAuth();
+  const scrollBottomPad = TAB_BAR_BASE_HEIGHT + insets.bottom + 16;
 
   /** Web: área bajo CustomHeader con altura fija para que ScrollView haga scroll vertical */
   const webRootStyle =
@@ -53,7 +57,7 @@ const UserProfileScreen = () => {
 
       <ScrollView
         style={Platform.OS === 'web' ? styles.scrollWeb : undefined}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPad }]}
         showsVerticalScrollIndicator={false}
         bounces
       >

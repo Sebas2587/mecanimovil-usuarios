@@ -317,6 +317,47 @@ class SolicitudesService {
   }
 
   /**
+   * Verifica si ya existe solicitud activa para mismo vehículo + servicio(s).
+   * @returns {Promise<{ bloqueado: boolean, solicitud_id?: string, mensaje?: string }>}
+   */
+  async verificarServicioActivo(vehiculoId, servicioIds = []) {
+    const ids = (Array.isArray(servicioIds) ? servicioIds : [servicioIds])
+      .map((id) => Number(id))
+      .filter((id) => !Number.isNaN(id) && id > 0);
+    if (!vehiculoId || !ids.length) {
+      return { bloqueado: false, solicitud_id: null, mensaje: null };
+    }
+
+    try {
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token || token === 'usuario_registrado_exitosamente') {
+        return { bloqueado: false, solicitud_id: null, mensaje: null };
+      }
+
+      const data = await get('/ordenes/solicitudes-publicas/verificar-servicio-activo/', {
+        vehiculo_id: vehiculoId,
+        servicio_ids: ids.join(','),
+      });
+      return {
+        bloqueado: !!data?.bloqueado,
+        solicitud_id: data?.solicitud_id ?? null,
+        estado: data?.estado ?? null,
+        servicios_en_conflicto: data?.servicios_en_conflicto ?? [],
+        mensaje: data?.mensaje ?? null,
+        error: false,
+      };
+    } catch (error) {
+      console.warn('SolicitudesService: verificarServicioActivo falló', error?.message);
+      return {
+        bloqueado: false,
+        solicitud_id: null,
+        mensaje: null,
+        error: true,
+      };
+    }
+  }
+
+  /**
    * Obtiene las solicitudes activas del cliente
    * @returns {Promise<Array>} Lista de solicitudes activas
    */

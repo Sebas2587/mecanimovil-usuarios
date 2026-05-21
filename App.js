@@ -173,7 +173,7 @@ const linking = {
       TabNavigator: {
         screens: {
           MisSolicitudes: 'mis-solicitudes',
-          Perfil: 'perfil',
+          Profile: 'perfil',
         },
       },
       // Deep link para compartir perfiles de proveedores

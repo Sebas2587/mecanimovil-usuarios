@@ -494,9 +494,7 @@ const UserPanelScreen = () => {
           selectedAddress={selectedAddress}
           onPressSelectAddress={() => setAddAddressModalOpen(true)}
           unreadCount={unreadCount}
-          user={user}
           onPressNotifications={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
-          onPressProfile={() => navigation.navigate(ROUTES.PROFILE)}
         />
 
         <HomeAgendamientoRapidoButton

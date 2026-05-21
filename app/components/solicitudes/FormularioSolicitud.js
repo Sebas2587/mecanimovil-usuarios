@@ -53,6 +53,9 @@ import {
   resolveOfertaServicioId,
   resolveProveedorEntityId,
 } from '../../utils/calendarioProveedorNavigation';
+import SolicitudResumenTicket from './SolicitudResumenTicket';
+import { validarSinServicioActivoDuplicado } from '../../utils/solicitudActivaGuard';
+import solicitudesService from '../../services/solicitudesService';
 import {
   Car as CarIcon,
   TriangleAlert as AlertTriangleIcon,
@@ -142,9 +145,17 @@ const FormularioSolicitud = ({
   onExit = null,
   bloquearCambioVehiculo = false,
   isPreCompra = false,
+  pasoResumeCalendario = null,
+  onPasoResumeConsumido = null,
 }) => {
   // Pre-compra marketplace: skip vehicle selection (step 1), start at step 3
   const [pasoActual, setPasoActual] = useState(isPreCompra ? 3 : 1);
+
+  useEffect(() => {
+    if (pasoResumeCalendario == null) return;
+    setPasoActual(pasoResumeCalendario);
+    onPasoResumeConsumido?.();
+  }, [pasoResumeCalendario, onPasoResumeConsumido]);
   const [formData, setFormData] = useState({
     vehiculo: initialData?.vehiculo || null,
     servicios_seleccionados: Array.isArray(initialData?.servicios_seleccionados) ? initialData.servicios_seleccionados : [],
@@ -249,6 +260,8 @@ const FormularioSolicitud = ({
 
   const [descriptionModalVisible, setDescriptionModalVisible] = useState(false);
   const [tempDescription, setTempDescription] = useState('');
+  const [alertaDuplicado, setAlertaDuplicado] = useState(null);
+  const [verificandoDuplicado, setVerificandoDuplicado] = useState(false);
   const [tempFotosNecesidad, setTempFotosNecesidad] = useState([]);
   const [descModalKeyboardInset, setDescModalKeyboardInset] = useState(0);
 
@@ -1058,6 +1071,52 @@ const FormularioSolicitud = ({
     return provs.length >= 1;
   };
 
+  const usaResumenTicketPaso6 = () => {
+    if (iaAsistidoActivo || isPreCompra) return false;
+    if (!formData.fecha_preferida?.trim()) return false;
+    if (flujoCuatroPasos || flujoCatalogoProveedor) return true;
+    if (formData.tipo_solicitud === 'dirigida' && (formData.proveedores_dirigidos?.length >= 1)) {
+      return true;
+    }
+    return false;
+  };
+
+  const servicioIdsParaDuplicado = useMemo(
+    () => (formData.servicios_seleccionados || [])
+      .map((s) => (typeof s === 'object' ? s?.id : s))
+      .filter(Boolean),
+    [formData.servicios_seleccionados],
+  );
+
+  useEffect(() => {
+    if (formData.sin_vehiculo_registrado || !formData.vehiculo?.id || !servicioIdsParaDuplicado.length) {
+      setAlertaDuplicado(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setVerificandoDuplicado(true);
+      const res = await solicitudesService.verificarServicioActivo(
+        formData.vehiculo.id,
+        servicioIdsParaDuplicado,
+      );
+      if (cancelled) return;
+      setVerificandoDuplicado(false);
+      setAlertaDuplicado(res?.bloqueado ? res : null);
+    })();
+    return () => { cancelled = true; };
+  }, [formData.vehiculo?.id, servicioIdsParaDuplicado, formData.sin_vehiculo_registrado]);
+
+  const asegurarSinDuplicado = async () => {
+    if (formData.sin_vehiculo_registrado || !formData.vehiculo?.id) return true;
+    const ids = servicioIdsParaDuplicado;
+    if (!ids.length) return true;
+    return validarSinServicioActivoDuplicado(navigation, {
+      vehiculoId: formData.vehiculo.id,
+      servicioIds: ids,
+    });
+  };
+
   const irACalendarioDesdeFormulario = (siguientePaso) => {
     const prov = (formData.proveedores_dirigidos || [])[0];
     if (!prov) {
@@ -1069,6 +1128,7 @@ const FormularioSolicitud = ({
       tipoProveedor: prov.tipo || prov.tipo_proveedor,
       ofertaServicioId: resolveOfertaServicioId(formData.servicios_seleccionados),
       returnParams: { ...route.params },
+      resumePasoFormulario: pasoActual,
     });
     if (!ok) {
       Alert.alert('Error', 'No se pudo abrir la agenda del proveedor.');
@@ -1077,8 +1137,18 @@ const FormularioSolicitud = ({
     return true;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!validarPaso(pasoActual)) return;
+
+    if (
+      pasoActual === 1
+      && !formData.sin_vehiculo_registrado
+      && formData.vehiculo?.id
+      && servicioIdsParaDuplicado.length > 0
+    ) {
+      const okDup = await asegurarSinDuplicado();
+      if (!okDup) return;
+    }
 
     // Pre-compra marketplace: 3→4→5→6
     if (isPreCompra) {
@@ -1120,6 +1190,8 @@ const FormularioSolicitud = ({
       }
       if (pasoActual === 5) {
         if (!validarPaso(5)) return;
+        const okDup = await asegurarSinDuplicado();
+        if (!okDup) return;
         irAComparadorCatalogo();
         return;
       }
@@ -1671,6 +1743,22 @@ const FormularioSolicitud = ({
                 </TouchableOpacity>
               )}
             </GlassCard>
+
+            {alertaDuplicado?.bloqueado ? (
+              <View style={[styles.infoBox, { marginBottom: 16, backgroundColor: COLORS.warning.light, borderColor: COLORS.warning[200] }]}>
+                <Ionicons name="alert-circle" size={22} color={COLORS.warning[700]} style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.infoBoxText, { fontWeight: '700', color: COLORS.warning[800] }]}>
+                    Ya tienes este servicio en curso
+                  </Text>
+                  <Text style={[styles.infoBoxText, { marginTop: 4 }]}>
+                    {alertaDuplicado.mensaje || 'Revisa Mis solicitudes antes de pedirlo de nuevo.'}
+                  </Text>
+                </View>
+              </View>
+            ) : verificandoDuplicado && vehicle?.id && servicioIdsParaDuplicado.length > 0 ? (
+              <ActivityIndicator size="small" color={COLORS.primary[500]} style={{ marginBottom: 12 }} />
+            ) : null}
 
             {esAgendamientoInteligente ? (
               <View style={[styles.infoBox, { marginBottom: 16, backgroundColor: COLORS.primary[50] }]}>
@@ -2733,6 +2821,26 @@ const FormularioSolicitud = ({
 
   const renderPaso6 = () => {
     if (iaAsistidoActivo) return null;
+
+    if (usaResumenTicketPaso6()) {
+      const prov = (formData.proveedores_dirigidos || [])[0];
+      return (
+        <View style={styles.pasoContainer}>
+          <SolicitudResumenTicket
+            vehiculo={formData.vehiculo}
+            servicios={formData.servicios_seleccionados}
+            proveedor={prov}
+            fechaPreferida={formData.fecha_preferida}
+            horaPreferida={formData.hora_preferida}
+            direccion={
+              formData.direccion_usuario
+              || formData.direccion_servicio_texto
+            }
+            horarioEsPreferido
+          />
+        </View>
+      );
+    }
 
     const calendario = generarCalendario();
     const horasDisponibles = generarHorasDisponibles();

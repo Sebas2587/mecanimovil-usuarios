@@ -23,6 +23,7 @@ export function navigateCalendarioProveedor(navigation, {
   tipoProveedor,
   ofertaServicioId,
   returnParams = {},
+  resumePasoFormulario = null,
 }) {
   const tipo = tipoProveedor || proveedor?.tipo || proveedor?.tipo_proveedor || 'taller';
   const proveedorId = resolveProveedorEntityId(proveedor, tipo);
@@ -35,6 +36,7 @@ export function navigateCalendarioProveedor(navigation, {
     ofertaServicioId: ofertaServicioId ?? resolveOfertaServicioId(returnParams?.servicios_seleccionados),
     returnRoute: ROUTES.CREAR_SOLICITUD,
     returnParams,
+    resumePasoFormulario,
   });
   return true;
 }

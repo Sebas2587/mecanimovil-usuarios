@@ -29,6 +29,7 @@ import * as locationService from '../../services/location';
 import * as userService from '../../services/user';
 import * as serviceService from '../../services/service';
 import solicitudesService, { normalizarSolicitudPublica } from '../../services/solicitudesService';
+import { validarSinServicioActivoDuplicado } from '../../utils/solicitudActivaGuard';
 import { syncSolicitudesListAfterChange } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
 import { showAlert, showAlertButtons } from '../../utils/platformAlert';
@@ -109,7 +110,10 @@ const CrearSolicitudScreen = () => {
     targetVehicleId, // ID del vehículo del vendedor (pre-compra)
     ofertaId, // ID de la oferta marketplace aceptada
     slotSeleccionado,
+    resumePasoFormulario,
   } = route.params || {};
+
+  const [pasoResumeCalendario, setPasoResumeCalendario] = useState(null);
 
   // Horario elegido en CalendarioProveedorScreen
   useEffect(() => {
@@ -119,8 +123,15 @@ const CrearSolicitudScreen = () => {
       fecha_preferida: slotSeleccionado.fecha,
       hora_preferida: slotSeleccionado.hora || '',
     }));
-    navigation.setParams({ slotSeleccionado: undefined });
-  }, [slotSeleccionado?.fecha, slotSeleccionado?.hora, navigation]);
+    const paso =
+      typeof resumePasoFormulario === 'number' && resumePasoFormulario >= 1
+        ? resumePasoFormulario
+        : null;
+    if (paso != null) {
+      setPasoResumeCalendario(paso);
+    }
+    navigation.setParams({ slotSeleccionado: undefined, resumePasoFormulario: undefined });
+  }, [slotSeleccionado?.fecha, slotSeleccionado?.hora, resumePasoFormulario, navigation]);
 
   // Clave estable para useFocusEffect: `route.params` suele ser un objeto nuevo en cada render del
   // navigator y recreaba el callback → doble foco / refetch y setInitialData en momentos raros.
@@ -312,6 +323,11 @@ const CrearSolicitudScreen = () => {
   // Verificar si puede crear solicitud y cargar parámetros cuando la pantalla recibe foco
   useFocusEffect(
     useCallback(() => {
+      // Vuelta desde calendario: no re-ejecutar prepararDatosIniciales (resetea paso y fecha).
+      if (route.params?.slotSeleccionado?.fecha) {
+        return undefined;
+      }
+
       // Refetch de vehículos al volver a esta pantalla (ej. tras agregar auto en Mis vehículos).
       // No en el primer foco: useQuery ya tiene refetchOnMount y un refetch extra aquí duplicaba peticiones
       // y podía hacer "parpadear" listas del paso 1.
@@ -521,7 +537,11 @@ const CrearSolicitudScreen = () => {
             if (tieneVehicleParam) {
               initialFromRoute.vehiculo = vehicle;
             }
-            setInitialData(initialFromRoute);
+            setInitialData((prev) => ({
+              ...initialFromRoute,
+              fecha_preferida: prev?.fecha_preferida || initialFromRoute.fecha_preferida,
+              hora_preferida: prev?.hora_preferida || initialFromRoute.hora_preferida,
+            }));
 
             preselectAppliedFingerprintRef.current = preselectFingerprint;
 
@@ -548,7 +568,7 @@ const CrearSolicitudScreen = () => {
       // NOTA: refetchVehicles se usa vía ref (refetchVehiclesRef) para no incluirla como dependencia
       // y evitar que el callback se recree innecesariamente, lo que causaba re-ejecución del
       // useFocusEffect → refetch → re-render → apariencia de "recarga" del paso 1.
-    }, [navigation, focusEffectRouteKey])
+    }, [navigation, focusEffectRouteKey, route.params?.slotSeleccionado?.fecha])
   );
 
   const cargarDatos = async () => {
@@ -675,6 +695,25 @@ const CrearSolicitudScreen = () => {
     setCreando(true);
     try {
       console.log('CrearSolicitudScreen: Enviando datos del formulario:', formData);
+
+      if (
+        !formData.sin_vehiculo_registrado
+        && formData.vehiculo?.id
+        && Array.isArray(formData.servicios_seleccionados)
+        && formData.servicios_seleccionados.length > 0
+      ) {
+        const servicioIds = formData.servicios_seleccionados
+          .map((s) => (typeof s === 'object' ? s?.id : s))
+          .filter(Boolean);
+        const okDup = await validarSinServicioActivoDuplicado(navigation, {
+          vehiculoId: formData.vehiculo.id,
+          servicioIds,
+        });
+        if (!okDup) {
+          setCreando(false);
+          return;
+        }
+      }
 
       // Validar que tenemos el ID del cliente
       if (!clienteId) {
@@ -1228,6 +1267,8 @@ const CrearSolicitudScreen = () => {
         onExit={() => navigation.goBack()}
         bloquearCambioVehiculo={!!(vehicle && (fromDashboard || agendamientoInteligente))}
         isPreCompra={!!isPreCompra}
+        pasoResumeCalendario={pasoResumeCalendario}
+        onPasoResumeConsumido={() => setPasoResumeCalendario(null)}
       />
     </GlassShell>
   );

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
-import { Bell, User, Car, ChevronDown, MapPin, Plus } from 'lucide-react-native';
+import { Bell, Car, ChevronDown, MapPin, Plus } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
 
 /**
@@ -18,9 +18,7 @@ const HomeContextHeader = ({
   selectedAddress,
   onPressSelectAddress,
   unreadCount = 0,
-  user,
   onPressNotifications,
-  onPressProfile,
 }) => (
   <View style={styles.wrap}>
     <View style={styles.topRow}>
@@ -86,20 +84,6 @@ const HomeContextHeader = ({
             <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
           </View>
         ) : null}
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.avatarBtn} onPress={onPressProfile} activeOpacity={0.85}>
-        {user?.foto_perfil_url || user?.foto_perfil ? (
-          <Image
-            source={{ uri: user.foto_perfil_url || user.foto_perfil }}
-            style={styles.avatar}
-            contentFit="cover"
-          />
-        ) : (
-          <View style={[styles.avatar, styles.avatarFallback]}>
-            <User size={18} color={COLORS.primary[500]} />
-          </View>
-        )}
       </TouchableOpacity>
     </View>
 
@@ -241,21 +225,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.inverse,
     fontSize: 9,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  avatarBtn: {
-    width: 40,
-    height: 40,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
-  },
-  avatarFallback: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
   },
   addressRow: {
     flexDirection: 'row',
