@@ -81,14 +81,21 @@ export function mapOfertaCatalogoParaSolicitud(servicio, provider, providerType)
 
 export function buildProviderForSolicitud(provider, providerType) {
   const panelKind = providerType === 'taller' ? 'taller' : 'mecanico';
-  const providerId = provider?.id ?? provider?.providerId;
+  const entityId =
+    provider?.proveedor_entity_id
+    ?? (panelKind === 'taller'
+      ? (provider?.taller_id ?? provider?.id ?? provider?.providerId)
+      : (provider?.mecanico_id ?? provider?.id ?? provider?.providerId));
   const usuarioId =
     provider?.usuario?.id ??
     provider?.usuario ??
     provider?.usuario_id;
   return {
     ...provider,
-    id: providerId,
+    id: entityId,
+    proveedor_entity_id: entityId,
+    taller_id: panelKind === 'taller' ? entityId : provider?.taller_id,
+    mecanico_id: panelKind === 'mecanico' ? entityId : provider?.mecanico_id,
     usuario_id: usuarioId,
     usuario: provider?.usuario ?? (usuarioId ? { id: usuarioId } : undefined),
     _panelKind: panelKind,

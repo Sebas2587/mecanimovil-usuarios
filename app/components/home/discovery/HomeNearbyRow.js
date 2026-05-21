@@ -21,6 +21,7 @@ const HomeNearbyRow = ({
       icon={<Navigation size={16} color={COLORS.primary[500]} />}
       title={resolvedTitle}
       hint="Más cerca de tu dirección."
+      cardFooterVariant="bookings"
       providers={providers}
       loading={loading}
       emptyRequiresAddress

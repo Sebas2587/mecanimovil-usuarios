@@ -1,14 +1,41 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { Users } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { formatCLP } from './shared/homeFormatters';
+import { formatProviderBookingsBadgeLabel } from '../../utils/providerUtils';
 
 const MAX_CHIPS = 3;
 
 /**
- * Chips de ofertas (servicio + precio) en cards del home — Coinbase-light.
+ * Métricas bajo el nombre en cards de proveedor (Coinbase-light).
+ * - `offers`: chips servicio + precio (`panel_servicios`).
+ * - `bookings`: badge de contrataciones en la plataforma.
  */
-const ProviderServiceChipsRow = ({ offers = [], compact = false }) => {
+const ProviderServiceChipsRow = ({
+  variant = 'offers',
+  offers = [],
+  bookingsCount = null,
+  compact = false,
+}) => {
+  if (variant === 'bookings') {
+    const label = formatProviderBookingsBadgeLabel(bookingsCount);
+    if (!label) return null;
+
+    return (
+      <View
+        style={[styles.bookingsRow, compact && styles.bookingsRowCompact]}
+        accessibilityRole="text"
+        accessibilityLabel={label}
+      >
+        <Users size={12} color={COLORS.text.secondary} strokeWidth={2.25} />
+        <Text style={styles.bookingsText} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
+    );
+  }
+
   const list = (Array.isArray(offers) ? offers : []).slice(0, MAX_CHIPS);
   if (list.length === 0) return null;
 
@@ -54,7 +81,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: BORDERS.radius.full,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     backgroundColor: COLORS.neutral.gray[100],
     gap: 6,
@@ -75,6 +102,24 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     fontFamily: TYPOGRAPHY.fontFamily.mono,
     color: COLORS.primary[600],
+  },
+  bookingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    marginTop: 4,
+    marginBottom: 6,
+    gap: 5,
+  },
+  bookingsRowCompact: {
+    marginBottom: 4,
+  },
+  bookingsText: {
+    flexShrink: 1,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.secondary,
   },
 });
 

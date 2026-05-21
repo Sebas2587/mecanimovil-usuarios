@@ -21,6 +21,7 @@ const HomeHighlightedRow = ({
       icon={<Sparkles size={16} color={COLORS.primary[500]} />}
       title={resolvedTitle}
       hint="Ordenados por desempeño en MecaniMóvil."
+      cardFooterVariant="bookings"
       providers={providers}
       loading={loading}
       emptyRequiresAddress={false}

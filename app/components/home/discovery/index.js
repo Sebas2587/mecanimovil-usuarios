@@ -10,7 +10,6 @@ export { default as HomeMarketActivitySection } from './HomeMarketActivitySectio
 export { default as HomeDiscoveryHub } from './HomeDiscoveryHub';
 export { default as HomeContextHeader } from './HomeContextHeader';
 export { default as HomeSearchBar } from './HomeSearchBar';
-export { default as HomeAgendamientoRapidoButton } from './HomeAgendamientoRapidoButton';
 export { default as HomeCategoryGrid } from './HomeCategoryGrid';
 export { default as HomeContextualBanner } from './HomeContextualBanner';
 export { default as HomeOffersRow } from './HomeOffersRow';

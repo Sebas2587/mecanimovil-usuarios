@@ -49,6 +49,8 @@ import {
   formatPrecioCatalogoServicio,
 } from '../home/shared/providerCatalogSchedule';
 import SolicitudCatalogContextBanner from './SolicitudCatalogContextBanner';
+import ProviderCatalogScheduleCard from './ProviderCatalogScheduleCard';
+import SolicitudPaso2Contexto from './SolicitudPaso2Contexto';
 import SolicitudPaso1ServiceCard from './SolicitudPaso1ServiceCard';
 import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProviderAvatarUri } from '../../utils/providerUtils';
 import {
@@ -150,8 +152,22 @@ const FormularioSolicitud = ({
   pasoResumeCalendario = null,
   onPasoResumeConsumido = null,
 }) => {
-  // Pre-compra marketplace: skip vehicle selection (step 1), start at step 3
-  const [pasoActual, setPasoActual] = useState(isPreCompra ? 3 : 1);
+  const resolverPasoInicial = () => {
+    if (isPreCompra) return 3;
+    const sinVeh = initialData?.sin_vehiculo_registrado === true;
+    const tieneSvc = (initialData?.servicios_seleccionados?.length ?? 0) > 0;
+    const tieneProv = (initialData?.proveedores_dirigidos?.length ?? 0) > 0;
+    const desdePerfil = initialData?.fromProviderDetail === true;
+    const catalogo = initialData?.flujoCatalogoProveedor === true;
+    const saltarPaso1 =
+      tieneSvc
+      && !sinVeh
+      && ((desdePerfil && tieneProv) || catalogo);
+    return saltarPaso1 ? 2 : 1;
+  };
+
+  // Pre-compra: paso 3. Catálogo/perfil proveedor: paso 2 (sin selector de servicios en paso 1).
+  const [pasoActual, setPasoActual] = useState(resolverPasoInicial);
 
   useEffect(() => {
     if (pasoResumeCalendario == null) return;
@@ -346,7 +362,7 @@ const FormularioSolicitud = ({
   const renderFotosNecesidadEditor = (lista, actualizarLista) => (
     <View style={{ marginTop: 4 }}>
       <Text style={{ color: COLORS.text.secondary, fontSize: 13, marginBottom: 10 }}>
-        Fotos de la necesidad (opcional, máx. {MAX_FOTOS_NECESIDAD})
+        Tus fotos (opcional, máx. {MAX_FOTOS_NECESIDAD})
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, alignItems: 'center' }}>
         {lista.map((item, idx) => (
@@ -435,7 +451,7 @@ const FormularioSolicitud = ({
 
   // Ref para hacer scroll a la sección de descripción del problema en el paso 2
   const descripcionProblemaRef = useRef(null);
-  const paso2ScrollViewRef = useRef(null);
+  const formScrollRef = useRef(null);
   const descripcionYPosition = useRef(0);
 
   // Modal "Describe tu necesidad": mantener el formulario por encima del teclado
@@ -755,9 +771,8 @@ const FormularioSolicitud = ({
         // Esperar a que todas las interacciones y animaciones terminen
         InteractionManager.runAfterInteractions(() => {
           setTimeout(() => {
-            if (paso2ScrollViewRef.current) {
-              // Hacer scroll al final del ScrollView donde está la sección de descripción
-              paso2ScrollViewRef.current.scrollToEnd({ animated: true });
+            if (formScrollRef.current) {
+              formScrollRef.current.scrollToEnd({ animated: true });
             }
           }, 200);
         });
@@ -775,6 +790,13 @@ const FormularioSolicitud = ({
       && !isPreCompra
       && !flujoCuatroPasos
       && esAgendamientoInteligente);
+
+  /** Paso 4 = tipo global/dirigida; no aplica en comparador ni con proveedor ya elegido. */
+  const omitirPasoSeleccionProveedores =
+    iaAsistidoActivo
+    || flujoComparadorCatalogo
+    || (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado);
+
   const { loadingCandidatos: loadingCandidatosIa, cargarCandidatos: cargarCandidatosIa } =
     useAgendamientoAsistido();
 
@@ -903,10 +925,10 @@ const FormularioSolicitud = ({
   const totalPasos = isPreCompra
     ? 4
     : iaAsistidoActivo
-      ? 3
+      ? 4
       : flujoCuatroPasos
         ? 4
-        : 5;
+        : 6;
 
   // Flujo inteligente: nunca arrastrar proveedor de una solicitud dirigida anterior
   useEffect(() => {
@@ -958,11 +980,17 @@ const FormularioSolicitud = ({
     }
   }, [tieneProveedorPreseleccionado, formData.sin_vehiculo_registrado, formData.tipo_solicitud, formData.proveedores_dirigidos]);
 
+  // Catálogo / perfil proveedor: si initialData llega tarde, no quedarse en paso 1 vacío.
+  useEffect(() => {
+    if (isPreCompra || !flujoCuatroPasos || pasoActual !== 1) return;
+    setPasoActual(2);
+  }, [flujoCuatroPasos, isPreCompra, pasoActual]);
+
   // Log informativo sobre el flujo detectado
   useEffect(() => {
     if (flujoCuatroPasos) {
       console.log('✅ FormularioSolicitud: Servicio y proveedor preseleccionados detectados');
-      console.log('📊 Flujo optimizado: 4 pasos (saltando pasos 2 y 4 - selección de servicios y proveedores)');
+      console.log('📊 Flujo optimizado: 4 pasos visibles (2→3→ubicación→confirmación; sin paso 1 ni 4)');
       console.log('🎯 Servicio:', initialData.servicios_seleccionados[0]?.nombre);
       console.log('👤 Proveedor:', initialData.proveedores_dirigidos[0]?.nombre || 'Proveedor preseleccionado');
       console.log('📍 Origen: ProviderDetailScreen');
@@ -975,19 +1003,6 @@ const FormularioSolicitud = ({
       console.log('📋 FormularioSolicitud: Flujo normal de 6 pasos');
     }
   }, [tieneServicioPreseleccionado, tieneProveedorPreseleccionado]);
-
-  // Si los servicios por ID llegaron async y el usuario ya quedó en paso 2, saltar a paso 3
-  useEffect(() => {
-    if (pasoActual !== 2) return;
-    if (!formData.servicios_seleccionados?.length) return;
-    if (!initialData?.servicios_seleccionados?.length) return;
-    console.log('🚀 Servicios preseleccionados listos: saliendo del paso 2 → paso 3');
-    setPasoActual(3);
-  }, [
-    pasoActual,
-    formData.servicios_seleccionados,
-    initialData?.servicios_seleccionados,
-  ]);
 
   // Regla de negocio: precompra sin vehículo NO pregunta por repuestos.
   useEffect(() => {
@@ -1105,20 +1120,19 @@ const FormularioSolicitud = ({
       return;
     }
 
-    // flujoCuatroPasos: 1→3→[calendario]→5→6 (skip step 2 and 4)
+    // flujoCuatroPasos: 1→2→3→[calendario]→5→6 (skip step 4)
     if (flujoCuatroPasos) {
-      if (pasoActual === 1) { setPasoActual(3); }
+      if (pasoActual === 6) { handleSubmit(); }
       else if (pasoActual === 3) {
         if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
         setPasoActual(5);
       }
       else if (pasoActual === 5) { setPasoActual(6); }
-      else if (pasoActual === 6) { handleSubmit(); }
       else { setPasoActual(pasoActual + 1); }
       return;
     }
 
-    // Comparador / agendamiento inteligente: 1→3→5→6 (sin paso 4) → elegir proveedor recomendado
+    // Comparador / agendamiento inteligente: 1→2→3→5 (sin paso 4 ni 6 en formulario)
     if (iaAsistidoActivo) {
       if (pasoActual === 1) {
         if (!formData.vehiculo) {
@@ -1129,10 +1143,14 @@ const FormularioSolicitud = ({
           Alert.alert('Selecciona un servicio', 'Debes seleccionar al menos un servicio para continuar.');
           return;
         }
-        setPasoActual(3);
+        setPasoActual(2);
         return;
       }
       if (pasoActual === 3) {
+        setPasoActual(5);
+        return;
+      }
+      if (pasoActual === 4) {
         setPasoActual(5);
         return;
       }
@@ -1143,25 +1161,33 @@ const FormularioSolicitud = ({
         irAComparadorCatalogo();
         return;
       }
+      if (pasoActual === 6) {
+        handleSubmit();
+        return;
+      }
+      setPasoActual(pasoActual + 1);
       return;
     }
 
     // Servicio preseleccionado con paso de proveedores manual (solo si no usa comparador)
-    if (tieneServicioPreseleccionado) {
+    if (tieneServicioPreseleccionado && !iaAsistidoActivo) {
       if (pasoActual === 1) {
         if (formData.sin_vehiculo_registrado) {
           if (!formData.servicios_seleccionados?.length) {
             Alert.alert('Error', 'Debes tener el servicio seleccionado');
             return;
           }
-          setPasoActual(3);
+          setPasoActual(2);
           return;
         }
         if (!formData.vehiculo) {
           Alert.alert('Error', 'Debes seleccionar un vehículo para continuar');
           return;
         }
-        setPasoActual(3);
+        setPasoActual(2);
+      } else if (pasoActual === 3 && omitirPasoSeleccionProveedores) {
+        if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
+        setPasoActual(5);
       } else if (pasoActual === 4) {
         if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
         setPasoActual(5);
@@ -1173,9 +1199,9 @@ const FormularioSolicitud = ({
       return;
     }
 
-    // Flujo legacy (precompra u otros): 1→3→4→[calendario]→5→6
+    // Flujo estándar: 1→2→3→4→[calendario]→5→6
     if (pasoActual === 1) {
-      if (!formData.vehiculo) {
+      if (!formData.vehiculo && !formData.sin_vehiculo_registrado) {
         Alert.alert('Selecciona un vehículo', 'Debes seleccionar un vehículo para continuar.');
         return;
       }
@@ -1183,13 +1209,9 @@ const FormularioSolicitud = ({
         Alert.alert('Selecciona un servicio', 'Debes seleccionar al menos un servicio para continuar.');
         return;
       }
-      if (!formData.descripcion_problema?.trim()) {
-        setTempDescription(formData.descripcion_problema || '');
-        setTempFotosNecesidad(Array.isArray(formData.fotos_necesidad) ? [...formData.fotos_necesidad] : []);
-        setDescriptionModalVisible(true);
-        return;
-      }
-      setPasoActual(3);
+      setPasoActual(2);
+    } else if (pasoActual === 3 && omitirPasoSeleccionProveedores) {
+      setPasoActual(5);
     } else if (pasoActual === 4) {
       if (debeElegirHorarioEnAgenda() && irACalendarioDesdeFormulario(5)) return;
       setPasoActual(5);
@@ -1202,6 +1224,11 @@ const FormularioSolicitud = ({
   };
 
   const handleBack = () => {
+    if (flujoCuatroPasos && pasoActual === 2) {
+      onExit?.();
+      return;
+    }
+
     if (pasoActual <= 1) return;
 
     // Pre-compra marketplace: back from first visible step exits the form
@@ -1224,10 +1251,9 @@ const FormularioSolicitud = ({
       return;
     }
 
-    // flujoCuatroPasos: skip step 4 and 2 going back
+    // flujoCuatroPasos: skip step 4 going back
     if (flujoCuatroPasos) {
-      if (pasoActual === 3) { setPasoActual(1); }
-      else if (pasoActual === 5) { setPasoActual(3); }
+      if (pasoActual === 5) { setPasoActual(3); }
       else { setPasoActual(pasoActual - 1); }
       return;
     }
@@ -1237,18 +1263,18 @@ const FormularioSolicitud = ({
         setPasoActual(3);
         return;
       }
-      if (pasoActual === 5) {
+      if (pasoActual === 4) {
         setPasoActual(3);
         return;
       }
     }
 
-    // All flows: step 3 goes back to step 1 (skip step 2)
-    if (pasoActual === 3) {
-      setPasoActual(1);
-    } else {
-      setPasoActual(pasoActual - 1);
+    if (omitirPasoSeleccionProveedores && pasoActual === 5) {
+      setPasoActual(3);
+      return;
     }
+
+    setPasoActual(pasoActual - 1);
   };
 
   const validarPaso = (paso) => {
@@ -1288,29 +1314,28 @@ const FormularioSolicitud = ({
         }
         return true;
       case 2:
-        // Este paso se salta cuando hay servicio preseleccionado
-        // Solo validar si estamos en flujo normal
-        if (!tieneServicioPreseleccionado) {
-          if (!Array.isArray(formData.servicios_seleccionados) || formData.servicios_seleccionados.length === 0) {
-            Alert.alert('Error', 'Debes seleccionar al menos un servicio');
-            return false;
-          }
-          if (!formData.descripcion_problema.trim()) {
-            Alert.alert('Error', 'Debes describir el problema');
-            return false;
-          }
+        if (!Array.isArray(formData.servicios_seleccionados) || formData.servicios_seleccionados.length === 0) {
+          Alert.alert('Error', 'Debes seleccionar al menos un servicio');
+          return false;
+        }
+        if (!formData.descripcion_problema?.trim()) {
+          Alert.alert(
+            'Detalles requeridos',
+            'Describe qué necesitas para el proveedor. Es obligatorio para dar contexto al servicio.'
+          );
+          return false;
         }
         return true;
       case 3:
-        // Precompra sin vehículo: no exigir vehículo, pero sí comentario obligatorio
-        if (formData.sin_vehiculo_registrado) {
-          if (!formData.descripcion_problema || !formData.descripcion_problema.trim()) {
-            Alert.alert(
-              'Comentario requerido',
-              'Para precompra sin vehículo debes indicar en el comentario el vehículo a inspeccionar.'
-            );
-            return false;
-          }
+        if (isPreCompra && !formData.descripcion_problema?.trim()) {
+          Alert.alert(
+            'Detalles requeridos',
+            'Describe qué necesitas para el proveedor. Es obligatorio para dar contexto al servicio.'
+          );
+          return false;
+        }
+        // Precompra sin vehículo: no exigir vehículo (detalles validados arriba si isPreCompra)
+        if (formData.sin_vehiculo_registrado && !isPreCompra) {
           return true;
         }
         // Si hay servicio y proveedor preseleccionados, validar que haya vehículo seleccionado
@@ -1328,6 +1353,7 @@ const FormularioSolicitud = ({
         }
         return true; // Urgencia siempre tiene valor por defecto
       case 4:
+        if (omitirPasoSeleccionProveedores) return true;
         if (formData.tipo_solicitud === 'dirigida' && formData.proveedores_dirigidos.length === 0) {
           Alert.alert('Error', 'Debes seleccionar al menos un proveedor para solicitud dirigida');
           return false;
@@ -1742,29 +1768,6 @@ const FormularioSolicitud = ({
               </View>
             ) : null}
 
-            {iaAsistidoActivo ? (
-              <View style={{ marginBottom: 20 }}>
-                <Text style={[gs.sectionTitle, { marginBottom: 6 }]}>
-                  Detalles para el proveedor (opcional)
-                </Text>
-                <Text style={[gs.sectionSub, { marginBottom: 10 }]}>
-                  Horario, síntomas o preferencias. Luego compararás proveedores con precio de catálogo.
-                </Text>
-                <TextInput
-                  style={styles.textArea}
-                  multiline
-                  numberOfLines={3}
-                  placeholder="Ej: prefiero mañana, ruido al frenar..."
-                  placeholderTextColor={COLORS.text.disabled}
-                  value={formData.descripcion_problema || ''}
-                  onChangeText={(text) =>
-                    setFormData((prev) => ({ ...prev, descripcion_problema: text || '' }))
-                  }
-                  textAlignVertical="top"
-                />
-              </View>
-            ) : null}
-
             {/* Desgaste: ver HomeHealthServicesRow en el panel; aquí solo elegir servicio */}
 
             {/* ── Services Section ── */}
@@ -1852,6 +1855,8 @@ const FormularioSolicitud = ({
   };
 
   const renderPaso1 = () => {
+    if (flujoCuatroPasos) return null;
+
     // All non-precompra flows use the unified dashboard layout
     if (!formData.sin_vehiculo_registrado) {
       return renderDashboardPaso1();
@@ -1975,7 +1980,69 @@ const FormularioSolicitud = ({
     );
   };
 
-  const renderPaso2 = () => null;
+  const renderPaso2CatalogHeader = (servicio, proveedor, tipoProv) => {
+    if (!servicio) return null;
+    if (flujoCatalogoProveedor && proveedor) {
+      return (
+        <View style={styles.paso2CatalogHeader}>
+          <ProviderCatalogScheduleCard
+            proveedor={proveedor}
+            servicio={servicio}
+            tipoProveedor={tipoProv}
+          />
+        </View>
+      );
+    }
+    if (proveedor) {
+      return (
+        <View style={styles.paso2CatalogHeader}>
+          <SolicitudCatalogContextBanner
+            proveedor={proveedor}
+            servicio={servicio}
+            tipoProveedor={tipoProv}
+          />
+        </View>
+      );
+    }
+    return (
+      <View style={[styles.infoBox, styles.paso2CatalogHeader]}>
+        <Ionicons name="construct-outline" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.infoBoxText} numberOfLines={2}>
+            {servicio.nombre || 'Servicio seleccionado'}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderPaso2 = () => {
+    if (isPreCompra) return null;
+
+    const servicio = formData.servicios_seleccionados?.[0] ?? null;
+    const proveedor = formData.proveedores_dirigidos?.[0] ?? null;
+    const tipoProv =
+      proveedor?.tipo || proveedor?.tipo_proveedor || initialData?.tipoProveedorPreseleccionado;
+
+    return (
+      <View style={styles.pasoContainer}>
+        <Text style={styles.pasoTitle}>Describe tu necesidad</Text>
+        <Text style={styles.pasoDescripcion}>
+          Cuéntanos qué problema tienes para que los proveedores entiendan tu solicitud. Puedes adjuntar hasta 3 fotos.
+        </Text>
+        <SolicitudPaso2Contexto
+          formData={formData}
+          setFormData={setFormData}
+          servicioSeleccionado={servicio}
+          sinVehiculoRegistrado={formData.sin_vehiculo_registrado}
+          renderFotosNecesidadEditor={renderFotosNecesidadEditor}
+          GlassCard={GlassCard}
+          styles={styles}
+          childrenBeforeDetalles={renderPaso2CatalogHeader(servicio, proveedor, tipoProv)}
+        />
+      </View>
+    );
+  };
 
   const renderPaso3 = () => {
     // Si hay servicio y proveedor preseleccionados pero no hay vehículo, mostrar selector de vehículo primero
@@ -2030,76 +2097,48 @@ const FormularioSolicitud = ({
       );
     }
 
+    const servicioPaso3 = formData.servicios_seleccionados?.[0] ?? null;
+    const proveedorPaso3 = formData.proveedores_dirigidos?.[0] ?? null;
+    const tipoProvPaso3 =
+      proveedorPaso3?.tipo || proveedorPaso3?.tipo_proveedor || initialData?.tipoProveedorPreseleccionado;
+
     return (
       <View style={styles.pasoContainer}>
-        <Text style={styles.pasoTitle}>¿Qué tan urgente es?</Text>
-        <Text style={styles.pasoDescripcion}>Selecciona el nivel de urgencia del servicio</Text>
-
-        {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
-          <View style={[styles.infoBox, { marginBottom: 14 }]}>
-            <Ionicons name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor'}</Text>
-            </View>
-          </View>
-        )}
-
-        <GlassCard
-          style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-            formData.urgencia === 'normal' && { borderColor: COLORS.success[400], backgroundColor: COLORS.success.light }]}
-          onPress={() => setFormData(prev => ({ ...prev, urgencia: 'normal' }))}
-        >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.success[100], alignItems: 'center', justifyContent: 'center' }}>
-            <ClockIcon size={20} color={COLORS.success[600]} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.opcionTitle}>Normal</Text>
-            <Text style={styles.opcionDescripcion}>Puede esperar unos días</Text>
-          </View>
-          {formData.urgencia === 'normal' && <CheckCircle2Icon size={22} color={COLORS.success[600]} />}
-        </GlassCard>
-
-        <GlassCard
-          style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-            formData.urgencia === 'urgente' && { borderColor: COLORS.warning[400], backgroundColor: COLORS.warning[50] }]}
-          onPress={() => setFormData(prev => ({ ...prev, urgencia: 'urgente' }))}
-        >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.warning[100], alignItems: 'center', justifyContent: 'center' }}>
-            <Zap size={20} color={COLORS.warning[500]} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.opcionTitle}>Urgente</Text>
-            <Text style={styles.opcionDescripcion}>Necesito el servicio lo antes posible</Text>
-          </View>
-          {formData.urgencia === 'urgente' && <CheckCircle2Icon size={22} color={COLORS.warning[500]} />}
-        </GlassCard>
-
-        {/* Precompra sin vehículo: comentario obligatorio para detallar el auto a inspeccionar */}
-        {formData.sin_vehiculo_registrado && (
-          <View style={styles.descripcionContainer}>
-            <Text style={styles.descripcionLabel}>
-              Comentario obligatorio: indica marca, modelo, año y observaciones del vehículo a inspeccionar
+        {isPreCompra ? (
+          <>
+            <Text style={styles.pasoTitle}>Describe tu necesidad</Text>
+            <Text style={styles.pasoDescripcion}>
+              Cuéntanos qué quieres revisar antes de comprar. Puedes adjuntar hasta 3 fotos.
             </Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              numberOfLines={4}
-              placeholder="Ej: Chevrolet Sail 2016, 145.000 km, quiero revisar motor, caja y estado general antes de compra."
-              value={formData.descripcion_problema || ''}
-              onChangeText={(text) => setFormData(prev => ({ ...prev, descripcion_problema: text || '' }))}
-              textAlignVertical="top"
+            <SolicitudPaso2Contexto
+              formData={formData}
+              setFormData={setFormData}
+              servicioSeleccionado={servicioPaso3}
+              sinVehiculoRegistrado={formData.sin_vehiculo_registrado}
+              renderFotosNecesidadEditor={renderFotosNecesidadEditor}
+              GlassCard={GlassCard}
+              styles={styles}
+              childrenBeforeDetalles={renderPaso2CatalogHeader(
+                servicioPaso3,
+                proveedorPaso3,
+                tipoProvPaso3,
+              )}
             />
-          </View>
+          </>
+        ) : (
+          <>
+            {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
+              <View style={[styles.infoBox, { marginBottom: 14 }]}>
+                <Ionicons name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.infoBoxText}>
+                    Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor'}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </>
         )}
-
-        <View style={{ marginTop: formData.sin_vehiculo_registrado ? 14 : 10 }}>
-          {renderFotosNecesidadEditor(
-            Array.isArray(formData.fotos_necesidad) ? formData.fotos_necesidad : [],
-            (next) => setFormData((prev) => ({ ...prev, fotos_necesidad: next })),
-          )}
-        </View>
-
-        <View style={{ marginVertical: 16 }} />
 
         {/* Repuestos selection */}
         {(() => {
@@ -2390,8 +2429,7 @@ const FormularioSolicitud = ({
   };
 
   const renderPaso4 = () => {
-    if (iaAsistidoActivo || flujoComparadorCatalogo) return null;
-    if (tieneProveedorPreseleccionado && !formData.sin_vehiculo_registrado) return null;
+    if (omitirPasoSeleccionProveedores) return null;
 
     if (!formData.vehiculo && !formData.sin_vehiculo_registrado) {
       return (
@@ -2881,30 +2919,31 @@ const FormularioSolicitud = ({
       return mapaPasos[pasoActual] || pasoActual;
     }
 
-    // Catálogo IA: 1→3→5→6
+    // Catálogo IA: 1→2→3→5→6
     if (iaAsistidoActivo) {
-      const mapaPasos = { 1: 1, 3: 2, 5: 3 };
+      const mapaPasos = { 1: 1, 2: 2, 3: 3, 5: 4 };
       return mapaPasos[pasoActual] || pasoActual;
     }
     if (flujoComparadorCatalogo) {
-      const mapaPasos = { 1: 1, 3: 2, 5: 3, 6: 4 };
+      const mapaPasos = { 1: 1, 2: 2, 3: 3, 5: 4, 6: 5 };
       return mapaPasos[pasoActual] || pasoActual;
     }
 
-    // flujoCuatroPasos: 4 visual steps (1→3→5→6)
+    // flujoCuatroPasos: 2→3→5→6 (sin paso 1 ni 4)
     if (flujoCuatroPasos) {
-      const mapaPasos = { 1: 1, 3: 2, 5: 3, 6: 4 };
+      const mapaPasos = { 2: 1, 3: 2, 5: 3, 6: 4 };
       return mapaPasos[pasoActual] || pasoActual;
     }
 
-    // All other flows: 5 visual steps (1→3→4→5→6)
+    // Flujo estándar: 1→2→3→4→5→6
     {
       const mapaPasos = {
         1: 1,
-        3: 2,
-        4: 3,
-        5: 4,
-        6: 5
+        2: 2,
+        3: 3,
+        4: 4,
+        5: 5,
+        6: 6,
       };
       return mapaPasos[pasoActual] || pasoActual;
     }
@@ -2957,6 +2996,7 @@ const FormularioSolicitud = ({
 
       {/* Content */}
       <ScrollView
+        ref={formScrollRef}
         style={styles.scrollMain}
         contentContainerStyle={[
           Platform.OS !== 'web' ? { flexGrow: 1 } : null,
@@ -2986,7 +3026,7 @@ const FormularioSolicitud = ({
           },
         ]}
       >
-        {pasoActual === 1 && onExit ? (
+        {(pasoActual === 1 || (flujoCuatroPasos && pasoActual === 2)) && onExit ? (
           <TouchableOpacity onPress={onExit} style={styles.navBackBtn} activeOpacity={0.8}>
             <Text style={styles.navBackText}>Salir</Text>
           </TouchableOpacity>
@@ -3420,6 +3460,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+
+  paso2CatalogHeader: { marginBottom: 14 },
+  paso2DetallesCard: { marginBottom: 16 },
+  paso2FotosProveedorBlock: { marginBottom: 12 },
+  paso2Divider: {
+    height: 1,
+    backgroundColor: COLORS.border.light,
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  paso2Required: { color: COLORS.error.main, fontWeight: '700' },
+  paso2DetallesHint: {
+    color: COLORS.text.tertiary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 10,
+  },
+  paso2FotosUsuario: { marginTop: 14 },
+  paso2UrgenciaTitle: { marginTop: 4 },
+  paso2UrgenciaRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 8,
+  },
+  paso2UrgenciaCol: { flex: 1, minWidth: 0 },
+  paso2UrgenciaCard: {
+    padding: 14,
+    marginBottom: 0,
+  },
+  paso2UrgenciaCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 10,
+  },
+  paso2UrgenciaIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDERS.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paso2UrgenciaCardActiveNormal: {
+    borderColor: COLORS.success[400],
+    backgroundColor: COLORS.success.light,
+  },
+  paso2UrgenciaCardActiveUrgent: {
+    borderColor: COLORS.warning[400],
+    backgroundColor: COLORS.warning.light,
   },
 
   infoBox: {

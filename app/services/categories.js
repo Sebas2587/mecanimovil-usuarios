@@ -1,4 +1,12 @@
 import { get } from './api';
+import { getServicesByVehiculo } from './service';
+
+/** Respuesta DRF paginada o array directo → lista. */
+export function normalizeApiList(data) {
+  if (Array.isArray(data)) return data;
+  if (data && Array.isArray(data.results)) return data.results;
+  return [];
+}
 
 /**
  * Obtiene todas las categorías de servicios
@@ -6,12 +14,10 @@ import { get } from './api';
  */
 export const getAllCategories = async () => {
   try {
-    // Usar el endpoint genérico sin autenticación
     const data = await get('/servicios/categorias/', {}, { requiresAuth: false });
-    return data;
+    return normalizeApiList(data);
   } catch (error) {
     console.error('Error obteniendo categorías:', error);
-    // Si falla, devolver array vacío para evitar errores en la UI
     return [];
   }
 };
@@ -131,12 +137,110 @@ export const getServicesByCategory = async (categoryId) => {
   }
 };
 
+function collectCategoryIdsFromServices(allServices) {
+  const categoryIds = new Set();
+  for (const servicio of allServices) {
+    if (servicio.categorias_ids && Array.isArray(servicio.categorias_ids)) {
+      servicio.categorias_ids.forEach((categoriaId) => {
+        if (categoriaId) categoryIds.add(categoriaId);
+      });
+    } else if (servicio.categorias && Array.isArray(servicio.categorias)) {
+      servicio.categorias.forEach((categoria) => {
+        const catId = typeof categoria === 'object' ? categoria.id : categoria;
+        if (catId) categoryIds.add(catId);
+      });
+    } else if (servicio.categoria) {
+      const catId =
+        typeof servicio.categoria === 'object' ? servicio.categoria.id : servicio.categoria;
+      if (catId) categoryIds.add(catId);
+    }
+  }
+  return categoryIds;
+}
+
+function resolveCategoriaPrincipal(categoria, categoriesById) {
+  if (!categoria) return null;
+  if (categoria.categoria_padre == null) return categoria;
+  const padreId =
+    typeof categoria.categoria_padre === 'object'
+      ? categoria.categoria_padre?.id
+      : categoria.categoria_padre;
+  return categoriesById.get(padreId) || null;
+}
+
+function serviceMatchesMainCategory(servicio, mainCategoryId, categoriesById) {
+  const ids = collectCategoryIdsFromServices([servicio]);
+  for (const catId of ids) {
+    const principal = resolveCategoriaPrincipal(categoriesById.get(catId), categoriesById);
+    if (principal?.id === mainCategoryId) return true;
+  }
+  return false;
+}
+
+async function buildMainCategoriesFromServices(allServices) {
+  if (!allServices.length) return [];
+
+  const categoryIds = collectCategoryIdsFromServices(allServices);
+  if (categoryIds.size === 0) return [];
+
+  const categoriesData = await getAllCategories();
+  const categoriesById = new Map();
+  categoriesData.forEach((categoria) => {
+    categoriesById.set(categoria.id, categoria);
+  });
+
+  const mainCategories = [];
+  const mainIds = new Set();
+  for (const categoriaId of categoryIds) {
+    const principal = resolveCategoriaPrincipal(categoriesById.get(categoriaId), categoriesById);
+    if (principal && principal.categoria_padre == null && !mainIds.has(principal.id)) {
+      mainIds.add(principal.id);
+      mainCategories.push(principal);
+    }
+  }
+
+  const categoriesWithCount = mainCategories.map((categoria) => {
+    const serviciosCategoria = allServices.filter((servicio) =>
+      serviceMatchesMainCategory(servicio, categoria.id, categoriesById),
+    );
+    return { ...categoria, servicios_count: serviciosCategoria.length };
+  });
+
+  categoriesWithCount.sort((a, b) => (b.servicios_count || 0) - (a.servicios_count || 0));
+  return categoriesWithCount;
+}
+
+/**
+ * Categorías principales con al menos un servicio compatible con los vehículos del usuario.
+ * Usa por_modelo (misma fuente que nueva solicitud / formulario).
+ */
+export async function getMainCategoriesForUserVehicles(vehicles) {
+  const vehiculos = normalizeApiList(vehicles).filter((v) => v?.id);
+  if (!vehiculos.length) return [];
+
+  const serviciosResults = await Promise.allSettled(
+    vehiculos.map((v) => getServicesByVehiculo(v.id)),
+  );
+
+  const allServices = [];
+  const serviceIds = new Set();
+  serviciosResults.forEach((result) => {
+    if (result.status !== 'fulfilled') return;
+    normalizeApiList(result.value).forEach((servicio) => {
+      if (servicio?.id != null && !serviceIds.has(servicio.id)) {
+        serviceIds.add(servicio.id);
+        allServices.push(servicio);
+      }
+    });
+  });
+
+  return buildMainCategoriesFromServices(allServices);
+}
+
 /**
  * Obtiene categorías que tienen al menos un servicio disponible para las marcas de vehículos especificadas
- * Esta función filtra categorías basándose en servicios que tienen ofertas de proveedores
- * que atienden las marcas del usuario. Solo muestra categorías relevantes para las marcas del usuario.
  * @param {Array<number>} marcasIds - IDs de las marcas de vehículos del usuario
- * @returns {Promise<Array>} Lista de categorías filtradas con servicios disponibles para las marcas del usuario
+ * @returns {Promise<Array>} Lista de categorías filtradas
  */
 export const getCategoriesByVehicleBrands = async (marcasIds) => {
   try {
@@ -160,9 +264,9 @@ export const getCategoriesByVehicleBrands = async (marcasIds) => {
     const allModelos = [];
     const modeloIds = new Set();
 
-    modelosResults.forEach((result, index) => {
-      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-        result.value.forEach(modelo => {
+    modelosResults.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        normalizeApiList(result.value).forEach((modelo) => {
           if (!modeloIds.has(modelo.id)) {
             modeloIds.add(modelo.id);
             allModelos.push(modelo);
@@ -192,8 +296,8 @@ export const getCategoriesByVehicleBrands = async (marcasIds) => {
     const serviceIds = new Set();
 
     serviciosResults.forEach((result) => {
-      if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-        result.value.forEach(servicio => {
+      if (result.status === 'fulfilled') {
+        normalizeApiList(result.value).forEach((servicio) => {
           if (!serviceIds.has(servicio.id)) {
             serviceIds.add(servicio.id);
             allServices.push(servicio);
@@ -202,100 +306,7 @@ export const getCategoriesByVehicleBrands = async (marcasIds) => {
       }
     });
 
-    if (allServices.length === 0) {
-      console.log('⚠️ No se encontraron servicios compatibles para las marcas del usuario');
-      return [];
-    }
-
-    // OPTIMIZACIÓN: Cargar categorías en paralelo con el procesamiento de servicios
-    const [allCategories] = await Promise.allSettled([
-      getAllCategories() // Cache automático desde api.js
-    ]);
-
-    // Paso 3: Extraer IDs de categorías únicas de los servicios compatibles
-    const categoryIds = new Set();
-
-    for (const servicio of allServices) {
-      // ServicioListSerializer devuelve categorias_ids como array de IDs
-      if (servicio.categorias_ids && Array.isArray(servicio.categorias_ids)) {
-        servicio.categorias_ids.forEach(categoriaId => {
-          if (categoriaId) {
-            categoryIds.add(categoriaId);
-          }
-        });
-      }
-      // Fallback: si viene como objeto o array de objetos
-      else if (servicio.categorias && Array.isArray(servicio.categorias)) {
-        servicio.categorias.forEach(categoria => {
-          const catId = typeof categoria === 'object' ? categoria.id : categoria;
-          if (catId) {
-            categoryIds.add(catId);
-          }
-        });
-      } else if (servicio.categoria) {
-        const catId = typeof servicio.categoria === 'object' ? servicio.categoria.id : servicio.categoria;
-        if (catId) {
-          categoryIds.add(catId);
-        }
-      }
-    }
-
-    if (categoryIds.size === 0) {
-      console.log('⚠️ No se encontraron categorías en los servicios compatibles');
-      return [];
-    }
-
-    if (categoryIds.size === 0) {
-      console.log('⚠️ No se encontraron categorías en los servicios compatibles');
-      return [];
-    }
-
-    // Paso 4: Procesar categorías (ya cargadas en paralelo)
-    const categoriesData = allCategories.status === 'fulfilled' ? allCategories.value : [];
-    const categoriesById = new Map();
-    categoriesData.forEach(categoria => {
-      categoriesById.set(categoria.id, categoria);
-    });
-
-    // Filtrar categorías que están en los servicios compatibles y son principales (sin categoría padre)
-    const mainCategories = [];
-    for (const categoriaId of categoryIds) {
-      const categoria = categoriesById.get(categoriaId);
-      if (categoria && !categoria.categoria_padre) {
-        // Es categoría principal, incluirla
-        mainCategories.push(categoria);
-      }
-    }
-
-    // Paso 5: Contar servicios por categoría para ordenar
-    const categoriesWithCount = mainCategories.map(categoria => {
-      const serviciosCategoria = allServices.filter(servicio => {
-        // Verificar si el servicio pertenece a esta categoría
-        if (servicio.categorias_ids && Array.isArray(servicio.categorias_ids)) {
-          return servicio.categorias_ids.includes(categoria.id);
-        }
-        // Fallback: si viene como objeto
-        if (servicio.categorias && Array.isArray(servicio.categorias)) {
-          return servicio.categorias.some(cat => {
-            const catId = typeof cat === 'object' ? cat.id : cat;
-            return catId === categoria.id;
-          });
-        }
-        const servicioCatId = typeof servicio.categoria === 'object' ? servicio.categoria?.id : servicio.categoria;
-        return servicioCatId === categoria.id;
-      });
-
-      return {
-        ...categoria,
-        servicios_count: serviciosCategoria.length
-      };
-    });
-
-    // Ordenar por cantidad de servicios (más servicios primero)
-    categoriesWithCount.sort((a, b) => b.servicios_count - a.servicios_count);
-
-    console.log(`✅ ${categoriesWithCount.length} categorías con servicios disponibles para las marcas del usuario`);
-    return categoriesWithCount;
+    return buildMainCategoriesFromServices(allServices);
     
   } catch (error) {
     console.error('❌ Error obteniendo categorías por marcas:', error);

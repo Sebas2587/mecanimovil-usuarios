@@ -124,3 +124,29 @@ export function navigateCrearSolicitudDesdeHome(navigation, { vehicle } = {}) {
     fromDashboard: true,
   });
 }
+
+/**
+ * Tab bar central «Agendar»: abre CrearSolicitud con vehículo activo si hay cache.
+ */
+export function navigateAgendarDesdeTab(rootNavigation, userId, queryClient) {
+  if (!rootNavigation?.navigate) return;
+
+  let vehicle = null;
+  if (queryClient && userId) {
+    const cached = queryClient.getQueryData(['userVehicles', userId]);
+    const list = Array.isArray(cached) ? cached : cached?.results || [];
+    vehicle = list.find((v) => v.is_active !== false) || list[0] || null;
+  }
+
+  if (vehicle?.id) {
+    rootNavigation.navigate(ROUTES.CREAR_SOLICITUD, {
+      vehicle,
+      fromDashboard: true,
+    });
+    return;
+  }
+
+  rootNavigation.navigate(ROUTES.CREAR_SOLICITUD, {
+    fromDashboard: true,
+  });
+}

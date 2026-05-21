@@ -24,7 +24,6 @@ import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehi
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import {
   HomeContextHeader,
-  HomeAgendamientoRapidoButton,
   HomeCategoryGrid,
   HomeContextualBanner,
   HomeHighlightedRow,
@@ -349,21 +348,14 @@ const UserPanelScreen = () => {
 
   const handleCategorySelect = useCallback(
     (cat) => {
-      if (!selectedVehicle || !cat) return;
-      if (cat.isHealth) {
-        navigation.navigate(ROUTES.VEHICLE_HEALTH, {
-          vehicleId: selectedVehicle.id,
-          vehicle: selectedVehicle,
-        });
-        return;
-      }
+      if (!selectedVehicle || !cat?.id) return;
       openExplore({
         mode: EXPLORE_MODE_PARA_TI,
         categoryId: cat.id,
         categoryName: cat.nombre,
       });
     },
-    [navigation, selectedVehicle, openExplore],
+    [selectedVehicle, openExplore],
   );
 
   const addressLabel = useMemo(() => shortAddressLabel(selectedAddress), [selectedAddress]);
@@ -497,15 +489,10 @@ const UserPanelScreen = () => {
           onPressNotifications={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
         />
 
-        <HomeAgendamientoRapidoButton
-          disabled={!selectedVehicle}
-          onPress={openNuevaSolicitud}
-        />
-
         <HomeCategoryGrid
+          vehicles={vehicles}
           disabled={!selectedVehicle}
           onSelectCategory={handleCategorySelect}
-          onPressMore={() => openExplore({ mode: EXPLORE_MODE_CERCA, focusSearch: true })}
         />
 
         <HomeContextualBanner
@@ -521,6 +508,13 @@ const UserPanelScreen = () => {
           }
           onPressClima={() => setIsWeatherModalOpen(true)}
           onPressAgendar={openNuevaSolicitud}
+          onPressHealth={() => {
+            if (!selectedVehicle) return;
+            navigation.navigate(ROUTES.VEHICLE_HEALTH, {
+              vehicleId: selectedVehicle.id,
+              vehicle: selectedVehicle,
+            });
+          }}
         />
 
         <HomeTrendingServicesRow

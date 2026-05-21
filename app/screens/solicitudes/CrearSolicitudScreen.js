@@ -19,6 +19,7 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import FormularioSolicitud from '../../components/solicitudes/FormularioSolicitud';
+import { resolveProveedorEntityId } from '../../utils/calendarioProveedorNavigation';
 import {
   buildConfirmarCandidatoPayload,
   confirmarCatalogoProveedor,
@@ -196,6 +197,7 @@ const CrearSolicitudScreen = () => {
       costo_repuestos_sin_iva: s.costo_repuestos_sin_iva,
       desglose_precios: s.desglose_precios,
       duracion_estimada: s.duracion_estimada,
+      fotos_servicio: Array.isArray(s.fotos_servicio) ? s.fotos_servicio : [],
     });
 
     const baseCampos = {
@@ -216,6 +218,10 @@ const CrearSolicitudScreen = () => {
         proveedorPreseleccionado.usuario_id
         ?? proveedorPreseleccionado.usuario?.id
         ?? proveedorPreseleccionado.usuario;
+      const entityId = resolveProveedorEntityId(
+        proveedorPreseleccionado,
+        tipoProveedorPreseleccionado,
+      );
       return {
         ...baseCampos,
         servicios_seleccionados: [buildServicioEntry(s)],
@@ -225,6 +231,10 @@ const CrearSolicitudScreen = () => {
             ...proveedorPreseleccionado,
             tipo: tipoProveedorPreseleccionado,
             usuario_id: usuarioId,
+            proveedor_entity_id: entityId,
+            ...(tipoProveedorPreseleccionado === 'taller'
+              ? { taller_id: entityId }
+              : { mecanico_id: entityId }),
           },
         ],
         fromProviderDetail: true,
@@ -505,11 +515,18 @@ const CrearSolicitudScreen = () => {
                 tipo: tipoProveedorPreseleccionado
               });
 
-              // Preparar proveedor en formato esperado por FormularioSolicitud
+              const entityId = resolveProveedorEntityId(
+                proveedorPreseleccionado,
+                tipoProveedorPreseleccionado,
+              );
               proveedorFormato = {
                 ...proveedorPreseleccionado,
-                tipo: tipoProveedorPreseleccionado, // 'taller' o 'mecanico'
-                usuario_id: usuarioId // Necesario para el backend
+                tipo: tipoProveedorPreseleccionado,
+                usuario_id: usuarioId,
+                proveedor_entity_id: entityId,
+                ...(tipoProveedorPreseleccionado === 'taller'
+                  ? { taller_id: entityId }
+                  : { mecanico_id: entityId }),
               };
 
               console.log('✅ Proveedor formateado:', proveedorFormato);

@@ -4,10 +4,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ROUTES } from '../utils/constants';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, Car, ShoppingBag } from 'lucide-react-native';
+import { Home, Car, ShoppingBag, CalendarPlus } from 'lucide-react-native';
 import CustomHeader from '../components/navigation/Header/Header';
 import ProfileTabIcon from '../components/navigation/ProfileTabIcon';
 import { COLORS, TYPOGRAPHY, BORDERS, SPACING } from '../design-system/tokens';
+import { useAuth } from '../context/AuthContext';
+import { queryClient } from '../config/queryClient';
+import { navigateAgendarDesdeTab } from '../components/home/shared/homeScheduleNavigation';
+import AgendarTabScreen from '../screens/main/AgendarTabScreen';
 
 import UserPanelScreen from '../screens/main/UserPanelScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
@@ -170,52 +174,87 @@ const HomeNavigator = () => (
   </HomeStack.Navigator>
 );
 
-// ── Main tab bar (solid surface, tokens) ──
+// ── Main tab bar (Coinbase: canvas blanco, hairline, 5 tabs, etiquetas completas) ──
 const GlassTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const bottomPad = Math.max(insets.bottom, 8);
 
   return (
-    <View style={[tabStyles.container, { paddingBottom: Math.max(insets.bottom, 8), height: 64 + Math.max(insets.bottom, 0) }]}>
+    <View
+      style={[
+        tabStyles.container,
+        { paddingBottom: bottomPad, minHeight: 64 + bottomPad },
+      ]}
+    >
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key];
         const label = options.tabBarLabel ?? options.title ?? route.name;
         const isFocused = state.index === index;
+        const isAgendarTab = route.name === ROUTES.AGENDAR_TAB;
+        const isProfileTab = route.name === ROUTES.PROFILE;
 
         const onPress = () => {
-          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!isFocused && !event.defaultPrevented) navigation.navigate(route.name);
+          if (isAgendarTab) {
+            navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            navigateAgendarDesdeTab(navigation.getParent(), user?.id, queryClient);
+            return;
+          }
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
         };
 
         let IconComponent = Home;
+        let iconSize = 24;
         if (route.name === ROUTES.MIS_VEHICULOS) IconComponent = Car;
-        else if (route.name === ROUTES.MARKETPLACE) IconComponent = ShoppingBag;
+        else if (isAgendarTab) {
+          IconComponent = CalendarPlus;
+          iconSize = 26;
+        } else if (route.name === ROUTES.MARKETPLACE) IconComponent = ShoppingBag;
 
-        const color = isFocused ? COLORS.primary[500] : COLORS.text.tertiary;
-        const isProfileTab = route.name === ROUTES.PROFILE;
+        const color = isAgendarTab
+          ? COLORS.primary[600]
+          : isFocused
+            ? COLORS.primary[500]
+            : COLORS.text.tertiary;
 
         return (
           <TouchableOpacity
             key={route.key}
             onPress={onPress}
-            style={tabStyles.tab}
+            style={[tabStyles.tab, isAgendarTab && tabStyles.tabAgendar]}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={isProfileTab ? 'Mi perfil' : label}
+            accessibilityLabel={isProfileTab ? 'Mi perfil' : isAgendarTab ? 'Agendar servicio' : label}
           >
-            {isFocused && <View style={tabStyles.activeIndicator} />}
+            {isFocused && !isAgendarTab ? <View style={tabStyles.activeIndicator} /> : null}
             {isProfileTab ? (
               <ProfileTabIcon focused={isFocused} />
             ) : (
-              <IconComponent size={24} color={color} strokeWidth={isFocused ? 2.25 : 2} />
+              <IconComponent
+                size={iconSize}
+                color={color}
+                strokeWidth={isFocused || isAgendarTab ? 2.25 : 2}
+              />
             )}
             <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.82}
               style={[
                 tabStyles.label,
                 {
                   color,
-                  fontWeight: isFocused
-                    ? TYPOGRAPHY.fontWeight.semibold
-                    : TYPOGRAPHY.fontWeight.medium,
+                  fontWeight:
+                    isFocused || isAgendarTab
+                      ? TYPOGRAPHY.fontWeight.semibold
+                      : TYPOGRAPHY.fontWeight.medium,
                 },
               ]}
             >
@@ -241,7 +280,12 @@ const tabStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: SPACING.sm,
-    gap: SPACING.xxs,
+    paddingHorizontal: 2,
+    gap: 3,
+    minWidth: 0,
+  },
+  tabAgendar: {
+    paddingHorizontal: 4,
   },
   activeIndicator: {
     position: 'absolute',
@@ -252,19 +296,32 @@ const tabStyles = StyleSheet.create({
     backgroundColor: COLORS.primary[500],
   },
   label: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    letterSpacing: TYPOGRAPHY.letterSpacing.wide,
-    lineHeight: Math.round(TYPOGRAPHY.fontSize.sm * TYPOGRAPHY.lineHeight.tight),
+    width: '100%',
+    maxWidth: 76,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    letterSpacing: 0,
+    textAlign: 'center',
+    lineHeight: Math.round(TYPOGRAPHY.fontSize.xs * TYPOGRAPHY.lineHeight.normal),
   },
 });
 
-// ── Tab Navigator (4 tabs: Panel, Mis Autos, Marketplace, Perfil) ──
+// ── Tab Navigator: Panel · Mis Autos · Agendar · Marketplace · Perfil ──
 const ProfileTabNavigator = () => <ProfileStackNavigator tabRoot />;
 
 const TabNavigator = () => (
   <Tab.Navigator tabBar={(props) => <GlassTabBar {...props} />} screenOptions={{ headerShown: false }}>
     <Tab.Screen name={ROUTES.HOME} component={HomeNavigator} options={{ tabBarLabel: 'Panel' }} />
     <Tab.Screen name={ROUTES.MIS_VEHICULOS} component={MisVehiculosScreen} options={{ tabBarLabel: 'Mis Autos' }} />
+    <Tab.Screen
+      name={ROUTES.AGENDAR_TAB}
+      component={AgendarTabScreen}
+      options={{ tabBarLabel: 'Agendar' }}
+      listeners={({ navigation }) => ({
+        tabPress: (e) => {
+          e.preventDefault();
+        },
+      })}
+    />
     <Tab.Screen name={ROUTES.MARKETPLACE} component={MarketplaceScreen} options={{ tabBarLabel: 'Marketplace' }} />
     <Tab.Screen name={ROUTES.PROFILE} component={ProfileTabNavigator} options={{ tabBarLabel: 'Perfil' }} />
   </Tab.Navigator>

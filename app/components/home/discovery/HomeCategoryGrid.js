@@ -8,39 +8,65 @@ import {
   ScrollView,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { getMainCategories } from '../../../services/categories';
+import { getMainCategoriesForUserVehicles } from '../../../services/categories';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
-import {
-  HEALTH_CATEGORY,
-  MORE_CATEGORY,
-  resolveCategoryVisual,
-} from '../shared/homeCategoryIcons';
+import { resolveCategoryVisual } from '../shared/homeCategoryIcons';
 
 const VISIBLE_CATEGORIES = 12;
 const CELL_WIDTH = 88;
 
+function vehiclesQueryKey(vehicles) {
+  return (Array.isArray(vehicles) ? vehicles : [])
+    .map((v) => v?.id)
+    .filter(Boolean)
+    .sort((a, b) => a - b)
+    .join(',');
+}
+
 /**
- * Categorías en carrusel horizontal con nombre completo.
+ * Solo categorías de servicio con ofertas compatibles con los vehículos del usuario.
  */
-const HomeCategoryGrid = ({ disabled, onSelectCategory, onPressMore }) => {
-  const { data: categoriesRaw, isLoading } = useQuery({
-    queryKey: ['mainCategories'],
-    queryFn: getMainCategories,
-    staleTime: 1000 * 60 * 60,
+const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
+  const vehicleIdsKey = useMemo(() => vehiclesQueryKey(vehicles), [vehicles]);
+  const hasVehicles = vehicleIdsKey.length > 0;
+
+  const { data: categoriesRaw, isLoading, isFetching } = useQuery({
+    queryKey: ['mainCategoriesForVehicles', vehicleIdsKey],
+    queryFn: () => getMainCategoriesForUserVehicles(vehicles),
+    enabled: hasVehicles,
+    staleTime: 1000 * 60 * 15,
+    gcTime: 1000 * 60 * 60,
   });
 
-  const items = useMemo(() => {
+  const categories = useMemo(() => {
     const list = Array.isArray(categoriesRaw) ? categoriesRaw : [];
-    const sliced = list.slice(0, VISIBLE_CATEGORIES);
-    return [
-      { ...HEALTH_CATEGORY, isHealth: true },
-      ...sliced.map((c) => ({ ...c, isHealth: false })),
-      { ...MORE_CATEGORY, isMore: true },
-    ];
+    return list.slice(0, VISIBLE_CATEGORIES);
   }, [categoriesRaw]);
 
-  if (isLoading) {
+  const loading = hasVehicles && (isLoading || isFetching);
+
+  if (loading) {
     return <ActivityIndicator color={COLORS.primary[500]} style={styles.loader} />;
+  }
+
+  if (!hasVehicles) {
+    return (
+      <View style={styles.wrap}>
+        <Text style={styles.emptyHint}>
+          Registra un vehículo para ver categorías de servicios compatibles.
+        </Text>
+      </View>
+    );
+  }
+
+  if (categories.length === 0) {
+    return (
+      <View style={styles.wrap}>
+        <Text style={styles.emptyHint}>
+          No hay categorías con servicios para tus vehículos registrados.
+        </Text>
+      </View>
+    );
   }
 
   return (
@@ -51,28 +77,24 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, onPressMore }) => {
         contentContainerStyle={styles.row}
         keyboardShouldPersistTaps="handled"
       >
-        {items.map((cat) => {
-          const visual = cat.isMore
-            ? { Icon: MORE_CATEGORY.Icon, bg: MORE_CATEGORY.bg, color: MORE_CATEGORY.color }
-            : resolveCategoryVisual(cat);
+        {categories.map((cat) => {
+          const visual = resolveCategoryVisual(cat);
           const { Icon } = visual;
-          const label = cat.nombre || (cat.isMore ? 'Más' : '');
 
           return (
             <TouchableOpacity
               key={String(cat.id)}
               style={styles.cell}
-              onPress={() => {
-                if (cat.isMore) onPressMore?.();
-                else onSelectCategory?.(cat);
-              }}
+              onPress={() => onSelectCategory?.(cat)}
               activeOpacity={0.85}
-              disabled={disabled && !cat.isMore}
+              disabled={disabled}
             >
               <View style={[styles.iconCircle, { backgroundColor: visual.bg }]}>
                 <Icon size={22} color={visual.color} />
               </View>
-              <Text style={styles.label}>{label}</Text>
+              <Text style={styles.label} numberOfLines={2}>
+                {cat.nombre || 'Categoría'}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -87,6 +109,12 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 16,
+  },
+  emptyHint: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    marginBottom: 10,
+    lineHeight: 18,
   },
   row: {
     flexDirection: 'row',

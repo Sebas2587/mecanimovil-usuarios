@@ -67,10 +67,19 @@ export default function CalendarioProveedorScreen() {
         proveedorId,
         ofertaServicioId,
       });
+      if (res?.error) {
+        setError(res.error);
+        setFechasHabilitadas(new Set());
+        return;
+      }
       const setFechas = new Set(res?.fechas_disponibles || []);
       setFechasHabilitadas(setFechas);
       const primera = diasBase.find((d) => setFechas.has(d.fecha));
-      if (primera) setFechaSeleccionada(primera.fecha);
+      if (primera) {
+        setFechaSeleccionada(primera.fecha);
+      } else if (setFechas.size === 0) {
+        setError('Este proveedor no tiene días con horario disponible en las próximas dos semanas.');
+      }
     } catch (e) {
       setError(e?.message || 'No se pudo cargar la agenda');
     } finally {

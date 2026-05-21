@@ -30,6 +30,8 @@ const HomeProvidersCarouselSection = ({
   onProviderPress,
   onSeeAll,
   seeAllWhen,
+  /** 'offers' | 'bookings' — footer de ProviderPreviewCard */
+  cardFooterVariant = 'offers',
 }) => {
   const nearbyPageWidth = SCREEN_WIDTH;
   const nearbyCardW = GRID_CARD_W;
@@ -103,6 +105,9 @@ const HomeProvidersCarouselSection = ({
                     typeLabel={kindLabel}
                     specialty={card.specialty || 'Servicios y diagnóstico'}
                     serviceOffers={card.serviceOffers}
+                    cardFooterVariant={cardFooterVariant}
+                    reviews={card.reviews}
+                    bookingsCount={card.bookingsCount}
                     kpiBadge={p.kpi_badge || null}
                     appearance="light"
                     width={nearbyCardW}
