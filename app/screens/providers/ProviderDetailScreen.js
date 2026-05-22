@@ -45,6 +45,7 @@ import {
 } from '../../hooks/useProviders';
 import { getPublicProviderFromWebPath } from '../../utils/publicListingRoute';
 import { filtrarServiciosPorVehiculo } from '../../utils/servicioVehiculoCompat';
+import { mergeProviderKpiBadge } from '../../utils/providerUtils';
 import { useFavorites } from '../../context/FavoritesContext';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 
@@ -117,9 +118,14 @@ const ProviderDetailScreen = () => {
   const { data: completedJobs = [] } = useProviderCompletedJobs(idToLoad, providerType);
 
   const provider = useMemo(() => {
+    const kpi_badge = mergeProviderKpiBadge(
+      initialProvider?.kpi_badge,
+      details?.kpi_badge,
+    );
     const base = {
       ...initialProvider,
       ...details,
+      kpi_badge,
       servicios: services || initialProvider?.servicios || [],
     };
     const totalRev = Number(reviewsData?.total_reviews ?? 0);

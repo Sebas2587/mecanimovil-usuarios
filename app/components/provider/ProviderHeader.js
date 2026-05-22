@@ -5,10 +5,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import {
   buildProviderAvatarUri,
-  getKpiTierPresentation,
+  resolveProviderKpiBadge,
   isProviderOpenAccordingToWeeklyHorarios,
   weeklyHorariosHasAnyActiveSlot,
 } from '../../utils/providerUtils';
+import ProviderKpiTierBadge from './ProviderKpiTierBadge';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,8 +37,7 @@ const ProviderHeader = ({
   showBackButton = true,
 }) => {
   const showVerifiedBadge = !!provider?.verificado;
-  const kpiBadge = provider?.kpi_badge || null;
-  const kpiPresentation = getKpiTierPresentation(kpiBadge, provider);
+  const kpiBadge = resolveProviderKpiBadge(provider);
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const scheduleTick = useScheduleOpenTick(useWeeklyAvailabilityBadge);
@@ -167,27 +167,15 @@ const ProviderHeader = ({
           <Text style={styles.name} numberOfLines={2}>
             {name}
           </Text>
-          {kpiPresentation ? (
-            <View
-              style={[
-                styles.kpiBadge,
-                styles.kpiBadgeInline,
-                {
-                  backgroundColor: kpiPresentation.bg_color,
-                  borderColor: kpiPresentation.border_color,
-                },
-              ]}
-            >
-              <Ionicons name="ribbon-outline" size={14} color={kpiPresentation.text_color} />
-              <Text
-                style={[styles.kpiBadgeText, { color: kpiPresentation.text_color }]}
-                numberOfLines={1}
-              >
-                {kpiPresentation.label}
-              </Text>
-            </View>
-          ) : null}
+          <ProviderKpiTierBadge
+            kpiBadge={kpiBadge}
+            provider={provider}
+            trustBadgeFields
+            variant="inline"
+            style={styles.kpiBadgeRight}
+          />
         </View>
+
         <Text style={styles.type}>{[type, location].filter(Boolean).join(' • ') || type}</Text>
 
         <View style={styles.statsRow}>
@@ -353,9 +341,9 @@ const styles = StyleSheet.create({
   },
   nameRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 10,
+    gap: SPACING.sm,
     marginBottom: 4,
   },
   name: {
@@ -366,28 +354,15 @@ const styles = StyleSheet.create({
     letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
     color: COLORS.text.primary,
   },
+  kpiBadgeRight: {
+    flexShrink: 0,
+    alignSelf: 'flex-start',
+    maxWidth: '44%',
+  },
   type: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.secondary,
     marginBottom: 12,
-  },
-  kpiBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDERS.radius.full,
-    borderWidth: 1,
-  },
-  kpiBadgeInline: {
-    flexShrink: 0,
-    maxWidth: '46%',
-  },
-  kpiBadgeText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: 0.2,
   },
   statsRow: {
     flexDirection: 'row',

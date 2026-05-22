@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import CandidatosProveedorCard from './CandidatosProveedorCard';
 import { resolveDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
+import { PROVIDER_RECOMMENDATION_MAX_KM } from '../../utils/exploreProviderUtils';
 
 function sortPorDistancia(ofertas) {
   return [...ofertas].sort((a, b) => {
@@ -77,7 +78,7 @@ export default function ComparadorCatalogoIaPanel({
   ofertas = [],
   ofertasRecomendadas,
   ofertasOtros = [],
-  radioKm = 80,
+  radioKm = PROVIDER_RECOMMENDATION_MAX_KM,
   onAceptar,
   procesando = false,
   requiereRepuestos = true,
@@ -91,7 +92,9 @@ export default function ComparadorCatalogoIaPanel({
       : ofertas,
   );
   const otros = sortPorDistancia(Array.isArray(ofertasOtros) ? ofertasOtros : []);
-  const radioLabel = radioKm != null ? Math.round(Number(radioKm)) : 80;
+  const radioLabel = radioKm != null
+    ? Math.round(Number(radioKm))
+    : PROVIDER_RECOMMENDATION_MAX_KM;
 
   const handleConfirmar = (oferta) => {
     const id = oferta.oferta_servicio_id || oferta.id;
@@ -126,7 +129,7 @@ export default function ComparadorCatalogoIaPanel({
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Coincidencia exacta</Text>
           <Text style={styles.sectionSub}>
-            Mejor ajuste a tu servicio, vehículo y dirección.
+            Mejor ajuste a tu servicio y vehículo, a hasta {radioLabel} km de tu dirección.
           </Text>
           <View style={styles.cardList}>
             {recomendadas.map((oferta) => renderOferta(oferta, 'recomendado'))}
@@ -136,9 +139,10 @@ export default function ComparadorCatalogoIaPanel({
 
       {otros.length > 0 ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Otros proveedores</Text>
+          <Text style={styles.sectionTitle}>Fuera de tu zona</Text>
           <Text style={styles.sectionSub}>
-            Mismo servicio con coincidencia parcial, dentro de {radioLabel} km cuando aplica.
+            Compatibles con tu servicio y vehículo, más allá de {radioLabel} km desde tu
+            dirección o con coincidencia parcial cerca de ti.
           </Text>
           <View style={styles.cardList}>
             {otros.map((oferta) => renderOferta(oferta, 'otro'))}

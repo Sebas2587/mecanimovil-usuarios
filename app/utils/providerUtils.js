@@ -188,12 +188,27 @@ export const getProviderTierLabel = (kpiBadge) => {
  * Etiqueta + colores para pills KPI en cards (prioriza API; infiere tier por score si falta code).
  * @returns {{ label: string, bg_color: string, text_color: string, border_color: string, styleCode: string } | null}
  */
-export const getKpiTierPresentation = (kpiBadge, provider = null) => {
+/** kpi_badge del listado o del retrieve de ficha; evita perderlo al fusionar objetos. */
+export function resolveProviderKpiBadge(provider) {
+  const badge = provider?.kpi_badge;
+  return badge && typeof badge === 'object' ? badge : null;
+}
+
+/**
+ * Al abrir perfil desde el home, conservar el badge del listado (mismo que la card).
+ */
+export function mergeProviderKpiBadge(initialBadge, detailBadge) {
+  if (initialBadge && typeof initialBadge === 'object') return initialBadge;
+  return detailBadge && typeof detailBadge === 'object' ? detailBadge : null;
+}
+
+export const getKpiTierPresentation = (kpiBadge, provider = null, options = {}) => {
   if (!kpiBadge || typeof kpiBadge !== 'object') return null;
 
+  const trustBadgeFields = options.trustBadgeFields === true;
   const apiCode = kpiBadge.code != null ? String(kpiBadge.code).trim().toUpperCase() : '';
   const highTier = apiCode === 'ELITE' || apiCode === 'MASTER' || apiCode === 'PRO';
-  if (highTier && provider != null && !shouldShowPublicKpiTier(kpiBadge, provider)) {
+  if (highTier && provider != null && !trustBadgeFields && !shouldShowPublicKpiTier(kpiBadge, provider)) {
     return null;
   }
   if (highTier && provider == null) {
@@ -386,14 +401,14 @@ export const getProviderImageCandidatesResolved = (provider) => {
  * Devuelve la distancia formateada del proveedor o null.
  */
 export const getProviderDistance = (provider) => {
-  const km =
-    provider?.distance ??
-    provider?.distancia_km ??
-    provider?.distancia ??
-    null;
-  if (km == null) return null;
-  const d = parseFloat(km);
-  if (isNaN(d)) return null;
+  const raw = provider?.distance ?? provider?.distancia_km ?? provider?.distancia;
+  if (raw == null || raw === '') return null;
+  let d =
+    typeof raw === 'number'
+      ? raw
+      : parseFloat(String(raw).replace(',', '.'));
+  if (!Number.isFinite(d)) return null;
+  if (d > 50 && d < 50000) d /= 1000;
   if (d < 0.1) return '< 100m';
   if (d < 1) return `${Math.round(d * 1000)}m`;
   if (d < 10) return `${d.toFixed(1)} km`;

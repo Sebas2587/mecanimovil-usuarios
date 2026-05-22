@@ -887,7 +887,7 @@ const FormularioSolicitud = ({
     if (!recomendados.length && !otros.length) {
       Alert.alert(
         'Sin proveedores',
-        'No encontramos candidatos en tu zona. Prueba otra ubicación o solicitud abierta.',
+        'No encontramos candidatos cerca de tu dirección (5 km). Prueba otra ubicación o solicitud abierta.',
       );
       return;
     }

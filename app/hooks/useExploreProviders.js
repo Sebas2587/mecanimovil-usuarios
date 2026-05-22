@@ -1,12 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  EXPLORE_MODE_CERCA,
-  EXPLORE_MODE_PARA_TI,
-} from '../components/providers/explore/exploreProvidersConstants';
-import { useExploreProvidersNearby } from './useExploreProvidersNearby';
-import { useParaTiProviders } from './useParaTiProviders';
-import { getExploreProvidersByServicios } from '../services/providers';
+import { getExploreProvidersUnified } from '../services/providers';
 import { getServicesByCategory } from '../services/categories';
 import { geocodeAddress } from '../services/location';
 import {
@@ -29,17 +23,15 @@ async function resolveCoords(address) {
 }
 
 /**
- * Listado Explore: modo Para ti / Cerca, categoría opcional y búsqueda local.
+ * Listado Explore unificado (relevancia + distancia); sin modo Para ti / Cerca.
  */
 export function useExploreProviders({
-  mode,
   vehicle,
   address,
   categoryId = null,
   searchQuery = '',
   enabled = true,
 }) {
-  const isParaTi = mode === EXPLORE_MODE_PARA_TI;
   const marcaId = resolveVehicleMarcaId(vehicle);
 
   const servicesQuery = useQuery({
@@ -57,35 +49,21 @@ export function useExploreProviders({
 
   const hasCategory = !!categoryId && servicioIds.length > 0;
 
-  const nearby = useExploreProvidersNearby({
-    vehicle,
-    address,
-    enabled: enabled && !isParaTi && !hasCategory && !!address,
-  });
-
-  const paraTi = useParaTiProviders({
-    vehicle,
-    address,
-    enabled: enabled && isParaTi && !hasCategory,
-    limit: EXPLORE_PROVIDER_LIMIT,
-  });
-
-  const categoryProviders = useQuery({
+  const providersQuery = useQuery({
     queryKey: [
-      'exploreProvidersCategory',
+      'exploreProvidersUnified',
       vehicle?.id,
       categoryId,
-      mode,
       address?.id,
       servicioIds.join(','),
     ],
-    enabled: enabled && !!vehicle?.id && hasCategory,
+    enabled: enabled && !!vehicle?.id && (!hasCategory || servicioIds.length > 0),
     staleTime: 1000 * 60 * 3,
     queryFn: async () => {
       const coords = await resolveCoords(address);
-      return getExploreProvidersByServicios(vehicle.id, servicioIds, {
+      return getExploreProvidersUnified(vehicle.id, {
+        servicioIds: hasCategory ? servicioIds : [],
         limit: EXPLORE_PROVIDER_LIMIT,
-        sortMode: isParaTi ? 'para_ti' : 'cerca',
         lat: coords?.lat,
         lng: coords?.lng,
         marcaId,
@@ -93,16 +71,10 @@ export function useExploreProviders({
     },
   });
 
-  const active = hasCategory
-    ? categoryProviders
-    : isParaTi
-      ? paraTi
-      : nearby;
-
   const rawProviders = useMemo(() => {
-    const data = active.data ?? [];
-    return Array.isArray(data) ? data.slice(0, EXPLORE_PROVIDER_LIMIT) : [];
-  }, [active.data]);
+    const data = providersQuery.data ?? [];
+    return Array.isArray(data) ? data : [];
+  }, [providersQuery.data]);
 
   const providers = useMemo(
     () => filterProvidersBySearchQuery(rawProviders, searchQuery),
@@ -110,15 +82,14 @@ export function useExploreProviders({
   );
 
   return {
-    mode,
-    isParaTi,
     hasCategory,
     categoryLoading: servicesQuery.isLoading,
     providers,
     rawCount: rawProviders.length,
-    isLoading: active.isLoading || (hasCategory && servicesQuery.isLoading),
-    isRefetching: active.isRefetching,
-    refetch: active.refetch,
+    hasAddress: !!address,
+    isLoading: providersQuery.isLoading || (hasCategory && servicesQuery.isLoading),
+    isRefetching: providersQuery.isRefetching,
+    refetch: providersQuery.refetch,
   };
 }
 

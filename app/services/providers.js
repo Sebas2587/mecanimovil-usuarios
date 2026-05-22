@@ -6,7 +6,85 @@ import {
   mergeProviderLists,
   sortProvidersForExploreMode,
   compareProvidersByKpiThenDistance,
+  compareProvidersByDistanceThenKpi,
+  compareProvidersByRecommendationProximity,
+  filterProvidersWithinRecommendationRadius,
+  mergeProvidersWithDistanceMap,
+  attachDistancesFromUserCoords,
+  normalizeDistanceKm,
+  providerStableKey,
+  PROVIDER_RECOMMENDATION_MIN_KM,
+  PROVIDER_RECOMMENDATION_MAX_KM,
 } from '../utils/exploreProviderUtils';
+
+export { PROVIDER_RECOMMENDATION_MIN_KM, PROVIDER_RECOMMENDATION_MAX_KM };
+
+function clampRecommendationRadiusKm(km) {
+  const n = Number(km);
+  if (!Number.isFinite(n)) return PROVIDER_RECOMMENDATION_MAX_KM;
+  return Math.min(PROVIDER_RECOMMENDATION_MAX_KM, Math.max(PROVIDER_RECOMMENDATION_MIN_KM, n));
+}
+
+function attachPanelKind(arr, kind) {
+  return (Array.isArray(arr) ? arr : []).map((p) => {
+    const km = normalizeDistanceKm(p);
+    return {
+      ...p,
+      _panelKind: kind,
+      ...(km != null ? { distance: km, distancia_km: km } : {}),
+    };
+  });
+}
+
+function finalizeNearbyProviders(merged, options = {}) {
+  const requireInRadius = options.requireInRadius !== false;
+  let list = merged.filter((p) => {
+    const km = normalizeDistanceKm(p);
+    if (km == null) return !requireInRadius;
+    return km <= PROVIDER_RECOMMENDATION_MAX_KM;
+  });
+  list.sort(compareProvidersByDistanceThenKpi);
+  if (options.skipClientSlice) return list;
+  const limit = options.limit ?? 24;
+  if (limit == null || limit <= 0) return list;
+  return list.slice(0, limit);
+}
+
+/**
+ * Enriquece proveedores con distancias desde /cerca/ (mismo radio 100 m – 5 km).
+ */
+export async function enrichProvidersWithNearbyDistance(
+  providers,
+  lat,
+  lng,
+  marcaId,
+  options = {},
+) {
+  if (lat == null || lng == null || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+    return providers || [];
+  }
+  const nearbyLimit = options.nearbyFetchLimit ?? 100;
+  const onlyEnrichExisting = options.onlyEnrichExisting !== false;
+
+  const nearby = await getNearbyProvidersForPanel(lat, lng, marcaId, {
+    limit: nearbyLimit,
+    maxKm: options.maxKm ?? PROVIDER_RECOMMENDATION_MAX_KM,
+    requireInRadius: false,
+    skipClientSlice: true,
+  });
+  const distMap = new Map(
+    nearby
+      .map((p) => [providerStableKey(p), normalizeDistanceKm(p)])
+      .filter((entry) => entry[0] && entry[1] != null),
+  );
+  let merged = mergeProvidersWithDistanceMap(
+    providers,
+    distMap,
+    onlyEnrichExisting ? [] : nearby,
+  );
+  merged = attachDistancesFromUserCoords(merged, lat, lng);
+  return merged;
+}
 
 /** Query param para ofertas resumidas en cards del home (fase 5). */
 export const PANEL_SERVICIOS_QUERY = { include_panel_servicios: 'true' };
@@ -884,6 +962,36 @@ export const getNearbyMechanics = async (lat, lng, radius = 10) => {
 };
 
 /**
+ * Listado unificado para Explore: proveedores_filtrados + distancias desde /cerca/.
+ * Orden por relevancia (KPI) con desempate por distancia; el UI separa dentro/fuera del radar.
+ */
+export const getExploreProvidersUnified = async (vehiculoId, options = {}) => {
+  const servicioIds = options.servicioIds ?? [];
+  if (!vehiculoId) return [];
+
+  try {
+    const { talleres, mecanicos } = await getProvidersByVehiculoAndService(vehiculoId, servicioIds);
+    let merged = mergeProviderLists(talleres, mecanicos);
+
+    const { lat, lng, marcaId } = options;
+    if (lat != null && lng != null) {
+      try {
+        merged = await enrichProvidersWithNearbyDistance(merged, lat, lng, marcaId, {
+          nearbyFetchLimit: 120,
+        });
+      } catch (e) {
+        console.warn('Distancia en explore unificado:', e);
+      }
+    }
+
+    return merged;
+  } catch (error) {
+    console.error('Error explore unificado:', error);
+    return [];
+  }
+};
+
+/**
  * Proveedores filtrados por servicios de una categoría (proveedores_filtrados + servicio_ids).
  */
 export const getExploreProvidersByServicios = async (vehiculoId, servicioIds, options = {}) => {
@@ -896,32 +1004,21 @@ export const getExploreProvidersByServicios = async (vehiculoId, servicioIds, op
     merged = sortProvidersForExploreMode(merged, options.sortMode === 'para_ti' ? 'para_ti' : 'cerca');
 
     const { lat, lng, marcaId } = options;
-    if (lat != null && lng != null && options.sortMode !== 'para_ti') {
+    if (lat != null && lng != null) {
       try {
-        const nearby = await getNearbyProvidersForPanel(lat, lng, marcaId, { limit: 100 });
-        const distMap = new Map(nearby.map((p) => [`${p._panelKind}-${p.id}`, p.distance]));
-        merged = merged.map((p) => {
-          const d = distMap.get(`${p._panelKind}-${p.id}`);
-          return d != null ? { ...p, distance: d } : p;
+        merged = await enrichProvidersWithNearbyDistance(merged, lat, lng, marcaId, {
+          nearbyFetchLimit: 80,
         });
-        merged = sortProvidersForExploreMode(merged, 'cerca');
+        merged = sortProvidersForExploreMode(
+          merged,
+          options.sortMode === 'para_ti' ? 'para_ti' : 'cerca',
+        );
       } catch (e) {
         console.warn('Distancia en explore por categoría:', e);
       }
-    } else if (lat != null && lng != null && options.sortMode === 'para_ti') {
-      try {
-        const nearby = await getNearbyProvidersForPanel(lat, lng, marcaId, { limit: 80 });
-        const distMap = new Map(nearby.map((p) => [`${p._panelKind}-${p.id}`, p.distance]));
-        merged = merged.map((p) => {
-          const d = distMap.get(`${p._panelKind}-${p.id}`);
-          return d != null ? { ...p, distance: d } : p;
-        });
-      } catch (e) {
-        console.warn('Distancia en Para ti por categoría:', e);
-      }
     }
 
-    return merged.slice(0, limit);
+    return merged;
   } catch (error) {
     console.error('Error explore por servicios:', error);
     return [];
@@ -950,17 +1047,21 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
     const { lat, lng, marcaId } = options;
     if (lat != null && lng != null) {
       try {
-        const nearby = await getNearbyProvidersForPanel(lat, lng, marcaId, { limit: 80 });
-        const distMap = new Map(
-          nearby.map((p) => [`${p._panelKind}-${p.id}`, p.distance]),
-        );
-        merged = merged.map((p) => {
-          const d = distMap.get(`${p._panelKind}-${p.id}`);
-          return d != null ? { ...p, distance: d } : p;
+        merged = await enrichProvidersWithNearbyDistance(merged, lat, lng, marcaId, {
+          nearbyFetchLimit: 60,
         });
+        const inRadius = filterProvidersWithinRecommendationRadius(merged);
+        if (inRadius.length > 0) {
+          merged = inRadius.sort(compareProvidersByRecommendationProximity);
+        } else {
+          merged = merged.sort(compareProvidersByRecommendationProximity);
+        }
       } catch (distErr) {
         console.warn('No se pudo enriquecer distancia en Para ti:', distErr);
+        merged = merged.sort(compareProvidersByKpiThenDistance);
       }
+    } else {
+      merged = merged.sort(compareProvidersByKpiThenDistance);
     }
 
     return merged.slice(0, limit);
@@ -971,44 +1072,57 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
 };
 
 /**
- * Talleres y mecánicos cercanos, opcionalmente filtrados por marca atendida (mismo parámetro `marca` que los endpoints cerca).
- * Devuelve una lista unificada ordenada por distancia (más cercano primero).
+ * Talleres y mecánicos cercanos según dirección del usuario (PostGIS /cerca/).
+ * Radio de búsqueda API: hasta 5 km; resultados útiles entre 100 m y 5 km.
+ * Orden: distancia ascendente, desempate por KPI.
  */
 export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}) => {
-  const distTaller = options.distTaller ?? 12;
-  const distMecanico = options.distMecanico ?? 15;
+  const la = Number(lat);
+  const lo = Number(lng);
+  if (!Number.isFinite(la) || !Number.isFinite(lo)) {
+    return [];
+  }
+
+  const maxKm = clampRecommendationRadiusKm(
+    options.maxKm ?? options.distTaller ?? options.distMecanico ?? PROVIDER_RECOMMENDATION_MAX_KM,
+  );
+
   try {
-    const paramsTaller = {
-      lat,
-      lng,
-      dist: distTaller,
-      ordenar_por: 'distancia',
-      ...PANEL_SERVICIOS_QUERY,
-    };
-    const paramsMec = {
-      lat,
-      lng,
-      dist: distMecanico,
+    const baseParams = {
+      lat: la,
+      lng: lo,
+      dist: maxKm,
       ordenar_por: 'distancia',
       ...PANEL_SERVICIOS_QUERY,
     };
     if (marcaId != null && marcaId !== '') {
-      paramsTaller.marca = marcaId;
-      paramsMec.marca = marcaId;
+      baseParams.marca = marcaId;
     }
+
     const [tRes, mRes] = await Promise.all([
-      get('/usuarios/talleres/cerca/', paramsTaller),
-      get('/usuarios/mecanicos-domicilio/cerca/', paramsMec),
+      get('/usuarios/talleres/cerca/', baseParams),
+      get('/usuarios/mecanicos-domicilio/cerca/', baseParams),
     ]);
-    const talleres = tRes.results || tRes || [];
-    const mecanicos = mRes.results || mRes || [];
-    const withKind = (arr, kind) =>
-      (Array.isArray(arr) ? arr : []).map((p) => ({ ...p, _panelKind: kind }));
-    const merged = [...withKind(talleres, 'taller'), ...withKind(mecanicos, 'mecanico')];
-    const sorted = sortProvidersForExploreMode(merged, 'cerca');
-    const limit = options.limit ?? 18;
-    if (limit == null || limit <= 0) return sorted;
-    return sorted.slice(0, limit);
+
+    const merged = [
+      ...attachPanelKind(tRes.results || tRes, 'taller'),
+      ...attachPanelKind(mRes.results || mRes, 'mecanico'),
+    ];
+
+    const deduped = [];
+    const seen = new Set();
+    for (const p of merged) {
+      const key = providerStableKey(p);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(p);
+    }
+
+    return finalizeNearbyProviders(deduped, {
+      limit: options.limit ?? 24,
+      requireInRadius: options.requireInRadius,
+      skipClientSlice: options.skipClientSlice,
+    });
   } catch (error) {
     console.error('Error obteniendo proveedores cercanos para panel:', error);
     return [];

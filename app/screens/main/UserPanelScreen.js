@@ -24,6 +24,7 @@ import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehi
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import {
   HomeContextHeader,
+  HomeSearchBar,
   HomeCategoryGrid,
   HomeContextualBanner,
   HomeHighlightedRow,
@@ -294,7 +295,9 @@ const UserPanelScreen = () => {
         }
       }
       if (!coords) return [];
-      return getNearbyProvidersForPanel(coords.lat, coords.lng, marcaIdForPanel);
+      return getNearbyProvidersForPanel(coords.lat, coords.lng, marcaIdForPanel, {
+        limit: 24,
+      });
     },
   });
 
@@ -357,6 +360,15 @@ const UserPanelScreen = () => {
     },
     [selectedVehicle, openExplore],
   );
+
+  const handleOpenSearch = useCallback(() => {
+    if (!selectedVehicle) return;
+    openExplore({
+      mode: EXPLORE_MODE_CERCA,
+      focusSearch: true,
+      initialTab: 'all',
+    });
+  }, [selectedVehicle, openExplore]);
 
   const addressLabel = useMemo(() => shortAddressLabel(selectedAddress), [selectedAddress]);
 
@@ -488,6 +500,8 @@ const UserPanelScreen = () => {
           unreadCount={unreadCount}
           onPressNotifications={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
         />
+
+        <HomeSearchBar onPress={handleOpenSearch} disabled={!selectedVehicle} />
 
         <HomeCategoryGrid
           vehicles={vehicles}

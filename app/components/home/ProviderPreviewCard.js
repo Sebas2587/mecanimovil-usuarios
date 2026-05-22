@@ -2,13 +2,15 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import {
-  getKpiTierPresentation,
   getProviderImageCandidatesResolved,
   getPanelServicios,
   getProviderCompletedServicesCount,
+  getProviderDistance,
+  resolveProviderKpiBadge,
 } from '../../utils/providerUtils';
+import ProviderKpiTierBadge from '../provider/ProviderKpiTierBadge';
 import ProviderServiceChipsRow from './ProviderServiceChipsRow';
 import ProviderCardRatingBadge from './ProviderCardRatingBadge';
 import { getAxiosMediaBaseSync } from '../../services/api';
@@ -76,7 +78,9 @@ const ProviderPreviewCard = ({
   }, [uris.length]);
 
   const ratingLabel = rating != null && rating !== '' ? String(rating) : '—';
-  const distanceLabel = distance != null && distance !== '' ? String(distance) : '—';
+  const distanceFromProp =
+    distance != null && distance !== '' && String(distance) !== '—' ? String(distance) : null;
+  const distanceLabel = distanceFromProp ?? (providerRaw ? getProviderDistance(providerRaw) : null) ?? '—';
   const useSocialMetrics = cardFooterVariant === 'bookings';
   const reviewsCount = Number(reviews) || 0;
   const resolvedBookings =
@@ -93,10 +97,7 @@ const ProviderPreviewCard = ({
   const showSpecialtyFallback = !showOfferChips && !showBookingsBadge;
   const compactMetrics = width < 180;
 
-  const kpiPresentation = getKpiTierPresentation(kpiBadge, providerRaw);
-  const showTier = !!kpiPresentation;
-  const kpiFloatBg = kpiPresentation ? withOpacity(kpiPresentation.bg_color, 0.95) : undefined;
-  const kpiFloatBorder = kpiPresentation ? kpiPresentation.border_color : undefined;
+  const resolvedKpiBadge = kpiBadge ?? resolveProviderKpiBadge(providerRaw);
   const verifiedColor = COLORS.primary[500];
 
   return (
@@ -126,36 +127,13 @@ const ProviderPreviewCard = ({
           </View>
         ) : null}
 
-        {showTier ? (
-          <View
-            style={styles.kpiFloating}
-            pointerEvents="none"
-            accessibilityLabel={`Nivel ${kpiPresentation.label}`}
-          >
-            <View
-              style={[
-                styles.kpiFloatingInner,
-                {
-                  backgroundColor: kpiFloatBg,
-                  borderColor: kpiFloatBorder,
-                },
-              ]}
-            >
-              <Ionicons
-                name="ribbon-outline"
-                size={11}
-                color={kpiPresentation.text_color}
-                style={styles.kpiFloatingIcon}
-              />
-              <Text
-                style={[styles.kpiFloatingText, { color: kpiPresentation.text_color }]}
-                numberOfLines={1}
-              >
-                {kpiPresentation.label}
-              </Text>
-            </View>
-          </View>
-        ) : null}
+        <ProviderKpiTierBadge
+          kpiBadge={resolvedKpiBadge}
+          provider={providerRaw}
+          trustBadgeFields
+          variant="floating"
+          style={styles.kpiFloating}
+        />
       </View>
 
       <View style={styles.content}>
@@ -263,25 +241,6 @@ const getStyles = (width, omitRightMargin, imageHeight, containerRadius) =>
       top: 8,
       right: 8,
       zIndex: 4,
-      maxWidth: '56%',
-      alignItems: 'flex-end',
-    },
-    kpiFloatingInner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: BORDERS.radius.full,
-      borderWidth: 1,
-    },
-    kpiFloatingIcon: {
-      marginRight: 4,
-    },
-    kpiFloatingText: {
-      fontSize: TYPOGRAPHY.fontSize.xs,
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      letterSpacing: 0.2,
-      flexShrink: 1,
     },
     content: {
       paddingHorizontal: 12,

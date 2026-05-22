@@ -26,6 +26,7 @@ import {
 } from '../../services/agendamientoAsistidoService';
 import { useAgendamientoAsistido } from '../../hooks/useAgendamientoAsistido';
 import { resolveCoordenadasServicio } from '../../utils/coordenadasServicio';
+import { PROVIDER_RECOMMENDATION_MAX_KM } from '../../utils/exploreProviderUtils';
 import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
 import { COLORS } from '../../design-system/tokens/colors';
 import { ROUTES as APP_ROUTES } from '../../utils/constants';
@@ -47,7 +48,7 @@ const ComparadorOfertasScreen = () => {
     ofertasPreview = [],
     ofertasRecomendadas = [],
     ofertasOtros = [],
-    radioKm = 80,
+    radioKm = PROVIDER_RECOMMENDATION_MAX_KM,
     formPayload = null,
     slotSeleccionado,
     pendingConfirmOferta,
