@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { TrendingUp, Gauge, Shield } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import { HomePanelCard } from '../shared/HomePanelCard';
 import { formatCLP, formatKm } from '../shared/homeFormatters';
 import { getHealthLabel } from '../../../utils/healthFormat';
@@ -15,21 +15,29 @@ const HomePatrimonyHeroSection = ({
   motorType,
   onPressHealth,
   showHealthRing = true,
+  compact = false,
 }) => (
-  <HomePanelCard style={styles.card}>
+  <HomePanelCard
+    style={[styles.card, compact && styles.cardCompact]}
+    innerStyle={compact ? styles.cardInnerCompact : undefined}
+  >
     <View style={styles.heroRow}>
       <View style={[styles.heroMain, !showHealthRing && styles.heroMainFull]}>
         <View style={styles.labelRow}>
           <TrendingUp size={14} color={COLORS.success.main} />
           <Text style={styles.labelText}>Valor estimado</Text>
         </View>
-        <Text style={styles.heroPrice}>{formatCLP(valuation)}</Text>
+        <Text style={[styles.heroPrice, compact && styles.heroPriceCompact]} numberOfLines={1}>
+          {formatCLP(valuation)}
+        </Text>
         {priceDelta !== 0 ? (
           <Text
             style={[
               styles.heroDelta,
+              compact && styles.heroDeltaCompact,
               { color: priceDelta >= 0 ? COLORS.success.main : COLORS.error.main },
             ]}
+            numberOfLines={compact ? 2 : undefined}
           >
             {priceDelta >= 0 ? '+' : ''}
             {formatCLP(Math.abs(priceDelta))} vs mercado
@@ -62,12 +70,16 @@ const HomePatrimonyHeroSection = ({
       ) : null}
     </View>
 
-    <View style={styles.odometerRow}>
-      <Gauge size={14} color={COLORS.text.tertiary} />
-      <Text style={styles.odometerText}>{formatKm(odometer)} km</Text>
+    <View style={[styles.odometerRow, compact && styles.odometerRowCompact]}>
+      <Gauge size={compact ? 12 : 14} color={COLORS.text.tertiary} />
+      <Text style={[styles.odometerText, compact && styles.odometerTextCompact]} numberOfLines={1}>
+        {formatKm(odometer)} km
+      </Text>
       <View style={styles.odometerDot} />
-      <Shield size={14} color={COLORS.text.tertiary} />
-      <Text style={styles.odometerText}>{motorType || 'Motor'}</Text>
+      <Shield size={compact ? 12 : 14} color={COLORS.text.tertiary} />
+      <Text style={[styles.odometerText, compact && styles.odometerTextCompact]} numberOfLines={1}>
+        {motorType || 'Motor'}
+      </Text>
     </View>
   </HomePanelCard>
 );
@@ -75,6 +87,34 @@ const HomePatrimonyHeroSection = ({
 const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
+  },
+  cardCompact: {
+    flex: 1,
+    minWidth: 0,
+    marginBottom: 0,
+    alignSelf: 'stretch',
+  },
+  cardInnerCompact: {
+    padding: SPACING.sm,
+    flex: 1,
+  },
+  heroPriceCompact: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    lineHeight: 28,
+  },
+  heroDeltaCompact: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    lineHeight: 16,
+  },
+  odometerRowCompact: {
+    flexWrap: 'wrap',
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    gap: 4,
+  },
+  odometerTextCompact: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    flexShrink: 1,
   },
   heroRow: {
     flexDirection: 'row',

@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
+    borderRadius: BORDERS.radius.button.md,
   },
   softBtnInnerPrimary: {
     backgroundColor: COLORS.primary[500],

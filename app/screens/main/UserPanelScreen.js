@@ -301,6 +301,15 @@ const UserPanelScreen = () => {
     },
   });
 
+  const filteredNearbyProviders = useMemo(() => {
+    if (!Array.isArray(panelNearbyProviders)) return [];
+    if (!Array.isArray(panelParaTiProviders) || panelParaTiProviders.length === 0) {
+      return panelNearbyProviders;
+    }
+    const destacadosIds = new Set(panelParaTiProviders.map((p) => p.id));
+    return panelNearbyProviders.filter((p) => !destacadosIds.has(p.id));
+  }, [panelNearbyProviders, panelParaTiProviders]);
+
   const {
     data: panelMarketActivity,
     isLoading: panelActivityLoading,
@@ -501,7 +510,7 @@ const UserPanelScreen = () => {
           onPressNotifications={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
         />
 
-        <HomeSearchBar onPress={handleOpenSearch} disabled={!selectedVehicle} />
+        {/* <HomeSearchBar onPress={handleOpenSearch} disabled={!selectedVehicle} /> */}
 
         <HomeCategoryGrid
           vehicles={vehicles}
@@ -575,7 +584,7 @@ const UserPanelScreen = () => {
           selectedVehicle={selectedVehicle}
           title={`Cerca de ${addressLabel}`}
           hasSelectedAddress={!!selectedAddress}
-          providers={panelNearbyProviders}
+          providers={filteredNearbyProviders}
           loading={panelNearbyLoading}
           onProviderPress={openProviderFromPanel}
           onSeeAll={handleSeeAllNearby}

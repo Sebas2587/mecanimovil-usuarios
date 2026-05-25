@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS, BORDERS, SHADOWS } from '../../../design-system/tokens';
+import { COLORS, BORDERS, SHADOWS, SPACING } from '../../../design-system/tokens';
 import HomeVehicleVitalityStrip from './HomeVehicleVitalityStrip';
 import HomePatrimonyHeroSection from './HomePatrimonyHeroSection';
 import HomeTelemetrySection from './HomeTelemetrySection';
@@ -72,16 +72,20 @@ const HomeVehicleDashboardFold = ({
 
       {expanded ? (
         <View style={styles.body}>
-          <HomePatrimonyHeroSection
-            valuation={valuation}
-            priceDelta={priceDelta}
-            healthScore={healthScore}
-            healthScoreColor={healthScoreColor}
-            odometer={odometer}
-            motorType={motorType}
-            onPressHealth={onPressHealth}
-            showHealthRing={false}
-          />
+          <View style={styles.metricsTwoCol}>
+            <HomePatrimonyHeroSection
+              compact
+              valuation={valuation}
+              priceDelta={priceDelta}
+              healthScore={healthScore}
+              healthScoreColor={healthScoreColor}
+              odometer={odometer}
+              motorType={motorType}
+              onPressHealth={onPressHealth}
+              showHealthRing={false}
+            />
+            <HomeWeatherPreviewSection compact {...weather} />
+          </View>
           <HomeTelemetrySection
             tripActive={telemetry.tripActive}
             tripKm={telemetry.tripKm}
@@ -90,7 +94,6 @@ const HomeVehicleDashboardFold = ({
             onStartTrip={telemetry.onStartTrip}
             onStopTrip={telemetry.onStopTrip}
           />
-          <HomeWeatherPreviewSection {...weather} />
         </View>
       ) : null}
     </View>
@@ -118,7 +121,12 @@ const styles = StyleSheet.create({
   },
   body: {
     marginTop: 12,
-    gap: 0,
+    gap: SPACING.sm,
+  },
+  metricsTwoCol: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: SPACING.sm,
   },
 });
 

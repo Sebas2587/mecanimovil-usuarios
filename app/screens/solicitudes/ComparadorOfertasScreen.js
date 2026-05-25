@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { GitCompare } from 'lucide-react-native';
+import ComparadorCatalogoCompareFooter from '../../components/agendamiento-asistido/ComparadorCatalogoCompareFooter';
 import { ROUTES } from '../../utils/constants';
 import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
 import ComparadorCatalogoIaPanel from '../../components/agendamiento-asistido/ComparadorCatalogoIaPanel';
@@ -65,6 +66,7 @@ const ComparadorOfertasScreen = () => {
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState(null);
+  const [compareFooter, setCompareFooter] = useState(null);
   const confirmandoHorarioRef = useRef(false);
 
   useEffect(() => {
@@ -466,13 +468,17 @@ const ComparadorOfertasScreen = () => {
     );
   }
 
+  const catalogScrollPad = modoCatalogo && compareFooter?.visible
+    ? insets.bottom + 88
+    : insets.bottom + 24;
+
   return shell(
-    <>
+    <View style={styles.catalogBody}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: insets.bottom + 24 },
+          { paddingBottom: catalogScrollPad },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -485,6 +491,7 @@ const ComparadorOfertasScreen = () => {
             procesando={procesando}
             requiereRepuestos={requiereRepuestos}
             userCoords={userCoords}
+            onCompareFooterChange={setCompareFooter}
           />
         ) : (
           <ComparadorOfertas
@@ -497,6 +504,15 @@ const ComparadorOfertasScreen = () => {
         )}
       </ScrollView>
 
+      {modoCatalogo && compareFooter?.visible ? (
+        <ComparadorCatalogoCompareFooter
+          countSel={compareFooter.countSel}
+          compareEnabled={compareFooter.compareEnabled}
+          onPress={compareFooter.onPress}
+          bottomInset={insets.bottom}
+        />
+      ) : null}
+
       {procesando ? (
         <View style={styles.processingOverlay}>
           <View style={styles.processingCard}>
@@ -505,7 +521,7 @@ const ComparadorOfertasScreen = () => {
           </View>
         </View>
       ) : null}
-    </>
+    </View>
   );
 };
 
@@ -513,6 +529,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background.default,
+  },
+  catalogBody: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,

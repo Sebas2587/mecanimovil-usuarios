@@ -19,57 +19,84 @@ const HomeWeatherPreviewSection = ({
   frenoWearPct,
   gomaWearPct,
   onPressOpenDetail,
+  compact = false,
 }) => (
-  <TouchableOpacity activeOpacity={0.85} onPress={onPressOpenDetail} style={styles.wrap}>
-    <HomePanelCard innerStyle={styles.inner}>
+  <TouchableOpacity
+    activeOpacity={0.85}
+    onPress={onPressOpenDetail}
+    style={[styles.wrap, compact && styles.wrapCompact]}
+  >
+    <HomePanelCard
+      style={compact ? styles.cardCompact : undefined}
+      innerStyle={[styles.inner, compact && styles.innerCompact]}
+    >
       {loading ? (
-        <View style={styles.centered}>
+        <View style={[styles.centered, compact && styles.centeredCompact]}>
           <ActivityIndicator color={COLORS.primary[500]} size="small" />
           <Text style={styles.muted}>Consultando clima...</Text>
         </View>
       ) : !available ? (
-        <View style={styles.centered}>
+        <View style={[styles.centered, compact && styles.centeredCompact]}>
           <CloudRain size={24} color={COLORS.text.tertiary} />
           <Text style={styles.muted}>{unavailableReason || 'Clima no disponible.'}</Text>
         </View>
       ) : (
         <>
           <View style={styles.headerRow}>
-            <CloudRain size={20} color={riskColorForLevel(overallRiskLevel)} />
-            <Text style={styles.riskLabel}>Riesgo de desgaste (clima)</Text>
+            <CloudRain size={compact ? 14 : 20} color={riskColorForLevel(overallRiskLevel)} />
+            <Text style={[styles.riskLabel, compact && styles.riskLabelCompact]} numberOfLines={2}>
+              {compact ? 'Riesgo desgaste' : 'Riesgo de desgaste (clima)'}
+            </Text>
           </View>
-          <Text style={[styles.riskPct, { color: riskColorForLevel(overallRiskLevel) }]}>
+          <Text
+            style={[
+              styles.riskPct,
+              compact && styles.riskPctCompact,
+              { color: riskColorForLevel(overallRiskLevel) },
+            ]}
+          >
             {climateRiskPct}%
           </Text>
           {overallRiskLabel ? (
-            <Text style={[styles.riskBand, { color: riskColorForLevel(overallRiskLevel) }]}>
+            <Text
+              style={[styles.riskBand, compact && styles.riskBandCompact, { color: riskColorForLevel(overallRiskLevel) }]}
+              numberOfLines={compact ? 2 : undefined}
+            >
               {overallRiskLabel}
             </Text>
           ) : null}
-          {weatherCity ? (
+          {weatherCity && !compact ? (
             <Text style={styles.city}>
               {weatherCity} · {weatherCondition} · {weatherTemp != null ? `${weatherTemp}°C` : '—'}
               {weatherAgeLabel ? ` · ${weatherAgeLabel}` : ''}
             </Text>
           ) : null}
-          <View style={styles.bars}>
-            <MicroBar label="Frenos" pct={frenoWearPct} color={COLORS.error.main} />
-            <MicroBar label="Gomas" pct={gomaWearPct} color={COLORS.success.main} />
+          {compact && weatherCity ? (
+            <Text style={styles.cityCompact} numberOfLines={2}>
+              {weatherCity}
+              {weatherTemp != null ? ` · ${weatherTemp}°C` : ''}
+            </Text>
+          ) : null}
+          <View style={[styles.bars, compact && styles.barsCompact]}>
+            <MicroBar label="Frenos" pct={frenoWearPct} color={COLORS.error.main} compact={compact} />
+            <MicroBar label="Gomas" pct={gomaWearPct} color={COLORS.success.main} compact={compact} />
           </View>
-          <View style={styles.footer}>
-            <Droplets size={12} color={COLORS.text.tertiary} />
-            <Text style={styles.footerText}>Toca para análisis climático al conducir</Text>
-          </View>
+          {!compact ? (
+            <View style={styles.footer}>
+              <Droplets size={12} color={COLORS.text.tertiary} />
+              <Text style={styles.footerText}>Toca para análisis climático al conducir</Text>
+            </View>
+          ) : null}
         </>
       )}
     </HomePanelCard>
   </TouchableOpacity>
 );
 
-function MicroBar({ label, pct, color }) {
+function MicroBar({ label, pct, color, compact }) {
   return (
     <View style={styles.microRow}>
-      <Text style={styles.microLabel}>{label}</Text>
+      <Text style={[styles.microLabel, compact && styles.microLabelCompact]}>{label}</Text>
       <View style={styles.microTrack}>
         <View style={[styles.microFill, { width: `${Math.min(pct, 100)}%`, backgroundColor: color }]} />
       </View>
@@ -82,8 +109,21 @@ const styles = StyleSheet.create({
   wrap: {
     marginBottom: 0,
   },
+  wrapCompact: {
+    flex: 1,
+    minWidth: 0,
+    alignSelf: 'stretch',
+  },
+  cardCompact: {
+    flex: 1,
+    minWidth: 0,
+  },
   inner: {
     padding: SPACING.cardPadding,
+  },
+  innerCompact: {
+    padding: SPACING.sm,
+    flex: 1,
   },
   centered: {
     alignItems: 'center',
@@ -91,6 +131,10 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     gap: 8,
     minHeight: 100,
+  },
+  centeredCompact: {
+    minHeight: 72,
+    paddingVertical: 12,
   },
   muted: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -109,6 +153,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     letterSpacing: TYPOGRAPHY.letterSpacing.wider,
+    flex: 1,
+  },
+  riskLabelCompact: {
+    fontSize: 10,
+    lineHeight: 13,
   },
   riskPct: {
     ...TYPOGRAPHY.styles.numberDisplay,
@@ -117,19 +166,39 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     ...(Platform.OS === 'web' ? { fontFeatureSettings: '"tnum"' } : {}),
   },
+  riskPctCompact: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    lineHeight: 28,
+    marginBottom: 2,
+  },
   riskBand: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     marginBottom: 6,
+  },
+  riskBandCompact: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    lineHeight: 16,
+    marginBottom: 4,
   },
   city: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.tertiary,
     marginBottom: 10,
   },
+  cityCompact: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.tertiary,
+    marginBottom: 6,
+    lineHeight: 15,
+  },
   bars: {
     gap: 10,
     marginBottom: 4,
+  },
+  barsCompact: {
+    gap: 6,
+    marginTop: 2,
   },
   microRow: {
     flexDirection: 'row',
@@ -141,6 +210,10 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.secondary,
+  },
+  microLabelCompact: {
+    width: 36,
+    fontSize: TYPOGRAPHY.fontSize.xs,
   },
   microTrack: {
     flex: 1,

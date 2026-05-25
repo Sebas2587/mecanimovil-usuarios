@@ -25,12 +25,12 @@ const WIDTH_BASE = {
 // Crear objeto radius con todas las propiedades
 const radius = {
   ...RADIUS_BASE,
-  // Radios para botones
+  // Radios para botones (Coinbase editorial: esquinas suaves, no píldora en CTAs estándar)
   button: {
-    sm: 9999,
-    md: 9999,
-    lg: 9999,
-    full: 9999,
+    sm: RADIUS_BASE.sm,
+    md: RADIUS_BASE.md,
+    lg: RADIUS_BASE.md,
+    full: RADIUS_BASE.full,
   },
   // Radios para inputs
   input: {

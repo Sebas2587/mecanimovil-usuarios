@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { Play, Square } from 'lucide-react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
-import { HomePanelCard, HomeSoftButton } from '../shared/HomePanelCard';
+import Button from '../../base/Button/Button';
+import { HomePanelCard } from '../shared/HomePanelCard';
 import { formatDuration } from '../shared/homeFormatters';
 
 const HomeTelemetrySection = ({
@@ -42,15 +42,23 @@ const HomeTelemetrySection = ({
 
       <View style={styles.ctaWrap}>
         {tripActive ? (
-          <HomeSoftButton onPress={onStopTrip} variant="stop">
-            <Square size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
-            <Text style={styles.btnTextStop}>Detener viaje</Text>
-          </HomeSoftButton>
+          <Button
+            title="Detener viaje"
+            onPress={onStopTrip}
+            type="danger"
+            variant="solid"
+            size="md"
+            fullWidth
+          />
         ) : (
-          <HomeSoftButton onPress={onStartTrip}>
-            <Play size={16} color={COLORS.text.inverse} fill={COLORS.text.inverse} />
-            <Text style={styles.btnTextPrimary}>Iniciar viaje</Text>
-          </HomeSoftButton>
+          <Button
+            title="Iniciar viaje"
+            onPress={onStartTrip}
+            type="primary"
+            variant="solid"
+            size="md"
+            fullWidth
+          />
         )}
       </View>
     </View>
@@ -130,16 +138,6 @@ const styles = StyleSheet.create({
   },
   ctaWrap: {
     marginTop: SPACING.xs,
-  },
-  btnTextPrimary: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
-  },
-  btnTextStop: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
   },
 });
 

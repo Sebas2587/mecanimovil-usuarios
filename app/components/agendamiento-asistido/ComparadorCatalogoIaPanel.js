@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import CandidatosProveedorCard from './CandidatosProveedorCard';
+import ComparadorCandidatosCatalogoModal from './ComparadorCandidatosCatalogoModal';
 import { resolveDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
 import { PROVIDER_RECOMMENDATION_MAX_KM } from '../../utils/exploreProviderUtils';
+import {
+  computeMatchDisplayPct,
+  getCandidatoCatalogoKey,
+} from '../../utils/catalogoComparadorScoring';
 
 function sortPorDistancia(ofertas) {
   return [...ofertas].sort((a, b) => {
@@ -33,6 +38,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     foto_perfil_url: fotoUrl,
     foto_perfil: p.foto_perfil || oferta.foto_perfil || fotoUrl,
   };
+  const distancia_km = resolveDistanciaKmCandidato(oferta, userCoords);
   return {
     ...oferta,
     proveedor,
@@ -64,7 +70,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     incluye_repuestos_sugerido: conRepuestos,
     score_match: oferta.score_match,
     explicacion: oferta.explicacion,
-    distancia_km: resolveDistanciaKmCandidato(oferta, userCoords),
+    distancia_km,
     es_recomendado: oferta.es_recomendado,
     es_coincidencia_exacta: oferta.es_coincidencia_exacta,
     nivel_coincidencia: oferta.nivel_coincidencia,
@@ -72,7 +78,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
 }
 
 /**
- * Comparación de candidatos de catálogo: recomendados + otros en zona.
+ * Comparación de candidatos de catálogo: selección múltiple + modal de análisis.
  */
 export default function ComparadorCatalogoIaPanel({
   ofertas = [],
@@ -83,8 +89,11 @@ export default function ComparadorCatalogoIaPanel({
   procesando = false,
   requiereRepuestos = true,
   userCoords = null,
+  onCompareFooterChange,
 }) {
   const [confirmandoId, setConfirmandoId] = useState(null);
+  const [selectedKeys, setSelectedKeys] = useState(() => new Set());
+  const [modalVisible, setModalVisible] = useState(false);
 
   const recomendadas = sortPorDistancia(
     Array.isArray(ofertasRecomendadas) && ofertasRecomendadas.length > 0
@@ -92,6 +101,65 @@ export default function ComparadorCatalogoIaPanel({
       : ofertas,
   );
   const otros = sortPorDistancia(Array.isArray(ofertasOtros) ? ofertasOtros : []);
+  const todasOfertas = useMemo(() => [...recomendadas, ...otros], [recomendadas, otros]);
+
+  const candidatosByKey = useMemo(() => {
+    const map = new Map();
+    for (const oferta of todasOfertas) {
+      const c = toCandidato(oferta, requiereRepuestos, userCoords);
+      const key = getCandidatoCatalogoKey(c);
+      if (key) map.set(key, c);
+    }
+    return map;
+  }, [todasOfertas, requiereRepuestos, userCoords]);
+
+  const grupoCandidatos = useMemo(
+    () => Array.from(candidatosByKey.values()),
+    [candidatosByKey],
+  );
+
+  const matchPctByKey = useMemo(() => {
+    const out = new Map();
+    for (const c of grupoCandidatos) {
+      const key = getCandidatoCatalogoKey(c);
+      out.set(key, computeMatchDisplayPct(c, userCoords, grupoCandidatos));
+    }
+    return out;
+  }, [grupoCandidatos, userCoords]);
+
+  const puedeComparar = todasOfertas.length >= 2;
+  const seleccionados = useMemo(
+    () => Array.from(selectedKeys)
+      .map((k) => candidatosByKey.get(k))
+      .filter(Boolean),
+    [selectedKeys, candidatosByKey],
+  );
+  const countSel = seleccionados.length;
+  const compareEnabled = countSel >= 2;
+
+  const openModal = useCallback(() => {
+    if (countSel >= 2) setModalVisible(true);
+  }, [countSel]);
+
+  React.useEffect(() => {
+    onCompareFooterChange?.({
+      visible: puedeComparar,
+      countSel,
+      compareEnabled,
+      onPress: openModal,
+    });
+  }, [puedeComparar, countSel, compareEnabled, openModal, onCompareFooterChange]);
+
+  const toggleSeleccion = useCallback((key) => {
+    if (!key) return;
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
   const radioLabel = radioKm != null
     ? Math.round(Number(radioKm))
     : PROVIDER_RECOMMENDATION_MAX_KM;
@@ -104,7 +172,15 @@ export default function ComparadorCatalogoIaPanel({
 
   const renderOferta = (oferta, variant) => {
     const candidato = toCandidato(oferta, requiereRepuestos, userCoords);
+    const key = getCandidatoCatalogoKey(candidato);
     const id = oferta.oferta_servicio_id || oferta.id;
+    const selected = selectedKeys.has(key);
+    const matchDisplayPct = matchPctByKey.get(key) ?? computeMatchDisplayPct(
+      candidato,
+      userCoords,
+      grupoCandidatos,
+    );
+
     return (
       <CandidatosProveedorCard
         key={id}
@@ -114,6 +190,10 @@ export default function ComparadorCatalogoIaPanel({
         onConfirmar={() => handleConfirmar(oferta)}
         procesando={procesando}
         confirmandoEsta={confirmandoId === id}
+        selectable={puedeComparar}
+        selected={selected}
+        onToggleSelect={() => toggleSeleccion(key)}
+        matchDisplayPct={matchDisplayPct}
       />
     );
   };
@@ -124,6 +204,12 @@ export default function ComparadorCatalogoIaPanel({
         El proveedor confirma el servicio antes de pagar. Los candidatos coinciden con tu
         vehículo, servicio y ubicación.
       </Text>
+
+      {puedeComparar ? (
+        <Text style={styles.selectHint}>
+          Marca 2 o más proveedores y pulsa Comparar para ver quién encaja mejor contigo.
+        </Text>
+      ) : null}
 
       {recomendadas.length > 0 ? (
         <View style={styles.section}>
@@ -149,6 +235,22 @@ export default function ComparadorCatalogoIaPanel({
           </View>
         </View>
       ) : null}
+
+      <ComparadorCandidatosCatalogoModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        candidatos={seleccionados}
+        userCoords={userCoords}
+        requiereRepuestos={requiereRepuestos !== false}
+        onConfirmar={(candidato) => {
+          setModalVisible(false);
+          const raw = todasOfertas.find(
+            (o) => getCandidatoCatalogoKey(toCandidato(o, requiereRepuestos, userCoords))
+              === getCandidatoCatalogoKey(candidato),
+          );
+          if (raw) handleConfirmar(raw);
+        }}
+      />
     </View>
   );
 }
@@ -160,8 +262,15 @@ const styles = StyleSheet.create({
   lead: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
-    marginBottom: 20,
+    marginBottom: 12,
     lineHeight: 20,
+  },
+  selectHint: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.primary[700],
+    marginBottom: 16,
+    lineHeight: 19,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   section: {
     marginBottom: 24,

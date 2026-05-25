@@ -247,7 +247,7 @@ const Button = ({
               paddingHorizontal: sizeStyles.paddingHorizontal,
               paddingVertical: sizeStyles.paddingVertical,
               minHeight: sizeStyles.minHeight,
-              borderRadius: SAFE_BORDERS.radius?.button?.md || 9999,
+              borderRadius: SAFE_BORDERS.radius?.button?.md ?? 12,
             },
           ]}
         >
@@ -304,7 +304,7 @@ const Button = ({
           paddingHorizontal: sizeStyles.paddingHorizontal,
           paddingVertical: sizeStyles.paddingVertical,
           minHeight: sizeStyles.minHeight,
-          borderRadius: SAFE_BORDERS.radius?.button?.md || 9999,
+          borderRadius: SAFE_BORDERS.radius?.button?.md ?? 12,
           width: fullWidth ? '100%' : 'auto',
           ...(variant === 'solid' && !disabled ? (SAFE_SHADOWS.button || {}) : (SAFE_SHADOWS.none || {})),
         },

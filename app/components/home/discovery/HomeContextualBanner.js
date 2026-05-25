@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { ClipboardList, HeartPulse, CloudRain, ChevronRight } from 'lucide-react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { ClipboardList, HeartPulse, CloudRain } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
+import Button from '../../base/Button/Button';
 
 function pickBanner({ solicitud, healthScore, climateRiskPct, weatherAvailable }) {
   if (solicitud) {
@@ -114,27 +115,30 @@ const HomeContextualBanner = ({
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          onPress={onPrimary}
-          activeOpacity={0.88}
-          accessibilityRole="button"
-          accessibilityLabel={banner.primaryCta}
-        >
-          <Text style={styles.primaryBtnText}>{banner.primaryCta}</Text>
-          <ChevronRight size={16} color={COLORS.text.onPrimary} strokeWidth={2.25} />
-        </TouchableOpacity>
+        <View style={styles.primaryBtnWrap}>
+          <Button
+            title={banner.primaryCta}
+            onPress={onPrimary}
+            type="primary"
+            variant="solid"
+            size="md"
+            fullWidth
+            accessibilityLabel={banner.primaryCta}
+          />
+        </View>
 
         {showHealthLink ? (
-          <TouchableOpacity
-            onPress={onPressHealth}
-            style={styles.textLink}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Ver salud del vehículo"
-          >
-            <Text style={styles.textLinkLabel}>Ver salud del vehículo</Text>
-          </TouchableOpacity>
+          <View style={styles.secondaryBtnWrap}>
+            <Button
+              title="Ver salud del vehículo"
+              onPress={onPressHealth}
+              type="primary"
+              variant="text"
+              size="md"
+              fullWidth
+              accessibilityLabel="Ver salud del vehículo"
+            />
+          </View>
         ) : null}
       </View>
     </View>
@@ -185,32 +189,13 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     lineHeight: Math.round(TYPOGRAPHY.fontSize.sm * TYPOGRAPHY.lineHeight.normal),
   },
-  primaryBtn: {
-    marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: BORDERS.radius.pill,
-    backgroundColor: COLORS.primary[500],
+  primaryBtnWrap: {
+    marginTop: SPACING.sm,
+    width: '100%',
   },
-  primaryBtnText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.onPrimary,
-    letterSpacing: TYPOGRAPHY.letterSpacing.normal,
-  },
-  textLink: {
-    alignSelf: 'center',
-    marginTop: 10,
-    paddingVertical: 4,
-  },
-  textLinkLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.primary[600],
+  secondaryBtnWrap: {
+    marginTop: SPACING.xxs,
+    width: '100%',
   },
 });
 
