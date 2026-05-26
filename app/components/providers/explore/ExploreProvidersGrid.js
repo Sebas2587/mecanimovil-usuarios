@@ -3,13 +3,13 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
   RefreshControl,
 } from 'react-native';
 import { MapPin, Navigation } from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import ProviderPreviewCard from '../../home/ProviderPreviewCard';
+import ExploreProvidersGridSkeleton from '../../utils/ExploreProvidersGridSkeleton';
 import { formatProviderForCard } from '../../../utils/providerUtils';
 import { CARD_GAP, GRID_CARD_W } from '../../home/shared/homeLayoutConstants';
 
@@ -105,19 +105,10 @@ const ExploreProvidersGrid = ({
     );
   }, [inRadar, outOfRadar, isEmpty, renderSection]);
 
-  if (loading && isEmpty) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={COLORS.primary[500]} />
-        <Text style={styles.loadingText}>Buscando proveedores…</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={[styles.listContent, isEmpty && styles.listContentEmpty]}
+      contentContainerStyle={[styles.listContent, isEmpty && !loading && styles.listContentEmpty]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       refreshControl={
@@ -130,6 +121,7 @@ const ExploreProvidersGrid = ({
         ) : undefined
       }
     >
+      {loading && isEmpty ? <ExploreProvidersGridSkeleton sections={1} rowsPerSection={3} /> : null}
       {content}
       {isEmpty ? (
         <View style={styles.empty}>
@@ -186,17 +178,6 @@ const styles = StyleSheet.create({
   },
   cellPlaceholder: {
     width: GRID_CARD_W,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 48,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.text.secondary,
   },
   empty: {
     alignItems: 'center',

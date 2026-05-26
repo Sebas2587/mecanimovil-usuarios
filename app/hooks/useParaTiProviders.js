@@ -1,16 +1,41 @@
 import { useQuery } from '@tanstack/react-query';
 import { getParaTiProvidersForPanel } from '../services/providers';
+import { geocodeAddress } from '../services/location';
+import {
+  coordsFromSavedAddress,
+  resolveVehicleMarcaId,
+} from '../components/home/shared/homeVehicleUtils';
+import { resolveUserCityContext } from '../components/home/shared/homeAddressUtils';
 
 /**
- * Proveedores destacados por KPI para la sección «Destacados» del home.
- * No usa la dirección: el orden es solo por relevancia KPI + marca del vehículo.
+ * Destacados en home: KPI en la ciudad de la dirección + radar 5 km (OpenSpec fase 3 + alcance local).
  */
-export function useParaTiProviders({ vehicle, enabled = true, limit = 12 }) {
+export function useParaTiProviders({ vehicle, address, enabled = true, limit = 12 }) {
+  const marcaId = resolveVehicleMarcaId(vehicle);
+
   return useQuery({
-    queryKey: ['homeParaTiProviders', vehicle?.id, limit],
-    enabled: enabled && !!vehicle?.id,
+    queryKey: ['homeParaTiProviders', vehicle?.id, address?.id, marcaId, limit],
+    enabled: enabled && !!vehicle?.id && !!address,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 20,
-    queryFn: () => getParaTiProvidersForPanel(vehicle.id, { limit }),
+    queryFn: async () => {
+      let coords = coordsFromSavedAddress(address);
+      if (!coords && address?.direccion) {
+        const g = await geocodeAddress(address.direccion);
+        if (g?.latitude != null && g?.longitude != null) {
+          coords = { lat: g.latitude, lng: g.longitude };
+        }
+      }
+      const cityContext = await resolveUserCityContext(address, coords);
+
+      return getParaTiProvidersForPanel(vehicle.id, {
+        limit,
+        scope: 'panel',
+        lat: coords?.lat,
+        lng: coords?.lng,
+        marcaId,
+        cityContext,
+      });
+    },
   });
 }

@@ -6,6 +6,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { ROUTES } from '../../utils/constants';
 import { H_PAD } from '../../components/home/shared/homeLayoutConstants';
 import { useExploreProviders } from '../../hooks/useExploreProviders';
+import { useExploreProvidersParaTi } from '../../hooks/useExploreProvidersParaTi';
+import { useExploreProvidersNearby } from '../../hooks/useExploreProvidersNearby';
 import {
   ExploreProvidersTabs,
   ExploreProvidersGrid,
@@ -14,12 +16,17 @@ import {
   EXPLORE_TAB_TALLER,
   EXPLORE_TAB_MECANICO,
   filterProvidersByExploreTab,
+  EXPLORE_MODE_CERCA,
+  EXPLORE_MODE_PARA_TI,
 } from '../../components/providers/explore';
-import { splitProvidersByRadar } from '../../utils/exploreProviderUtils';
+import { filterProvidersBySearchQuery, splitProvidersByRadar } from '../../utils/exploreProviderUtils';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 
 /**
- * Explorar proveedores: búsqueda, tabs underline y dos bloques (zona / fuera del radar).
+ * Explorar proveedores según modo (OpenSpec fase 3):
+ * - para_ti: todos por KPI (Ver todos Destacados)
+ * - cerca: todos por distancia (Ver todos Cerca)
+ * - con categoría: listado unificado filtrado por servicios
  */
 const ExploreProvidersScreen = () => {
   const navigation = useNavigation();
@@ -29,41 +36,93 @@ const ExploreProvidersScreen = () => {
   const address = route.params?.address ?? null;
   const categoryId = route.params?.categoryId ?? null;
   const categoryName = route.params?.categoryName ?? null;
+  const mode = route.params?.mode ?? null;
 
   const [activeTab, setActiveTab] = useState(route.params?.initialTab ?? EXPLORE_TAB_ALL);
   const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery ?? '');
+
+  const isParaTiExplore = mode === EXPLORE_MODE_PARA_TI && !categoryId;
+  const isCercaExplore = mode === EXPLORE_MODE_CERCA;
+  const isUnifiedExplore = !isParaTiExplore && !isCercaExplore;
 
   useEffect(() => {
     if (route.params?.initialTab) setActiveTab(route.params.initialTab);
   }, [route.params?.initialTab]);
 
-  const {
-    providers,
-    isLoading,
-    isRefetching,
-    refetch,
-    hasAddress,
-  } = useExploreProviders({
+  const unifiedQuery = useExploreProviders({
     vehicle,
     address,
     categoryId,
-    searchQuery,
-    enabled: !!vehicle,
+    searchQuery: isUnifiedExplore ? searchQuery : '',
+    enabled: !!vehicle && isUnifiedExplore,
   });
 
+  const paraTiQuery = useExploreProvidersParaTi({
+    vehicle,
+    address,
+    enabled: !!vehicle && isParaTiExplore,
+  });
+
+  const nearbyQuery = useExploreProvidersNearby({
+    vehicle,
+    address,
+    enabled: !!vehicle && isCercaExplore,
+  });
+
+  const rawProviders = useMemo(() => {
+    if (isParaTiExplore) {
+      const data = paraTiQuery.data ?? [];
+      return filterProvidersBySearchQuery(Array.isArray(data) ? data : [], searchQuery);
+    }
+    if (isCercaExplore) {
+      const data = nearbyQuery.data ?? [];
+      return filterProvidersBySearchQuery(Array.isArray(data) ? data : [], searchQuery);
+    }
+    return unifiedQuery.providers;
+  }, [
+    isParaTiExplore,
+    isCercaExplore,
+    paraTiQuery.data,
+    nearbyQuery.data,
+    unifiedQuery.providers,
+    searchQuery,
+  ]);
+
+  const isLoading = isParaTiExplore
+    ? paraTiQuery.isLoading
+    : isCercaExplore
+      ? nearbyQuery.isLoading
+      : unifiedQuery.isLoading;
+
+  const isRefetching = isParaTiExplore
+    ? paraTiQuery.isRefetching
+    : isCercaExplore
+      ? nearbyQuery.isRefetching
+      : unifiedQuery.isRefetching;
+
+  const refetch = isParaTiExplore
+    ? paraTiQuery.refetch
+    : isCercaExplore
+      ? nearbyQuery.refetch
+      : unifiedQuery.refetch;
+
+  const hasAddress = isParaTiExplore || isCercaExplore ? !!address : unifiedQuery.hasAddress;
+
   const tabProviders = useMemo(
-    () => filterProvidersByExploreTab(providers, activeTab),
-    [providers, activeTab],
+    () => filterProvidersByExploreTab(rawProviders, activeTab),
+    [rawProviders, activeTab],
   );
 
-  const { inRadar, outOfRadar } = useMemo(
-    () => splitProvidersByRadar(tabProviders),
-    [tabProviders],
-  );
+  const { inRadar, outOfRadar } = useMemo(() => {
+    if (isCercaExplore) {
+      return { inRadar: tabProviders, outOfRadar: [] };
+    }
+    return splitProvidersByRadar(tabProviders);
+  }, [tabProviders, isCercaExplore]);
 
   const tabCounts = useMemo(() => {
     const countForTab = (tabId) => {
-      const list = filterProvidersByExploreTab(providers, tabId);
+      const list = filterProvidersByExploreTab(rawProviders, tabId);
       return list.length;
     };
     return {
@@ -71,7 +130,7 @@ const ExploreProvidersScreen = () => {
       taller: countForTab(EXPLORE_TAB_TALLER),
       mecanico: countForTab(EXPLORE_TAB_MECANICO),
     };
-  }, [providers]);
+  }, [rawProviders]);
 
   const openProvider = useCallback(
     (item) => {
@@ -88,9 +147,17 @@ const ExploreProvidersScreen = () => {
     [navigation, vehicle],
   );
 
+  const screenTitle = useMemo(() => {
+    if (isParaTiExplore) return 'Destacados';
+    if (isCercaExplore) return 'Cerca de ti';
+    if (categoryName) return categoryName;
+    return 'Explorar';
+  }, [isParaTiExplore, isCercaExplore, categoryName]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.body}>
+        <Text style={styles.screenTitle}>{screenTitle}</Text>
         {!hasAddress ? (
           <Text style={styles.hintWarn}>
             Agrega una dirección en el inicio para ordenar por cercanía y ver quién está en tu zona.
@@ -120,7 +187,9 @@ const ExploreProvidersScreen = () => {
               emptyMessage={
                 searchQuery.trim()
                   ? 'Prueba otro término.'
-                  : 'Amplía la zona o cambia de pestaña.'
+                  : isParaTiExplore
+                    ? 'No hay proveedores que atiendan tu marca.'
+                    : 'Amplía la zona o cambia de pestaña.'
               }
             />
           </>
@@ -139,6 +208,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: H_PAD,
     paddingTop: SPACING.sm,
+  },
+  screenTitle: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.sm,
   },
   hintWarn: {
     fontSize: TYPOGRAPHY.fontSize.sm,

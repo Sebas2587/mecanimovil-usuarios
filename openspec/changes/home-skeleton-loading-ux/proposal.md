@@ -10,6 +10,7 @@ Varias pantallas del panel de usuario (`UserPanelScreen`, crear solicitud, mis v
 
 ## Alcance
 - `UserPanelScreen` y componentes `home/discovery/*` usados en el panel.
+- `ExploreProvidersScreen` / `ExploreProvidersGrid` (navegación desde categorías y Ver todos).
 - `CrearSolicitudScreen`, `FormularioSolicitud`, `MisVehiculosScreen`, `MarketplaceScreen` (cambio previo en la misma línea).
 
 ## Fuera de alcance

@@ -345,6 +345,7 @@ const UserPanelScreen = () => {
     refetch: refetchPanelParaTi,
   } = useParaTiProviders({
     vehicle: selectedVehicle,
+    address: selectedAddress,
     enabled: !!selectedVehicle?.id,
   });
 
@@ -645,6 +646,7 @@ const UserPanelScreen = () => {
 
         <HomeHighlightedRow
           selectedVehicle={selectedVehicle}
+          hasSelectedAddress={!!selectedAddress}
           providers={panelParaTiProviders}
           loading={panelParaTiLoading}
           onProviderPress={openProviderFromPanel}

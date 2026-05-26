@@ -1,10 +1,9 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react-native';
-import { COLORS } from '../../../design-system/tokens';
 import HomeProvidersCarouselSection from './HomeProvidersCarouselSection';
 
 const HomeHighlightedRow = ({
   selectedVehicle,
+  hasSelectedAddress = false,
   title,
   providers = [],
   loading,
@@ -19,17 +18,17 @@ const HomeHighlightedRow = ({
   return (
     <HomeProvidersCarouselSection
       title={resolvedTitle}
-      hint="Ordenados por relevancia KPI en MecaniMóvil."
+      hint="Mejor KPI en tu ciudad (hasta 5 km desde tu dirección)."
       cardFooterVariant="bookings"
       providers={providers}
       loading={loading}
-      emptyRequiresAddress={false}
-      hasSelectedAddress
-      emptyNoAddressMessage=""
-      emptyNoResultsMessage="Aún no hay especialistas destacados. Revisa «Cerca de ti» o crea una solicitud."
+      emptyRequiresAddress
+      hasSelectedAddress={hasSelectedAddress}
+      emptyNoAddressMessage="Selecciona una dirección para ver destacados en tu ciudad."
+      emptyNoResultsMessage="No hay especialistas destacados en tu ciudad. Prueba «Ver todos» o revisa «Cerca de ti»."
       onProviderPress={onProviderPress}
       onSeeAll={onSeeAll}
-      seeAllWhen={!loading && providers.length > 0}
+      seeAllWhen={!loading && (hasSelectedAddress || providers.length > 0)}
     />
   );
 };

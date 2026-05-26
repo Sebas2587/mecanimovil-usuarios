@@ -2,6 +2,7 @@ import { get } from './api';
 import { getMediaURL } from './api';
 import * as locationService from './location';
 import { compareProvidersByKpiRelevance } from '../utils/providerUtils';
+import { filterProvidersForDestacadosPanel } from '../components/home/shared/homeAddressUtils';
 import {
   mergeProviderLists,
   sortProvidersForExploreMode,
@@ -1034,11 +1035,15 @@ export const getExploreProvidersByServicios = async (vehiculoId, servicioIds, op
 };
 
 /**
- * Proveedores destacados: marca del vehículo + verificados (`proveedores_filtrados`).
- * Orden exclusivamente por relevancia KPI (sin reordenar por distancia).
+ * Proveedores destacados (`proveedores_filtrados`), orden KPI.
+ *
+ * @param {'panel'|'explore'} options.scope
+ *   - panel: misma ciudad/comuna que la dirección + radar 5 km (home Destacados)
+ *   - explore: todos los compatibles con marca (Ver todos)
  */
 export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
   const limit = options.limit ?? 12;
+  const scope = options.scope === 'explore' ? 'explore' : 'panel';
   if (!vehiculoId) return [];
 
   try {
@@ -1050,9 +1055,28 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
 
     const talleres = (tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' }));
     const mecanicos = (mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' }));
-    const merged = [...talleres, ...mecanicos].sort(compareProvidersByKpiRelevance);
+    let list = [...talleres, ...mecanicos].sort(compareProvidersByKpiRelevance);
 
-    return merged.slice(0, limit);
+    const { lat, lng, marcaId, cityContext } = options;
+    if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
+      try {
+        list = await enrichProvidersWithNearbyDistance(list, lat, lng, marcaId, {
+          onlyEnrichExisting: true,
+          nearbyFetchLimit: scope === 'explore' ? 120 : 80,
+        });
+      } catch (distErr) {
+        console.warn('No se pudo enriquecer distancia en Destacados:', distErr);
+      }
+    }
+
+    if (scope === 'panel') {
+      list = filterProvidersForDestacadosPanel(list, cityContext);
+      list = list.sort(compareProvidersByKpiRelevance).slice(0, limit);
+    } else {
+      list = list.slice(0, limit);
+    }
+
+    return list;
   } catch (error) {
     console.error('Error obteniendo proveedores Para ti:', error);
     return [];
