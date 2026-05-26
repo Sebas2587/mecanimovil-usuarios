@@ -26,7 +26,7 @@ const HomeNearbyRow = ({
       emptyRequiresAddress
       hasSelectedAddress={hasSelectedAddress}
       emptyNoAddressMessage="Selecciona una dirección arriba para ver proveedores cercanos."
-      emptyNoResultsMessage="No hay proveedores verificados en este radio. Prueba otra dirección."
+      emptyNoResultsMessage="No hay talleres ni mecánicos con ubicación registrada dentro de 5 km. Prueba otra dirección o amplía tu zona en Explorar."
       onProviderPress={onProviderPress}
       onSeeAll={onSeeAll}
       seeAllWhen={!loading && (hasSelectedAddress || providers.length > 0)}

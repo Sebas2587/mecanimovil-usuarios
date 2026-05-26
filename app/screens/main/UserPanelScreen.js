@@ -365,9 +365,16 @@ const UserPanelScreen = () => {
           coords = { lat: g.latitude, lng: g.longitude };
         }
       }
-      if (!coords) return [];
+      if (!coords) {
+        if (__DEV__) {
+          console.warn('[Cerca panel] Dirección sin coordenadas; geocodificación falló o no hay ubicacion.');
+        }
+        return [];
+      }
       return getNearbyProvidersForPanel(coords.lat, coords.lng, marcaIdForPanel, {
         limit: 24,
+        marcaFallback: true,
+        keepUnknownDistance: true,
       });
     },
   });

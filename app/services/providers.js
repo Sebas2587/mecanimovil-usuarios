@@ -38,14 +38,18 @@ function attachPanelKind(arr, kind) {
 }
 
 function finalizeNearbyProviders(merged, options = {}) {
+  const maxKm = clampRecommendationRadiusKm(options.maxKm ?? PROVIDER_RECOMMENDATION_MAX_KM);
   const requireInRadius = options.requireInRadius !== false;
+  const keepUnknownDistance = options.keepUnknownDistance === true;
   const sortCmp = options.sortByDistanceOnly
     ? compareProvidersByDistanceOnly
     : compareProvidersByDistanceThenKpi;
   let list = merged.filter((p) => {
     const km = normalizeDistanceKm(p);
-    if (km == null) return !requireInRadius;
-    return km <= PROVIDER_RECOMMENDATION_MAX_KM;
+    if (km == null) {
+      return keepUnknownDistance || !requireInRadius;
+    }
+    return km <= maxKm;
   });
   list.sort(sortCmp);
   if (options.skipClientSlice) return list;
@@ -1075,10 +1079,46 @@ async function fetchAllCercaPages(path, baseParams) {
   return all;
 }
 
+function dedupeProvidersByStableKey(providers) {
+  const deduped = [];
+  const seen = new Set();
+  for (const p of providers || []) {
+    const key = providerStableKey(p);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(p);
+  }
+  return deduped;
+}
+
+/** Une talleres + mecánicos de `/cerca/` para un punto y radio dados. */
+async function fetchCercaProvidersMerged(lat, lng, maxKm, marcaId) {
+  const baseParams = {
+    lat,
+    lng,
+    dist: maxKm,
+    ordenar_por: 'distancia',
+    ...PANEL_SERVICIOS_QUERY,
+  };
+  if (marcaId != null && marcaId !== '') {
+    baseParams.marca = marcaId;
+  }
+
+  const [talleresRaw, mecanicosRaw] = await Promise.all([
+    fetchAllCercaPages('/usuarios/talleres/cerca/', baseParams),
+    fetchAllCercaPages('/usuarios/mecanicos-domicilio/cerca/', baseParams),
+  ]);
+
+  return dedupeProvidersByStableKey([
+    ...attachPanelKind(talleresRaw, 'taller'),
+    ...attachPanelKind(mecanicosRaw, 'mecanico'),
+  ]);
+}
+
 /**
  * Talleres y mecánicos cercanos según dirección del usuario (PostGIS /cerca/).
  * Radio de búsqueda API: hasta 5 km.
- * Orden: solo distancia ascendente (sin KPI).
+ * Orden: solo distancia ascendente (sin KPI). KPI y suscripción no filtran el listado.
  */
 export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}) => {
   const la = Number(lat);
@@ -1090,44 +1130,34 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
   const maxKm = clampRecommendationRadiusKm(
     options.maxKm ?? options.distTaller ?? options.distMecanico ?? PROVIDER_RECOMMENDATION_MAX_KM,
   );
+  const marcaFallback = options.marcaFallback !== false;
 
   try {
-    const baseParams = {
-      lat: la,
-      lng: lo,
-      dist: maxKm,
-      ordenar_por: 'distancia',
-      ...PANEL_SERVICIOS_QUERY,
-    };
-    if (marcaId != null && marcaId !== '') {
-      baseParams.marca = marcaId;
+    let deduped = await fetchCercaProvidersMerged(la, lo, maxKm, marcaId);
+
+    // Si ningún proveedor atiende la marca en el radio, mostrar todos los cercanos verificados.
+    if (deduped.length === 0 && marcaFallback && marcaId != null && marcaId !== '') {
+      deduped = await fetchCercaProvidersMerged(la, lo, maxKm, null);
     }
 
-    const [talleresRaw, mecanicosRaw] = await Promise.all([
-      fetchAllCercaPages('/usuarios/talleres/cerca/', baseParams),
-      fetchAllCercaPages('/usuarios/mecanicos-domicilio/cerca/', baseParams),
-    ]);
+    const withDistance = attachDistancesFromUserCoords(deduped, la, lo);
 
-    const merged = [
-      ...attachPanelKind(talleresRaw, 'taller'),
-      ...attachPanelKind(mecanicosRaw, 'mecanico'),
-    ];
-
-    const deduped = [];
-    const seen = new Set();
-    for (const p of merged) {
-      const key = providerStableKey(p);
-      if (!key || seen.has(key)) continue;
-      seen.add(key);
-      deduped.push(p);
-    }
-
-    return finalizeNearbyProviders(deduped, {
+    const finalized = finalizeNearbyProviders(withDistance, {
       limit: options.limit ?? 24,
+      maxKm,
       requireInRadius: options.requireInRadius,
+      keepUnknownDistance: options.keepUnknownDistance ?? true,
       skipClientSlice: options.skipClientSlice,
       sortByDistanceOnly: options.sortByDistanceOnly !== false,
     });
+
+    if (__DEV__) {
+      console.log(
+        `[Cerca panel] ${finalized.length} proveedores (raw=${deduped.length}, marca=${marcaId ?? 'todas'}, radio=${maxKm}km)`,
+      );
+    }
+
+    return finalized;
   } catch (error) {
     console.error('Error obteniendo proveedores cercanos para panel:', error);
     return [];
