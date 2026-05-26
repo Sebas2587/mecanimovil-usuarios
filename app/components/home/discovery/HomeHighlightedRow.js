@@ -18,9 +18,8 @@ const HomeHighlightedRow = ({
 
   return (
     <HomeProvidersCarouselSection
-      icon={<Sparkles size={16} color={COLORS.primary[500]} />}
       title={resolvedTitle}
-      hint="Ordenados por desempeño en MecaniMóvil."
+      hint="Ordenados por relevancia KPI en MecaniMóvil."
       cardFooterVariant="bookings"
       providers={providers}
       loading={loading}

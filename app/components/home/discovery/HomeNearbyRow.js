@@ -18,9 +18,8 @@ const HomeNearbyRow = ({
 
   return (
     <HomeProvidersCarouselSection
-      icon={<Navigation size={16} color={COLORS.primary[500]} />}
       title={resolvedTitle}
-      hint="Más cerca de tu dirección."
+      hint="Ordenados por distancia desde tu dirección."
       cardFooterVariant="bookings"
       providers={providers}
       loading={loading}

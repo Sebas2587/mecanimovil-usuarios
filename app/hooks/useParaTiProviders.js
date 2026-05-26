@@ -1,33 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { getParaTiProvidersForPanel } from '../services/providers';
-import { geocodeAddress } from '../services/location';
-import { coordsFromSavedAddress, resolveVehicleMarcaId } from '../components/home/shared/homeVehicleUtils';
 
 /**
- * Proveedores destacados por KPI para la sección «Para ti» del home.
+ * Proveedores destacados por KPI para la sección «Destacados» del home.
+ * No usa la dirección: el orden es solo por relevancia KPI + marca del vehículo.
  */
-export function useParaTiProviders({ vehicle, address, enabled = true, limit = 12 }) {
-  const marcaId = resolveVehicleMarcaId(vehicle);
-
+export function useParaTiProviders({ vehicle, enabled = true, limit = 12 }) {
   return useQuery({
-    queryKey: ['homeParaTiProviders', vehicle?.id, address?.id, marcaId, limit],
+    queryKey: ['homeParaTiProviders', vehicle?.id, limit],
     enabled: enabled && !!vehicle?.id,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 20,
-    queryFn: async () => {
-      let coords = coordsFromSavedAddress(address);
-      if (!coords && address?.direccion) {
-        const g = await geocodeAddress(address.direccion);
-        if (g?.latitude != null && g?.longitude != null) {
-          coords = { lat: g.latitude, lng: g.longitude };
-        }
-      }
-      return getParaTiProvidersForPanel(vehicle.id, {
-        limit,
-        lat: coords?.lat,
-        lng: coords?.lng,
-        marcaId,
-      });
-    },
+    queryFn: () => getParaTiProvidersForPanel(vehicle.id, { limit }),
   });
 }

@@ -95,6 +95,16 @@ export function compareProvidersByDistanceThenKpi(a, b) {
   return compareProvidersByKpiRelevance(a, b);
 }
 
+/** Solo distancia (home «Cerca»): sin desempate por KPI ni rating. */
+export function compareProvidersByDistanceOnly(a, b) {
+  const da = providerDistanceKmOrInfinity(a);
+  const db = providerDistanceKmOrInfinity(b);
+  if (da !== db) return da - db;
+  const ka = providerStableKey(a) || '';
+  const kb = providerStableKey(b) || '';
+  return ka.localeCompare(kb);
+}
+
 /** KPI primero; a igual relevancia, más cercano. */
 export function compareProvidersByKpiThenDistance(a, b) {
   const kpi = compareProvidersByKpiRelevance(a, b);
@@ -117,7 +127,7 @@ export function compareProvidersByRecommendationProximity(a, b) {
 export function sortProvidersForExploreMode(providers, mode) {
   const list = [...(providers || [])];
   if (mode === 'cerca') {
-    list.sort(compareProvidersByDistanceThenKpi);
+    list.sort(compareProvidersByDistanceOnly);
     return list;
   }
   list.sort(compareProvidersByRecommendationProximity);

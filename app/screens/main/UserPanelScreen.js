@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, StatusBar, RefreshControl, Platform } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClipboardList, Store, MessageCircle } from 'lucide-react-native';
+import { ClipboardList, Store, MessageCircle, Navigation } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
@@ -19,7 +19,11 @@ import { getNearbyProvidersForPanel } from '../../services/providers';
 import { getActividadMercadoVehiculo } from '../../services/user';
 import { geocodeAddress } from '../../services/location';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
-import { getHealthColorToken, resolveVehicleHealthPct } from '../../utils/healthFormat';
+import {
+  getHealthColorToken,
+  hasVehicleHealthData,
+  resolveVehicleHealthPct,
+} from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import {
@@ -43,11 +47,11 @@ import {
   navigateCrearSolicitudDesdeHome,
 } from '../../components/home/shared/homeScheduleNavigation';
 import { useParaTiProviders } from '../../hooks/useParaTiProviders';
-import { useHomeTripTracking } from '../../hooks/useHomeTripTracking';
+import { useTripTracking } from '../../context/TripTrackingContext';
+import { TRIP_ACTIVE_BAR_HEIGHT } from '../../components/trip/TripActiveBar';
 import {
   HomeVehicleDashboardCard,
   HomeWeatherDetailModal,
-  HomeTripCompletionModal,
 } from '../../components/home/dashboard';
 import { H_PAD, TAB_BAR_BASE_HEIGHT, SCROLL_BOTTOM_GAP } from '../../components/home/shared/homeLayoutConstants';
 import {
@@ -101,7 +105,6 @@ const UserPanelScreen = () => {
   const [selectorVisible, setSelectorVisible] = useState(false);
 
   const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
-  const [vehicleHubExpanded, setVehicleHubExpanded] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
   const weatherForceRefreshRef = useRef(false);
@@ -110,7 +113,7 @@ const UserPanelScreen = () => {
   const {
     data: vehiclesRaw,
     isLoading: vehiclesLoading,
-    isFetching: vehiclesFetching,
+    isPending: vehiclesPending,
     refetch: refetchVehicles,
     isRefetching,
   } = useQuery({
@@ -135,7 +138,8 @@ const UserPanelScreen = () => {
     }
   }, [refetchVehicles]);
 
-  const showUserPanelSkeleton = vehiclesLoading || vehiclesFetching;
+  // Solo skeleton en carga inicial; refetch en background no debe ocultar categorías ni el panel.
+  const showUserPanelSkeleton = vehiclesPending;
 
   useEffect(() => {
     if (vehicles.length > 0 && !selectedVehicleId) {
@@ -157,39 +161,83 @@ const UserPanelScreen = () => {
     navigateCrearSolicitudDesdeHome(navigation, { vehicle: selectedVehicle });
   }, [navigation, selectedVehicle]);
 
+  const vehiclesCategoryKey = useMemo(
+    () =>
+      vehicles
+        .map((v) => v?.id)
+        .filter(Boolean)
+        .sort((a, b) => a - b)
+        .join(','),
+    [vehicles],
+  );
+
   useEffect(() => {
     if (!selectedVehicle?.id) return;
     const vid = selectedVehicle.id;
+    const { getServicesByVehiculo } = require('../../services/service');
+    const { getMainCategoriesForUserVehicles } = require('../../services/categories');
     queryClient.prefetchQuery({
       queryKey: ['vehicleServices', vid],
-      queryFn: () => require('../../services/service').getServicesByVehiculo(vid),
+      queryFn: () => getServicesByVehiculo(vid),
       staleTime: 1000 * 60 * 5,
     });
-    queryClient.prefetchQuery({
-      queryKey: ['mainCategories'],
-      queryFn: () => require('../../services/categories').getMainCategories(),
-      staleTime: 1000 * 60 * 60,
-    });
+    if (vehiclesCategoryKey) {
+      queryClient.prefetchQuery({
+        queryKey: ['mainCategoriesForVehicles', vehiclesCategoryKey],
+        queryFn: () => getMainCategoriesForUserVehicles(vehicles),
+        staleTime: 1000 * 60 * 15,
+      });
+    }
     queryClient.prefetchQuery({
       queryKey: ['vehicleHealthComponents', vid],
       queryFn: () => VehicleHealthService.getComponents(vid),
       staleTime: 1000 * 60 * 5,
     });
-  }, [selectedVehicle?.id]);
+  }, [selectedVehicle?.id, vehiclesCategoryKey, vehicles, queryClient]);
 
-  const selectedHealthSummary = useMemo(() => {
+  const selectedHealthRow = useMemo(() => {
     if (!selectedVehicleId || !vehiclesHealth.data?.length) return null;
-    return vehiclesHealth.data.find((h) => h.vehicleId === selectedVehicleId)?.health ?? null;
+    return vehiclesHealth.data.find((h) => h.vehicleId === selectedVehicleId) ?? null;
   }, [selectedVehicleId, vehiclesHealth.data]);
 
-  const healthScore = resolveVehicleHealthPct(selectedVehicle, selectedHealthSummary);
-  const healthScoreColor = getHealthColorToken(COLORS, healthScore);
+  const selectedHealthSummary = selectedHealthRow?.health ?? null;
 
-  const valuation =
-    selectedVehicle?.precio_sugerido_final || selectedVehicle?.precio_mercado_promedio || 0;
-  const marketPrice = selectedVehicle?.precio_mercado_promedio || 0;
-  const priceDelta = valuation && marketPrice ? valuation - marketPrice : 0;
-  const odometer = selectedVehicle?.kilometraje || 0;
+  const healthAvailable = useMemo(
+    () => hasVehicleHealthData(selectedVehicle, selectedHealthSummary),
+    [selectedVehicle, selectedHealthSummary],
+  );
+
+  const healthLoading = useMemo(() => {
+    if (!selectedVehicle?.id) return false;
+    return (
+      selectedHealthRow?.isLoading === true
+      && !healthAvailable
+    );
+  }, [selectedVehicle?.id, selectedHealthRow?.isLoading, healthAvailable]);
+
+  const healthScore = useMemo(() => {
+    if (!healthAvailable) return null;
+    return resolveVehicleHealthPct(selectedVehicle, selectedHealthSummary);
+  }, [healthAvailable, selectedVehicle, selectedHealthSummary]);
+
+  const healthScoreColor = useMemo(
+    () => (healthScore != null ? getHealthColorToken(COLORS, healthScore) : null),
+    [healthScore],
+  );
+
+  const openVehicleHealth = useCallback(() => {
+    if (!selectedVehicle) return;
+    navigation.navigate(ROUTES.VEHICLE_HEALTH, {
+      vehicleId: selectedVehicle.id,
+      vehicle: selectedVehicle,
+    });
+  }, [navigation, selectedVehicle]);
+
+  const { setSelectedVehicleId: setTripVehicleId, tripActive } = useTripTracking();
+
+  useEffect(() => {
+    if (selectedVehicle?.id) setTripVehicleId(selectedVehicle.id);
+  }, [selectedVehicle?.id, setTripVehicleId]);
 
   const activeSolicitudesCount = useMemo(() => {
     if (!Array.isArray(solicitudesActivas)) return 0;
@@ -203,8 +251,25 @@ const UserPanelScreen = () => {
     return solicitudesActivas.find((s) => solicitudVisibleParaVehiculoDashboard(s, vid)) ?? null;
   }, [solicitudesActivas, activeSolicitudesCount, selectedVehicle?.id]);
 
+  const openRegistrarViaje = useCallback(() => {
+    navigation.navigate(ROUTES.REGISTRAR_VIAJE, {
+      vehicleId: selectedVehicle?.id,
+      vehicle: selectedVehicle ?? undefined,
+    });
+  }, [navigation, selectedVehicle]);
+
   const quickActionItems = useMemo(
     () => [
+      {
+        key: 'registrar-viaje',
+        title: tripActive ? 'Viaje activo' : 'Registrar viaje',
+        sub: tripActive
+          ? 'Toca para ver el seguimiento GPS'
+          : 'Actualiza km con GPS al manejar',
+        iconBg: COLORS.primary[50],
+        icon: <Navigation size={22} color={COLORS.primary[600]} />,
+        onPress: openRegistrarViaje,
+      },
       {
         key: 'solicitudes',
         title: 'Solicitudes',
@@ -247,7 +312,14 @@ const UserPanelScreen = () => {
         badgeCount: chatsUnreadTotal,
       },
     ],
-    [navigation, selectedVehicle, activeSolicitudesCount, chatsUnreadTotal],
+    [
+      navigation,
+      selectedVehicle,
+      activeSolicitudesCount,
+      chatsUnreadTotal,
+      tripActive,
+      openRegistrarViaje,
+    ],
   );
 
   const { data: userAddresses } = useUserAddresses();
@@ -273,7 +345,6 @@ const UserPanelScreen = () => {
     refetch: refetchPanelParaTi,
   } = useParaTiProviders({
     vehicle: selectedVehicle,
-    address: selectedAddress,
     enabled: !!selectedVehicle?.id,
   });
 
@@ -300,15 +371,6 @@ const UserPanelScreen = () => {
       });
     },
   });
-
-  const filteredNearbyProviders = useMemo(() => {
-    if (!Array.isArray(panelNearbyProviders)) return [];
-    if (!Array.isArray(panelParaTiProviders) || panelParaTiProviders.length === 0) {
-      return panelNearbyProviders;
-    }
-    const destacadosIds = new Set(panelParaTiProviders.map((p) => p.id));
-    return panelNearbyProviders.filter((p) => !destacadosIds.has(p.id));
-  }, [panelNearbyProviders, panelParaTiProviders]);
 
   const {
     data: panelMarketActivity,
@@ -405,13 +467,6 @@ const UserPanelScreen = () => {
     refetchOnWindowFocus: false,
   });
 
-  const trip = useHomeTripTracking(selectedVehicle, odometer);
-
-  useEffect(() => {
-    if (trip.tripActive) setVehicleHubExpanded(true);
-    else if (healthScore != null && healthScore < 60) setVehicleHubExpanded(true);
-  }, [trip.tripActive, healthScore]);
-
   // ── Refresh ──
   const onRefresh = useCallback(async () => {
     const extras = [];
@@ -484,7 +539,11 @@ const UserPanelScreen = () => {
           styles.scroll,
           {
             paddingTop: insets.top + 12,
-            paddingBottom: TAB_BAR_BASE_HEIGHT + insets.bottom + SCROLL_BOTTOM_GAP,
+            paddingBottom:
+              TAB_BAR_BASE_HEIGHT
+              + insets.bottom
+              + SCROLL_BOTTOM_GAP
+              + (tripActive ? TRIP_ACTIVE_BAR_HEIGHT + 12 : 0),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -499,8 +558,11 @@ const UserPanelScreen = () => {
         <HomeContextHeader
           selectedVehicle={selectedVehicle}
           vehiclesLoading={vehiclesLoading}
-          healthScore={selectedVehicle ? healthScore : null}
+          healthScore={healthScore}
           healthScoreColor={healthScoreColor}
+          healthLoading={healthLoading}
+          healthAvailable={healthAvailable}
+          onPressHealth={openVehicleHealth}
           onOpenVehicleSelector={() => setSelectorVisible(true)}
           onAddVehicle={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
           hasAddresses={addressList.length > 0}
@@ -517,6 +579,8 @@ const UserPanelScreen = () => {
           disabled={!selectedVehicle}
           onSelectCategory={handleCategorySelect}
         />
+
+        <HomeQuickActions items={quickActionItems} />
 
         <HomeContextualBanner
           solicitud={firstVisibleSolicitud}
@@ -584,43 +648,14 @@ const UserPanelScreen = () => {
           selectedVehicle={selectedVehicle}
           title={`Cerca de ${addressLabel}`}
           hasSelectedAddress={!!selectedAddress}
-          providers={filteredNearbyProviders}
+          providers={panelNearbyProviders}
           loading={panelNearbyLoading}
           onProviderPress={openProviderFromPanel}
           onSeeAll={handleSeeAllNearby}
         />
 
-        <HomeQuickActions items={quickActionItems} />
-
         <HomeVehicleDashboardCard
           selectedVehicle={selectedVehicle}
-          expanded={vehicleHubExpanded}
-          onToggle={() => setVehicleHubExpanded((v) => !v)}
-          healthScore={healthScore}
-          healthScoreColor={healthScoreColor}
-          odometer={odometer}
-          valuation={valuation}
-          tripActive={trip.tripActive}
-          tripKm={trip.tripKm}
-          climateRiskPct={weatherDerived.climateRiskPct}
-          weatherAvailable={weatherDerived.weatherAvailable}
-          onPressHealth={() => {
-            if (!selectedVehicle) return;
-            navigation.navigate(ROUTES.VEHICLE_HEALTH, {
-              vehicleId: selectedVehicle.id,
-              vehicle: selectedVehicle,
-            });
-          }}
-          priceDelta={priceDelta}
-          motorType={selectedVehicle?.tipo_motor}
-          telemetry={{
-            tripActive: trip.tripActive,
-            tripKm: trip.tripKm,
-            tripElapsed: trip.tripElapsed,
-            currentSpeed: trip.currentSpeed,
-            onStartTrip: trip.startTrip,
-            onStopTrip: trip.stopTrip,
-          }}
           weather={{
             loading: weatherLoading,
             available: weatherDerived.weatherAvailable,
@@ -650,18 +685,6 @@ const UserPanelScreen = () => {
         weatherAgeLabel={weatherDerived.weatherAgeLabel}
         weatherComponents={weatherDerived.weatherComponents}
         aiInsight={weatherDerived.aiInsight}
-      />
-
-      <HomeTripCompletionModal
-        visible={trip.tripCompletionVisible}
-        vehicleLabel={`${selectedVehicle?.marca_nombre || ''} ${selectedVehicle?.modelo_nombre || ''}`.trim()}
-        tripKm={trip.tripKm}
-        tripElapsed={trip.tripElapsed}
-        avgSpeed={trip.avgSpeed}
-        projectedOdometer={Math.round(odometer + trip.tripKm)}
-        registering={trip.registering}
-        onConfirm={trip.confirmTrip}
-        onDismiss={trip.dismissTrip}
       />
 
       <HomeVehicleSelectorModal

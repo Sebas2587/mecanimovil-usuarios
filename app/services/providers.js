@@ -7,6 +7,7 @@ import {
   sortProvidersForExploreMode,
   compareProvidersByKpiThenDistance,
   compareProvidersByDistanceThenKpi,
+  compareProvidersByDistanceOnly,
   compareProvidersByRecommendationProximity,
   filterProvidersWithinRecommendationRadius,
   mergeProvidersWithDistanceMap,
@@ -38,12 +39,15 @@ function attachPanelKind(arr, kind) {
 
 function finalizeNearbyProviders(merged, options = {}) {
   const requireInRadius = options.requireInRadius !== false;
+  const sortCmp = options.sortByDistanceOnly
+    ? compareProvidersByDistanceOnly
+    : compareProvidersByDistanceThenKpi;
   let list = merged.filter((p) => {
     const km = normalizeDistanceKm(p);
     if (km == null) return !requireInRadius;
     return km <= PROVIDER_RECOMMENDATION_MAX_KM;
   });
-  list.sort(compareProvidersByDistanceThenKpi);
+  list.sort(sortCmp);
   if (options.skipClientSlice) return list;
   const limit = options.limit ?? 24;
   if (limit == null || limit <= 0) return list;
@@ -1026,8 +1030,8 @@ export const getExploreProvidersByServicios = async (vehiculoId, servicioIds, op
 };
 
 /**
- * Proveedores «Para ti»: marca del vehículo + orden KPI (`proveedores_filtrados`).
- * Opcionalmente enriquece `distance` si se pasan coordenadas (mapa desde `/cerca/`).
+ * Proveedores destacados: marca del vehículo + verificados (`proveedores_filtrados`).
+ * Orden exclusivamente por relevancia KPI (sin reordenar por distancia).
  */
 export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
   const limit = options.limit ?? 12;
@@ -1042,27 +1046,7 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
 
     const talleres = (tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' }));
     const mecanicos = (mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' }));
-    let merged = [...talleres, ...mecanicos].sort(compareProvidersByKpiThenDistance);
-
-    const { lat, lng, marcaId } = options;
-    if (lat != null && lng != null) {
-      try {
-        merged = await enrichProvidersWithNearbyDistance(merged, lat, lng, marcaId, {
-          nearbyFetchLimit: 60,
-        });
-        const inRadius = filterProvidersWithinRecommendationRadius(merged);
-        if (inRadius.length > 0) {
-          merged = inRadius.sort(compareProvidersByRecommendationProximity);
-        } else {
-          merged = merged.sort(compareProvidersByRecommendationProximity);
-        }
-      } catch (distErr) {
-        console.warn('No se pudo enriquecer distancia en Para ti:', distErr);
-        merged = merged.sort(compareProvidersByKpiThenDistance);
-      }
-    } else {
-      merged = merged.sort(compareProvidersByKpiThenDistance);
-    }
+    const merged = [...talleres, ...mecanicos].sort(compareProvidersByKpiRelevance);
 
     return merged.slice(0, limit);
   } catch (error) {
@@ -1071,10 +1055,30 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
   }
 };
 
+/** Acumula todas las páginas de un endpoint `/cerca/` (evita perder cercanos por PAGE_SIZE=10). */
+async function fetchAllCercaPages(path, baseParams) {
+  const all = [];
+  let page = 1;
+  for (;;) {
+    const res = await get(path, { ...baseParams, page });
+    const batch = Array.isArray(res?.results)
+      ? res.results
+      : Array.isArray(res)
+        ? res
+        : [];
+    if (batch.length === 0) break;
+    all.push(...batch);
+    if (!res?.next) break;
+    page += 1;
+    if (page > 20) break;
+  }
+  return all;
+}
+
 /**
  * Talleres y mecánicos cercanos según dirección del usuario (PostGIS /cerca/).
- * Radio de búsqueda API: hasta 5 km; resultados útiles entre 100 m y 5 km.
- * Orden: distancia ascendente, desempate por KPI.
+ * Radio de búsqueda API: hasta 5 km.
+ * Orden: solo distancia ascendente (sin KPI).
  */
 export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}) => {
   const la = Number(lat);
@@ -1099,14 +1103,14 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
       baseParams.marca = marcaId;
     }
 
-    const [tRes, mRes] = await Promise.all([
-      get('/usuarios/talleres/cerca/', baseParams),
-      get('/usuarios/mecanicos-domicilio/cerca/', baseParams),
+    const [talleresRaw, mecanicosRaw] = await Promise.all([
+      fetchAllCercaPages('/usuarios/talleres/cerca/', baseParams),
+      fetchAllCercaPages('/usuarios/mecanicos-domicilio/cerca/', baseParams),
     ]);
 
     const merged = [
-      ...attachPanelKind(tRes.results || tRes, 'taller'),
-      ...attachPanelKind(mRes.results || mRes, 'mecanico'),
+      ...attachPanelKind(talleresRaw, 'taller'),
+      ...attachPanelKind(mecanicosRaw, 'mecanico'),
     ];
 
     const deduped = [];
@@ -1122,6 +1126,7 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
       limit: options.limit ?? 24,
       requireInRadius: options.requireInRadius,
       skipClientSlice: options.skipClientSlice,
+      sortByDistanceOnly: options.sortByDistanceOnly !== false,
     });
   } catch (error) {
     console.error('Error obteniendo proveedores cercanos para panel:', error);
