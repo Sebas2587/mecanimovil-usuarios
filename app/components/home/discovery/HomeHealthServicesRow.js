@@ -4,9 +4,9 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { HomeHealthCardsSkeleton } from '../../utils/HomePanelSkeletons';
 import { useQuery } from '@tanstack/react-query';
 import { Wrench, ChevronRight } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
@@ -33,9 +33,7 @@ function HealthWearServiceCard({ rec, onAgendar }) {
   return (
     <View style={styles.card}>
       <View style={styles.topRow}>
-        <View style={styles.iconWrap}>
-          <Wrench size={16} color={COLORS.primary[500]} />
-        </View>
+        
         <View style={styles.topText}>
           <Text style={styles.componentLabel} numberOfLines={1}>
             {rec.componentName}
@@ -113,13 +111,12 @@ const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
   return (
     <View style={styles.section}>
       <HomeSectionHeader
-        icon={<Wrench size={16} color={COLORS.primary[500]} />}
         title="Mantenimiento sugerido"
         hint={`Por desgaste en tu ${marca}`}
       />
 
       {loading ? (
-        <ActivityIndicator color={COLORS.primary[500]} style={styles.loader} />
+        <HomeHealthCardsSkeleton />
       ) : (
         <ScrollView
           horizontal

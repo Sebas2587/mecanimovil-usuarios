@@ -3,10 +3,10 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
   Platform,
 } from 'react-native';
+import { HomeProvidersCarouselSkeleton } from '../../utils/HomePanelSkeletons';
 import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
 import { HomePanelCard } from '../shared/HomePanelCard';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
@@ -71,9 +71,7 @@ const HomeProvidersCarouselSection = ({
           <Text style={styles.emptyText}>{emptyNoAddressMessage}</Text>
         </HomePanelCard>
       ) : loading ? (
-        <HomePanelCard innerStyle={styles.loadingCard}>
-          <ActivityIndicator color={COLORS.primary[500]} />
-        </HomePanelCard>
+        <HomeProvidersCarouselSkeleton />
       ) : providers.length === 0 ? (
         <HomePanelCard innerStyle={styles.emptyCard}>
           <Text style={styles.emptyText}>{emptyNoResultsMessage}</Text>
@@ -134,10 +132,6 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     paddingVertical: 16,
-  },
-  loadingCard: {
-    paddingVertical: 20,
-    alignItems: 'center',
   },
   emptyText: {
     fontSize: TYPOGRAPHY.fontSize.sm,

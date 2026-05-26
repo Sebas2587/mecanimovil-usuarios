@@ -1,220 +1,136 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Skeleton from '../feedback/Skeleton/Skeleton';
-import { SPACING } from '../../utils/constants';
+import { COLORS, SPACING, BORDERS } from '../../design-system/tokens';
+import { H_PAD } from '../home/shared/homeLayoutConstants';
+import {
+  HomeContextHeaderSkeleton,
+  HomeCategoryGridSkeleton,
+  HomeQuickActionsSkeleton,
+  HomeTrendingChipsSkeleton,
+  HomeHealthCardsSkeleton,
+  HomeProvidersCarouselSkeleton,
+  HomeWeatherCardSkeleton,
+} from './HomePanelSkeletons';
 
+/**
+ * Skeleton de carga inicial del UserPanelScreen (vehículos pendientes).
+ * Replica la jerarquía visual del home actual: header, categorías, acciones, rails y clima.
+ */
 const UserPanelSkeleton = ({ tabBarHeight = 0 }) => {
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: tabBarHeight + (SPACING?.xl || 32) }
+          {
+            paddingTop: insets.top + 12,
+            paddingBottom: tabBarHeight + SPACING.xl,
+          },
         ]}
+        showsVerticalScrollIndicator={false}
+        accessibilityElementsHidden
       >
-        {/* Header Skeleton */}
-        <View style={styles.header}>
-          <View style={styles.headerContent}>
-            <Skeleton width={120} height={24} borderRadius={4} />
-            <Skeleton width={100} height={16} borderRadius={4} style={{ marginTop: 8 }} />
-          </View>
+        <View style={styles.headerRow}>
+          <HomeContextHeaderSkeleton />
           <Skeleton width={40} height={40} borderRadius={20} />
         </View>
 
-        {/* Selector de Dirección Skeleton */}
-        <View style={styles.locationBadgeContainer}>
-          <Skeleton width="100%" height={50} borderRadius={12} />
+        <View style={styles.addressRow}>
+          <Skeleton width={16} height={16} borderRadius={8} />
+          <Skeleton width="78%" height={16} borderRadius={6} />
+          <Skeleton width={16} height={16} borderRadius={8} />
         </View>
 
-        {/* Categorías Skeleton */}
-        <View style={styles.sectionWithHorizontalScroll}>
-          <View style={styles.sectionHeaderWithPadding}>
-            <Skeleton width={180} height={20} borderRadius={4} />
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesHorizontal}
-          >
-            {[1, 2, 3, 4].map((item) => (
-              <View key={item} style={styles.categorySkeleton}>
-                <Skeleton width={85} height={85} borderRadius={42.5} />
-                <Skeleton width={85} height={14} borderRadius={4} style={{ marginTop: 8 }} />
-                <Skeleton width={60} height={12} borderRadius={4} style={{ marginTop: 4 }} />
-              </View>
-            ))}
-          </ScrollView>
-        </View>
+        <HomeCategoryGridSkeleton count={6} />
 
-        {/* Selector de Vehículo Skeleton */}
+        <HomeQuickActionsSkeleton />
+
         <View style={styles.section}>
-          <Skeleton width="100%" height={80} borderRadius={12} />
+          <Skeleton width={200} height={18} borderRadius={6} style={{ marginBottom: 12 }} />
+          <Skeleton width="100%" height={88} borderRadius={BORDERS.radius.lg} />
         </View>
 
-        {/* Alertas Skeleton */}
-        <View style={styles.sectionWithHorizontalScroll}>
-          <View style={styles.sectionHeaderWithPadding}>
-            <View style={styles.sectionHeaderLeft}>
-              <Skeleton width={20} height={20} borderRadius={10} />
-              <Skeleton width={150} height={20} borderRadius={4} style={{ marginLeft: 8 }} />
-            </View>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.alertsHorizontal}
-          >
-            {[1, 2].map((item) => (
-              <View key={item} style={styles.alertSkeleton}>
-                <Skeleton width={280} height={120} borderRadius={12} />
-              </View>
-            ))}
-          </ScrollView>
+        <View style={styles.section}>
+          <Skeleton width={220} height={18} borderRadius={6} style={{ marginBottom: 12 }} />
+          <HomeTrendingChipsSkeleton count={3} />
         </View>
 
-        {/* Solicitudes Activas Skeleton */}
+        <View style={styles.section}>
+          <Skeleton width={180} height={18} borderRadius={6} style={{ marginBottom: 12 }} />
+          <HomeHealthCardsSkeleton count={2} />
+        </View>
+
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Skeleton width={180} height={20} borderRadius={4} />
-            <Skeleton width={80} height={16} borderRadius={4} />
+            <Skeleton width={160} height={18} borderRadius={6} />
+            <Skeleton width={64} height={14} borderRadius={6} />
           </View>
-          {[1, 2].map((item) => (
-            <View key={item} style={styles.solicitudSkeleton}>
-              <Skeleton width="100%" height={140} borderRadius={12} style={{ marginBottom: 12 }} />
-            </View>
-          ))}
+          <HomeProvidersCarouselSkeleton />
         </View>
 
-        {/* Talleres Cercanos Skeleton */}
-        <View style={styles.sectionWithHorizontalScroll}>
-          <View style={styles.sectionHeaderWithPadding}>
-            <Skeleton width={150} height={20} borderRadius={4} />
-            <Skeleton width={80} height={16} borderRadius={4} />
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Skeleton width={140} height={18} borderRadius={6} />
+            <Skeleton width={64} height={14} borderRadius={6} />
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.providersHorizontal}
-          >
-            {[1, 2, 3].map((item) => (
-              <View key={item} style={styles.providerSkeleton}>
-                <Skeleton width={200} height={180} borderRadius={12} />
-              </View>
-            ))}
-          </ScrollView>
+          <HomeProvidersCarouselSkeleton />
         </View>
 
-        {/* Mecánicos Cercanos Skeleton */}
-        <View style={styles.sectionWithHorizontalScroll}>
-          <View style={styles.sectionHeaderWithPadding}>
-            <Skeleton width={160} height={20} borderRadius={4} />
-            <Skeleton width={80} height={16} borderRadius={4} />
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.providersHorizontal}
-          >
-            {[1, 2, 3].map((item) => (
-              <View key={item} style={styles.providerSkeleton}>
-                <Skeleton width={200} height={180} borderRadius={12} />
-              </View>
-            ))}
-          </ScrollView>
+        <View style={styles.weatherWrap}>
+          <HomeWeatherCardSkeleton />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background.default,
   },
   container: {
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 12,
+    paddingHorizontal: H_PAD,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: SPACING?.md || 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  headerContent: {
-    flex: 1,
-  },
-  locationBadgeContainer: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: SPACING?.md || 16,
-    marginTop: SPACING?.sm || 8,
-    marginBottom: SPACING?.xs || 4,
-    borderRadius: 12,
-    paddingHorizontal: SPACING?.sm || 12,
-    paddingVertical: SPACING?.xs || 8,
-  },
-  sectionWithHorizontalScroll: {
-    marginTop: SPACING?.md || 16,
-  },
-  sectionHeaderWithPadding: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING?.sm || 8,
-    paddingHorizontal: SPACING?.md || 16,
-  },
-  sectionHeaderLeft: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    gap: 8,
+    marginBottom: 10,
+  },
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+    paddingVertical: 4,
   },
   section: {
-    marginTop: SPACING?.md || 16,
-    paddingHorizontal: SPACING?.md || 16,
+    marginBottom: 18,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING?.sm || 8,
+    marginBottom: 10,
   },
-  categoriesHorizontal: {
-    paddingVertical: SPACING?.sm || 8,
-    paddingLeft: SPACING?.md || 16,
-    paddingRight: 0,
-  },
-  categorySkeleton: {
-    marginRight: SPACING?.md || 16,
-    alignItems: 'center',
-  },
-  alertsHorizontal: {
-    paddingVertical: SPACING?.xs || 4,
-    paddingLeft: SPACING?.md || 16,
-    paddingRight: 0,
-  },
-  alertSkeleton: {
-    marginRight: SPACING?.md || 16,
-  },
-  solicitudSkeleton: {
-    marginBottom: SPACING?.sm || 8,
-  },
-  providersHorizontal: {
-    paddingVertical: SPACING?.sm || 8,
-    paddingLeft: SPACING?.md || 16,
-    paddingRight: 0,
-  },
-  providerSkeleton: {
-    marginRight: SPACING?.md || 16,
+  weatherWrap: {
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    overflow: 'hidden',
   },
 });
 
 export default UserPanelSkeleton;
-

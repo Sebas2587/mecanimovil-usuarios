@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { HomeContextHeaderSkeleton } from '../../utils/HomePanelSkeletons';
 import { Image } from 'expo-image';
 import { Bell, Car, ChevronDown, MapPin, Plus } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
@@ -61,10 +62,7 @@ const HomeContextHeader = ({
           <ChevronDown size={18} color={COLORS.text.tertiary} />
         </TouchableOpacity>
       ) : vehiclesLoading ? (
-        <View style={styles.loadingPill}>
-          <ActivityIndicator size="small" color={COLORS.primary[500]} />
-          <Text style={styles.loadingText}>Cargando vehículos…</Text>
-        </View>
+        <HomeContextHeaderSkeleton />
       ) : (
         <TouchableOpacity style={styles.addVehiclePill} onPress={onAddVehicle} activeOpacity={0.85}>
           <Plus size={18} color={COLORS.primary[500]} />
@@ -167,17 +165,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.xs,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.primary[600],
-  },
-  loadingPill: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-  },
-  loadingText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
   },
   addVehiclePill: {
     flex: 1,

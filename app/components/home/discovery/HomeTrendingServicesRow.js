@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { HomeTrendingChipsSkeleton } from '../../utils/HomePanelSkeletons';
 import { TrendingUp } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
@@ -25,7 +26,7 @@ const HomeTrendingServicesRow = ({ selectedVehicle, activity, loading, onSelectS
       />
 
       {loading ? (
-        <ActivityIndicator color={COLORS.primary[500]} style={styles.loader} />
+        <HomeTrendingChipsSkeleton />
       ) : (
         <ScrollView
           horizontal

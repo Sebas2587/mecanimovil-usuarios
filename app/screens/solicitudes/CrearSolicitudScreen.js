@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   Alert,
   TouchableOpacity,
   Platform,
@@ -19,6 +18,7 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import FormularioSolicitud from '../../components/solicitudes/FormularioSolicitud';
+import { CrearSolicitudScreenSkeleton } from '../../components/utils/SolicitudFlowSkeletons';
 import { resolveProveedorEntityId } from '../../utils/calendarioProveedorNavigation';
 import { esServicioDiagnosticoInspeccion } from '../../utils/servicioDiagnosticoInspeccion';
 import {
@@ -112,7 +112,7 @@ const CrearSolicitudScreen = () => {
     targetVehicleId, // ID del vehículo del vendedor (pre-compra)
     ofertaId, // ID de la oferta marketplace aceptada
     slotSeleccionado,
-    resumePasoFormulario,
+    pasoDestinoTrasCalendario,
   } = route.params || {};
 
   const [pasoResumeCalendario, setPasoResumeCalendario] = useState(null);
@@ -126,14 +126,15 @@ const CrearSolicitudScreen = () => {
       hora_preferida: slotSeleccionado.hora || '',
     }));
     const paso =
-      typeof resumePasoFormulario === 'number' && resumePasoFormulario >= 1
-        ? resumePasoFormulario
-        : null;
-    if (paso != null) {
-      setPasoResumeCalendario(paso);
-    }
-    navigation.setParams({ slotSeleccionado: undefined, resumePasoFormulario: undefined });
-  }, [slotSeleccionado?.fecha, slotSeleccionado?.hora, resumePasoFormulario, navigation]);
+      typeof pasoDestinoTrasCalendario === 'number' && pasoDestinoTrasCalendario >= 1
+        ? pasoDestinoTrasCalendario
+        : 5;
+    setPasoResumeCalendario(paso);
+    navigation.setParams({
+      slotSeleccionado: undefined,
+      pasoDestinoTrasCalendario: undefined,
+    });
+  }, [slotSeleccionado?.fecha, slotSeleccionado?.hora, pasoDestinoTrasCalendario, navigation]);
 
   // Clave estable para useFocusEffect: `route.params` suele ser un objeto nuevo en cada render del
   // navigator y recreaba el callback → doble foco / refetch y setInitialData en momentos raros.
@@ -1272,16 +1273,7 @@ const CrearSolicitudScreen = () => {
   ) {
     return (
     <GlassShell {...glassShellProps}>
-        <View style={styles.centeredState}>
-          <ActivityIndicator size="large" color={COLORS.primary[500]} />
-          <Text style={styles.stateText}>
-            {isPreCompra && !initialDataReady
-              ? 'Preparando inspección pre-compra...'
-              : needsPreloadServicios && !initialDataReady
-                ? 'Preparando servicio...'
-                : 'Cargando datos...'}
-          </Text>
-        </View>
+        <CrearSolicitudScreenSkeleton contentPaddingBottom={insets.bottom} />
       </GlassShell>
     );
   }
@@ -1311,8 +1303,10 @@ const CrearSolicitudScreen = () => {
     <GlassShell {...glassShellProps}>
       {creando && (
         <View style={styles.creatingOverlay}>
-          <ActivityIndicator size="large" color={COLORS.primary[500]} />
-          <Text style={styles.creatingText}>Creando solicitud...</Text>
+          <View style={styles.creatingCard}>
+            <CrearSolicitudScreenSkeleton contentPaddingBottom={0} />
+            <Text style={styles.creatingText}>Creando solicitud...</Text>
+          </View>
         </View>
       )}
 
@@ -1453,11 +1447,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
+  creatingCard: {
+    width: '94%',
+    maxWidth: 520,
+    borderRadius: BORDERS.radius.modal.lg,
+    overflow: 'hidden',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+    ...SHADOWS.modal,
+  },
   creatingText: {
-    marginTop: 16,
+    marginTop: 0,
     fontSize: 16,
     color: COLORS.text.primary,
     fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 14,
   },
 });
 

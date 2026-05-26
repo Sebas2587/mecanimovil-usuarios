@@ -18,7 +18,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Car, X, Camera, Tag, Wrench, CheckCircle, Info, AlertCircle, AlertTriangle, Plus, ChevronDown, ChevronLeft, Check } from 'lucide-react-native';
+import { Car, X, Camera, Tag, Wrench, Plus, ChevronDown, ChevronLeft, Check, Navigation } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ROUTES } from '../../utils/constants';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
@@ -49,6 +49,8 @@ import * as userService from '../../services/user';
 import * as vehicleService from '../../services/vehicle';
 import { getHealthColorToken, resolveVehicleHealthPct } from '../../utils/healthFormat';
 import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
+import HomePatrimonyHeroSection from '../../components/home/dashboard/HomePatrimonyHeroSection';
+import VehiclesListSkeleton from '../../components/utils/VehiclesListSkeleton';
 
 const tiposMotor = [
   { id: 1, nombre: 'Gasolina' },
@@ -416,16 +418,44 @@ const MisVehiculosScreen = () => {
     navigation.navigate(ROUTES.VEHICLE_PROFILE, { vehicleId: vehicle.id, vehicle });
   };
 
-  // --- RENDER HELPERS ---
-  const formatCurrency = (value) => `$${(Number(value) || 0).toLocaleString('es-CL')}`;
+  const handlePressVehicleHealth = (vehicle) => {
+    navigation.navigate(ROUTES.VEHICLE_HEALTH, {
+      vehicleId: vehicle.id,
+      vehicle,
+    });
+  };
 
-  const getHealthColor = (score) => getHealthColorToken(COLORS, score);
+  const resolveMotorTypeLabel = (vehicle) => {
+    const t = vehicle?.tipo_motor;
+    if (!t) return 'Motor';
+    if (typeof t === 'object' && t.nombre) return t.nombre;
+    const found = tiposMotor.find(
+      (m) =>
+        m.id.toString() === String(t)
+        || m.nombre.toLowerCase() === String(t).toLowerCase(),
+    );
+    return found?.nombre || String(t);
+  };
 
-  const renderVehicleItem = ({ item }) => {
-    const estimatedValue = item.precio_sugerido_final || item.precio_mercado_promedio || 0;
-    const healthRow = vehiclesHealth.data?.find((h) => h.vehicleId === item.id);
+  const vehiclesHealthById = React.useMemo(() => {
+    const m = new Map();
+    const rows = vehiclesHealth?.data;
+    if (Array.isArray(rows)) {
+      rows.forEach((r) => {
+        if (r?.vehicleId != null) m.set(r.vehicleId, r);
+      });
+    }
+    return m;
+  }, [vehiclesHealth?.data]);
+
+  const renderVehicleItem = useCallback(({ item }) => {
+    const valuation = item.precio_sugerido_final || item.precio_mercado_promedio || 0;
+    const marketPrice = item.precio_mercado_promedio || 0;
+    const priceDelta = valuation && marketPrice ? valuation - marketPrice : 0;
+    const healthRow = vehiclesHealthById.get(item.id);
     const healthSummary = healthRow?.health;
     const healthPct = resolveVehicleHealthPct(item, healthSummary);
+    const healthScoreColor = getHealthColorToken(COLORS, healthPct);
     const stillLoadingHealth = healthRow?.isLoading === true;
     const hasHealthField =
       item.health_score != null ||
@@ -478,79 +508,37 @@ const MisVehiculosScreen = () => {
           )}
         </View>
 
-        {/* Body */}
         <View style={styles.cardBody}>
-          <View style={styles.valueRow}>
-            <Text style={styles.valueLabel}>Valor Estimado</Text>
-            <Text style={styles.valueAmount}>{formatCurrency(estimatedValue)}</Text>
-          </View>
-
-          {/* Health Bar */}
-          <View style={styles.healthContainer}>
-            {!showCalculating && hasHealthField ? (
-              <>
-                <View style={styles.healthHeader}>
-                  <Text style={styles.healthLabel}>Salud General</Text>
-                  <Text style={[
-                    styles.healthPercent,
-                    { color: getHealthColor(healthPct) }
-                  ]}>{Math.round(healthPct)}%</Text>
-                </View>
-                <View style={styles.progressBarBg}>
-                  <View style={[
-                    styles.progressBarFill,
-                    {
-                      width: `${Math.min(100, Math.max(0, healthPct))}%`,
-                      backgroundColor: getHealthColor(healthPct)
-                    }
-                  ]} />
-                </View>
-
-                {healthPct >= 70 ? (
-                  <View style={styles.healthStatusRow}>
-                    <CheckCircle size={12} color={getHealthColor(healthPct)} />
-                    <Text style={[styles.healthStatus, { color: getHealthColor(healthPct) }]}>
-                      {' '}En Buen Estado
-                    </Text>
-                  </View>
-                ) : healthPct >= 60 ? (
-                  <View style={styles.healthStatusRow}>
-                    <Info size={12} color={getHealthColor(healthPct)} />
-                    <Text style={[styles.healthStatus, { color: getHealthColor(healthPct) }]}>
-                      {' '}Buen Estado
-                    </Text>
-                  </View>
-                ) : healthPct >= 40 ? (
-                  <View style={styles.healthStatusRow}>
-                    <AlertCircle size={12} color={getHealthColor(healthPct)} />
-                    <Text style={[styles.healthStatus, { color: getHealthColor(healthPct) }]}>
-                      {' '}Mantenimiento Recomendado ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.healthStatusRow}>
-                    <AlertTriangle size={12} color={getHealthColor(healthPct)} />
-                    <Text style={[styles.healthStatus, { color: getHealthColor(healthPct) }]}>
-                      {' '}Requiere Atención ({item.pending_alerts_count || 0} {(item.pending_alerts_count === 1) ? 'alerta' : 'alertas'})
-                    </Text>
-                  </View>
-                )}
-              </>
-            ) : showCalculating ? (
-              <View style={styles.healthHeader}>
-                <Text style={styles.healthLabel}>Calculando salud…</Text>
-                <ActivityIndicator size="small" color={COLORS.primary[500]} />
-              </View>
-            ) : (
-              <View style={styles.healthHeader}>
-                <Text style={styles.healthLabel}>Sin datos de salud</Text>
-              </View>
-            )}
-          </View>
+          <HomePatrimonyHeroSection
+            embedded
+            valuation={valuation}
+            priceDelta={priceDelta}
+            healthScore={healthPct}
+            healthScoreColor={healthScoreColor}
+            odometer={item.kilometraje || 0}
+            motorType={resolveMotorTypeLabel(item)}
+            onPressHealth={() => handlePressVehicleHealth(item)}
+            healthLoading={showCalculating}
+            healthAvailable={hasHealthField && !showCalculating}
+          />
+          <TouchableOpacity
+            style={styles.registrarViajeLink}
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              navigation.navigate(ROUTES.REGISTRAR_VIAJE, {
+                vehicleId: item.id,
+                vehicle: item,
+              });
+            }}
+            activeOpacity={0.85}
+          >
+            <Navigation size={16} color={COLORS.primary[600]} />
+            <Text style={styles.registrarViajeText}>Registrar viaje con GPS</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [vehiclesHealthById, handleVehiclePress, handlePressVehicleHealth, navigation]);
 
   const EmptyVehiclesList = () => (
     <View style={styles.emptyContainer}>
@@ -580,9 +568,7 @@ const MisVehiculosScreen = () => {
       </View>
 
       {loading && !refreshing ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary[500]} />
-        </View>
+        <VehiclesListSkeleton cards={3} />
       ) : (
         <FlatList
           data={vehicles}
@@ -840,52 +826,22 @@ const styles = StyleSheet.create({
   cardBody: {
     padding: SPACING.lg,
   },
-  valueRow: {
-    marginBottom: 20,
-  },
-  valueLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.tertiary,
-    marginBottom: 4,
-  },
-  valueAmount: {
-    fontSize: TYPOGRAPHY.fontSize['2xl'],
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-  },
-  healthContainer: {
-    marginTop: 0,
-  },
-  healthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  healthLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.tertiary,
-  },
-  healthPercent: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: COLORS.neutral.gray[200],
-    borderRadius: 3,
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: 6,
-    borderRadius: 3,
-  },
-  healthStatusRow: {
+  registrarViajeLink: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: SPACING.md,
+    paddingVertical: 10,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
   },
-  healthStatus: {
+  registrarViajeText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[700],
   },
   // Empty State
   emptyContainer: {

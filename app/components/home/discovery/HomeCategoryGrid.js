@@ -4,11 +4,15 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import Skeleton from '../../feedback/Skeleton/Skeleton';
+import { HomeCategoryGridSkeleton } from '../../utils/HomePanelSkeletons';
 import { useQuery } from '@tanstack/react-query';
-import { getMainCategoriesForUserVehicles } from '../../../services/categories';
+import {
+  getMainCategories,
+  getMainCategoriesForUserVehicles,
+} from '../../../services/categories';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import { resolveCategoryVisual } from '../shared/homeCategoryIcons';
 
@@ -24,16 +28,23 @@ function vehiclesQueryKey(vehicles) {
 }
 
 /**
- * Solo categorías de servicio con ofertas compatibles con los vehículos del usuario.
+ * Categorías del home: prioriza las compatibles con los vehículos del usuario;
+ * si no hay match, muestra el catálogo principal (getMainCategories).
  */
 const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
   const vehicleIdsKey = useMemo(() => vehiclesQueryKey(vehicles), [vehicles]);
   const hasVehicles = vehicleIdsKey.length > 0;
 
-  const { data: categoriesRaw, isLoading, isFetching } = useQuery({
-    queryKey: ['mainCategoriesForVehicles', vehicleIdsKey],
-    queryFn: () => getMainCategoriesForUserVehicles(vehicles),
-    enabled: hasVehicles,
+  const {
+    data: categoriesRaw,
+    isPending,
+    isFetching,
+  } = useQuery({
+    queryKey: hasVehicles
+      ? ['mainCategoriesForVehicles', vehicleIdsKey]
+      : ['mainCategories'],
+    queryFn: () =>
+      hasVehicles ? getMainCategoriesForUserVehicles(vehicles) : getMainCategories(),
     staleTime: 1000 * 60 * 15,
     gcTime: 1000 * 60 * 60,
   });
@@ -43,27 +54,20 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
     return list.slice(0, VISIBLE_CATEGORIES);
   }, [categoriesRaw]);
 
-  const loading = hasVehicles && (isLoading || isFetching);
+  const showInitialLoader = isPending;
+  const showInlineRefetch = !isPending && isFetching && categories.length > 0;
 
-  if (loading) {
-    return <ActivityIndicator color={COLORS.primary[500]} style={styles.loader} />;
-  }
-
-  if (!hasVehicles) {
-    return (
-      <View style={styles.wrap}>
-        <Text style={styles.emptyHint}>
-          Registra un vehículo para ver categorías de servicios compatibles.
-        </Text>
-      </View>
-    );
+  if (showInitialLoader) {
+    return <HomeCategoryGridSkeleton />;
   }
 
   if (categories.length === 0) {
     return (
       <View style={styles.wrap}>
         <Text style={styles.emptyHint}>
-          No hay categorías con servicios para tus vehículos registrados.
+          {hasVehicles
+            ? 'No hay categorías disponibles en este momento.'
+            : 'Registra un vehículo para ver categorías de servicios.'}
         </Text>
       </View>
     );
@@ -71,6 +75,11 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
 
   return (
     <View style={styles.wrap}>
+      {showInlineRefetch ? (
+        <View style={styles.refetchIndicator}>
+          <Skeleton width={20} height={20} borderRadius={10} />
+        </View>
+      ) : null}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -109,6 +118,12 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginVertical: 16,
+  },
+  refetchIndicator: {
+    position: 'absolute',
+    right: 4,
+    top: 4,
+    zIndex: 1,
   },
   emptyHint: {
     fontSize: TYPOGRAPHY.fontSize.sm,

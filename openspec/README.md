@@ -9,6 +9,12 @@
 | [agendamiento-calendario-proveedor](specs/agendamiento-calendario-proveedor/spec.md) | **Calendario, agendaContext, perfil vs flujo normal** |
 | [comparador-multi-servicio](specs/comparador-multi-servicio/spec.md) | **Varios servicios en comparador y precio total** |
 | [solicitudes-crear](specs/solicitudes-crear/spec.md) | Crear solicitud (enlaza a calendario) |
+
+## UX de carga (skeletons)
+
+| Change | Tema |
+|--------|------|
+| [home-skeleton-loading-ux](changes/home-skeleton-loading-ux/) | Skeletons en UserPanel, crear solicitud, mis vehículos y marketplace |
 | [proveedor-ficha-horarios](specs/proveedor-ficha-horarios/spec.md) | Horarios en ficha pública |
 
 ## Changes de referencia (`changes/`)

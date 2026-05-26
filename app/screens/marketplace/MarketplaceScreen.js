@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput, StatusBar, RefreshControl, Alert, Platform, ScrollView, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -7,7 +7,7 @@ const CARD_IMG_H = 180;
 const SCREEN_W = Dimensions.get('window').width;
 const CARD_IMG_W = SCREEN_W - 32; // listContent padding * 2
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { ROUTES } from '../../utils/constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as vehicleService from '../../services/vehicle';
@@ -20,6 +20,7 @@ import { resolveVehicleHealthPct, getHealthColorToken } from '../../utils/health
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { useAuth } from '../../context/AuthContext';
 import VehicleHealthService from '../../services/vehicleHealthService';
+import MarketplaceListSkeleton from '../../components/utils/MarketplaceListSkeleton';
 
 const SURFACE_SOFT = COLORS.neutral.gray[100];
 const SURFACE_STRONG = COLORS.neutral.gray[200];
@@ -182,10 +183,7 @@ const MarketplaceScreen = () => {
 
     const [activeSegment, setActiveSegment] = useState('all'); // 'all' | 'sales' | 'purchases'
     const [searchQuery, setSearchQuery] = useState('');
-    const [listings, setListings] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [offers, setOffers] = useState([]);
 
     const { data: todasSolicitudes = [], refetch: refetchSolicitudes } = useRequests();
 
@@ -193,107 +191,105 @@ const MarketplaceScreen = () => {
     const [filterModalVisible, setFilterModalVisible] = useState(false);
     const [activeFilters, setActiveFilters] = useState({});
 
-    const fetchOffers = async () => {
-        try {
+    const mapStatus = useCallback((estado) => {
+        switch (estado) {
+            case 'pendiente': return 'pending';
+            case 'aceptada': return 'accepted';
+            case 'rechazada': return 'rejected';
+            case 'contraoferta': return 'active';
+            case 'completada': return 'completed';
+            case 'vendida': return 'completed';
+            default: return estado;
+        }
+    }, []);
+
+    const normalizeOffers = useCallback((sent, received) => {
+        const mapOffer = (o, type) => ({
+            id: o.id.toString(),
+            type,
+            status: mapStatus(o.estado),
+            amount: o.monto,
+            vehiculoId: o.vehiculo_id || o.vehiculo,
+            vehicle: {
+                name: `${o.vehiculo_marca} ${o.vehiculo_modelo}`,
+                brand: o.vehiculo_marca,
+                model: o.vehiculo_modelo,
+                year: o.vehiculo_year,
+                image: o.vehiculo_imagen,
+                price: o.vehiculo_precio
+            },
+            counterpart: {
+                id: type === 'sent' ? o.vendedor_id : o.comprador,
+                name: type === 'sent'
+                    ? `${o.vendedor_nombre || ''} ${o.vendedor_apellido || ''}`.trim() || 'Vendedor'
+                    : `${o.comprador_nombre || ''} ${o.comprador_apellido || ''}`.trim() || 'Comprador',
+                avatar: type === 'sent' ? o.vendedor_foto : o.comprador_foto
+            },
+            conversationId: o.conversacion_id
+        });
+
+        const mappedSent = (sent || []).map(o => mapOffer(o, 'sent'));
+        const mappedReceived = (received || []).map(o => mapOffer(o, 'received'));
+
+        const allOffers = [...mappedReceived, ...mappedSent];
+        const uniqueOffers = Array.from(new Map(allOffers.map(item => [item.id, item])).values());
+        uniqueOffers.sort((a, b) => Number(b.id) - Number(a.id));
+        return uniqueOffers;
+    }, [mapStatus]);
+
+    const {
+        data: listings = [],
+        isPending: listingsPending,
+        refetch: refetchListings,
+        isRefetching: listingsRefetching,
+    } = useQuery({
+        queryKey: ['marketplaceListings'],
+        queryFn: vehicleService.getMarketplaceListings,
+        staleTime: 1000 * 60 * 2,
+        gcTime: 1000 * 60 * 15,
+        refetchOnMount: true,
+    });
+
+    const {
+        data: offers = [],
+        isPending: offersPending,
+        refetch: refetchOffers,
+        isRefetching: offersRefetching,
+    } = useQuery({
+        queryKey: ['marketplaceOffers', user?.id ?? 'anon'],
+        queryFn: async () => {
             const [sent, received] = await Promise.all([
                 vehicleService.getSentOffers().catch(() => []),
-                vehicleService.getReceivedOffers().catch(() => [])
+                vehicleService.getReceivedOffers().catch(() => []),
             ]);
-
-            const mapStatus = (estado) => {
-                switch (estado) {
-                    case 'pendiente': return 'pending';
-                    case 'aceptada': return 'accepted';
-                    case 'rechazada': return 'rejected';
-                    case 'contraoferta': return 'active'; // Or pending
-                    case 'completada': return 'completed';
-                    case 'vendida': return 'completed';
-                    default: return estado;
-                }
-            };
-
-            const mapOffer = (o, type) => ({
-                id: o.id.toString(),
-                type: type, // 'sent' or 'received'
-                status: mapStatus(o.estado),
-                amount: o.monto,
-                vehiculoId: o.vehiculo_id || o.vehiculo,
-                vehicle: {
-                    name: `${o.vehiculo_marca} ${o.vehiculo_modelo}`,
-                    brand: o.vehiculo_marca,
-                    model: o.vehiculo_modelo,
-                    year: o.vehiculo_year,
-                    image: o.vehiculo_imagen,
-                    price: o.vehiculo_precio
-                },
-                counterpart: {
-                    id: type === 'sent' ? o.vendedor_id : o.comprador,
-                    name: type === 'sent'
-                        ? `${o.vendedor_nombre || ''} ${o.vendedor_apellido || ''}`.trim() || 'Vendedor'
-                        : `${o.comprador_nombre || ''} ${o.comprador_apellido || ''}`.trim() || 'Comprador',
-                    avatar: type === 'sent' ? o.vendedor_foto : o.comprador_foto
-                },
-                conversationId: o.conversacion_id
-            });
-
-            const mappedSent = (sent || []).map(o => mapOffer(o, 'sent'));
-            const mappedReceived = (received || []).map(o => mapOffer(o, 'received'));
-
-            // Merge and deduplicate by ID
-            // If an offer is in both lists (e.g. I bought it, so I was buyer and now I am owner),
-            // prefer the one that makes sense for the context. 
-            // - If status is 'completed' and I am buyer => It's a purchase history.
-            // - If status is 'completed' and I was seller => It's a sales history.
-            // distinctive logic: 
-            // mappedSent -> type='sent' (Buying)
-            // mappedReceived -> type='received' (Selling)
-            // We prioritize 'sent' because if I am the buyer AND the new owner, 
-            // the historical context of "I bought this" is more important than "I own this" for this specific card.
-
-            const allOffers = [...mappedReceived, ...mappedSent];
-            const uniqueOffers = Array.from(new Map(allOffers.map(item => [item.id, item])).values());
-
-            // Sort by ID desc (or date if available)
-            uniqueOffers.sort((a, b) => Number(b.id) - Number(a.id));
-
-            setOffers(uniqueOffers);
-        } catch (error) {
-            console.error("Error fetching offers:", error);
-        }
-    };
-
-    // Refresh offers when tab changes to 'deals' (Negocios)
-    useEffect(() => {
-        if (activeTab === 'deals') {
-            fetchOffers();
-            refetchSolicitudes();
-        }
-    }, [activeTab, refetchSolicitudes]);
-
-    const fetchListings = async () => {
-        try {
-            const data = await vehicleService.getMarketplaceListings();
-            setListings(data);
-            await fetchOffers();
-        } catch (error) {
-            console.error("Error fetching marketplace listings:", error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
+            return normalizeOffers(sent, received);
+        },
+        enabled: !!user?.id && activeTab === 'deals',
+        staleTime: 1000 * 30,
+        gcTime: 1000 * 60 * 10,
+        refetchOnMount: false,
+    });
 
     useFocusEffect(
         useCallback(() => {
-            fetchListings();
-        }, [])
+            refetchListings();
+            if (activeTab === 'deals') {
+                refetchOffers();
+                refetchSolicitudes();
+            }
+        }, [activeTab, refetchListings, refetchOffers, refetchSolicitudes])
     );
 
-    const onRefresh = useCallback(() => {
+    const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        refetchSolicitudes();
-        fetchListings();
-    }, [refetchSolicitudes]);
+        try {
+            const tasks = [refetchListings(), refetchSolicitudes()];
+            if (activeTab === 'deals') tasks.push(refetchOffers());
+            await Promise.all(tasks);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [activeTab, refetchListings, refetchSolicitudes, refetchOffers]);
 
     const handleRespondOffer = async (offerId, status) => {
         try {
@@ -302,7 +298,7 @@ const MarketplaceScreen = () => {
                 status === 'aceptada' ? "Oferta Aceptada" : "Oferta Rechazada",
                 status === 'aceptada' ? "Ahora puedes chatear con la contraparte." : ""
             );
-            fetchOffers(); // Refresh to get conversation ID
+            refetchOffers(); // Refresh to get conversation ID
         } catch (error) {
             Alert.alert("Error", "No se pudo actualizar la oferta.");
             console.error(error);
@@ -315,8 +311,8 @@ const MarketplaceScreen = () => {
     };
 
     // --- Search & Filter Logic ---
-    const getFilteredListings = () => {
-        let result = listings;
+    const filteredListings = useMemo(() => {
+        let result = Array.isArray(listings) ? listings : [];
 
         // 1. Search Query (Brand, Model, Year)
         if (searchQuery && searchQuery.trim().length > 0) {
@@ -361,7 +357,7 @@ const MarketplaceScreen = () => {
         // Currently ignored as backend data doesn't support 'segment' or 'body_type' reliably yet.
 
         return result;
-    };
+    }, [listings, searchQuery, activeFilters]);
 
     /** Publicaciones del usuario logueado: GET /health/ alineado con VehicleHealthScreen. */
     const myListingVehicleIds = useMemo(() => {
@@ -394,7 +390,7 @@ const MarketplaceScreen = () => {
 
     // --- Render Items ---
 
-    const renderListingItem = ({ item }) => (
+    const renderListingItem = useCallback(({ item }) => (
         <TouchableOpacity
             style={[styles.card, item.is_reserved && { opacity: 0.8 }]}
             activeOpacity={0.9}
@@ -516,9 +512,9 @@ const MarketplaceScreen = () => {
                 </View>
             </View>
         </TouchableOpacity>
-    );
+    ), [styles, navigation, user?.id, marketplaceOwnerHealthById]);
 
-    const renderOfferItem = ({ item }) => {
+    const renderOfferItem = useCallback(({ item }) => {
         const inspectionBlocked =
             item.type === 'sent' &&
             item.status === 'accepted' &&
@@ -575,15 +571,18 @@ const MarketplaceScreen = () => {
                 }
             />
         );
-    };
+    }, [todasSolicitudes, handleRespondOffer, navigation]);
 
     // --- Filter Logic ---
-    const getFilteredOffers = () => {
+    const filteredOffers = useMemo(() => {
         if (activeSegment === 'all') return offers;
-        return offers.filter(offer =>
+        return (Array.isArray(offers) ? offers : []).filter((offer) =>
             activeSegment === 'sales' ? offer.type === 'received' : offer.type === 'sent'
         );
-    };
+    }, [offers, activeSegment]);
+
+    const showExploreSkeleton =
+        activeTab === 'explore' && (listingsPending || (listingsRefetching && !refreshing)) && filteredListings.length === 0;
 
     return (
         <View style={styles.container}>
@@ -667,18 +666,16 @@ const MarketplaceScreen = () => {
 
             {/* Main Content Area */}
             {activeTab === 'explore' ? (
-                loading ? (
-                    <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={COLORS.primary[500]} />
-                    </View>
+                showExploreSkeleton ? (
+                    <MarketplaceListSkeleton cards={4} />
                 ) : (
                     <FlatList
-                        data={getFilteredListings()}
+                        data={filteredListings}
                         renderItem={renderListingItem}
                         keyExtractor={item => item.id.toString()}
                         contentContainerStyle={styles.listContent}
                         showsVerticalScrollIndicator={false}
-                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />}
+                        refreshControl={<RefreshControl refreshing={refreshing || listingsRefetching} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />}
                         ListEmptyComponent={
                             <View style={styles.emptyContainer}>
                                 <Ionicons name="car-sport-outline" size={64} color={COLORS.text.tertiary} />
@@ -691,11 +688,12 @@ const MarketplaceScreen = () => {
             ) : (
 
                 <FlatList
-                    data={getFilteredOffers()}
+                    data={filteredOffers}
                     renderItem={renderOfferItem}
                     keyExtractor={item => item.id}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={<RefreshControl refreshing={refreshing || offersRefetching || offersPending} onRefresh={onRefresh} tintColor={COLORS.primary[500]} />}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Ionicons name="receipt-outline" size={64} color={COLORS.text.tertiary} />

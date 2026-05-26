@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { HomeWeatherCardSkeleton } from '../../utils/HomePanelSkeletons';
 import { CloudRain, Droplets } from 'lucide-react-native';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
 import { HomePanelCard } from '../shared/HomePanelCard';
@@ -31,10 +32,7 @@ const HomeWeatherPreviewSection = ({
       innerStyle={[styles.inner, compact && styles.innerCompact]}
     >
       {loading ? (
-        <View style={[styles.centered, compact && styles.centeredCompact]}>
-          <ActivityIndicator color={COLORS.primary[500]} size="small" />
-          <Text style={styles.muted}>Consultando clima...</Text>
-        </View>
+        <HomeWeatherCardSkeleton compact={compact} />
       ) : !available ? (
         <View style={[styles.centered, compact && styles.centeredCompact]}>
           <CloudRain size={24} color={COLORS.text.tertiary} />

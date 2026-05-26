@@ -7,6 +7,8 @@ de vehículo, tipo de servicio, descripción del problema y confirmación.
 **Agenda / calendario del proveedor:** ver `openspec/specs/agendamiento-calendario-proveedor/spec.md`
 y `openspec/changes/agendamiento-calendario-contexto-unificado/design.md`.
 
+**Estados de carga:** ver `openspec/changes/home-skeleton-loading-ux/` (skeletons por paso, TanStack Query).
+
 ## Requirements
 
 ### Requirement: Crear solicitud de servicio

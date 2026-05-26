@@ -56,10 +56,12 @@ import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProvi
 import {
   buildAgendaContext,
   navigateCalendarioProveedor,
+  PASO_FORMULARIO_UBICACION,
   resolveProveedorEntityId,
 } from '../../utils/calendarioProveedorNavigation';
 import SolicitudResumenTicket from './SolicitudResumenTicket';
 import { validarSinServicioActivoDuplicado } from '../../utils/solicitudActivaGuard';
+import { InlineChipSkeleton, SolicitudPaso1ServiciosSkeleton } from '../utils/SolicitudFlowSkeletons';
 import {
   esServicioDiagnosticoInspeccion,
   todosServiciosSonDiagnosticoInspeccion,
@@ -1194,7 +1196,7 @@ const FormularioSolicitud = ({
         tipo_proveedor_preseleccionado: agenda.tipoProveedor,
         oferta_servicio_id_preseleccionada: agenda.ofertaServicioId,
       },
-      resumePasoFormulario: pasoActual,
+      pasoDestinoTrasCalendario: PASO_FORMULARIO_UBICACION,
       requireOferta: flujoCatalogoProveedor || flujoCuatroPasos,
     });
     if (!ok) {
@@ -1801,7 +1803,7 @@ const FormularioSolicitud = ({
                   onPress={activarPrecompraSinVehiculo}
                 >
                   {cargandoPrecompra ? (
-                    <ActivityIndicator color={COLORS.success[600]} />
+                    <InlineChipSkeleton width={160} />
                   ) : (
                     <>
                       <Search size={20} color={COLORS.success[600]} />
@@ -1852,7 +1854,7 @@ const FormularioSolicitud = ({
                 </View>
               </View>
             ) : verificandoDuplicado && vehicle?.id && servicioIdsParaDuplicado.length > 0 ? (
-              <ActivityIndicator size="small" color={COLORS.primary[500]} style={{ marginBottom: 12 }} />
+              <InlineChipSkeleton width={220} />
             ) : null}
 
             {esAgendamientoInteligente ? (
@@ -1927,10 +1929,7 @@ const FormularioSolicitud = ({
 
               {/* Service Cards */}
               {serviciosQueryPending ? (
-                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                  <ActivityIndicator size="large" color={COLORS.success[600]} />
-                  <Text style={{ color: COLORS.text.secondary, marginTop: 10, fontSize: 13 }}>Cargando servicios...</Text>
-                </View>
+                <SolicitudPaso1ServiciosSkeleton />
               ) : serviciosFiltrados.length > 0 ? (
                 <FlatList
                   data={serviciosFiltrados}
