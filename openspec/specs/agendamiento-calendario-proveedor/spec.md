@@ -70,7 +70,21 @@ Si el proveedor está en servicio el día elegido, la pantalla **SHALL** mostrar
 
 ### REQ-VUELTA-FORMULARIO
 Al confirmar slot, la app **SHALL** volver a `CREAR_SOLICITUD` con `slotSeleccionado`
-y `merge: true`, sin re-ejecutar preload que borre servicio/proveedor (`resumePasoFormulario`).
+y `merge: true`, sin re-ejecutar preload que borre servicio/proveedor, y **SHALL** reanudar el
+formulario en el paso de **ubicación** (`pasoDestinoTrasCalendario`, por defecto paso 5), no en el
+paso desde el que se abrió el calendario (repuestos/contexto).
+
+### REQ-FINALIZAR-COMPARADOR-CATALOGO
+Si el calendario se abrió desde `COMPARADOR_OFERTAS` en `modoCatalogo` con `formPayload` y
+`pendingConfirmOferta`, al confirmar horario la app **SHALL** llamar `confirmar-candidato` en
+`CalendarioProveedorScreen`, mostrar éxito y **SHALL NOT** volver al comparador ni re-ejecutar
+confirmación automática al regresar.
+
+#### Scenario: Perfil proveedor — horario confirmado
+- GIVEN el usuario en flujo catálogo (`flujoCatalogoProveedor`) tras elegir repuestos o contexto
+- WHEN confirma fecha y hora en `CalendarioProveedorScreen`
+- THEN `CREAR_SOLICITUD` recibe `fecha_preferida`, `hora_preferida` y `pasoDestinoTrasCalendario: 5`
+- AND el formulario muestra el paso de ubicación (no vuelve a repuestos ni contexto)
 
 ## Archivos clave (usuarios)
 

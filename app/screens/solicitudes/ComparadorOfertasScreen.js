@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,11 +20,7 @@ import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeade
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { useAgendamiento } from '../../context/AgendamientoContext';
 import ofertasService from '../../services/ofertasService';
-import {
-  confirmarCandidato,
-  buildConfirmarCandidatoPayload,
-  mapCandidatoToOfertaComparador,
-} from '../../services/agendamientoAsistidoService';
+import { mapCandidatoToOfertaComparador } from '../../services/agendamientoAsistidoService';
 import { useAgendamientoAsistido } from '../../hooks/useAgendamientoAsistido';
 import { resolveCoordenadasServicio } from '../../utils/coordenadasServicio';
 import { PROVIDER_RECOMMENDATION_MAX_KM } from '../../utils/exploreProviderUtils';
@@ -51,8 +47,6 @@ const ComparadorOfertasScreen = () => {
     ofertasOtros = [],
     radioKm = PROVIDER_RECOMMENDATION_MAX_KM,
     formPayload = null,
-    slotSeleccionado,
-    pendingConfirmOferta,
   } = route.params || {};
 
   const { seleccionarOferta } = useSolicitudes();
@@ -67,68 +61,10 @@ const ComparadorOfertasScreen = () => {
   const [procesando, setProcesando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState(null);
   const [compareFooter, setCompareFooter] = useState(null);
-  const confirmandoHorarioRef = useRef(false);
 
   useEffect(() => {
     cargarOfertas();
   }, [ofertasIds, solicitudId, modoCatalogo, ofertasPreview, formPayload?.vehiculo?.id]);
-
-  const confirmarCandidatoConHorario = useCallback(async () => {
-    if (!formPayload || !pendingConfirmOferta?.oferta_servicio_id || !slotSeleccionado?.fecha) {
-      return;
-    }
-    if (confirmandoHorarioRef.current) return;
-    confirmandoHorarioRef.current = true;
-    setProcesando(true);
-    try {
-      const payload = buildConfirmarCandidatoPayload(
-        {
-          ...formPayload,
-          fecha_preferida: slotSeleccionado.fecha,
-          hora_preferida: slotSeleccionado.hora || null,
-        },
-        pendingConfirmOferta.oferta_servicio_id,
-        {
-          score_match: pendingConfirmOferta.score_match,
-          oferta_servicio_ids: pendingConfirmOferta.oferta_servicio_ids,
-        },
-      );
-      const resultado = await confirmarCandidato(payload);
-      navigation.setParams({ slotSeleccionado: undefined, pendingConfirmOferta: undefined });
-      Alert.alert(
-        'Solicitud enviada',
-        'El proveedor fue notificado con tu horario preferido.',
-        [
-          {
-            text: 'Ver solicitud',
-            onPress: () => {
-              const sid = resultado?.solicitud_id || resultado?.solicitud?.id;
-              if (sid) {
-                navigation.navigate(ROUTES.DETALLE_SOLICITUD || 'DetalleSolicitud', { solicitudId: sid });
-              } else {
-                navigation.navigate(ROUTES.MIS_SOLICITUDES || 'MisSolicitudes');
-              }
-            },
-          },
-        ],
-      );
-    } catch (error) {
-      const mensaje =
-        error.response?.data?.error
-        || error.message
-        || 'No se pudo confirmar el proveedor';
-      Alert.alert('Error', mensaje);
-    } finally {
-      setProcesando(false);
-      confirmandoHorarioRef.current = false;
-    }
-  }, [formPayload, pendingConfirmOferta, slotSeleccionado, navigation]);
-
-  useEffect(() => {
-    if (modoCatalogo && slotSeleccionado?.fecha && pendingConfirmOferta?.oferta_servicio_id) {
-      confirmarCandidatoConHorario();
-    }
-  }, [modoCatalogo, slotSeleccionado?.fecha, pendingConfirmOferta?.oferta_servicio_id, confirmarCandidatoConHorario]);
 
   const cargarOfertas = async () => {
     try {

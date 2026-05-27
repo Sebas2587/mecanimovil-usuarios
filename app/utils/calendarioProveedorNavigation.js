@@ -1,5 +1,8 @@
 import { ROUTES } from './constants';
 
+/** Paso del formulario de ubicación (tras confirmar horario en calendario). */
+export const PASO_FORMULARIO_UBICACION = 5;
+
 /**
  * ID de entidad Taller/MecanicoDomicilio (no usuario) para APIs de agenda.
  */
@@ -121,7 +124,7 @@ export function navigateCalendarioProveedor(navigation, {
   ofertaServicioId,
   servicios = [],
   returnParams = {},
-  resumePasoFormulario = null,
+  pasoDestinoTrasCalendario = PASO_FORMULARIO_UBICACION,
   requireOferta = false,
 }) {
   const built = buildAgendaContext({
@@ -157,7 +160,17 @@ export function navigateCalendarioProveedor(navigation, {
       tipo_proveedor_preseleccionado: agendaContext.tipoProveedor,
       oferta_servicio_id_preseleccionada: agendaContext.ofertaServicioId,
     },
-    resumePasoFormulario,
+    pasoDestinoTrasCalendario,
   });
   return true;
+}
+
+/** Comparador catálogo: confirmar solicitud en calendario, sin volver al comparador. */
+export function shouldFinalizarSolicitudEnCalendario({ returnRoute, returnParams }) {
+  return (
+    returnRoute === ROUTES.COMPARADOR_OFERTAS
+    && returnParams?.modoCatalogo === true
+    && returnParams?.formPayload?.vehiculo?.id
+    && returnParams?.pendingConfirmOferta?.oferta_servicio_id
+  );
 }
