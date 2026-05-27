@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Image,
   Modal,
   StatusBar,
@@ -36,6 +35,7 @@ import * as categoryService from '../../services/categories';
 import * as userService from '../../services/user';
 import ofertasService from '../../services/ofertasService';
 import vehiculoService from '../../services/vehicle';
+import { showAlert, showAlertButtons } from '../../utils/platformAlert';
 
 /**
  * 3 estados de UI tipo onboarding (Canva-like):
@@ -167,11 +167,11 @@ const LoginScreen = () => {
     try {
       await authService.forgotPassword(forgotPasswordEmail);
       setForgotPasswordStep(2);
-      Alert.alert('Solicitud enviada', 'Se ha enviado un token de recuperación a tu correo electrónico.');
+      showAlert('Solicitud enviada', 'Se ha enviado un token de recuperación a tu correo electrónico.');
     } catch (error) {
       const msg = error.response?.data?.error || error.message || 'Ocurrió un error.';
       setForgotPasswordErrors({ email: msg });
-      Alert.alert(error.response?.status === 404 ? 'Correo no registrado' : 'Error', msg);
+      showAlert(error.response?.status === 404 ? 'Correo no registrado' : 'Error', msg);
       setForgotPasswordStep(1);
     } finally { setForgotPasswordLoading(false); }
   };
@@ -185,7 +185,7 @@ const LoginScreen = () => {
     setForgotPasswordErrors({});
     try {
       await authService.resetPassword(resetToken, newPassword);
-      Alert.alert('Contraseña restablecida', 'Tu contraseña fue restablecida exitosamente.', [{
+      showAlertButtons('Contraseña restablecida', 'Tu contraseña fue restablecida exitosamente.', [{
         text: 'OK', onPress: () => {
           setShowForgotPasswordModal(false);
           setForgotPasswordStep(1);
@@ -198,7 +198,7 @@ const LoginScreen = () => {
     } catch (error) {
       const msg = error.response?.data?.error || error.message || 'Ocurrió un error.';
       setForgotPasswordErrors({ token: msg });
-      Alert.alert('Error', msg);
+      showAlert('Error', msg);
     } finally { setForgotPasswordLoading(false); }
   };
 
@@ -243,9 +243,12 @@ const LoginScreen = () => {
           await AsyncStorage.multiRemove(['rememberMe', 'savedEmail', 'savedPassword']);
         }
       } else if (result.code === 'PROVIDER_ACCOUNT') {
-        Alert.alert('Cuenta de Proveedor', 'Esta cuenta está registrada como mecánico o taller.\n\nUsa la app MecaniMóvil Proveedores.', [{ text: 'Entendido' }]);
+        showAlert(
+          'Cuenta de Proveedor',
+          'Esta cuenta está registrada como mecánico o taller.\n\nUsa la app MecaniMóvil Proveedores.',
+        );
       } else if (result.code === 'USER_NOT_FOUND' || /no.*registrad|no.*encontrad|usuario.*no.*existe/i.test(result.error || '')) {
-        Alert.alert(
+        showAlertButtons(
           'Cuenta no encontrada',
           'No encontramos una cuenta con ese correo. ¿Quieres registrarte?',
           [
@@ -254,11 +257,14 @@ const LoginScreen = () => {
           ],
         );
       } else {
-        Alert.alert('Error al iniciar sesión', result.error || 'Correo o contraseña incorrectos.', [{ text: 'OK' }]);
+        showAlert(
+          'Error al iniciar sesión',
+          result.error || 'Correo o contraseña incorrectos.',
+        );
       }
     } catch (error) {
       logger.error('Error inesperado en handleLogin:', error);
-      Alert.alert('Error al iniciar sesión', 'Ocurrió un problema. Verifica tu conexión.', [{ text: 'OK' }]);
+      showAlert('Error al iniciar sesión', 'Ocurrió un problema. Verifica tu conexión.');
     } finally { setLoading(false); }
   };
 
