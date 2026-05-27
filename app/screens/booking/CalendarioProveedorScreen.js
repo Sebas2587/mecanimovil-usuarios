@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   StatusBar,
   Platform,
   useWindowDimensions,
@@ -34,6 +33,7 @@ import {
   confirmarCandidato,
 } from '../../services/agendamientoAsistidoService';
 import { ROUTES } from '../../utils/constants';
+import { showAlert, showAlertButtons } from '../../utils/platformAlert';
 
 /**
  * Selección de fecha y hora según agenda real del proveedor (ventanas libres + duración del servicio).
@@ -97,7 +97,9 @@ export default function CalendarioProveedorScreen() {
   const [error, setError] = useState(null);
   const [agendaSinDias, setAgendaSinDias] = useState(false);
   const [confirmandoSolicitud, setConfirmandoSolicitud] = useState(false);
+  const [solicitudConfirmada, setSolicitudConfirmada] = useState(false);
   const confirmandoSolicitudRef = useRef(false);
+  const solicitudConfirmadaRef = useRef(false);
 
   const finalizarSolicitudCatalogo = useMemo(
     () => shouldFinalizarSolicitudEnCalendario({ returnRoute, returnParams }),
@@ -166,7 +168,7 @@ export default function CalendarioProveedorScreen() {
       });
       setDisponibilidadDia(data);
     } catch (e) {
-      Alert.alert('Error', e?.message || 'No se pudieron cargar los horarios');
+      showAlert('Error', e?.message || 'No se pudieron cargar los horarios');
       setDisponibilidadDia(null);
     } finally {
       setLoadingSlots(false);
@@ -207,10 +209,10 @@ export default function CalendarioProveedorScreen() {
   const handleConfirmarYFinalizarSolicitud = useCallback(async () => {
     const { formPayload, pendingConfirmOferta } = returnParams;
     if (!formPayload || !pendingConfirmOferta?.oferta_servicio_id) {
-      Alert.alert('Error', 'Faltan datos para confirmar la solicitud.');
+      showAlert('Error', 'Faltan datos para confirmar la solicitud.');
       return;
     }
-    if (confirmandoSolicitudRef.current) return;
+    if (confirmandoSolicitudRef.current || solicitudConfirmadaRef.current) return;
     confirmandoSolicitudRef.current = true;
     setConfirmandoSolicitud(true);
     try {
@@ -228,25 +230,32 @@ export default function CalendarioProveedorScreen() {
       );
       const resultado = await confirmarCandidato(payload);
       const solicitudId = resultado?.solicitud_id || resultado?.solicitud?.id;
-      Alert.alert(
-        'Solicitud enviada',
-        'El proveedor fue notificado con tu horario preferido.',
-        [
-          {
-            text: 'Ver solicitud',
-            onPress: () => irADetalleSolicitudCreada(solicitudId),
-          },
-        ],
-      );
+      solicitudConfirmadaRef.current = true;
+      setSolicitudConfirmada(true);
+
+      const titulo = 'Solicitud enviada';
+      const mensaje = 'El proveedor fue notificado con tu horario preferido.';
+
+      if (Platform.OS === 'web') {
+        showAlert(titulo, mensaje);
+        irADetalleSolicitudCreada(solicitudId);
+        return;
+      }
+
+      showAlertButtons(titulo, mensaje, [
+        {
+          text: 'Ver solicitud',
+          onPress: () => irADetalleSolicitudCreada(solicitudId),
+        },
+      ]);
     } catch (e) {
       const mensaje =
         e.response?.data?.error
         || e.message
         || 'No se pudo confirmar el proveedor';
-      Alert.alert('Error', mensaje);
-    } finally {
-      setConfirmandoSolicitud(false);
+      showAlert('Error', mensaje);
       confirmandoSolicitudRef.current = false;
+      setConfirmandoSolicitud(false);
     }
   }, [
     returnParams,
@@ -255,13 +264,14 @@ export default function CalendarioProveedorScreen() {
     irADetalleSolicitudCreada,
   ]);
 
-  const handleConfirmar = () => {
+  const handleConfirmar = useCallback(() => {
+    if (confirmandoSolicitudRef.current || solicitudConfirmadaRef.current) return;
     if (!fechaSeleccionada || !slotSeleccionado) {
-      Alert.alert('Selecciona horario', 'Elige un día y una hora disponible.');
+      showAlert('Selecciona horario', 'Elige un día y una hora disponible.');
       return;
     }
     if (finalizarSolicitudCatalogo) {
-      handleConfirmarYFinalizarSolicitud();
+      void handleConfirmarYFinalizarSolicitud();
       return;
     }
     const paramsVuelta = {
@@ -278,7 +288,22 @@ export default function CalendarioProveedorScreen() {
       params: paramsVuelta,
       merge: true,
     });
-  };
+  }, [
+    fechaSeleccionada,
+    slotSeleccionado,
+    finalizarSolicitudCatalogo,
+    handleConfirmarYFinalizarSolicitud,
+    returnParams,
+    pasoDestinoTrasCalendario,
+    returnRoute,
+    navigation,
+  ]);
+
+  const confirmarDeshabilitado =
+    !fechaSeleccionada
+    || !slotSeleccionado
+    || confirmandoSolicitud
+    || solicitudConfirmada;
 
   return (
     <View style={[styles.container, webScreenFrame]}>
@@ -410,13 +435,14 @@ export default function CalendarioProveedorScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
         <TouchableOpacity
-          style={[
-            styles.confirmBtn,
-            (!fechaSeleccionada || !slotSeleccionado || confirmandoSolicitud) && styles.confirmBtnDisabled,
-          ]}
-          onPress={handleConfirmar}
-          disabled={!fechaSeleccionada || !slotSeleccionado || confirmandoSolicitud}
+          style={[styles.confirmBtn, confirmarDeshabilitado && styles.confirmBtnDisabled]}
+          onPress={() => {
+            if (confirmarDeshabilitado) return;
+            handleConfirmar();
+          }}
+          disabled={confirmarDeshabilitado}
           activeOpacity={0.9}
+          {...(Platform.OS === 'web' ? { accessibilityState: { disabled: confirmarDeshabilitado } } : {})}
         >
           {confirmandoSolicitud ? (
             <ActivityIndicator color={COLORS.text.inverse} />
