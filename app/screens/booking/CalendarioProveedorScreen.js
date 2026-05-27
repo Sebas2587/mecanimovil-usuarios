@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -22,7 +24,10 @@ import {
   obtenerDisponibilidadConDuracion,
   resolverFechasAgendaReales,
 } from '../../services/disponibilidadProveedorService';
-import { resolveAgendaParams } from '../../utils/calendarioProveedorNavigation';
+import {
+  PASO_FORMULARIO_UBICACION,
+  resolveAgendaParams,
+} from '../../utils/calendarioProveedorNavigation';
 import { ROUTES } from '../../utils/constants';
 
 /**
@@ -32,13 +37,25 @@ export default function CalendarioProveedorScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+
+  const webScreenFrame =
+    Platform.OS === 'web'
+      ? {
+          height: windowHeight,
+          maxHeight: windowHeight,
+          minHeight: 0,
+          flex: 1,
+          overflow: 'hidden',
+        }
+      : null;
 
   const routeParams = route.params || {};
   const {
     proveedorNombre = 'Proveedor',
     returnRoute = ROUTES.CREAR_SOLICITUD,
     returnParams = {},
-    resumePasoFormulario = null,
+    pasoDestinoTrasCalendario = PASO_FORMULARIO_UBICACION,
   } = routeParams;
 
   const agendaParams = useMemo(() => {
@@ -165,9 +182,7 @@ export default function CalendarioProveedorScreen() {
         hora_fin_estimada: slotSeleccionado.hora_fin_estimada,
       },
     };
-    if (resumePasoFormulario != null) {
-      paramsVuelta.resumePasoFormulario = resumePasoFormulario;
-    }
+    paramsVuelta.pasoDestinoTrasCalendario = pasoDestinoTrasCalendario;
     navigation.navigate({
       name: returnRoute,
       params: paramsVuelta,
@@ -176,7 +191,7 @@ export default function CalendarioProveedorScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, webScreenFrame]}>
       <StatusBar barStyle="dark-content" />
       <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
@@ -194,11 +209,14 @@ export default function CalendarioProveedorScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 88 }]}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.scrollHost}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 88 }]}
+          showsVerticalScrollIndicator={Platform.OS === 'web'}
+          keyboardShouldPersistTaps="handled"
+          {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
+        >
         {estadoActual?.ocupado && (
           <View style={styles.badgeOcupado}>
             <Clock size={16} color={COLORS.warning[700]} />
@@ -297,7 +315,8 @@ export default function CalendarioProveedorScreen() {
             })}
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
         <TouchableOpacity
@@ -317,8 +336,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background.default,
+    ...(Platform.OS === 'web' ? { height: '100vh' } : null),
+  },
+  scrollHost: {
+    flex: 1,
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { overflow: 'hidden' } : null),
   },
   header: {
+    flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.md,
@@ -367,6 +393,16 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    ...(Platform.OS === 'web'
+      ? {
+          flexGrow: 1,
+          flexShrink: 1,
+          flexBasis: 0,
+          minHeight: 0,
+          overflow: 'scroll',
+          WebkitOverflowScrolling: 'touch',
+        }
+      : null),
   },
   badgeOcupado: {
     flexDirection: 'row',
@@ -514,6 +550,7 @@ const styles = StyleSheet.create({
     marginVertical: SPACING.md,
   },
   footer: {
+    flexShrink: 0,
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.sm,
     backgroundColor: COLORS.background.paper,
