@@ -116,6 +116,19 @@ export function resolveVehicleHealthPct(vehicleLike, healthSummary = null) {
 }
 
 /**
+ * Indica si hay un porcentaje de salud confiable (motor o snapshot en vehículo).
+ * Evita mostrar 0 % cuando aún no hay datos.
+ */
+export function hasVehicleHealthData(vehicleLike, healthSummary = null) {
+  if (healthSummary != null && typeof healthSummary === 'object' && !healthSummary.error) {
+    if (healthSummary.salud_general_porcentaje != null) return true;
+  }
+  if (vehicleLike?.salud_general_porcentaje != null) return true;
+  if (vehicleLike?.health_score != null) return true;
+  return false;
+}
+
+/**
  * Normaliza el km restante de un componente desde múltiples campos posibles.
  *
  * @param {object} comp  Objeto componente del backend

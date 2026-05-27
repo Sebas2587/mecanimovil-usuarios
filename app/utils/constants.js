@@ -279,6 +279,8 @@ export const ROUTES = {
   /** Misma pantalla que el stack raíz `VehicleRegistration` (registro de vehículo) */
   CREAR_VEHICULO: 'VehicleRegistration',
   VEHICLE_PROFILE: 'VehicleProfile',
+  /** Herramienta GPS para registrar kilometraje en viaje */
+  REGISTRAR_VIAJE: 'RegistrarViaje',
 
   // Notificaciones
   NOTIFICATION_CENTER: 'NotificationCenter',

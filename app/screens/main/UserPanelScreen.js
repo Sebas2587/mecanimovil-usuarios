@@ -33,6 +33,7 @@ import {
   HomeContextualBanner,
   HomeHighlightedRow,
   HomeNearbyRow,
+  HomeMultimarcaRow,
   HomeTrendingServicesRow,
   HomeHealthServicesRow,
   // HomeAgendamientoSheet, // Sheet IA deshabilitado temporalmente
@@ -47,6 +48,7 @@ import {
   navigateCrearSolicitudDesdeHome,
 } from '../../components/home/shared/homeScheduleNavigation';
 import { useParaTiProviders } from '../../hooks/useParaTiProviders';
+import { useMultimarcaProviders } from '../../hooks/useMultimarcaProviders';
 import { useTripTracking } from '../../context/TripTrackingContext';
 import { TRIP_ACTIVE_BAR_HEIGHT } from '../../components/trip/TripActiveBar';
 import {
@@ -350,6 +352,16 @@ const UserPanelScreen = () => {
   });
 
   const {
+    data: panelMultimarcaProviders = [],
+    isLoading: panelMultimarcaLoading,
+    refetch: refetchPanelMultimarca,
+  } = useMultimarcaProviders({
+    address: selectedAddress,
+    enabled: true,
+    limit: 12,
+  });
+
+  const {
     data: panelNearbyProviders = [],
     isLoading: panelNearbyLoading,
     refetch: refetchPanelNearby,
@@ -477,7 +489,7 @@ const UserPanelScreen = () => {
 
   // ── Refresh ──
   const onRefresh = useCallback(async () => {
-    const extras = [];
+    const extras = [refetchPanelMultimarca()];
     if (selectedVehicle?.id) {
       extras.push(refetchPanelParaTi(), refetchPanelNearby(), refetchPanelActivity());
     }
@@ -497,6 +509,7 @@ const UserPanelScreen = () => {
     refetchPanelParaTi,
     refetchPanelNearby,
     refetchPanelActivity,
+    refetchPanelMultimarca,
   ]);
 
   const weatherDerived = useMemo(() => {
@@ -651,6 +664,13 @@ const UserPanelScreen = () => {
           loading={panelParaTiLoading}
           onProviderPress={openProviderFromPanel}
           onSeeAll={handleSeeAllParaTi}
+        />
+
+        <HomeMultimarcaRow
+          providers={panelMultimarcaProviders}
+          loading={panelMultimarcaLoading}
+          onProviderPress={openProviderFromPanel}
+          onSeeAll={() => openExplore({ filterMultimarca: true })}
         />
 
         <HomeNearbyRow

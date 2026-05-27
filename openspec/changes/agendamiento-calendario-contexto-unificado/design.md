@@ -36,7 +36,7 @@ flowchart TD
   F2 -->|sí| BC --> NV --> cal
   API1 --> API2
   API2 --> API3
-  cal -->|slotSeleccionado| F1
+  cal -->|slotSeleccionado + paso 5 ubicación| F1
 ```
 
 ## Contrato `agendaContext`

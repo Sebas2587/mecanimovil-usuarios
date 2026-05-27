@@ -36,6 +36,7 @@ import CertifiedVehicleCard from '../../components/solicitudes/CertifiedVehicleC
 import OfferCardDetailed from '../../components/solicitudes/OfferCardDetailed';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import PendingClientSignatureCard from '../../components/checklist/PendingClientSignatureCard';
+import DetalleSolicitudSkeleton from '../../components/utils/DetalleSolicitudSkeleton';
 
 const TAB_PRINCIPALES = 'principales';
 const TAB_ADICIONALES = 'adicionales';
@@ -344,6 +345,11 @@ const DetalleSolicitudScreen = () => {
     );
   }, [ofertaCatalogoActiva?.id, refetchRequestDetail]);
 
+  const skeletonPaddingBottom =
+    Platform.OS === 'web'
+      ? Math.max(insets.bottom, 16) + FOOTER_SCROLL_PADDING
+      : SPACING.section + SPACING.lg + Math.max(insets.bottom, 8);
+
   if (!solicitudId) {
     return (
       <View
@@ -353,23 +359,18 @@ const DetalleSolicitudScreen = () => {
           Platform.OS === 'web' && webScreenFrame,
         ]}
       >
-        <ActivityIndicator size="large" color={COLORS.primary[500]} />
+        <Text style={styles.loadingText}>Solicitud no encontrada</Text>
       </View>
     );
   }
 
   if (showInitialLoader) {
     return (
-      <View
-        style={[
-          styles.loadingContainer,
-          Platform.OS === 'web' && styles.loadingContainerWeb,
-          Platform.OS === 'web' && webScreenFrame,
-        ]}
-      >
-        <ActivityIndicator size="large" color={COLORS.primary[500]} />
-        <Text style={styles.loadingText}>Cargando detalles...</Text>
-      </View>
+      <DetalleSolicitudSkeleton
+        paddingTop={insets.top}
+        contentPaddingBottom={skeletonPaddingBottom}
+        webScreenFrame={Platform.OS === 'web' ? webScreenFrame : null}
+      />
     );
   }
 

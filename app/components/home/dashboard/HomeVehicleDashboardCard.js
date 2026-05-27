@@ -3,48 +3,14 @@ import { View, StyleSheet } from 'react-native';
 import HomeVehicleDashboardFold from './HomeVehicleDashboardFold';
 
 /**
- * Bloque único del vehículo al final del home (resumen + detalle colapsable).
+ * Clima del vehículo seleccionado al final del home.
  */
-const HomeVehicleDashboardCard = ({
-  selectedVehicle,
-  expanded,
-  onToggle,
-  healthScore,
-  healthScoreColor,
-  odometer,
-  valuation,
-  tripActive,
-  tripKm,
-  climateRiskPct,
-  weatherAvailable,
-  onPressHealth,
-  priceDelta,
-  motorType,
-  telemetry,
-  weather,
-}) => {
+const HomeVehicleDashboardCard = ({ selectedVehicle, weather }) => {
   if (!selectedVehicle) return null;
 
   return (
     <View style={styles.wrap}>
-      <HomeVehicleDashboardFold
-        visible
-        expanded={expanded}
-        onToggle={onToggle}
-        tripActive={tripActive}
-        valuation={valuation}
-        priceDelta={priceDelta}
-        healthScore={healthScore}
-        healthScoreColor={healthScoreColor}
-        odometer={odometer}
-        motorType={motorType}
-        onPressHealth={onPressHealth}
-        tripKm={tripKm}
-        climateRiskPct={climateRiskPct}
-        weatherAvailable={weatherAvailable}
-        telemetry={telemetry}
-        weather={weather}
-      />
+      <HomeVehicleDashboardFold visible weather={weather} />
     </View>
   );
 };

@@ -21,3 +21,21 @@ Patrimonio, telemetría y clima **SHALL** agruparse en un único bloque colapsab
 - GIVEN un viaje GPS en curso
 - WHEN el usuario está en el panel
 - THEN el bloque patrimonio/clima/viajes se muestra expandido automáticamente
+
+### Requirement: Chip de salud en selector (Coinbase)
+En `HomeContextHeader`, la salud del vehículo activo **SHALL** mostrarse con `VehicleHealthCompactRing`: anillo SVG con track hairline (`COLORS.border.light`), arco semántico (`getHealthColorToken`), porcentaje tabular y etiqueta «Salud».
+
+#### Scenario: Salud actualizada desde TanStack Query
+- GIVEN un vehículo seleccionado en el panel
+- WHEN `useVehiclesHealth` devuelve datos de `GET /vehiculos/health/vehicle/:id/` (con parches optimistas)
+- THEN el porcentaje del anillo coincide con `resolveVehicleHealthPct` y la pantalla de salud del vehículo
+- AND no se muestra `0 %` si aún no hay datos (`hasVehicleHealthData` es falso)
+
+#### Scenario: Carga de salud
+- GIVEN salud aún no disponible y query en `isLoading`
+- WHEN se renderiza el header
+- THEN el anillo muestra estado skeleton/muted sin porcentaje engañoso
+
+#### Scenario: Tap en salud
+- WHEN el usuario toca el anillo
+- THEN navega a la pantalla de salud del vehículo seleccionado

@@ -99,6 +99,55 @@ export async function enrichProvidersWithNearbyDistance(
 export const PANEL_SERVICIOS_QUERY = { include_panel_servicios: 'true' };
 
 /**
+ * Obtiene proveedores multimarca (talleres + mecánicos que atienden todas las marcas).
+ * Estos proveedores aparecen para cualquier usuario independientemente de la marca de su vehículo.
+ *
+ * @param {Object} options
+ * @param {number} [options.lat] - Latitud del usuario
+ * @param {number} [options.lng] - Longitud del usuario
+ * @param {number} [options.limit=12] - Límite de resultados
+ * @returns {Promise<Array>} Lista de proveedores multimarca
+ */
+export const getMultimarcaProvidersForPanel = async (options = {}) => {
+  const limit = options.limit ?? 12;
+  try {
+    const params = {
+      tipo_cobertura_marca: 'multimarca',
+      ...PANEL_SERVICIOS_QUERY,
+    };
+
+    const [tRes, mRes] = await Promise.all([
+      get('/usuarios/talleres/proveedores_filtrados/', params).catch(() => ({ talleres: [] })),
+      get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params).catch(() => ({ mecanicos: [] })),
+    ]);
+
+    const talleres = (tRes?.talleres || []).map((p) => ({ ...p, _panelKind: 'taller', _esMultimarca: true }));
+    const mecanicos = (mRes?.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico', _esMultimarca: true }));
+    let list = [...talleres, ...mecanicos];
+
+    // Si hay coordenadas, enriquecer con distancias
+    const { lat, lng } = options;
+    if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
+      try {
+        list = await enrichProvidersWithNearbyDistance(list, lat, lng, null, {
+          onlyEnrichExisting: true,
+          nearbyFetchLimit: 60,
+        });
+      } catch (e) {
+        console.warn('No se pudo enriquecer distancia en Multimarca:', e);
+      }
+    }
+
+    // Ordenar por KPI, luego distancia
+    list = list.sort(compareProvidersByKpiRelevance);
+    return list.slice(0, limit);
+  } catch (error) {
+    console.error('Error obteniendo proveedores multimarca:', error);
+    return [];
+  }
+};
+
+/**
  * Servicios para manejo de proveedores (talleres y mecánicos)
  * Funciones para obtener, filtrar y gestionar proveedores
  */
@@ -299,7 +348,7 @@ function normalizeCommuneName(communeName) {
  * @param {Array} userVehicles - Lista de vehículos del usuario
  * @returns {Promise<Array>} Lista de talleres compatibles
  */
-export const getWorkshopsForUserVehicles = async (userVehicles, signal = null) => {
+export const getWorkshopsForUserVehicles = async (userVehicles, signal = null, includeMultimarca = true) => {
   try {
     if (!userVehicles || userVehicles.length === 0) {
       return [];
@@ -429,6 +478,25 @@ export const getWorkshopsForUserVehicles = async (userVehicles, signal = null) =
         const distB = b.distance || b.distancia_km || b.distancia || Infinity;
         return distA - distB;
       });
+    }
+
+    // Agregar talleres multimarca (si se solicita)
+    if (includeMultimarca) {
+      try {
+        const multimarcaTalleres = await get('/usuarios/talleres/proveedores_filtrados/', {
+          tipo_cobertura_marca: 'multimarca',
+          ...PANEL_SERVICIOS_QUERY,
+        }).catch(() => ({ talleres: [] }));
+        const mmList = (multimarcaTalleres?.talleres || []).map((p) => ({ ...p, _esMultimarca: true }));
+        mmList.forEach((mm) => {
+          if (!workshopIds.has(mm.id)) {
+            workshopIds.add(mm.id);
+            allWorkshops.push(mm);
+          }
+        });
+      } catch (e) {
+        console.warn('No se pudo cargar talleres multimarca:', e);
+      }
     }
 
     return allWorkshops;
@@ -1471,4 +1539,5 @@ export default {
   buscarProveedores,
   getProviderReviews,
   fetchPublicProviderFicha,
+  getMultimarcaProvidersForPanel,
 }; 

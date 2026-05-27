@@ -306,20 +306,45 @@ const PublicProviderDetailScreen = () => {
         );
       })()}
 
-      {/* Brands */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Especialidad en Marcas</Text>
-        <View style={styles.tagsRow}>
-          {(provider.marcas_atendidas_nombres?.length > 0
-            ? provider.marcas_atendidas_nombres
-            : ['Multimarca']
-          ).map((brand, i) => (
-            <View key={i} style={styles.tagBadge}>
-              <Text style={styles.tagText}>{brand}</Text>
+      {/* Cobertura de marcas */}
+      {(() => {
+        const tipoCobertura = provider?.tipo_cobertura_marca;
+        const esMultimarca = tipoCobertura === 'multimarca'
+          || (!tipoCobertura && !(provider.marcas_atendidas_nombres?.length > 0));
+        const tipoProveedorLabel = providerType === 'taller' ? 'Taller Mecánico' : 'Mecánico a Domicilio';
+
+        return (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>
+                {esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
+              </Text>
+              {/* Badge tipo proveedor */}
+              <View style={[styles.providerTypeBadge, { backgroundColor: COLORS.neutral?.gray?.[100] || '#f5f5f5' }]}>
+                <Text style={styles.providerTypeBadgeText}>{tipoProveedorLabel}</Text>
+              </View>
             </View>
-          ))}
-        </View>
-      </View>
+
+            {esMultimarca ? (
+              <View style={styles.multimarcaBadge}>
+                <Text style={styles.multimarcaBadgeIcon}>🌐</Text>
+                <View>
+                  <Text style={styles.multimarcaBadgeTitle}>Proveedor Multimarca</Text>
+                  <Text style={styles.multimarcaBadgeSub}>Atiende vehículos de cualquier marca</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.tagsRow}>
+                {(provider.marcas_atendidas_nombres || []).map((brand, i) => (
+                  <View key={i} style={[styles.tagBadge, styles.tagBadgeSpecialista]}>
+                    <Text style={styles.tagText}>⭐ {brand}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        );
+      })()}
 
       <ProviderScheduleSection horarios={details?.horarios_semanales || []} />
 
@@ -462,6 +487,53 @@ const styles = StyleSheet.create({
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  providerTypeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BORDERS.radius.full,
+  },
+  providerTypeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  multimarcaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: COLORS.primary[50],
+    borderRadius: BORDERS.radius.lg,
+    padding: 14,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: COLORS.primary[100],
+  },
+  multimarcaBadgeIcon: {
+    fontSize: 28,
+  },
+  multimarcaBadgeTitle: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[600],
+    marginBottom: 2,
+  },
+  multimarcaBadgeSub: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.primary[500],
+  },
+  tagBadgeSpecialista: {
+    backgroundColor: COLORS.success?.light || '#EAF9EF',
+    borderColor: COLORS.success?.main || '#05b169',
   },
   tagsRow: {
     flexDirection: 'row',

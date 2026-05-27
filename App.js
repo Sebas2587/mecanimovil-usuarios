@@ -6,13 +6,17 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, useNavigationContainerRef, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import {
+  rootNavigationRef,
+  notifyRootNavigationStateChange,
+} from './app/navigation/rootNavigationRef';
 import { View, Text, StyleSheet, Linking, AppState, LogBox as RNLogBox, Alert, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import { useLastNotificationResponse } from 'expo-notifications';
 import AuthNavigator from './app/navigation/AuthNavigator';
-import AppNavigator from './app/navigation/AppNavigator';
+import AuthenticatedAppShell from './app/navigation/AuthenticatedAppShell';
 import { AuthProvider, useAuth } from './app/context/AuthContext';
 import { AgendamientoProvider } from './app/context/AgendamientoContext';
 import { BookingCartProvider } from './app/context/BookingCartContext';
@@ -424,7 +428,7 @@ class ErrorBoundary extends React.Component {
 // lastNotificationResponse: en web no se usa useLastNotificationResponse (expo-notifications lanza UnavailabilityError).
 const MainImpl = ({ lastNotificationResponse }) => {
   const { isAuthenticated, loading, registerSuccess } = useAuth();
-  const navigationRef = useNavigationContainerRef();
+  const navigationRef = rootNavigationRef;
   /** Ficha pública invitado: capturar URL antes de que termine AuthContext.loading (iOS pierde getInitialURL si se lee tarde). */
   const pendingGuestPublicRef = useRef(null);
   const prevAuthRef = useRef(false);
@@ -1468,12 +1472,16 @@ const MainImpl = ({ lastNotificationResponse }) => {
       <NavigationContainer
         ref={navigationRef}
         linking={linking}
-        onReady={onNavigationReady}
+        onReady={() => {
+          notifyRootNavigationStateChange();
+          onNavigationReady();
+        }}
+        onStateChange={notifyRootNavigationStateChange}
         theme={navigationTheme}
       >
         {/* Mostrar AppNavigator si el usuario está autenticado, de lo contrario mostrar AuthNavigator */}
         {isAuthenticated ? (
-          <AppNavigator />
+          <AuthenticatedAppShell />
         ) : (
           <AuthNavigator registerSuccess={registerSuccess} />
         )}

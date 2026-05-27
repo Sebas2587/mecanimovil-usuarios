@@ -12,7 +12,7 @@ export const HomeContextHeaderSkeleton = () => (
       <Skeleton width="72%" height={14} borderRadius={6} />
       <Skeleton width="48%" height={12} borderRadius={6} />
     </View>
-    <Skeleton width={36} height={22} borderRadius={BORDERS.radius.full} />
+    <Skeleton width={44} height={44} borderRadius={22} />
     <Skeleton width={18} height={18} borderRadius={9} />
   </View>
 );

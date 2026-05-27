@@ -234,7 +234,11 @@ export async function getMainCategoriesForUserVehicles(vehicles) {
     });
   });
 
-  return buildMainCategoriesFromServices(allServices);
+  const fromServices = await buildMainCategoriesFromServices(allServices);
+  if (fromServices.length > 0) return fromServices;
+
+  // Fallback: catálogo principal (OpenSpec fase 6/7) si por_modelo no trae categorías en metadata
+  return getMainCategories();
 }
 
 /**

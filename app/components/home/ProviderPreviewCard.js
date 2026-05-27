@@ -127,6 +127,13 @@ const ProviderPreviewCard = ({
           </View>
         ) : null}
 
+        {/* Badge multimarca sobre la imagen */}
+        {(providerRaw?._esMultimarca || providerRaw?.tipo_cobertura_marca === 'multimarca') ? (
+          <View style={styles.multimarcaChip}>
+            <Text style={styles.multimarcaChipText}>🌐 Multimarca</Text>
+          </View>
+        ) : null}
+
         <ProviderKpiTierBadge
           kpiBadge={resolvedKpiBadge}
           provider={providerRaw}
@@ -235,6 +242,21 @@ const getStyles = (width, omitRightMargin, imageHeight, containerRadius) =>
       fontSize: TYPOGRAPHY.fontSize.xs,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
       color: COLORS.text.primary,
+    },
+    multimarcaChip: {
+      position: 'absolute',
+      bottom: 8,
+      left: 8,
+      backgroundColor: 'rgba(0,82,255,0.90)',
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: BORDERS.radius.full,
+      maxWidth: '80%',
+    },
+    multimarcaChipText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#FFFFFF',
     },
     kpiFloating: {
       position: 'absolute',

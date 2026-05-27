@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { TrendingUp, Gauge, Shield } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import { HomePanelCard } from '../shared/HomePanelCard';
@@ -16,75 +16,111 @@ const HomePatrimonyHeroSection = ({
   onPressHealth,
   showHealthRing = true,
   compact = false,
-}) => (
-  <HomePanelCard
-    style={[styles.card, compact && styles.cardCompact]}
-    innerStyle={compact ? styles.cardInnerCompact : undefined}
-  >
-    <View style={styles.heroRow}>
-      <View style={[styles.heroMain, !showHealthRing && styles.heroMainFull]}>
-        <View style={styles.labelRow}>
-          <TrendingUp size={14} color={COLORS.success.main} />
-          <Text style={styles.labelText}>Valor estimado</Text>
+  embedded = false,
+  healthLoading = false,
+  healthAvailable = true,
+  style,
+}) => {
+  const healthRing = showHealthRing ? (
+    healthLoading ? (
+      <View style={styles.healthCircleWrap}>
+        <View style={[styles.healthCircle, styles.healthCircleMuted]}>
+          <ActivityIndicator size="small" color={COLORS.primary[500]} />
+          <Text style={styles.healthCircleSaludLabel}>Salud</Text>
         </View>
-        <Text style={[styles.heroPrice, compact && styles.heroPriceCompact]} numberOfLines={1}>
-          {formatCLP(valuation)}
-        </Text>
-        {priceDelta !== 0 ? (
-          <Text
-            style={[
-              styles.heroDelta,
-              compact && styles.heroDeltaCompact,
-              { color: priceDelta >= 0 ? COLORS.success.main : COLORS.error.main },
-            ]}
-            numberOfLines={compact ? 2 : undefined}
-          >
-            {priceDelta >= 0 ? '+' : ''}
-            {formatCLP(Math.abs(priceDelta))} vs mercado
+      </View>
+    ) : !healthAvailable ? (
+      <View style={styles.healthCircleWrap}>
+        <View style={[styles.healthCircle, styles.healthCircleMuted]}>
+          <Text style={styles.healthCirclePctMuted}>—</Text>
+          <Text style={styles.healthCircleSaludLabel}>Sin datos</Text>
+        </View>
+      </View>
+    ) : (
+      <TouchableOpacity
+        style={styles.healthCircleWrap}
+        onPress={onPressHealth}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={`Salud del vehículo ${Math.round(healthScore)} por ciento, ${getHealthLabel(healthScore)}`}
+      >
+        <View style={[styles.healthCircle, { borderColor: healthScoreColor }]}>
+          <Text style={[styles.healthCirclePct, { color: healthScoreColor }]}>
+            {Math.round(healthScore)}%
           </Text>
-        ) : null}
-        {!showHealthRing && healthScore != null ? (
-          <TouchableOpacity onPress={onPressHealth} activeOpacity={0.85}>
-            <Text style={[styles.healthInline, { color: healthScoreColor }]}>
-              Salud {Math.round(healthScore)}% · {getHealthLabel(healthScore)}
+          <Text style={styles.healthCircleSaludLabel}>Salud</Text>
+        </View>
+      </TouchableOpacity>
+    )
+  ) : null;
+
+  const content = (
+    <>
+      <View style={styles.heroRow}>
+        <View style={[styles.heroMain, !showHealthRing && styles.heroMainFull]}>
+          <View style={styles.labelRow}>
+            <TrendingUp size={14} color={COLORS.success.main} />
+            <Text style={styles.labelText}>Valor estimado</Text>
+          </View>
+          <Text style={[styles.heroPrice, compact && styles.heroPriceCompact]} numberOfLines={1}>
+            {formatCLP(valuation)}
+          </Text>
+          {priceDelta !== 0 ? (
+            <Text
+              style={[
+                styles.heroDelta,
+                compact && styles.heroDeltaCompact,
+                { color: priceDelta >= 0 ? COLORS.success.main : COLORS.error.main },
+              ]}
+              numberOfLines={compact ? 2 : undefined}
+            >
+              {priceDelta >= 0 ? '+' : ''}
+              {formatCLP(Math.abs(priceDelta))} vs mercado
             </Text>
-          </TouchableOpacity>
-        ) : null}
+          ) : null}
+          {!showHealthRing && healthAvailable && healthScore != null ? (
+            <TouchableOpacity onPress={onPressHealth} activeOpacity={0.85}>
+              <Text style={[styles.healthInline, { color: healthScoreColor }]}>
+                Salud {Math.round(healthScore)}% · {getHealthLabel(healthScore)}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        {healthRing}
       </View>
 
-      {showHealthRing ? (
-        <TouchableOpacity
-          style={styles.healthCircleWrap}
-          onPress={onPressHealth}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={`Salud del vehículo ${Math.round(healthScore)} por ciento, ${getHealthLabel(healthScore)}`}
-        >
-          <View style={[styles.healthCircle, { borderColor: healthScoreColor }]}>
-            <Text style={[styles.healthCirclePct, { color: healthScoreColor }]}>
-              {Math.round(healthScore)}%
-            </Text>
-            <Text style={styles.healthCircleSaludLabel}>Salud</Text>
-          </View>
-        </TouchableOpacity>
-      ) : null}
-    </View>
+      <View style={[styles.odometerRow, compact && styles.odometerRowCompact]}>
+        <Gauge size={compact ? 12 : 14} color={COLORS.text.tertiary} />
+        <Text style={[styles.odometerText, compact && styles.odometerTextCompact]} numberOfLines={1}>
+          {formatKm(odometer)} km
+        </Text>
+        <View style={styles.odometerDot} />
+        <Shield size={compact ? 12 : 14} color={COLORS.text.tertiary} />
+        <Text style={[styles.odometerText, compact && styles.odometerTextCompact]} numberOfLines={1}>
+          {motorType || 'Motor'}
+        </Text>
+      </View>
+    </>
+  );
 
-    <View style={[styles.odometerRow, compact && styles.odometerRowCompact]}>
-      <Gauge size={compact ? 12 : 14} color={COLORS.text.tertiary} />
-      <Text style={[styles.odometerText, compact && styles.odometerTextCompact]} numberOfLines={1}>
-        {formatKm(odometer)} km
-      </Text>
-      <View style={styles.odometerDot} />
-      <Shield size={compact ? 12 : 14} color={COLORS.text.tertiary} />
-      <Text style={[styles.odometerText, compact && styles.odometerTextCompact]} numberOfLines={1}>
-        {motorType || 'Motor'}
-      </Text>
-    </View>
-  </HomePanelCard>
-);
+  if (embedded) {
+    return <View style={[styles.embeddedRoot, style]}>{content}</View>;
+  }
+
+  return (
+    <HomePanelCard
+      style={[styles.card, compact && styles.cardCompact, style]}
+      innerStyle={compact ? styles.cardInnerCompact : undefined}
+    >
+      {content}
+    </HomePanelCard>
+  );
+};
 
 const styles = StyleSheet.create({
+  embeddedRoot: {
+    width: '100%',
+  },
   card: {
     marginBottom: 12,
   },
@@ -177,6 +213,15 @@ const styles = StyleSheet.create({
     color: COLORS.text.tertiary,
     textTransform: 'uppercase',
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  healthCircleMuted: {
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.neutral.gray[100],
+  },
+  healthCirclePctMuted: {
+    fontSize: 20,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.tertiary,
   },
   odometerRow: {
     flexDirection: 'row',

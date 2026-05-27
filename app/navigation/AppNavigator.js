@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { queryClient } from '../config/queryClient';
 import { navigateAgendarDesdeTab } from '../components/home/shared/homeScheduleNavigation';
 import AgendarTabScreen from '../screens/main/AgendarTabScreen';
+import RegistrarViajeScreen from '../screens/trip/RegistrarViajeScreen';
 
 import UserPanelScreen from '../screens/main/UserPanelScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
@@ -333,6 +334,12 @@ const TabNavigator = () => (
 const AppNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false, detachInactiveScreens: false }}>
     <Stack.Screen name="TabNavigator" component={TabNavigator} />
+
+    <Stack.Screen
+      name={ROUTES.REGISTRAR_VIAJE}
+      component={RegistrarViajeScreen}
+      options={{ headerShown: false }}
+    />
 
     {/* CrearSolicitud - full screen (accessed from UserPanel quick actions) */}
     <Stack.Screen name={ROUTES.CREAR_SOLICITUD} component={CrearSolicitudScreen} />

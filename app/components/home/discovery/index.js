@@ -15,6 +15,7 @@ export { default as HomeContextualBanner } from './HomeContextualBanner';
 export { default as HomeOffersRow } from './HomeOffersRow';
 export { default as HomeHighlightedRow } from './HomeHighlightedRow';
 export { default as HomeNearbyRow } from './HomeNearbyRow';
+export { default as HomeMultimarcaRow } from './HomeMultimarcaRow';
 export { default as HomeTrendingServicesRow } from './HomeTrendingServicesRow';
 export { default as HomeHealthServicesRow } from './HomeHealthServicesRow';
 export { default as HomeAgendamientoSheet } from './HomeAgendamientoSheet';
