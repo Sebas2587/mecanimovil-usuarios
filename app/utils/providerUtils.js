@@ -303,14 +303,101 @@ function parseHorarioToMinutes(timeStr) {
   return h * 60 + (Number.isNaN(m) ? 0 : m);
 }
 
-/** True si hay al menos un día con ventana horaria activa (misma lógica que ProviderScheduleSection). */
+const DIA_SEMANA_LABELS = [
+  'Lunes',
+  'Martes',
+  'Miércoles',
+  'Jueves',
+  'Viernes',
+  'Sábado',
+  'Domingo',
+];
+
+export function formatHorarioHoraDisplay(h) {
+  if (!h) return '';
+  const s = String(h).trim();
+  const parts = s.split(':');
+  if (parts.length >= 2) {
+    const hh = parts[0].padStart(2, '0');
+    const mm = parts[1].padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+  return s.slice(0, 5);
+}
+
+export function isHorarioDiaActivo(it) {
+  const activo = it?.activo;
+  if (activo === false || activo === 0 || activo === '0' || activo === 'false') {
+    return false;
+  }
+  return Boolean(activo);
+}
+
+/** True si hay al menos un día con ventana horaria activa. */
 export function weeklyHorariosHasAnyActiveSlot(horarios) {
   const items = Array.isArray(horarios) ? horarios : [];
   return items.some((it) => {
     const d = Number(it?.dia_semana);
     if (!Number.isFinite(d) || d < 0 || d > 6) return false;
-    return !!it?.activo && it?.hora_inicio && it?.hora_fin;
+    return isHorarioDiaActivo(it) && it?.hora_inicio && it?.hora_fin;
   });
+}
+
+/**
+ * Agrupa solo días activos consecutivos que comparten el mismo rango horario.
+ * Días activos no consecutivos o con horario distinto → filas separadas.
+ */
+export function buildWeeklyScheduleDisplayGroups(horarios) {
+  const items = Array.isArray(horarios) ? horarios : [];
+  const activeByDay = new Map();
+
+  items.forEach((it) => {
+    const d = Number(it?.dia_semana);
+    if (!Number.isFinite(d) || d < 0 || d > 6) return;
+    if (!isHorarioDiaActivo(it) || !it?.hora_inicio || !it?.hora_fin) return;
+    activeByDay.set(d, {
+      dia: d,
+      hora_inicio: formatHorarioHoraDisplay(it.hora_inicio),
+      hora_fin: formatHorarioHoraDisplay(it.hora_fin),
+    });
+  });
+
+  const activeDays = [...activeByDay.values()].sort((a, b) => a.dia - b.dia);
+  if (activeDays.length === 0) return [];
+
+  const groups = [];
+  let cur = null;
+
+  activeDays.forEach((day) => {
+    const sameAsCur =
+      cur &&
+      cur.hora_inicio === day.hora_inicio &&
+      cur.hora_fin === day.hora_fin &&
+      day.dia === cur.endDia + 1;
+
+    if (!cur || !sameAsCur) {
+      if (cur) groups.push(cur);
+      cur = {
+        startDia: day.dia,
+        endDia: day.dia,
+        hora_inicio: day.hora_inicio,
+        hora_fin: day.hora_fin,
+      };
+    } else {
+      cur.endDia = day.dia;
+    }
+  });
+  if (cur) groups.push(cur);
+
+  return groups.map((g) => ({
+    startDia: g.startDia,
+    endDia: g.endDia,
+    dayLabel:
+      g.startDia === g.endDia
+        ? DIA_SEMANA_LABELS[g.startDia]
+        : `${DIA_SEMANA_LABELS[g.startDia]}–${DIA_SEMANA_LABELS[g.endDia]}`,
+    hoursLabel: `${g.hora_inicio} - ${g.hora_fin}`,
+  }));
 }
 
 /**
@@ -322,7 +409,7 @@ export function isProviderOpenAccordingToWeeklyHorarios(horarios, now = new Date
   const dia = jsDateToBackendDiaSemana(now);
   const items = Array.isArray(horarios) ? horarios : [];
   const slot = items.find((it) => Number(it?.dia_semana) === dia);
-  if (!slot || !slot.activo || !slot.hora_inicio || !slot.hora_fin) return false;
+  if (!slot || !isHorarioDiaActivo(slot) || !slot.hora_inicio || !slot.hora_fin) return false;
   const start = parseHorarioToMinutes(slot.hora_inicio);
   const end = parseHorarioToMinutes(slot.hora_fin);
   if (start == null || end == null || end <= start) return false;

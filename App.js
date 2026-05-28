@@ -190,7 +190,7 @@ const linking = {
         parse: {
           type: (type) => type || 'taller',
           id: (id) => {
-            if (!id) return null;
+            if (!id || id === 'undefined' || id === 'null') return null;
             const parsed = parseInt(id, 10);
             return isNaN(parsed) ? null : parsed;
           },

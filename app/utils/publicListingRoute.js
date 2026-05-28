@@ -65,10 +65,19 @@ export function getPublicProviderFromWebPath() {
   const raw = String(window.location?.pathname || '');
   const path = raw.split('?')[0].split('#')[0];
   const hash = String(window.location?.hash || '').replace(/^#\/?/, '');
+  const search = new URLSearchParams(window.location?.search || '');
+
   let m = path.match(/\/provider\/(taller|mecanico|proveedor)\/(\d+)/i);
   if (!m && hash) {
     m = hash.match(/provider\/(taller|mecanico|proveedor)\/(\d+)/i);
   }
+
+  const queryIdRaw = search.get('providerId') ?? search.get('id');
+  const queryId =
+    queryIdRaw != null && queryIdRaw !== '' && queryIdRaw !== 'undefined'
+      ? parseInt(String(queryIdRaw), 10)
+      : NaN;
+
   if (m) {
     const rawType = m[1].toLowerCase();
     const type = rawType === 'proveedor' ? 'taller' : rawType;
@@ -78,5 +87,14 @@ export function getPublicProviderFromWebPath() {
     console.log('🔗 [WebRoute] Detectada ficha pública de proveedor:', data);
     return data;
   }
+
+  if (!Number.isNaN(queryId) && queryId > 0) {
+    const rawType = (search.get('providerType') || search.get('type') || 'taller').toLowerCase();
+    const type = rawType === 'proveedor' ? 'taller' : rawType === 'mecanico' ? 'mecanico' : 'taller';
+    const data = { providerType: type, providerId: queryId };
+    console.log('🔗 [WebRoute] Proveedor desde query string:', data);
+    return data;
+  }
+
   return null;
 }
