@@ -11,6 +11,13 @@ import {
     formatServiciosTitulo,
     formatCLPServicio,
 } from '../../utils/solicitudServicios';
+import {
+    aggregateDuracionOferta,
+    buildVentanaTiemposEstimados,
+    formatDurationFromTimedelta,
+    formatMinutosDuracion,
+    formatRangoDuracion,
+} from '../../utils/ofertaTiemposEstimados';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -100,6 +107,12 @@ const OfferCardDetailed = ({
         ? formatServiciosTitulo(serviciosSolicitud.length ? serviciosSolicitud : lineasServicio)
         : (lineasServicio[0]?.nombre || serviciosSolicitud[0]?.nombre || solicitud?.servicio_nombre || null);
     const lineasConPrecio = lineasServicio.filter((l) => l.precio > 0);
+    const ventanaTiempos = buildVentanaTiemposEstimados(solicitud, oferta);
+    const duracionCatalogo = aggregateDuracionOferta(oferta);
+    const duracionTagTexto = ventanaTiempos?.rangoDuracionTexto
+        || (duracionCatalogo
+            ? formatMinutosDuracion(duracionCatalogo.minutosPromedioTotal)
+            : formatDurationFromTimedelta(oferta.tiempo_estimado_total));
 
     return (
         <View style={styles.card}>
@@ -166,10 +179,12 @@ const OfferCardDetailed = ({
                     <Ionicons name="shield-checkmark-outline" size={14} color={COLORS.text.tertiary} />
                     <Text style={styles.tagText}>Garantía {oferta.garantia_ofrecida || '3 meses'}</Text>
                 </View>
-                <View style={styles.tag}>
-                    <Ionicons name="time-outline" size={14} color={COLORS.text.tertiary} />
-                    <Text style={styles.tagText}>{oferta.tiempo_estimado_total || '2h'} est.</Text>
-                </View>
+                {duracionTagTexto ? (
+                    <View style={styles.tag}>
+                        <Ionicons name="time-outline" size={14} color={COLORS.text.tertiary} />
+                        <Text style={styles.tagText}>{duracionTagTexto} est.</Text>
+                    </View>
+                ) : null}
             </View>
 
             {/* 3. Desglose de Costos (Container Gris) */}
@@ -283,6 +298,59 @@ const OfferCardDetailed = ({
                     </View>
                 );
             })()}
+
+            {ventanaTiempos ? (
+                <View style={styles.tiemposSection}>
+                    <Text style={styles.tiemposSectionTitle}>Tiempos estimados del servicio</Text>
+                    {ventanaTiempos.lineas?.length > 1 ? (
+                        <View style={styles.tiemposLineasLista}>
+                            {ventanaTiempos.lineas.map((linea) => (
+                                <View
+                                    key={String(linea.id ?? linea.nombre)}
+                                    style={styles.tiemposLineaRow}
+                                >
+                                    <Text style={styles.tiemposLineaNombre} numberOfLines={1}>
+                                        {linea.nombre}
+                                    </Text>
+                                    <Text style={styles.tiemposLineaValor}>
+                                        {formatRangoDuracion(linea.minutosMin, linea.minutosMax)}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    ) : ventanaTiempos.rangoDuracionTexto ? (
+                        <Text style={styles.tiemposRango}>
+                            Duración configurada: {ventanaTiempos.rangoDuracionTexto}
+                        </Text>
+                    ) : null}
+                    {ventanaTiempos.horaInicio && ventanaTiempos.horaFinPromedio ? (
+                        <View style={styles.tiemposVentanaBlock}>
+                            <View style={styles.tiemposVentanaRow}>
+                                <Text style={styles.tiemposVentanaLabel}>Inicio estimado</Text>
+                                <Text style={styles.tiemposVentanaValor}>{ventanaTiempos.horaInicio}</Text>
+                            </View>
+                            <View style={styles.tiemposVentanaRow}>
+                                <Text style={styles.tiemposVentanaLabel}>Finalización estimada</Text>
+                                <Text style={styles.tiemposVentanaValor}>
+                                    {ventanaTiempos.horaFinPromedio}
+                                </Text>
+                            </View>
+                            {ventanaTiempos.horaFinMin
+                                && ventanaTiempos.horaFinMax
+                                && ventanaTiempos.horaFinMin !== ventanaTiempos.horaFinMax ? (
+                                    <Text style={styles.tiemposVentanaHint}>
+                                        Entre {ventanaTiempos.horaInicio} y {ventanaTiempos.horaFinMin}
+                                        {' '}– {ventanaTiempos.horaFinMax} según duración mín./máx.
+                                    </Text>
+                                ) : null}
+                        </View>
+                    ) : (
+                        <Text style={styles.tiemposSinHora}>
+                            Indica hora de servicio en tu solicitud para ver inicio y fin estimados.
+                        </Text>
+                    )}
+                </View>
+            ) : null}
 
             {/* Descripción de la oferta (texto que escribe el proveedor) */}
             {(oferta?.descripcion_oferta || '').trim() ? (
@@ -574,6 +642,78 @@ const styles = StyleSheet.create({
         color: COLORS.text.secondary,
         fontStyle: 'italic',
         marginTop: SPACING.xxs,
+    },
+    tiemposSection: {
+        marginBottom: SPACING.md,
+        padding: SPACING.sm,
+        backgroundColor: COLORS.primary[50],
+        borderRadius: BORDERS.radius.md,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[100],
+    },
+    tiemposSectionTitle: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.primary[800],
+        marginBottom: SPACING.xs,
+    },
+    tiemposRango: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
+        marginBottom: SPACING.xs,
+    },
+    tiemposLineasLista: {
+        marginBottom: SPACING.xs,
+        gap: 4,
+    },
+    tiemposLineaRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: SPACING.xs,
+    },
+    tiemposLineaNombre: {
+        flex: 1,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.primary,
+    },
+    tiemposLineaValor: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.primary[700],
+    },
+    tiemposVentanaBlock: {
+        marginTop: SPACING.xs,
+        paddingTop: SPACING.xs,
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.primary[100],
+    },
+    tiemposVentanaRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    tiemposVentanaLabel: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
+    },
+    tiemposVentanaValor: {
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.primary[700],
+        fontVariant: ['tabular-nums'],
+    },
+    tiemposVentanaHint: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.text.tertiary,
+        marginTop: 4,
+        lineHeight: 16,
+    },
+    tiemposSinHora: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.text.tertiary,
+        fontStyle: 'italic',
     },
     descripcionSection: {
         marginBottom: SPACING.md,

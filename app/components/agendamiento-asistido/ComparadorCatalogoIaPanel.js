@@ -5,6 +5,7 @@ import ComparadorCandidatosCatalogoModal from './ComparadorCandidatosCatalogoMod
 import { resolveDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
 import { PROVIDER_RECOMMENDATION_MAX_KM } from '../../utils/exploreProviderUtils';
 import {
+  buildScoringContextFromForm,
   computeMatchDisplayPct,
   getCandidatoCatalogoKey,
 } from '../../utils/catalogoComparadorScoring';
@@ -114,6 +115,7 @@ export default function ComparadorCatalogoIaPanel({
   userCoords = null,
   onCompareFooterChange,
   marcaVehiculoNombre = null,
+  tipoProveedorPreferido = null,
   mensajeRepuestos = null,
 }) {
   const [confirmandoId, setConfirmandoId] = useState(null);
@@ -143,14 +145,23 @@ export default function ComparadorCatalogoIaPanel({
     [candidatosByKey],
   );
 
+  const scoringContext = useMemo(
+    () => buildScoringContextFromForm({
+      requiereRepuestos,
+      marcaVehiculoNombre,
+      tipoProveedorPreferido,
+    }),
+    [requiereRepuestos, marcaVehiculoNombre, tipoProveedorPreferido],
+  );
+
   const matchPctByKey = useMemo(() => {
     const out = new Map();
     for (const c of grupoCandidatos) {
       const key = getCandidatoCatalogoKey(c);
-      out.set(key, computeMatchDisplayPct(c, userCoords, grupoCandidatos));
+      out.set(key, computeMatchDisplayPct(c, userCoords, grupoCandidatos, scoringContext));
     }
     return out;
-  }, [grupoCandidatos, userCoords]);
+  }, [grupoCandidatos, userCoords, scoringContext]);
 
   const puedeComparar = todasOfertas.length >= 2;
   const seleccionados = useMemo(
@@ -206,6 +217,7 @@ export default function ComparadorCatalogoIaPanel({
       candidato,
       userCoords,
       grupoCandidatos,
+      scoringContext,
     );
 
     const coberturaMarcaBadge = getCoberturaMarcaBadge(candidato, marcaVehiculoNombre);
@@ -300,10 +312,6 @@ export default function ComparadorCatalogoIaPanel({
         <ComparadorRepuestosAviso mensaje={avisoGlobalRepuestos} />
       ) : null}
 
-      {puedeComparar ? (
-        <Text style={cs.selectHint}>Marca 2 o más y pulsa Comparar</Text>
-      ) : null}
-
       {recomendadas.length > 0 ? (
         <View style={cs.section}>
           <Text style={[cs.sectionTitle, !subExacta && cs.sectionTitleSpaced]}>
@@ -330,6 +338,7 @@ export default function ComparadorCatalogoIaPanel({
         candidatos={seleccionados}
         userCoords={userCoords}
         marcaVehiculoNombre={marcaVehiculoNombre}
+        tipoProveedorPreferido={tipoProveedorPreferido}
         requiereRepuestos={requiereRepuestos !== false}
         onConfirmar={(candidato) => {
           setModalVisible(false);

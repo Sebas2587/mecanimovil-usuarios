@@ -1,5 +1,7 @@
 import { resolveDistanciaKmCandidato } from '../services/agendamientoAsistidoService';
 import { PROVIDER_RECOMMENDATION_MAX_KM } from './exploreProviderUtils';
+import { isCandidatoCatalogoMultimarca } from './catalogoComparadorCobertura';
+import { ofreceRepuestosEnCatalogo, solicitudRequiereRepuestos } from './catalogoComparadorRepuestos';
 
 /** Pesos del análisis en comparador de catálogo (suman 100). */
 export const CRITERIOS_CATALOGO = {
@@ -10,6 +12,9 @@ export const CRITERIOS_CATALOGO = {
   COBERTURA: { peso: 8, nombre: 'Cobertura', key: 'COBERTURA' },
 };
 
+/** Puntuación neutra cuando el proveedor aún no tiene reseñas (no penaliza ni premia). */
+export const RATING_NEUTRO_SIN_RESENAS = 50;
+
 export function getCandidatoCatalogoKey(oferta) {
   if (!oferta) return '';
   return String(oferta.oferta_servicio_id || oferta.id || '');
@@ -18,6 +23,39 @@ export function getCandidatoCatalogoKey(oferta) {
 function clamp01(n) {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(1, n));
+}
+
+function normalizeScoringContext(ctx) {
+  if (typeof ctx === 'boolean') {
+    return {
+      requiereRepuestos: ctx !== false,
+      marcaVehiculoNombre: null,
+      tipoProveedorPreferido: null,
+    };
+  }
+  const raw = ctx && typeof ctx === 'object' ? ctx : {};
+  const pref = raw.tipoProveedorPreferido ?? raw.tipo_proveedor_preferido ?? null;
+  const tipo =
+    pref === 'mecanico' || pref === 'taller' ? pref : null;
+  return {
+    requiereRepuestos: raw.requiereRepuestos !== false,
+    marcaVehiculoNombre: raw.marcaVehiculoNombre?.trim() || null,
+    tipoProveedorPreferido: tipo,
+  };
+}
+
+export function resolveRatingProveedor(candidato) {
+  const r = Number(
+    candidato?.proveedor?.rating
+    ?? candidato?.rating_proveedor
+    ?? candidato?.proveedor?.calificacion_promedio
+    ?? candidato?.calificacion_promedio,
+  );
+  return Number.isFinite(r) && r > 0 ? r : null;
+}
+
+export function candidatoTieneResenas(candidato) {
+  return resolveRatingProveedor(candidato) != null;
 }
 
 function scoreCercaniaKm(distKm) {
@@ -31,15 +69,75 @@ function scoreCercaniaKm(distKm) {
   return Math.max(15, Math.round(45 - (distKm - radar) * 4));
 }
 
-function scoreMatchIa(scoreMatch) {
+function scoreMatchIaBackend(scoreMatch) {
   const s = Number(scoreMatch);
   if (!Number.isFinite(s) || s <= 0) return 50;
   return Math.round(clamp01(s) * 100);
 }
 
+function resolveTipoProveedorCandidato(candidato) {
+  const t = candidato?.tipo_proveedor || candidato?.proveedor?.tipo;
+  if (t === 'mecanico' || t === 'taller') return t;
+  if (candidato?.a_domicilio) return 'mecanico';
+  return 'taller';
+}
+
+/**
+ * A domicilio vs taller: neutro si el usuario no preseleccionó tipo (comparación abierta).
+ */
+function scoreModalidadProveedor(candidato, tipoProveedorPreferido) {
+  const tipo = resolveTipoProveedorCandidato(candidato);
+  if (!tipoProveedorPreferido) {
+    return 74;
+  }
+  return tipo === tipoProveedorPreferido ? 100 : 56;
+}
+
+/** Especialista en la marca vs multimarca (complementa el match del backend). */
+function scoreAjusteMarca(candidato, marcaVehiculoNombre) {
+  if (isCandidatoCatalogoMultimarca(candidato)) {
+    return marcaVehiculoNombre ? 88 : 84;
+  }
+  return marcaVehiculoNombre ? 98 : 92;
+}
+
+function scoreAjusteRepuestos(candidato, requiereRepuestos) {
+  if (!solicitudRequiereRepuestos(requiereRepuestos)) {
+    return 78;
+  }
+  if (ofreceRepuestosEnCatalogo(candidato)) return 100;
+  if (
+    candidato?.coincidencia_repuestos === 'solo_mano_obra_alternativa'
+    || candidato?.ofrece_solo_mano_obra === true
+  ) {
+    return 54;
+  }
+  return 62;
+}
+
+/**
+ * Compatibilidad: match IA + marca + modalidad (taller/domicilio) + repuestos si aplica.
+ */
+function scoreCompatibilidadCatalogo(candidato, scoringContext) {
+  const ia = scoreMatchIaBackend(candidato?.score_match);
+  const marca = scoreAjusteMarca(candidato, scoringContext.marcaVehiculoNombre);
+  const modalidad = scoreModalidadProveedor(
+    candidato,
+    scoringContext.tipoProveedorPreferido,
+  );
+  const repuestos = scoreAjusteRepuestos(candidato, scoringContext.requiereRepuestos);
+
+  if (scoringContext.requiereRepuestos) {
+    return Math.round(ia * 0.34 + marca * 0.26 + modalidad * 0.22 + repuestos * 0.18);
+  }
+  return Math.round(ia * 0.4 + marca * 0.32 + modalidad * 0.28);
+}
+
 function scoreRating(rating) {
   const r = Number(rating);
-  if (!Number.isFinite(r) || r <= 0) return 40;
+  if (!Number.isFinite(r) || r <= 0) {
+    return RATING_NEUTRO_SIN_RESENAS;
+  }
   if (r >= 4.8) return 100;
   if (r >= 4.5) return 90;
   if (r >= 4.0) return 75;
@@ -80,60 +178,113 @@ function precioCandidato(candidato, requiereRepuestos = true) {
   );
 }
 
-/**
- * % mostrado en la card: distingue proveedores por distancia + IA + rating.
- */
-export function computeMatchDisplayPct(candidato, userCoords = null, grupo = []) {
-  const distKm = resolveDistanciaKmCandidato(candidato, userCoords);
-  const porCriterio = buildPuntuacionPorCriterio(candidato, grupo, userCoords);
-  const total = Math.round(
-    Object.entries(CRITERIOS_CATALOGO).reduce((sum, [, cfg]) => {
-      const key = cfg.key;
-      const score = porCriterio[key] ?? 50;
-      return sum + (score / 100) * cfg.peso;
-    }, 0),
-  );
-  if (total > 0) return Math.max(1, Math.min(99, total));
-
-  const distScore = scoreCercaniaKm(distKm) / 100;
-  const ia = clamp01(candidato.score_match) * 0.45;
-  const dist = distScore * 0.4;
-  const rating = (scoreRating(candidato.proveedor?.rating ?? candidato.rating_proveedor) / 100) * 0.15;
-  return Math.max(1, Math.min(99, Math.round((ia + dist + rating) * 100)));
-}
-
-export function buildPuntuacionPorCriterio(candidato, grupo = [], userCoords = null, requiereRepuestos = true) {
-  const distKm = resolveDistanciaKmCandidato(candidato, userCoords);
-  const precios = grupo.map((c) => precioCandidato(c, requiereRepuestos));
-  return {
-    MATCH_IA: scoreMatchIa(candidato.score_match),
-    CERCANIA: scoreCercaniaKm(distKm),
-    PRECIO: scorePrecioRelativo(precioCandidato(candidato, requiereRepuestos), precios),
-    RATING: scoreRating(candidato.proveedor?.rating ?? candidato.rating_proveedor),
-    COBERTURA: scoreCobertura(candidato),
-  };
-}
-
-export function computePuntuacionTotalCatalogo(candidato, grupo = [], userCoords = null, requiereRepuestos = true) {
-  const porCriterio = buildPuntuacionPorCriterio(candidato, grupo, userCoords, requiereRepuestos);
-  const total = Object.entries(CRITERIOS_CATALOGO).reduce((sum, [, cfg]) => {
+function computeTotalFromCriterios(porCriterio) {
+  return Object.entries(CRITERIOS_CATALOGO).reduce((sum, [, cfg]) => {
     const score = porCriterio[cfg.key] ?? 50;
     return sum + (score / 100) * cfg.peso;
   }, 0);
+}
+
+/**
+ * % mostrado en la card: distancia + compatibilidad compuesta + rating + precio.
+ */
+export function computeMatchDisplayPct(
+  candidato,
+  userCoords = null,
+  grupo = [],
+  scoringContext = null,
+) {
+  const ctx = normalizeScoringContext(
+    scoringContext ?? { requiereRepuestos: true },
+  );
+  const porCriterio = buildPuntuacionPorCriterio(candidato, grupo, userCoords, ctx);
+  const total = computeTotalFromCriterios(porCriterio);
+  if (total > 0) return Math.max(1, Math.min(99, Math.round(total)));
+
+  const distKm = resolveDistanciaKmCandidato(candidato, userCoords);
+  const distScore = scoreCercaniaKm(distKm) / 100;
+  const compat = scoreCompatibilidadCatalogo(candidato, ctx) / 100;
+  const ratingVal = resolveRatingProveedor(candidato);
+  const rating = (scoreRating(ratingVal) / 100) * 0.15;
+  return Math.max(1, Math.min(99, Math.round((compat * 0.45 + distScore * 0.4 + rating) * 100)));
+}
+
+export function buildPuntuacionPorCriterio(
+  candidato,
+  grupo = [],
+  userCoords = null,
+  scoringContext = null,
+) {
+  const ctx = normalizeScoringContext(
+    scoringContext ?? { requiereRepuestos: true },
+  );
+  const distKm = resolveDistanciaKmCandidato(candidato, userCoords);
+  const precios = grupo.map((c) => precioCandidato(c, ctx.requiereRepuestos));
+  const ratingVal = resolveRatingProveedor(candidato);
+
+  return {
+    MATCH_IA: scoreCompatibilidadCatalogo(candidato, ctx),
+    CERCANIA: scoreCercaniaKm(distKm),
+    PRECIO: scorePrecioRelativo(precioCandidato(candidato, ctx.requiereRepuestos), precios),
+    RATING: scoreRating(ratingVal),
+    COBERTURA: scoreCobertura(candidato),
+    rating_sin_resenas: !candidatoTieneResenas(candidato),
+  };
+}
+
+export function computePuntuacionTotalCatalogo(
+  candidato,
+  grupo = [],
+  userCoords = null,
+  scoringContext = null,
+) {
+  const ctx = normalizeScoringContext(
+    scoringContext ?? { requiereRepuestos: true },
+  );
+  const porCriterio = buildPuntuacionPorCriterio(candidato, grupo, userCoords, ctx);
+  const total = computeTotalFromCriterios(porCriterio);
   return {
     total: Math.round(total * 10) / 10,
     porCriterio,
     distancia_km: resolveDistanciaKmCandidato(candidato, userCoords),
     matchDisplayPct: Math.max(1, Math.min(99, Math.round(total))),
+    scoringContext: ctx,
   };
 }
 
-export function rankCandidatosCatalogo(candidatos, userCoords = null, requiereRepuestos = true) {
+export function rankCandidatosCatalogo(
+  candidatos,
+  userCoords = null,
+  scoringContext = null,
+) {
+  const ctx = normalizeScoringContext(
+    scoringContext ?? { requiereRepuestos: true },
+  );
   const list = (candidatos || []).filter(Boolean);
   return list
     .map((c) => ({
       candidato: c,
-      ...computePuntuacionTotalCatalogo(c, list, userCoords, requiereRepuestos),
+      ...computePuntuacionTotalCatalogo(c, list, userCoords, ctx),
     }))
     .sort((a, b) => b.total - a.total);
+}
+
+export function buildScoringContextFromForm({
+  requiereRepuestos,
+  marcaVehiculoNombre,
+  tipoProveedorPreferido,
+  formPayload,
+} = {}) {
+  const fp = formPayload || {};
+  const pref =
+    tipoProveedorPreferido
+    ?? fp.tipoProveedor
+    ?? fp.tipo_proveedor_preseleccionado
+    ?? fp.tipoProveedorPreseleccionado;
+  return {
+    requiereRepuestos: requiereRepuestos ?? fp.requiere_repuestos !== false,
+    marcaVehiculoNombre: marcaVehiculoNombre ?? null,
+    tipoProveedorPreferido:
+      pref === 'mecanico' || pref === 'taller' ? pref : null,
+  };
 }

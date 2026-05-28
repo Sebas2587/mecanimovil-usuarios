@@ -47,10 +47,4 @@ export const comparadorCatalogoStyles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 14,
   },
-  selectHint: {
-    fontSize: 13,
-    color: COLORS.primary[700],
-    marginBottom: 14,
-    fontWeight: '600',
-  },
 });

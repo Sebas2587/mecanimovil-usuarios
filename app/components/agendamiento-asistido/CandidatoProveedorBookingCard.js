@@ -12,7 +12,6 @@ import {
   Wrench,
   Package,
   MapPin,
-  Check,
   Car,
   Store,
   User,
@@ -185,23 +184,12 @@ export default function CandidatoProveedorBookingCard({
     ? formatDistance(distKm)
     : null;
 
-  return (
-    <View style={[styles.card, selectable && selected && styles.cardSelected]}>
+  const cardStyle = [styles.card, selectable && selected && styles.cardSelected];
+
+  const contenidoSeleccionable = (
+    <>
       {selectable ? (
-        <TouchableOpacity
-          style={styles.selectRow}
-          onPress={onToggleSelect}
-          activeOpacity={0.7}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: selected }}
-        >
-          <View style={[styles.selectBox, selected && styles.selectBoxOn]}>
-            {selected ? <Check size={14} color={COLORS.text.onPrimary} strokeWidth={3} /> : null}
-          </View>
-          <Text style={styles.selectLabel}>
-            {selected ? 'Incluido en comparación' : 'Comparar con otros'}
-          </Text>
-        </TouchableOpacity>
+        <Text style={styles.compareTitle}>Compara esta oferta</Text>
       ) : null}
 
       {/* Cabecera: avatar | meta proveedor | match */}
@@ -223,17 +211,19 @@ export default function CandidatoProveedorBookingCard({
         </View>
 
         <View style={styles.providerMeta}>
-          <View style={styles.tipoRow}>
-            <TipoIcon size={12} color={COLORS.text.tertiary} />
-            <Text style={styles.tipoLabel}>{tipoLabel}</Text>
+          <View style={styles.tipoCoberturaRow}>
+            {coberturaMarcaBadge ? (
+              <ProveedorCoberturaMarcaChip badge={coberturaMarcaBadge} compact />
+            ) : null}
+            <View style={styles.tipoBadge}>
+              <TipoIcon size={12} color={COLORS.text.tertiary} />
+              <Text style={styles.tipoLabel}>{tipoLabel}</Text>
+            </View>
           </View>
           <Text style={styles.proveedorNombre} numberOfLines={2}>
             {nombre}
           </Text>
           <View style={styles.metaChipsRow}>
-            {coberturaMarcaBadge ? (
-              <ProveedorCoberturaMarcaChip badge={coberturaMarcaBadge} />
-            ) : null}
             <View
               style={[
                 styles.repuestosBadge,
@@ -365,9 +355,36 @@ export default function CandidatoProveedorBookingCard({
           {explicacionVisible}
         </Text>
       ) : null}
+    </>
+  );
+
+  return (
+    <View style={cardStyle}>
+      {selectable ? (
+        <TouchableOpacity
+          style={styles.selectableBody}
+          onPress={onToggleSelect}
+          activeOpacity={0.92}
+          accessibilityRole="button"
+          accessibilityState={{ selected }}
+          accessibilityLabel={
+            selected
+              ? 'Oferta seleccionada para comparar'
+              : 'Compara esta oferta, toca para seleccionar'
+          }
+        >
+          {contenidoSeleccionable}
+        </TouchableOpacity>
+      ) : (
+        contenidoSeleccionable
+      )}
 
       <TouchableOpacity
-        style={[styles.confirmBtn, btnDisabled && styles.confirmBtnDisabled]}
+        style={[
+          styles.confirmBtn,
+          selectable && styles.confirmBtnSpaced,
+          btnDisabled && styles.confirmBtnDisabled,
+        ]}
         onPress={onConfirmar}
         disabled={btnDisabled}
         activeOpacity={0.85}
@@ -396,32 +413,21 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: COLORS.primary[50],
   },
-  selectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 14,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  selectBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: COLORS.border.light,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectBoxOn: {
-    backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
-  },
-  selectLabel: {
+  compareTitle: {
     fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[700],
+    marginBottom: 12,
+    letterSpacing: 0.2,
+  },
+  selectableBody: {
+    marginHorizontal: -4,
+    marginTop: -4,
+    paddingHorizontal: 4,
+    paddingTop: 4,
+  },
+  confirmBtnSpaced: {
+    marginTop: 12,
   },
   headerRow: {
     flexDirection: 'row',
@@ -500,10 +506,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tipoRow: {
+  tipoCoberturaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  tipoBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0,
   },
   tipoLabel: {
     fontSize: TYPOGRAPHY.fontSize.xs,

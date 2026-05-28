@@ -16,6 +16,8 @@ import { getHealthColor } from '../../utils/healthFormat';
 import { formatDistance } from '../../utils/geoUtils';
 import {
   CRITERIOS_CATALOGO,
+  RATING_NEUTRO_SIN_RESENAS,
+  buildScoringContextFromForm,
   rankCandidatosCatalogo,
   getCandidatoCatalogoKey,
 } from '../../utils/catalogoComparadorScoring';
@@ -36,14 +38,15 @@ const CRITERIO_ICONS = {
   COBERTURA: Wrench,
 };
 
-function ScoreBar({ score }) {
+function ScoreBar({ score, displayValue }) {
   const color = getHealthColor(score);
+  const label = displayValue != null ? displayValue : String(Math.round(score));
   return (
     <View style={styles.scoreRow}>
       <View style={styles.scoreTrack}>
         <View style={[styles.scoreFill, { width: `${Math.min(100, score)}%`, backgroundColor: color }]} />
       </View>
-      <Text style={[styles.scoreVal, { color }]}>{Math.round(score)}</Text>
+      <Text style={[styles.scoreVal, { color }]}>{label}</Text>
     </View>
   );
 }
@@ -58,14 +61,24 @@ export default function ComparadorCandidatosCatalogoModal({
   userCoords = null,
   requiereRepuestos = true,
   marcaVehiculoNombre = null,
+  tipoProveedorPreferido = null,
   onConfirmar,
 }) {
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
 
+  const scoringContext = useMemo(
+    () => buildScoringContextFromForm({
+      requiereRepuestos,
+      marcaVehiculoNombre,
+      tipoProveedorPreferido,
+    }),
+    [requiereRepuestos, marcaVehiculoNombre, tipoProveedorPreferido],
+  );
+
   const ranked = useMemo(
-    () => rankCandidatosCatalogo(candidatos, userCoords, requiereRepuestos),
-    [candidatos, userCoords, requiereRepuestos],
+    () => rankCandidatosCatalogo(candidatos, userCoords, scoringContext),
+    [candidatos, userCoords, scoringContext],
   );
 
   const mejorKey = ranked[0] ? getCandidatoCatalogoKey(ranked[0].candidato) : null;
@@ -89,7 +102,8 @@ export default function ComparadorCandidatosCatalogoModal({
           </TouchableOpacity>
         </View>
         <Text style={styles.subtitle}>
-          Match, distancia, precio y rating. El % puede diferir del resumen en la lista.
+          Compatibilidad incluye marca, taller o a domicilio, repuestos y match del radar.
+          Sin reseñas, calificación es neutra ({RATING_NEUTRO_SIN_RESENAS} pts, no penaliza).
         </Text>
 
         <ScrollView
@@ -165,13 +179,20 @@ export default function ComparadorCandidatosCatalogoModal({
                   {Object.values(CRITERIOS_CATALOGO).map((cfg) => {
                     const Icon = CRITERIO_ICONS[cfg.key] || Sparkles;
                     const score = porCriterio[cfg.key] ?? 50;
+                    const sinResenas = cfg.key === 'RATING' && porCriterio.rating_sin_resenas;
                     return (
                       <View key={cfg.key} style={styles.criterioRow}>
                         <View style={styles.criterioLeft}>
                           <Icon size={14} color={COLORS.text.secondary} />
-                          <Text style={styles.criterioLabel}>{cfg.nombre}</Text>
+                          <Text style={styles.criterioLabel}>
+                            {cfg.nombre}
+                            {sinResenas ? ' (sin reseñas)' : ''}
+                          </Text>
                         </View>
-                        <ScoreBar score={score} />
+                        <ScoreBar
+                          score={score}
+                          displayValue={sinResenas ? 'N/D' : undefined}
+                        />
                       </View>
                     );
                   })}
