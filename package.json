@@ -14,7 +14,7 @@
     "deploy:vercel:hook": "curl -fsS -X POST https://api.vercel.com/v1/integrations/deploy/prj_onu4rpYmXcplOPOmS29auXoG4kZj/ppYbhmkdgZ -H 'Content-Type: application/json'",
     "deploy:vercel:local": "npx vercel build --prod --yes && npx vercel deploy --prebuilt --prod --yes",
     "deploy:vercel:cli": "npx vercel@latest deploy --prod --yes",
-    "deploy:vercel": "npm run deploy:vercel:hook"
+    "deploy:vercel": "npm run deploy:vercel:cli"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
