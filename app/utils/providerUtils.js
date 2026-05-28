@@ -117,6 +117,37 @@ export function kpiRankTuple(kpiBadge) {
   return [isActive, tier, score, samplePoints];
 }
 
+export function isProviderMultimarca(provider) {
+  return Boolean(provider?._esMultimarca || provider?.tipo_cobertura_marca === 'multimarca');
+}
+
+export function tagProviderMarcaFlags(provider) {
+  const mm = isProviderMultimarca(provider);
+  return { ...provider, _esMultimarca: mm, _esEspecialistaMarca: !mm };
+}
+
+/** Especialistas en la marca del vehículo primero; luego orden KPI. */
+export function compareProvidersByMarcaThenKpi(a, b) {
+  const aMm = isProviderMultimarca(a);
+  const bMm = isProviderMultimarca(b);
+  if (aMm !== bMm) return aMm ? 1 : -1;
+  return compareProvidersByKpiRelevance(a, b);
+}
+
+function _distanceKmForSort(p) {
+  const v = p?.distance ?? p?.distancia_km ?? p?.distancia;
+  const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+  return Number.isFinite(n) ? n : Infinity;
+}
+
+/** Especialistas primero; luego distancia ascendente. */
+export function compareProvidersByMarcaThenDistance(a, b) {
+  const aMm = isProviderMultimarca(a);
+  const bMm = isProviderMultimarca(b);
+  if (aMm !== bMm) return aMm ? 1 : -1;
+  return _distanceKmForSort(a) - _distanceKmForSort(b);
+}
+
 /** Compara dos proveedores por KPI (desc) y rating como desempate. */
 export function compareProvidersByKpiRelevance(a, b) {
   const ta = kpiRankTuple(a?.kpi_badge);

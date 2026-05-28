@@ -1,7 +1,12 @@
 import { get } from './api';
 import { getMediaURL } from './api';
 import * as locationService from './location';
-import { compareProvidersByKpiRelevance } from '../utils/providerUtils';
+import {
+  compareProvidersByKpiRelevance,
+  compareProvidersByMarcaThenDistance,
+  compareProvidersByMarcaThenKpi,
+  tagProviderMarcaFlags,
+} from '../utils/providerUtils';
 import { filterProvidersForDestacadosPanel } from '../components/home/shared/homeAddressUtils';
 import {
   mergeProviderLists,
@@ -42,9 +47,12 @@ function finalizeNearbyProviders(merged, options = {}) {
   const maxKm = clampRecommendationRadiusKm(options.maxKm ?? PROVIDER_RECOMMENDATION_MAX_KM);
   const requireInRadius = options.requireInRadius !== false;
   const keepUnknownDistance = options.keepUnknownDistance === true;
-  const sortCmp = options.sortByDistanceOnly
-    ? compareProvidersByDistanceOnly
-    : compareProvidersByDistanceThenKpi;
+  const preferMarca = options.preferMarcaSpecialists !== false;
+  const sortCmp = preferMarca
+    ? (options.sortByDistanceOnly ? compareProvidersByMarcaThenDistance : compareProvidersByMarcaThenKpi)
+    : (options.sortByDistanceOnly
+      ? compareProvidersByDistanceOnly
+      : compareProvidersByDistanceThenKpi);
   let list = merged.filter((p) => {
     const km = normalizeDistanceKm(p);
     if (km == null) {
@@ -901,6 +909,31 @@ export const getMechanicsForUserVehicles = async (userVehicles, signal = null) =
       }
     }
 
+    // Agregar mecánicos multimarca
+    try {
+      const multimarcaMecanicos = await get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', {
+        tipo_cobertura_marca: 'multimarca',
+        ...PANEL_SERVICIOS_QUERY,
+      }).catch(() => ({ mecanicos: [] }));
+      const mmList = (multimarcaMecanicos?.mecanicos || []).map((p) => ({ ...p, _esMultimarca: true }));
+      mmList.forEach((mm) => {
+        if (!mechanicIds.has(mm.id)) {
+          mechanicIds.add(mm.id);
+          filteredMechanics.push(mm);
+        }
+      });
+      filteredMechanics.sort((a, b) => {
+        const aMm = a._esMultimarca ? 1 : 0;
+        const bMm = b._esMultimarca ? 1 : 0;
+        if (aMm !== bMm) return aMm - bMm;
+        const distA = a.distancia_km ?? Infinity;
+        const distB = b.distancia_km ?? Infinity;
+        return distA - distB;
+      });
+    } catch (e) {
+      console.warn('No se pudo cargar mecánicos multimarca:', e);
+    }
+
     return filteredMechanics;
   } catch (error) {
     console.error('Error obteniendo mecánicos para vehículos del usuario:', error);
@@ -1121,9 +1154,9 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
       get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params),
     ]);
 
-    const talleres = (tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' }));
-    const mecanicos = (mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' }));
-    let list = [...talleres, ...mecanicos].sort(compareProvidersByKpiRelevance);
+    const talleres = (tRes.talleres || []).map((p) => tagProviderMarcaFlags({ ...p, _panelKind: 'taller' }));
+    const mecanicos = (mRes.mecanicos || []).map((p) => tagProviderMarcaFlags({ ...p, _panelKind: 'mecanico' }));
+    let list = [...talleres, ...mecanicos].sort(compareProvidersByMarcaThenKpi);
 
     const { lat, lng, marcaId, cityContext } = options;
     if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
@@ -1139,7 +1172,7 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
 
     if (scope === 'panel') {
       list = filterProvidersForDestacadosPanel(list, cityContext);
-      list = list.sort(compareProvidersByKpiRelevance).slice(0, limit);
+      list = list.sort(compareProvidersByMarcaThenKpi).slice(0, limit);
     } else {
       list = list.slice(0, limit);
     }
