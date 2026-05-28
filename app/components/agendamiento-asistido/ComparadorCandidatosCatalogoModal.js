@@ -20,6 +20,8 @@ import {
   getCandidatoCatalogoKey,
 } from '../../utils/catalogoComparadorScoring';
 import { buildProviderAvatarUri } from '../../utils/providerUtils';
+import { getCoberturaMarcaBadge } from '../../utils/catalogoComparadorCobertura';
+import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
 import { Image } from 'expo-image';
 
 function formatCLP(n) {
@@ -55,6 +57,7 @@ export default function ComparadorCandidatosCatalogoModal({
   candidatos = [],
   userCoords = null,
   requiereRepuestos = true,
+  marcaVehiculoNombre = null,
   onConfirmar,
 }) {
   const insets = useSafeAreaInsets();
@@ -139,6 +142,10 @@ export default function ComparadorCandidatosCatalogoModal({
                   )}
                   <View style={styles.provInfo}>
                     <Text style={styles.provNombre} numberOfLines={2}>{nombre}</Text>
+                    <ProveedorCoberturaMarcaChip
+                      badge={getCoberturaMarcaBadge(candidato, marcaVehiculoNombre)}
+                      compact
+                    />
                     {distancia_km != null ? (
                       <Text style={styles.distText}>
                         {formatDistance(distancia_km)} desde tu dirección

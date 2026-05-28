@@ -9,6 +9,16 @@ import {
   computeMatchDisplayPct,
   getCandidatoCatalogoKey,
 } from '../../utils/catalogoComparadorScoring';
+import {
+  getCoberturaMarcaBadge,
+  partitionOfertasPorCoberturaMarca,
+  tituloGrupoEspecialistas,
+  subtituloGrupoEspecialistas,
+  tituloGrupoMultimarca,
+  subtituloGrupoMultimarca,
+} from '../../utils/catalogoComparadorCobertura';
+import ComparadorCatalogoCoberturaGrupo from './ComparadorCatalogoCoberturaGrupo';
+import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
 
 function sortPorDistancia(ofertas) {
   return [...ofertas].sort((a, b) => {
@@ -35,6 +45,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     tipo: p.tipo || oferta.tipo_proveedor,
     rating: p.rating ?? oferta.rating_proveedor,
     proveedor_id: p.proveedor_id ?? oferta.proveedor_id,
+    tipo_cobertura_marca: p.tipo_cobertura_marca ?? oferta.tipo_cobertura_marca,
     foto_perfil_url: fotoUrl,
     foto_perfil: p.foto_perfil || oferta.foto_perfil || fotoUrl,
   };
@@ -74,6 +85,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     es_recomendado: oferta.es_recomendado,
     es_coincidencia_exacta: oferta.es_coincidencia_exacta,
     nivel_coincidencia: oferta.nivel_coincidencia,
+    tipo_cobertura_marca: oferta.tipo_cobertura_marca ?? proveedor.tipo_cobertura_marca,
   };
 }
 
@@ -90,6 +102,7 @@ export default function ComparadorCatalogoIaPanel({
   requiereRepuestos = true,
   userCoords = null,
   onCompareFooterChange,
+  marcaVehiculoNombre = null,
 }) {
   const [confirmandoId, setConfirmandoId] = useState(null);
   const [selectedKeys, setSelectedKeys] = useState(() => new Set());
@@ -102,6 +115,15 @@ export default function ComparadorCatalogoIaPanel({
   );
   const otros = sortPorDistancia(Array.isArray(ofertasOtros) ? ofertasOtros : []);
   const todasOfertas = useMemo(() => [...recomendadas, ...otros], [recomendadas, otros]);
+
+  const recomendadasPorCobertura = useMemo(
+    () => partitionOfertasPorCoberturaMarca(recomendadas),
+    [recomendadas],
+  );
+  const otrosPorCobertura = useMemo(
+    () => partitionOfertasPorCoberturaMarca(otros),
+    [otros],
+  );
 
   const candidatosByKey = useMemo(() => {
     const map = new Map();
@@ -181,6 +203,8 @@ export default function ComparadorCatalogoIaPanel({
       grupoCandidatos,
     );
 
+    const coberturaMarcaBadge = getCoberturaMarcaBadge(candidato, marcaVehiculoNombre);
+
     return (
       <CandidatosProveedorCard
         key={id}
@@ -194,8 +218,40 @@ export default function ComparadorCatalogoIaPanel({
         selected={selected}
         onToggleSelect={() => toggleSeleccion(key)}
         matchDisplayPct={matchDisplayPct}
+        coberturaMarcaBadge={coberturaMarcaBadge}
       />
     );
+  };
+
+  const renderGruposCobertura = (particion, variant) => {
+    const { especialistas, multimarca } = particion;
+    const grupos = [];
+
+    if (especialistas.length > 0) {
+      grupos.push(
+        <ComparadorCatalogoCoberturaGrupo
+          key={`${variant}-esp`}
+          accent="especialista"
+          title={tituloGrupoEspecialistas(marcaVehiculoNombre)}
+          subtitle={subtituloGrupoEspecialistas(marcaVehiculoNombre, radioLabel)}
+        >
+          {especialistas.map((oferta) => renderOferta(oferta, variant))}
+        </ComparadorCatalogoCoberturaGrupo>,
+      );
+    }
+    if (multimarca.length > 0) {
+      grupos.push(
+        <ComparadorCatalogoCoberturaGrupo
+          key={`${variant}-mm`}
+          accent="multimarca"
+          title={tituloGrupoMultimarca()}
+          subtitle={subtituloGrupoMultimarca(marcaVehiculoNombre, radioLabel)}
+        >
+          {multimarca.map((oferta) => renderOferta(oferta, variant))}
+        </ComparadorCatalogoCoberturaGrupo>,
+      );
+    }
+    return grupos;
   };
 
   return (
@@ -204,6 +260,17 @@ export default function ComparadorCatalogoIaPanel({
         El proveedor confirma el servicio antes de pagar. Los candidatos coinciden con tu
         vehículo, servicio y ubicación.
       </Text>
+
+      <View style={styles.legendRow}>
+        <ProveedorCoberturaMarcaChip
+          badge={getCoberturaMarcaBadge({ tipo_cobertura_marca: 'especialista' }, marcaVehiculoNombre)}
+          compact
+        />
+        <ProveedorCoberturaMarcaChip
+          badge={getCoberturaMarcaBadge({ tipo_cobertura_marca: 'multimarca' }, marcaVehiculoNombre)}
+          compact
+        />
+      </View>
 
       {puedeComparar ? (
         <Text style={styles.selectHint}>
@@ -216,10 +283,12 @@ export default function ComparadorCatalogoIaPanel({
           <Text style={styles.sectionTitle}>Coincidencia exacta</Text>
           <Text style={styles.sectionSub}>
             Mejor ajuste a tu servicio y vehículo, a hasta {radioLabel} km de tu dirección.
+            {recomendadasPorCobertura.especialistas.length > 0
+              && recomendadasPorCobertura.multimarca.length > 0
+              ? ' Especialistas en tu marca y proveedores multimarca.'
+              : null}
           </Text>
-          <View style={styles.cardList}>
-            {recomendadas.map((oferta) => renderOferta(oferta, 'recomendado'))}
-          </View>
+          {renderGruposCobertura(recomendadasPorCobertura, 'recomendado')}
         </View>
       ) : null}
 
@@ -230,9 +299,7 @@ export default function ComparadorCatalogoIaPanel({
             Compatibles con tu servicio y vehículo, más allá de {radioLabel} km desde tu
             dirección o con coincidencia parcial cerca de ti.
           </Text>
-          <View style={styles.cardList}>
-            {otros.map((oferta) => renderOferta(oferta, 'otro'))}
-          </View>
+          {renderGruposCobertura(otrosPorCobertura, 'otro')}
         </View>
       ) : null}
 
@@ -241,6 +308,7 @@ export default function ComparadorCatalogoIaPanel({
         onClose={() => setModalVisible(false)}
         candidatos={seleccionados}
         userCoords={userCoords}
+        marcaVehiculoNombre={marcaVehiculoNombre}
         requiereRepuestos={requiereRepuestos !== false}
         onConfirmar={(candidato) => {
           setModalVisible(false);
@@ -264,6 +332,12 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginBottom: 12,
     lineHeight: 20,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
   },
   selectHint: {
     fontSize: TYPOGRAPHY.fontSize.sm,

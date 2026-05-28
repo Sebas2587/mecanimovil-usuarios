@@ -25,6 +25,7 @@ import {
   resolverDesgloseIvaMostrado,
 } from '../../utils/ofertaPrecioDesglose';
 import MatchPercentRing from './MatchPercentRing';
+import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
 
 function formatCLP(n) {
   const v = Math.round(Number(n) || 0);
@@ -66,6 +67,7 @@ export default function CandidatoProveedorBookingCard({
   selected = false,
   onToggleSelect,
   matchDisplayPct = null,
+  coberturaMarcaBadge = null,
 }) {
   const serviciosOfrecidos = useMemo(() => {
     if (Array.isArray(candidato?.servicios_ofrecidos) && candidato.servicios_ofrecidos.length) {
@@ -211,6 +213,9 @@ export default function CandidatoProveedorBookingCard({
           <Text style={styles.proveedorNombre} numberOfLines={2}>
             {nombre}
           </Text>
+          {coberturaMarcaBadge ? (
+            <ProveedorCoberturaMarcaChip badge={coberturaMarcaBadge} />
+          ) : null}
           <View style={styles.metaChipsRow}>
             <View style={styles.repuestosBadge}>
               <Package

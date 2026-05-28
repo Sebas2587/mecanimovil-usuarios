@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -24,6 +26,7 @@ import { mapCandidatoToOfertaComparador } from '../../services/agendamientoAsist
 import { useAgendamientoAsistido } from '../../hooks/useAgendamientoAsistido';
 import { resolveCoordenadasServicio } from '../../utils/coordenadasServicio';
 import { PROVIDER_RECOMMENDATION_MAX_KM } from '../../utils/exploreProviderUtils';
+import { resolveMarcaVehiculoNombre } from '../../utils/catalogoComparadorCobertura';
 import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
 import { COLORS } from '../../design-system/tokens/colors';
 import { ROUTES as APP_ROUTES } from '../../utils/constants';
@@ -37,6 +40,18 @@ const ComparadorOfertasScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+
+  const webScreenFrame =
+    Platform.OS === 'web'
+      ? {
+          height: windowHeight,
+          maxHeight: windowHeight,
+          minHeight: 0,
+          flex: 1,
+          overflow: 'hidden',
+        }
+      : null;
 
   const {
     solicitudId,
@@ -334,14 +349,21 @@ const ComparadorOfertasScreen = () => {
     [formPayload],
   );
 
+  const marcaVehiculoNombre = useMemo(
+    () => resolveMarcaVehiculoNombre(formPayload?.vehiculo),
+    [formPayload?.vehiculo],
+  );
+
   const shell = (body) => (
-    <View style={styles.container}>
-      <SolicitudFlowHeader
-        title="Comparar ofertas"
-        subtitle={modoCatalogo ? 'Elige tu proveedor' : undefined}
-        icon={GitCompare}
-        onBack={() => navigation.goBack()}
-      />
+    <View style={[styles.container, webScreenFrame]}>
+      <View style={styles.headerHost}>
+        <SolicitudFlowHeader
+          title="Comparar ofertas"
+          subtitle={modoCatalogo ? 'Elige tu proveedor' : undefined}
+          icon={GitCompare}
+          onBack={() => navigation.goBack()}
+        />
+      </View>
       {body}
     </View>
   );
@@ -409,14 +431,16 @@ const ComparadorOfertasScreen = () => {
     : insets.bottom + 24;
 
   return shell(
-    <View style={styles.catalogBody}>
+    <View style={styles.scrollHost}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: catalogScrollPad },
         ]}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={Platform.OS === 'web'}
+        keyboardShouldPersistTaps="handled"
+        {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
       >
         {modoCatalogo ? (
           <ComparadorCatalogoIaPanel
@@ -427,6 +451,7 @@ const ComparadorOfertasScreen = () => {
             procesando={procesando}
             requiereRepuestos={requiereRepuestos}
             userCoords={userCoords}
+            marcaVehiculoNombre={marcaVehiculoNombre}
             onCompareFooterChange={setCompareFooter}
           />
         ) : (
@@ -465,15 +490,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background.default,
+    ...(Platform.OS === 'web' ? { height: '100vh' } : null),
   },
-  catalogBody: {
+  headerHost: {
+    flexShrink: 0,
+  },
+  scrollHost: {
     flex: 1,
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { overflow: 'hidden' } : null),
   },
   scrollView: {
     flex: 1,
+    ...(Platform.OS === 'web'
+      ? {
+          flexGrow: 1,
+          flexShrink: 1,
+          flexBasis: 0,
+          minHeight: 0,
+          overflow: 'scroll',
+          WebkitOverflowScrolling: 'touch',
+        }
+      : null),
   },
   scrollContent: {
     padding: 16,
+    flexGrow: 0,
   },
   loadingContainer: {
     flex: 1,

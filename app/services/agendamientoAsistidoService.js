@@ -252,6 +252,8 @@ export function mapCandidatoToOfertaComparador(candidato) {
     foto_perfil_url: candidato.proveedor?.foto_perfil_url || candidato.proveedor?.foto_perfil,
     proveedor_foto_url: candidato.proveedor?.foto_perfil_url || candidato.proveedor?.foto_perfil,
     proveedor: candidato.proveedor,
+    tipo_cobertura_marca:
+      candidato.tipo_cobertura_marca ?? candidato.proveedor?.tipo_cobertura_marca,
     rating_proveedor: candidato.proveedor?.rating,
     a_domicilio: candidato.a_domicilio,
     score_match: candidato.score_match,
