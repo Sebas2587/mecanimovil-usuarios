@@ -62,6 +62,7 @@ const ComparadorOfertasScreen = () => {
     ofertasOtros = [],
     radioKm = PROVIDER_RECOMMENDATION_MAX_KM,
     formPayload = null,
+    mensajeRepuestos: mensajeRepuestosParam = null,
   } = route.params || {};
 
   const { seleccionarOferta } = useSolicitudes();
@@ -76,6 +77,7 @@ const ComparadorOfertasScreen = () => {
   const [procesando, setProcesando] = useState(false);
   const [errorValidacion, setErrorValidacion] = useState(null);
   const [compareFooter, setCompareFooter] = useState(null);
+  const [mensajeRepuestos, setMensajeRepuestos] = useState(mensajeRepuestosParam);
 
   useEffect(() => {
     cargarOfertas();
@@ -99,7 +101,12 @@ const ComparadorOfertasScreen = () => {
                 formPayload.direccion_servicio_texto?.trim()
                 || formPayload.direccion_usuario?.direccion?.trim()
                 || '';
-              const { recomendados, otros, radioKm: radioApi } = await cargarCandidatos({
+              const {
+                recomendados,
+                otros,
+                radioKm: radioApi,
+                mensajeRepuestos: mensajeRepApi,
+              } = await cargarCandidatos({
                 vehiculoId: formPayload.vehiculo.id,
                 servicioIds,
                 lat: coords.lat,
@@ -114,6 +121,7 @@ const ComparadorOfertasScreen = () => {
                 setOfertas(recApi);
                 setOfertasOtrosState(otrosApi);
                 setRadioKmState(radioApi ?? radioKm);
+                setMensajeRepuestos(mensajeRepApi ?? null);
                 setLoading(false);
                 return;
               }
@@ -452,6 +460,7 @@ const ComparadorOfertasScreen = () => {
             requiereRepuestos={requiereRepuestos}
             userCoords={userCoords}
             marcaVehiculoNombre={marcaVehiculoNombre}
+            mensajeRepuestos={mensajeRepuestos}
             onCompareFooterChange={setCompareFooter}
           />
         ) : (

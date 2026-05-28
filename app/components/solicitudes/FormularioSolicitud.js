@@ -867,7 +867,7 @@ const FormularioSolicitud = ({
       formData.direccion_servicio_texto?.trim()
       || formData.direccion_usuario?.direccion?.trim()
       || '';
-    const { recomendados, otros, radioKm } = await cargarCandidatosIa({
+    const { recomendados, otros, radioKm, mensajeRepuestos } = await cargarCandidatosIa({
       vehiculoId: formData.vehiculo.id,
       servicioIds,
       lat: coords.lat,
@@ -891,6 +891,7 @@ const FormularioSolicitud = ({
       ofertasRecomendadas,
       ofertasOtros,
       radioKm,
+      mensajeRepuestos: mensajeRepuestos ?? null,
       formPayload: {
         ...formData,
         ia_analisis_snapshot: buildMetadataIaEntrada(null, buildComponentesSaludIa()),

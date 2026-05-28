@@ -20,7 +20,6 @@ import ComparadorRepuestosAviso from './ComparadorRepuestosAviso';
 import { comparadorCatalogoStyles as cs } from './comparadorCatalogoStyles';
 import {
   avisoRepuestosCatalogo,
-  necesitaSeccionarPorRepuestos,
   partitionPorRepuestosCatalogo,
   solicitudRequiereRepuestos,
   subtituloSubgrupoRepuestos,
@@ -95,6 +94,8 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     tipo_cobertura_marca: oferta.tipo_cobertura_marca ?? proveedor.tipo_cobertura_marca,
     ofrece_repuestos: oferta.ofrece_repuestos,
     ofrece_solo_mano_obra: oferta.ofrece_solo_mano_obra,
+    tipo_servicio_catalogo: oferta.tipo_servicio_catalogo,
+    coincidencia_repuestos: oferta.coincidencia_repuestos,
     solicitud_requiere_repuestos: conRepuestos,
   };
 }
@@ -113,6 +114,7 @@ export default function ComparadorCatalogoIaPanel({
   userCoords = null,
   onCompareFooterChange,
   marcaVehiculoNombre = null,
+  mensajeRepuestos = null,
 }) {
   const [confirmandoId, setConfirmandoId] = useState(null);
   const [selectedKeys, setSelectedKeys] = useState(() => new Set());
@@ -255,10 +257,13 @@ export default function ComparadorCatalogoIaPanel({
 
   const renderBloqueRepuestos = (ofertas, variant, keyPrefix) => {
     if (!ofertas.length) return null;
-    if (!necesitaSeccionarPorRepuestos(ofertas, solicitudConRepuestos)) {
+    if (!solicitudConRepuestos) {
       return renderGruposCoberturaMarca(ofertas, variant, keyPrefix);
     }
     const { conRepuestos, soloManoObra } = partitionPorRepuestosCatalogo(ofertas);
+    if (conRepuestos.length > 0 && soloManoObra.length === 0) {
+      return renderGruposCoberturaMarca(conRepuestos, variant, keyPrefix);
+    }
     const bloques = [];
     if (conRepuestos.length > 0) {
       bloques.push(
@@ -283,9 +288,18 @@ export default function ComparadorCatalogoIaPanel({
 
   const subExacta = subtituloSeccionComparador('exacta', radioLabel);
   const subFuera = subtituloSeccionComparador('fuera', radioLabel);
+  const avisoGlobalRepuestos = avisoRepuestosCatalogo(
+    todasOfertas,
+    solicitudConRepuestos,
+    mensajeRepuestos,
+  );
 
   return (
     <View>
+      {solicitudConRepuestos && avisoGlobalRepuestos ? (
+        <ComparadorRepuestosAviso mensaje={avisoGlobalRepuestos} />
+      ) : null}
+
       {puedeComparar ? (
         <Text style={cs.selectHint}>Marca 2 o más y pulsa Comparar</Text>
       ) : null}
@@ -296,9 +310,6 @@ export default function ComparadorCatalogoIaPanel({
             Coincidencia exacta
           </Text>
           {subExacta ? <Text style={cs.sectionSub}>{subExacta}</Text> : null}
-          <ComparadorRepuestosAviso
-            mensaje={avisoRepuestosCatalogo(recomendadas, solicitudConRepuestos)}
-          />
           {renderBloqueRepuestos(recomendadas, 'recomendado', 'rec')}
         </View>
       ) : null}
@@ -309,9 +320,6 @@ export default function ComparadorCatalogoIaPanel({
             Fuera de tu zona
           </Text>
           {subFuera ? <Text style={cs.sectionSub}>{subFuera}</Text> : null}
-          <ComparadorRepuestosAviso
-            mensaje={avisoRepuestosCatalogo(otros, solicitudConRepuestos)}
-          />
           {renderBloqueRepuestos(otros, 'otro', 'otros')}
         </View>
       ) : null}

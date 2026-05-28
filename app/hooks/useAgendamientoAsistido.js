@@ -93,7 +93,13 @@ export function useAgendamientoAsistido() {
     }) => {
       if (!vehiculoId || !Array.isArray(servicioIds) || servicioIds.length === 0) {
         setCandidatos([]);
-        return { recomendados: [], otros: [], radioKm: null, raw: null };
+        return {
+          recomendados: [],
+          otros: [],
+          radioKm: null,
+          mensajeRepuestos: null,
+          raw: null,
+        };
       }
       setLoadingCandidatos(true);
       setError(null);
@@ -116,12 +122,21 @@ export function useAgendamientoAsistido() {
           recomendados,
           otros,
           radioKm: data?.radio_km ?? null,
+          mensajeRepuestos: data?.mensaje_repuestos
+            ?? data?.resumen_repuestos?.mensaje
+            ?? null,
           raw: data,
         };
       } catch (e) {
         setError(e?.message || 'No se pudieron cargar proveedores');
         setCandidatos([]);
-        return { recomendados: [], otros: [], radioKm: null, raw: null };
+        return {
+          recomendados: [],
+          otros: [],
+          radioKm: null,
+          mensajeRepuestos: null,
+          raw: null,
+        };
       } finally {
         setLoadingCandidatos(false);
       }

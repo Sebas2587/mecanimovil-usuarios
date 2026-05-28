@@ -256,6 +256,8 @@ export function mapCandidatoToOfertaComparador(candidato) {
       candidato.tipo_cobertura_marca ?? candidato.proveedor?.tipo_cobertura_marca,
     ofrece_repuestos: candidato.ofrece_repuestos,
     ofrece_solo_mano_obra: candidato.ofrece_solo_mano_obra,
+    tipo_servicio_catalogo: candidato.tipo_servicio_catalogo,
+    coincidencia_repuestos: candidato.coincidencia_repuestos,
     solicitud_requiere_repuestos: candidato.solicitud_requiere_repuestos,
     rating_proveedor: candidato.proveedor?.rating,
     a_domicilio: candidato.a_domicilio,
