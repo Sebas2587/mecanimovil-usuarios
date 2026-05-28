@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { View, Text } from 'react-native';
 import CandidatosProveedorCard from './CandidatosProveedorCard';
 import ComparadorCandidatosCatalogoModal from './ComparadorCandidatosCatalogoModal';
 import { resolveDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
@@ -13,12 +12,20 @@ import {
   getCoberturaMarcaBadge,
   partitionOfertasPorCoberturaMarca,
   tituloGrupoEspecialistas,
-  subtituloGrupoEspecialistas,
   tituloGrupoMultimarca,
-  subtituloGrupoMultimarca,
+  subtituloSeccionComparador,
 } from '../../utils/catalogoComparadorCobertura';
 import ComparadorCatalogoCoberturaGrupo from './ComparadorCatalogoCoberturaGrupo';
-import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
+import ComparadorRepuestosAviso from './ComparadorRepuestosAviso';
+import { comparadorCatalogoStyles as cs } from './comparadorCatalogoStyles';
+import {
+  avisoRepuestosCatalogo,
+  necesitaSeccionarPorRepuestos,
+  partitionPorRepuestosCatalogo,
+  solicitudRequiereRepuestos,
+  subtituloSubgrupoRepuestos,
+  tituloSubgrupoRepuestos,
+} from '../../utils/catalogoComparadorRepuestos';
 
 function sortPorDistancia(ofertas) {
   return [...ofertas].sort((a, b) => {
@@ -86,6 +93,9 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     es_coincidencia_exacta: oferta.es_coincidencia_exacta,
     nivel_coincidencia: oferta.nivel_coincidencia,
     tipo_cobertura_marca: oferta.tipo_cobertura_marca ?? proveedor.tipo_cobertura_marca,
+    ofrece_repuestos: oferta.ofrece_repuestos,
+    ofrece_solo_mano_obra: oferta.ofrece_solo_mano_obra,
+    solicitud_requiere_repuestos: conRepuestos,
   };
 }
 
@@ -115,15 +125,6 @@ export default function ComparadorCatalogoIaPanel({
   );
   const otros = sortPorDistancia(Array.isArray(ofertasOtros) ? ofertasOtros : []);
   const todasOfertas = useMemo(() => [...recomendadas, ...otros], [recomendadas, otros]);
-
-  const recomendadasPorCobertura = useMemo(
-    () => partitionOfertasPorCoberturaMarca(recomendadas),
-    [recomendadas],
-  );
-  const otrosPorCobertura = useMemo(
-    () => partitionOfertasPorCoberturaMarca(otros),
-    [otros],
-  );
 
   const candidatosByKey = useMemo(() => {
     const map = new Map();
@@ -186,6 +187,8 @@ export default function ComparadorCatalogoIaPanel({
     ? Math.round(Number(radioKm))
     : PROVIDER_RECOMMENDATION_MAX_KM;
 
+  const solicitudConRepuestos = solicitudRequiereRepuestos(requiereRepuestos);
+
   const handleConfirmar = (oferta) => {
     const id = oferta.oferta_servicio_id || oferta.id;
     setConfirmandoId(id);
@@ -223,17 +226,15 @@ export default function ComparadorCatalogoIaPanel({
     );
   };
 
-  const renderGruposCobertura = (particion, variant) => {
-    const { especialistas, multimarca } = particion;
+  const renderGruposCoberturaMarca = (ofertas, variant, keyPrefix) => {
+    const { especialistas, multimarca } = partitionOfertasPorCoberturaMarca(ofertas);
     const grupos = [];
 
     if (especialistas.length > 0) {
       grupos.push(
         <ComparadorCatalogoCoberturaGrupo
-          key={`${variant}-esp`}
-          accent="especialista"
+          key={`${keyPrefix}-esp`}
           title={tituloGrupoEspecialistas(marcaVehiculoNombre)}
-          subtitle={subtituloGrupoEspecialistas(marcaVehiculoNombre, radioLabel)}
         >
           {especialistas.map((oferta) => renderOferta(oferta, variant))}
         </ComparadorCatalogoCoberturaGrupo>,
@@ -242,10 +243,8 @@ export default function ComparadorCatalogoIaPanel({
     if (multimarca.length > 0) {
       grupos.push(
         <ComparadorCatalogoCoberturaGrupo
-          key={`${variant}-mm`}
-          accent="multimarca"
+          key={`${keyPrefix}-mm`}
           title={tituloGrupoMultimarca()}
-          subtitle={subtituloGrupoMultimarca(marcaVehiculoNombre, radioLabel)}
         >
           {multimarca.map((oferta) => renderOferta(oferta, variant))}
         </ComparadorCatalogoCoberturaGrupo>,
@@ -254,52 +253,66 @@ export default function ComparadorCatalogoIaPanel({
     return grupos;
   };
 
+  const renderBloqueRepuestos = (ofertas, variant, keyPrefix) => {
+    if (!ofertas.length) return null;
+    if (!necesitaSeccionarPorRepuestos(ofertas, solicitudConRepuestos)) {
+      return renderGruposCoberturaMarca(ofertas, variant, keyPrefix);
+    }
+    const { conRepuestos, soloManoObra } = partitionPorRepuestosCatalogo(ofertas);
+    const bloques = [];
+    if (conRepuestos.length > 0) {
+      bloques.push(
+        <View key={`${keyPrefix}-rep-con`}>
+          <Text style={cs.subgroupTitle}>{tituloSubgrupoRepuestos('con_repuestos')}</Text>
+          {renderGruposCoberturaMarca(conRepuestos, variant, `${keyPrefix}-con`)}
+        </View>,
+      );
+    }
+    if (soloManoObra.length > 0) {
+      const sub = subtituloSubgrupoRepuestos('solo_mano_obra');
+      bloques.push(
+        <View key={`${keyPrefix}-rep-solo`}>
+          <Text style={cs.subgroupTitle}>{tituloSubgrupoRepuestos('solo_mano_obra')}</Text>
+          {sub ? <Text style={cs.subgroupSub}>{sub}</Text> : null}
+          {renderGruposCoberturaMarca(soloManoObra, variant, `${keyPrefix}-solo`)}
+        </View>,
+      );
+    }
+    return bloques;
+  };
+
+  const subExacta = subtituloSeccionComparador('exacta', radioLabel);
+  const subFuera = subtituloSeccionComparador('fuera', radioLabel);
+
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.lead}>
-        El proveedor confirma el servicio antes de pagar. Los candidatos coinciden con tu
-        vehículo, servicio y ubicación.
-      </Text>
-
-      <View style={styles.legendRow}>
-        <ProveedorCoberturaMarcaChip
-          badge={getCoberturaMarcaBadge({ tipo_cobertura_marca: 'especialista' }, marcaVehiculoNombre)}
-          compact
-        />
-        <ProveedorCoberturaMarcaChip
-          badge={getCoberturaMarcaBadge({ tipo_cobertura_marca: 'multimarca' }, marcaVehiculoNombre)}
-          compact
-        />
-      </View>
-
+    <View>
       {puedeComparar ? (
-        <Text style={styles.selectHint}>
-          Marca 2 o más proveedores y pulsa Comparar para ver quién encaja mejor contigo.
-        </Text>
+        <Text style={cs.selectHint}>Marca 2 o más y pulsa Comparar</Text>
       ) : null}
 
       {recomendadas.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Coincidencia exacta</Text>
-          <Text style={styles.sectionSub}>
-            Mejor ajuste a tu servicio y vehículo, a hasta {radioLabel} km de tu dirección.
-            {recomendadasPorCobertura.especialistas.length > 0
-              && recomendadasPorCobertura.multimarca.length > 0
-              ? ' Especialistas en tu marca y proveedores multimarca.'
-              : null}
+        <View style={cs.section}>
+          <Text style={[cs.sectionTitle, !subExacta && cs.sectionTitleSpaced]}>
+            Coincidencia exacta
           </Text>
-          {renderGruposCobertura(recomendadasPorCobertura, 'recomendado')}
+          {subExacta ? <Text style={cs.sectionSub}>{subExacta}</Text> : null}
+          <ComparadorRepuestosAviso
+            mensaje={avisoRepuestosCatalogo(recomendadas, solicitudConRepuestos)}
+          />
+          {renderBloqueRepuestos(recomendadas, 'recomendado', 'rec')}
         </View>
       ) : null}
 
       {otros.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Fuera de tu zona</Text>
-          <Text style={styles.sectionSub}>
-            Compatibles con tu servicio y vehículo, más allá de {radioLabel} km desde tu
-            dirección o con coincidencia parcial cerca de ti.
+        <View style={cs.section}>
+          <Text style={[cs.sectionTitle, !subFuera && cs.sectionTitleSpaced]}>
+            Fuera de tu zona
           </Text>
-          {renderGruposCobertura(otrosPorCobertura, 'otro')}
+          {subFuera ? <Text style={cs.sectionSub}>{subFuera}</Text> : null}
+          <ComparadorRepuestosAviso
+            mensaje={avisoRepuestosCatalogo(otros, solicitudConRepuestos)}
+          />
+          {renderBloqueRepuestos(otros, 'otro', 'otros')}
         </View>
       ) : null}
 
@@ -322,46 +335,3 @@ export default function ComparadorCatalogoIaPanel({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    gap: 0,
-  },
-  lead: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    marginBottom: 12,
-    lineHeight: 20,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 14,
-  },
-  selectHint: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.primary[700],
-    marginBottom: 16,
-    lineHeight: 19,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-    marginBottom: 4,
-  },
-  sectionSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    marginBottom: 12,
-    lineHeight: 19,
-  },
-  cardList: {
-    gap: 14,
-  },
-});

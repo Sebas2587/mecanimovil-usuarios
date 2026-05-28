@@ -55,27 +55,18 @@ export function partitionOfertasPorCoberturaMarca(ofertas) {
 
 export function tituloGrupoEspecialistas(marcaVehiculoNombre) {
   const m = marcaVehiculoNombre?.trim();
-  return m ? `Especialistas en ${m}` : 'Especialistas en tu marca';
-}
-
-export function subtituloGrupoEspecialistas(marcaVehiculoNombre, radioKm) {
-  const m = marcaVehiculoNombre?.trim();
-  const radio = radioKm != null ? Math.round(Number(radioKm)) : null;
-  const zona = radio ? `, a hasta ${radio} km` : '';
-  return m
-    ? `Talleres y mecánicos especializados en ${m}${zona}.`
-    : `Proveedores enfocados en la marca de tu vehículo${zona}.`;
+  return m ? `Especialistas ${m}` : 'Especialistas';
 }
 
 export function tituloGrupoMultimarca() {
-  return 'Proveedores multimarca';
+  return 'Multimarca';
 }
 
-export function subtituloGrupoMultimarca(marcaVehiculoNombre, radioKm) {
-  const m = marcaVehiculoNombre?.trim();
+/** Subtítulo breve de sección principal (coincidencia / fuera de zona). */
+export function subtituloSeccionComparador(tipo, radioKm) {
   const radio = radioKm != null ? Math.round(Number(radioKm)) : null;
-  const zona = radio ? `, a hasta ${radio} km` : '';
-  return m
-    ? `Atienden ${m} y otras marcas con el mismo servicio${zona}.`
-    : `Atienden vehículos de cualquier marca${zona}.`;
+  if (!radio) return null;
+  if (tipo === 'exacta') return `Hasta ${radio} km`;
+  if (tipo === 'fuera') return `Más de ${radio} km`;
+  return null;
 }

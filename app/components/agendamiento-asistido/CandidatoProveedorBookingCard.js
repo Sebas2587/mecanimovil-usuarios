@@ -26,6 +26,12 @@ import {
 } from '../../utils/ofertaPrecioDesglose';
 import MatchPercentRing from './MatchPercentRing';
 import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
+import {
+  etiquetaSolicitudRepuestos,
+  etiquetaCatalogoSinRepuestos,
+  resolveModoPrecioCandidato,
+  solicitudRequiereRepuestos,
+} from '../../utils/catalogoComparadorRepuestos';
 
 function formatCLP(n) {
   const v = Math.round(Number(n) || 0);
@@ -69,6 +75,12 @@ export default function CandidatoProveedorBookingCard({
   matchDisplayPct = null,
   coberturaMarcaBadge = null,
 }) {
+  const solicitudConRepuestos = solicitudRequiereRepuestos(requiereRepuestos);
+  const modoPrecio = candidato
+    ? resolveModoPrecioCandidato(candidato, solicitudConRepuestos)
+    : 'solo_mano_obra';
+  const precioUsaRepuestos = modoPrecio === 'con_repuestos';
+
   const serviciosOfrecidos = useMemo(() => {
     if (Array.isArray(candidato?.servicios_ofrecidos) && candidato.servicios_ofrecidos.length) {
       return candidato.servicios_ofrecidos;
@@ -77,19 +89,19 @@ export default function CandidatoProveedorBookingCard({
       return [{
         id: candidato.servicio.id,
         nombre: candidato.servicio.nombre,
-        precio: requiereRepuestos
+        precio: precioUsaRepuestos
           ? candidato?.precio_con_repuestos
           : candidato?.precio_sin_repuestos,
         oferta_servicio_id: candidato?.oferta_servicio_id,
       }];
     }
     return [];
-  }, [candidato, requiereRepuestos]);
+  }, [candidato, precioUsaRepuestos]);
 
   const desglose = useMemo(() => {
     const d = candidato?.desglose || {};
     const total = candidato?.precio_total
-      ?? (requiereRepuestos
+      ?? (precioUsaRepuestos
         ? candidato?.precio_con_repuestos
         : candidato?.precio_sin_repuestos);
     const calc = calcularDesgloseIvaOferta({
@@ -99,7 +111,7 @@ export default function CandidatoProveedorBookingCard({
       precioTotalOfrecido: total ?? d.precio_publicado_cliente,
     });
     return resolverDesgloseIvaMostrado(null, calc);
-  }, [candidato, requiereRepuestos]);
+  }, [candidato, precioUsaRepuestos]);
 
   const providerForAvatar = useMemo(() => {
     const p = candidato?.proveedor || {};
@@ -132,6 +144,12 @@ export default function CandidatoProveedorBookingCard({
 
   if (!candidato) return null;
 
+  const repuestosSolicitudLabel = etiquetaSolicitudRepuestos(solicitudConRepuestos);
+  const catalogoSinRepuestosLabel = etiquetaCatalogoSinRepuestos(
+    solicitudConRepuestos,
+    candidato,
+  );
+
   const nombre = candidato.proveedor?.nombre || 'Proveedor';
   const aDomicilio = Boolean(
     candidato.a_domicilio
@@ -158,7 +176,6 @@ export default function CandidatoProveedorBookingCard({
     || candidato.es_recomendado
     || candidato.nivel_coincidencia === 'exacta';
 
-  const repuestosLabel = requiereRepuestos ? 'Con repuestos' : 'Solo mano de obra';
   const btnDisabled = procesando;
   const btnLoading = confirmandoEsta && procesando;
   const d = candidato.desglose || {};
@@ -213,24 +230,36 @@ export default function CandidatoProveedorBookingCard({
           <Text style={styles.proveedorNombre} numberOfLines={2}>
             {nombre}
           </Text>
-          {coberturaMarcaBadge ? (
-            <ProveedorCoberturaMarcaChip badge={coberturaMarcaBadge} />
-          ) : null}
           <View style={styles.metaChipsRow}>
-            <View style={styles.repuestosBadge}>
+            {coberturaMarcaBadge ? (
+              <ProveedorCoberturaMarcaChip badge={coberturaMarcaBadge} />
+            ) : null}
+            <View
+              style={[
+                styles.repuestosBadge,
+                solicitudConRepuestos ? styles.repuestosBadgeSolicitudCon : styles.repuestosBadgeSolicitudSin,
+              ]}
+            >
               <Package
                 size={10}
-                color={requiereRepuestos ? COLORS.primary[600] : COLORS.text.secondary}
+                color={solicitudConRepuestos ? COLORS.primary[600] : COLORS.text.secondary}
               />
               <Text
                 style={[
                   styles.repuestosBadgeText,
-                  requiereRepuestos ? styles.repuestosCon : styles.repuestosSin,
+                  solicitudConRepuestos ? styles.repuestosCon : styles.repuestosSin,
                 ]}
               >
-                {repuestosLabel}
+                {repuestosSolicitudLabel}
               </Text>
             </View>
+            {catalogoSinRepuestosLabel ? (
+              <View style={styles.catalogoSinRepBadge}>
+                <Text style={styles.catalogoSinRepText} numberOfLines={1}>
+                  {catalogoSinRepuestosLabel}
+                </Text>
+              </View>
+            ) : null}
             {rating != null && Number(rating) > 0 ? (
               <View style={styles.ratingRow}>
                 <Star size={12} color={COLORS.warning.main} fill={COLORS.warning.main} />
@@ -305,13 +334,13 @@ export default function CandidatoProveedorBookingCard({
                 <Text style={styles.priceLineValue}>{formatCLP(d.mano_obra)}</Text>
               </View>
             ) : null}
-            {requiereRepuestos && d.repuestos > 0 ? (
+            {precioUsaRepuestos && d.repuestos > 0 ? (
               <View style={styles.priceLine}>
                 <Text style={styles.priceLineLabel}>Repuestos</Text>
                 <Text style={styles.priceLineValue}>{formatCLP(d.repuestos)}</Text>
               </View>
             ) : null}
-            {requiereRepuestos && d.gestion > 0 ? (
+            {precioUsaRepuestos && d.gestion > 0 ? (
               <View style={styles.priceLine}>
                 <Text style={styles.priceLineLabel}>Gestión de compra</Text>
                 <Text style={styles.priceLineValue}>{formatCLP(d.gestion)}</Text>
@@ -445,7 +474,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    gap: SPACING.xxs,
+    alignContent: 'flex-start',
+    gap: 6,
   },
   matchColumn: {
     width: MATCH_RING_SIZE,
@@ -489,7 +519,7 @@ const styles = StyleSheet.create({
   repuestosBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    flexShrink: 0,
     gap: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -501,6 +531,7 @@ const styles = StyleSheet.create({
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
     gap: 4,
   },
   ratingText: {
@@ -518,6 +549,28 @@ const styles = StyleSheet.create({
   },
   repuestosSin: {
     color: COLORS.text.secondary,
+  },
+  repuestosBadgeSolicitudCon: {
+    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.primary[200],
+  },
+  repuestosBadgeSolicitudSin: {
+    backgroundColor: COLORS.neutral.gray[100],
+    borderColor: COLORS.border.light,
+  },
+  catalogoSinRepBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.warning[50],
+    borderWidth: 1,
+    borderColor: COLORS.warning[200],
+    flexShrink: 0,
+  },
+  catalogoSinRepText: {
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.warning[800],
   },
   divider: {
     height: 1,

@@ -89,8 +89,7 @@ export default function ComparadorCandidatosCatalogoModal({
           </TouchableOpacity>
         </View>
         <Text style={styles.subtitle}>
-          Analizamos compatibilidad, distancia desde tu dirección, precio, calificación y cobertura
-          del servicio. El puntaje puede diferir del % resumido en la lista.
+          Match, distancia, precio y rating. El % puede diferir del resumen en la lista.
         </Text>
 
         <ScrollView
@@ -141,11 +140,15 @@ export default function ComparadorCandidatosCatalogoModal({
                     <View style={styles.avatarPh} />
                   )}
                   <View style={styles.provInfo}>
-                    <Text style={styles.provNombre} numberOfLines={2}>{nombre}</Text>
-                    <ProveedorCoberturaMarcaChip
-                      badge={getCoberturaMarcaBadge(candidato, marcaVehiculoNombre)}
-                      compact
-                    />
+                    <View style={styles.provMetaRow}>
+                      <Text style={[styles.provNombre, styles.provNombreFlex]} numberOfLines={2}>
+                        {nombre}
+                      </Text>
+                      <ProveedorCoberturaMarcaChip
+                        badge={getCoberturaMarcaBadge(candidato, marcaVehiculoNombre)}
+                        compact
+                      />
+                    </View>
                     {distancia_km != null ? (
                       <Text style={styles.distText}>
                         {formatDistance(distancia_km)} desde tu dirección
@@ -323,10 +326,21 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  provMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
   provNombre: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
+  },
+  provNombreFlex: {
+    flexShrink: 1,
+    minWidth: 0,
   },
   distText: {
     fontSize: TYPOGRAPHY.fontSize.xs,

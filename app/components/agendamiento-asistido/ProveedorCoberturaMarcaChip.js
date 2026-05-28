@@ -42,13 +42,12 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    flexShrink: 0,
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BORDERS.radius.full,
     borderWidth: 1,
-    maxWidth: '100%',
   },
   chipCompact: {
     paddingHorizontal: 6,
