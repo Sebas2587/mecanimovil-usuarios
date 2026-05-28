@@ -42,7 +42,8 @@ import {
   mapCandidatoToOfertaComparador,
 } from '../../services/agendamientoAsistidoService';
 import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
-import { filtrarServiciosConProveedores } from '../../utils/servicioProveedores';
+import { useServiciosPaso1Catalogo } from './catalogo/useServiciosPaso1Catalogo';
+import SolicitudPaso1CoberturaHint from './catalogo/SolicitudPaso1CoberturaHint';
 import { resolveCoordenadasServicio } from '../../utils/coordenadasServicio';
 import {
   catalogoIncluyeRepuestos,
@@ -218,25 +219,14 @@ const FormularioSolicitud = ({
   const vehiculoId = formData.vehiculo?.id;
 
   const {
-    data: serviciosDisponibles = [],
+    servicios: serviciosConProveedor,
+    cobertura: coberturaCatalogoPaso1,
+    mensajeCobertura: mensajeCoberturaPaso1,
     isPending: serviciosQueryPending,
     isLoading: cargandoServicios,
-  } = useQuery({
-    queryKey: ['vehicleServices', vehiculoId],
-    queryFn: () => serviceService.getServicesByVehiculo(vehiculoId),
+  } = useServiciosPaso1Catalogo(vehiculoId, {
     enabled: !!vehiculoId && !tieneServicioPreseleccionado,
-    staleTime: 1000 * 60 * 5,
-    gcTime: 1000 * 60 * 30,
-    retry: 2,
-    // 'always' refetch en cada montaje del query = parpadeos en paso 1; con staleTime basta refetch si está stale
-    refetchOnMount: true,
-    select: (data) => (Array.isArray(data) ? data : []),
   });
-
-  const serviciosConProveedor = useMemo(
-    () => filtrarServiciosConProveedores(serviciosDisponibles),
-    [serviciosDisponibles],
-  );
 
   const {
     data: categorias = [],
@@ -810,8 +800,8 @@ const FormularioSolicitud = ({
     && !formData.sin_vehiculo_registrado;
 
   const contextoDiagnostico = useMemo(
-    () => ({ serviciosDisponibles, categorias }),
-    [serviciosDisponibles, categorias],
+    () => ({ serviciosDisponibles: serviciosConProveedor, categorias }),
+    [serviciosConProveedor, categorias],
   );
 
   /** Paso 3 = con/sin repuestos; no aplica a diagnóstico/inspección. */
@@ -1905,6 +1895,10 @@ const FormularioSolicitud = ({
               <Text style={[gs.sectionSub, { marginBottom: 12 }]}>
                 Selecciona los servicios que necesitas para tu {vehicle.marca_nombre} {vehicle.modelo_nombre}
               </Text>
+              <SolicitudPaso1CoberturaHint
+                mensaje={mensajeCoberturaPaso1}
+                cobertura={coberturaCatalogoPaso1}
+              />
 
               {/* Category Tabs */}
               {categoriasConServicios.length > 0 && (

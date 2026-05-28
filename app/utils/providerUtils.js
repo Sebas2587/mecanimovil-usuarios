@@ -118,7 +118,12 @@ export function kpiRankTuple(kpiBadge) {
 }
 
 export function isProviderMultimarca(provider) {
-  return Boolean(provider?._esMultimarca || provider?.tipo_cobertura_marca === 'multimarca');
+  if (provider?._esMultimarca) return true;
+  const tipo = provider?.tipo_cobertura_marca;
+  if (tipo === 'multimarca') return true;
+  if (tipo === 'especialista' || tipo === 'por_marca') return false;
+  if (!tipo && !(provider?.marcas_atendidas_nombres?.length > 0)) return true;
+  return false;
 }
 
 export function tagProviderMarcaFlags(provider) {

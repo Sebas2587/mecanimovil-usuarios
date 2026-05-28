@@ -32,6 +32,9 @@ import {
 } from '../../utils/publicListingRoute';
 
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { filtrarServiciosCatalogoPerfilProveedor } from '../../utils/servicioVehiculoCompat';
+import { isProviderMultimarca } from '../../utils/providerUtils';
+import { goBackFromProviderProfile } from '../../utils/navigationBack';
 
 const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
 
@@ -192,6 +195,21 @@ const PublicProviderDetailScreen = () => {
     return base;
   }, [details, servicios, reviewsSummary]);
 
+  const esMultimarcaProveedor = useMemo(() => isProviderMultimarca(provider), [provider]);
+
+  const serviciosVisibles = useMemo(
+    () =>
+      filtrarServiciosCatalogoPerfilProveedor(provider?.servicios || [], {
+        provider,
+        vehicle: null,
+      }),
+    [provider, provider?.servicios],
+  );
+
+  const handleBack = useCallback(() => {
+    goBackFromProviderProfile(navigation, { fallbackRoute: ROUTES.LOGIN });
+  }, [navigation]);
+
   if (providerId == null || providerId === '' || !providerType) {
     return (
       <View style={[styles.container, styles.centerContent]}>
@@ -241,7 +259,8 @@ const PublicProviderDetailScreen = () => {
         providerType={providerType}
         useWeeklyAvailabilityBadge
         weeklyHorarios={provider?.horarios_semanales}
-        showBackButton={false}
+        showBackButton
+        onBack={handleBack}
         onShare={handleShare}
       />
 
@@ -351,14 +370,23 @@ const PublicProviderDetailScreen = () => {
       <TrustSection documents={documents || []} />
 
       {/* SECCIÓN DE SERVICIOS PÚBLICA */}
-      {provider.servicios && provider.servicios.length > 0 && (
+      {serviciosVisibles.length > 0 ? (
         <View style={styles.section}>
           <View style={styles.iconTitleRow}>
             <Award size={18} color={COLORS.primary[500]} />
             <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
           </View>
+          {esMultimarcaProveedor ? (
+            <Text style={styles.sectionHint}>
+              Catálogo multimarca activo. Inicia sesión para agendar cualquiera de estos servicios.
+            </Text>
+          ) : (
+            <Text style={styles.sectionHint}>
+              Servicios activos de este especialista. Inicia sesión para solicitar presupuesto.
+            </Text>
+          )}
           <View style={styles.servicesGrid}>
-            {provider.servicios.map((servicio, idx) => (
+            {serviciosVisibles.map((servicio, idx) => (
               <Card key={`${servicio.id || idx}`} style={styles.serviceCardOuter}>
                 {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
                   <View style={{ marginBottom: 10 }}>
@@ -377,7 +405,7 @@ const PublicProviderDetailScreen = () => {
             ))}
           </View>
         </View>
-      )}
+      ) : null}
 
       <ProviderCompletedJobsSection jobs={completedJobs} />
       <PortfolioCarousel portfolio={provider.portafolio || []} />
@@ -461,6 +489,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.25,
     color: COLORS.text.primary,
     marginBottom: 0,
+  },
+  sectionHint: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    lineHeight: 20,
+    marginTop: 8,
+    marginBottom: 12,
   },
   card: {
     backgroundColor: COLORS.background.paper,

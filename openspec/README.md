@@ -9,6 +9,7 @@
 | [agendamiento-calendario-proveedor](specs/agendamiento-calendario-proveedor/spec.md) | **Calendario, agendaContext, perfil vs flujo normal** |
 | [comparador-multi-servicio](specs/comparador-multi-servicio/spec.md) | **Varios servicios en comparador y precio total** |
 | [solicitudes-crear](specs/solicitudes-crear/spec.md) | Crear solicitud (enlaza a calendario) |
+| [solicitud-paso1-catalogo](changes/solicitud-paso1-catalogo-multimarca/specs/solicitud-paso1-catalogo/spec.md) | **Paso 1: catálogo especialista + multimarca** |
 
 ## UX de carga (skeletons)
 

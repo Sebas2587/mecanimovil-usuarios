@@ -44,8 +44,9 @@ import {
   useProviderCompletedJobs,
 } from '../../hooks/useProviders';
 import { getPublicProviderFromWebPath } from '../../utils/publicListingRoute';
-import { filtrarServiciosPorVehiculo } from '../../utils/servicioVehiculoCompat';
-import { mergeProviderKpiBadge } from '../../utils/providerUtils';
+import { filtrarServiciosCatalogoPerfilProveedor } from '../../utils/servicioVehiculoCompat';
+import { isProviderMultimarca, mergeProviderKpiBadge } from '../../utils/providerUtils';
+import { goBackFromProviderProfile } from '../../utils/navigationBack';
 import { useFavorites } from '../../context/FavoritesContext';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 
@@ -150,10 +151,15 @@ const ProviderDetailScreen = () => {
     return active || userVehicles[0] || null;
   }, [vehicleFromRoute, userVehicles]);
 
+  const esMultimarcaProveedor = useMemo(() => isProviderMultimarca(provider), [provider]);
+
   const serviciosVisibles = useMemo(() => {
     const todos = provider?.servicios || [];
-    return filtrarServiciosPorVehiculo(todos, vehicleForSchedule);
-  }, [provider?.servicios, vehicleForSchedule]);
+    return filtrarServiciosCatalogoPerfilProveedor(todos, {
+      provider,
+      vehicle: esMultimarcaProveedor ? null : vehicleForSchedule,
+    });
+  }, [provider, provider?.servicios, vehicleForSchedule, esMultimarcaProveedor]);
 
   const handleScheduleService = useCallback(
     (servicio) => {
@@ -231,7 +237,9 @@ const ProviderDetailScreen = () => {
     navigation.navigate(ROUTES.PROVIDER_REVIEWS, { providerId: idToLoad, providerType });
   };
 
-  const handleBack = () => navigation.goBack();
+  const handleBack = useCallback(() => {
+    goBackFromProviderProfile(navigation, { fallbackRoute: ROUTES.HOME });
+  }, [navigation]);
 
   if (idToLoad === undefined || idToLoad === null || idToLoad === '') {
     return (
@@ -421,18 +429,24 @@ const ProviderDetailScreen = () => {
               <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
             </View>
             <Text style={styles.sectionHint}>
-              {vehicleForSchedule?.id
-                ? 'Toca un servicio para continuar con el agendamiento.'
-                : 'Toca un servicio para agendar. Selecciona un vehículo en el inicio para ver solo los de tu marca.'}
+              {esMultimarcaProveedor
+                ? 'Toca un servicio para agendar con este proveedor multimarca.'
+                : vehicleForSchedule?.id
+                  ? 'Toca un servicio para continuar con el agendamiento.'
+                  : 'Toca un servicio para agendar. Selecciona un vehículo en el inicio para ver los de tu marca.'}
             </Text>
-            {!vehicleForSchedule?.id ? (
+            {!esMultimarcaProveedor && !vehicleForSchedule?.id ? (
               <Text style={styles.noVehicleHint}>
                 Selecciona un vehículo en el inicio para poder agendar.
               </Text>
             ) : null}
-            {vehicleForSchedule?.id && serviciosVisibles.length === 0 ? (
+            {serviciosVisibles.length === 0 ? (
               <Text style={styles.noVehicleHint}>
-                Este proveedor no tiene servicios configurados para la marca de tu vehículo.
+                {esMultimarcaProveedor
+                  ? 'Este proveedor aún no tiene servicios activos en su catálogo.'
+                  : vehicleForSchedule?.id
+                    ? 'Este proveedor no tiene servicios activos para la marca de tu vehículo.'
+                    : 'No hay servicios activos visibles para las marcas de este especialista.'}
               </Text>
             ) : null}
             <View style={styles.servicesGrid}>

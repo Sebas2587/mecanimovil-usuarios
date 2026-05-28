@@ -193,6 +193,7 @@ export const useProviderServices = (id, type, providerName) => {
                         marca_vehiculo_nombre: oferta.marca_vehiculo_info?.nombre || null,
                         marca_vehiculo_info: oferta.marca_vehiculo_info || null,
                         oferta_id: oferta.id,
+                        disponible: oferta.disponible !== false,
                         duracion_estimada: oferta.duracion_estimada,
                         incluye_garantia: oferta.incluye_garantia,
                         duracion_garantia: oferta.duracion_garantia,

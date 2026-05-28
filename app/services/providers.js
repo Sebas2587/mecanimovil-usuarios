@@ -1472,6 +1472,7 @@ function mapOfertasToServicios(ofertas, type, id, providerName) {
       fotos_servicio: oferta.fotos_servicio || [],
       desglose_precios: oferta.desglose_precios || {},
       oferta_id: oferta.id,
+      disponible: oferta.disponible !== false,
       duracion_estimada: oferta.duracion_estimada,
       incluye_garantia: oferta.incluye_garantia,
       duracion_garantia: oferta.duracion_garantia,

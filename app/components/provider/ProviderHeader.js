@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
@@ -88,9 +88,11 @@ const ProviderHeader = ({
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           {showBackButton ? (
             <TouchableOpacity
-              style={styles.iconButton}
+              style={[styles.iconButton, Platform.OS === 'web' && styles.iconButtonWeb]}
               onPress={onBack || (() => navigation.goBack())}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
             >
               <Ionicons name="arrow-back" size={22} color={COLORS.text.primary} />
             </TouchableOpacity>
@@ -248,6 +250,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.sm,
+  },
+  iconButtonWeb: {
+    zIndex: 20,
+    cursor: 'pointer',
   },
   profileCard: {
     marginTop: -40,
