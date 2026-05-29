@@ -29,6 +29,8 @@ import Button from '../../components/base/Button/Button';
 
 // Services
 import * as vehicleService from '../../services/vehicle';
+import { useDeleteVehicle } from '../../hooks/useVehicles';
+import { showAlert, showAlertButtons, showConfirm } from '../../utils/platformAlert';
 import { loadRtRenewalDueISO } from '../../utils/revisionTecnica';
 import * as VehicleHealthService from '../../services/vehicleHealthService';
 import { resolveVehicleHealthPct } from '../../utils/healthFormat';
@@ -68,6 +70,7 @@ const VehicleProfileScreen = () => {
     const [valuationModalVisible, setValuationModalVisible] = useState(false);
     const [manualValuation, setManualValuation] = useState('');
     const [revisionRenewalDueISO, setRevisionRenewalDueISO] = useState(null);
+    const { mutateAsync: deleteVehicleAsync } = useDeleteVehicle();
 
     const styles = getStyles(insets);
     const skipHealthFocusFetchRef = useRef(true);
@@ -177,26 +180,25 @@ const VehicleProfileScreen = () => {
     };
 
     const handleDelete = () => {
-        Alert.alert(
-            "Eliminar Vehículo",
-            "⚠️ ADVERTENCIA: Esta acción eliminará el vehículo y TODOS sus datos asociados (servicios, historial, etc). Esta acción es irreversible.",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Eliminar",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await vehicleService.deleteVehicle(vehicle.id);
-                            Alert.alert("Terminado", "Vehículo eliminado correctamente.", [
-                                { text: "OK", onPress: () => navigation.goBack() }
-                            ]);
-                        } catch (e) {
-                            Alert.alert("Error", "No se pudo eliminar el vehículo");
-                        }
+        if (!vehicle?.id) return;
+
+        showConfirm(
+            'Eliminar Vehículo',
+            '⚠️ ADVERTENCIA: Esta acción eliminará el vehículo y TODOS sus datos asociados (servicios, historial, etc). Esta acción es irreversible.',
+            {
+                confirmText: 'Eliminar',
+                onConfirm: async () => {
+                    try {
+                        await deleteVehicleAsync(vehicle.id);
+                        showAlertButtons('Terminado', 'Vehículo eliminado correctamente.', [
+                            { text: 'OK', onPress: () => navigation.goBack() },
+                        ]);
+                    } catch (e) {
+                        console.error('Error eliminando vehículo:', e);
+                        showAlert('Error', 'No se pudo eliminar el vehículo');
                     }
-                }
-            ]
+                },
+            }
         );
     };
 
@@ -361,7 +363,12 @@ const VehicleProfileScreen = () => {
                         </View>
 
                         <View style={styles.rightButtons}>
-                            <TouchableOpacity style={styles.iconButton} onPress={handleDelete}>
+                            <TouchableOpacity
+                                style={[styles.iconButton, Platform.OS === 'web' && styles.iconButtonWeb]}
+                                onPress={handleDelete}
+                                accessibilityRole="button"
+                                accessibilityLabel="Eliminar vehículo"
+                            >
                                 <Trash2 size={22} color={COLORS.text.inverse} />
                             </TouchableOpacity>
                         </View>
@@ -579,6 +586,9 @@ const getStyles = (insets) => StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginLeft: SPACING.xs,
+    },
+    iconButtonWeb: {
+        cursor: 'pointer',
     },
     modalOverlay: {
         flex: 1,
