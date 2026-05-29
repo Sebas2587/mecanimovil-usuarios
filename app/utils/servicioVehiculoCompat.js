@@ -61,6 +61,17 @@ export function servicioOfertaCompatibleConVehiculo(servicio, vehicle) {
     return marcasCoinciden(ofertaMarcaNombre, marcaNombre);
   }
 
+  const marcas = Array.isArray(servicio.marcas_info) ? servicio.marcas_info : [];
+  if (marcas.length > 0) {
+    if (marcaId != null && marcas.some((m) => Number(m.id) === Number(marcaId))) {
+      return true;
+    }
+    if (marcaNombre) {
+      return marcas.some((m) => marcasCoinciden(normalizeMarcaNombre(m.nombre), marcaNombre));
+    }
+    return false;
+  }
+
   const modelos = Array.isArray(servicio.modelos_info) ? servicio.modelos_info : [];
   if (modelos.length > 0) {
     if (modeloId != null && modelos.some((m) => Number(m.id) === Number(modeloId))) {
@@ -129,6 +140,14 @@ export function servicioOfertaPerteneceACatalogoProveedor(servicio, provider) {
 
   if (ofertaMarcaNombre) {
     return marcasNombres.some((m) => marcasCoinciden(m, ofertaMarcaNombre));
+  }
+
+  const marcasServicio = Array.isArray(servicio.marcas_info) ? servicio.marcas_info : [];
+  if (marcasServicio.length > 0) {
+    return marcasServicio.some((mc) => {
+      const mn = normalizeMarcaNombre(mc.nombre);
+      return mn && marcasNombres.some((m) => marcasCoinciden(m, mn));
+    });
   }
 
   const modelos = Array.isArray(servicio.modelos_info) ? servicio.modelos_info : [];
