@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, Plus, Star, Trash2, ChevronDown, Navigation, X } from 'lucide-react-native';
 import * as locationService from '../../services/location';
 import AddressSelectionModal from '../location/AddressSelectionModal';
+import { showAlert, showConfirm } from '../../utils/platformAlert';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -27,12 +28,12 @@ const AddressRow = React.memo(function AddressRow({
   onDelete,
 }) {
   return (
-    <TouchableOpacity
-      style={[styles.addressCard, isSelected && styles.addressCardSelected]}
-      onPress={() => onSelect(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.addressCardContent}>
+    <View style={[styles.addressCard, isSelected && styles.addressCardSelected]}>
+      <TouchableOpacity
+        style={styles.addressCardMain}
+        onPress={() => onSelect(item)}
+        activeOpacity={0.7}
+      >
         <View style={[styles.addressIconWrap, isSelected && styles.addressIconWrapSelected]}>
           {item.es_principal ? (
             <Star
@@ -60,23 +61,25 @@ const AddressRow = React.memo(function AddressRow({
             {item.direccion}
           </Text>
         </View>
+      </TouchableOpacity>
 
-        <View style={styles.addressActions}>
-          {!item.es_principal && (
-            <TouchableOpacity onPress={() => onSetMain(item.id)} style={styles.actionBtn} activeOpacity={0.7}>
-              <Star size={16} color={COLORS.text.tertiary} />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            onPress={() => onDelete(item.id)}
-            style={[styles.actionBtn, styles.deleteBtn]}
-            activeOpacity={0.7}
-          >
-            <Trash2 size={14} color={COLORS.error[500]} />
+      <View style={styles.addressActions}>
+        {!item.es_principal && (
+          <TouchableOpacity onPress={() => onSetMain(item.id)} style={styles.actionBtn} activeOpacity={0.7}>
+            <Star size={16} color={COLORS.text.tertiary} />
           </TouchableOpacity>
-        </View>
+        )}
+        <TouchableOpacity
+          onPress={() => onDelete(item.id)}
+          style={[styles.actionBtn, styles.deleteBtn]}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={`Eliminar dirección ${item.etiqueta || ''}`}
+        >
+          <Trash2 size={14} color={COLORS.error[500]} />
+        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 });
 
@@ -201,22 +204,13 @@ const AddressSelector = ({
         }
       };
 
-      if (Platform.OS === 'web') {
-        if (window.confirm('¿Estás seguro de que quieres eliminar esta dirección?')) {
-          await performDelete();
-        }
-      } else {
-        Alert.alert(
-          'Eliminar dirección',
-          '¿Estás seguro de que quieres eliminar esta dirección?',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Eliminar', style: 'destructive', onPress: performDelete },
-          ]
-        );
-      }
+      showConfirm(
+        'Eliminar dirección',
+        '¿Estás seguro de que quieres eliminar esta dirección?',
+        { confirmText: 'Eliminar', onConfirm: performDelete },
+      );
     },
-    [currentAddress, onAddressChange]
+    [currentAddress, onAddressChange, fetchAddresses]
   );
 
   const headerTopPad = useMemo(() => Math.max(insets.top, Platform.OS === 'ios' ? 12 : 8), [insets.top]);
@@ -560,6 +554,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   addressCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
     borderWidth: BORDERS.width.thin,
@@ -570,6 +566,12 @@ const styles = StyleSheet.create({
   addressCardSelected: {
     borderColor: COLORS.primary[400],
     backgroundColor: COLORS.primary[50],
+  },
+  addressCardMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
   },
   addressCardContent: {
     flexDirection: 'row',
@@ -637,6 +639,7 @@ const styles = StyleSheet.create({
   deleteBtn: {
     backgroundColor: COLORS.error[50],
     borderColor: COLORS.error[200],
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
   },
 
   legacyAddressCard: {

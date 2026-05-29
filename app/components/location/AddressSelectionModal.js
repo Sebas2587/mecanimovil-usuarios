@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -18,6 +18,8 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { useUserAddresses, useSaveAddress, useDeleteAddress } from '../../hooks/useAddress';
+import { useManualAddressEntry } from '../../hooks/useManualAddressEntry';
+import { showAlert, showConfirm } from '../../utils/platformAlert';
 import * as locationService from '../../services/location';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -46,6 +48,21 @@ const AddressSelectionModal = ({
     const [detectedAddress, setDetectedAddress] = useState(null);
     const [addressLabel, setAddressLabel] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    /** null | 'manual' — GPS va directo a detectedAddress */
+    const [entryMode, setEntryMode] = useState(null);
+    const [confirmingManual, setConfirmingManual] = useState(false);
+
+    const {
+        query: manualQuery,
+        onChangeQuery: onManualQueryChange,
+        suggestions: manualSuggestions,
+        loadingSuggestions: manualLoadingSuggestions,
+        resolving: manualResolving,
+        resolvedMeta: manualResolvedMeta,
+        selectSuggestion: selectManualSuggestion,
+        confirmFromQuery: confirmManualFromQuery,
+        reset: resetManualEntry,
+    } = useManualAddressEntry();
 
     // Hooks
     const { data: savedAddresses, isLoading: isLoadingAddresses, refetch } = useUserAddresses();
@@ -58,8 +75,57 @@ const AddressSelectionModal = ({
             setDetectedAddress(null);
             setAddressLabel('');
             setIsLocating(false);
+            setEntryMode(null);
+            setConfirmingManual(false);
+            resetManualEntry();
         }
-    }, [visible]);
+    }, [visible, resetManualEntry]);
+
+    const handleStartManualEntry = useCallback(() => {
+        setEntryMode('manual');
+        setDetectedAddress(null);
+        setAddressLabel('');
+        resetManualEntry();
+    }, [resetManualEntry]);
+
+    const handleSelectManualSuggestion = useCallback((suggestion) => {
+        const detected = selectManualSuggestion(suggestion);
+        if (detected.latitude != null && detected.longitude != null) {
+            setDetectedAddress(detected);
+            setEntryMode(null);
+        }
+    }, [selectManualSuggestion]);
+
+    const handleConfirmManualAddress = useCallback(async () => {
+        setConfirmingManual(true);
+        try {
+            const detected = await confirmManualFromQuery();
+            if (detected.latitude == null || detected.longitude == null) {
+                Alert.alert(
+                    'Ubicación incompleta',
+                    'Selecciona una sugerencia de la lista o escribe una dirección más específica (calle, número y comuna).',
+                );
+                return;
+            }
+            setDetectedAddress(detected);
+            setEntryMode(null);
+        } catch (e) {
+            Alert.alert('Dirección no válida', e?.message || 'No pudimos ubicar esta dirección.');
+        } finally {
+            setConfirmingManual(false);
+        }
+    }, [confirmManualFromQuery]);
+
+    const handleRetryCapture = useCallback(() => {
+        setDetectedAddress(null);
+        setEntryMode(null);
+        resetManualEntry();
+    }, [resetManualEntry]);
+
+    const detectedHeaderLabel =
+        detectedAddress?.source === 'manual'
+            ? 'Dirección confirmada (puedes editar antes de guardar)'
+            : 'Ubicación detectada (edita si faltan datos)';
 
     const handleUseCurrentLocation = async () => {
         setIsLocating(true);
@@ -98,10 +164,12 @@ const AddressSelectionModal = ({
 
                 setDetectedAddress({
                     ...addressInfo,
-                    name: formattedAddress, // Use this for the input value
+                    name: formattedAddress,
                     latitude: location.coords.latitude,
-                    longitude: location.coords.longitude
+                    longitude: location.coords.longitude,
+                    source: 'gps',
                 });
+                setEntryMode(null);
             } else {
                 Alert.alert("Error", "No pudimos identificar la dirección exacta.");
             }
@@ -121,10 +189,13 @@ const AddressSelectionModal = ({
             return;
         }
 
-        // Validate duplicates
-        const addressToSave = detectedAddress.name || `${detectedAddress.street} ${detectedAddress.streetNumber}`;
-        const normalizedNewAddress = addressToSave.trim().toLowerCase();
+        const addressToSave = (detectedAddress.name || `${detectedAddress.street} ${detectedAddress.streetNumber}`).trim();
+        if (!addressToSave) {
+            Alert.alert("Falta información", "La dirección no puede estar vacía.");
+            return;
+        }
 
+        const normalizedNewAddress = addressToSave.toLowerCase();
         const isDuplicate = savedAddresses?.some(addr =>
             addr.direccion.trim().toLowerCase() === normalizedNewAddress
         );
@@ -136,18 +207,37 @@ const AddressSelectionModal = ({
 
         setIsSaving(true);
         try {
-            // Build detalles with commune + city so weather API can resolve the station
+            let latitude = detectedAddress.latitude;
+            let longitude = detectedAddress.longitude;
+
+            if (latitude == null || longitude == null) {
+                const geo = await locationService.geocodeAddress(addressToSave);
+                if (geo?.latitude != null && geo?.longitude != null) {
+                    latitude = geo.latitude;
+                    longitude = geo.longitude;
+                }
+            }
+
+            if (latitude == null || longitude == null) {
+                Alert.alert(
+                    "Ubicación incompleta",
+                    "No pudimos obtener coordenadas para esta dirección. Elige una sugerencia al escribir o usa GPS.",
+                );
+                setIsSaving(false);
+                return;
+            }
+
             const comunaCity = [detectedAddress.district, detectedAddress.city]
                 .filter(Boolean)
                 .filter((v, i, a) => a.indexOf(v) === i)
                 .join(', ');
             const newAddress = {
                 direccion: addressToSave,
-                etiqueta: addressLabel,
+                etiqueta: addressLabel.trim(),
                 detalles: comunaCity || detectedAddress.city || '',
-                latitude: detectedAddress.latitude,
-                longitude: detectedAddress.longitude,
-                es_principal: false // User can select it processing onSelectAddress
+                latitude,
+                longitude,
+                es_principal: false,
             };
 
             const saved = await saveAddressMutation(newAddress);
@@ -163,26 +253,20 @@ const AddressSelectionModal = ({
         }
     };
 
-    const handleDelete = (id) => {
-        Alert.alert(
-            "Eliminar Dirección",
-            "¿Estás seguro?",
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Eliminar",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await deleteAddressMutation(id);
-                        } catch (e) {
-                            // Silent fail or toast
-                        }
-                    }
+    const handleDelete = useCallback((id) => {
+        showConfirm('Eliminar dirección', '¿Estás seguro de que quieres eliminar esta dirección?', {
+            confirmText: 'Eliminar',
+            onConfirm: async () => {
+                try {
+                    await deleteAddressMutation(id);
+                    await refetch();
+                } catch (e) {
+                    console.error('Error eliminando dirección:', e);
+                    showAlert('Error', 'No se pudo eliminar la dirección');
                 }
-            ]
-        );
-    }
+            },
+        });
+    }, [deleteAddressMutation, refetch]);
 
     // Icon helper
     const getIconForLabel = (label) => {
@@ -240,40 +324,189 @@ const AddressSelectionModal = ({
                             </TouchableOpacity>
                         </View>
 
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ paddingBottom: 40 }}
+                            keyboardShouldPersistTaps="handled"
+                        >
 
-                            {/* 1. Hero Action: Geolocate */}
-                            {!detectedAddress && (
-                                <TouchableOpacity
-                                    style={styles.heroButton}
-                                    onPress={handleUseCurrentLocation}
-                                    disabled={isLocating}
-                                >
-                                    <View style={styles.heroIconContainer}>
-                                        {isLocating ? (
-                                            <ActivityIndicator color={isDarkGlass ? '#00A8E8' : colors.primary.main} />
-                                        ) : (
-                                            <Feather
-                                                name="navigation"
-                                                size={24}
+                            {/* 1. GPS o enlace a ingreso manual */}
+                            {!detectedAddress && entryMode !== 'manual' && (
+                                <>
+                                    <TouchableOpacity
+                                        style={styles.heroButton}
+                                        onPress={handleUseCurrentLocation}
+                                        disabled={isLocating}
+                                    >
+                                        <View style={styles.heroIconContainer}>
+                                            {isLocating ? (
+                                                <ActivityIndicator color={isDarkGlass ? '#00A8E8' : colors.primary.main} />
+                                            ) : (
+                                                <Feather
+                                                    name="navigation"
+                                                    size={24}
+                                                    color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                                />
+                                            )}
+                                        </View>
+                                        <View style={styles.heroTextContainer}>
+                                            <Text style={styles.heroTitle}>
+                                                {isLocating ? 'Buscando satélites...' : 'Usar mi ubicación actual'}
+                                            </Text>
+                                            <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
+                                        </View>
+                                        <Ionicons
+                                            name="chevron-forward"
+                                            size={20}
+                                            color={isDarkGlass ? 'rgba(255,255,255,0.35)' : colors.primary.light}
+                                        />
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.manualEntryLink}
+                                        onPress={handleStartManualEntry}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Feather
+                                            name="edit-3"
+                                            size={18}
+                                            color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                        />
+                                        <Text style={styles.manualEntryLinkText}>Ingresar dirección manualmente</Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
+
+                            {/* 1b. Ingreso manual con autocompletado */}
+                            {!detectedAddress && entryMode === 'manual' && (
+                                <View style={styles.manualEntryBox}>
+                                    <View style={styles.detectedHeader}>
+                                        <Feather
+                                            name="map-pin"
+                                            size={18}
+                                            color={isDarkGlass ? '#67E8F9' : colors.primary.main}
+                                        />
+                                        <Text style={[styles.detectedLabel, styles.manualEntryTitle]}>
+                                            Escribe tu dirección en Chile
+                                        </Text>
+                                    </View>
+
+                                    <TextInput
+                                        style={[styles.input, styles.inputDetected]}
+                                        value={manualQuery}
+                                        onChangeText={onManualQueryChange}
+                                        placeholder="Calle, número, comuna..."
+                                        placeholderTextColor={isDarkGlass ? 'rgba(255,255,255,0.35)' : colors.text.tertiary}
+                                        autoFocus
+                                        autoCorrect={false}
+                                    />
+
+                                    {(manualLoadingSuggestions || manualSuggestions.length > 0) && (
+                                        <View style={styles.suggestionsList}>
+                                            {manualLoadingSuggestions && manualSuggestions.length === 0 ? (
+                                                <ActivityIndicator
+                                                    style={{ padding: 12 }}
+                                                    color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                                />
+                                            ) : (
+                                                manualSuggestions.map((s, index) => (
+                                                    <TouchableOpacity
+                                                        key={`${s.id ?? index}-${s.mainText}`}
+                                                        style={styles.suggestionItem}
+                                                        onPress={() => handleSelectManualSuggestion(s)}
+                                                    >
+                                                        <Feather
+                                                            name="map-pin"
+                                                            size={14}
+                                                            color={isDarkGlass ? '#67E8F9' : colors.primary.main}
+                                                        />
+                                                        <View style={styles.suggestionTextWrap}>
+                                                            <Text style={styles.suggestionMain} numberOfLines={2}>
+                                                                {s.mainText}
+                                                            </Text>
+                                                            {s.secondaryText ? (
+                                                                <Text style={styles.suggestionSecondary} numberOfLines={1}>
+                                                                    {s.secondaryText}
+                                                                </Text>
+                                                            ) : null}
+                                                        </View>
+                                                    </TouchableOpacity>
+                                                ))
+                                            )}
+                                        </View>
+                                    )}
+
+                                    <View style={styles.metaRow}>
+                                        {manualResolving ? (
+                                            <ActivityIndicator
+                                                size="small"
                                                 color={isDarkGlass ? '#00A8E8' : colors.primary.main}
                                             />
+                                        ) : manualResolvedMeta?.district || manualResolvedMeta?.city ? (
+                                            <Text style={styles.metaText}>
+                                                {[
+                                                    manualResolvedMeta.district
+                                                        ? `Comuna: ${manualResolvedMeta.district}`
+                                                        : null,
+                                                    manualResolvedMeta.city
+                                                        ? `Ciudad: ${manualResolvedMeta.city}`
+                                                        : null,
+                                                ]
+                                                    .filter(Boolean)
+                                                    .join(' · ')}
+                                            </Text>
+                                        ) : (
+                                            <Text style={styles.metaHint}>
+                                                Escribe al menos 5 caracteres para reconocer comuna y ciudad.
+                                            </Text>
                                         )}
                                     </View>
-                                    <View style={styles.heroTextContainer}>
-                                        <Text style={styles.heroTitle}>
-                                            {isLocating ? "Buscando satélites..." : "Usar mi ubicación actual"}
-                                        </Text>
-                                        <Text style={styles.heroSubtitle}>
-                                            {heroSubtitle}
-                                        </Text>
-                                    </View>
-                                    <Ionicons
-                                        name="chevron-forward"
-                                        size={20}
-                                        color={isDarkGlass ? 'rgba(255,255,255,0.35)' : colors.primary.light}
-                                    />
-                                </TouchableOpacity>
+
+                                    {manualResolvedMeta?.error && !manualResolving ? (
+                                        <Text style={styles.metaError}>{manualResolvedMeta.error}</Text>
+                                    ) : null}
+
+                                    {isDarkGlass ? (
+                                        <TouchableOpacity
+                                            style={styles.saveButtonWrap}
+                                            onPress={handleConfirmManualAddress}
+                                            disabled={confirmingManual}
+                                            activeOpacity={0.85}
+                                        >
+                                            <LinearGradient
+                                                colors={['#007EA7', '#00A8E8']}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 0 }}
+                                                style={styles.saveButtonGradient}
+                                            >
+                                                {confirmingManual ? (
+                                                    <ActivityIndicator color="#FFF" />
+                                                ) : (
+                                                    <Text style={styles.saveButtonText}>Continuar con esta dirección</Text>
+                                                )}
+                                            </LinearGradient>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={[
+                                                styles.saveButton,
+                                                (!manualResolvedMeta?.isValid || confirmingManual) && styles.saveButtonDisabled,
+                                            ]}
+                                            onPress={handleConfirmManualAddress}
+                                            disabled={confirmingManual}
+                                        >
+                                            {confirmingManual ? (
+                                                <ActivityIndicator color="#FFF" />
+                                            ) : (
+                                                <Text style={styles.saveButtonText}>Continuar con esta dirección</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
+
+                                    <TouchableOpacity style={styles.retryButton} onPress={handleRetryCapture}>
+                                        <Text style={styles.retryText}>Volver a opciones de ubicación</Text>
+                                    </TouchableOpacity>
+                                </View>
                             )}
 
                             {/* 2. Save Form (Visible after detection) */}
@@ -287,9 +520,7 @@ const AddressSelectionModal = ({
                                                 color={isDarkGlass ? '#6EE7B7' : colors.success.main}
                                             />
                                         </View>
-                                        <Text style={styles.detectedLabel}>
-                                            Ubicación detectada (Edita si faltan datos)
-                                        </Text>
+                                        <Text style={styles.detectedLabel}>{detectedHeaderLabel}</Text>
                                     </View>
 
                                     <TextInput
@@ -343,10 +574,18 @@ const AddressSelectionModal = ({
                                         </TouchableOpacity>
                                     )}
 
-                                    <TouchableOpacity
-                                        style={styles.retryButton}
-                                        onPress={() => setDetectedAddress(null)}
-                                    >
+                                    {(detectedAddress.district || detectedAddress.city) ? (
+                                        <Text style={styles.metaText}>
+                                            {[
+                                                detectedAddress.district ? `Comuna: ${detectedAddress.district}` : null,
+                                                detectedAddress.city ? `Ciudad: ${detectedAddress.city}` : null,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' · ')}
+                                        </Text>
+                                    ) : null}
+
+                                    <TouchableOpacity style={styles.retryButton} onPress={handleRetryCapture}>
                                         <Text style={styles.retryText}>No es correcto, intentar de nuevo</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -369,40 +608,47 @@ const AddressSelectionModal = ({
                                                 ? (isDarkGlass ? '#00A8E8' : colors.primary.main)
                                                 : (isDarkGlass ? 'rgba(255,255,255,0.45)' : colors.neutral.gray[500]);
                                             return (
-                                                <TouchableOpacity
+                                                <View
                                                     key={addr.id}
                                                     style={[styles.addressItem, isSelected && styles.addressItemSelected]}
-                                                    onPress={() => {
-                                                        onSelectAddress(addr);
-                                                        onClose();
-                                                    }}
                                                 >
-                                                    <View style={[styles.itemIcon, isSelected && styles.itemIconSelected]}>
-                                                        <Feather
-                                                            name={getIconForLabel(addr.etiqueta)}
-                                                            size={18}
-                                                            color={iconColor}
-                                                        />
-                                                    </View>
-                                                    <View style={styles.itemContent}>
-                                                        <Text style={[styles.itemLabel, isSelected && styles.itemLabelSelected]}>
-                                                            {addr.etiqueta}
-                                                        </Text>
-                                                        <Text style={styles.itemAddress} numberOfLines={1}>
-                                                            {addr.direccion}
-                                                        </Text>
-                                                    </View>
-                                                    {isSelected && (
-                                                        <Ionicons
-                                                            name="checkmark"
-                                                            size={20}
-                                                            color={isDarkGlass ? '#00A8E8' : colors.primary.main}
-                                                        />
-                                                    )}
-                                                    {!isSelected && (
+                                                    <TouchableOpacity
+                                                        style={styles.addressItemMain}
+                                                        onPress={() => {
+                                                            onSelectAddress(addr);
+                                                            onClose();
+                                                        }}
+                                                        activeOpacity={0.7}
+                                                    >
+                                                        <View style={[styles.itemIcon, isSelected && styles.itemIconSelected]}>
+                                                            <Feather
+                                                                name={getIconForLabel(addr.etiqueta)}
+                                                                size={18}
+                                                                color={iconColor}
+                                                            />
+                                                        </View>
+                                                        <View style={styles.itemContent}>
+                                                            <Text style={[styles.itemLabel, isSelected && styles.itemLabelSelected]}>
+                                                                {addr.etiqueta}
+                                                            </Text>
+                                                            <Text style={styles.itemAddress} numberOfLines={1}>
+                                                                {addr.direccion}
+                                                            </Text>
+                                                        </View>
+                                                        {isSelected ? (
+                                                            <Ionicons
+                                                                name="checkmark"
+                                                                size={20}
+                                                                color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                                            />
+                                                        ) : null}
+                                                    </TouchableOpacity>
+                                                    {!isSelected ? (
                                                         <TouchableOpacity
                                                             style={styles.deleteButton}
                                                             onPress={() => handleDelete(addr.id)}
+                                                            accessibilityRole="button"
+                                                            accessibilityLabel={`Eliminar dirección ${addr.etiqueta}`}
                                                         >
                                                             <Ionicons
                                                                 name="trash-outline"
@@ -414,8 +660,8 @@ const AddressSelectionModal = ({
                                                                 }
                                                             />
                                                         </TouchableOpacity>
-                                                    )}
-                                                </TouchableOpacity>
+                                                    ) : null}
+                                                </View>
                                             );
                                         })
                                     ) : (
@@ -523,6 +769,82 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         fontSize: typography.fontSize.xs,
         color: colors.text.secondary,
     },
+    manualEntryLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: spacing.sm,
+        marginBottom: spacing.lg,
+    },
+    manualEntryLinkText: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.primary.main,
+        textDecorationLine: 'underline',
+    },
+    manualEntryBox: {
+        backgroundColor: colors.neutral.gray[50],
+        borderRadius: borders.radius.lg,
+        padding: spacing.md,
+        marginBottom: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.border.light,
+    },
+    manualEntryTitle: {
+        marginLeft: 8,
+    },
+    suggestionsList: {
+        borderRadius: borders.radius.md,
+        borderWidth: 1,
+        borderColor: colors.border.light,
+        backgroundColor: colors.background.paper,
+        marginBottom: spacing.sm,
+        overflow: 'hidden',
+    },
+    suggestionItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.neutral.gray[200],
+    },
+    suggestionTextWrap: {
+        flex: 1,
+    },
+    suggestionMain: {
+        fontSize: typography.fontSize.sm,
+        color: colors.text.primary,
+        fontWeight: typography.fontWeight.medium,
+    },
+    suggestionSecondary: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.tertiary,
+        marginTop: 2,
+    },
+    metaRow: {
+        minHeight: 22,
+        marginBottom: spacing.xs,
+    },
+    metaText: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.secondary,
+        fontWeight: typography.fontWeight.medium,
+    },
+    metaHint: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.tertiary,
+    },
+    metaError: {
+        fontSize: typography.fontSize.xs,
+        color: colors.error.main,
+        marginBottom: spacing.sm,
+    },
+    saveButtonDisabled: {
+        opacity: 0.55,
+    },
 
     // Save Form
     saveForm: {
@@ -610,11 +932,17 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     addressItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: spacing.md,
         borderRadius: borders.radius.lg,
         backgroundColor: colors.background.default,
         borderWidth: 1,
         borderColor: 'transparent',
+        overflow: 'hidden',
+    },
+    addressItemMain: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: spacing.md,
     },
     addressItemSelected: {
         backgroundColor: colors.primary[50],
@@ -651,6 +979,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     },
     deleteButton: {
         padding: 8,
+        ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
     },
     emptyState: {
         alignItems: 'center',
@@ -758,6 +1087,83 @@ const getDarkGlassStyles = (typography, spacing, borders) =>
             color: 'rgba(255,255,255,0.45)',
             lineHeight: 18,
         },
+        manualEntryLink: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            paddingVertical: spacing.sm,
+            marginBottom: spacing.lg,
+        },
+        manualEntryLinkText: {
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.semibold,
+            color: '#67E8F9',
+            textDecorationLine: 'underline',
+        },
+        manualEntryBox: {
+            backgroundColor: 'rgba(255,255,255,0.06)',
+            borderRadius: borders.radius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.lg,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.12)',
+        },
+        manualEntryTitle: {
+            marginLeft: 8,
+            color: '#FFFFFF',
+        },
+        suggestionsList: {
+            borderRadius: borders.radius.md,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.12)',
+            backgroundColor: 'rgba(0,0,0,0.2)',
+            marginBottom: spacing.sm,
+            overflow: 'hidden',
+        },
+        suggestionItem: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: 10,
+            paddingVertical: spacing.sm,
+            paddingHorizontal: spacing.md,
+            borderBottomWidth: 1,
+            borderBottomColor: 'rgba(255,255,255,0.08)',
+        },
+        suggestionTextWrap: {
+            flex: 1,
+        },
+        suggestionMain: {
+            fontSize: typography.fontSize.sm,
+            color: '#FFFFFF',
+            fontWeight: typography.fontWeight.medium,
+        },
+        suggestionSecondary: {
+            fontSize: typography.fontSize.xs,
+            color: 'rgba(255,255,255,0.45)',
+            marginTop: 2,
+        },
+        metaRow: {
+            minHeight: 22,
+            marginBottom: spacing.xs,
+        },
+        metaText: {
+            fontSize: typography.fontSize.xs,
+            color: 'rgba(255,255,255,0.55)',
+            fontWeight: typography.fontWeight.medium,
+        },
+        metaHint: {
+            fontSize: typography.fontSize.xs,
+            color: 'rgba(255,255,255,0.4)',
+        },
+        metaError: {
+            fontSize: typography.fontSize.xs,
+            color: '#FCA5A5',
+            marginBottom: spacing.sm,
+        },
+        saveButtonDisabled: {
+            opacity: 0.55,
+        },
         saveForm: {
             backgroundColor: 'rgba(16,185,129,0.08)',
             borderRadius: borders.radius.lg,
@@ -840,12 +1246,18 @@ const getDarkGlassStyles = (typography, spacing, borders) =>
         addressItem: {
             flexDirection: 'row',
             alignItems: 'center',
-            padding: spacing.md,
             borderRadius: borders.radius.lg,
             backgroundColor:
                 Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)',
             borderWidth: 1,
             borderColor: 'rgba(255,255,255,0.1)',
+            overflow: 'hidden',
+        },
+        addressItemMain: {
+            flex: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            padding: spacing.md,
         },
         addressItemSelected: {
             backgroundColor: 'rgba(0,168,232,0.12)',
@@ -882,6 +1294,7 @@ const getDarkGlassStyles = (typography, spacing, borders) =>
         },
         deleteButton: {
             padding: 8,
+            ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
         },
         emptyState: {
             alignItems: 'center',
