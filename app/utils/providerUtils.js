@@ -131,6 +131,11 @@ export function tagProviderMarcaFlags(provider) {
   return { ...provider, _esMultimarca: mm, _esEspecialistaMarca: !mm };
 }
 
+/** Panel Destacados: excluye multimarca; solo especialistas en la marca del vehículo. */
+export function filterProvidersEspecialistasMarca(providers) {
+  return (providers || []).filter((p) => !isProviderMultimarca(p));
+}
+
 /** Especialistas en la marca del vehículo primero; luego orden KPI. */
 export function compareProvidersByMarcaThenKpi(a, b) {
   const aMm = isProviderMultimarca(a);

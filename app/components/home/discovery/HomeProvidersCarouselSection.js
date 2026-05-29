@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { HomeProvidersCarouselSkeleton } from '../../utils/HomePanelSkeletons';
 import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
@@ -12,7 +13,7 @@ import { HomePanelCard } from '../shared/HomePanelCard';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import ProviderPreviewCard from '../ProviderPreviewCard';
 import { formatProviderForCard } from '../../../utils/providerUtils';
-import { CARD_GAP, GRID_CARD_W, H_PAD, SCREEN_WIDTH } from '../shared/homeLayoutConstants';
+import { CARD_GAP, GRID_CARD_W, H_PAD } from '../shared/homeLayoutConstants';
 
 /**
  * Carrusel horizontal 2×N de proveedores con encabezado y estados vacío/carga.
@@ -33,7 +34,10 @@ const HomeProvidersCarouselSection = ({
   /** 'offers' | 'bookings' — footer de ProviderPreviewCard */
   cardFooterVariant = 'offers',
 }) => {
-  const nearbyPageWidth = SCREEN_WIDTH;
+  const { width: windowWidth } = useWindowDimensions();
+  /** En web el panel usa LAYOUT_WIDTH (máx. 480); SCREEN_WIDTH del navegador generaba overflow horizontal. */
+  const nearbyPageWidth =
+    Platform.OS === 'web' ? Math.min(windowWidth, 480) : windowWidth;
   const nearbyCardW = GRID_CARD_W;
 
   const nearbyPages = useMemo(() => {
@@ -83,9 +87,9 @@ const HomeProvidersCarouselSection = ({
           decelerationRate={Platform.OS === 'web' ? undefined : 'fast'}
           snapToInterval={Platform.OS === 'web' ? undefined : nearbyPageWidth}
           snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
-          showsHorizontalScrollIndicator
+          showsHorizontalScrollIndicator={Platform.OS !== 'web'}
           keyboardShouldPersistTaps="handled"
-          style={Platform.OS === 'web' ? styles.carouselWeb : undefined}
+          style={Platform.OS === 'web' ? styles.carouselWeb : styles.carouselBleed}
         >
           {nearbyPages.map((pair, pageIdx) => (
             <View
@@ -139,8 +143,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 19,
   },
+  carouselBleed: {
+    marginHorizontal: -H_PAD,
+  },
   carouselWeb: {
-    overflow: 'scroll',
+    marginHorizontal: -H_PAD,
+    overflowX: 'auto',
+    overflowY: 'hidden',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
   },
   page: {
     paddingHorizontal: H_PAD,

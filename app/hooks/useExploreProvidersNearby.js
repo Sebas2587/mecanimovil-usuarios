@@ -17,7 +17,7 @@ async function resolveCoordsForAddress(address) {
 }
 
 /**
- * Proveedores cercanos para ExploreProviders (misma API que el panel, más resultados).
+ * Explore «Ver todos» Cerca: especialistas + multimarca en radio, solo por distancia.
  */
 export function useExploreProvidersNearby({ vehicle, address, enabled = true }) {
   const marcaId = resolveVehicleMarcaId(vehicle);
@@ -33,6 +33,9 @@ export function useExploreProvidersNearby({ vehicle, address, enabled = true }) 
       if (!coords) return [];
       return getNearbyProvidersForPanel(coords.lat, coords.lng, marcaId, {
         limit: EXPLORE_PROVIDER_LIMIT,
+        marcaFallback: false,
+        sortByDistanceOnly: true,
+        preferMarcaSpecialists: false,
       });
     },
   });

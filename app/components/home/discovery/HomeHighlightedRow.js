@@ -18,14 +18,14 @@ const HomeHighlightedRow = ({
   return (
     <HomeProvidersCarouselSection
       title={resolvedTitle}
-      hint="Mejor KPI en tu ciudad (hasta 5 km desde tu dirección)."
+      hint="Especialistas en la marca de tu auto, ordenados por rendimiento (KPI)."
       cardFooterVariant="bookings"
       providers={providers}
       loading={loading}
       emptyRequiresAddress
       hasSelectedAddress={hasSelectedAddress}
       emptyNoAddressMessage="Selecciona una dirección para ver destacados en tu ciudad."
-      emptyNoResultsMessage="No hay especialistas destacados en tu ciudad. Prueba «Ver todos» o revisa «Cerca de ti»."
+      emptyNoResultsMessage="No hay especialistas en la marca de tu auto en tu zona. Revisa «Cerca de ti» (multimarca y especialistas) o crea una solicitud."
       onProviderPress={onProviderPress}
       onSeeAll={onSeeAll}
       seeAllWhen={!loading && (hasSelectedAddress || providers.length > 0)}

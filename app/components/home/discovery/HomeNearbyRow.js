@@ -19,14 +19,14 @@ const HomeNearbyRow = ({
   return (
     <HomeProvidersCarouselSection
       title={resolvedTitle}
-      hint="Ordenados por distancia desde tu dirección."
+      hint="Especialistas en tu marca y talleres multimarca dentro de 5 km, ordenados por distancia."
       cardFooterVariant="bookings"
       providers={providers}
       loading={loading}
       emptyRequiresAddress
       hasSelectedAddress={hasSelectedAddress}
       emptyNoAddressMessage="Selecciona una dirección arriba para ver proveedores cercanos."
-      emptyNoResultsMessage="No hay talleres ni mecánicos con ubicación registrada dentro de 5 km. Prueba otra dirección o amplía tu zona en Explorar."
+      emptyNoResultsMessage="No hay proveedores compatibles con tu vehículo dentro de 5 km. Prueba otra dirección o usa «Ver todos»."
       onProviderPress={onProviderPress}
       onSeeAll={onSeeAll}
       seeAllWhen={!loading && (hasSelectedAddress || providers.length > 0)}

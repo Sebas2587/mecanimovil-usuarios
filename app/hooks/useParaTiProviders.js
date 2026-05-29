@@ -8,7 +8,7 @@ import {
 import { resolveUserCityContext } from '../components/home/shared/homeAddressUtils';
 
 /**
- * Destacados en home: KPI en la ciudad de la dirección + radar 5 km (OpenSpec fase 3 + alcance local).
+ * Destacados en home: solo especialistas en la marca del vehículo, orden KPI (ciudad + radar 5 km).
  */
 export function useParaTiProviders({ vehicle, address, enabled = true, limit = 12 }) {
   const marcaId = resolveVehicleMarcaId(vehicle);

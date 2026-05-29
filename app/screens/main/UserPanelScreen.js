@@ -33,7 +33,6 @@ import {
   HomeContextualBanner,
   HomeHighlightedRow,
   HomeNearbyRow,
-  HomeMultimarcaRow,
   HomeTrendingServicesRow,
   HomeHealthServicesRow,
   // HomeAgendamientoSheet, // Sheet IA deshabilitado temporalmente
@@ -48,7 +47,6 @@ import {
   navigateCrearSolicitudDesdeHome,
 } from '../../components/home/shared/homeScheduleNavigation';
 import { useParaTiProviders } from '../../hooks/useParaTiProviders';
-import { useMultimarcaProviders } from '../../hooks/useMultimarcaProviders';
 import { useTripTracking } from '../../context/TripTrackingContext';
 import { TRIP_ACTIVE_BAR_HEIGHT } from '../../components/trip/TripActiveBar';
 import {
@@ -352,16 +350,6 @@ const UserPanelScreen = () => {
   });
 
   const {
-    data: panelMultimarcaProviders = [],
-    isLoading: panelMultimarcaLoading,
-    refetch: refetchPanelMultimarca,
-  } = useMultimarcaProviders({
-    address: selectedAddress,
-    enabled: true,
-    limit: 12,
-  });
-
-  const {
     data: panelNearbyProviders = [],
     isLoading: panelNearbyLoading,
     refetch: refetchPanelNearby,
@@ -386,8 +374,10 @@ const UserPanelScreen = () => {
       }
       return getNearbyProvidersForPanel(coords.lat, coords.lng, marcaIdForPanel, {
         limit: 24,
-        marcaFallback: true,
+        marcaFallback: false,
         keepUnknownDistance: true,
+        sortByDistanceOnly: true,
+        preferMarcaSpecialists: false,
       });
     },
   });
@@ -489,7 +479,7 @@ const UserPanelScreen = () => {
 
   // ── Refresh ──
   const onRefresh = useCallback(async () => {
-    const extras = [refetchPanelMultimarca()];
+    const extras = [];
     if (selectedVehicle?.id) {
       extras.push(refetchPanelParaTi(), refetchPanelNearby(), refetchPanelActivity());
     }
@@ -509,7 +499,6 @@ const UserPanelScreen = () => {
     refetchPanelParaTi,
     refetchPanelNearby,
     refetchPanelActivity,
-    refetchPanelMultimarca,
   ]);
 
   const weatherDerived = useMemo(() => {
@@ -666,13 +655,6 @@ const UserPanelScreen = () => {
           onSeeAll={handleSeeAllParaTi}
         />
 
-        <HomeMultimarcaRow
-          providers={panelMultimarcaProviders}
-          loading={panelMultimarcaLoading}
-          onProviderPress={openProviderFromPanel}
-          onSeeAll={() => openExplore({ filterMultimarca: true })}
-        />
-
         <HomeNearbyRow
           selectedVehicle={selectedVehicle}
           title={`Cerca de ${addressLabel}`}
@@ -770,6 +752,7 @@ const styles = StyleSheet.create({
   },
   scrollViewFlex: {
     flex: 1,
+    ...(Platform.OS === 'web' ? { overflowX: 'hidden' } : null),
   },
   scroll: {
     paddingHorizontal: H_PAD,

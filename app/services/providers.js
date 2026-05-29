@@ -6,6 +6,7 @@ import {
   compareProvidersByMarcaThenDistance,
   compareProvidersByMarcaThenKpi,
   tagProviderMarcaFlags,
+  filterProvidersEspecialistasMarca,
 } from '../utils/providerUtils';
 import { filterProvidersForDestacadosPanel } from '../components/home/shared/homeAddressUtils';
 import {
@@ -47,7 +48,7 @@ function finalizeNearbyProviders(merged, options = {}) {
   const maxKm = clampRecommendationRadiusKm(options.maxKm ?? PROVIDER_RECOMMENDATION_MAX_KM);
   const requireInRadius = options.requireInRadius !== false;
   const keepUnknownDistance = options.keepUnknownDistance === true;
-  const preferMarca = options.preferMarcaSpecialists !== false;
+  const preferMarca = options.preferMarcaSpecialists === true;
   const sortCmp = preferMarca
     ? (options.sortByDistanceOnly ? compareProvidersByMarcaThenDistance : compareProvidersByMarcaThenKpi)
     : (options.sortByDistanceOnly
@@ -1136,11 +1137,11 @@ export const getExploreProvidersByServicios = async (vehiculoId, servicioIds, op
 };
 
 /**
- * Proveedores destacados (`proveedores_filtrados`), orden KPI.
+ * Proveedores destacados: solo especialistas en la marca del vehículo, orden KPI.
  *
  * @param {'panel'|'explore'} options.scope
  *   - panel: misma ciudad/comuna que la dirección + radar 5 km (home Destacados)
- *   - explore: todos los compatibles con marca (Ver todos)
+ *   - explore: todos los especialistas por KPI (Ver todos Destacados)
  */
 export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
   const limit = options.limit ?? 12;
@@ -1148,7 +1149,11 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
   if (!vehiculoId) return [];
 
   try {
-    const params = { vehiculo_id: vehiculoId, ...PANEL_SERVICIOS_QUERY };
+    const params = {
+      vehiculo_id: vehiculoId,
+      solo_especialistas: 'true',
+      ...PANEL_SERVICIOS_QUERY,
+    };
     const [tRes, mRes] = await Promise.all([
       get('/usuarios/talleres/proveedores_filtrados/', params),
       get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params),
@@ -1156,7 +1161,9 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
 
     const talleres = (tRes.talleres || []).map((p) => tagProviderMarcaFlags({ ...p, _panelKind: 'taller' }));
     const mecanicos = (mRes.mecanicos || []).map((p) => tagProviderMarcaFlags({ ...p, _panelKind: 'mecanico' }));
-    let list = [...talleres, ...mecanicos].sort(compareProvidersByMarcaThenKpi);
+    let list = filterProvidersEspecialistasMarca([...talleres, ...mecanicos]).sort(
+      compareProvidersByKpiRelevance,
+    );
 
     const { lat, lng, marcaId, cityContext } = options;
     if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
@@ -1172,9 +1179,9 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
 
     if (scope === 'panel') {
       list = filterProvidersForDestacadosPanel(list, cityContext);
-      list = list.sort(compareProvidersByMarcaThenKpi).slice(0, limit);
+      list = list.sort(compareProvidersByKpiRelevance).slice(0, limit);
     } else {
-      list = list.slice(0, limit);
+      list = list.sort(compareProvidersByKpiRelevance).slice(0, limit);
     }
 
     return list;
@@ -1241,9 +1248,9 @@ async function fetchCercaProvidersMerged(lat, lng, maxKm, marcaId) {
 }
 
 /**
- * Talleres y mecánicos cercanos según dirección del usuario (PostGIS /cerca/).
- * Radio de búsqueda API: hasta 5 km.
- * Orden: solo distancia ascendente (sin KPI). KPI y suscripción no filtran el listado.
+ * Talleres y mecánicos cercanos según dirección (PostGIS /cerca/).
+ * Incluye especialistas en la marca del vehículo y multimarca dentro del radio.
+ * Orden: distancia ascendente. Sin fallback a proveedores que no atienden la marca.
  */
 export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}) => {
   const la = Number(lat);
@@ -1255,12 +1262,11 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
   const maxKm = clampRecommendationRadiusKm(
     options.maxKm ?? options.distTaller ?? options.distMecanico ?? PROVIDER_RECOMMENDATION_MAX_KM,
   );
-  const marcaFallback = options.marcaFallback !== false;
+  const marcaFallback = options.marcaFallback === true;
 
   try {
     let deduped = await fetchCercaProvidersMerged(la, lo, maxKm, marcaId);
 
-    // Si ningún proveedor atiende la marca en el radio, mostrar todos los cercanos verificados.
     if (deduped.length === 0 && marcaFallback && marcaId != null && marcaId !== '') {
       deduped = await fetchCercaProvidersMerged(la, lo, maxKm, null);
     }
@@ -1274,6 +1280,7 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
       keepUnknownDistance: options.keepUnknownDistance ?? true,
       skipClientSlice: options.skipClientSlice,
       sortByDistanceOnly: options.sortByDistanceOnly !== false,
+      preferMarcaSpecialists: options.preferMarcaSpecialists === true,
     });
 
     if (__DEV__) {

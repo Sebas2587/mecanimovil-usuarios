@@ -24,8 +24,8 @@ import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 
 /**
  * Explorar proveedores según modo (OpenSpec fase 3):
- * - para_ti: todos por KPI (Ver todos Destacados)
- * - cerca: todos por distancia (Ver todos Cerca)
+ * - para_ti: especialistas en la marca por KPI (Ver todos Destacados)
+ * - cerca: especialistas + multimarca por distancia (Ver todos Cerca)
  * - con categoría: listado unificado filtrado por servicios
  */
 const ExploreProvidersScreen = () => {
@@ -188,8 +188,10 @@ const ExploreProvidersScreen = () => {
                 searchQuery.trim()
                   ? 'Prueba otro término.'
                   : isParaTiExplore
-                    ? 'No hay proveedores que atiendan tu marca.'
-                    : 'Amplía la zona o cambia de pestaña.'
+                    ? 'No hay especialistas en la marca de tu vehículo.'
+                    : isCercaExplore
+                      ? 'No hay especialistas ni multimarca compatibles en tu radio.'
+                      : 'Amplía la zona o cambia de pestaña.'
               }
             />
           </>

@@ -20,7 +20,7 @@ async function resolveCoords(address) {
 }
 
 /**
- * Explore «Ver todos» Destacados: todos los proveedores por KPI (sin filtro ciudad/radar).
+ * Explore «Ver todos» Destacados: especialistas en la marca, orden KPI (sin filtro ciudad/radar).
  */
 export function useExploreProvidersParaTi({ vehicle, address, enabled = true }) {
   const marcaId = resolveVehicleMarcaId(vehicle);
