@@ -62,6 +62,13 @@ function servicioCompatibleConMotorServicio(servicio, vehicle) {
   return motores.includes(normalizeTipoMotor(vehicle?.tipo_motor));
 }
 
+/** Oferta con tipo_motor vacío aplica a todos los motores del catálogo; si tiene valor, debe coincidir. */
+function ofertaCompatibleConTipoMotorOferta(servicio, vehicle) {
+  const raw = servicio?.tipo_motor;
+  if (raw == null || String(raw).trim() === '') return true;
+  return normalizeTipoMotor(raw) === normalizeTipoMotor(vehicle?.tipo_motor);
+}
+
 /**
  * true si la oferta aplica al vehículo (marca de la oferta o modelos compatibles).
  * Sin vehículo: no filtra (muestra todo el catálogo).
@@ -70,6 +77,7 @@ export function servicioOfertaCompatibleConVehiculo(servicio, vehicle) {
   if (!vehicle?.id) return true;
   if (!servicio) return false;
   if (!servicioCompatibleConMotorServicio(servicio, vehicle)) return false;
+  if (!ofertaCompatibleConTipoMotorOferta(servicio, vehicle)) return false;
 
   const { marcaId, marcaNombre, modeloId } = resolveVehiculoMarcaModelo(vehicle);
 
