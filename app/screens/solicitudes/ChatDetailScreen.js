@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
     View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity,
     KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Keyboard, Alert, Modal,
+    useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -21,12 +22,30 @@ import { isChatAttachmentImage, resolveChatAttachmentUri } from '../../utils/cha
 import { ROUTES } from '../../utils/constants';
 import { CONVERSATIONS_KEYS } from '../../hooks/useChats';
 
+/** Altura aproximada de la barra de composición (input + botones + safe area mínima). */
+const CHAT_COMPOSER_MIN_HEIGHT = 76;
+
 const ChatDetailScreen = () => {
     const route = useRoute();
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
+    const { height: windowHeight } = useWindowDimensions();
+    const isWeb = Platform.OS === 'web';
 
     const styles = getStyles();
+    const composerBottomPad = Math.max(insets.bottom, 16);
+    const composerBlockHeight = CHAT_COMPOSER_MIN_HEIGHT + composerBottomPad;
+
+    const webScreenFrame = isWeb
+        ? {
+            height: windowHeight,
+            maxHeight: windowHeight,
+            minHeight: 0,
+            flex: 1,
+            overflow: 'hidden',
+            position: 'relative',
+        }
+        : null;
 
     const queryClient = useQueryClient();
     const { conversationId } = route.params;
@@ -534,16 +553,66 @@ const ChatDetailScreen = () => {
         );
     };
 
+    const composerBlock = (
+        <>
+            {attachment && (
+                <View style={styles.previewContainer}>
+                    <View style={styles.previewWrapper}>
+                        {attachment.type === 'document' ? (
+                            <View style={styles.docPreview}>
+                                <Ionicons name="document-text" size={24} color={COLORS.text.secondary} />
+                                <Text style={styles.previewName} numberOfLines={1}>{attachment.name}</Text>
+                            </View>
+                        ) : (
+                            <Image source={{ uri: attachment.uri }} style={styles.imagePreview} contentFit="cover" />
+                        )}
+                        <TouchableOpacity style={styles.removePreviewButton} onPress={() => setAttachment(null)}>
+                            <Ionicons name="close-circle" size={24} color={COLORS.error.main} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
+
+            <View style={[styles.inputContainer, { paddingBottom: composerBottomPad }]}>
+                <TouchableOpacity style={styles.iconButton} onPress={handlePickAttachment}>
+                    <Feather name="paperclip" size={24} color={COLORS.primary[500]} />
+                </TouchableOpacity>
+
+                <View style={styles.inputWrapper}>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Escribe un mensaje..."
+                        placeholderTextColor={COLORS.text.disabled}
+                        value={inputText}
+                        onChangeText={setInputText}
+                        multiline
+                    />
+                </View>
+
+                <TouchableOpacity
+                    style={[styles.sendButton, (!inputText.trim() && !attachment) && styles.sendButtonDisabled]}
+                    onPress={sendMessage}
+                    disabled={!inputText.trim() && !attachment}
+                >
+                    <Ionicons
+                        name="send"
+                        size={20}
+                        color={(!inputText.trim() && !attachment) ? COLORS.text.disabled : COLORS.text.onPrimary}
+                    />
+                </TouchableOpacity>
+            </View>
+        </>
+    );
+
+    const listPaddingTopForComposer =
+        composerBlockHeight + (attachment ? 56 : 0);
+
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, webScreenFrame]}>
             <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
             {renderHeader()}
 
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={{ flex: 1 }}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-            >
+            <View style={[styles.messagesPane, isWeb && styles.messagesPaneWeb]}>
                 {loading ? (
                     <View style={styles.centerContainer}>
                         <ActivityIndicator size="large" color={COLORS.primary[500]} />
@@ -554,61 +623,30 @@ const ChatDetailScreen = () => {
                         data={messages}
                         renderItem={renderMessage}
                         keyExtractor={item => String(item.id)}
-                        contentContainerStyle={styles.listContent}
+                        style={isWeb ? styles.listWeb : undefined}
+                        contentContainerStyle={[
+                            styles.listContent,
+                            isWeb && { paddingTop: listPaddingTopForComposer },
+                        ]}
                         inverted
                         keyboardShouldPersistTaps="handled"
                         keyboardDismissMode="on-drag"
                     />
                 )}
+            </View>
 
-                {/* Attachment Preview */}
-                {attachment && (
-                    <View style={styles.previewContainer}>
-                        <View style={styles.previewWrapper}>
-                            {attachment.type === 'document' ? (
-                                <View style={styles.docPreview}>
-                                    <Ionicons name="document-text" size={24} color={COLORS.text.secondary} />
-                                    <Text style={styles.previewName} numberOfLines={1}>{attachment.name}</Text>
-                                </View>
-                            ) : (
-                                <Image source={{ uri: attachment.uri }} style={styles.imagePreview} contentFit="cover" />
-                            )}
-                            <TouchableOpacity style={styles.removePreviewButton} onPress={() => setAttachment(null)}>
-                                <Ionicons name="close-circle" size={24} color={COLORS.error.main} />
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
-
-                <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-                    <TouchableOpacity style={styles.iconButton} onPress={handlePickAttachment}>
-                        <Feather name="paperclip" size={24} color={COLORS.primary[500]} />
-                    </TouchableOpacity>
-
-                    <View style={styles.inputWrapper}>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Escribe un mensaje..."
-                            placeholderTextColor={COLORS.text.disabled}
-                            value={inputText}
-                            onChangeText={setInputText}
-                            multiline
-                        />
-                    </View>
-
-                    <TouchableOpacity
-                        style={[styles.sendButton, (!inputText.trim() && !attachment) && styles.sendButtonDisabled]}
-                        onPress={sendMessage}
-                        disabled={!inputText.trim() && !attachment} // Disable only if BOTH are empty
-                    >
-                        <Ionicons
-                            name="send"
-                            size={20}
-                            color={(!inputText.trim() && !attachment) ? COLORS.text.disabled : COLORS.text.onPrimary}
-                        />
-                    </TouchableOpacity>
+            {isWeb ? (
+                <View style={styles.composerDockWeb}>
+                    {composerBlock}
                 </View>
-            </KeyboardAvoidingView>
+            ) : (
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    keyboardVerticalOffset={0}
+                >
+                    {composerBlock}
+                </KeyboardAvoidingView>
+            )}
 
             <Modal
                 visible={!!selectedImage}
@@ -640,6 +678,26 @@ const ChatDetailScreen = () => {
 const getStyles = () => StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: COLORS.background.default,
+        ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column' } : null),
+    },
+    messagesPane: {
+        flex: 1,
+    },
+    messagesPaneWeb: {
+        minHeight: 0,
+        overflow: 'hidden',
+    },
+    listWeb: {
+        flex: 1,
+        minHeight: 0,
+    },
+    composerDockWeb: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 40,
         backgroundColor: COLORS.background.default,
     },
     centerContainer: {
