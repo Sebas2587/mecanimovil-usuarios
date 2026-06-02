@@ -157,6 +157,7 @@ export const useProviderServices = (id, type, providerName) => {
 
                     const categoriasInfo = info.categorias_info || [];
                     const modelosInfo = info.modelos_info || [];
+                    const marcasInfo = info.marcas_info || [];
 
                     return {
                         id: servicioId,
@@ -167,6 +168,7 @@ export const useProviderServices = (id, type, providerName) => {
                         duracion_estimada_base: info.duracion_estimada_base || null,
                         precio_referencia: info.precio_referencia || null,
                         categorias_completas: categoriasInfo,
+                        marcas_info: marcasInfo,
                         modelos_info: modelosInfo,
                         modelos_compatibles: modelosInfo.map((m) => {
                             const marca = m.marca_nombre || '';
