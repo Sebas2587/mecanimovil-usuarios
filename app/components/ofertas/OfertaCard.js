@@ -286,13 +286,36 @@ const OfertaCard = ({
     const subtotalSinIva = merged.subSinIva;
     const iva = merged.iva;
 
+    const servicios = detalles.map(d => ({
+      nombre: d.servicio_nombre || d.servicio?.nombre || d.nombre || 'Servicio',
+      precio: parseFloat(d.precio_servicio || 0),
+      repuestos_info: d.repuestos_info || [],
+    }));
+    if (
+      servicios.length === 0
+      && Array.isArray(oferta.repuestos_info)
+      && oferta.repuestos_info.length > 0
+    ) {
+      servicios.push({
+        nombre: oferta.servicio_nombre || 'Servicio',
+        precio: parseFloat(oferta.precio_total_ofrecido || 0),
+        repuestos_info: oferta.repuestos_info,
+      });
+    }
+    if (servicios.length === 0 && Array.isArray(oferta.servicios_ofrecidos)) {
+      oferta.servicios_ofrecidos.forEach((s) => {
+        if (s.repuestos_info?.length) {
+          servicios.push({
+            nombre: s.nombre || 'Servicio',
+            precio: parseFloat(s.precio || 0),
+            repuestos_info: s.repuestos_info,
+          });
+        }
+      });
+    }
+
     return {
-      // Servicios individuales de la oferta
-      servicios: detalles.map(d => ({
-        nombre: d.servicio_nombre || d.servicio?.nombre || d.nombre || 'Servicio',
-        precio: parseFloat(d.precio_servicio || 0),
-        repuestos_info: d.repuestos_info || []
-      })),
+      servicios,
       // Valores directos del proveedor (sin IVA)
       costoManoObra,
       costoRepuestos,

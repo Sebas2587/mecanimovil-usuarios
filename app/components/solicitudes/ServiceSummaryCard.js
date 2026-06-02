@@ -7,6 +7,11 @@ import {
     formatServiciosTitulo,
     formatCLPServicio,
 } from '../../utils/solicitudServicios';
+import RepuestosExpandible from '../ofertas/RepuestosExpandible';
+import {
+    resolveLineasServicioConRepuestos,
+    lineasTienenRepuestos,
+} from '../../utils/ofertaRepuestos';
 
 /** Colores de badge alineados a estados de solicitud pública (Coinbase / superficies suaves). */
 export function getEstadoBadgeMeta(solicitud) {
@@ -138,6 +143,13 @@ const ServiceSummaryCard = ({ solicitud }) => {
         }));
     }, [solicitud?.oferta_seleccionada_detail]);
 
+    const solicitudConRepuestos = solicitud?.requiere_repuestos !== false;
+    const lineasRepuestosOferta = useMemo(() => {
+        if (!solicitudConRepuestos) return [];
+        return resolveLineasServicioConRepuestos(solicitud?.oferta_seleccionada_detail);
+    }, [solicitud?.oferta_seleccionada_detail, solicitudConRepuestos]);
+    const mostrarRepuestosOferta = lineasTienenRepuestos(lineasRepuestosOferta);
+
     return (
         <View style={styles.card}>
             <View style={styles.header}>
@@ -266,7 +278,40 @@ const ServiceSummaryCard = ({ solicitud }) => {
                         ) : null}
                     </View>
                 </View>
+
+                <View style={styles.gridItem}>
+                    <View style={styles.iconContainer}>
+                        <Ionicons
+                            name={solicitudConRepuestos ? 'construct-outline' : 'hammer-outline'}
+                            size={18}
+                            color={COLORS.text.secondary}
+                        />
+                    </View>
+                    <View style={styles.gridItemTextWrap}>
+                        <Text style={styles.gridLabel}>Repuestos</Text>
+                        <Text style={styles.gridValue}>
+                            {solicitudConRepuestos ? 'Con repuestos' : 'Solo mano de obra'}
+                        </Text>
+                    </View>
+                </View>
             </View>
+
+            {mostrarRepuestosOferta ? (
+                <View style={styles.repuestosOfertaSection}>
+                    <Text style={styles.repuestosOfertaTitle}>Repuestos incluidos en la oferta</Text>
+                    {lineasRepuestosOferta.map((linea) => (
+                        linea.repuestos_info?.length > 0 ? (
+                            <RepuestosExpandible
+                                key={String(linea.id ?? linea.nombre)}
+                                repuestos={linea.repuestos_info}
+                                servicioNombre={
+                                    lineasRepuestosOferta.length > 1 ? linea.nombre : null
+                                }
+                            />
+                        ) : null
+                    ))}
+                </View>
+            ) : null}
         </View>
     );
 };
@@ -436,6 +481,16 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.sm,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         lineHeight: 18,
+    },
+    repuestosOfertaSection: {
+        marginTop: SPACING.md,
+        gap: SPACING.xs,
+    },
+    repuestosOfertaTitle: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.secondary,
+        marginBottom: SPACING.xxs,
     },
 });
 

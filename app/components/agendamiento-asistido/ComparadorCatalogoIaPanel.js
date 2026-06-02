@@ -70,6 +70,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
             nombre: s.nombre,
             precio: s.precio,
             oferta_servicio_id: s.oferta_servicio_id,
+            repuestos_info: s.repuestos_info || [],
           }))
         : null),
     servicios_cubiertos: oferta.servicios_cubiertos,

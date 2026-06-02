@@ -18,6 +18,12 @@ import {
     formatMinutosDuracion,
     formatRangoDuracion,
 } from '../../utils/ofertaTiemposEstimados';
+import RepuestosExpandible from '../ofertas/RepuestosExpandible';
+import {
+    ofertaDebeMostrarRepuestos,
+    resolveLineasServicioConRepuestos,
+    lineasTienenRepuestos,
+} from '../../utils/ofertaRepuestos';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -113,6 +119,11 @@ const OfferCardDetailed = ({
         || (duracionCatalogo
             ? formatMinutosDuracion(duracionCatalogo.minutosPromedioTotal)
             : formatDurationFromTimedelta(oferta.tiempo_estimado_total));
+
+    const lineasConRepuestos = resolveLineasServicioConRepuestos(oferta);
+    const mostrarListaRepuestos =
+        ofertaDebeMostrarRepuestos(oferta, solicitud)
+        && lineasTienenRepuestos(lineasConRepuestos);
 
     return (
         <View style={styles.card}>
@@ -225,6 +236,21 @@ const OfferCardDetailed = ({
                                 </Text>
                             </View>
                         )}
+                        {mostrarListaRepuestos ? (
+                            <View style={styles.repuestosDetalleBlock}>
+                                {lineasConRepuestos.map((linea) => (
+                                    linea.repuestos_info?.length > 0 ? (
+                                        <RepuestosExpandible
+                                            key={String(linea.id ?? linea.nombre)}
+                                            repuestos={linea.repuestos_info}
+                                            servicioNombre={
+                                                lineasConRepuestos.length > 1 ? linea.nombre : null
+                                            }
+                                        />
+                                    ) : null
+                                ))}
+                            </View>
+                        ) : null}
                         <View style={styles.divider} />
                     </>
                 )}
@@ -572,6 +598,10 @@ const styles = StyleSheet.create({
     },
     costValueGestion: {
         color: COLORS.warning[800],
+    },
+    repuestosDetalleBlock: {
+        marginTop: SPACING.sm,
+        gap: SPACING.xs,
     },
     divider: {
         height: BORDERS.width.thin,

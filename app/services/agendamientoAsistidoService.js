@@ -274,5 +274,17 @@ export function mapCandidatoToOfertaComparador(candidato) {
         ? [candidato.servicio]
         : [],
     estado: 'catalogo_preview',
+    detalles_servicios: Array.isArray(candidato.detalles_servicios)
+      ? candidato.detalles_servicios
+      : (Array.isArray(candidato.servicios_ofrecidos)
+        ? candidato.servicios_ofrecidos.map((s) => ({
+            id: s.oferta_servicio_id ?? s.id,
+            servicio: s.id,
+            servicio_nombre: s.nombre,
+            precio_servicio: s.precio,
+            repuestos_info: s.repuestos_info || [],
+          }))
+        : []),
+    repuestos_info: candidato.repuestos_info || [],
   };
 }

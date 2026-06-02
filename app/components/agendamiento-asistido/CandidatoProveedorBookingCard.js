@@ -31,6 +31,11 @@ import {
   resolveModoPrecioCandidato,
   solicitudRequiereRepuestos,
 } from '../../utils/catalogoComparadorRepuestos';
+import RepuestosExpandible from '../ofertas/RepuestosExpandible';
+import {
+  resolveLineasServicioConRepuestos,
+  lineasTienenRepuestos,
+} from '../../utils/ofertaRepuestos';
 
 function formatCLP(n) {
   const v = Math.round(Number(n) || 0);
@@ -111,6 +116,14 @@ export default function CandidatoProveedorBookingCard({
     });
     return resolverDesgloseIvaMostrado(null, calc);
   }, [candidato, precioUsaRepuestos]);
+
+  const lineasConRepuestos = useMemo(
+    () => resolveLineasServicioConRepuestos(candidato),
+    [candidato],
+  );
+  const mostrarListaRepuestos = solicitudConRepuestos
+    && precioUsaRepuestos
+    && lineasTienenRepuestos(lineasConRepuestos);
 
   const providerForAvatar = useMemo(() => {
     const p = candidato?.proveedor || {};
@@ -334,6 +347,21 @@ export default function CandidatoProveedorBookingCard({
               <View style={styles.priceLine}>
                 <Text style={styles.priceLineLabel}>Gestión de compra</Text>
                 <Text style={styles.priceLineValue}>{formatCLP(d.gestion)}</Text>
+              </View>
+            ) : null}
+            {mostrarListaRepuestos ? (
+              <View style={styles.repuestosDetalleBlock}>
+                {lineasConRepuestos.map((linea) => (
+                  linea.repuestos_info?.length > 0 ? (
+                    <RepuestosExpandible
+                      key={String(linea.id ?? linea.nombre)}
+                      repuestos={linea.repuestos_info}
+                      servicioNombre={
+                        lineasConRepuestos.length > 1 ? linea.nombre : null
+                      }
+                    />
+                  ) : null
+                ))}
               </View>
             ) : null}
           </>
@@ -648,6 +676,10 @@ const styles = StyleSheet.create({
   priceLineLabel: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
+  },
+  repuestosDetalleBlock: {
+    marginTop: SPACING.xs,
+    gap: SPACING.xs,
   },
   priceLineValue: {
     fontSize: TYPOGRAPHY.fontSize.sm,
