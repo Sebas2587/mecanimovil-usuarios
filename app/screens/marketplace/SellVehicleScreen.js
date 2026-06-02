@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar,
     Switch, ActivityIndicator, Alert, Modal, TextInput, RefreshControl, Platform, Share,
-    Dimensions,
+    Dimensions, useWindowDimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,8 @@ const SellVehicleScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const insets = useSafeAreaInsets();
+    const { height: windowHeight } = useWindowDimensions();
+    const isWeb = Platform.OS === 'web';
     const queryClient = useQueryClient();
 
     // Get vehicle data from params (support both `vehicle` and `vehicleId`)
@@ -351,10 +353,20 @@ const SellVehicleScreen = () => {
         Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0
     );
     const styles = getStyles(insets, safeTop);
+    const webScreenFrame = isWeb
+        ? {
+            height: windowHeight,
+            maxHeight: windowHeight,
+            minHeight: 0,
+            flex: 1,
+            overflow: 'hidden',
+            position: 'relative',
+        }
+        : null;
 
     if (isLoading) {
         return (
-            <View style={styles.container}>
+            <View style={[styles.container, webScreenFrame]}>
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
                 {/* Header Skeleton */}
                 <View style={{ height: 228, backgroundColor: COLORS.neutral.gray[200] }}>
@@ -398,11 +410,11 @@ const SellVehicleScreen = () => {
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, webScreenFrame]}>
             <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
             <ScrollView
-                style={styles.scrollView}
+                style={[styles.scrollView, isWeb && styles.scrollViewWeb]}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
                 refreshControl={
@@ -810,6 +822,11 @@ const getStyles = (insets, safeTop = insets.top) => StyleSheet.create({
     },
     scrollView: {
         flex: 1,
+    },
+    scrollViewWeb: {
+        minHeight: 0,
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
     },
     scrollContent: {
         paddingBottom: 0,

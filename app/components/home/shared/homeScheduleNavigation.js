@@ -127,18 +127,31 @@ export function navigateCrearSolicitudDesdeHome(navigation, { vehicle } = {}) {
   });
 }
 
+function resolveVehicleParaAgendar(userId, queryClient, panelVehicle) {
+  if (panelVehicle?.id) return panelVehicle;
+
+  if (!queryClient || !userId) return null;
+
+  const cached = queryClient.getQueryData(['userVehicles', userId]);
+  const list = Array.isArray(cached) ? cached : cached?.results || [];
+  if (!list.length) return null;
+
+  const panelSelectedId = queryClient.getQueryData(['panelSelectedVehicleId', userId]);
+  if (panelSelectedId != null) {
+    const fromPanel = list.find((v) => v.id === panelSelectedId);
+    if (fromPanel) return fromPanel;
+  }
+
+  return list.find((v) => v.is_active !== false) || list[0] || null;
+}
+
 /**
- * Tab bar central «Agendar»: abre CrearSolicitud con vehículo activo si hay cache.
+ * Tab bar central «Agendar»: abre CrearSolicitud con el vehículo elegido en el panel.
  */
-export function navigateAgendarDesdeTab(rootNavigation, userId, queryClient) {
+export function navigateAgendarDesdeTab(rootNavigation, userId, queryClient, panelVehicle = null) {
   if (!rootNavigation?.navigate) return;
 
-  let vehicle = null;
-  if (queryClient && userId) {
-    const cached = queryClient.getQueryData(['userVehicles', userId]);
-    const list = Array.isArray(cached) ? cached : cached?.results || [];
-    vehicle = list.find((v) => v.is_active !== false) || list[0] || null;
-  }
+  const vehicle = resolveVehicleParaAgendar(userId, queryClient, panelVehicle);
 
   if (vehicle?.id) {
     rootNavigation.navigate(ROUTES.CREAR_SOLICITUD, {

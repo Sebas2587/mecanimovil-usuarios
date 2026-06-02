@@ -236,8 +236,10 @@ const UserPanelScreen = () => {
   const { setSelectedVehicleId: setTripVehicleId, tripActive } = useTripTracking();
 
   useEffect(() => {
-    if (selectedVehicle?.id) setTripVehicleId(selectedVehicle.id);
-  }, [selectedVehicle?.id, setTripVehicleId]);
+    if (!selectedVehicleId || !user?.id) return;
+    queryClient.setQueryData(['panelSelectedVehicleId', user.id], selectedVehicleId);
+    setTripVehicleId(selectedVehicleId);
+  }, [selectedVehicleId, user?.id, setTripVehicleId, queryClient]);
 
   const activeSolicitudesCount = useMemo(() => {
     if (!Array.isArray(solicitudesActivas)) return 0;

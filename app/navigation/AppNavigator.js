@@ -9,6 +9,7 @@ import CustomHeader from '../components/navigation/Header/Header';
 import ProfileTabIcon from '../components/navigation/ProfileTabIcon';
 import { COLORS, TYPOGRAPHY, BORDERS, SPACING } from '../design-system/tokens';
 import { useAuth } from '../context/AuthContext';
+import { useTripTracking } from '../context/TripTrackingContext';
 import { queryClient } from '../config/queryClient';
 import { navigateAgendarDesdeTab } from '../components/home/shared/homeScheduleNavigation';
 import AgendarTabScreen from '../screens/main/AgendarTabScreen';
@@ -179,6 +180,7 @@ const HomeNavigator = () => (
 const GlassTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { selectedVehicle } = useTripTracking();
   const bottomPad = Math.max(insets.bottom, 8);
 
   return (
@@ -198,7 +200,12 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
         const onPress = () => {
           if (isAgendarTab) {
             navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            navigateAgendarDesdeTab(navigation.getParent(), user?.id, queryClient);
+            navigateAgendarDesdeTab(
+              navigation.getParent(),
+              user?.id,
+              queryClient,
+              selectedVehicle,
+            );
             return;
           }
           const event = navigation.emit({
