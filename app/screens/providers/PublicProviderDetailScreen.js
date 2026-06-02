@@ -32,6 +32,10 @@ import {
 } from '../../utils/publicListingRoute';
 
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import {
+  formatPrecioCatalogoServicio,
+  labelTipoServicioCatalogo,
+} from '../../components/home/shared/providerCatalogSchedule';
 import { filtrarServiciosCatalogoPerfilProveedor } from '../../utils/servicioVehiculoCompat';
 import { isProviderMultimarca } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
@@ -378,7 +382,7 @@ const PublicProviderDetailScreen = () => {
           </View>
           {esMultimarcaProveedor ? (
             <Text style={styles.sectionHint}>
-              Catálogo multimarca activo. Inicia sesión para agendar cualquiera de estos servicios.
+              Precios orientativos; al agendar verás el valor según la marca de tu vehículo. Inicia sesión para solicitar.
             </Text>
           ) : (
             <Text style={styles.sectionHint}>
@@ -401,6 +405,10 @@ const PublicProviderDetailScreen = () => {
                     {servicio.categoria}
                   </Text>
                 )}
+                {formatPrecioCatalogoServicio(servicio) ? (
+                  <Text style={styles.servicePrice}>{formatPrecioCatalogoServicio(servicio)}</Text>
+                ) : null}
+                <Text style={styles.serviceTipoBadge}>{labelTipoServicioCatalogo(servicio)}</Text>
               </Card>
             ))}
           </View>
@@ -614,6 +622,18 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     marginBottom: 0,
+  },
+  servicePrice: {
+    color: COLORS.success[700],
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  serviceTipoBadge: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[800],
   },
   // CTA Styles
   ctaCard: {

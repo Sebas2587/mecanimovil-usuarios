@@ -111,8 +111,19 @@ const ProviderDetailScreen = () => {
     }, [queryClient, idToLoad, providerType])
   );
 
+  const vehicleForSchedule = useMemo(() => {
+    if (vehicleFromRoute?.id) return vehicleFromRoute;
+    const active = userVehicles.find((v) => v.is_active !== false);
+    return active || userVehicles[0] || null;
+  }, [vehicleFromRoute, userVehicles]);
+
   const { data: details, isLoading: loadingDetails } = useProviderDetails(idToLoad, providerType);
-  const { data: services } = useProviderServices(idToLoad, providerType);
+  const { data: services } = useProviderServices(
+    idToLoad,
+    providerType,
+    null,
+    vehicleForSchedule,
+  );
   const { data: schedule } = useProviderWeeklySchedule(idToLoad, providerType);
   const { data: documents } = useProviderDocuments(idToLoad, providerType);
   const { data: reviewsData } = useProviderReviews(idToLoad, providerType);
@@ -145,21 +156,15 @@ const ProviderDetailScreen = () => {
   const favorite = isFavorite(idToLoad, providerType);
   const handleToggleFavorite = () => toggleFavorite(provider, providerType);
 
-  const vehicleForSchedule = useMemo(() => {
-    if (vehicleFromRoute?.id) return vehicleFromRoute;
-    const active = userVehicles.find((v) => v.is_active !== false);
-    return active || userVehicles[0] || null;
-  }, [vehicleFromRoute, userVehicles]);
-
   const esMultimarcaProveedor = useMemo(() => isProviderMultimarca(provider), [provider]);
 
   const serviciosVisibles = useMemo(() => {
     const todos = provider?.servicios || [];
     return filtrarServiciosCatalogoPerfilProveedor(todos, {
       provider,
-      vehicle: esMultimarcaProveedor ? null : vehicleForSchedule,
+      vehicle: vehicleForSchedule,
     });
-  }, [provider, provider?.servicios, vehicleForSchedule, esMultimarcaProveedor]);
+  }, [provider, provider?.servicios, vehicleForSchedule]);
 
   const handleScheduleService = useCallback(
     (servicio) => {
@@ -429,23 +434,27 @@ const ProviderDetailScreen = () => {
               <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
             </View>
             <Text style={styles.sectionHint}>
-              {esMultimarcaProveedor
-                ? 'Toca un servicio para agendar con este proveedor multimarca.'
-                : vehicleForSchedule?.id
-                  ? 'Toca un servicio para continuar con el agendamiento.'
+              {vehicleForSchedule?.id
+                ? esMultimarcaProveedor
+                  ? `Precios para tu ${vehicleForSchedule.marca_nombre || vehicleForSchedule.marca?.nombre || 'vehículo'}. Toca un servicio para agendar.`
+                  : 'Toca un servicio para continuar con el agendamiento.'
+                : esMultimarcaProveedor
+                  ? 'Selecciona un vehículo en el inicio para ver el precio de tu marca. Los valores pueden variar según la marca.'
                   : 'Toca un servicio para agendar. Selecciona un vehículo en el inicio para ver los de tu marca.'}
             </Text>
-            {!esMultimarcaProveedor && !vehicleForSchedule?.id ? (
+            {!vehicleForSchedule?.id ? (
               <Text style={styles.noVehicleHint}>
                 Selecciona un vehículo en el inicio para poder agendar.
               </Text>
             ) : null}
             {serviciosVisibles.length === 0 ? (
               <Text style={styles.noVehicleHint}>
-                {esMultimarcaProveedor
-                  ? 'Este proveedor aún no tiene servicios activos en su catálogo.'
-                  : vehicleForSchedule?.id
-                    ? 'Este proveedor no tiene servicios activos para la marca de tu vehículo.'
+                {vehicleForSchedule?.id
+                  ? esMultimarcaProveedor
+                    ? 'Este proveedor no tiene precio configurado para la marca de tu vehículo en estos servicios.'
+                    : 'Este proveedor no tiene servicios activos para la marca de tu vehículo.'
+                  : esMultimarcaProveedor
+                    ? 'Este proveedor aún no tiene servicios activos en su catálogo.'
                     : 'No hay servicios activos visibles para las marcas de este especialista.'}
               </Text>
             ) : null}

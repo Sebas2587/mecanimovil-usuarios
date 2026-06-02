@@ -135,9 +135,9 @@ export const useProviderDetails = (id, type) => {
     });
 };
 
-export const useProviderServices = (id, type, providerName) => {
+export const useProviderServices = (id, type, providerName, vehicle = null) => {
     return useQuery({
-        queryKey: ['providerServices', type, id],
+        queryKey: ['providerServices', type, id, vehicle?.id ?? null],
         queryFn: async () => {
             const endpoint = type === 'taller'
                 ? `/servicios/ofertas/por_taller/?taller=${id}`
@@ -148,8 +148,9 @@ export const useProviderServices = (id, type, providerName) => {
 
             if (ofertas.length === 0) return [];
 
-            // Una entrada por oferta de catálogo (con/sin repuestos son ofertas distintas).
-            return ofertas
+            const { agruparServiciosCatalogoProveedor } = await import('../utils/ofertaResolucionMarca');
+
+            const rows = ofertas
                 .map((oferta) => {
                     const info = oferta.servicio_info || {};
                     const servicioId = info.id || oferta.servicio;
@@ -209,6 +210,8 @@ export const useProviderServices = (id, type, providerName) => {
                     };
                 })
                 .filter(Boolean);
+
+            return agruparServiciosCatalogoProveedor(rows, { vehicle });
         },
         enabled: !!id && !!type,
         staleTime: 0,                // siempre considerar datos desactualizados

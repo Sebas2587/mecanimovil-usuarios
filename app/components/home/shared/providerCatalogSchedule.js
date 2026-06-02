@@ -38,6 +38,9 @@ export function resolvePrecioTotalCatalogo(servicio, { conRepuestos } = {}) {
 }
 
 export function formatPrecioCatalogoServicio(servicio, options = {}) {
+  if (servicio?._tiene_varios_precios && servicio._precio_desde > 0) {
+    return `Desde $${Math.round(servicio._precio_desde).toLocaleString('es-CL')}`;
+  }
   const conRepuestos =
     options.conRepuestos !== undefined
       ? options.conRepuestos

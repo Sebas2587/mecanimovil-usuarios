@@ -2,6 +2,7 @@
  * Compatibilidad oferta de catálogo ↔ vehículo del cliente (marca/modelo).
  */
 
+import { agruparServiciosCatalogoProveedor } from './ofertaResolucionMarca';
 import { isProviderMultimarca } from './providerUtils';
 
 function normalizeMarcaNombre(value) {
@@ -163,14 +164,14 @@ export function servicioOfertaPerteneceACatalogoProveedor(servicio, provider) {
 
 /**
  * Servicios visibles en perfil: solo ofertas activas/disponibles.
- * Multimarca → catálogo completo (agendar cualquier marca).
+ * Multimarca → resuelve precio por marca del vehículo (o agrupa «Desde $X» sin vehículo).
  * Especialista → marcas del proveedor + compatibilidad con vehículo si hay uno.
  */
 export function filtrarServiciosCatalogoPerfilProveedor(servicios, { provider, vehicle } = {}) {
   const list = (Array.isArray(servicios) ? servicios : []).filter(esOfertaServicioActiva);
 
   if (isProviderMultimarca(provider)) {
-    return list;
+    return agruparServiciosCatalogoProveedor(list, { vehicle });
   }
 
   let filtered = list.filter((s) => servicioOfertaPerteneceACatalogoProveedor(s, provider));
