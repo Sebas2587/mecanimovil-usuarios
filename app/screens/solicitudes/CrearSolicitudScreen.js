@@ -207,6 +207,9 @@ const CrearSolicitudScreen = () => {
       desglose_precios: s.desglose_precios,
       duracion_estimada: s.duracion_estimada,
       fotos_servicio: Array.isArray(s.fotos_servicio) ? s.fotos_servicio : [],
+      repuestos_seleccionados: s.repuestos_seleccionados || [],
+      repuestos_info: s.repuestos_info || [],
+      detalles_servicios: s.detalles_servicios || [],
     });
 
     const baseCampos = {
@@ -500,6 +503,9 @@ const CrearSolicitudScreen = () => {
               desglose_precios: s.desglose_precios,
               duracion_estimada: s.duracion_estimada,
               fotos_servicio: Array.isArray(s.fotos_servicio) ? s.fotos_servicio : [],
+              repuestos_seleccionados: s.repuestos_seleccionados || [],
+              repuestos_info: s.repuestos_info || [],
+              detalles_servicios: s.detalles_servicios || [],
             });
 
             // Si hay servicio como objeto (desde categorías o proveedor)

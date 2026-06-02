@@ -13,6 +13,14 @@ import { formatDuration } from '../home/shared/homeFormatters';
 /** Altura de la barra (actualizar padding scroll del home si cambia). */
 export const TRIP_ACTIVE_BAR_HEIGHT = 68;
 
+/** Separación entre la barra y footers / safe area inferior en pantallas stack. */
+export const TRIP_ACTIVE_BAR_GAP = 12;
+
+/** Espacio extra inferior cuando hay viaje activo (barra + gap). */
+export function getTripActiveBarReserve(tripActive) {
+  return tripActive ? TRIP_ACTIVE_BAR_HEIGHT + TRIP_ACTIVE_BAR_GAP : 0;
+}
+
 function TripMetric({ value, label, primary = false }) {
   return (
     <View style={styles.metricCell}>
@@ -110,20 +118,21 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: SPACING.xs,
     zIndex: 100,
-    ...SHADOWS.md,
   },
   bar: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[200],
-    borderRadius: BORDERS.radius.lg,
+    borderColor: COLORS.border.light,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     minHeight: TRIP_ACTIVE_BAR_HEIGHT,
     gap: SPACING.sm,
+    overflow: 'hidden',
+    ...SHADOWS.sm,
   },
   liveMark: {
     paddingTop: 2,
@@ -183,7 +192,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
     backgroundColor: COLORS.error.main,
-    borderRadius: BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    ...SHADOWS.sm,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.sm,
     minHeight: TRIP_ACTIVE_BAR_HEIGHT,

@@ -50,7 +50,8 @@ import ServicioTarifasPorMarca from '../../components/provider/ServicioTarifasPo
 import { isProviderMultimarca, mergeProviderKpiBadge } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
 import { useFavorites } from '../../context/FavoritesContext';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import { providerServiceCardStyles as svcCard } from '../../components/provider/providerServiceCardStyles';
 
 const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
 
@@ -464,7 +465,7 @@ const ProviderDetailScreen = () => {
                   : 'Registra un vehículo para ver los servicios disponibles con precios para tu marca.'}
               </Text>
             ) : null}
-            <View style={styles.servicesGrid}>
+            <View style={svcCard.servicesGrid}>
               {serviciosVisibles.map((servicio, idx) => {
                 const servicioId = resolveServicioId(servicio);
                 const canSchedule = !!vehicleForSchedule?.id && !!servicioId;
@@ -484,31 +485,32 @@ const ProviderDetailScreen = () => {
                 return (
                   <TouchableOpacity
                     key={`${servicio.oferta_id || servicioId || idx}-${servicio.tipo_servicio || 'o'}`}
-                    style={[styles.serviceCardShell, canSchedule && styles.serviceCardTappable]}
+                    style={svcCard.serviceCardShell}
                     onPress={() => handleScheduleService(servicio)}
                     activeOpacity={0.88}
+                    disabled={!canSchedule}
                   >
                     {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
                       <ServicePhotosCarousel photos={servicio.fotos_servicio} height={120} />
                     ) : null}
 
-                    <View style={styles.serviceCardBody}>
-                      <Text style={styles.serviceName} numberOfLines={2}>
+                    <View style={svcCard.serviceCardBody}>
+                      <Text style={svcCard.serviceName} numberOfLines={2}>
                         {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
                       </Text>
                       {servicio.categoria ? (
-                        <Text style={styles.serviceCategory} numberOfLines={1}>
+                        <Text style={svcCard.serviceCategory} numberOfLines={1}>
                           {servicio.categoria}
                         </Text>
                       ) : null}
-                      <View style={styles.serviceTipoBadge}>
-                        <Text style={styles.serviceTipoBadgeText}>{tipoLabel}</Text>
+                      <View style={svcCard.serviceTipoBadge}>
+                        <Text style={svcCard.serviceTipoBadgeText}>{tipoLabel}</Text>
                       </View>
                       {precioLabel ? (
-                        <Text style={styles.servicePrice}>{precioLabel}</Text>
+                        <Text style={svcCard.servicePrice}>{precioLabel}</Text>
                       ) : null}
                       {precioInfo.subtitulo ? (
-                        <Text style={styles.servicePriceHint}>{precioInfo.subtitulo}</Text>
+                        <Text style={svcCard.servicePriceHint}>{precioInfo.subtitulo}</Text>
                       ) : null}
                       {tarifasUsuario.length > 1 ? (
                         <ServicioTarifasPorMarca
@@ -517,7 +519,7 @@ const ProviderDetailScreen = () => {
                         />
                       ) : null}
                       {servicio.duracion_estimada ? (
-                        <Text style={styles.serviceMeta}>
+                        <Text style={svcCard.serviceMeta}>
                           ~{servicio.duracion_estimada}
                         </Text>
                       ) : null}
@@ -607,10 +609,11 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
     padding: 16,
+    ...SHADOWS.sm,
   },
   bodyText: {
     fontSize: TYPOGRAPHY.fontSize.base,
@@ -698,76 +701,11 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  serviceCardShell: {
-    width: '48%',
-    marginBottom: 8,
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
-    overflow: 'hidden',
-  },
-  serviceCardBody: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 12,
-  },
-  serviceName: {
-    color: COLORS.text.primary,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    marginBottom: 4,
-  },
-  serviceCategory: {
-    color: COLORS.primary[500],
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    marginBottom: 4,
-  },
-  serviceTipoBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.primary[50],
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  serviceTipoBadgeText: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[800],
-  },
-  servicePrice: {
-    color: COLORS.success[700],
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginBottom: 4,
-  },
-  servicePriceHint: {
-    color: COLORS.text.secondary,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    marginBottom: 4,
-  },
-  serviceMeta: {
-    color: COLORS.text.tertiary,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    marginBottom: 0,
-  },
   noVehicleHint: {
     color: COLORS.warning.dark,
     fontSize: TYPOGRAPHY.fontSize.sm,
     marginBottom: 12,
     lineHeight: 18,
-  },
-  serviceCardTappable: {
-    borderColor: COLORS.primary[200],
   },
   errorText: {
     color: COLORS.text.primary,

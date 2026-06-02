@@ -14,6 +14,11 @@ import {
   resolvePrecioTotalCatalogo,
 } from '../home/shared/providerCatalogSchedule';
 import { buildProviderAvatarUri, getProviderRating } from '../../utils/providerUtils';
+import RepuestosExpandible from '../ofertas/RepuestosExpandible';
+import {
+  lineasTienenRepuestos,
+  resolveLineasServicioConRepuestos,
+} from '../../utils/ofertaRepuestos';
 
 function formatCLP(n) {
   const v = Math.round(Number(n) || 0);
@@ -36,6 +41,12 @@ function CostRow({ label, value, highlight }) {
 export default function ProviderCatalogScheduleCard({ proveedor, servicio, tipoProveedor }) {
   const conRepuestos = catalogoIncluyeRepuestos(servicio);
   const aDomicilio = tipoProveedor === 'mecanico';
+
+  const lineasConRepuestos = useMemo(
+    () => resolveLineasServicioConRepuestos(servicio),
+    [servicio],
+  );
+  const mostrarListaRepuestos = conRepuestos && lineasTienenRepuestos(lineasConRepuestos);
 
   const desglose = useMemo(() => {
     const mo = servicio?.costo_mano_de_obra_sin_iva ?? 0;
@@ -136,6 +147,21 @@ export default function ProviderCatalogScheduleCard({ proveedor, servicio, tipoP
             <CostRow label="Mano de obra (sin IVA)" value={mo} />
             {conRepuestos && rep > 0 ? (
               <CostRow label="Repuestos incluidos (sin IVA)" value={rep} highlight />
+            ) : null}
+            {mostrarListaRepuestos ? (
+              <View style={styles.repuestosDetalleBlock}>
+                {lineasConRepuestos.map((linea) => (
+                  linea.repuestos_info?.length > 0 ? (
+                    <RepuestosExpandible
+                      key={String(linea.id ?? linea.nombre)}
+                      repuestos={linea.repuestos_info}
+                      servicioNombre={
+                        lineasConRepuestos.length > 1 ? linea.nombre : null
+                      }
+                    />
+                  ) : null
+                ))}
+              </View>
             ) : null}
             {aDomicilio ? (
               <Text style={styles.notaDomicilio}>
@@ -260,6 +286,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral?.gray?.[50] || '#F9FAFB',
     borderRadius: BORDERS.radius?.md ?? 10,
     padding: 12,
+  },
+  repuestosDetalleBlock: {
+    marginTop: 4,
+    marginBottom: 6,
   },
   costRow: {
     flexDirection: 'row',

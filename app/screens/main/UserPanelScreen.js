@@ -48,7 +48,7 @@ import {
 } from '../../components/home/shared/homeScheduleNavigation';
 import { useParaTiProviders } from '../../hooks/useParaTiProviders';
 import { useTripTracking } from '../../context/TripTrackingContext';
-import { TRIP_ACTIVE_BAR_HEIGHT } from '../../components/trip/TripActiveBar';
+import { TRIP_ACTIVE_BAR_HEIGHT, TRIP_ACTIVE_BAR_GAP } from '../../components/trip/TripActiveBar';
 import {
   HomeVehicleDashboardCard,
   HomeWeatherDetailModal,
@@ -555,7 +555,7 @@ const UserPanelScreen = () => {
               TAB_BAR_BASE_HEIGHT
               + insets.bottom
               + SCROLL_BOTTOM_GAP
-              + (tripActive ? TRIP_ACTIVE_BAR_HEIGHT + 12 : 0),
+              + (tripActive ? TRIP_ACTIVE_BAR_HEIGHT + TRIP_ACTIVE_BAR_GAP : 0),
           },
         ]}
         showsVerticalScrollIndicator={false}

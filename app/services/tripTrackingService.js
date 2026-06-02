@@ -104,25 +104,27 @@ const processPoint = (snapshot, coords, timestamp) => {
   return next;
 };
 
-try {
-  if (!TaskManager.isTaskDefined(TRIP_TASK_NAME)) {
-    TaskManager.defineTask(TRIP_TASK_NAME, async ({ data, error }) => {
-      if (error) return;
-      const locations = data?.locations || [];
-      if (!locations.length) return;
+if (Platform.OS !== 'web') {
+  try {
+    if (!TaskManager.isTaskDefined(TRIP_TASK_NAME)) {
+      TaskManager.defineTask(TRIP_TASK_NAME, async ({ data, error }) => {
+        if (error) return;
+        const locations = data?.locations || [];
+        if (!locations.length) return;
 
-      const snapshot = await readSnapshot();
-      if (!snapshot.active) return;
+        const snapshot = await readSnapshot();
+        if (!snapshot.active) return;
 
-      let updated = snapshot;
-      for (const loc of locations) {
-        updated = processPoint(updated, loc.coords, loc.timestamp);
-      }
-      await writeSnapshot(updated);
-    });
+        let updated = snapshot;
+        for (const loc of locations) {
+          updated = processPoint(updated, loc.coords, loc.timestamp);
+        }
+        await writeSnapshot(updated);
+      });
+    }
+  } catch {
+    // Avoid crashing app startup in Expo Go / Fast Refresh.
   }
-} catch {
-  // Avoid crashing app startup in Expo Go / Fast Refresh.
 }
 
 const shouldUseBackgroundTracking = () => {
@@ -130,14 +132,116 @@ const shouldUseBackgroundTracking = () => {
   if (Platform.OS === 'web') return false;
   // Expo Go has strong background limitations; use foreground watcher there.
   if (Constants.appOwnership === 'expo') return false;
+  // APIs de background no existen en algunos entornos (p. ej. web export).
+  if (typeof Location.hasStartedLocationUpdatesAsync !== 'function') return false;
+  if (typeof Location.startLocationUpdatesAsync !== 'function') return false;
   // In native dev/prod builds, we can use background tracking.
   return true;
 };
 
+const supportsBackgroundLocationUpdates = () => shouldUseBackgroundTracking();
+
+async function isBackgroundTrackingRunning() {
+  if (!supportsBackgroundLocationUpdates()) return false;
+  try {
+    return await Location.hasStartedLocationUpdatesAsync(TRIP_TASK_NAME);
+  } catch {
+    return false;
+  }
+}
+
+async function stopBackgroundTrackingIfRunning() {
+  if (!supportsBackgroundLocationUpdates()) return;
+  try {
+    const started = await Location.hasStartedLocationUpdatesAsync(TRIP_TASK_NAME);
+    if (started) {
+      await Location.stopLocationUpdatesAsync(TRIP_TASK_NAME);
+    }
+  } catch {
+    // Ignorar en plataformas sin soporte (web).
+  }
+}
+
+async function startForegroundWatcher(onLocation) {
+  if (typeof Location.watchPositionAsync === 'function') {
+    return Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 3000,
+        distanceInterval: 5,
+      },
+      onLocation,
+    );
+  }
+
+  if (
+    Platform.OS === 'web'
+    && typeof navigator !== 'undefined'
+    && navigator.geolocation?.watchPosition
+  ) {
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        onLocation({
+          coords: {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy ?? null,
+            speed: pos.coords.speed ?? null,
+          },
+          timestamp: pos.timestamp,
+        });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 },
+    );
+    return { remove: () => navigator.geolocation.clearWatch(watchId) };
+  }
+
+  throw new Error('GPS no disponible en este dispositivo o navegador.');
+}
+
 export const startTripTracking = async (vehicleId) => {
-  const fg = await Location.requestForegroundPermissionsAsync();
+  let fg = { status: 'undetermined' };
+  if (typeof Location.requestForegroundPermissionsAsync === 'function') {
+    fg = await Location.requestForegroundPermissionsAsync();
+  } else if (
+    Platform.OS === 'web'
+    && typeof navigator !== 'undefined'
+    && navigator.permissions?.query
+  ) {
+    try {
+      const result = await navigator.permissions.query({ name: 'geolocation' });
+      fg = { status: result.state === 'granted' ? 'granted' : 'denied' };
+    } catch {
+      fg = { status: 'undetermined' };
+    }
+  }
   if (fg.status !== 'granted') {
-    throw new Error('Se requieren permisos de ubicación en primer plano.');
+    if (Platform.OS === 'web') {
+      try {
+        if (typeof Location.getCurrentPositionAsync === 'function') {
+          await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        } else if (
+          typeof navigator !== 'undefined'
+          && navigator.geolocation?.getCurrentPosition
+        ) {
+          await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 20000,
+            });
+          });
+        } else {
+          throw new Error('GPS no disponible');
+        }
+      } catch {
+        throw new Error(
+          'Permite el acceso a tu ubicación en el navegador para registrar el viaje.',
+        );
+      }
+    } else {
+      throw new Error('Se requieren permisos de ubicación en primer plano.');
+    }
   }
 
   const snapshot = {
@@ -153,19 +257,12 @@ export const startTripTracking = async (vehicleId) => {
       foregroundLocationSub.remove();
       foregroundLocationSub = null;
     }
-    foregroundLocationSub = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 3000,
-        distanceInterval: 5,
-      },
-      async (location) => {
-        const current = await readSnapshot();
-        if (!current.active) return;
-        const updated = processPoint(current, location.coords, location.timestamp);
-        await writeSnapshot(updated);
-      },
-    );
+    foregroundLocationSub = await startForegroundWatcher(async (location) => {
+      const current = await readSnapshot();
+      if (!current.active) return;
+      const updated = processPoint(current, location.coords, location.timestamp);
+      await writeSnapshot(updated);
+    });
     return snapshot;
   }
 
@@ -174,7 +271,7 @@ export const startTripTracking = async (vehicleId) => {
     throw new Error('Se requieren permisos de ubicación en segundo plano para telemetría.');
   }
 
-  const alreadyStarted = await Location.hasStartedLocationUpdatesAsync(TRIP_TASK_NAME);
+  const alreadyStarted = await isBackgroundTrackingRunning();
   if (alreadyStarted) {
     await Location.stopLocationUpdatesAsync(TRIP_TASK_NAME);
   }
@@ -205,10 +302,7 @@ export const stopTripTracking = async () => {
     foregroundLocationSub.remove();
     foregroundLocationSub = null;
   }
-  const started = await Location.hasStartedLocationUpdatesAsync(TRIP_TASK_NAME);
-  if (started) {
-    await Location.stopLocationUpdatesAsync(TRIP_TASK_NAME);
-  }
+  await stopBackgroundTrackingIfRunning();
 
   const finalSnapshot = {
     ...snapshot,
@@ -224,9 +318,6 @@ export const resetTripTracking = async () => {
     foregroundLocationSub.remove();
     foregroundLocationSub = null;
   }
-  const started = await Location.hasStartedLocationUpdatesAsync(TRIP_TASK_NAME);
-  if (started) {
-    await Location.stopLocationUpdatesAsync(TRIP_TASK_NAME);
-  }
+  await stopBackgroundTrackingIfRunning();
   await writeSnapshot(emptySnapshot());
 };

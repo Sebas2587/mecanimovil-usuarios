@@ -22,6 +22,7 @@ import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
+import { useTripActiveBarReserve } from '../../hooks/useTripActiveBarReserve';
 
 const SCREEN_W = Dimensions.get('window').width;
 const MAX_FOTOS = 10;
@@ -31,6 +32,7 @@ const SellVehicleScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
     const insets = useSafeAreaInsets();
+    const { tripBarReserve } = useTripActiveBarReserve();
     const { height: windowHeight } = useWindowDimensions();
     const isWeb = Platform.OS === 'web';
     const queryClient = useQueryClient();
@@ -653,7 +655,7 @@ const SellVehicleScreen = () => {
                     )}
 
                     {/* Espacio para que la card Rendimiento no quede bajo el sticky inferior */}
-                    <View style={{ height: 100 + insets.bottom + 80 }} />
+                    <View style={{ height: 100 + insets.bottom + 80 + tripBarReserve }} />
                 </View>
             </ScrollView>
 
@@ -692,7 +694,12 @@ const SellVehicleScreen = () => {
             </View>
 
             {/* 3. Footer: solo Compartir Ficha (eliminada opción eliminar publicación) */}
-            <View style={styles.footerContainer}>
+            <View
+                style={[
+                    styles.footerContainer,
+                    { paddingBottom: insets.bottom + 16 + tripBarReserve },
+                ]}
+            >
                 <TouchableOpacity
                     style={styles.outlineButton}
                     onPress={handleShareFicha}

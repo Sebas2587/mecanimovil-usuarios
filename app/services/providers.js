@@ -9,6 +9,7 @@ import {
   filterProvidersEspecialistasMarca,
 } from '../utils/providerUtils';
 import { filterProvidersForDestacadosPanel } from '../components/home/shared/homeAddressUtils';
+import { mapOfertaCatalogoRepuestosFields } from '../components/home/shared/providerCatalogSchedule';
 import {
   mergeProviderLists,
   sortProvidersForExploreMode,
@@ -1488,6 +1489,7 @@ function mapOfertaToServicioRow(oferta, type, id, providerName) {
     duracion_estimada: oferta.duracion_estimada,
     incluye_garantia: oferta.incluye_garantia,
     duracion_garantia: oferta.duracion_garantia,
+    ...mapOfertaCatalogoRepuestosFields(oferta),
     tipo_proveedor: type,
     [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
     [type === 'taller' ? 'taller_info' : 'mecanico_info']: {

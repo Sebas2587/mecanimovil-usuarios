@@ -3,6 +3,35 @@
  */
 
 import { labelPrecioServicioResuelto } from '../../../utils/ofertaResolucionMarca';
+import { normalizeRepuestosInfo } from '../../../utils/ofertaRepuestos';
+
+/** Repuestos detallados desde oferta de catálogo (misma forma que motor_match). */
+export function extractRepuestosInfoFromOferta(oferta) {
+  if (!oferta) return [];
+  const fromApi = normalizeRepuestosInfo(oferta.repuestos_info);
+  if (fromApi.length > 0) return fromApi;
+  const detallado = normalizeRepuestosInfo(oferta.repuestos_info_detallado);
+  if (detallado.length > 0) return detallado;
+  return [];
+}
+
+/** Campos de repuestos/precios comunes al mapear una fila de oferta de catálogo. */
+export function mapOfertaCatalogoRepuestosFields(oferta) {
+  const repuestos_info = extractRepuestosInfoFromOferta(oferta);
+  return {
+    repuestos_seleccionados: oferta?.repuestos_seleccionados || [],
+    repuestos_info,
+    detalles_servicios: repuestos_info.length
+      ? [{
+          id: oferta?.servicio ?? oferta?.servicio_info?.id,
+          servicio: oferta?.servicio ?? oferta?.servicio_info?.id,
+          servicio_nombre: oferta?.servicio_info?.nombre || oferta?.nombre,
+          nombre: oferta?.servicio_info?.nombre || oferta?.nombre,
+          repuestos_info,
+        }]
+      : [],
+  };
+}
 
 export function resolveServicioId(servicio) {
   if (!servicio) return null;
@@ -95,6 +124,7 @@ export function mapOfertaCatalogoParaSolicitud(servicio, provider, providerType)
     desglose_precios: servicio.desglose_precios,
     duracion_estimada: servicio.duracion_estimada,
     incluye_garantia: servicio.incluye_garantia,
+    ...mapOfertaCatalogoRepuestosFields(servicio),
     _proveedorPanelKind: panelKind,
     _providerId: providerId,
   };

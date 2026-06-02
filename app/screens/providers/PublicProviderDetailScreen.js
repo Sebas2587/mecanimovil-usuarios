@@ -31,7 +31,8 @@ import {
   parsePublicProviderFromUrl,
 } from '../../utils/publicListingRoute';
 
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import { providerServiceCardStyles as svcCard } from '../../components/provider/providerServiceCardStyles';
 import {
   formatPrecioCatalogoServicio,
   labelTipoServicioCatalogo,
@@ -390,34 +391,41 @@ const PublicProviderDetailScreen = () => {
               Servicios activos de este especialista. Inicia sesión para solicitar presupuesto.
             </Text>
           )}
-          <View style={styles.servicesGrid}>
+          <View style={svcCard.servicesGrid}>
             {serviciosVisibles.map((servicio, idx) => {
               const precioInfo = labelPrecioServicioResuelto(servicio, { vehicle: null });
               const precioLabel =
                 precioInfo.principal ?? formatPrecioCatalogoServicio(servicio);
               return (
-              <Card key={`${servicio.oferta_id || servicio.id || idx}-${servicio.tipo_servicio || 'o'}`} style={styles.serviceCardOuter}>
+              <View
+                key={`${servicio.oferta_id || servicio.id || idx}-${servicio.tipo_servicio || 'o'}`}
+                style={svcCard.serviceCardShell}
+              >
                 {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
-                  <View style={{ marginBottom: 10 }}>
-                    <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
-                  </View>
+                  <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
                 ) : null}
-                <Text style={styles.serviceName} numberOfLines={2}>
-                  {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
-                </Text>
-                {servicio.categoria && (
-                  <Text style={styles.serviceCategory} numberOfLines={1}>
-                    {servicio.categoria}
+                <View style={svcCard.serviceCardBody}>
+                  <Text style={svcCard.serviceName} numberOfLines={2}>
+                    {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
                   </Text>
-                )}
-                {precioLabel ? (
-                  <Text style={styles.servicePrice}>{precioLabel}</Text>
-                ) : null}
-                {precioInfo.subtitulo ? (
-                  <Text style={styles.servicePriceHint}>{precioInfo.subtitulo}</Text>
-                ) : null}
-                <Text style={styles.serviceTipoBadge}>{labelTipoServicioCatalogo(servicio)}</Text>
-              </Card>
+                  {servicio.categoria ? (
+                    <Text style={svcCard.serviceCategory} numberOfLines={1}>
+                      {servicio.categoria}
+                    </Text>
+                  ) : null}
+                  <View style={svcCard.serviceTipoBadge}>
+                    <Text style={svcCard.serviceTipoBadgeText}>
+                      {labelTipoServicioCatalogo(servicio)}
+                    </Text>
+                  </View>
+                  {precioLabel ? (
+                    <Text style={svcCard.servicePrice}>{precioLabel}</Text>
+                  ) : null}
+                  {precioInfo.subtitulo ? (
+                    <Text style={svcCard.servicePriceHint}>{precioInfo.subtitulo}</Text>
+                  ) : null}
+                </View>
+              </View>
             );
             })}
           </View>
@@ -517,10 +525,11 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
     padding: 16,
+    ...SHADOWS.sm,
   },
   bodyText: {
     fontSize: TYPOGRAPHY.fontSize.base,
@@ -608,46 +617,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  serviceCardOuter: {
-    width: '48%',
-    padding: 12,
-    marginBottom: 8,
-  },
-  serviceName: {
-    color: COLORS.text.primary,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    marginBottom: 4,
-  },
-  serviceCategory: {
-    color: COLORS.primary[500],
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    marginBottom: 0,
-  },
-  servicePrice: {
-    color: COLORS.success[700],
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  servicePriceHint: {
-    color: COLORS.text.secondary,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    marginBottom: 4,
-  },
-  serviceTipoBadge: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[800],
   },
   // CTA Styles
   ctaCard: {

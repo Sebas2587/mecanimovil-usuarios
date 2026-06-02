@@ -62,6 +62,7 @@ import {
 } from '../../utils/calendarioProveedorNavigation';
 import SolicitudResumenTicket from './SolicitudResumenTicket';
 import { validarSinServicioActivoDuplicado } from '../../utils/solicitudActivaGuard';
+import { useTripActiveBarReserve } from '../../hooks/useTripActiveBarReserve';
 import { InlineChipSkeleton, SolicitudPaso1ServiciosSkeleton } from '../utils/SolicitudFlowSkeletons';
 import {
   esServicioDiagnosticoInspeccion,
@@ -3013,8 +3014,9 @@ const FormularioSolicitud = ({
   };
 
   const pasoVisual = getPasoVisual();
+  const { tripBarReserve } = useTripActiveBarReserve();
 
-  const navBarBottomPad = (contentPaddingBottom || 0) + 10;
+  const navBarBottomPad = (contentPaddingBottom || 0) + 10 + tripBarReserve;
   const solicitudFooterClearance = 10 + 52 + navBarBottomPad;
 
   // Determinar si estamos en el último paso real

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import * as providerService from '../services/providers';
 import { get } from '../services/api';
+import { mapOfertaCatalogoRepuestosFields } from '../components/home/shared/providerCatalogSchedule';
 import * as userService from '../services/user';
 import solicitudesService from '../services/solicitudesService';
 import { useAuth } from '../context/AuthContext';
@@ -198,6 +199,7 @@ export const useProviderServices = (id, type, providerName, vehicle = null) => {
                         duracion_estimada: oferta.duracion_estimada,
                         incluye_garantia: oferta.incluye_garantia,
                         duracion_garantia: oferta.duracion_garantia,
+                        ...mapOfertaCatalogoRepuestosFields(oferta),
 
                         tipo_proveedor: type,
                         [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
