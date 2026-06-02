@@ -446,29 +446,32 @@ const VehicleRegistrationScreen = () => {
             formData.append('patente', patente);
             formData.append('tipo_motor', selectedEngineType);
 
-            // Handle MARCA logic safely
-            const marcaVal = vehicleData.marca_id || vehicleData.marca;
-            if (marcaVal !== undefined && marcaVal !== null) {
-                formData.append('marca', marcaVal);
+            // Marca/modelo: nombres para resolución canónica; IDs solo si son numéricos
+            const marcaNombreRaw = vehicleData.marca_nombre
+                || (typeof vehicleData.marca === 'string' ? vehicleData.marca : null);
+            if (marcaNombreRaw) formData.append('marca_nombre', marcaNombreRaw);
+
+            const modeloNombreRaw = vehicleData.modelo_nombre
+                || (typeof vehicleData.modelo === 'string' ? vehicleData.modelo : null);
+            if (modeloNombreRaw) formData.append('modelo_nombre', modeloNombreRaw);
+
+            const marcaId = vehicleData.marca_id ?? (
+                typeof vehicleData.marca === 'number' || /^\d+$/.test(String(vehicleData.marca ?? ''))
+                    ? vehicleData.marca
+                    : null
+            );
+            if (marcaId != null && String(marcaId).match(/^\d+$/)) {
+                formData.append('marca', String(marcaId));
             }
 
-            // Handle MODELO logic safely
-            const modeloVal = vehicleData.modelo_id || vehicleData.modelo;
-            // Only append modelo if it is defined and looks like an ID, otherwise backend might fail if it tries to filter(id=string) without check
-            // However, backend code (line 225) gets 'modelo' and likely tries to filter if present.
-            // If it's a name, we should probably SKIP sending it as 'modelo' ID and rely on 'modelo_nombre'.
-            // But if previously it worked, maybe 'modelo' key was ignored if not ID?
-            // Safer: append if defined.
-            if (modeloVal !== undefined && modeloVal !== null) {
-                formData.append('modelo', modeloVal);
+            const modeloId = vehicleData.modelo_id ?? (
+                typeof vehicleData.modelo === 'number' || /^\d+$/.test(String(vehicleData.modelo ?? ''))
+                    ? vehicleData.modelo
+                    : null
+            );
+            if (modeloId != null && String(modeloId).match(/^\d+$/)) {
+                formData.append('modelo', String(modeloId));
             }
-
-            // Handle Names
-            const marcaNombre = vehicleData.marca_nombre || vehicleData.marca;
-            if (marcaNombre) formData.append('marca_nombre', marcaNombre);
-
-            const modeloNombre = vehicleData.modelo_nombre || vehicleData.modelo;
-            if (modeloNombre) formData.append('modelo_nombre', modeloNombre);
 
             formData.append('year', String(parseInt(vehicleData.year || vehicleData.anio)));
             formData.append('kilometraje', String(parseInt(kilometraje)));
@@ -573,7 +576,11 @@ const VehicleRegistrationScreen = () => {
                     );
                 }
             } else {
-                showAlert('Error', 'No se pudo guardar el vehículo. Inténtalo más tarde.');
+                const detalle = formatApiErrorMessage(
+                    error,
+                    'No se pudo guardar el vehículo. Revisa los datos e inténtalo de nuevo.',
+                );
+                showAlert('Error al guardar', detalle);
             }
         } finally {
             setSaving(false);
