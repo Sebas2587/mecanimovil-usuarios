@@ -38,6 +38,30 @@ function marcasCoinciden(nombreA, nombreB) {
   return nombreA.includes(nombreB) || nombreB.includes(nombreA);
 }
 
+function normalizeTipoMotor(value) {
+  if (value == null || value === '') return 'GASOLINA';
+  const upper = String(value).toUpperCase().trim();
+  if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) return 'DIESEL';
+  if (upper.includes('ELECTR')) return 'ELECTRICO';
+  if (upper.includes('HIBR') || upper.includes('HYBR')) return 'HIBRIDO';
+  if (upper.includes('BENCINA') || upper.includes('GASOL')) return 'GASOLINA';
+  if (['GASOLINA', 'DIESEL', 'ELECTRICO', 'HIBRIDO'].includes(upper)) return upper;
+  return 'GASOLINA';
+}
+
+function getMotoresCompatiblesServicio(servicio) {
+  const info = servicio?.servicio_info || servicio;
+  const raw = info?.motores_info || info?.tipos_motor_compatibles || [];
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  return [...new Set(raw.map(normalizeTipoMotor))];
+}
+
+function servicioCompatibleConMotorServicio(servicio, vehicle) {
+  const motores = getMotoresCompatiblesServicio(servicio);
+  if (motores.length === 0) return true;
+  return motores.includes(normalizeTipoMotor(vehicle?.tipo_motor));
+}
+
 /**
  * true si la oferta aplica al vehículo (marca de la oferta o modelos compatibles).
  * Sin vehículo: no filtra (muestra todo el catálogo).
@@ -45,6 +69,7 @@ function marcasCoinciden(nombreA, nombreB) {
 export function servicioOfertaCompatibleConVehiculo(servicio, vehicle) {
   if (!vehicle?.id) return true;
   if (!servicio) return false;
+  if (!servicioCompatibleConMotorServicio(servicio, vehicle)) return false;
 
   const { marcaId, marcaNombre, modeloId } = resolveVehiculoMarcaModelo(vehicle);
 

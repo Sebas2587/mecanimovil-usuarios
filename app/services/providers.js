@@ -1451,6 +1451,7 @@ function mapOfertaToServicioRow(oferta, type, id, providerName) {
   const categoriasInfo = info.categorias_info || [];
   const modelosInfo = info.modelos_info || [];
   const marcasInfo = info.marcas_info || [];
+  const motoresInfo = info.motores_info || info.tipos_motor_compatibles || [];
 
   return {
     id: servicioId,
@@ -1462,6 +1463,8 @@ function mapOfertaToServicioRow(oferta, type, id, providerName) {
     precio_referencia: info.precio_referencia || null,
     categorias_completas: categoriasInfo,
     marcas_info: marcasInfo,
+    motores_info: motoresInfo,
+    tipos_motor_compatibles: motoresInfo,
     modelos_info: modelosInfo,
     modelos_compatibles: modelosInfo.map((m) => {
       const marca = m.marca_nombre || '';

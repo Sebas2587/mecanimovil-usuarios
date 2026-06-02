@@ -1,5 +1,28 @@
 import * as vehicleService from '../services/vehicle';
 
+function normalizeTipoMotor(value) {
+  if (value == null || value === '') return 'GASOLINA';
+  const upper = String(value).toUpperCase().trim();
+  if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) return 'DIESEL';
+  if (upper.includes('ELECTR')) return 'ELECTRICO';
+  if (upper.includes('HIBR') || upper.includes('HYBR')) return 'HIBRIDO';
+  if (upper.includes('BENCINA') || upper.includes('GASOL')) return 'GASOLINA';
+  if (['GASOLINA', 'DIESEL', 'ELECTRICO', 'HIBRIDO'].includes(upper)) return upper;
+  return 'GASOLINA';
+}
+
+function getMotoresCompatibles(service) {
+  const raw = service?.motores_info || service?.tipos_motor_compatibles || [];
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+  return [...new Set(raw.map(normalizeTipoMotor))];
+}
+
+function servicioCompatibleConMotor(service, vehicle) {
+  const motores = getMotoresCompatibles(service);
+  if (motores.length === 0) return true;
+  return motores.includes(normalizeTipoMotor(vehicle?.tipo_motor));
+}
+
 /**
  * Validador de servicios por vehículos del cliente
  * Asegura que solo se muestren servicios compatibles con los vehículos registrados
@@ -74,8 +97,46 @@ class VehicleServiceValidator {
   }
 
   /**
+   * Verificar si un servicio es compatible con un vehículo (marca, modelo y tipo de motor).
+   */
+  isServiceCompatibleWithVehicle(service, vehicle) {
+    if (!service || !vehicle) return false;
+    if (!servicioCompatibleConMotor(service, vehicle)) return false;
+
+    const marcasInfo = Array.isArray(service.marcas_info) ? service.marcas_info : [];
+    const modelosInfo = Array.isArray(service.modelos_info) ? service.modelos_info : [];
+
+    if (marcasInfo.length === 0 && modelosInfo.length === 0) {
+      return true;
+    }
+
+    const vehicleBrand = (vehicle.marca_nombre || '').toLowerCase();
+    const vehicleString = `${vehicle.marca_nombre || ''} ${vehicle.modelo_nombre || ''}`.trim().toLowerCase();
+
+    if (marcasInfo.length > 0) {
+      const marcaMatch = marcasInfo.some((marca) => {
+        const nombre = (marca.nombre || '').toLowerCase();
+        return nombre && vehicleBrand && (vehicleBrand.includes(nombre) || nombre.includes(vehicleBrand));
+      });
+      if (!marcaMatch) return false;
+      if (modelosInfo.length === 0) return true;
+    }
+
+    if (modelosInfo.length === 0) return true;
+
+    return modelosInfo.some((modelo) => {
+      const marcaNombre = modelo.marca_nombre || '';
+      const modeloNombre = modelo.nombre || modelo.modelo_nombre || '';
+      const vehiculoCompleto = `${marcaNombre} ${modeloNombre}`.trim().toLowerCase();
+      if (vehiculoCompleto && vehicleString === vehiculoCompleto) return true;
+      const svcBrand = marcaNombre.toLowerCase();
+      return svcBrand && vehicleBrand && (vehicleBrand.includes(svcBrand) || svcBrand.includes(vehicleBrand));
+    });
+  }
+
+  /**
    * Verificar si un servicio es compatible con los vehículos del usuario.
-   * Compatible si: genérico, marca en marcas_info, o modelo/marca en modelos_info.
+   * Compatible si: genérico, marca en marcas_info, o modelo/marca en modelos_info, y tipo de motor.
    */
   isServiceCompatible(service) {
     if (!this.hasVehicles()) {
@@ -83,60 +144,15 @@ class VehicleServiceValidator {
       return false;
     }
 
-    const marcasInfo = Array.isArray(service.marcas_info) ? service.marcas_info : [];
-    const modelosInfo = Array.isArray(service.modelos_info) ? service.modelos_info : [];
+    const compatible = this.userVehicles.some((vehicle) =>
+      this.isServiceCompatibleWithVehicle(service, vehicle),
+    );
 
-    if (marcasInfo.length === 0 && modelosInfo.length === 0) {
-      console.log(`✅ Servicio "${service.nombre}" genérico - compatible (evaluación por proveedor)`);
-      return true;
-    }
-
-    if (marcasInfo.length > 0) {
-      const marcaMatch = marcasInfo.some((marca) => {
-        const nombre = (marca.nombre || '').toLowerCase();
-        return this.userBrands.some((ub) => {
-          const userBrand = (ub || '').toLowerCase();
-          return userBrand.includes(nombre) || nombre.includes(userBrand);
-        });
-      });
-      if (marcaMatch) {
-        if (modelosInfo.length === 0) {
-          return true;
-        }
-      } else {
-        return false;
-      }
-    }
-
-    if (modelosInfo.length === 0) {
-      return true;
-    }
-
-    const isCompatible = modelosInfo.some((modelo) => {
-      const marcaNombre = modelo.marca_nombre || '';
-      const modeloNombre = modelo.nombre || modelo.modelo_nombre || '';
-      const vehiculoCompleto = `${marcaNombre} ${modeloNombre}`.trim();
-
-      const exactMatch = this.userVehicleStrings.some(
-        (userVehicle) => userVehicle.toLowerCase() === vehiculoCompleto.toLowerCase(),
-      );
-      if (exactMatch) {
-        console.log(`✅ Coincidencia exacta: "${vehiculoCompleto}" para "${service.nombre}"`);
-        return true;
-      }
-
-      return this.userBrands.some((ub) => {
-        const userBrand = (ub || '').toLowerCase();
-        const svcBrand = marcaNombre.toLowerCase();
-        return userBrand.includes(svcBrand) || svcBrand.includes(userBrand);
-      });
-    });
-
-    if (!isCompatible) {
+    if (!compatible) {
       console.log(`❌ Servicio "${service.nombre}" NO compatible con vehículos del usuario`);
     }
 
-    return isCompatible;
+    return compatible;
   }
 
   /**
