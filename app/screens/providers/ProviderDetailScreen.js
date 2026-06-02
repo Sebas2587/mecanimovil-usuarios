@@ -45,6 +45,8 @@ import {
 } from '../../hooks/useProviders';
 import { getPublicProviderFromWebPath } from '../../utils/publicListingRoute';
 import { filtrarServiciosCatalogoPerfilProveedor } from '../../utils/servicioVehiculoCompat';
+import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
+import ServicioTarifasPorMarca from '../../components/provider/ServicioTarifasPorMarca';
 import { isProviderMultimarca, mergeProviderKpiBadge } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
 import { useFavorites } from '../../context/FavoritesContext';
@@ -111,11 +113,16 @@ const ProviderDetailScreen = () => {
     }, [queryClient, idToLoad, providerType])
   );
 
+  const userVehiclesActivos = useMemo(
+    () => userVehicles.filter((v) => v?.id && v.is_active !== false),
+    [userVehicles],
+  );
+
   const vehicleForSchedule = useMemo(() => {
     if (vehicleFromRoute?.id) return vehicleFromRoute;
-    const active = userVehicles.find((v) => v.is_active !== false);
-    return active || userVehicles[0] || null;
-  }, [vehicleFromRoute, userVehicles]);
+    const active = userVehiclesActivos.find((v) => v.is_active !== false);
+    return active || userVehiclesActivos[0] || null;
+  }, [vehicleFromRoute, userVehiclesActivos]);
 
   const { data: details, isLoading: loadingDetails } = useProviderDetails(idToLoad, providerType);
   const { data: services } = useProviderServices(
@@ -163,8 +170,9 @@ const ProviderDetailScreen = () => {
     return filtrarServiciosCatalogoPerfilProveedor(todos, {
       provider,
       vehicle: vehicleForSchedule,
+      vehicles: userVehiclesActivos,
     });
-  }, [provider, provider?.servicios, vehicleForSchedule]);
+  }, [provider, provider?.servicios, vehicleForSchedule, userVehiclesActivos]);
 
   const handleScheduleService = useCallback(
     (servicio) => {
@@ -434,35 +442,43 @@ const ProviderDetailScreen = () => {
               <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
             </View>
             <Text style={styles.sectionHint}>
-              {vehicleForSchedule?.id
-                ? esMultimarcaProveedor
-                  ? `Precios para tu ${vehicleForSchedule.marca_nombre || vehicleForSchedule.marca?.nombre || 'vehículo'}. Toca un servicio para agendar.`
-                  : 'Toca un servicio para continuar con el agendamiento.'
-                : esMultimarcaProveedor
-                  ? 'Selecciona un vehículo en el inicio para ver el precio de tu marca. Los valores pueden variar según la marca.'
-                  : 'Toca un servicio para agendar. Selecciona un vehículo en el inicio para ver los de tu marca.'}
+              {userVehiclesActivos.length > 0
+                ? userVehiclesActivos.length > 1
+                  ? 'Precios según tus vehículos registrados. Toca un servicio para agendar con el vehículo activo.'
+                  : `Precio para tu ${userVehiclesActivos[0].marca_nombre || userVehiclesActivos[0].marca?.nombre || 'vehículo'}. Toca un servicio para agendar.`
+                : 'Registra un vehículo para ver precios de tu marca y agendar con este proveedor.'}
             </Text>
-            {!vehicleForSchedule?.id ? (
+            {userVehiclesActivos.length === 0 ? (
               <Text style={styles.noVehicleHint}>
-                Selecciona un vehículo en el inicio para poder agendar.
+                Agrega un vehículo en tu perfil para ver precios y agendar.
+              </Text>
+            ) : !vehicleForSchedule?.id ? (
+              <Text style={styles.noVehicleHint}>
+                Selecciona un vehículo activo en el inicio para agendar.
               </Text>
             ) : null}
             {serviciosVisibles.length === 0 ? (
               <Text style={styles.noVehicleHint}>
-                {vehicleForSchedule?.id
-                  ? esMultimarcaProveedor
-                    ? 'Este proveedor no tiene precio configurado para la marca de tu vehículo en estos servicios.'
-                    : 'Este proveedor no tiene servicios activos para la marca de tu vehículo.'
-                  : esMultimarcaProveedor
-                    ? 'Este proveedor aún no tiene servicios activos en su catálogo.'
-                    : 'No hay servicios activos visibles para las marcas de este especialista.'}
+                {userVehiclesActivos.length > 0
+                  ? 'Este proveedor no tiene precio para ninguno de tus vehículos registrados en estos servicios.'
+                  : 'Registra un vehículo para ver los servicios disponibles con precios para tu marca.'}
               </Text>
             ) : null}
             <View style={styles.servicesGrid}>
               {serviciosVisibles.map((servicio, idx) => {
                 const servicioId = resolveServicioId(servicio);
                 const canSchedule = !!vehicleForSchedule?.id && !!servicioId;
-                const precioLabel = formatPrecioCatalogoServicio(servicio);
+                const tarifasUsuario = servicio._tarifas_usuario || [];
+                const precioInfo = labelPrecioServicioResuelto(servicio, {
+                  vehicle: vehicleForSchedule,
+                  vehicles: userVehiclesActivos,
+                });
+                const precioLabel =
+                  precioInfo.principal
+                  ?? formatPrecioCatalogoServicio(servicio, {
+                    vehicle: vehicleForSchedule,
+                    vehicles: userVehiclesActivos,
+                  });
                 const tipoLabel = labelTipoServicioCatalogo(servicio);
 
                 return (
@@ -490,6 +506,15 @@ const ProviderDetailScreen = () => {
                       </View>
                       {precioLabel ? (
                         <Text style={styles.servicePrice}>{precioLabel}</Text>
+                      ) : null}
+                      {precioInfo.subtitulo ? (
+                        <Text style={styles.servicePriceHint}>{precioInfo.subtitulo}</Text>
+                      ) : null}
+                      {tarifasUsuario.length > 1 ? (
+                        <ServicioTarifasPorMarca
+                          tarifas={tarifasUsuario}
+                          soloSiVarias={false}
+                        />
                       ) : null}
                       {servicio.duracion_estimada ? (
                         <Text style={styles.serviceMeta}>
@@ -723,6 +748,11 @@ const styles = StyleSheet.create({
     color: COLORS.success[700],
     fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
+    marginBottom: 4,
+  },
+  servicePriceHint: {
+    color: COLORS.text.secondary,
+    fontSize: TYPOGRAPHY.fontSize.xs,
     marginBottom: 4,
   },
   serviceMeta: {

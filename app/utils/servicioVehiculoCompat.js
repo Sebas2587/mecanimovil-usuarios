@@ -2,7 +2,10 @@
  * Compatibilidad oferta de catálogo ↔ vehículo del cliente (marca/modelo).
  */
 
-import { agruparServiciosCatalogoProveedor } from './ofertaResolucionMarca';
+import {
+  agruparServiciosCatalogoProveedor,
+  expandirFilasOferta,
+} from './ofertaResolucionMarca';
 import { isProviderMultimarca } from './providerUtils';
 
 function normalizeMarcaNombre(value) {
@@ -163,20 +166,29 @@ export function servicioOfertaPerteneceACatalogoProveedor(servicio, provider) {
 }
 
 /**
- * Servicios visibles en perfil: solo ofertas activas/disponibles.
- * Multimarca → resuelve precio por marca del vehículo (o agrupa «Desde $X» sin vehículo).
- * Especialista → marcas del proveedor + compatibilidad con vehículo si hay uno.
+ * Servicios visibles en perfil: ofertas activas, agrupadas por catálogo+tipo.
+ * Precios solo para vehículos registrados del usuario compatibles con cada oferta.
  */
-export function filtrarServiciosCatalogoPerfilProveedor(servicios, { provider, vehicle } = {}) {
-  const list = (Array.isArray(servicios) ? servicios : []).filter(esOfertaServicioActiva);
+export function filtrarServiciosCatalogoPerfilProveedor(servicios, { provider, vehicle, vehicles } = {}) {
+  const userVehicles = Array.isArray(vehicles) && vehicles.length > 0
+    ? vehicles.filter((v) => v?.id && v.is_active !== false)
+    : vehicle?.id
+      ? [vehicle]
+      : [];
 
-  if (isProviderMultimarca(provider)) {
-    return agruparServiciosCatalogoProveedor(list, { vehicle });
+  let list = expandirFilasOferta(servicios).filter(esOfertaServicioActiva);
+
+  if (!isProviderMultimarca(provider)) {
+    list = list.filter((s) => servicioOfertaPerteneceACatalogoProveedor(s, provider));
   }
 
-  let filtered = list.filter((s) => servicioOfertaPerteneceACatalogoProveedor(s, provider));
-  if (vehicle?.id) {
-    filtered = filtered.filter((s) => servicioOfertaCompatibleConVehiculo(s, vehicle));
+  if (userVehicles.length > 0) {
+    list = list.filter((s) =>
+      userVehicles.some((v) => servicioOfertaCompatibleConVehiculo(s, v)),
+    );
+  } else if (vehicle?.id) {
+    list = list.filter((s) => servicioOfertaCompatibleConVehiculo(s, vehicle));
   }
-  return filtered;
+
+  return agruparServiciosCatalogoProveedor(list, { vehicle, vehicles: userVehicles });
 }

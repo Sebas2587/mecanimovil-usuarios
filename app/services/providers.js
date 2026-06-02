@@ -9,7 +9,6 @@ import {
   filterProvidersEspecialistasMarca,
 } from '../utils/providerUtils';
 import { filterProvidersForDestacadosPanel } from '../components/home/shared/homeAddressUtils';
-import { agruparServiciosCatalogoProveedor } from '../utils/ofertaResolucionMarca';
 import {
   mergeProviderLists,
   sortProvidersForExploreMode,
@@ -1498,11 +1497,10 @@ function mapOfertaToServicioRow(oferta, type, id, providerName) {
   };
 }
 
-function mapOfertasToServicios(ofertas, type, id, providerName, vehicle = null) {
-  const rows = (Array.isArray(ofertas) ? ofertas : [])
+function mapOfertasToServicios(ofertas, type, id, providerName) {
+  return (Array.isArray(ofertas) ? ofertas : [])
     .map((oferta) => mapOfertaToServicioRow(oferta, type, id, providerName))
     .filter(Boolean);
-  return agruparServiciosCatalogoProveedor(rows, { vehicle });
 }
 
 /**
@@ -1563,6 +1561,7 @@ export const fetchPublicProviderFicha = async (providerId, providerType) => {
     ? ofertasResponse
     : ofertasResponse?.results || [];
   const servicios = mapOfertasToServicios(ofertas, type, id, nombreProveedor);
+  // La ficha pública agrupa en filtrarServiciosCatalogoPerfilProveedor (sin vehículo → «Desde $X»).
   const horarios_semanales = Array.isArray(scheduleRaw) ? scheduleRaw : (scheduleRaw?.results || []);
   const documents = Array.isArray(documentsRaw) ? documentsRaw : [];
 

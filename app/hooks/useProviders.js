@@ -148,8 +148,6 @@ export const useProviderServices = (id, type, providerName, vehicle = null) => {
 
             if (ofertas.length === 0) return [];
 
-            const { agruparServiciosCatalogoProveedor } = await import('../utils/ofertaResolucionMarca');
-
             const rows = ofertas
                 .map((oferta) => {
                     const info = oferta.servicio_info || {};
@@ -211,7 +209,7 @@ export const useProviderServices = (id, type, providerName, vehicle = null) => {
                 })
                 .filter(Boolean);
 
-            return agruparServiciosCatalogoProveedor(rows, { vehicle });
+            return rows;
         },
         enabled: !!id && !!type,
         staleTime: 0,                // siempre considerar datos desactualizados

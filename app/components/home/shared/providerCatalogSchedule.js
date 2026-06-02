@@ -2,6 +2,8 @@
  * Mapeo oferta de catálogo del proveedor → nueva solicitud (flujo dirigido + confirmar-candidato).
  */
 
+import { labelPrecioServicioResuelto } from '../../../utils/ofertaResolucionMarca';
+
 export function resolveServicioId(servicio) {
   if (!servicio) return null;
   const raw = servicio.id ?? servicio.servicio_id ?? servicio.servicio;
@@ -12,7 +14,10 @@ export function resolveServicioId(servicio) {
 
 export function resolveOfertaServicioId(servicio) {
   if (!servicio) return null;
-  const raw = servicio.oferta_id ?? servicio.oferta_servicio_id;
+  const raw =
+    servicio._oferta_resuelta_id
+    ?? servicio.oferta_id
+    ?? servicio.oferta_servicio_id;
   if (raw == null || raw === '') return null;
   const n = Number(raw);
   return Number.isFinite(n) ? n : raw;
@@ -38,6 +43,12 @@ export function resolvePrecioTotalCatalogo(servicio, { conRepuestos } = {}) {
 }
 
 export function formatPrecioCatalogoServicio(servicio, options = {}) {
+  const vehicle = options.vehicle ?? null;
+  const vehicles = options.vehicles ?? null;
+  if (vehicle?.id || (Array.isArray(vehicles) && vehicles.length > 0)) {
+    const { principal } = labelPrecioServicioResuelto(servicio, { vehicle, vehicles });
+    if (principal) return principal;
+  }
   if (servicio?._tiene_varios_precios && servicio._precio_desde > 0) {
     return `Desde $${Math.round(servicio._precio_desde).toLocaleString('es-CL')}`;
   }

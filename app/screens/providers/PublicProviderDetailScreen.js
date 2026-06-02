@@ -37,6 +37,7 @@ import {
   labelTipoServicioCatalogo,
 } from '../../components/home/shared/providerCatalogSchedule';
 import { filtrarServiciosCatalogoPerfilProveedor } from '../../utils/servicioVehiculoCompat';
+import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
 import { isProviderMultimarca } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
 
@@ -390,8 +391,12 @@ const PublicProviderDetailScreen = () => {
             </Text>
           )}
           <View style={styles.servicesGrid}>
-            {serviciosVisibles.map((servicio, idx) => (
-              <Card key={`${servicio.id || idx}`} style={styles.serviceCardOuter}>
+            {serviciosVisibles.map((servicio, idx) => {
+              const precioInfo = labelPrecioServicioResuelto(servicio, { vehicle: null });
+              const precioLabel =
+                precioInfo.principal ?? formatPrecioCatalogoServicio(servicio);
+              return (
+              <Card key={`${servicio.oferta_id || servicio.id || idx}-${servicio.tipo_servicio || 'o'}`} style={styles.serviceCardOuter}>
                 {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
                   <View style={{ marginBottom: 10 }}>
                     <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
@@ -405,12 +410,16 @@ const PublicProviderDetailScreen = () => {
                     {servicio.categoria}
                   </Text>
                 )}
-                {formatPrecioCatalogoServicio(servicio) ? (
-                  <Text style={styles.servicePrice}>{formatPrecioCatalogoServicio(servicio)}</Text>
+                {precioLabel ? (
+                  <Text style={styles.servicePrice}>{precioLabel}</Text>
+                ) : null}
+                {precioInfo.subtitulo ? (
+                  <Text style={styles.servicePriceHint}>{precioInfo.subtitulo}</Text>
                 ) : null}
                 <Text style={styles.serviceTipoBadge}>{labelTipoServicioCatalogo(servicio)}</Text>
               </Card>
-            ))}
+            );
+            })}
           </View>
         </View>
       ) : null}
@@ -628,6 +637,11 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     marginTop: 6,
+    marginBottom: 4,
+  },
+  servicePriceHint: {
+    color: COLORS.text.secondary,
+    fontSize: TYPOGRAPHY.fontSize.xs,
     marginBottom: 4,
   },
   serviceTipoBadge: {
