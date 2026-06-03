@@ -7,11 +7,11 @@ import { scorePromedioMatchFactores } from './catalogoMatchFactores';
 
 /** Pesos del análisis en comparador de catálogo (suman 100). */
 export const CRITERIOS_CATALOGO = {
-  MATCH_IA: { peso: 30, nombre: 'Compatibilidad', key: 'MATCH_IA' },
-  CERCANIA: { peso: 30, nombre: 'Cercanía', key: 'CERCANIA' },
-  PRECIO: { peso: 20, nombre: 'Precio', key: 'PRECIO' },
-  RATING: { peso: 12, nombre: 'Calificación', key: 'RATING' },
-  COBERTURA: { peso: 8, nombre: 'Cobertura', key: 'COBERTURA' },
+  MATCH_IA: { peso: 48, nombre: 'Compatibilidad', key: 'MATCH_IA' },
+  CERCANIA: { peso: 22, nombre: 'Cercanía', key: 'CERCANIA' },
+  PRECIO: { peso: 15, nombre: 'Precio', key: 'PRECIO' },
+  RATING: { peso: 10, nombre: 'Calificación', key: 'RATING' },
+  COBERTURA: { peso: 5, nombre: 'Cobertura', key: 'COBERTURA' },
 };
 
 /** Puntuación neutra cuando el proveedor aún no tiene reseñas (no penaliza ni premia). */
@@ -80,10 +80,14 @@ function scoreCercaniaKm(distKm) {
 
 function scoreMatchIaBackend(scoreMatch, matchFactores = null) {
   const fromFactores = scorePromedioMatchFactores(matchFactores);
-  if (fromFactores != null) return fromFactores;
   const s = Number(scoreMatch);
-  if (!Number.isFinite(s) || s <= 0) return 50;
-  return Math.round(clamp01(s) * 100);
+  const fromBackend = Number.isFinite(s) && s > 0 ? Math.round(clamp01(s) * 100) : null;
+  if (fromFactores != null && fromBackend != null) {
+    return Math.round(fromBackend * 0.55 + fromFactores * 0.45);
+  }
+  if (fromBackend != null) return fromBackend;
+  if (fromFactores != null) return fromFactores;
+  return 50;
 }
 
 function resolveTipoProveedorCandidato(candidato) {

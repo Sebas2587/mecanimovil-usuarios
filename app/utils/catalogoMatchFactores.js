@@ -54,12 +54,51 @@ export function formatMatchFactorPct(value) {
   return `${Math.round(Number(value) * 100)}%`;
 }
 
-/** Promedio de features ML (0–100) para complementar score_match del backend. */
-export function scorePromedioMatchFactores(matchFactores) {
+/** Pesos alineados con motor_match_scoring.PESOS_COINCIDENCIA (backend). */
+export const MATCH_FACTOR_PESOS = {
+  proximidad: 0.12,
+  rating: 0.08,
+  marca_oferta: 0.10,
+  cobertura_proveedor: 0.18,
+  motor: 0.18,
+  repuestos: 0.12,
+  historial: 0.08,
+  zona_mecanico: 0.05,
+  catalogo_completo: 0.04,
+  dentro_radio: 0.05,
+};
+
+const BONUS_COMPAT_EXACTA = 0.06;
+
+/** Score ponderado 0–100 usando los mismos pesos que el backend. */
+export function scoreMatchFactoresPonderado(matchFactores) {
   if (!matchFactores || typeof matchFactores !== 'object') return null;
-  const vals = Object.values(matchFactores)
-    .map((v) => Number(v))
-    .filter((n) => Number.isFinite(n));
-  if (!vals.length) return null;
-  return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100);
+  const entries = Object.entries(MATCH_FACTOR_PESOS).filter(
+    ([key]) => matchFactores[key] != null && matchFactores[key] !== '',
+  );
+  if (!entries.length) return null;
+
+  let weighted = 0;
+  let pesoSum = 0;
+  for (const [key, peso] of entries) {
+    const value = Number(matchFactores[key]);
+    if (!Number.isFinite(value)) continue;
+    const clamped = Math.max(0, Math.min(1, value));
+    weighted += clamped * peso;
+    pesoSum += peso;
+  }
+  if (pesoSum <= 0) return null;
+
+  let score = weighted / pesoSum;
+  const motor = Number(matchFactores.motor);
+  const cobertura = Number(matchFactores.cobertura_proveedor);
+  if (motor >= 0.99 && cobertura >= 0.99) {
+    score = Math.min(0.99, score + BONUS_COMPAT_EXACTA);
+  }
+  return Math.round(score * 100);
+}
+
+/** Promedio simple (legacy); preferir scoreMatchFactoresPonderado. */
+export function scorePromedioMatchFactores(matchFactores) {
+  return scoreMatchFactoresPonderado(matchFactores);
 }

@@ -28,8 +28,16 @@ import {
   tituloSubgrupoRepuestos,
 } from '../../utils/catalogoComparadorRepuestos';
 
-function sortPorDistancia(ofertas) {
+function sortPorRelevancia(ofertas, matchPctByKey, getKey) {
   return [...ofertas].sort((a, b) => {
+    const ka = getKey(a);
+    const kb = getKey(b);
+    const ma = matchPctByKey.get(ka);
+    const mb = matchPctByKey.get(kb);
+    if (ma != null && mb != null && ma !== mb) return mb - ma;
+    const sa = Number(a.score_match);
+    const sb = Number(b.score_match);
+    if (Number.isFinite(sa) && Number.isFinite(sb) && sa !== sb) return sb - sa;
     const da = a.distancia_km;
     const db = b.distancia_km;
     if (da == null && db == null) return 0;
@@ -128,23 +136,32 @@ export default function ComparadorCatalogoIaPanel({
   const [selectedKeys, setSelectedKeys] = useState(() => new Set());
   const [modalVisible, setModalVisible] = useState(false);
 
-  const recomendadas = sortPorDistancia(
-    Array.isArray(ofertasRecomendadas) && ofertasRecomendadas.length > 0
-      ? ofertasRecomendadas
-      : ofertas,
+  const ofertasRecomendadasRaw = useMemo(
+    () => (
+      Array.isArray(ofertasRecomendadas) && ofertasRecomendadas.length > 0
+        ? ofertasRecomendadas
+        : ofertas
+    ),
+    [ofertasRecomendadas, ofertas],
   );
-  const otros = sortPorDistancia(Array.isArray(ofertasOtros) ? ofertasOtros : []);
-  const todasOfertas = useMemo(() => [...recomendadas, ...otros], [recomendadas, otros]);
+  const ofertasOtrosRaw = useMemo(
+    () => (Array.isArray(ofertasOtros) ? ofertasOtros : []),
+    [ofertasOtros],
+  );
+  const todasOfertasRaw = useMemo(
+    () => [...ofertasRecomendadasRaw, ...ofertasOtrosRaw],
+    [ofertasRecomendadasRaw, ofertasOtrosRaw],
+  );
 
   const candidatosByKey = useMemo(() => {
     const map = new Map();
-    for (const oferta of todasOfertas) {
+    for (const oferta of todasOfertasRaw) {
       const c = toCandidato(oferta, requiereRepuestos, userCoords);
       const key = getCandidatoCatalogoKey(c);
       if (key) map.set(key, c);
     }
     return map;
-  }, [todasOfertas, requiereRepuestos, userCoords]);
+  }, [todasOfertasRaw, requiereRepuestos, userCoords]);
 
   const grupoCandidatos = useMemo(
     () => Array.from(candidatosByKey.values()),
@@ -169,6 +186,21 @@ export default function ComparadorCatalogoIaPanel({
     }
     return out;
   }, [grupoCandidatos, userCoords, scoringContext]);
+
+  const keyFromOferta = useCallback(
+    (oferta) => getCandidatoCatalogoKey(toCandidato(oferta, requiereRepuestos, userCoords)),
+    [requiereRepuestos, userCoords],
+  );
+
+  const recomendadas = useMemo(
+    () => sortPorRelevancia(ofertasRecomendadasRaw, matchPctByKey, keyFromOferta),
+    [ofertasRecomendadasRaw, matchPctByKey, keyFromOferta],
+  );
+  const otros = useMemo(
+    () => sortPorRelevancia(ofertasOtrosRaw, matchPctByKey, keyFromOferta),
+    [ofertasOtrosRaw, matchPctByKey, keyFromOferta],
+  );
+  const todasOfertas = useMemo(() => [...recomendadas, ...otros], [recomendadas, otros]);
 
   const puedeComparar = todasOfertas.length >= 2;
   const seleccionados = useMemo(
