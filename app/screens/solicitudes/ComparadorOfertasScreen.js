@@ -28,6 +28,7 @@ import { resolveCoordenadasServicio } from '../../utils/coordenadasServicio';
 import { PROVIDER_RECOMMENDATION_MAX_KM } from '../../utils/exploreProviderUtils';
 import { resolveMarcaVehiculoNombre } from '../../utils/catalogoComparadorCobertura';
 import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
+import { resolveUbicacionConfirmacionFromOferta } from '../../utils/solicitudModalidadServicio';
 import { COLORS } from '../../design-system/tokens/colors';
 import { ROUTES as APP_ROUTES } from '../../utils/constants';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -251,6 +252,8 @@ const ComparadorOfertasScreen = () => {
             oferta_servicio_id: ofertaIds[0],
             oferta_servicio_ids: ofertaIds,
             score_match: oferta.score_match,
+            tipo_proveedor: tipoProv,
+            ...resolveUbicacionConfirmacionFromOferta(oferta),
           },
         },
       });

@@ -4,57 +4,32 @@ import {
   Text,
   StyleSheet,
   Modal,
-  Pressable,
   ScrollView,
   TouchableOpacity,
-  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Trophy, MapPin, Star, Sparkles, DollarSign, Wrench } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
-import { getHealthColor } from '../../utils/healthFormat';
+import { X, Trophy } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING, SHADOWS } from '../../design-system/tokens';
 import { formatDistance } from '../../utils/geoUtils';
 import {
-  CRITERIOS_CATALOGO,
-  RATING_NEUTRO_SIN_RESENAS,
   buildScoringContextFromForm,
   rankCandidatosCatalogo,
   getCandidatoCatalogoKey,
 } from '../../utils/catalogoComparadorScoring';
-import { resolveMatchFactores, formatMatchFactorPct } from '../../utils/catalogoMatchFactores';
+import { RATING_NEUTRO_SIN_RESENAS } from '../../utils/catalogoComparadorMetricasModal';
 import { buildProviderAvatarUri } from '../../utils/providerUtils';
 import { getCoberturaMarcaBadge } from '../../utils/catalogoComparadorCobertura';
 import { getMotorOfertaBadge } from '../../utils/catalogoComparadorMotor';
 import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
-import { Image } from 'expo-image';
+import ComparadorMetricasPanel from './ComparadorMetricasPanel';
 
 function formatCLP(n) {
   return `$${Math.round(Number(n) || 0).toLocaleString('es-CL')}`;
 }
 
-const CRITERIO_ICONS = {
-  MATCH_IA: Sparkles,
-  CERCANIA: MapPin,
-  PRECIO: DollarSign,
-  RATING: Star,
-  COBERTURA: Wrench,
-};
-
-function ScoreBar({ score, displayValue }) {
-  const color = getHealthColor(score);
-  const label = displayValue != null ? displayValue : String(Math.round(score));
-  return (
-    <View style={styles.scoreRow}>
-      <View style={styles.scoreTrack}>
-        <View style={[styles.scoreFill, { width: `${Math.min(100, score)}%`, backgroundColor: color }]} />
-      </View>
-      <Text style={[styles.scoreVal, { color }]}>{label}</Text>
-    </View>
-  );
-}
-
 /**
- * Modal inferior: comparación de candidatos de catálogo con puntuación por criterios.
+ * Modal pantalla completa: comparación detallada por proveedor.
  */
 export default function ComparadorCandidatosCatalogoModal({
   visible,
@@ -68,7 +43,6 @@ export default function ComparadorCandidatosCatalogoModal({
   onConfirmar,
 }) {
   const insets = useSafeAreaInsets();
-  const { height: winH } = useWindowDimensions();
 
   const scoringContext = useMemo(
     () => buildScoringContextFromForm({
@@ -89,35 +63,42 @@ export default function ComparadorCandidatosCatalogoModal({
 
   if (!visible) return null;
 
+  const bottomPad = Math.max(insets.bottom, SPACING.md) + SPACING.sm;
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Cerrar comparación" />
-      <View
-        style={[
-          styles.sheet,
-          { maxHeight: winH * 0.88, paddingBottom: Math.max(insets.bottom, 16) },
-        ]}
-      >
-        <View style={styles.handle} />
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <Text style={styles.title}>Comparación detallada</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityLabel="Cerrar">
-            <X size={22} color={COLORS.text.secondary} />
+          <View style={styles.headerText}>
+            <Text style={styles.title}>Comparación detallada</Text>
+            <Text style={styles.subtitle}>
+              Análisis del match sin duplicar criterios · sin reseñas = {RATING_NEUTRO_SIN_RESENAS} pts
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={12}
+            style={styles.closeBtn}
+            accessibilityLabel="Cerrar comparación"
+          >
+            <X size={20} color={COLORS.text.primary} />
           </TouchableOpacity>
         </View>
-        <Text style={styles.subtitle}>
-          Compatibilidad incluye marca, taller o a domicilio, repuestos y match del radar.
-          Sin reseñas, calificación es neutra ({RATING_NEUTRO_SIN_RESENAS} pts, no penaliza).
-        </Text>
 
         <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.carousel}
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: bottomPad }]}
+          showsVerticalScrollIndicator={false}
         >
-          {ranked.map(({ candidato, total, porCriterio, distancia_km, matchDisplayPct }, index) => {
+          {ranked.map(({ candidato, porCriterio, distancia_km, matchDisplayPct }, index) => {
             const key = getCandidatoCatalogoKey(candidato);
             const esMejor = key === mejorKey;
+            const isLast = index === ranked.length - 1;
             const nombre = candidato.proveedor?.nombre || candidato.nombre_proveedor || 'Proveedor';
             const avatarUri = buildProviderAvatarUri({
               ...candidato.proveedor,
@@ -129,115 +110,73 @@ export default function ComparadorCandidatosCatalogoModal({
               candidato.precio_total
               ?? candidato.precio_total_ofrecido
               ?? (requiereRepuestos ? candidato.precio_con_repuestos : candidato.precio_sin_repuestos);
+            const motorBadge = getMotorOfertaBadge(candidato, scoringContext.tipoMotorVehiculo);
 
             return (
               <View
                 key={key}
-                style={[styles.card, esMejor && styles.cardMejor]}
+                style={[styles.cardOuter, !isLast && styles.cardOuterSpacing]}
               >
-                {esMejor ? (
-                  <View style={styles.mejorBadge}>
-                    <Trophy size={12} color={COLORS.text.onPrimary} />
-                    <Text style={styles.mejorBadgeText}>MEJOR PARA TI</Text>
-                  </View>
-                ) : null}
-
-                <View style={[styles.puntuacionBlock, esMejor && styles.puntuacionBlockMejor]}>
-                  <Text style={styles.puntuacionLabel}>Puntuación</Text>
-                  <Text style={[styles.puntuacionValor, { color: getHealthColor(total) }]}>
-                    {Math.round(total)}
-                  </Text>
-                  <Text style={styles.puntuacionMax}>/100</Text>
-                  <Text style={styles.matchHint}>Resumen lista: {matchDisplayPct}%</Text>
-                </View>
-
-                <View style={styles.provRow}>
-                  {avatarUri ? (
-                    <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
-                  ) : (
-                    <View style={styles.avatarPh} />
-                  )}
-                  <View style={styles.provInfo}>
-                    <View style={styles.provMetaRow}>
-                      <Text style={[styles.provNombre, styles.provNombreFlex]} numberOfLines={2}>
-                        {nombre}
-                      </Text>
-                      <ProveedorCoberturaMarcaChip
-                        badge={getCoberturaMarcaBadge(candidato, marcaVehiculoNombre)}
-                        compact
-                      />
+                <View style={[styles.card, esMejor && styles.cardMejor]}>
+                  {esMejor ? (
+                    <View style={styles.mejorBadge}>
+                      <Trophy size={12} color={COLORS.primary[700]} />
+                      <Text style={styles.mejorText}>Mejor opción</Text>
                     </View>
-                    {(() => {
-                      const motorBadge = getMotorOfertaBadge(
-                        candidato,
-                        scoringContext.tipoMotorVehiculo,
-                      );
-                      if (!motorBadge) return null;
-                      return (
-                        <Text style={styles.motorHint}>
-                          Motor: {motorBadge.label}
-                          {motorBadge.hint ? ` · ${motorBadge.hint}` : ''}
-                        </Text>
-                      );
-                    })()}
-                    {distancia_km != null ? (
-                      <Text style={styles.distText}>
-                        {formatDistance(distancia_km)} desde tu dirección
-                      </Text>
+                  ) : null}
+
+                  <View style={styles.cardTop}>
+                    {avatarUri ? (
+                      <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
                     ) : (
-                      <Text style={styles.distText}>Distancia no disponible</Text>
+                      <View style={styles.avatarPh} />
                     )}
-                  </View>
-                </View>
-
-                <Text style={styles.precio}>{formatCLP(precio)}</Text>
-
-                <View style={styles.criterios}>
-                  {Object.values(CRITERIOS_CATALOGO).map((cfg) => {
-                    const Icon = CRITERIO_ICONS[cfg.key] || Sparkles;
-                    const score = porCriterio[cfg.key] ?? 50;
-                    const sinResenas = cfg.key === 'RATING' && porCriterio.rating_sin_resenas;
-                    return (
-                      <View key={cfg.key} style={styles.criterioRow}>
-                        <View style={styles.criterioLeft}>
-                          <Icon size={14} color={COLORS.text.secondary} />
-                          <Text style={styles.criterioLabel}>
-                            {cfg.nombre}
-                            {sinResenas ? ' (sin reseñas)' : ''}
-                          </Text>
-                        </View>
-                        <ScoreBar
-                          score={score}
-                          displayValue={sinResenas ? 'N/D' : undefined}
+                    <View style={styles.cardMeta}>
+                      <View style={styles.nameRow}>
+                        <Text style={styles.nombre} numberOfLines={2}>
+                          {nombre}
+                        </Text>
+                        <Text style={styles.matchPct}>{matchDisplayPct}%</Text>
+                      </View>
+                      <View style={styles.chipsRow}>
+                        <ProveedorCoberturaMarcaChip
+                          badge={getCoberturaMarcaBadge(candidato, marcaVehiculoNombre)}
+                          compact
                         />
+                        {motorBadge ? (
+                          <Text style={styles.motorChip} numberOfLines={1}>
+                            {motorBadge.label}
+                          </Text>
+                        ) : null}
                       </View>
-                    );
-                  })}
-                </View>
-
-                {resolveMatchFactores(candidato).length > 0 ? (
-                  <View style={styles.mlFactoresBlock}>
-                    <Text style={styles.mlFactoresTitle}>Señales del match IA</Text>
-                    {resolveMatchFactores(candidato).map((f) => (
-                      <View key={f.key} style={styles.mlFactorRow}>
-                        <Text style={styles.mlFactorLabel}>{f.label}</Text>
-                        <Text style={styles.mlFactorVal}>{formatMatchFactorPct(f.value)}</Text>
-                      </View>
-                    ))}
+                      <Text style={styles.metaLine} numberOfLines={1}>
+                        {distancia_km != null
+                          ? `${formatDistance(distancia_km)} · `
+                          : ''}
+                        {formatCLP(precio)}
+                      </Text>
+                    </View>
                   </View>
-                ) : null}
 
-                {onConfirmar ? (
-                  <TouchableOpacity
-                    style={[styles.confirmBtn, esMejor && styles.confirmBtnMejor]}
-                    onPress={() => onConfirmar(candidato)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.confirmBtnText}>
-                      {esMejor ? 'Elegir mejor opción' : 'Elegir este proveedor'}
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
+                  <View style={styles.metricasBlock}>
+                    <ComparadorMetricasPanel
+                      candidato={candidato}
+                      porCriterio={porCriterio}
+                    />
+                  </View>
+
+                  {onConfirmar ? (
+                    <TouchableOpacity
+                      style={[styles.btn, esMejor && styles.btnMejor]}
+                      onPress={() => onConfirmar(candidato)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.btnText}>
+                        {esMejor ? 'Elegir mejor opción' : 'Elegir proveedor'}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
               </View>
             );
           })}
@@ -247,124 +186,101 @@ export default function ComparadorCandidatosCatalogoModal({
   );
 }
 
-const CARD_W = 300;
-
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.background.overlay,
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: COLORS.background.paper,
-    borderTopLeftRadius: BORDERS.radius.xl,
-    borderTopRightRadius: BORDERS.radius.xl,
-    borderWidth: BORDERS.width.thin,
-    borderBottomWidth: 0,
-    borderColor: COLORS.border.light,
-    paddingTop: 8,
-    ...SHADOWS.lg,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.neutral.gray[300],
-    marginBottom: 12,
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.background.default,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.sm,
+    backgroundColor: COLORS.background.paper,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.border.light,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: SPACING.xs,
   },
   title: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontSize: TYPOGRAPHY.fontSize.xl,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.text.primary,
   },
   subtitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    lineHeight: 19,
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    marginTop: 2,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.tertiary,
+    lineHeight: 16,
   },
-  carousel: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 14,
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.neutral.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingTop: SPACING.md,
+  },
+  cardOuter: {
+    width: '100%',
+  },
+  cardOuterSpacing: {
+    marginBottom: SPACING.md,
   },
   card: {
-    width: CARD_W,
-    padding: 14,
+    backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
-    backgroundColor: COLORS.background.default,
+    padding: SPACING.cardPadding,
+    gap: SPACING.sm,
+    ...SHADOWS.sm,
   },
   cardMejor: {
-    borderColor: COLORS.primary[400],
-    borderWidth: 2,
+    borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.primary[50],
   },
   mejorBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 4,
-    backgroundColor: COLORS.primary[500],
+    backgroundColor: COLORS.background.paper,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: BORDERS.radius.full,
-    marginBottom: 10,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
   },
-  mejorBadgeText: {
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.onPrimary,
-  },
-  puntuacionBlock: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    marginBottom: 10,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.neutral.gray[50],
-  },
-  puntuacionBlockMejor: {
-    backgroundColor: COLORS.primary[50],
-  },
-  puntuacionLabel: {
+  mejorText: {
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[700],
   },
-  puntuacionValor: {
-    fontSize: 32,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    fontVariant: ['tabular-nums'],
-  },
-  puntuacionMax: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.tertiary,
-  },
-  matchHint: {
-    marginTop: 4,
-    fontSize: 10,
-    color: COLORS.text.tertiary,
-  },
-  provRow: {
+  cardTop: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   avatarPh: {
     width: 44,
@@ -372,123 +288,60 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.md,
     backgroundColor: COLORS.neutral.gray[200],
   },
-  provInfo: {
+  cardMeta: {
     flex: 1,
     minWidth: 0,
+    gap: 4,
   },
-  provMetaRow: {
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING.xs,
+  },
+  nombre: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    lineHeight: 20,
+  },
+  matchPct: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.primary[600],
+    fontVariant: ['tabular-nums'],
+  },
+  chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 2,
   },
-  provNombre: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
-  provNombreFlex: {
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  motorHint: {
+  motorChip: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.success[700],
-    marginBottom: 2,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
-  distText: {
+  metaLine: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.text.secondary,
-    marginTop: 2,
-  },
-  precio: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-    marginBottom: 12,
-  },
-  criterios: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  criterioRow: {
-    gap: 4,
-  },
-  criterioLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  criterioLabel: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
-  },
-  scoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  scoreTrack: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.neutral.gray[200],
-    overflow: 'hidden',
-  },
-  scoreFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  scoreVal: {
-    width: 28,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
-  mlFactoresBlock: {
-    marginBottom: 12,
-    padding: 10,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
-    gap: 6,
+  metricasBlock: {
+    paddingTop: SPACING.xxs,
   },
-  mlFactoresTitle: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[800],
-    marginBottom: 2,
-  },
-  mlFactorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  mlFactorLabel: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
-  },
-  mlFactorVal: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[700],
-    fontFamily: TYPOGRAPHY.fontFamily.mono,
-  },
-  confirmBtn: {
+  btn: {
+    marginTop: SPACING.xxs,
     paddingVertical: 12,
     borderRadius: BORDERS.radius.md,
     backgroundColor: COLORS.neutral.gray[800],
     alignItems: 'center',
   },
-  confirmBtnMejor: {
+  btnMejor: {
     backgroundColor: COLORS.primary[500],
   },
-  confirmBtnText: {
+  btnText: {
     color: COLORS.text.onPrimary,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,

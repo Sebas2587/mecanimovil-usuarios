@@ -5,6 +5,15 @@ import { useSolicitudes } from '../../context/SolicitudesContext';
 import CountdownTimer from '../common/CountdownTimer';
 import { isSolicitudSinVehiculoEnCuenta } from '../../utils/solicitudVehicle';
 import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
+import {
+  resolveModalidadServicio,
+  resolveUbicacionServicioTexto,
+  getModalidadServicioIcon,
+} from '../../utils/solicitudModalidadServicio';
+import {
+  resolveRepuestosServicioMeta,
+  getRepuestosServicioIcon,
+} from '../../utils/solicitudRepuestosServicio';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -136,6 +145,13 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
     solicitud.hora_preferida ? formatTime(solicitud.hora_preferida) : '',
     [solicitud.hora_preferida]);
 
+  const modalidadServicio = useMemo(() => resolveModalidadServicio(solicitud), [solicitud]);
+  const repuestosMeta = useMemo(() => resolveRepuestosServicioMeta(solicitud), [solicitud]);
+  const ubicacionTexto = useMemo(
+    () => resolveUbicacionServicioTexto(solicitud, modalidadServicio),
+    [solicitud, modalidadServicio],
+  );
+
   const getEstadoConfig = () => {
     const oferta = solicitud.oferta_seleccionada_detail || solicitud.oferta_seleccionada;
     const tienePagoParcial = oferta?.estado_pago_repuestos === 'pagado' &&
@@ -236,6 +252,39 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
             {horaFormateada && ` a las ${horaFormateada}`}
           </Text>
         </View>
+
+        {modalidadServicio ? (
+          <View style={styles.infoRow}>
+            <Ionicons
+              name={getModalidadServicioIcon(modalidadServicio)}
+              size={14}
+              color={COLORS.text.tertiary}
+            />
+            <Text style={styles.infoText} numberOfLines={1}>
+              {modalidadServicio.label}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={styles.infoRow}>
+          <Ionicons
+            name={getRepuestosServicioIcon(repuestosMeta.incluye)}
+            size={14}
+            color={COLORS.text.tertiary}
+          />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {repuestosMeta.label}
+          </Text>
+        </View>
+
+        {modalidadServicio ? (
+          <View style={styles.infoRow}>
+            <Ionicons name="location-outline" size={14} color={COLORS.text.tertiary} />
+            <Text style={styles.infoText} numberOfLines={2}>
+              {ubicacionTexto}
+            </Text>
+          </View>
+        ) : null}
 
         {solicitud.estado === 'esperando_creditos_proveedor' &&
           solicitud.fecha_limite_confirmacion_creditos && (

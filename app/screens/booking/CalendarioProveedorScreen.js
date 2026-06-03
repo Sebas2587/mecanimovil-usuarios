@@ -226,6 +226,10 @@ export default function CalendarioProveedorScreen() {
         {
           score_match: pendingConfirmOferta.score_match,
           oferta_servicio_ids: pendingConfirmOferta.oferta_servicio_ids,
+          tipo_proveedor: pendingConfirmOferta.tipo_proveedor,
+          direccion_servicio_texto: pendingConfirmOferta.direccion_servicio_texto,
+          lat: pendingConfirmOferta.lat,
+          lng: pendingConfirmOferta.lng,
         },
       );
       const resultado = await confirmarCandidato(payload);

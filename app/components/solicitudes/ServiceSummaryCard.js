@@ -11,7 +11,17 @@ import RepuestosExpandible from '../ofertas/RepuestosExpandible';
 import {
     resolveLineasServicioConRepuestos,
     lineasTienenRepuestos,
+    ofertaDebeMostrarRepuestos,
 } from '../../utils/ofertaRepuestos';
+import {
+    resolveRepuestosServicioMeta,
+    getRepuestosServicioIcon,
+} from '../../utils/solicitudRepuestosServicio';
+import {
+    resolveModalidadServicio,
+    resolveUbicacionServicioTexto,
+    getModalidadServicioIcon,
+} from '../../utils/solicitudModalidadServicio';
 
 /** Colores de badge alineados a estados de solicitud pública (Coinbase / superficies suaves). */
 export function getEstadoBadgeMeta(solicitud) {
@@ -124,6 +134,11 @@ const ServiceSummaryCard = ({ solicitud }) => {
     };
 
     const modoSolicitud = getModoSolicitud();
+    const modalidadServicio = useMemo(() => resolveModalidadServicio(solicitud), [solicitud]);
+    const ubicacionTexto = useMemo(
+        () => resolveUbicacionServicioTexto(solicitud, modalidadServicio),
+        [solicitud, modalidadServicio],
+    );
     const estadoBadge = getEstadoBadgeMeta(solicitud);
     const fechaPreferida = solicitud.fecha_preferida || solicitud.fecha_creacion;
     const horaPreferida = solicitud.hora_preferida || solicitud.preferencia_horario;
@@ -143,12 +158,20 @@ const ServiceSummaryCard = ({ solicitud }) => {
         }));
     }, [solicitud?.oferta_seleccionada_detail]);
 
-    const solicitudConRepuestos = solicitud?.requiere_repuestos !== false;
+    const repuestosMeta = useMemo(() => resolveRepuestosServicioMeta(solicitud), [solicitud]);
     const lineasRepuestosOferta = useMemo(() => {
-        if (!solicitudConRepuestos) return [];
+        if (!repuestosMeta.incluye) return [];
         return resolveLineasServicioConRepuestos(solicitud?.oferta_seleccionada_detail);
-    }, [solicitud?.oferta_seleccionada_detail, solicitudConRepuestos]);
-    const mostrarRepuestosOferta = lineasTienenRepuestos(lineasRepuestosOferta);
+    }, [solicitud?.oferta_seleccionada_detail, repuestosMeta.incluye]);
+    const mostrarRepuestosOferta = useMemo(() => {
+        const oferta = solicitud?.oferta_seleccionada_detail;
+        if (!oferta) return false;
+        return (
+            repuestosMeta.incluye
+            && ofertaDebeMostrarRepuestos(oferta, solicitud)
+            && lineasTienenRepuestos(lineasRepuestosOferta)
+        );
+    }, [solicitud, repuestosMeta.incluye, lineasRepuestosOferta]);
 
     return (
         <View style={styles.card}>
@@ -240,14 +263,32 @@ const ServiceSummaryCard = ({ solicitud }) => {
                     </View>
                 </View>
 
+                {modalidadServicio ? (
+                    <View style={styles.gridItem}>
+                        <View style={styles.iconContainer}>
+                            <Ionicons
+                                name={getModalidadServicioIcon(modalidadServicio)}
+                                size={18}
+                                color={COLORS.text.secondary}
+                            />
+                        </View>
+                        <View>
+                            <Text style={styles.gridLabel}>Modalidad</Text>
+                            <Text style={styles.gridValue}>{modalidadServicio.label}</Text>
+                        </View>
+                    </View>
+                ) : null}
+
                 <View style={styles.gridItem}>
                     <View style={styles.iconContainer}>
                         <Ionicons name="location-outline" size={18} color={COLORS.text.secondary} />
                     </View>
-                    <View>
-                        <Text style={styles.gridLabel}>Ubicación</Text>
-                        <Text style={styles.gridValue} numberOfLines={1}>
-                            {solicitud.direccion_servicio_texto || 'Domicilio'}
+                    <View style={styles.gridItemTextWrap}>
+                        <Text style={styles.gridLabel}>
+                            {modalidadServicio?.tipo === 'taller' ? 'Dirección del taller' : 'Ubicación'}
+                        </Text>
+                        <Text style={styles.gridValue} numberOfLines={2}>
+                            {ubicacionTexto}
                         </Text>
                     </View>
                 </View>
@@ -282,16 +323,19 @@ const ServiceSummaryCard = ({ solicitud }) => {
                 <View style={styles.gridItem}>
                     <View style={styles.iconContainer}>
                         <Ionicons
-                            name={solicitudConRepuestos ? 'construct-outline' : 'hammer-outline'}
+                            name={getRepuestosServicioIcon(repuestosMeta.incluye)}
                             size={18}
                             color={COLORS.text.secondary}
                         />
                     </View>
                     <View style={styles.gridItemTextWrap}>
                         <Text style={styles.gridLabel}>Repuestos</Text>
-                        <Text style={styles.gridValue}>
-                            {solicitudConRepuestos ? 'Con repuestos' : 'Solo mano de obra'}
-                        </Text>
+                        <Text style={styles.gridValue}>{repuestosMeta.label}</Text>
+                        {repuestosMeta.fuente === 'proveedor' ? (
+                            <Text style={styles.gridValueSecondary} numberOfLines={2}>
+                                Según configuración del proveedor
+                            </Text>
+                        ) : null}
                     </View>
                 </View>
             </View>

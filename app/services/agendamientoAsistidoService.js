@@ -135,6 +135,24 @@ export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extra
 
   const servicioIds = (formData.servicios_seleccionados || []).map((s) => s.id).filter(Boolean);
 
+  const tipoProveedor =
+    extras.tipo_proveedor
+    || formData.tipo_proveedor_preseleccionado
+    || formData.tipoProveedorPreseleccionado
+    || null;
+  const esTaller = tipoProveedor === 'taller';
+  let direccionFinal =
+    formData.direccion_servicio_texto
+    || formData.direccion_usuario?.direccion
+    || '';
+  if (esTaller && extras.direccion_servicio_texto) {
+    direccionFinal = extras.direccion_servicio_texto;
+  }
+  if (esTaller && extras.lat != null && extras.lng != null) {
+    lat = parseFloat(extras.lat);
+    lng = parseFloat(extras.lng);
+  }
+
   return {
     oferta_servicio_id: ofertaIds[0] ?? ofertaServicioId,
     oferta_servicio_ids: ofertaIds,
@@ -148,10 +166,8 @@ export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extra
     requiere_repuestos: formData.requiere_repuestos !== false,
     fecha_preferida: formData.fecha_preferida,
     hora_preferida: formData.hora_preferida || null,
-    direccion_servicio_texto:
-      formData.direccion_servicio_texto
-      || formData.direccion_usuario?.direccion
-      || '',
+    direccion_servicio_texto: direccionFinal,
+    tipo_proveedor: tipoProveedor || undefined,
     detalles_ubicacion: formData.detalles_ubicacion || '',
     direccion_usuario: formData.direccion_usuario?.id || null,
     lat,
@@ -247,7 +263,8 @@ export function mapCandidatoToOfertaComparador(candidato) {
     incluye_repuestos: Boolean(candidato.incluye_repuestos_sugerido),
     nombre_proveedor: candidato.proveedor?.nombre,
     proveedor_nombre: candidato.proveedor?.nombre,
-    tipo_proveedor: candidato.proveedor?.tipo,
+    tipo_proveedor: candidato.proveedor?.tipo || candidato.tipo_proveedor,
+    direccion_proveedor: candidato.direccion_proveedor,
     proveedor_id: candidato.proveedor?.proveedor_id,
     foto_perfil_url: candidato.proveedor?.foto_perfil_url || candidato.proveedor?.foto_perfil,
     proveedor_foto_url: candidato.proveedor?.foto_perfil_url || candidato.proveedor?.foto_perfil,

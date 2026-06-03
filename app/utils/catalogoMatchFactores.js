@@ -28,6 +28,30 @@ export const MATCH_FACTOR_ORDER = [
   'catalogo_completo',
 ];
 
+/** Agrupación visual en modal (sin duplicar CRITERIOS del comparador). */
+export const MATCH_FACTOR_GROUPS = [
+  {
+    id: 'compatibilidad',
+    title: 'Compatibilidad con tu vehículo',
+    keys: ['cobertura_proveedor', 'motor', 'marca_oferta'],
+  },
+  {
+    id: 'ubicacion',
+    title: 'Ubicación y zona',
+    keys: ['proximidad', 'dentro_radio', 'zona_mecanico'],
+  },
+  {
+    id: 'servicio',
+    title: 'Servicio y precio',
+    keys: ['repuestos', 'catalogo_completo'],
+  },
+  {
+    id: 'confianza',
+    title: 'Confianza',
+    keys: ['rating', 'historial'],
+  },
+];
+
 export function resolveMatchFactores(candidatoOrOferta) {
   const raw = candidatoOrOferta?.match_factores;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
