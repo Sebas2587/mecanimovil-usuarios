@@ -2,6 +2,7 @@ import { resolveDistanciaKmCandidato } from '../services/agendamientoAsistidoSer
 import { PROVIDER_RECOMMENDATION_MAX_KM } from './exploreProviderUtils';
 import { isCandidatoCatalogoMultimarca } from './catalogoComparadorCobertura';
 import { ofreceRepuestosEnCatalogo, solicitudRequiereRepuestos } from './catalogoComparadorRepuestos';
+import { scoreAjusteMotor, normalizeTipoMotorVehiculo } from './catalogoComparadorMotor';
 
 /** Pesos del análisis en comparador de catálogo (suman 100). */
 export const CRITERIOS_CATALOGO = {
@@ -31,16 +32,23 @@ function normalizeScoringContext(ctx) {
       requiereRepuestos: ctx !== false,
       marcaVehiculoNombre: null,
       tipoProveedorPreferido: null,
+      tipoMotorVehiculo: null,
     };
   }
   const raw = ctx && typeof ctx === 'object' ? ctx : {};
   const pref = raw.tipoProveedorPreferido ?? raw.tipo_proveedor_preferido ?? null;
   const tipo =
     pref === 'mecanico' || pref === 'taller' ? pref : null;
+  const motorRaw =
+    raw.tipoMotorVehiculo
+    ?? raw.tipo_motor_vehiculo
+    ?? raw.vehiculo?.tipo_motor
+    ?? null;
   return {
     requiereRepuestos: raw.requiereRepuestos !== false,
     marcaVehiculoNombre: raw.marcaVehiculoNombre?.trim() || null,
     tipoProveedorPreferido: tipo,
+    tipoMotorVehiculo: normalizeTipoMotorVehiculo(motorRaw) || null,
   };
 }
 
@@ -116,19 +124,29 @@ function scoreAjusteRepuestos(candidato, requiereRepuestos) {
 }
 
 /**
- * Compatibilidad: match IA + marca + modalidad (taller/domicilio) + repuestos si aplica.
+ * Compatibilidad: match IA + marca + motor + modalidad (taller/domicilio) + repuestos si aplica.
  */
 function scoreCompatibilidadCatalogo(candidato, scoringContext) {
   const ia = scoreMatchIaBackend(candidato?.score_match);
   const marca = scoreAjusteMarca(candidato, scoringContext.marcaVehiculoNombre);
+  const motor = scoreAjusteMotor(candidato, scoringContext.tipoMotorVehiculo);
   const modalidad = scoreModalidadProveedor(
     candidato,
     scoringContext.tipoProveedorPreferido,
   );
   const repuestos = scoreAjusteRepuestos(candidato, scoringContext.requiereRepuestos);
+  const usaMotor = Boolean(scoringContext.tipoMotorVehiculo);
 
   if (scoringContext.requiereRepuestos) {
+    if (usaMotor) {
+      return Math.round(
+        ia * 0.28 + marca * 0.22 + motor * 0.18 + modalidad * 0.16 + repuestos * 0.16,
+      );
+    }
     return Math.round(ia * 0.34 + marca * 0.26 + modalidad * 0.22 + repuestos * 0.18);
+  }
+  if (usaMotor) {
+    return Math.round(ia * 0.32 + marca * 0.26 + motor * 0.22 + modalidad * 0.2);
   }
   return Math.round(ia * 0.4 + marca * 0.32 + modalidad * 0.28);
 }
@@ -273,6 +291,7 @@ export function buildScoringContextFromForm({
   requiereRepuestos,
   marcaVehiculoNombre,
   tipoProveedorPreferido,
+  tipoMotorVehiculo,
   formPayload,
 } = {}) {
   const fp = formPayload || {};
@@ -281,10 +300,16 @@ export function buildScoringContextFromForm({
     ?? fp.tipoProveedor
     ?? fp.tipo_proveedor_preseleccionado
     ?? fp.tipoProveedorPreseleccionado;
+  const motorRaw =
+    tipoMotorVehiculo
+    ?? fp.vehiculo?.tipo_motor
+    ?? fp.tipo_motor
+    ?? null;
   return {
     requiereRepuestos: requiereRepuestos ?? fp.requiere_repuestos !== false,
-    marcaVehiculoNombre: marcaVehiculoNombre ?? null,
+    marcaVehiculoNombre: marcaVehiculoNombre ?? fp.vehiculo?.marca?.nombre ?? null,
     tipoProveedorPreferido:
       pref === 'mecanico' || pref === 'taller' ? pref : null,
+    tipoMotorVehiculo: motorRaw,
   };
 }

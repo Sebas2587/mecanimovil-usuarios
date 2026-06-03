@@ -39,14 +39,18 @@ function marcasCoinciden(nombreA, nombreB) {
 }
 
 function normalizeTipoMotor(value) {
-  if (value == null || value === '') return 'GASOLINA';
+  if (value == null || value === '') return '';
   const upper = String(value).toUpperCase().trim();
   if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) return 'DIESEL';
   if (upper.includes('ELECTR')) return 'ELECTRICO';
   if (upper.includes('HIBR') || upper.includes('HYBR')) return 'HIBRIDO';
   if (upper.includes('BENCINA') || upper.includes('GASOL')) return 'GASOLINA';
   if (['GASOLINA', 'DIESEL', 'ELECTRICO', 'HIBRIDO'].includes(upper)) return upper;
-  return 'GASOLINA';
+  return '';
+}
+
+function normalizeTipoMotorVehiculo(value) {
+  return normalizeTipoMotor(value) || 'GASOLINA';
 }
 
 function getMotoresCompatiblesServicio(servicio) {
@@ -59,14 +63,14 @@ function getMotoresCompatiblesServicio(servicio) {
 function servicioCompatibleConMotorServicio(servicio, vehicle) {
   const motores = getMotoresCompatiblesServicio(servicio);
   if (motores.length === 0) return true;
-  return motores.includes(normalizeTipoMotor(vehicle?.tipo_motor));
+  return motores.includes(normalizeTipoMotorVehiculo(vehicle?.tipo_motor));
 }
 
 /** Oferta con tipo_motor vacío aplica a todos los motores del catálogo; si tiene valor, debe coincidir. */
 function ofertaCompatibleConTipoMotorOferta(servicio, vehicle) {
   const raw = servicio?.tipo_motor;
   if (raw == null || String(raw).trim() === '') return true;
-  return normalizeTipoMotor(raw) === normalizeTipoMotor(vehicle?.tipo_motor);
+  return normalizeTipoMotor(raw) === normalizeTipoMotorVehiculo(vehicle?.tipo_motor);
 }
 
 /**

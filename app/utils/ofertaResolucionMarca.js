@@ -5,6 +5,35 @@
 
 import { resolveVehiculoMarcaModelo } from './servicioVehiculoCompat';
 
+function normalizeTipoMotorOferta(value) {
+  if (value == null || String(value).trim() === '') return '';
+  const upper = String(value).toUpperCase().trim();
+  if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) return 'DIESEL';
+  if (upper.includes('ELECTR')) return 'ELECTRICO';
+  if (upper.includes('HIBR') || upper.includes('HYBR')) return 'HIBRIDO';
+  if (upper.includes('BENCINA') || upper.includes('GASOL')) return 'GASOLINA';
+  if (['GASOLINA', 'DIESEL', 'ELECTRICO', 'HIBRIDO'].includes(upper)) return upper;
+  return '';
+}
+
+function normalizeTipoMotorVehiculo(value) {
+  return normalizeTipoMotorOferta(value) || 'GASOLINA';
+}
+
+/** Prioridad marca + motor: oferta específica al motor del vehículo gana sobre universal. */
+export function prioridadOfertaParaVehiculo(oferta, vehicle) {
+  const { marcaId } = resolveVehiculoMarcaModelo(vehicle);
+  const marcaPrio = prioridadOfertaParaMarca(oferta, marcaId);
+  if (marcaPrio < 0) return marcaPrio;
+  if (!vehicle?.id) return marcaPrio;
+
+  const motorOferta = normalizeTipoMotorOferta(oferta?.tipo_motor);
+  if (!motorOferta) return marcaPrio;
+  const motorV = normalizeTipoMotorVehiculo(vehicle.tipo_motor);
+  if (motorOferta === motorV) return marcaPrio + 2;
+  return -3;
+}
+
 export function ofertaMarcaId(oferta) {
   const raw =
     oferta?.marca_vehiculo_id
@@ -46,9 +75,11 @@ export function elegirOfertaParaMarca(ofertas, vehicle) {
   const list = Array.isArray(ofertas) ? ofertas : [];
   const { marcaId } = resolveVehiculoMarcaModelo(vehicle);
   let mejor = null;
-  let mejorPrio = -3;
+  let mejorPrio = -4;
   for (const oferta of list) {
-    const prio = prioridadOfertaParaMarca(oferta, marcaId);
+    const prio = vehicle?.id
+      ? prioridadOfertaParaVehiculo(oferta, vehicle)
+      : prioridadOfertaParaMarca(oferta, marcaId);
     if (prio > mejorPrio) {
       mejor = oferta;
       mejorPrio = prio;
@@ -67,7 +98,9 @@ export function resolverOfertasPreferidasPorMarca(ofertas, vehicle) {
     const tipo = oferta?.tipo_servicio || 'sin_repuestos';
     if (!servicioId) continue;
     const key = `${servicioId}|${tipo}`;
-    const prio = prioridadOfertaParaMarca(oferta, marcaId);
+    const prio = vehicle?.id
+      ? prioridadOfertaParaVehiculo(oferta, vehicle)
+      : prioridadOfertaParaMarca(oferta, marcaId);
     if (prio < 0) continue;
     const prev = mejores.get(key);
     if (!prev || prio > prev.prio) {

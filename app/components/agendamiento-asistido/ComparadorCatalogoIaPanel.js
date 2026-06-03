@@ -16,6 +16,7 @@ import {
   tituloGrupoMultimarca,
   subtituloSeccionComparador,
 } from '../../utils/catalogoComparadorCobertura';
+import { getMotorOfertaBadge } from '../../utils/catalogoComparadorMotor';
 import ComparadorCatalogoCoberturaGrupo from './ComparadorCatalogoCoberturaGrupo';
 import ComparadorRepuestosAviso from './ComparadorRepuestosAviso';
 import { comparadorCatalogoStyles as cs } from './comparadorCatalogoStyles';
@@ -99,6 +100,8 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     tipo_servicio_catalogo: oferta.tipo_servicio_catalogo,
     coincidencia_repuestos: oferta.coincidencia_repuestos,
     solicitud_requiere_repuestos: conRepuestos,
+    tipo_motor: oferta.tipo_motor || '',
+    motor_coincidencia: oferta.motor_coincidencia,
   };
 }
 
@@ -116,6 +119,7 @@ export default function ComparadorCatalogoIaPanel({
   userCoords = null,
   onCompareFooterChange,
   marcaVehiculoNombre = null,
+  tipoMotorVehiculo = null,
   tipoProveedorPreferido = null,
   mensajeRepuestos = null,
 }) {
@@ -150,9 +154,10 @@ export default function ComparadorCatalogoIaPanel({
     () => buildScoringContextFromForm({
       requiereRepuestos,
       marcaVehiculoNombre,
+      tipoMotorVehiculo,
       tipoProveedorPreferido,
     }),
-    [requiereRepuestos, marcaVehiculoNombre, tipoProveedorPreferido],
+    [requiereRepuestos, marcaVehiculoNombre, tipoMotorVehiculo, tipoProveedorPreferido],
   );
 
   const matchPctByKey = useMemo(() => {
@@ -222,6 +227,7 @@ export default function ComparadorCatalogoIaPanel({
     );
 
     const coberturaMarcaBadge = getCoberturaMarcaBadge(candidato, marcaVehiculoNombre);
+    const motorOfertaBadge = getMotorOfertaBadge(candidato, scoringContext.tipoMotorVehiculo);
 
     return (
       <CandidatosProveedorCard
@@ -237,6 +243,7 @@ export default function ComparadorCatalogoIaPanel({
         onToggleSelect={() => toggleSeleccion(key)}
         matchDisplayPct={matchDisplayPct}
         coberturaMarcaBadge={coberturaMarcaBadge}
+        motorOfertaBadge={motorOfertaBadge}
       />
     );
   };
@@ -339,6 +346,7 @@ export default function ComparadorCatalogoIaPanel({
         candidatos={seleccionados}
         userCoords={userCoords}
         marcaVehiculoNombre={marcaVehiculoNombre}
+        tipoMotorVehiculo={tipoMotorVehiculo}
         tipoProveedorPreferido={tipoProveedorPreferido}
         requiereRepuestos={requiereRepuestos !== false}
         onConfirmar={(candidato) => {

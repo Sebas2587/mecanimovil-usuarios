@@ -1455,6 +1455,7 @@ function mapOfertaToServicioRow(oferta, type, id, providerName) {
 
   return {
     id: servicioId,
+    servicio: servicioId,
     nombre: info.nombre || 'Servicio',
     descripcion: info.descripcion || '',
     categoria: categoriasInfo[0]?.nombre || 'General',
@@ -1474,6 +1475,7 @@ function mapOfertaToServicioRow(oferta, type, id, providerName) {
     precio_con_repuestos: oferta.precio_con_repuestos,
     precio_sin_repuestos: oferta.precio_sin_repuestos,
     tipo_servicio: oferta.tipo_servicio || 'sin_repuestos',
+    tipo_motor: oferta.tipo_motor || '',
     costo_mano_de_obra_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0),
     costo_repuestos_sin_iva: parseFloat(oferta.costo_repuestos_sin_iva || 0),
     precio_real_sin_iva:
@@ -1507,6 +1509,8 @@ function mapOfertasToServicios(ofertas, type, id, providerName) {
     .map((oferta) => mapOfertaToServicioRow(oferta, type, id, providerName))
     .filter(Boolean);
 }
+
+export { mapOfertaToServicioRow, mapOfertasToServicios };
 
 /**
  * Ficha pública de proveedor: igual patrón que getMarketplaceVehicleDetail (GET + forceRefresh, sin TanStack persist).

@@ -23,6 +23,7 @@ import {
 } from '../../utils/catalogoComparadorScoring';
 import { buildProviderAvatarUri } from '../../utils/providerUtils';
 import { getCoberturaMarcaBadge } from '../../utils/catalogoComparadorCobertura';
+import { getMotorOfertaBadge } from '../../utils/catalogoComparadorMotor';
 import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
 import { Image } from 'expo-image';
 
@@ -61,6 +62,7 @@ export default function ComparadorCandidatosCatalogoModal({
   userCoords = null,
   requiereRepuestos = true,
   marcaVehiculoNombre = null,
+  tipoMotorVehiculo = null,
   tipoProveedorPreferido = null,
   onConfirmar,
 }) {
@@ -71,9 +73,10 @@ export default function ComparadorCandidatosCatalogoModal({
     () => buildScoringContextFromForm({
       requiereRepuestos,
       marcaVehiculoNombre,
+      tipoMotorVehiculo,
       tipoProveedorPreferido,
     }),
-    [requiereRepuestos, marcaVehiculoNombre, tipoProveedorPreferido],
+    [requiereRepuestos, marcaVehiculoNombre, tipoMotorVehiculo, tipoProveedorPreferido],
   );
 
   const ranked = useMemo(
@@ -163,6 +166,19 @@ export default function ComparadorCandidatosCatalogoModal({
                         compact
                       />
                     </View>
+                    {(() => {
+                      const motorBadge = getMotorOfertaBadge(
+                        candidato,
+                        scoringContext.tipoMotorVehiculo,
+                      );
+                      if (!motorBadge) return null;
+                      return (
+                        <Text style={styles.motorHint}>
+                          Motor: {motorBadge.label}
+                          {motorBadge.hint ? ` · ${motorBadge.hint}` : ''}
+                        </Text>
+                      );
+                    })()}
                     {distancia_km != null ? (
                       <Text style={styles.distText}>
                         {formatDistance(distancia_km)} desde tu dirección
@@ -362,6 +378,11 @@ const styles = StyleSheet.create({
   provNombreFlex: {
     flexShrink: 1,
     minWidth: 0,
+  },
+  motorHint: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.success[700],
+    marginBottom: 2,
   },
   distText: {
     fontSize: TYPOGRAPHY.fontSize.xs,

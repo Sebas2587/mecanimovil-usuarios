@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import * as providerService from '../services/providers';
 import { get } from '../services/api';
-import { mapOfertaCatalogoRepuestosFields } from '../components/home/shared/providerCatalogSchedule';
 import * as userService from '../services/user';
 import solicitudesService from '../services/solicitudesService';
 import { useAuth } from '../context/AuthContext';
@@ -149,72 +148,9 @@ export const useProviderServices = (id, type, providerName, vehicle = null) => {
 
             if (ofertas.length === 0) return [];
 
-            const rows = ofertas
-                .map((oferta) => {
-                    const info = oferta.servicio_info || {};
-                    const servicioId = info.id || oferta.servicio;
-                    if (!servicioId) return null;
-
-                    const categoriasInfo = info.categorias_info || [];
-                    const modelosInfo = info.modelos_info || [];
-                    const marcasInfo = info.marcas_info || [];
-                    const motoresInfo = info.motores_info || info.tipos_motor_compatibles || [];
-
-                    return {
-                        id: servicioId,
-                        nombre: info.nombre || 'Servicio',
-                        descripcion: info.descripcion || '',
-                        categoria: categoriasInfo[0]?.nombre || 'General',
-                        foto: info.foto || null,
-                        duracion_estimada_base: info.duracion_estimada_base || null,
-                        precio_referencia: info.precio_referencia || null,
-                        categorias_completas: categoriasInfo,
-                        marcas_info: marcasInfo,
-                        motores_info: motoresInfo,
-                        tipos_motor_compatibles: motoresInfo,
-                        modelos_info: modelosInfo,
-                        modelos_compatibles: modelosInfo.map((m) => {
-                            const marca = m.marca_nombre || '';
-                            const nom = m.nombre || m.modelo_nombre || '';
-                            return `${marca} ${nom}`.trim() || String(m.id || '');
-                        }),
-
-                        precio_con_repuestos: oferta.precio_con_repuestos,
-                        precio_sin_repuestos: oferta.precio_sin_repuestos,
-                        tipo_servicio: oferta.tipo_servicio || 'con_repuestos',
-                        costo_mano_de_obra_sin_iva: parseFloat(oferta.costo_mano_de_obra_sin_iva || 0),
-                        costo_repuestos_sin_iva: parseFloat(oferta.costo_repuestos_sin_iva || 0),
-                        precio_real_sin_iva:
-                            parseFloat(oferta.costo_mano_de_obra_sin_iva || 0)
-                            + parseFloat(oferta.costo_repuestos_sin_iva || 0),
-                        precio_publicado_cliente: parseFloat(oferta.precio_publicado_cliente || 0),
-                        fotos_servicio: oferta.fotos_servicio || [],
-                        desglose_precios: oferta.desglose_precios || {},
-                        marca_vehiculo_id:
-                            oferta.marca_vehiculo_seleccionada
-                            ?? oferta.marca_vehiculo_info?.id
-                            ?? null,
-                        marca_vehiculo_seleccionada: oferta.marca_vehiculo_seleccionada ?? null,
-                        marca_vehiculo_nombre: oferta.marca_vehiculo_info?.nombre || null,
-                        marca_vehiculo_info: oferta.marca_vehiculo_info || null,
-                        oferta_id: oferta.id,
-                        disponible: oferta.disponible !== false,
-                        duracion_estimada: oferta.duracion_estimada,
-                        incluye_garantia: oferta.incluye_garantia,
-                        duracion_garantia: oferta.duracion_garantia,
-                        ...mapOfertaCatalogoRepuestosFields(oferta),
-
-                        tipo_proveedor: type,
-                        [type === 'taller' ? 'taller_id' : 'mecanico_id']: id,
-                        [type === 'taller' ? 'taller_info' : 'mecanico_info']: {
-                            id,
-                            nombre: providerName || 'Sin nombre',
-                        },
-                    };
-                })
+            return ofertas
+                .map((oferta) => providerService.mapOfertaToServicioRow(oferta, type, id, providerName))
                 .filter(Boolean);
-
-            return rows;
         },
         enabled: !!id && !!type,
         staleTime: 0,                // siempre considerar datos desactualizados

@@ -4,6 +4,7 @@ import { Users } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { formatCLP } from './shared/homeFormatters';
 import { formatProviderBookingsBadgeLabel } from '../../utils/providerUtils';
+import { labelTipoMotor } from '../../utils/catalogoComparadorMotor';
 
 const MAX_CHIPS = 3;
 
@@ -50,10 +51,12 @@ const ProviderServiceChipsRow = ({
       {list.map((item) => {
         const key = `${item.oferta_id ?? item.servicio_id}-${item.nombre}`;
         const precio = item.precio ?? item.precio_publicado_cliente;
+        const motorLabel = item.tipo_motor ? labelTipoMotor(item.tipo_motor) : null;
         return (
           <View key={key} style={[styles.chip, compact && styles.chipCompact]}>
             <Text style={styles.chipName} numberOfLines={1}>
               {item.nombre}
+              {motorLabel ? ` · ${motorLabel}` : ''}
             </Text>
             <Text style={styles.chipPrice}>{formatCLP(precio)}</Text>
           </View>

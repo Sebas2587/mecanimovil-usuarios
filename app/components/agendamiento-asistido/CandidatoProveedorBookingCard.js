@@ -15,6 +15,7 @@ import {
   Car,
   Store,
   User,
+  Fuel,
 } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS, SPACING } from '../../design-system/tokens';
 import { buildProviderAvatarUri } from '../../utils/providerUtils';
@@ -78,6 +79,7 @@ export default function CandidatoProveedorBookingCard({
   onToggleSelect,
   matchDisplayPct = null,
   coberturaMarcaBadge = null,
+  motorOfertaBadge = null,
 }) {
   const solicitudConRepuestos = solicitudRequiereRepuestos(requiereRepuestos);
   const modoPrecio = candidato
@@ -260,6 +262,32 @@ export default function CandidatoProveedorBookingCard({
               <View style={styles.catalogoSinRepBadge}>
                 <Text style={styles.catalogoSinRepText} numberOfLines={1}>
                   {catalogoSinRepuestosLabel}
+                </Text>
+              </View>
+            ) : null}
+            {motorOfertaBadge ? (
+              <View
+                style={[
+                  styles.motorBadge,
+                  motorOfertaBadge.tone === 'exacta' && styles.motorBadgeExacta,
+                ]}
+              >
+                <Fuel
+                  size={10}
+                  color={
+                    motorOfertaBadge.tone === 'exacta'
+                      ? COLORS.success[700]
+                      : COLORS.text.secondary
+                  }
+                />
+                <Text
+                  style={[
+                    styles.motorBadgeText,
+                    motorOfertaBadge.tone === 'exacta' && styles.motorBadgeTextExacta,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {motorOfertaBadge.label}
                 </Text>
               </View>
             ) : null}
@@ -612,6 +640,30 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.warning[800],
+  },
+  motorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    flexShrink: 0,
+  },
+  motorBadgeExacta: {
+    backgroundColor: COLORS.success[50],
+    borderColor: COLORS.success[200],
+  },
+  motorBadgeText: {
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+  },
+  motorBadgeTextExacta: {
+    color: COLORS.success[800],
   },
   divider: {
     height: 1,

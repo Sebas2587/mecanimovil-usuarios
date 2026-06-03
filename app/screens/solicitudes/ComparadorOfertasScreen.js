@@ -362,6 +362,11 @@ const ComparadorOfertasScreen = () => {
     [formPayload?.vehiculo],
   );
 
+  const tipoMotorVehiculo = useMemo(
+    () => formPayload?.vehiculo?.tipo_motor ?? null,
+    [formPayload?.vehiculo],
+  );
+
   const tipoProveedorPreferido = useMemo(() => {
     const t =
       formPayload?.tipoProveedor
@@ -468,6 +473,7 @@ const ComparadorOfertasScreen = () => {
             requiereRepuestos={requiereRepuestos}
             userCoords={userCoords}
             marcaVehiculoNombre={marcaVehiculoNombre}
+            tipoMotorVehiculo={tipoMotorVehiculo}
             tipoProveedorPreferido={tipoProveedorPreferido}
             mensajeRepuestos={mensajeRepuestos}
             onCompareFooterChange={setCompareFooter}
