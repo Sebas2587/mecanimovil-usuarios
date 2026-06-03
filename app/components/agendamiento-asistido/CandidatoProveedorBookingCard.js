@@ -25,6 +25,7 @@ import {
   resolverDesgloseIvaMostrado,
 } from '../../utils/ofertaPrecioDesglose';
 import MatchPercentRing from './MatchPercentRing';
+import MatchFactoresExpandible from './MatchFactoresExpandible';
 import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
 import {
   etiquetaSolicitudRepuestos,
@@ -411,6 +412,7 @@ export default function CandidatoProveedorBookingCard({
           {explicacionVisible}
         </Text>
       ) : null}
+      <MatchFactoresExpandible candidato={candidato} />
     </>
   );
 

@@ -21,6 +21,7 @@ import {
   rankCandidatosCatalogo,
   getCandidatoCatalogoKey,
 } from '../../utils/catalogoComparadorScoring';
+import { resolveMatchFactores, formatMatchFactorPct } from '../../utils/catalogoMatchFactores';
 import { buildProviderAvatarUri } from '../../utils/providerUtils';
 import { getCoberturaMarcaBadge } from '../../utils/catalogoComparadorCobertura';
 import { getMotorOfertaBadge } from '../../utils/catalogoComparadorMotor';
@@ -213,6 +214,18 @@ export default function ComparadorCandidatosCatalogoModal({
                     );
                   })}
                 </View>
+
+                {resolveMatchFactores(candidato).length > 0 ? (
+                  <View style={styles.mlFactoresBlock}>
+                    <Text style={styles.mlFactoresTitle}>Señales del match IA</Text>
+                    {resolveMatchFactores(candidato).map((f) => (
+                      <View key={f.key} style={styles.mlFactorRow}>
+                        <Text style={styles.mlFactorLabel}>{f.label}</Text>
+                        <Text style={styles.mlFactorVal}>{formatMatchFactorPct(f.value)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
 
                 {onConfirmar ? (
                   <TouchableOpacity
@@ -433,6 +446,38 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
+  },
+  mlFactoresBlock: {
+    marginBottom: 12,
+    padding: 10,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
+    gap: 6,
+  },
+  mlFactoresTitle: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[800],
+    marginBottom: 2,
+  },
+  mlFactorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  mlFactorLabel: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+  },
+  mlFactorVal: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.primary[700],
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
   },
   confirmBtn: {
     paddingVertical: 12,

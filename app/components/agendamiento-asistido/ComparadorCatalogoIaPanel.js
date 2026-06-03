@@ -102,6 +102,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     solicitud_requiere_repuestos: conRepuestos,
     tipo_motor: oferta.tipo_motor || '',
     motor_coincidencia: oferta.motor_coincidencia,
+    match_factores: oferta.match_factores || {},
   };
 }
 

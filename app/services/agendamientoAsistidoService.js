@@ -262,6 +262,7 @@ export function mapCandidatoToOfertaComparador(candidato) {
     rating_proveedor: candidato.proveedor?.rating,
     a_domicilio: candidato.a_domicilio,
     score_match: candidato.score_match,
+    match_factores: candidato.match_factores || {},
     explicacion: candidato.explicacion,
     distancia_km: parseDistanciaKmCandidato(candidato.distancia_km),
     dentro_radio_km: candidato.dentro_radio_km,

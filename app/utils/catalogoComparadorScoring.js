@@ -3,6 +3,7 @@ import { PROVIDER_RECOMMENDATION_MAX_KM } from './exploreProviderUtils';
 import { isCandidatoCatalogoMultimarca } from './catalogoComparadorCobertura';
 import { ofreceRepuestosEnCatalogo, solicitudRequiereRepuestos } from './catalogoComparadorRepuestos';
 import { scoreAjusteMotor, normalizeTipoMotorVehiculo } from './catalogoComparadorMotor';
+import { scorePromedioMatchFactores } from './catalogoMatchFactores';
 
 /** Pesos del análisis en comparador de catálogo (suman 100). */
 export const CRITERIOS_CATALOGO = {
@@ -77,7 +78,9 @@ function scoreCercaniaKm(distKm) {
   return Math.max(15, Math.round(45 - (distKm - radar) * 4));
 }
 
-function scoreMatchIaBackend(scoreMatch) {
+function scoreMatchIaBackend(scoreMatch, matchFactores = null) {
+  const fromFactores = scorePromedioMatchFactores(matchFactores);
+  if (fromFactores != null) return fromFactores;
   const s = Number(scoreMatch);
   if (!Number.isFinite(s) || s <= 0) return 50;
   return Math.round(clamp01(s) * 100);
@@ -127,7 +130,7 @@ function scoreAjusteRepuestos(candidato, requiereRepuestos) {
  * Compatibilidad: match IA + marca + motor + modalidad (taller/domicilio) + repuestos si aplica.
  */
 function scoreCompatibilidadCatalogo(candidato, scoringContext) {
-  const ia = scoreMatchIaBackend(candidato?.score_match);
+  const ia = scoreMatchIaBackend(candidato?.score_match, candidato?.match_factores);
   const marca = scoreAjusteMarca(candidato, scoringContext.marcaVehiculoNombre);
   const motor = scoreAjusteMotor(candidato, scoringContext.tipoMotorVehiculo);
   const modalidad = scoreModalidadProveedor(
