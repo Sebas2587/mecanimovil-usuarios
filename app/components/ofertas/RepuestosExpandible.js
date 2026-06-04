@@ -6,7 +6,14 @@ import { COLORS, SPACING } from '../../utils/constants';
 /**
  * Componente expandible para mostrar repuestos en una oferta
  */
-const RepuestosExpandible = ({ repuestos, servicioNombre }) => {
+const RepuestosExpandible = ({
+  repuestos,
+  servicioNombre,
+  /** En comparador el total ya figura en la línea «Repuestos» del desglose */
+  showHeaderTotal = true,
+  showListTotal = true,
+  compact = false,
+}) => {
   const [expandido, setExpandido] = useState(false);
 
   if (!repuestos || repuestos.length === 0) {
@@ -22,9 +29,13 @@ const RepuestosExpandible = ({ repuestos, servicioNombre }) => {
   }, 0);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, compact && styles.containerCompact]}>
       <TouchableOpacity
-        style={[styles.header, expandido && styles.headerExpanded]}
+        style={[
+          styles.header,
+          compact && styles.headerCompact,
+          expandido && styles.headerExpanded,
+        ]}
         onPress={() => setExpandido(!expandido)}
         activeOpacity={0.7}
       >
@@ -35,7 +46,7 @@ const RepuestosExpandible = ({ repuestos, servicioNombre }) => {
             </View>
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>
-                Repuestos incluidos
+                {compact && !showHeaderTotal ? 'Ver ítems incluidos' : 'Repuestos incluidos'}
               </Text>
               <Text style={styles.headerSubtitle}>
                 {totalRepuestos} {totalRepuestos === 1 ? 'repuesto' : 'repuestos'}
@@ -43,14 +54,14 @@ const RepuestosExpandible = ({ repuestos, servicioNombre }) => {
             </View>
           </View>
           <View style={styles.headerRight}>
-            {totalPrecio > 0 && (
+            {showHeaderTotal && totalPrecio > 0 ? (
               <View style={styles.precioContainer}>
                 <Text style={styles.precioLabel}>Total:</Text>
                 <Text style={styles.precioTotal}>
                   ${parseInt(totalPrecio).toLocaleString()}
                 </Text>
               </View>
-            )}
+            ) : null}
             <Ionicons 
               name={expandido ? 'chevron-up' : 'chevron-down'} 
               size={20} 
@@ -104,14 +115,14 @@ const RepuestosExpandible = ({ repuestos, servicioNombre }) => {
               </View>
             );
           })}
-          {totalPrecio > 0 && (
+          {showListTotal && totalPrecio > 0 ? (
             <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>Total repuestos:</Text>
               <Text style={styles.totalValue}>
                 ${parseInt(totalPrecio).toLocaleString()}
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
       )}
     </View>
@@ -127,6 +138,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E3F2FD',
     backgroundColor: '#FAFBFC',
+  },
+  containerCompact: {
+    marginTop: 0,
+    marginBottom: 0,
+    borderRadius: 6,
+    borderColor: COLORS.borderLight,
+    backgroundColor: COLORS.white,
+  },
+  headerCompact: {
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 0,
   },
   header: {
     backgroundColor: '#F5F7FA',

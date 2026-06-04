@@ -102,9 +102,40 @@ export function grupoRequiereRepuestosObligatorios(candidato) {
   return ofreceRepuestosEnCatalogo(candidato) && !servicioPermiteSoloManoObra(candidato);
 }
 
-/** Etiqueta de preferencia del cliente (paso repuestos). */
+/** Etiqueta de preferencia del cliente (paso repuestos); solo para aviso de desajuste. */
+export function etiquetaPreferenciaSolicitudRepuestos(solicitudConRepuestos) {
+  return solicitudConRepuestos ? 'Tu solicitud: con repuestos' : 'Tu solicitud: solo mano de obra';
+}
+
+/** @deprecated Usar etiquetaPreferenciaSolicitudRepuestos o etiquetaBadgeRepuestosCatalogo */
 export function etiquetaSolicitudRepuestos(solicitudConRepuestos) {
-  return solicitudConRepuestos ? 'Tu elección: Con repuestos' : 'Tu elección: Solo mano de obra';
+  return etiquetaPreferenciaSolicitudRepuestos(solicitudConRepuestos);
+}
+
+/**
+ * Badge principal del comparador: modo publicado en catálogo (no la preferencia del usuario).
+ * Con varios servicios y modos distintos devuelve null (cada línea lleva su etiqueta).
+ */
+export function etiquetaBadgeRepuestosCatalogo(candidato) {
+  if (!candidato) return null;
+  const lineas = candidato.servicios_ofrecidos;
+  if (Array.isArray(lineas) && lineas.length > 0) {
+    const conRep = lineas.map((s) => servicioOfreceRepuestosEnCatalogo(s));
+    const todosCon = conRep.every(Boolean);
+    const todosSin = conRep.every((v) => !v);
+    if (todosCon) return 'Con repuestos';
+    if (todosSin) return 'Solo mano de obra';
+    return null;
+  }
+  return ofreceRepuestosEnCatalogo(candidato) ? 'Con repuestos' : 'Solo mano de obra';
+}
+
+/** true si el badge principal debe estilarse como oferta con repuestos. */
+export function candidatoBadgeIncluyeRepuestos(candidato) {
+  const label = etiquetaBadgeRepuestosCatalogo(candidato);
+  if (label === 'Con repuestos') return true;
+  if (label === 'Solo mano de obra') return false;
+  return ofreceRepuestosEnCatalogo(candidato);
 }
 
 /** true si lo pedido en la solicitud difiere de lo publicado en catálogo del proveedor. */
@@ -115,10 +146,10 @@ export function hayDesajusteRepuestosCatalogo(solicitudConRepuestos, candidato) 
   return grupoRequiereRepuestosObligatorios(candidato);
 }
 
+/** Badge secundario cuando la solicitud del usuario no coincide con el catálogo publicado. */
 export function etiquetaCatalogoRepuestos(solicitudConRepuestos, candidato) {
   if (!hayDesajusteRepuestosCatalogo(solicitudConRepuestos, candidato)) return null;
-  if (solicitudConRepuestos) return 'Catálogo: solo mano de obra';
-  return 'Catálogo: incluye repuestos';
+  return etiquetaPreferenciaSolicitudRepuestos(solicitudConRepuestos);
 }
 
 /** @deprecated Usar etiquetaCatalogoRepuestos */
@@ -126,10 +157,9 @@ export function etiquetaCatalogoSinRepuestos(solicitudConRepuestos, candidato) {
   return etiquetaCatalogoRepuestos(solicitudConRepuestos, candidato);
 }
 
-export function debeMostrarBadgeTuEleccionRepuestos(solicitudConRepuestos, candidato) {
-  if (hayDesajusteRepuestosCatalogo(solicitudConRepuestos, candidato)) return false;
-  if (solicitudConRepuestos) return false;
-  return true;
+/** @deprecated El badge principal siempre refleja catálogo vía etiquetaBadgeRepuestosCatalogo */
+export function debeMostrarBadgeTuEleccionRepuestos(_solicitudConRepuestos, candidato) {
+  return Boolean(etiquetaBadgeRepuestosCatalogo(candidato));
 }
 
 /** Leyenda del modo publicado en catálogo para una línea de servicio. */

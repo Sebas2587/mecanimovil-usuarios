@@ -17,11 +17,12 @@ export const comparadorCatalogoStyles = StyleSheet.create({
     paddingTop: SPACING.xs,
   },
   groupTitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: 0.1,
-    color: COLORS.text.tertiary,
-    marginBottom: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    lineHeight: 26,
+    letterSpacing: 0.2,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.md,
     textTransform: 'uppercase',
   },
 });

@@ -26,6 +26,7 @@ import { normalizeImagePickerAsset } from '../../utils/imagePickerWeb';
 import { COLORS, getColorWithOpacity } from '../../design-system/tokens/colors';
 import { getHealthColorToken } from '../../utils/healthFormat';
 import { BORDERS } from '../../design-system/tokens/borders';
+import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import VehicleSelector from '../vehicles/VehicleSelector';
@@ -243,6 +244,7 @@ const FormularioSolicitud = ({
   });
 
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState(null);
+  const [erroresCampos, setErroresCampos] = useState({});
   const [vistaServicios, setVistaServicios] = useState('categorias');
 
   const [proveedoresDisponibles, setProveedoresDisponibles] = useState({ talleres: [], mecanicos: [] });
@@ -1478,12 +1480,19 @@ const FormularioSolicitud = ({
           return false;
         }
         if (!formData.descripcion_problema?.trim()) {
-          Alert.alert(
-            'Detalles requeridos',
-            'Describe qué necesitas para el proveedor. Es obligatorio para dar contexto al servicio.'
-          );
+          const msg = 'Describe qué necesitas para el proveedor. Este campo es obligatorio.';
+          setErroresCampos((prev) => ({ ...prev, descripcion_problema: msg }));
+          if (Platform.OS !== 'web') {
+            Alert.alert('Detalles requeridos', msg);
+          }
           return false;
         }
+        setErroresCampos((prev) => {
+          if (!prev.descripcion_problema) return prev;
+          const next = { ...prev };
+          delete next.descripcion_problema;
+          return next;
+        });
         if (ubicacionEnPasoContexto) {
           if (!formData.direccion_usuario && !formData.direccion_servicio_texto) {
             Alert.alert('Error', 'Debes seleccionar o ingresar una dirección');
@@ -1803,13 +1812,7 @@ const FormularioSolicitud = ({
     if (!mostrarRepuestos && !mostrarUrgencia) return null;
 
     return (
-      <GlassCard style={{ marginBottom: 16, paddingVertical: 14, paddingHorizontal: 14 }}>
-        <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.text.primary, marginBottom: 4 }}>
-          Repuestos y urgencia
-        </Text>
-        <Text style={{ fontSize: 12, lineHeight: 17, color: COLORS.text.tertiary, marginBottom: 12 }}>
-          Indica si necesitas repuestos incluidos y qué tan pronto requieres el servicio.
-        </Text>
+      <GlassCard style={{ marginBottom: 16, paddingVertical: 12, paddingHorizontal: 14, gap: 12 }}>
         {mostrarRepuestos ? (
           <SolicitudRepuestosToggle
             value={formData.requiere_repuestos !== false}
@@ -1902,28 +1905,42 @@ const FormularioSolicitud = ({
         ) : (
           <>
             {/* Vehicle Tag */}
-            <GlassCard style={{ marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.primary[50], borderColor: COLORS.primary[200] }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
-                <CarIcon size={22} color={COLORS.primary[500]} />
+            <GlassCard style={gs.vehiculoTagCard}>
+              <View style={gs.vehiculoTagIcon}>
+                <CarIcon size={18} color={COLORS.primary[600]} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: COLORS.text.primary, fontSize: 15, fontWeight: '700' }}>
+              <View style={gs.vehiculoTagMeta}>
+                <Text style={gs.vehiculoTagTitle} numberOfLines={1}>
                   {vehicle.marca_nombre} {vehicle.modelo_nombre}
                 </Text>
-                <Text style={{ color: COLORS.text.secondary, fontSize: 12, marginTop: 2 }}>
+                <Text style={gs.vehiculoTagSub} numberOfLines={1}>
                   {vehicle.year} · {vehicle.patente} · {(vehicle.kilometraje || 0).toLocaleString()} km
                 </Text>
               </View>
-              <View style={{ backgroundColor: getScoreColor(vehicle.health_score ?? 0) + '22', borderWidth: 1, borderColor: getScoreColor(vehicle.health_score ?? 0) + '55', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}>
-                <Text style={{ color: getScoreColor(vehicle.health_score ?? 0), fontSize: 13, fontWeight: '700' }}>
+              <View
+                style={[
+                  gs.vehiculoTagHealth,
+                  {
+                    backgroundColor: `${getScoreColor(vehicle.health_score ?? 0)}18`,
+                    borderColor: `${getScoreColor(vehicle.health_score ?? 0)}44`,
+                  },
+                ]}
+              >
+                <Text
+                  style={[gs.vehiculoTagHealthText, { color: getScoreColor(vehicle.health_score ?? 0) }]}
+                >
                   {Math.round(vehicle.health_score ?? 0)}%
                 </Text>
               </View>
-              {vehiculosDisponibles.length > 1 && !bloquearCambioVehiculo && (
-                <TouchableOpacity onPress={handleDeseleccionarVehiculo} style={{ padding: 4 }}>
-                  <Ionicons name="swap-horizontal" size={18} color={COLORS.text.tertiary} />
+              {vehiculosDisponibles.length > 1 && !bloquearCambioVehiculo ? (
+                <TouchableOpacity
+                  onPress={handleDeseleccionarVehiculo}
+                  style={gs.vehiculoTagSwap}
+                  accessibilityLabel="Cambiar vehículo"
+                >
+                  <Ionicons name="swap-horizontal" size={16} color={COLORS.text.tertiary} />
                 </TouchableOpacity>
-              )}
+              ) : null}
             </GlassCard>
 
             {alertaDuplicado?.bloqueado ? (
@@ -2243,6 +2260,15 @@ const FormularioSolicitud = ({
           styles={styles}
           hideUrgencia={mostrarPreferenciasPaso2}
           embedUbicacion={ubicacionEnPasoContexto}
+          descripcionError={erroresCampos.descripcion_problema}
+          onDescripcionEdited={() => {
+            setErroresCampos((prev) => {
+              if (!prev.descripcion_problema) return prev;
+              const next = { ...prev };
+              delete next.descripcion_problema;
+              return next;
+            });
+          }}
           preferenciasBlock={mostrarPreferenciasPaso2 ? renderPreferenciasAgendamiento({ enPaso2: true }) : null}
           childrenBeforeDetalles={
             !wizardComparadorTresPasos
@@ -3363,23 +3389,77 @@ const gs = StyleSheet.create({
     color: COLORS.text.primary,
   },
   serviceGridRow: {
-    gap: 10,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 8,
   },
   serviceGridContent: {
     paddingBottom: 4,
   },
+  vehiculoTagCard: {
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.background.paper,
+    borderColor: COLORS.border.light,
+  },
+  vehiculoTagIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
+  },
+  vehiculoTagMeta: { flex: 1, minWidth: 0, gap: 2 },
+  vehiculoTagTitle: {
+    color: COLORS.text.primary,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    lineHeight: 20,
+  },
+  vehiculoTagSub: {
+    color: COLORS.text.secondary,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    lineHeight: 16,
+  },
+  vehiculoTagHealth: {
+    borderRadius: BORDERS.radius.full,
+    borderWidth: BORDERS.width.thin,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  vehiculoTagHealthText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontVariant: ['tabular-nums'],
+  },
+  vehiculoTagSwap: { padding: 4 },
   catTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.neutral.gray[100],
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.background.paper,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
   },
-  catTabActive: { backgroundColor: COLORS.primary[50], borderColor: COLORS.primary[300] },
-  catTabText: { color: COLORS.text.secondary, fontSize: 13, fontWeight: '500' },
-  catTabTextActive: { color: COLORS.primary[700], fontWeight: '600' },
+  catTabActive: {
+    backgroundColor: COLORS.primary[500],
+    borderColor: COLORS.primary[500],
+  },
+  catTabText: {
+    color: COLORS.text.secondary,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  catTabTextActive: {
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+  },
   selectedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: COLORS.success.light, borderWidth: BORDERS.width.thin, borderColor: COLORS.success[200],

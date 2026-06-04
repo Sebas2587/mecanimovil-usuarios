@@ -14,4 +14,5 @@ o «Solo mano de obra» según configuración del proveedor, no según preferenc
 - AND proveedor publicó servicio con repuestos a $39.270
 - WHEN se renderiza la card
 - THEN el servicio muestra $39.270 y desglose con repuestos
-- AND badge «Tu elección: Solo mano de obra» + «Catálogo: incluye repuestos» si aplica
+- AND badge principal «Con repuestos» o «Solo mano de obra» según catálogo del proveedor
+- AND badge secundario «Tu solicitud: …» solo si hay desajuste con la preferencia del paso 2

@@ -21,6 +21,8 @@ export default function SolicitudPaso2Contexto({
   preferenciasBlock = null,
   hideUrgencia = false,
   embedUbicacion = false,
+  descripcionError = null,
+  onDescripcionEdited = null,
 }) {
   const fotosProveedor = Array.isArray(servicioSeleccionado?.fotos_servicio)
     ? servicioSeleccionado.fotos_servicio
@@ -79,19 +81,31 @@ export default function SolicitudPaso2Contexto({
             </View>
           ) : null}
 
-          <Text style={paso2Styles.fieldLabel}>Descripción</Text>
+          <Text style={paso2Styles.fieldLabel}>
+            Descripción <Text style={styles.paso2Required}>*</Text>
+          </Text>
           <TextInput
-            style={paso2Styles.textArea}
+            style={[
+              paso2Styles.textArea,
+              descripcionError ? paso2Styles.textAreaError : null,
+            ]}
             multiline
             numberOfLines={5}
             placeholder={placeholderDetalles}
             placeholderTextColor={COLORS.text.disabled}
             value={formData.descripcion_problema || ''}
-            onChangeText={(text) =>
-              setFormData((prev) => ({ ...prev, descripcion_problema: text || '' }))
-            }
+            onChangeText={(text) => {
+              setFormData((prev) => ({ ...prev, descripcion_problema: text || '' }));
+              if (typeof onDescripcionEdited === 'function') onDescripcionEdited(text);
+            }}
             textAlignVertical="top"
+            accessibilityLabel="Descripción del problema"
           />
+          {descripcionError ? (
+            <Text style={paso2Styles.fieldError} accessibilityLiveRegion="polite">
+              {descripcionError}
+            </Text>
+          ) : null}
 
           {typeof renderFotosNecesidadEditor === 'function' ? (
             <View style={paso2Styles.fotosUsuarioBlock}>
@@ -181,6 +195,17 @@ const paso2Styles = StyleSheet.create({
     color: COLORS.text.primary,
     backgroundColor: COLORS.background.paper,
     ...SHADOWS.sm,
+  },
+  textAreaError: {
+    borderColor: COLORS.error.main,
+    backgroundColor: COLORS.error.light,
+  },
+  fieldError: {
+    marginTop: SPACING.xs,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    lineHeight: 17,
+    color: COLORS.error.main,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   hairline: {
     height: StyleSheet.hairlineWidth,

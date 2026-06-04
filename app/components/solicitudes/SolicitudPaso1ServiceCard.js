@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { CheckCircle2, Clock, Wrench } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { CheckCircle2 } from 'lucide-react-native';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 
 /**
- * Card de servicio para grilla 2 columnas (paso 1 nueva solicitud).
+ * Card compacta de servicio (grilla 2 columnas, paso 1 solicitud — estilo Coinbase).
  */
 export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress, width }) {
   return (
@@ -20,37 +20,16 @@ export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress,
       accessibilityState={{ selected }}
       accessibilityLabel={servicio.nombre}
     >
-      <View style={styles.top}>
-        <View style={styles.iconWrap}>
-          <Wrench size={16} color={selected ? COLORS.primary[600] : COLORS.primary[500]} />
-        </View>
+      <View style={styles.row}>
+        <Text style={[styles.nombre, selected && styles.nombreSelected]} numberOfLines={2}>
+          {servicio.nombre}
+        </Text>
         {selected ? (
-          <CheckCircle2 size={18} color={COLORS.primary[500]} />
+          <CheckCircle2 size={16} color={COLORS.primary[600]} style={styles.checkIcon} />
         ) : (
           <View style={styles.checkPlaceholder} />
         )}
       </View>
-
-      <Text style={[styles.nombre, selected && styles.nombreSelected]} numberOfLines={3}>
-        {servicio.nombre}
-      </Text>
-
-      {servicio.descripcion ? (
-        <Text style={styles.descripcion} numberOfLines={3}>
-          {servicio.descripcion}
-        </Text>
-      ) : null}
-
-      {servicio.duracion_estimada || servicio.duracion_estimada_base ? (
-        <View style={styles.footer}>
-          <View style={styles.duracionRow}>
-            <Clock size={11} color={COLORS.text.tertiary} />
-            <Text style={styles.duracion} numberOfLines={1}>
-              {servicio.duracion_estimada || servicio.duracion_estimada_base}
-            </Text>
-          </View>
-        </View>
-      ) : null}
     </TouchableOpacity>
   );
 }
@@ -58,64 +37,41 @@ export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress,
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    minHeight: 132,
-    padding: 12,
+    minHeight: 56,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm + 2,
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
-    borderWidth: 1,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
+    justifyContent: 'center',
   },
   cardSelected: {
     borderColor: COLORS.primary[400],
     backgroundColor: COLORS.primary[50],
   },
-  top: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    gap: 6,
   },
-  iconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.neutral.gray[100],
-    alignItems: 'center',
-    justifyContent: 'center',
+  checkIcon: {
+    flexShrink: 0,
+    marginTop: 1,
   },
   checkPlaceholder: {
-    width: 18,
-    height: 18,
+    width: 16,
+    height: 16,
+    flexShrink: 0,
   },
   nombre: {
+    flex: 1,
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
-    lineHeight: 19,
-    marginBottom: 4,
-    flex: 1,
+    lineHeight: 18,
   },
   nombreSelected: {
     color: COLORS.primary[800],
-  },
-  descripcion: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
-    lineHeight: 16,
-    marginBottom: 8,
-    flex: 1,
-  },
-  footer: {
-    marginTop: 'auto',
-  },
-  duracionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  duracion: {
-    flex: 1,
-    fontSize: 10,
-    color: COLORS.text.tertiary,
   },
 });

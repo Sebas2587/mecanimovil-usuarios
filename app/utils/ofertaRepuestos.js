@@ -60,17 +60,18 @@ export function lineasTienenRepuestos(lineas) {
 }
 
 export function ofertaDebeMostrarRepuestos(oferta, solicitud = null) {
+  if (!oferta) return false;
+  const costoRep = parseFloat(oferta.costo_repuestos || 0);
+  const incluye = Boolean(oferta.incluye_repuestos);
+  const tieneLineas = lineasTienenRepuestos(resolveLineasServicioConRepuestos(oferta));
+  if (costoRep > 0 || incluye || tieneLineas) {
+    return true;
+  }
   if (solicitud?.requiere_repuestos === false) return false;
-  const costoRep = parseFloat(oferta?.costo_repuestos || 0);
-  const incluye = Boolean(oferta?.incluye_repuestos);
-  const ofrece = oferta?.ofrece_repuestos !== false;
+  const ofrece = oferta.ofrece_repuestos !== false;
   if (solicitud == null) {
-    return costoRep > 0 || incluye || lineasTienenRepuestos(resolveLineasServicioConRepuestos(oferta));
+    return costoRep > 0 || incluye || tieneLineas;
   }
   if (solicitud.requiere_repuestos === false) return false;
-  return (
-    costoRep > 0
-    || incluye
-    || (ofrece && lineasTienenRepuestos(resolveLineasServicioConRepuestos(oferta)))
-  );
+  return costoRep > 0 || incluye || (ofrece && tieneLineas);
 }
