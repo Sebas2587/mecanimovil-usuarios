@@ -78,6 +78,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
           desglose: s.desglose,
           incluye_repuestos_efectivo: s.incluye_repuestos_efectivo,
           permite_solo_mano_obra: s.permite_solo_mano_obra,
+          ofrece_repuestos_catalogo: s.ofrece_repuestos_catalogo,
         }))
       : null);
   const candidatoBase = {
@@ -120,6 +121,7 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     ofrece_solo_mano_obra: oferta.ofrece_solo_mano_obra,
     requiere_repuestos_obligatorio: oferta.requiere_repuestos_obligatorio,
     incluye_repuestos_efectivo: oferta.incluye_repuestos_efectivo,
+    permite_solo_mano_obra: oferta.permite_solo_mano_obra,
     tipo_servicio_catalogo: oferta.tipo_servicio_catalogo,
     coincidencia_repuestos: oferta.coincidencia_repuestos,
     solicitud_requiere_repuestos: conRepuestos,

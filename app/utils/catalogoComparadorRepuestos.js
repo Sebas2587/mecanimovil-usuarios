@@ -13,7 +13,6 @@ function parsePrecioPositivo(value) {
 
 export function ofreceRepuestosEnCatalogo(candidatoOrOferta) {
   if (!candidatoOrOferta) return false;
-  if (candidatoOrOferta.incluye_repuestos_efectivo === true) return true;
   if (candidatoOrOferta.ofrece_repuestos === true) return true;
   if (candidatoOrOferta.ofrece_repuestos === false) return false;
   if (candidatoOrOferta.tipo_servicio_catalogo === 'sin_repuestos') return false;
@@ -43,14 +42,24 @@ export function ofreceRepuestosEnCatalogo(candidatoOrOferta) {
   return false;
 }
 
-/** Un servicio del grupo publica repuestos en catálogo. */
+/** Un servicio del grupo publica repuestos en catálogo (configuración del proveedor). */
 export function servicioOfreceRepuestosEnCatalogo(svc) {
   if (!svc) return false;
-  if (svc.incluye_repuestos_efectivo === true) return true;
-  const d = svc.desglose || {};
-  if (Number(d.repuestos) > 0) return true;
+  if (svc.ofrece_repuestos_catalogo === true) return true;
+  if (svc.ofrece_repuestos_catalogo === false) return false;
   if (Array.isArray(svc.repuestos_info) && svc.repuestos_info.length > 0) return true;
   return false;
+}
+
+/** Leyenda del modo de precio mostrado para una línea de servicio. */
+export function etiquetaModoPrecioServicio(svc) {
+  if (!svc) return null;
+  if (svc.incluye_repuestos_efectivo) return 'Con repuestos';
+  if (servicioOfreceRepuestosEnCatalogo(svc) && svc.permite_solo_mano_obra) {
+    return 'Solo mano de obra';
+  }
+  if (!servicioOfreceRepuestosEnCatalogo(svc)) return 'Solo mano de obra';
+  return null;
 }
 
 /**

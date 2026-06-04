@@ -34,6 +34,7 @@ import {
   resolveModoPrecioCandidato,
   resolvePrecioTotalCandidato,
   solicitudRequiereRepuestos,
+  etiquetaModoPrecioServicio,
 } from '../../utils/catalogoComparadorRepuestos';
 import RepuestosExpandible from '../ofertas/RepuestosExpandible';
 import {
@@ -335,17 +336,25 @@ export default function CandidatoProveedorBookingCard({
       {/* Servicios incluidos */}
       {serviciosOfrecidos.length > 0 ? (
         <View style={styles.servicioBlock}>
-          {serviciosOfrecidos.map((s) => (
-            <View key={`${s.id}-${s.oferta_servicio_id}`} style={styles.servicioRow}>
-              <Wrench size={16} color={COLORS.primary[500]} />
-              <Text style={styles.servicioNombre} numberOfLines={2}>
-                {s.nombre || 'Servicio'}
-              </Text>
-              {Number(s.precio) > 0 ? (
-                <Text style={styles.servicioPrecio}>{formatCLP(s.precio)}</Text>
-              ) : null}
-            </View>
-          ))}
+          {serviciosOfrecidos.map((s) => {
+            const modoLabel = etiquetaModoPrecioServicio(s);
+            return (
+              <View key={`${s.id}-${s.oferta_servicio_id}`} style={styles.servicioRow}>
+                <Wrench size={16} color={COLORS.primary[500]} />
+                <View style={styles.servicioTextCol}>
+                  <Text style={styles.servicioNombre} numberOfLines={2}>
+                    {s.nombre || 'Servicio'}
+                  </Text>
+                  {modoLabel ? (
+                    <Text style={styles.servicioModoLabel}>{modoLabel}</Text>
+                  ) : null}
+                </View>
+                {Number(s.precio) > 0 ? (
+                  <Text style={styles.servicioPrecio}>{formatCLP(s.precio)}</Text>
+                ) : null}
+              </View>
+            );
+          })}
           {coberturaParcial ? (
             <Text style={styles.coberturaText}>
               Cubre {candidato.servicios_cubiertos}/{candidato.servicios_pedidos} servicios
@@ -680,12 +689,21 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
   },
-  servicioNombre: {
+  servicioTextCol: {
     flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  servicioNombre: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     lineHeight: 22,
+  },
+  servicioModoLabel: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.secondary,
   },
   servicioPrecio: {
     fontSize: TYPOGRAPHY.fontSize.sm,
