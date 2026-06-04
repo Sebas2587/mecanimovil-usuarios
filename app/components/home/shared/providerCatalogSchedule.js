@@ -2,7 +2,10 @@
  * Mapeo oferta de catálogo del proveedor → nueva solicitud (flujo dirigido + confirmar-candidato).
  */
 
-import { labelPrecioServicioResuelto } from '../../../utils/ofertaResolucionMarca';
+import {
+  elegirOfertaParaMarca,
+  labelPrecioServicioResuelto,
+} from '../../../utils/ofertaResolucionMarca';
 import { normalizeRepuestosInfo } from '../../../utils/ofertaRepuestos';
 
 /** Repuestos detallados desde oferta de catálogo (misma forma que motor_match). */
@@ -94,37 +97,58 @@ export function labelTipoServicioCatalogo(servicio) {
   return catalogoIncluyeRepuestos(servicio) ? 'Con repuestos' : 'Sin repuestos';
 }
 
-export function mapOfertaCatalogoParaSolicitud(servicio, provider, providerType) {
-  const servicioId = resolveServicioId(servicio);
-  const ofertaId = resolveOfertaServicioId(servicio);
+/**
+ * Aplica la oferta del bucket `_ofertas_grupo` que corresponde al vehículo (marca/motor).
+ * Evita usar `bucket[0]` cuando el agrupado se armó sin vehículo primario.
+ */
+export function resolverOfertaCatalogoParaVehiculo(servicio, vehicle) {
+  if (!servicio) return servicio;
+  const bucket = servicio._ofertas_grupo;
+  if (!vehicle?.id || !Array.isArray(bucket) || bucket.length === 0) {
+    return servicio;
+  }
+  const oferta = elegirOfertaParaMarca(bucket, vehicle);
+  if (!oferta) return servicio;
+  return {
+    ...servicio,
+    ...oferta,
+    _ofertas_grupo: bucket,
+    _oferta_resuelta_id: oferta.oferta_id ?? oferta.id ?? servicio._oferta_resuelta_id,
+  };
+}
+
+export function mapOfertaCatalogoParaSolicitud(servicio, provider, providerType, vehicle) {
+  const fuente = resolverOfertaCatalogoParaVehiculo(servicio, vehicle);
+  const servicioId = resolveServicioId(fuente);
+  const ofertaId = resolveOfertaServicioId(fuente);
   const panelKind = providerType === 'taller' ? 'taller' : 'mecanico';
   const providerId = provider?.id ?? provider?.providerId;
 
   return {
     id: servicioId,
-    nombre: servicio.nombre || servicio.servicio_nombre || 'Servicio',
-    descripcion: servicio.descripcion || '',
-    precio_referencia: servicio.precio_referencia ?? servicio.precio_publicado_cliente,
-    categoria_id: servicio.categoria_id ?? servicio.categoria,
+    nombre: fuente.nombre || fuente.servicio_nombre || 'Servicio',
+    descripcion: fuente.descripcion || '',
+    precio_referencia: fuente.precio_referencia ?? fuente.precio_publicado_cliente,
+    categoria_id: fuente.categoria_id ?? fuente.categoria,
     categoria_nombre:
-      servicio.categoria_nombre
-      || servicio.categoria
-      || servicio.categorias_completas?.[0]?.nombre
-      || servicio.categorias_info?.[0]?.nombre
+      fuente.categoria_nombre
+      || fuente.categoria
+      || fuente.categorias_completas?.[0]?.nombre
+      || fuente.categorias_info?.[0]?.nombre
       || null,
-    es_diagnostico: servicio.es_diagnostico,
-    tipo_servicio: servicio.tipo_servicio,
+    es_diagnostico: fuente.es_diagnostico,
+    tipo_servicio: fuente.tipo_servicio,
     oferta_id: ofertaId,
     oferta_servicio_id: ofertaId,
-    precio_publicado_cliente: servicio.precio_publicado_cliente,
-    precio_con_repuestos: servicio.precio_con_repuestos,
-    precio_sin_repuestos: servicio.precio_sin_repuestos,
-    costo_mano_de_obra_sin_iva: servicio.costo_mano_de_obra_sin_iva,
-    costo_repuestos_sin_iva: servicio.costo_repuestos_sin_iva,
-    desglose_precios: servicio.desglose_precios,
-    duracion_estimada: servicio.duracion_estimada,
-    incluye_garantia: servicio.incluye_garantia,
-    ...mapOfertaCatalogoRepuestosFields(servicio),
+    precio_publicado_cliente: fuente.precio_publicado_cliente,
+    precio_con_repuestos: fuente.precio_con_repuestos,
+    precio_sin_repuestos: fuente.precio_sin_repuestos,
+    costo_mano_de_obra_sin_iva: fuente.costo_mano_de_obra_sin_iva,
+    costo_repuestos_sin_iva: fuente.costo_repuestos_sin_iva,
+    desglose_precios: fuente.desglose_precios,
+    duracion_estimada: fuente.duracion_estimada,
+    incluye_garantia: fuente.incluye_garantia,
+    ...mapOfertaCatalogoRepuestosFields(fuente),
     _proveedorPanelKind: panelKind,
     _providerId: providerId,
   };

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import CandidatosProveedorCard from './CandidatosProveedorCard';
 import ComparadorCandidatosCatalogoModal from './ComparadorCandidatosCatalogoModal';
 import { resolveDistanciaKmCandidato } from '../../services/agendamientoAsistidoService';
@@ -14,7 +14,6 @@ import {
   partitionOfertasPorCoberturaMarca,
   tituloGrupoEspecialistas,
   tituloGrupoMultimarca,
-  subtituloSeccionComparador,
 } from '../../utils/catalogoComparadorCobertura';
 import { getMotorOfertaBadge } from '../../utils/catalogoComparadorMotor';
 import ComparadorCatalogoCoberturaGrupo from './ComparadorCatalogoCoberturaGrupo';
@@ -22,10 +21,10 @@ import ComparadorRepuestosAviso from './ComparadorRepuestosAviso';
 import { comparadorCatalogoStyles as cs } from './comparadorCatalogoStyles';
 import {
   avisoRepuestosCatalogo,
+  buildDesgloseEfectivoCandidato,
   partitionPorRepuestosCatalogo,
+  resolvePrecioTotalCandidato,
   solicitudRequiereRepuestos,
-  subtituloSubgrupoRepuestos,
-  tituloSubgrupoRepuestos,
 } from '../../utils/catalogoComparadorRepuestos';
 
 function sortPorRelevancia(ofertas, matchPctByKey, getKey) {
@@ -66,33 +65,47 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     foto_perfil: p.foto_perfil || oferta.foto_perfil || fotoUrl,
   };
   const distancia_km = resolveDistanciaKmCandidato(oferta, userCoords);
+  const serviciosOfrecidos = oferta.servicios_ofrecidos
+    || (oferta.servicios?.length
+      ? oferta.servicios.map((s) => ({
+          id: s.id,
+          nombre: s.nombre,
+          precio: s.precio,
+          oferta_servicio_id: s.oferta_servicio_id,
+          repuestos_info: s.repuestos_info || [],
+          tipo_motor: s.tipo_motor || '',
+          motor_coincidencia: s.motor_coincidencia || '',
+          desglose: s.desglose,
+          incluye_repuestos_efectivo: s.incluye_repuestos_efectivo,
+          permite_solo_mano_obra: s.permite_solo_mano_obra,
+        }))
+      : null);
+  const candidatoBase = {
+    ...oferta,
+    servicios_ofrecidos: serviciosOfrecidos,
+    precio_con_repuestos: precioRep,
+    precio_sin_repuestos: precioSin,
+  };
+  const precioTotal = resolvePrecioTotalCandidato(candidatoBase, requiereRepuestos);
+  const desgloseEfectivo = buildDesgloseEfectivoCandidato(candidatoBase, requiereRepuestos);
   return {
     ...oferta,
     proveedor,
     servicio: oferta.servicio || (oferta.servicios?.[0]
       ? { nombre: oferta.servicios[0].nombre }
       : null),
-    servicios_ofrecidos: oferta.servicios_ofrecidos
-      || (oferta.servicios?.length
-        ? oferta.servicios.map((s) => ({
-            id: s.id,
-            nombre: s.nombre,
-            precio: s.precio,
-            oferta_servicio_id: s.oferta_servicio_id,
-            repuestos_info: s.repuestos_info || [],
-          }))
-        : null),
+    servicios_ofrecidos: serviciosOfrecidos,
     servicios_cubiertos: oferta.servicios_cubiertos,
     servicios_pedidos: oferta.servicios_pedidos,
     cobertura_pct: oferta.cobertura_pct,
-    precio_total: oferta.precio_total ?? oferta.precio_total_ofrecido,
+    precio_total: precioTotal,
     oferta_servicio_ids: oferta.oferta_servicio_ids,
-    desglose: oferta.desglose || {
-      mano_obra: oferta.costo_mano_obra,
-      repuestos: oferta.costo_repuestos,
-      gestion: oferta.costo_gestion_compra,
-      precio_publicado_cliente: conRepuestos ? precioRep : precioSin,
-    },
+    desglose: oferta.desglose
+      ? {
+          ...oferta.desglose,
+          ...desgloseEfectivo,
+        }
+      : desgloseEfectivo,
     precio_con_repuestos: precioRep,
     precio_sin_repuestos: precioSin,
     incluye_repuestos_sugerido: conRepuestos,
@@ -105,6 +118,8 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     tipo_cobertura_marca: oferta.tipo_cobertura_marca ?? proveedor.tipo_cobertura_marca,
     ofrece_repuestos: oferta.ofrece_repuestos,
     ofrece_solo_mano_obra: oferta.ofrece_solo_mano_obra,
+    requiere_repuestos_obligatorio: oferta.requiere_repuestos_obligatorio,
+    incluye_repuestos_efectivo: oferta.incluye_repuestos_efectivo,
     tipo_servicio_catalogo: oferta.tipo_servicio_catalogo,
     coincidencia_repuestos: oferta.coincidencia_repuestos,
     solicitud_requiere_repuestos: conRepuestos,
@@ -235,10 +250,6 @@ export default function ComparadorCatalogoIaPanel({
     });
   }, []);
 
-  const radioLabel = radioKm != null
-    ? Math.round(Number(radioKm))
-    : PROVIDER_RECOMMENDATION_MAX_KM;
-
   const solicitudConRepuestos = solicitudRequiereRepuestos(requiereRepuestos);
 
   const handleConfirmar = (oferta) => {
@@ -300,6 +311,7 @@ export default function ComparadorCatalogoIaPanel({
         <ComparadorCatalogoCoberturaGrupo
           key={`${keyPrefix}-mm`}
           title={tituloGrupoMultimarca()}
+          sectionSpacingTop={especialistas.length > 0}
         >
           {multimarca.map((oferta) => renderOferta(oferta, variant))}
         </ComparadorCatalogoCoberturaGrupo>,
@@ -321,17 +333,16 @@ export default function ComparadorCatalogoIaPanel({
     if (conRepuestos.length > 0) {
       bloques.push(
         <View key={`${keyPrefix}-rep-con`}>
-          <Text style={cs.subgroupTitle}>{tituloSubgrupoRepuestos('con_repuestos')}</Text>
           {renderGruposCoberturaMarca(conRepuestos, variant, `${keyPrefix}-con`)}
         </View>,
       );
     }
     if (soloManoObra.length > 0) {
-      const sub = subtituloSubgrupoRepuestos('solo_mano_obra');
       bloques.push(
-        <View key={`${keyPrefix}-rep-solo`}>
-          <Text style={cs.subgroupTitle}>{tituloSubgrupoRepuestos('solo_mano_obra')}</Text>
-          {sub ? <Text style={cs.subgroupSub}>{sub}</Text> : null}
+        <View
+          key={`${keyPrefix}-rep-solo`}
+          style={conRepuestos.length > 0 ? cs.repuestosBlockSpaced : null}
+        >
           {renderGruposCoberturaMarca(soloManoObra, variant, `${keyPrefix}-solo`)}
         </View>,
       );
@@ -339,8 +350,6 @@ export default function ComparadorCatalogoIaPanel({
     return bloques;
   };
 
-  const subExacta = subtituloSeccionComparador('exacta', radioLabel);
-  const subFuera = subtituloSeccionComparador('fuera', radioLabel);
   const avisoGlobalRepuestos = avisoRepuestosCatalogo(
     todasOfertas,
     solicitudConRepuestos,
@@ -355,20 +364,12 @@ export default function ComparadorCatalogoIaPanel({
 
       {recomendadas.length > 0 ? (
         <View style={cs.section}>
-          <Text style={[cs.sectionTitle, !subExacta && cs.sectionTitleSpaced]}>
-            Coincidencia exacta
-          </Text>
-          {subExacta ? <Text style={cs.sectionSub}>{subExacta}</Text> : null}
           {renderBloqueRepuestos(recomendadas, 'recomendado', 'rec')}
         </View>
       ) : null}
 
       {otros.length > 0 ? (
         <View style={cs.section}>
-          <Text style={[cs.sectionTitle, !subFuera && cs.sectionTitleSpaced]}>
-            Fuera de tu zona
-          </Text>
-          {subFuera ? <Text style={cs.sectionSub}>{subFuera}</Text> : null}
           {renderBloqueRepuestos(otros, 'otro', 'otros')}
         </View>
       ) : null}

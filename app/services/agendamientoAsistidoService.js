@@ -1,26 +1,25 @@
 /**
  * API del asistente de agendamiento IA (consultas stateless en servidor).
  */
-import Constants from 'expo-constants';
 import { get, post } from './api';
 import { validarCoordenadasChile } from '../utils/coordenadasServicio';
 import { calculateDistance } from '../utils/geoUtils';
+import { readAppExtraFlag } from '../utils/expoExtraFlags';
+import {
+  buildDesgloseEfectivoCandidato,
+  resolveModoPrecioCandidato,
+  resolvePrecioTotalCandidato,
+  solicitudRequiereRepuestos,
+} from '../utils/catalogoComparadorRepuestos';
 
 const BASE = '/ordenes/asistente-agendamiento';
 
-function truthyFlag(value) {
-  if (value === true) return true;
-  if (value === false || value == null) return false;
-  const s = String(value).trim().toLowerCase();
-  return s === '1' || s === 'true' || s === 'yes';
-}
-
 /** Habilitado si EXPO_PUBLIC, EAS env o app.json extra lo indican (alineado con Render API). */
 export function isAsistidoHabilitado() {
-  if (truthyFlag(process.env.EXPO_PUBLIC_AGENDAMIENTO_IA_ASISTIDO)) {
-    return true;
-  }
-  return truthyFlag(Constants.expoConfig?.extra?.agendamientoIaAsistido);
+  return readAppExtraFlag('agendamientoIaAsistido', {
+    envKey: 'EXPO_PUBLIC_AGENDAMIENTO_IA_ASISTIDO',
+    defaultValue: true,
+  });
 }
 
 /**
@@ -224,13 +223,13 @@ export function resolveDistanciaKmCandidato(oferta, userCoords = null) {
 
 export function mapCandidatoToOfertaComparador(candidato) {
   if (!candidato) return null;
-  const desglose = candidato.desglose || {};
-  const total = candidato.precio_total
-    ?? desglose.precio_publicado_cliente
-    ?? (candidato.incluye_repuestos_sugerido
-      ? candidato.precio_con_repuestos
-      : candidato.precio_sin_repuestos)
-    ?? 0;
+  const requiereRep = candidato.solicitud_requiere_repuestos;
+  const incluyeRep = resolveModoPrecioCandidato(
+    candidato,
+    solicitudRequiereRepuestos(requiereRep),
+  ) === 'con_repuestos';
+  const desglose = buildDesgloseEfectivoCandidato(candidato, requiereRep);
+  const total = resolvePrecioTotalCandidato(candidato, requiereRep);
   const serviciosOfrecidos = Array.isArray(candidato.servicios_ofrecidos)
     ? candidato.servicios_ofrecidos
     : candidato.servicio
@@ -260,7 +259,7 @@ export function mapCandidatoToOfertaComparador(candidato) {
     costo_mano_obra: desglose.mano_obra ?? 0,
     costo_repuestos: desglose.repuestos ?? 0,
     costo_gestion_compra: desglose.gestion ?? 0,
-    incluye_repuestos: Boolean(candidato.incluye_repuestos_sugerido),
+    incluye_repuestos: incluyeRep,
     nombre_proveedor: candidato.proveedor?.nombre,
     proveedor_nombre: candidato.proveedor?.nombre,
     tipo_proveedor: candidato.proveedor?.tipo || candidato.tipo_proveedor,
@@ -304,5 +303,10 @@ export function mapCandidatoToOfertaComparador(candidato) {
           }))
         : []),
     repuestos_info: candidato.repuestos_info || [],
+    tipo_motor: candidato.tipo_motor || '',
+    motor_coincidencia: candidato.motor_coincidencia || '',
+    precio_con_repuestos: candidato.precio_con_repuestos,
+    precio_sin_repuestos: candidato.precio_sin_repuestos,
+    desglose: candidato.desglose || desglose,
   };
 }

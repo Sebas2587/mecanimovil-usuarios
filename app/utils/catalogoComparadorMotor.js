@@ -26,37 +26,63 @@ export function labelTipoMotor(value) {
 }
 
 export function resolveTipoMotorCandidato(candidato) {
-  const raw =
-    candidato?.tipo_motor
-    ?? candidato?.servicios_ofrecidos?.[0]?.tipo_motor
-    ?? '';
-  return normalizeTipoMotorVehiculo(raw);
+  const top = normalizeTipoMotorVehiculo(candidato?.tipo_motor);
+  if (top) return top;
+  const servicios = Array.isArray(candidato?.servicios_ofrecidos)
+    ? candidato.servicios_ofrecidos
+    : [];
+  for (const svc of servicios) {
+    const m = normalizeTipoMotorVehiculo(svc?.tipo_motor);
+    if (m) return m;
+  }
+  return '';
+}
+
+export function resolveMotorCoincidenciaCandidato(candidato) {
+  return (
+    candidato?.motor_coincidencia
+    ?? candidato?.servicios_ofrecidos?.find((s) => s?.motor_coincidencia)?.motor_coincidencia
+    ?? candidato?.servicios_ofrecidos?.[0]?.motor_coincidencia
+    ?? ''
+  );
 }
 
 export function getMotorOfertaBadge(candidato, tipoMotorVehiculo = null) {
   const motorOferta = resolveTipoMotorCandidato(candidato);
   const motorVeh = normalizeTipoMotorVehiculo(tipoMotorVehiculo);
-  const coincidencia = candidato?.motor_coincidencia
-    ?? candidato?.servicios_ofrecidos?.[0]?.motor_coincidencia;
+  const coincidencia = resolveMotorCoincidenciaCandidato(candidato);
 
-  if (coincidencia === 'exacta' || (motorVeh && motorOferta === motorVeh)) {
+  if (coincidencia === 'incompatible') return null;
+
+  if (coincidencia === 'exacta' || (motorVeh && motorOferta && motorOferta === motorVeh)) {
+    const label = labelTipoMotor(motorOferta || motorVeh);
+    if (!label || label === 'Todos los motores') return null;
     return {
-      label: labelTipoMotor(motorOferta),
+      label,
       tone: 'exacta',
       hint: 'Precio para tu tipo de motor',
     };
   }
-  if (!motorOferta) {
+
+  if (coincidencia === 'universal' || !motorOferta) {
+    if (motorVeh) {
+      return {
+        label: labelTipoMotor(motorVeh),
+        tone: 'universal',
+        hint: 'Oferta aplicable a tu motor',
+      };
+    }
     return {
       label: 'Todos los motores',
       tone: 'universal',
-      hint: motorVeh ? 'Aplica a tu motor' : null,
+      hint: null,
     };
   }
+
   return {
     label: labelTipoMotor(motorOferta),
     tone: 'especifico',
-    hint: null,
+    hint: motorVeh && motorOferta === motorVeh ? 'Precio para tu tipo de motor' : null,
   };
 }
 
@@ -64,8 +90,7 @@ export function scoreAjusteMotor(candidato, tipoMotorVehiculo) {
   const motorV = normalizeTipoMotorVehiculo(tipoMotorVehiculo);
   if (!motorV) return 78;
 
-  const coincidencia = candidato?.motor_coincidencia
-    ?? candidato?.servicios_ofrecidos?.[0]?.motor_coincidencia;
+  const coincidencia = resolveMotorCoincidenciaCandidato(candidato);
   if (coincidencia === 'exacta') return 100;
   if (coincidencia === 'incompatible') return 12;
 

@@ -46,6 +46,8 @@ import {
 import { getPublicProviderFromWebPath } from '../../utils/publicListingRoute';
 import { filtrarServiciosCatalogoPerfilProveedor } from '../../utils/servicioVehiculoCompat';
 import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
+import { resolveVehiclePanelSeleccionado } from '../../utils/vehiclePanelContext';
+import { useAuth } from '../../context/AuthContext';
 import ServicioTarifasPorMarca from '../../components/provider/ServicioTarifasPorMarca';
 import { isProviderMultimarca, mergeProviderKpiBadge } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
@@ -57,6 +59,7 @@ const Card = ({ children, style }) => <View style={[styles.card, style]}>{childr
 
 const ProviderDetailScreen = () => {
   const route = useRoute();
+  const { user } = useAuth();
   const { data: vehiclesQuery = [] } = useQuery({
     queryKey: ['userVehicles'],
     queryFn: getUserVehicles,
@@ -119,11 +122,19 @@ const ProviderDetailScreen = () => {
     [userVehicles],
   );
 
-  const vehicleForSchedule = useMemo(() => {
-    if (vehicleFromRoute?.id) return vehicleFromRoute;
-    const active = userVehiclesActivos.find((v) => v.is_active !== false);
-    return active || userVehiclesActivos[0] || null;
-  }, [vehicleFromRoute, userVehiclesActivos]);
+  const panelSelectedVehicleId = user?.id
+    ? queryClient.getQueryData(['panelSelectedVehicleId', user.id])
+    : null;
+
+  const vehicleForSchedule = useMemo(
+    () =>
+      resolveVehiclePanelSeleccionado({
+        vehicleFromRoute,
+        vehicles: userVehiclesActivos,
+        panelSelectedVehicleId,
+      }),
+    [vehicleFromRoute, userVehiclesActivos, panelSelectedVehicleId],
+  );
 
   const { data: details, isLoading: loadingDetails } = useProviderDetails(idToLoad, providerType);
   const { data: services } = useProviderServices(
@@ -445,7 +456,7 @@ const ProviderDetailScreen = () => {
             <Text style={styles.sectionHint}>
               {userVehiclesActivos.length > 0
                 ? userVehiclesActivos.length > 1
-                  ? 'Precios según tus vehículos registrados. Toca un servicio para agendar con el vehículo activo.'
+                  ? 'Precios según tus vehículos. Al agendar se usa el vehículo seleccionado en el inicio.'
                   : `Precio para tu ${userVehiclesActivos[0].marca_nombre || userVehiclesActivos[0].marca?.nombre || 'vehículo'}. Toca un servicio para agendar.`
                 : 'Registra un vehículo para ver precios de tu marca y agendar con este proveedor.'}
             </Text>

@@ -1,13 +1,13 @@
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Clock, Zap } from 'lucide-react-native';
-import { COLORS, BORDERS } from '../../design-system/tokens';
+import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { FileText, Camera } from 'lucide-react-native';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import ServicePhotosCarousel from '../provider/ServicePhotosCarousel';
+import AddressSelector from '../forms/AddressSelector';
+import SolicitudUrgenciaToggle from './SolicitudUrgenciaToggle';
 
 /**
- * Bloque de paso 2: panel unificado de detalles + fotos y urgencia en 2 columnas.
- * Usa los mismos estilos que FormularioSolicitud (pasoContainer se aplica en el padre).
+ * Paso 2: ubicación → preferencias → detalles + fotos.
  */
 export default function SolicitudPaso2Contexto({
   formData,
@@ -18,6 +18,9 @@ export default function SolicitudPaso2Contexto({
   GlassCard,
   styles,
   childrenBeforeDetalles = null,
+  preferenciasBlock = null,
+  hideUrgencia = false,
+  embedUbicacion = false,
 }) {
   const fotosProveedor = Array.isArray(servicioSeleccionado?.fotos_servicio)
     ? servicioSeleccionado.fotos_servicio
@@ -28,100 +31,181 @@ export default function SolicitudPaso2Contexto({
     ? 'Ej: Chevrolet Sail 2016, 145.000 km. Indica qué quieres revisar antes de comprar.'
     : 'Ej: Mi auto hace un ruido al frenar, necesito revisión de 60.000 km…';
 
+  const ubicacionBlock = embedUbicacion ? (
+    <View style={paso2Styles.sectionWrap}>
+      <AddressSelector
+        currentAddress={formData.direccion_usuario}
+        glassStyle
+        autoSelectPrincipal
+        onAddressChange={(direccion) => {
+          setFormData((prev) => ({
+            ...prev,
+            direccion_usuario: direccion,
+            direccion_servicio_texto: direccion?.direccion || '',
+            ubicacion_servicio: direccion?.ubicacion || null,
+          }));
+        }}
+      />
+    </View>
+  ) : null;
+
   return (
     <>
       {childrenBeforeDetalles}
+      {ubicacionBlock}
+      {preferenciasBlock}
 
-      <GlassCard style={styles.paso2DetallesCard}>
-        {tieneFotosProveedor ? (
-          <View style={styles.paso2FotosProveedorBlock}>
-            <Text style={styles.descripcionLabel}>Fotos del servicio (proveedor)</Text>
-            <ServicePhotosCarousel photos={fotosProveedor} height={120} />
-            <View style={styles.paso2Divider} />
+      <View style={paso2Styles.sectionWrap}>
+        <View style={paso2Styles.sectionHeaderRow}>
+          <View style={paso2Styles.sectionIconWrap}>
+            <FileText size={18} color={COLORS.primary[500]} />
           </View>
-        ) : null}
-
-        <Text style={styles.descripcionLabel}>
-          Detalles para el proveedor <Text style={styles.paso2Required}>*</Text>
-        </Text>
-        <Text style={styles.paso2DetallesHint}>
-          Obligatorio. El proveedor usa esto para entender tu solicitud y preparar el trabajo.
-        </Text>
-        <TextInput
-          style={styles.textArea}
-          multiline
-          numberOfLines={5}
-          placeholder={placeholderDetalles}
-          placeholderTextColor={COLORS.text.disabled}
-          value={formData.descripcion_problema || ''}
-          onChangeText={(text) =>
-            setFormData((prev) => ({ ...prev, descripcion_problema: text || '' }))
-          }
-          textAlignVertical="top"
-        />
-
-        {typeof renderFotosNecesidadEditor === 'function' ? (
-          <View style={styles.paso2FotosUsuario}>
-            {renderFotosNecesidadEditor(
-              Array.isArray(formData.fotos_necesidad) ? formData.fotos_necesidad : [],
-              (next) => setFormData((prev) => ({ ...prev, fotos_necesidad: next })),
-            )}
+          <View style={{ flex: 1 }}>
+            <Text style={paso2Styles.sectionTitle}>
+              Detalles para el proveedor <Text style={styles.paso2Required}>*</Text>
+            </Text>
+            <Text style={paso2Styles.sectionSubtitle}>
+              Cuéntanos qué necesitas para que el proveedor entienda tu solicitud.
+            </Text>
           </View>
-        ) : null}
-      </GlassCard>
+        </View>
 
-      <Text style={[styles.pasoTitle, styles.paso2UrgenciaTitle]}>¿Qué tan urgente es?</Text>
-      <Text style={styles.pasoDescripcion}>Selecciona el nivel de urgencia del servicio</Text>
-
-      <View style={styles.paso2UrgenciaRow}>
-        <TouchableOpacity
-          style={styles.paso2UrgenciaCol}
-          onPress={() => setFormData((prev) => ({ ...prev, urgencia: 'normal' }))}
-          activeOpacity={0.85}
-        >
-          <GlassCard
-            style={[
-              styles.paso2UrgenciaCard,
-              formData.urgencia === 'normal' && styles.paso2UrgenciaCardActiveNormal,
-            ]}
-          >
-            <View style={styles.paso2UrgenciaCardTop}>
-              <View style={[styles.paso2UrgenciaIcon, { backgroundColor: COLORS.success[100] }]}>
-                <Clock size={20} color={COLORS.success[600]} />
-              </View>
-              {formData.urgencia === 'normal' ? (
-                <Ionicons name="checkmark-circle" size={22} color={COLORS.success[600]} />
-              ) : null}
+        <GlassCard style={paso2Styles.detallesCard}>
+          {tieneFotosProveedor ? (
+            <View style={paso2Styles.fotosProveedorBlock}>
+              <Text style={paso2Styles.fieldLabel}>Fotos del servicio (proveedor)</Text>
+              <ServicePhotosCarousel photos={fotosProveedor} height={120} />
+              <View style={paso2Styles.hairline} />
             </View>
-            <Text style={styles.opcionTitle}>Normal</Text>
-            <Text style={styles.opcionDescripcion}>Puede esperar unos días</Text>
-          </GlassCard>
-        </TouchableOpacity>
+          ) : null}
 
-        <TouchableOpacity
-          style={styles.paso2UrgenciaCol}
-          onPress={() => setFormData((prev) => ({ ...prev, urgencia: 'urgente' }))}
-          activeOpacity={0.85}
-        >
-          <GlassCard
-            style={[
-              styles.paso2UrgenciaCard,
-              formData.urgencia === 'urgente' && styles.paso2UrgenciaCardActiveUrgent,
-            ]}
-          >
-            <View style={styles.paso2UrgenciaCardTop}>
-              <View style={[styles.paso2UrgenciaIcon, { backgroundColor: COLORS.warning.light }]}>
-                <Zap size={20} color={COLORS.warning[600]} />
+          <Text style={paso2Styles.fieldLabel}>Descripción</Text>
+          <TextInput
+            style={paso2Styles.textArea}
+            multiline
+            numberOfLines={5}
+            placeholder={placeholderDetalles}
+            placeholderTextColor={COLORS.text.disabled}
+            value={formData.descripcion_problema || ''}
+            onChangeText={(text) =>
+              setFormData((prev) => ({ ...prev, descripcion_problema: text || '' }))
+            }
+            textAlignVertical="top"
+          />
+
+          {typeof renderFotosNecesidadEditor === 'function' ? (
+            <View style={paso2Styles.fotosUsuarioBlock}>
+              <View style={paso2Styles.fotosUsuarioHeader}>
+                <Camera size={16} color={COLORS.text.secondary} />
+                <Text style={paso2Styles.fieldLabel}>Tus fotos (opcional)</Text>
               </View>
-              {formData.urgencia === 'urgente' ? (
-                <Ionicons name="checkmark-circle" size={22} color={COLORS.warning[600]} />
-              ) : null}
+              <Text style={paso2Styles.fotosUsuarioHint}>
+                Adjunta hasta 3 fotos para ayudar al proveedor a evaluar tu caso.
+              </Text>
+              {renderFotosNecesidadEditor(
+                Array.isArray(formData.fotos_necesidad) ? formData.fotos_necesidad : [],
+                (next) => setFormData((prev) => ({ ...prev, fotos_necesidad: next })),
+                { hideLabel: true },
+              )}
             </View>
-            <Text style={styles.opcionTitle}>Urgente</Text>
-            <Text style={styles.opcionDescripcion}>Lo antes posible</Text>
-          </GlassCard>
-        </TouchableOpacity>
+          ) : null}
+        </GlassCard>
       </View>
+
+      {!hideUrgencia ? (
+        <>
+          <Text style={[styles.pasoTitle, styles.paso2UrgenciaTitle]}>¿Qué tan urgente es?</Text>
+          <Text style={styles.pasoDescripcion}>Selecciona el nivel de urgencia del servicio</Text>
+          <SolicitudUrgenciaToggle
+            value={formData.urgencia || 'normal'}
+            onChange={(urgencia) => setFormData((prev) => ({ ...prev, urgencia }))}
+          />
+        </>
+      ) : null}
     </>
   );
 }
+
+const paso2Styles = StyleSheet.create({
+  sectionWrap: {
+    marginBottom: SPACING.lg,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  sectionIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDERS.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary[50],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
+  },
+  sectionTitle: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    lineHeight: 24,
+  },
+  sectionSubtitle: {
+    marginTop: 2,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 20,
+    color: COLORS.text.secondary,
+  },
+  detallesCard: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    marginBottom: 0,
+  },
+  fieldLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.xs,
+  },
+  textArea: {
+    minHeight: 112,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDERS.radius.lg,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 4,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    lineHeight: 22,
+    color: COLORS.text.primary,
+    backgroundColor: COLORS.background.paper,
+    ...SHADOWS.sm,
+  },
+  hairline: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border.light,
+    marginVertical: SPACING.md,
+  },
+  fotosProveedorBlock: {
+    marginBottom: SPACING.xs,
+  },
+  fotosUsuarioBlock: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
+  },
+  fotosUsuarioHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  fotosUsuarioHint: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    lineHeight: 17,
+    color: COLORS.text.tertiary,
+    marginBottom: SPACING.sm,
+  },
+});

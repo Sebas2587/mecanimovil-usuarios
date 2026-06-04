@@ -1,7 +1,11 @@
 import { resolveDistanciaKmCandidato } from '../services/agendamientoAsistidoService';
 import { PROVIDER_RECOMMENDATION_MAX_KM } from './exploreProviderUtils';
 import { isCandidatoCatalogoMultimarca } from './catalogoComparadorCobertura';
-import { ofreceRepuestosEnCatalogo, solicitudRequiereRepuestos } from './catalogoComparadorRepuestos';
+import {
+  ofreceRepuestosEnCatalogo,
+  resolvePrecioTotalCandidato,
+  solicitudRequiereRepuestos,
+} from './catalogoComparadorRepuestos';
 import { scoreAjusteMotor, normalizeTipoMotorVehiculo } from './catalogoComparadorMotor';
 import { scorePromedioMatchFactores } from './catalogoMatchFactores';
 
@@ -195,12 +199,7 @@ function scorePrecioRelativo(precio, preciosGrupo) {
 }
 
 function precioCandidato(candidato, requiereRepuestos = true) {
-  return Number(
-    candidato.precio_total
-    ?? candidato.precio_total_ofrecido
-    ?? (requiereRepuestos ? candidato.precio_con_repuestos : candidato.precio_sin_repuestos)
-    ?? 0,
-  );
+  return resolvePrecioTotalCandidato(candidato, requiereRepuestos);
 }
 
 function computeTotalFromCriterios(porCriterio) {

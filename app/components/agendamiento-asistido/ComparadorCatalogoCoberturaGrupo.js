@@ -1,15 +1,20 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { comparadorCatalogoStyles as cs } from './comparadorCatalogoStyles';
+import { SPACING } from '../../design-system/tokens';
 
 /**
  * Bloque de candidatos por cobertura (especialista / multimarca), título alineado a sección padre.
  */
-export default function ComparadorCatalogoCoberturaGrupo({ title, children }) {
+export default function ComparadorCatalogoCoberturaGrupo({
+  title,
+  children,
+  sectionSpacingTop = false,
+}) {
   if (!children) return null;
 
   return (
-    <View style={styles.grupo}>
+    <View style={[styles.grupo, sectionSpacingTop && cs.groupSpaced]}>
       <Text style={cs.groupTitle}>{title}</Text>
       <View style={styles.cardList}>{children}</View>
     </View>
@@ -21,7 +26,6 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   cardList: {
-    gap: 14,
-    marginTop: 2,
+    gap: SPACING.sm + 2,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -95,8 +95,10 @@ const AddressSelector = ({
   modalVisible,
   onModalVisibleChange,
   glassStyle = true,
+  autoSelectPrincipal = false,
 }) => {
   const insets = useSafeAreaInsets();
+  const didAutoSelectRef = useRef(false);
   const [internalModalVisible, setInternalModalVisible] = useState(false);
 
   const isModalVisible = modalVisible !== undefined ? modalVisible : internalModalVisible;
@@ -125,6 +127,25 @@ const AddressSelector = ({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!autoSelectPrincipal || currentAddress || didAutoSelectRef.current || !onAddressChange) return;
+    if (!addresses.length) return;
+
+    const principal = addresses.find((a) => a.es_principal) || addresses[0];
+    if (!principal) return;
+
+    didAutoSelectRef.current = true;
+    (async () => {
+      try {
+        const active = await locationService.setActiveAddress(principal);
+        onAddressChange(active || principal);
+      } catch (e) {
+        console.warn('No se pudo establecer dirección principal automática:', e);
+        onAddressChange(principal);
+      }
+    })();
+  }, [autoSelectPrincipal, addresses, currentAddress, onAddressChange]);
 
   const handleAddressSelect = useCallback(
     async (address) => {

@@ -27,9 +27,12 @@ import {
 import MatchPercentRing from './MatchPercentRing';
 import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
 import {
+  buildDesgloseEfectivoCandidato,
   etiquetaSolicitudRepuestos,
-  etiquetaCatalogoSinRepuestos,
+  etiquetaCatalogoRepuestos,
+  debeMostrarBadgeTuEleccionRepuestos,
   resolveModoPrecioCandidato,
+  resolvePrecioTotalCandidato,
   solicitudRequiereRepuestos,
 } from '../../utils/catalogoComparadorRepuestos';
 import RepuestosExpandible from '../ofertas/RepuestosExpandible';
@@ -95,36 +98,36 @@ export default function CandidatoProveedorBookingCard({
       return [{
         id: candidato.servicio.id,
         nombre: candidato.servicio.nombre,
-        precio: precioUsaRepuestos
-          ? candidato?.precio_con_repuestos
-          : candidato?.precio_sin_repuestos,
+        precio: resolvePrecioTotalCandidato(candidato, requiereRepuestos),
         oferta_servicio_id: candidato?.oferta_servicio_id,
       }];
     }
     return [];
-  }, [candidato, precioUsaRepuestos]);
+  }, [candidato, requiereRepuestos]);
 
   const desglose = useMemo(() => {
-    const d = candidato?.desglose || {};
-    const total = candidato?.precio_total
-      ?? (precioUsaRepuestos
-        ? candidato?.precio_con_repuestos
-        : candidato?.precio_sin_repuestos);
+    const d = buildDesgloseEfectivoCandidato(candidato, requiereRepuestos);
+    const total = resolvePrecioTotalCandidato(candidato, requiereRepuestos);
     const calc = calcularDesgloseIvaOferta({
       costoManoObra: d.mano_obra,
       costoRepuestos: d.repuestos,
       costoGestionCompra: d.gestion,
-      precioTotalOfrecido: total ?? d.precio_publicado_cliente,
+      precioTotalOfrecido: total,
     });
     return resolverDesgloseIvaMostrado(null, calc);
-  }, [candidato, precioUsaRepuestos]);
+  }, [candidato, requiereRepuestos]);
+
+  const desgloseLineas = useMemo(
+    () => buildDesgloseEfectivoCandidato(candidato, requiereRepuestos),
+    [candidato, requiereRepuestos],
+  );
+  const mostrarLineasRepuestos = (desgloseLineas.repuestos > 0 || desgloseLineas.gestion > 0);
 
   const lineasConRepuestos = useMemo(
     () => resolveLineasServicioConRepuestos(candidato),
     [candidato],
   );
-  const mostrarListaRepuestos = solicitudConRepuestos
-    && precioUsaRepuestos
+  const mostrarListaRepuestos = mostrarLineasRepuestos
     && lineasTienenRepuestos(lineasConRepuestos);
 
   const providerForAvatar = useMemo(() => {
@@ -158,8 +161,14 @@ export default function CandidatoProveedorBookingCard({
 
   if (!candidato) return null;
 
-  const repuestosSolicitudLabel = etiquetaSolicitudRepuestos(solicitudConRepuestos);
-  const catalogoSinRepuestosLabel = etiquetaCatalogoSinRepuestos(
+  const mostrarTuEleccionRepuestos = debeMostrarBadgeTuEleccionRepuestos(
+    solicitudConRepuestos,
+    candidato,
+  );
+  const repuestosSolicitudLabel = mostrarTuEleccionRepuestos
+    ? etiquetaSolicitudRepuestos(solicitudConRepuestos)
+    : null;
+  const catalogoRepuestosLabel = etiquetaCatalogoRepuestos(
     solicitudConRepuestos,
     candidato,
   );
@@ -179,8 +188,6 @@ export default function CandidatoProveedorBookingCard({
     : (candidato.score_match != null
       ? Math.round(Number(candidato.score_match) * 100)
       : null);
-  const servicioPrincipal = serviciosOfrecidos[0]?.nombre || candidato.servicio?.nombre;
-  const multiServicio = serviciosOfrecidos.length > 1;
   const coberturaParcial = candidato.servicios_pedidos != null
     && candidato.servicios_cubiertos != null
     && candidato.servicios_cubiertos < candidato.servicios_pedidos;
@@ -192,7 +199,7 @@ export default function CandidatoProveedorBookingCard({
 
   const btnDisabled = procesando;
   const btnLoading = confirmandoEsta && procesando;
-  const d = candidato.desglose || {};
+  const d = desgloseLineas;
   const tieneDesgloseLineas = (d.mano_obra > 0 || d.repuestos > 0 || d.gestion > 0);
   const explicacionVisible = sanitizeExplicacionCandidato(candidato.explicacion);
   const distanciaLabel = distKm != null
@@ -239,29 +246,31 @@ export default function CandidatoProveedorBookingCard({
             {nombre}
           </Text>
           <View style={styles.metaChipsRow}>
-            <View
-              style={[
-                styles.repuestosBadge,
-                solicitudConRepuestos ? styles.repuestosBadgeSolicitudCon : styles.repuestosBadgeSolicitudSin,
-              ]}
-            >
-              <Package
-                size={10}
-                color={solicitudConRepuestos ? COLORS.primary[600] : COLORS.text.secondary}
-              />
-              <Text
+            {repuestosSolicitudLabel ? (
+              <View
                 style={[
-                  styles.repuestosBadgeText,
-                  solicitudConRepuestos ? styles.repuestosCon : styles.repuestosSin,
+                  styles.repuestosBadge,
+                  solicitudConRepuestos ? styles.repuestosBadgeSolicitudCon : styles.repuestosBadgeSolicitudSin,
                 ]}
               >
-                {repuestosSolicitudLabel}
-              </Text>
-            </View>
-            {catalogoSinRepuestosLabel ? (
+                <Package
+                  size={10}
+                  color={solicitudConRepuestos ? COLORS.primary[600] : COLORS.text.secondary}
+                />
+                <Text
+                  style={[
+                    styles.repuestosBadgeText,
+                    solicitudConRepuestos ? styles.repuestosCon : styles.repuestosSin,
+                  ]}
+                >
+                  {repuestosSolicitudLabel}
+                </Text>
+              </View>
+            ) : null}
+            {catalogoRepuestosLabel ? (
               <View style={styles.catalogoSinRepBadge}>
                 <Text style={styles.catalogoSinRepText} numberOfLines={1}>
-                  {catalogoSinRepuestosLabel}
+                  {catalogoRepuestosLabel}
                 </Text>
               </View>
             ) : null}
@@ -323,27 +332,20 @@ export default function CandidatoProveedorBookingCard({
 
       <CardDivider />
 
-      {/* Servicio destacado */}
-      {servicioPrincipal ? (
+      {/* Servicios incluidos */}
+      {serviciosOfrecidos.length > 0 ? (
         <View style={styles.servicioBlock}>
-          <View style={styles.servicioRow}>
-            <Wrench size={16} color={COLORS.primary[500]} />
-            <Text style={styles.servicioNombre} numberOfLines={2}>
-              {servicioPrincipal}
-            </Text>
-          </View>
-          {multiServicio ? (
-            <View style={styles.serviciosExtra}>
-              {serviciosOfrecidos.slice(1).map((s) => (
-                <View key={`${s.id}-${s.oferta_servicio_id}`} style={styles.servicioExtraRow}>
-                  <Text style={styles.servicioExtraNombre} numberOfLines={1}>
-                    {s.nombre || 'Servicio'}
-                  </Text>
-                  <Text style={styles.servicioExtraPrecio}>{formatCLP(s.precio)}</Text>
-                </View>
-              ))}
+          {serviciosOfrecidos.map((s) => (
+            <View key={`${s.id}-${s.oferta_servicio_id}`} style={styles.servicioRow}>
+              <Wrench size={16} color={COLORS.primary[500]} />
+              <Text style={styles.servicioNombre} numberOfLines={2}>
+                {s.nombre || 'Servicio'}
+              </Text>
+              {Number(s.precio) > 0 ? (
+                <Text style={styles.servicioPrecio}>{formatCLP(s.precio)}</Text>
+              ) : null}
             </View>
-          ) : null}
+          ))}
           {coberturaParcial ? (
             <Text style={styles.coberturaText}>
               Cubre {candidato.servicios_cubiertos}/{candidato.servicios_pedidos} servicios
@@ -365,13 +367,13 @@ export default function CandidatoProveedorBookingCard({
                 <Text style={styles.priceLineValue}>{formatCLP(d.mano_obra)}</Text>
               </View>
             ) : null}
-            {precioUsaRepuestos && d.repuestos > 0 ? (
+            {mostrarLineasRepuestos && d.repuestos > 0 ? (
               <View style={styles.priceLine}>
                 <Text style={styles.priceLineLabel}>Repuestos</Text>
                 <Text style={styles.priceLineValue}>{formatCLP(d.repuestos)}</Text>
               </View>
             ) : null}
-            {precioUsaRepuestos && d.gestion > 0 ? (
+            {mostrarLineasRepuestos && d.gestion > 0 ? (
               <View style={styles.priceLine}>
                 <Text style={styles.priceLineLabel}>Gestión de compra</Text>
                 <Text style={styles.priceLineValue}>{formatCLP(d.gestion)}</Text>
@@ -684,6 +686,13 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     lineHeight: 22,
+  },
+  servicioPrecio: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
+    fontVariant: ['tabular-nums'],
+    flexShrink: 0,
   },
   serviciosExtra: {
     marginLeft: 26,

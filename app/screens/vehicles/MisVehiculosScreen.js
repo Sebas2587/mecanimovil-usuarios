@@ -18,7 +18,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Car, X, Camera, Tag, Wrench, Plus, ChevronDown, ChevronLeft, Check, Navigation } from 'lucide-react-native';
+import { Car, X, Camera, Tag, Wrench, ChevronDown, ChevronLeft, Check, Navigation } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ROUTES } from '../../utils/constants';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
@@ -561,10 +561,12 @@ const MisVehiculosScreen = () => {
       {/* Header */}
       <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <Text style={styles.headerTitle}>Mis Vehículos</Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddVehicle}>
-          <Plus size={18} color={COLORS.primary[500]} />
-          <Text style={styles.addButtonText}>Agregar auto</Text>
-        </TouchableOpacity>
+        <Button
+          title="Agregar auto"
+          onPress={handleAddVehicle}
+          size="sm"
+          icon="add"
+        />
       </View>
 
       {loading && !refreshing ? (
@@ -710,22 +712,7 @@ const styles = StyleSheet.create({
     letterSpacing: TYPOGRAPHY.styles.h2.letterSpacing,
     color: COLORS.text.primary,
     flex: 1,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDERS.radius.badge.md,
-    backgroundColor: COLORS.primary[50],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
-  },
-  addButtonText: {
-    color: COLORS.primary[600],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
+    marginRight: SPACING.sm,
   },
   listContent: {
     padding: SPACING.container.horizontal,

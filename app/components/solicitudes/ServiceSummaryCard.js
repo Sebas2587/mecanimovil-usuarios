@@ -17,6 +17,7 @@ import {
     resolveRepuestosServicioMeta,
     getRepuestosServicioIcon,
 } from '../../utils/solicitudRepuestosServicio';
+import { resolvePrecioTotalOfrecidoEfectivo } from '../../utils/ofertaPrecioRepuestos';
 import {
     resolveModalidadServicio,
     resolveUbicacionServicioTexto,
@@ -213,11 +214,16 @@ const ServiceSummaryCard = ({ solicitud }) => {
                             ) : null}
                         </View>
                     ))}
-                    {solicitud?.oferta_seleccionada_detail?.precio_total_ofrecido != null ? (
+                    {solicitud?.oferta_seleccionada_detail ? (
                         <View style={styles.totalOfertaRow}>
                             <Text style={styles.totalOfertaLabel}>Total oferta</Text>
                             <Text style={styles.totalOfertaValue}>
-                                {formatCLPServicio(solicitud.oferta_seleccionada_detail.precio_total_ofrecido)}
+                                {formatCLPServicio(
+                                    resolvePrecioTotalOfrecidoEfectivo(
+                                        solicitud.oferta_seleccionada_detail,
+                                        solicitud,
+                                    ),
+                                )}
                             </Text>
                         </View>
                     ) : null}

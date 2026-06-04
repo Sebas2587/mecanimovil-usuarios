@@ -24,6 +24,7 @@ import {
     resolveLineasServicioConRepuestos,
     lineasTienenRepuestos,
 } from '../../utils/ofertaRepuestos';
+import { resolveCostosOfertaParaDisplay } from '../../utils/ofertaPrecioRepuestos';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -79,27 +80,32 @@ const OfferCardDetailed = ({
         cargarFoto();
     }, [oferta]);
 
-    // Cálculos de costos
-    const costoManoObra = parseFloat(oferta.costo_mano_obra || 0);
-    const costoRepuestos = parseFloat(oferta.costo_repuestos || 0);
-    const costoGestion = parseFloat(oferta.costo_gestion_compra || 0);
-    const precioTotal = parseFloat(oferta.precio_total_ofrecido || 0);
+    // Cálculos de costos según modo con/sin repuestos de la propuesta
+    const costosEfectivos = resolveCostosOfertaParaDisplay(oferta, solicitud);
+    const costoManoObra = costosEfectivos.costoManoObra;
+    const costoRepuestos = costosEfectivos.costoRepuestos;
+    const costoGestion = costosEfectivos.costoGestion;
+    const precioTotal = costosEfectivos.precioTotalOfrecido;
+    const incluyeRepuestosEfectivo = costosEfectivos.incluyeRepuestos;
     const tieneDesgloseMontos =
         costoManoObra > 0 || costoRepuestos > 0 || costoGestion > 0;
     const desgloseIva = calcularDesgloseIvaOferta({
-        costoManoObra: oferta.costo_mano_obra,
-        costoRepuestos: oferta.costo_repuestos,
-        costoGestionCompra: oferta.costo_gestion_compra,
-        precioTotalOfrecido: oferta.precio_total_ofrecido,
+        costoManoObra,
+        costoRepuestos,
+        costoGestionCompra: costoGestion,
+        precioTotalOfrecido: precioTotal,
     });
-    const merged = resolverDesgloseIvaMostrado(oferta.desglose_iva, desgloseIva);
+    const merged = resolverDesgloseIvaMostrado(
+        incluyeRepuestosEfectivo ? oferta.desglose_iva : null,
+        desgloseIva,
+    );
     const subSinIva = merged.subSinIva;
     const ivaMonto = merged.iva;
     const mostrarNotaReconciliacion = desgloseIva.mostrarNotaReconciliacion;
     const mostrarLineasProveedor =
         costoManoObra > 0 ||
         costoRepuestos > 0 ||
-        oferta.incluye_repuestos ||
+        incluyeRepuestosEfectivo ||
         costoGestion > 0;
 
     // Rating
@@ -223,12 +229,12 @@ const OfferCardDetailed = ({
                         {costoRepuestos > 0 && (
                             <View style={styles.costRow}>
                                 <Text style={styles.costLabel}>
-                                    Repuestos (sin IVA){oferta.incluye_repuestos ? ' · incluidos' : ''}
+                                    Repuestos (sin IVA) · incluidos
                                 </Text>
                                 <Text style={styles.costValue}>${Math.round(costoRepuestos).toLocaleString()}</Text>
                             </View>
                         )}
-                        {(oferta.incluye_repuestos || costoGestion > 0) && (
+                        {(incluyeRepuestosEfectivo && costoGestion > 0) && (
                             <View style={styles.costRow}>
                                 <Text style={[styles.costLabel, styles.costLabelGestion]}>Gestión de compra (sin IVA)</Text>
                                 <Text style={[styles.costValue, styles.costValueGestion]}>

@@ -1,10 +1,13 @@
 import { ROUTES } from '../../../utils/constants';
+import { resolveVehicleParaAgendar } from '../../../utils/vehiclePanelContext';
 import {
   buildProviderForSolicitud,
   mapOfertaCatalogoParaSolicitud,
   resolveOfertaServicioId,
   resolveServicioId,
 } from './providerCatalogSchedule';
+
+export { resolveVehicleParaAgendar };
 
 /** Parámetros del flujo inteligente (comparador IA, sin proveedor fijo). */
 function inteligenteExtras() {
@@ -50,7 +53,7 @@ export function navigateCrearSolicitudConProveedorYServicio(
   if (!vehicle?.id || !servicioId || !providerNorm?.id) return;
 
   const tipo = providerNorm._panelKind === 'taller' ? 'taller' : 'mecanico';
-  const servicioMapeado = mapOfertaCatalogoParaSolicitud(servicio, providerNorm, tipo);
+  const servicioMapeado = mapOfertaCatalogoParaSolicitud(servicio, providerNorm, tipo, vehicle);
 
   navigation.navigate(ROUTES.CREAR_SOLICITUD, {
     vehicle,
@@ -124,25 +127,8 @@ export function navigateCrearSolicitudDesdeHome(navigation, { vehicle } = {}) {
   navigation.navigate(ROUTES.CREAR_SOLICITUD, {
     vehicle,
     fromDashboard: true,
+    ...inteligenteExtras(),
   });
-}
-
-function resolveVehicleParaAgendar(userId, queryClient, panelVehicle) {
-  if (panelVehicle?.id) return panelVehicle;
-
-  if (!queryClient || !userId) return null;
-
-  const cached = queryClient.getQueryData(['userVehicles', userId]);
-  const list = Array.isArray(cached) ? cached : cached?.results || [];
-  if (!list.length) return null;
-
-  const panelSelectedId = queryClient.getQueryData(['panelSelectedVehicleId', userId]);
-  if (panelSelectedId != null) {
-    const fromPanel = list.find((v) => v.id === panelSelectedId);
-    if (fromPanel) return fromPanel;
-  }
-
-  return list.find((v) => v.is_active !== false) || list[0] || null;
 }
 
 /**
@@ -157,11 +143,13 @@ export function navigateAgendarDesdeTab(rootNavigation, userId, queryClient, pan
     rootNavigation.navigate(ROUTES.CREAR_SOLICITUD, {
       vehicle,
       fromDashboard: true,
+      ...inteligenteExtras(),
     });
     return;
   }
 
   rootNavigation.navigate(ROUTES.CREAR_SOLICITUD, {
     fromDashboard: true,
+    ...inteligenteExtras(),
   });
 }
