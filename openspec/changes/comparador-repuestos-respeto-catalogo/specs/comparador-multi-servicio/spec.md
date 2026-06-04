@@ -1,22 +1,17 @@
-# comparador-multi-servicio — delta repuestos y catálogo
+# comparador-multi-servicio — delta precio catálogo fiel
 
 ## ADDED Requirements
 
-### Requirement: Cards muestran configuración real por servicio
-`CandidatoProveedorBookingCard` SHALL listar cada entrada de `servicios_ofrecidos` con nombre y
-`precio` del backend. Cuando `incluye_repuestos_efectivo` es true para una línea, MAY mostrar
-leyenda «Con repuestos» junto al precio de ese servicio.
+### Requirement: Cards sin adaptar precio a preferencia del cliente
+`CandidatoProveedorBookingCard` SHALL usar `buildDesgloseCatalogoCandidato` y
+`resolvePrecioTotalCandidato` sin alterar repuestos ni totales según «solo mano de obra» del paso 2.
 
-El total estimado SHALL ser la suma de `servicios_ofrecidos[].precio` (o `precio_total` coherente).
+Cada línea en `servicios_ofrecidos` SHALL mostrar el `precio` del API y leyenda «Con repuestos»
+o «Solo mano de obra» según configuración del proveedor, no según preferencia del usuario.
 
-#### Scenario: Multi-servicio con un ítem solo MO y otro con repuestos obligatorios
-- GIVEN el cliente pidió solo mano de obra
-- AND el candidato tiene dos líneas en `servicios_ofrecidos`
+#### Scenario: Usuario eligió solo MO
+- GIVEN `requiereRepuestos=false` en el comparador
+- AND proveedor publicó servicio con repuestos a $39.270
 - WHEN se renderiza la card
-- THEN cada servicio muestra su precio
-- AND el total es la suma de ambos precios efectivos
-
-### Requirement: Badges de desajuste
-Si el cliente pidió solo MO y algún servicio del proveedor exige repuestos en catálogo
-(`requiere_repuestos_obligatorio`), la card SHALL mostrar badge «Catálogo: incluye repuestos»
-sin ocultar repuestos ni precios del desglose efectivo.
+- THEN el servicio muestra $39.270 y desglose con repuestos
+- AND badge «Tu elección: Solo mano de obra» + «Catálogo: incluye repuestos» si aplica

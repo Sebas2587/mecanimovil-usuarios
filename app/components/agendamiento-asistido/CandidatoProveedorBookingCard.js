@@ -27,7 +27,7 @@ import {
 import MatchPercentRing from './MatchPercentRing';
 import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
 import {
-  buildDesgloseEfectivoCandidato,
+  buildDesgloseCatalogoCandidato,
   etiquetaSolicitudRepuestos,
   etiquetaCatalogoRepuestos,
   debeMostrarBadgeTuEleccionRepuestos,
@@ -86,10 +86,9 @@ export default function CandidatoProveedorBookingCard({
   motorOfertaBadge = null,
 }) {
   const solicitudConRepuestos = solicitudRequiereRepuestos(requiereRepuestos);
-  const modoPrecio = candidato
-    ? resolveModoPrecioCandidato(candidato, solicitudConRepuestos)
-    : 'solo_mano_obra';
-  const precioUsaRepuestos = modoPrecio === 'con_repuestos';
+  const precioUsaRepuestos = candidato
+    ? resolveModoPrecioCandidato(candidato) === 'con_repuestos'
+    : false;
 
   const serviciosOfrecidos = useMemo(() => {
     if (Array.isArray(candidato?.servicios_ofrecidos) && candidato.servicios_ofrecidos.length) {
@@ -99,16 +98,16 @@ export default function CandidatoProveedorBookingCard({
       return [{
         id: candidato.servicio.id,
         nombre: candidato.servicio.nombre,
-        precio: resolvePrecioTotalCandidato(candidato, requiereRepuestos),
+        precio: resolvePrecioTotalCandidato(candidato),
         oferta_servicio_id: candidato?.oferta_servicio_id,
       }];
     }
     return [];
-  }, [candidato, requiereRepuestos]);
+  }, [candidato]);
 
   const desglose = useMemo(() => {
-    const d = buildDesgloseEfectivoCandidato(candidato, requiereRepuestos);
-    const total = resolvePrecioTotalCandidato(candidato, requiereRepuestos);
+    const d = buildDesgloseCatalogoCandidato(candidato);
+    const total = resolvePrecioTotalCandidato(candidato);
     const calc = calcularDesgloseIvaOferta({
       costoManoObra: d.mano_obra,
       costoRepuestos: d.repuestos,
@@ -116,11 +115,11 @@ export default function CandidatoProveedorBookingCard({
       precioTotalOfrecido: total,
     });
     return resolverDesgloseIvaMostrado(null, calc);
-  }, [candidato, requiereRepuestos]);
+  }, [candidato]);
 
   const desgloseLineas = useMemo(
-    () => buildDesgloseEfectivoCandidato(candidato, requiereRepuestos),
-    [candidato, requiereRepuestos],
+    () => buildDesgloseCatalogoCandidato(candidato),
+    [candidato],
   );
   const mostrarLineasRepuestos = (desgloseLineas.repuestos > 0 || desgloseLineas.gestion > 0);
 

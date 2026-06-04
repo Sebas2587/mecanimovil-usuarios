@@ -1,5 +1,8 @@
 /**
  * Preferencia de repuestos del cliente vs catálogo publicado por proveedor (comparador).
+ *
+ * Regla de visualización: precios y desglose SIEMPRE como publica el proveedor en catálogo.
+ * La preferencia del cliente (con/sin repuestos) solo afecta ranking del match y badges.
  */
 
 export function solicitudRequiereRepuestos(valor) {
@@ -48,23 +51,23 @@ export function servicioOfreceRepuestosEnCatalogo(svc) {
   if (svc.ofrece_repuestos_catalogo === true) return true;
   if (svc.ofrece_repuestos_catalogo === false) return false;
   if (Array.isArray(svc.repuestos_info) && svc.repuestos_info.length > 0) return true;
+  const d = svc.desglose || {};
+  if (Number(d.repuestos) > 0 || Number(d.gestion) > 0) return true;
   return false;
 }
 
-/** Leyenda del modo de precio mostrado para una línea de servicio. */
-export function etiquetaModoPrecioServicio(svc) {
-  if (!svc) return null;
-  if (svc.incluye_repuestos_efectivo) return 'Con repuestos';
-  if (servicioOfreceRepuestosEnCatalogo(svc) && svc.permite_solo_mano_obra) {
-    return 'Solo mano de obra';
-  }
-  if (!servicioOfreceRepuestosEnCatalogo(svc)) return 'Solo mano de obra';
-  return null;
+/** Modo de precio según catálogo del proveedor (no adaptado al cliente). */
+export function resolveModoPrecioCatalogo(candidato) {
+  return ofreceRepuestosEnCatalogo(candidato) ? 'con_repuestos' : 'solo_mano_obra';
+}
+
+/** @deprecated Alias: siempre catálogo. */
+export function resolveModoPrecioCandidato(candidato, _solicitudConRepuestos) {
+  return resolveModoPrecioCatalogo(candidato);
 }
 
 /**
- * True si el proveedor publica alternativa solo mano de obra para este servicio/grupo.
- * Si solo vende con repuestos, devuelve false y la oferta debe respetarse completa.
+ * True si el proveedor publica alternativa solo mano de obra (tarifa sin repuestos).
  */
 export function servicioPermiteSoloManoObra(svcOrOferta) {
   if (!svcOrOferta) return true;
@@ -83,16 +86,10 @@ export function servicioPermiteSoloManoObra(svcOrOferta) {
   if (Number.isFinite(sin) && sin > 0 && (!Number.isFinite(rep) || rep <= 0 || sin < rep * 0.995)) {
     return true;
   }
-  const d = svcOrOferta.desglose || {};
-  if (Number(d.repuestos) <= 0 && Number(d.gestion) <= 0) {
-    const mo = Number(d.mano_obra);
-    const total = parsePrecioPositivo(svcOrOferta.precio ?? d.precio_publicado_cliente);
-    if (mo > 0 && total > 0 && total <= Math.round(mo * 1.2)) return true;
-  }
   return false;
 }
 
-/** Algún servicio del grupo exige repuestos (no hay tarifa solo MO). */
+/** Algún servicio del grupo solo vende con repuestos en catálogo. */
 export function grupoRequiereRepuestosObligatorios(candidato) {
   if (!candidato) return false;
   if (candidato.requiere_repuestos_obligatorio === true) return true;
@@ -118,9 +115,6 @@ export function hayDesajusteRepuestosCatalogo(solicitudConRepuestos, candidato) 
   return grupoRequiereRepuestosObligatorios(candidato);
 }
 
-/**
- * Badge de catálogo solo cuando hay desajuste (ej. pediste repuestos y el proveedor solo publica MO).
- */
 export function etiquetaCatalogoRepuestos(solicitudConRepuestos, candidato) {
   if (!hayDesajusteRepuestosCatalogo(solicitudConRepuestos, candidato)) return null;
   if (solicitudConRepuestos) return 'Catálogo: solo mano de obra';
@@ -132,30 +126,27 @@ export function etiquetaCatalogoSinRepuestos(solicitudConRepuestos, candidato) {
   return etiquetaCatalogoRepuestos(solicitudConRepuestos, candidato);
 }
 
-/** "Tu elección" solo cuando no hay desajuste y el cliente pidió solo mano de obra. */
 export function debeMostrarBadgeTuEleccionRepuestos(solicitudConRepuestos, candidato) {
   if (hayDesajusteRepuestosCatalogo(solicitudConRepuestos, candidato)) return false;
   if (solicitudConRepuestos) return false;
   return true;
 }
 
-export function resolveModoPrecioCandidato(candidato, solicitudConRepuestos) {
-  if (solicitudConRepuestos) {
-    return ofreceRepuestosEnCatalogo(candidato) ? 'con_repuestos' : 'solo_mano_obra';
-  }
-  if (grupoRequiereRepuestosObligatorios(candidato)) return 'con_repuestos';
-  return 'solo_mano_obra';
+/** Leyenda del modo publicado en catálogo para una línea de servicio. */
+export function etiquetaModoPrecioServicio(svc) {
+  if (!svc) return null;
+  if (servicioOfreceRepuestosEnCatalogo(svc)) return 'Con repuestos';
+  return 'Solo mano de obra';
 }
 
-/** Suma precios por línea cuando hay multi-servicio. */
 export function sumPreciosServiciosOfrecidos(candidato) {
   const lineas = candidato?.servicios_ofrecidos;
   if (!Array.isArray(lineas) || lineas.length === 0) return 0;
   return lineas.reduce((acc, svc) => acc + parsePrecioPositivo(svc.precio), 0);
 }
 
-/** Desglose agregado efectivo (respeta modo por servicio del backend). */
-export function buildDesgloseEfectivoCandidato(candidato, requiereRepuestos = true) {
+/** Desglose agregado tal como publica el proveedor (sin adaptar a preferencia del cliente). */
+export function buildDesgloseCatalogoCandidato(candidato) {
   const lineas = candidato?.servicios_ofrecidos;
   if (Array.isArray(lineas) && lineas.length > 0) {
     let mo = 0;
@@ -180,21 +171,21 @@ export function buildDesgloseEfectivoCandidato(candidato, requiereRepuestos = tr
   }
 
   const d = candidato?.desglose || {};
-  const modo = resolveModoPrecioCandidato(
-    candidato,
-    solicitudRequiereRepuestos(requiereRepuestos),
-  );
-  const usaRep = modo === 'con_repuestos';
   return {
     mano_obra: Number(d.mano_obra) || 0,
-    repuestos: usaRep ? (Number(d.repuestos) || 0) : 0,
-    gestion: usaRep ? (Number(d.gestion) || 0) : 0,
-    precio_publicado_cliente: resolvePrecioTotalCandidato(candidato, requiereRepuestos),
+    repuestos: Number(d.repuestos) || 0,
+    gestion: Number(d.gestion) || 0,
+    precio_publicado_cliente: resolvePrecioTotalCandidato(candidato),
   };
 }
 
-/** Total publicado según preferencia del cliente y catálogo por servicio. */
-export function resolvePrecioTotalCandidato(candidato, requiereRepuestos = true) {
+/** @deprecated Alias */
+export function buildDesgloseEfectivoCandidato(candidato, _requiereRepuestos) {
+  return buildDesgloseCatalogoCandidato(candidato);
+}
+
+/** Total publicado en catálogo (suma de líneas o precio_con/sin según configuración del proveedor). */
+export function resolvePrecioTotalCandidato(candidato, _requiereRepuestos) {
   if (!candidato) return 0;
 
   const sumLineas = sumPreciosServiciosOfrecidos(candidato);
@@ -203,10 +194,7 @@ export function resolvePrecioTotalCandidato(candidato, requiereRepuestos = true)
   const totalBackend = parsePrecioPositivo(candidato.precio_total);
   if (totalBackend > 0) return totalBackend;
 
-  const solicitudConRep = solicitudRequiereRepuestos(requiereRepuestos);
-  const modo = resolveModoPrecioCandidato(candidato, solicitudConRep);
-
-  if (modo === 'con_repuestos') {
+  if (ofreceRepuestosEnCatalogo(candidato)) {
     return parsePrecioPositivo(
       candidato.precio_con_repuestos
       ?? candidato.precio_total_ofrecido
@@ -214,16 +202,11 @@ export function resolvePrecioTotalCandidato(candidato, requiereRepuestos = true)
     );
   }
 
-  const sinRep = parsePrecioPositivo(candidato.precio_sin_repuestos);
-  if (sinRep > 0) return sinRep;
-
-  const desglosePub = parsePrecioPositivo(candidato.desglose?.precio_publicado_cliente);
-  if (desglosePub > 0) return desglosePub;
-
-  const mo = Number(candidato.desglose?.mano_obra);
-  if (Number.isFinite(mo) && mo > 0) return Math.round(mo * 1.19);
-
-  return parsePrecioPositivo(candidato.precio_total_ofrecido);
+  return parsePrecioPositivo(
+    candidato.precio_sin_repuestos
+    ?? candidato.precio_total_ofrecido
+    ?? candidato.desglose?.precio_publicado_cliente,
+  );
 }
 
 export function partitionPorRepuestosCatalogo(ofertas) {

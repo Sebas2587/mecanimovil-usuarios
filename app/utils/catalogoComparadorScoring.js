@@ -198,8 +198,8 @@ function scorePrecioRelativo(precio, preciosGrupo) {
   return Math.max(20, Math.round(100 - ((p - min) / (max - min)) * 80));
 }
 
-function precioCandidato(candidato, requiereRepuestos = true) {
-  return resolvePrecioTotalCandidato(candidato, requiereRepuestos);
+function precioCandidato(candidato) {
+  return resolvePrecioTotalCandidato(candidato);
 }
 
 function computeTotalFromCriterios(porCriterio) {

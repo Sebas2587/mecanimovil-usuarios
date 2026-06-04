@@ -21,7 +21,7 @@ import ComparadorRepuestosAviso from './ComparadorRepuestosAviso';
 import { comparadorCatalogoStyles as cs } from './comparadorCatalogoStyles';
 import {
   avisoRepuestosCatalogo,
-  buildDesgloseEfectivoCandidato,
+  buildDesgloseCatalogoCandidato,
   partitionPorRepuestosCatalogo,
   resolvePrecioTotalCandidato,
   solicitudRequiereRepuestos,
@@ -87,8 +87,8 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     precio_con_repuestos: precioRep,
     precio_sin_repuestos: precioSin,
   };
-  const precioTotal = resolvePrecioTotalCandidato(candidatoBase, requiereRepuestos);
-  const desgloseEfectivo = buildDesgloseEfectivoCandidato(candidatoBase, requiereRepuestos);
+  const precioTotal = resolvePrecioTotalCandidato(candidatoBase);
+  const desgloseEfectivo = buildDesgloseCatalogoCandidato(candidatoBase);
   return {
     ...oferta,
     proveedor,

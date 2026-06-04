@@ -6,10 +6,9 @@ import { validarCoordenadasChile } from '../utils/coordenadasServicio';
 import { calculateDistance } from '../utils/geoUtils';
 import { readAppExtraFlag } from '../utils/expoExtraFlags';
 import {
-  buildDesgloseEfectivoCandidato,
-  resolveModoPrecioCandidato,
+  buildDesgloseCatalogoCandidato,
+  ofreceRepuestosEnCatalogo,
   resolvePrecioTotalCandidato,
-  solicitudRequiereRepuestos,
 } from '../utils/catalogoComparadorRepuestos';
 
 const BASE = '/ordenes/asistente-agendamiento';
@@ -224,12 +223,9 @@ export function resolveDistanciaKmCandidato(oferta, userCoords = null) {
 export function mapCandidatoToOfertaComparador(candidato) {
   if (!candidato) return null;
   const requiereRep = candidato.solicitud_requiere_repuestos;
-  const incluyeRep = resolveModoPrecioCandidato(
-    candidato,
-    solicitudRequiereRepuestos(requiereRep),
-  ) === 'con_repuestos';
-  const desglose = buildDesgloseEfectivoCandidato(candidato, requiereRep);
-  const total = resolvePrecioTotalCandidato(candidato, requiereRep);
+  const incluyeRep = ofreceRepuestosEnCatalogo(candidato);
+  const desglose = buildDesgloseCatalogoCandidato(candidato);
+  const total = resolvePrecioTotalCandidato(candidato);
   const serviciosOfrecidos = Array.isArray(candidato.servicios_ofrecidos)
     ? candidato.servicios_ofrecidos
     : candidato.servicio
