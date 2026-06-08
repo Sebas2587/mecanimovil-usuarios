@@ -1,6 +1,4 @@
 import React from 'react';
-import { Navigation } from 'lucide-react-native';
-import { COLORS } from '../../../design-system/tokens';
 import HomeProvidersCarouselSection from './HomeProvidersCarouselSection';
 
 const HomeNearbyRow = ({
@@ -19,7 +17,7 @@ const HomeNearbyRow = ({
   return (
     <HomeProvidersCarouselSection
       title={resolvedTitle}
-      hint="Especialistas en tu marca y talleres multimarca dentro de 5 km, ordenados por distancia."
+      spacingTop
       cardFooterVariant="bookings"
       providers={providers}
       loading={loading}

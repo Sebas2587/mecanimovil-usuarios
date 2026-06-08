@@ -40,3 +40,24 @@ export async function normalizeImagePickerAsset(asset) {
 
   return null;
 }
+
+export async function appendImageToFormData(formData, fieldName, uri, asset = null) {
+  if (Platform.OS === 'web') {
+    const normalized = asset ? await normalizeImagePickerAsset(asset) : null;
+    const blobUri = normalized?.uri || uri;
+    if (!blobUri) return formData;
+    const response = await fetch(blobUri);
+    const blob = await response.blob();
+    const mime = normalized?.mimeType || blob.type || 'image/jpeg';
+    const file = new File([blob], `${fieldName}_${Date.now()}.jpg`, { type: mime });
+    formData.append(fieldName, file);
+    return formData;
+  }
+
+  formData.append(fieldName, {
+    uri,
+    type: asset?.mimeType || asset?.type || 'image/jpeg',
+    name: `${fieldName}_${Date.now()}.jpg`,
+  });
+  return formData;
+}

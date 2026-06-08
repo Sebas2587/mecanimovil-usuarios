@@ -110,10 +110,56 @@ const ChatDetailScreen = () => {
 
         setMessages((prev) => {
             const idStr = String(newMsg.id);
-            // Ya en el estado (WS doble-disparo)
-            if (prev.some((m) => m.id != null && String(m.id) === idStr)) return prev;
-            // Lo enviamos nosotros (optimistic) - ignorar el eco
-            if (sentMessagesRef.current.has(idStr)) return prev;
+
+            // Si ya existe en el estado, enriquecer con attachment si el nuevo lo trae
+            const existingIdx = prev.findIndex(
+                (m) => m.id != null && String(m.id) === idStr
+            );
+            if (existingIdx !== -1) {
+                const existing = prev[existingIdx];
+                const hasNewAttachment =
+                    (newMsg.attachment || newMsg.archivo_adjunto) &&
+                    !existing.attachment &&
+                    !existing.archivo_adjunto;
+                if (hasNewAttachment) {
+                    const updated = [...prev];
+                    updated[existingIdx] = {
+                        ...existing,
+                        attachment: newMsg.attachment ?? newMsg.archivo_adjunto,
+                        archivo_adjunto: newMsg.archivo_adjunto ?? newMsg.attachment,
+                    };
+                    return updated;
+                }
+                return prev;
+            }
+
+            // Lo enviamos nosotros (optimistic) - ignorar el eco del servidor
+            // a menos que traiga attachment real (URL de servidor vs file://)
+            if (sentMessagesRef.current.has(idStr)) {
+                const optimisticIdx = prev.findIndex(
+                    (m) => m.is_temp && (
+                        m.content === newMsg.content ||
+                        (m.attachment && newMsg.attachment)
+                    )
+                );
+                if (
+                    optimisticIdx !== -1 &&
+                    newMsg.attachment &&
+                    !String(newMsg.attachment).startsWith('file://')
+                ) {
+                    const updated = [...prev];
+                    updated[optimisticIdx] = {
+                        ...updated[optimisticIdx],
+                        id: newMsg.id,
+                        attachment: newMsg.attachment,
+                        archivo_adjunto: newMsg.archivo_adjunto ?? newMsg.attachment,
+                        is_temp: false,
+                    };
+                    return updated;
+                }
+                return prev;
+            }
+
             return [newMsg, ...prev];
         });
     }, []);
@@ -586,6 +632,15 @@ const ChatDetailScreen = () => {
                         value={inputText}
                         onChangeText={setInputText}
                         multiline
+                        blurOnSubmit={false}
+                        returnKeyType="send"
+                        onSubmitEditing={Platform.OS !== 'web' ? sendMessage : undefined}
+                        onKeyPress={Platform.OS === 'web' ? (e) => {
+                            if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+                                e.preventDefault?.();
+                                sendMessage();
+                            }
+                        } : undefined}
                     />
                 </View>
 

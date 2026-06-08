@@ -4,10 +4,12 @@ import {
   Text,
   Modal,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloudRain, Disc, Wind, Zap, Droplets } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
 import { riskColorForLevel } from './riskColorMap';
 
 const HomeWeatherDetailModal = ({
@@ -21,13 +23,22 @@ const HomeWeatherDetailModal = ({
   weatherAgeLabel,
   weatherComponents = [],
   aiInsight,
-}) => (
+}) => {
+  const insets = useSafeAreaInsets();
+
+  return (
   <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
     <View style={styles.overlay}>
       <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
       <View style={styles.sheet}>
         <View style={styles.handle} />
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
             <CloudRain size={32} color={COLORS.primary[500]} />
             <Text style={styles.title}>Análisis climático para conducir</Text>
@@ -90,7 +101,9 @@ const HomeWeatherDetailModal = ({
             <Zap size={18} color={COLORS.success.main} />
             <Text style={styles.tipsText}>{aiInsight || 'Condiciones óptimas para conducir.'}</Text>
           </View>
+        </ScrollView>
 
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, SPACING.md) }]}>
           <TouchableOpacity style={styles.btn} onPress={onClose} activeOpacity={0.85}>
             <Text style={styles.btnText}>Entendido</Text>
           </TouchableOpacity>
@@ -98,7 +111,8 @@ const HomeWeatherDetailModal = ({
       </View>
     </View>
   </Modal>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   overlay: {
@@ -111,6 +125,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: BORDERS.radius.xl,
     overflow: 'hidden',
     maxHeight: '78%',
+    flexShrink: 1,
     backgroundColor: COLORS.background.paper,
     ...SHADOWS.lg,
   },
@@ -123,10 +138,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 4,
   },
-  content: {
+  scroll: {
+    flexShrink: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 22,
-    paddingBottom: 28,
     paddingTop: 8,
+    paddingBottom: SPACING.sm,
+  },
+  footer: {
+    paddingHorizontal: 22,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   header: {
     alignItems: 'center',
@@ -209,7 +234,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.success.light,
     borderWidth: 1,
     borderColor: COLORS.success.main,
-    marginBottom: 20,
+    marginBottom: 0,
   },
   tipsText: {
     flex: 1,

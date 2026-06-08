@@ -21,12 +21,7 @@ const TrustSection = ({ documents }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="shield-checkmark" size={18} color={COLORS.primary[500]} />
-        </View>
-        <Text style={styles.title}>Verificaciones</Text>
-      </View>
+      <Text style={styles.title}>Verificaciones</Text>
 
       <View style={styles.badgesGrid}>
         {documents.map((doc, index) => (
@@ -54,25 +49,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.container.horizontal,
     marginBottom: 24,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[50],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
   title: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     letterSpacing: -0.25,
     color: COLORS.text.primary,
+    marginBottom: 16,
   },
   badgesGrid: {
     flexDirection: 'row',

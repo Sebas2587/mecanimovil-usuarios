@@ -4,6 +4,7 @@ import { TripTrackingProvider, useTripTracking } from '../context/TripTrackingCo
 import TripActiveBar from '../components/trip/TripActiveBar';
 import HomeTripCompletionModal from '../components/home/dashboard/HomeTripCompletionModal';
 import AppNavigator from './AppNavigator';
+import PlatformAlertHost from '../components/common/PlatformAlertHost';
 
 function TripCompletionOverlay() {
   const {
@@ -49,6 +50,7 @@ export default function AuthenticatedAppShell() {
         </View>
         <TripActiveBar />
         <TripCompletionOverlay />
+        <PlatformAlertHost />
       </View>
     </TripTrackingProvider>
   );

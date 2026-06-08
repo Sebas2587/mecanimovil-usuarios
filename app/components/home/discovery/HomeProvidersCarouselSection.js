@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { HomeProvidersCarouselSkeleton } from '../../utils/HomePanelSkeletons';
-import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
 import { HomePanelCard } from '../shared/HomePanelCard';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import ProviderPreviewCard from '../ProviderPreviewCard';
@@ -31,6 +31,8 @@ const HomeProvidersCarouselSection = ({
   onProviderPress,
   onSeeAll,
   seeAllWhen,
+  /** Espacio extra arriba cuando la sección sigue a otro carrusel del feed */
+  spacingTop = false,
   /** 'offers' | 'bookings' — footer de ProviderPreviewCard */
   cardFooterVariant = 'offers',
 }) => {
@@ -59,7 +61,13 @@ const HomeProvidersCarouselSection = ({
   const showHeader = !!(icon || title || hint || showSeeAll);
 
   return (
-    <View style={[styles.section, !showHeader && styles.sectionFlush]}>
+    <View
+      style={[
+        styles.section,
+        spacingTop && styles.sectionTop,
+        !showHeader && styles.sectionFlush,
+      ]}
+    >
       {showHeader ? (
         <HomeSectionHeader
           icon={icon}
@@ -129,7 +137,10 @@ const HomeProvidersCarouselSection = ({
 
 const styles = StyleSheet.create({
   section: {
-    marginBottom: 18,
+    marginBottom: SPACING.xl,
+  },
+  sectionTop: {
+    marginTop: SPACING.lg,
   },
   sectionFlush: {
     marginBottom: 0,

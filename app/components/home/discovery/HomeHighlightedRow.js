@@ -18,7 +18,6 @@ const HomeHighlightedRow = ({
   return (
     <HomeProvidersCarouselSection
       title={resolvedTitle}
-      hint="Especialistas en la marca de tu auto, ordenados por rendimiento (KPI)."
       cardFooterVariant="bookings"
       providers={providers}
       loading={loading}

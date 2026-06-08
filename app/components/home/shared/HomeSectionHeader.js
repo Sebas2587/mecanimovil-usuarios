@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
 import HomeSectionSeeAll from './HomeSectionSeeAll';
 
 /**
@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: SPACING.sm,
   },
   titleRow: {
     flex: 1,

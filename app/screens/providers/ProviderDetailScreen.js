@@ -14,7 +14,7 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
-import { Star, ChevronRight, MessageCircle, MapPin, Award } from 'lucide-react-native';
+import { ChevronRight, MessageCircle, MapPin } from 'lucide-react-native';
 
 import { useQuery } from '@tanstack/react-query';
 import { ROUTES } from '../../utils/constants';
@@ -31,7 +31,7 @@ import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
 import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
-import ServicePhotosCarousel from '../../components/provider/ServicePhotosCarousel';
+import ProviderCatalogServiceCard from '../../components/provider/ProviderCatalogServiceCard';
 import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
 import ReviewCard from '../../components/reviews/ReviewCard';
 
@@ -379,17 +379,11 @@ const ProviderDetailScreen = () => {
           const tipoCobertura = provider?.tipo_cobertura_marca;
           const esMultimarca = tipoCobertura === 'multimarca'
             || (!tipoCobertura && !(provider.marcas_atendidas_nombres?.length > 0));
-          const tipoProveedorLabel = providerType === 'taller' ? 'Taller Mecánico' : 'Mecánico a Domicilio';
           return (
             <View style={styles.section}>
-              <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>
-                  {esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
-                </Text>
-                <View style={[styles.providerTypeBadge, { backgroundColor: COLORS.neutral?.gray?.[100] || '#f5f5f5' }]}>
-                  <Text style={styles.providerTypeBadgeText}>{tipoProveedorLabel}</Text>
-                </View>
-              </View>
+              <Text style={styles.sectionTitle}>
+                {esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
+              </Text>
               {esMultimarca ? (
                 <View style={styles.multimarcaBadge}>
                   <Text style={styles.multimarcaBadgeIcon}>🌐</Text>
@@ -416,10 +410,7 @@ const ProviderDetailScreen = () => {
         {/* Reviews */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <View style={styles.iconTitleRow}>
-              <Star size={16} color={COLORS.warning.main} fill={COLORS.warning.main} />
-              <Text style={styles.sectionTitle}>Opiniones</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Opiniones</Text>
             {reviewsData?.reviews?.length > 0 && (
               <TouchableOpacity onPress={handleSeeAllReviews} style={styles.seeAllRow}>
                 <Text style={styles.seeAllText}>Ver todas</Text>
@@ -449,10 +440,7 @@ const ProviderDetailScreen = () => {
         {/* SECCIÓN DE SERVICIOS */}
         {(provider.servicios?.length > 0 || serviciosVisibles.length > 0) && (
           <View style={styles.section}>
-            <View style={styles.iconTitleRow}>
-              <Award size={18} color={COLORS.primary[500]} />
-              <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
             <Text style={styles.sectionHint}>
               {userVehiclesActivos.length > 0
                 ? userVehiclesActivos.length > 1
@@ -494,48 +482,31 @@ const ProviderDetailScreen = () => {
                 const tipoLabel = labelTipoServicioCatalogo(servicio);
 
                 return (
-                  <TouchableOpacity
+                  <ProviderCatalogServiceCard
                     key={`${servicio.oferta_id || servicioId || idx}-${servicio.tipo_servicio || 'o'}`}
-                    style={svcCard.serviceCardShell}
+                    servicio={servicio}
+                    tipoLabel={tipoLabel}
+                    precioLabel={precioLabel}
+                    precioSubtitulo={precioInfo.subtitulo}
                     onPress={() => handleScheduleService(servicio)}
-                    activeOpacity={0.88}
                     disabled={!canSchedule}
-                  >
-                    {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
-                      <ServicePhotosCarousel photos={servicio.fotos_servicio} height={120} />
-                    ) : null}
-
-                    <View style={svcCard.serviceCardBody}>
-                      <Text style={svcCard.serviceName} numberOfLines={2}>
-                        {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
-                      </Text>
-                      {servicio.categoria ? (
-                        <Text style={svcCard.serviceCategory} numberOfLines={1}>
-                          {servicio.categoria}
-                        </Text>
-                      ) : null}
-                      <View style={svcCard.serviceTipoBadge}>
-                        <Text style={svcCard.serviceTipoBadgeText}>{tipoLabel}</Text>
-                      </View>
-                      {precioLabel ? (
-                        <Text style={svcCard.servicePrice}>{precioLabel}</Text>
-                      ) : null}
-                      {precioInfo.subtitulo ? (
-                        <Text style={svcCard.servicePriceHint}>{precioInfo.subtitulo}</Text>
-                      ) : null}
-                      {tarifasUsuario.length > 1 ? (
-                        <ServicioTarifasPorMarca
-                          tarifas={tarifasUsuario}
-                          soloSiVarias={false}
-                        />
-                      ) : null}
-                      {servicio.duracion_estimada ? (
-                        <Text style={svcCard.serviceMeta}>
-                          ~{servicio.duracion_estimada}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </TouchableOpacity>
+                    imageHeight={120}
+                    footer={(
+                      <>
+                        {tarifasUsuario.length > 1 ? (
+                          <ServicioTarifasPorMarca
+                            tarifas={tarifasUsuario}
+                            soloSiVarias={false}
+                          />
+                        ) : null}
+                        {servicio.duracion_estimada ? (
+                          <Text style={svcCard.serviceMeta}>
+                            ~{servicio.duracion_estimada}
+                          </Text>
+                        ) : null}
+                      </>
+                    )}
+                  />
                 );
               })}
             </View>

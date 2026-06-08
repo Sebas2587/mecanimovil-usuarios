@@ -7,12 +7,6 @@ import {
     formatServiciosTitulo,
     formatCLPServicio,
 } from '../../utils/solicitudServicios';
-import RepuestosExpandible from '../ofertas/RepuestosExpandible';
-import {
-    resolveLineasServicioConRepuestos,
-    lineasTienenRepuestos,
-    ofertaDebeMostrarRepuestos,
-} from '../../utils/ofertaRepuestos';
 import {
     resolveRepuestosServicioMeta,
     getRepuestosServicioIcon,
@@ -160,19 +154,6 @@ const ServiceSummaryCard = ({ solicitud }) => {
     }, [solicitud?.oferta_seleccionada_detail]);
 
     const repuestosMeta = useMemo(() => resolveRepuestosServicioMeta(solicitud), [solicitud]);
-    const lineasRepuestosOferta = useMemo(() => {
-        if (!repuestosMeta.incluye) return [];
-        return resolveLineasServicioConRepuestos(solicitud?.oferta_seleccionada_detail);
-    }, [solicitud?.oferta_seleccionada_detail, repuestosMeta.incluye]);
-    const mostrarRepuestosOferta = useMemo(() => {
-        const oferta = solicitud?.oferta_seleccionada_detail;
-        if (!oferta) return false;
-        return (
-            repuestosMeta.incluye
-            && ofertaDebeMostrarRepuestos(oferta, solicitud)
-            && lineasTienenRepuestos(lineasRepuestosOferta)
-        );
-    }, [solicitud, repuestosMeta.incluye, lineasRepuestosOferta]);
 
     return (
         <View style={styles.card}>
@@ -345,23 +326,6 @@ const ServiceSummaryCard = ({ solicitud }) => {
                     </View>
                 </View>
             </View>
-
-            {mostrarRepuestosOferta ? (
-                <View style={styles.repuestosOfertaSection}>
-                    <Text style={styles.repuestosOfertaTitle}>Repuestos incluidos en la oferta</Text>
-                    {lineasRepuestosOferta.map((linea) => (
-                        linea.repuestos_info?.length > 0 ? (
-                            <RepuestosExpandible
-                                key={String(linea.id ?? linea.nombre)}
-                                repuestos={linea.repuestos_info}
-                                servicioNombre={
-                                    lineasRepuestosOferta.length > 1 ? linea.nombre : null
-                                }
-                            />
-                        ) : null
-                    ))}
-                </View>
-            ) : null}
         </View>
     );
 };
@@ -531,16 +495,6 @@ const styles = StyleSheet.create({
         fontSize: TYPOGRAPHY.fontSize.sm,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         lineHeight: 18,
-    },
-    repuestosOfertaSection: {
-        marginTop: SPACING.md,
-        gap: SPACING.xs,
-    },
-    repuestosOfertaTitle: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.text.secondary,
-        marginBottom: SPACING.xxs,
     },
 });
 

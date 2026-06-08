@@ -11,7 +11,7 @@ import {
   Share,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { MapPin, Award } from 'lucide-react-native';
+import { MapPin } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
 import { buildPublicProviderUrl, buildDeepLinkProviderUrl } from '../../config/publicListing';
@@ -20,7 +20,7 @@ import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
 import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
-import ServicePhotosCarousel from '../../components/provider/ServicePhotosCarousel';
+import ProviderCatalogServiceCard from '../../components/provider/ProviderCatalogServiceCard';
 import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
 import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
 
@@ -336,19 +336,12 @@ const PublicProviderDetailScreen = () => {
         const tipoCobertura = provider?.tipo_cobertura_marca;
         const esMultimarca = tipoCobertura === 'multimarca'
           || (!tipoCobertura && !(provider.marcas_atendidas_nombres?.length > 0));
-        const tipoProveedorLabel = providerType === 'taller' ? 'Taller Mecánico' : 'Mecánico a Domicilio';
 
         return (
           <View style={styles.section}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>
-                {esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
-              </Text>
-              {/* Badge tipo proveedor */}
-              <View style={[styles.providerTypeBadge, { backgroundColor: COLORS.neutral?.gray?.[100] || '#f5f5f5' }]}>
-                <Text style={styles.providerTypeBadgeText}>{tipoProveedorLabel}</Text>
-              </View>
-            </View>
+            <Text style={styles.sectionTitle}>
+              {esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
+            </Text>
 
             {esMultimarca ? (
               <View style={styles.multimarcaBadge}>
@@ -378,10 +371,7 @@ const PublicProviderDetailScreen = () => {
       {/* SECCIÓN DE SERVICIOS PÚBLICA */}
       {serviciosVisibles.length > 0 ? (
         <View style={styles.section}>
-          <View style={styles.iconTitleRow}>
-            <Award size={18} color={COLORS.primary[500]} />
-            <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
           {esMultimarcaProveedor ? (
             <Text style={styles.sectionHint}>
               Precios orientativos; al agendar verás el valor según la marca de tu vehículo. Inicia sesión para solicitar.
@@ -397,36 +387,15 @@ const PublicProviderDetailScreen = () => {
               const precioLabel =
                 precioInfo.principal ?? formatPrecioCatalogoServicio(servicio);
               return (
-              <View
-                key={`${servicio.oferta_id || servicio.id || idx}-${servicio.tipo_servicio || 'o'}`}
-                style={svcCard.serviceCardShell}
-              >
-                {Array.isArray(servicio.fotos_servicio) && servicio.fotos_servicio.length > 0 ? (
-                  <ServicePhotosCarousel photos={servicio.fotos_servicio} height={110} />
-                ) : null}
-                <View style={svcCard.serviceCardBody}>
-                  <Text style={svcCard.serviceName} numberOfLines={2}>
-                    {servicio.nombre || servicio.servicio_nombre || 'Servicio Profesional'}
-                  </Text>
-                  {servicio.categoria ? (
-                    <Text style={svcCard.serviceCategory} numberOfLines={1}>
-                      {servicio.categoria}
-                    </Text>
-                  ) : null}
-                  <View style={svcCard.serviceTipoBadge}>
-                    <Text style={svcCard.serviceTipoBadgeText}>
-                      {labelTipoServicioCatalogo(servicio)}
-                    </Text>
-                  </View>
-                  {precioLabel ? (
-                    <Text style={svcCard.servicePrice}>{precioLabel}</Text>
-                  ) : null}
-                  {precioInfo.subtitulo ? (
-                    <Text style={svcCard.servicePriceHint}>{precioInfo.subtitulo}</Text>
-                  ) : null}
-                </View>
-              </View>
-            );
+                <ProviderCatalogServiceCard
+                  key={`${servicio.oferta_id || servicio.id || idx}-${servicio.tipo_servicio || 'o'}`}
+                  servicio={servicio}
+                  tipoLabel={labelTipoServicioCatalogo(servicio)}
+                  precioLabel={precioLabel}
+                  precioSubtitulo={precioInfo.subtitulo}
+                  imageHeight={110}
+                />
+              );
             })}
           </View>
         </View>

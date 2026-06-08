@@ -2,7 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ROUTES } from '../utils/constants';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, Car, ShoppingBag, CalendarPlus } from 'lucide-react-native';
 import CustomHeader from '../components/navigation/Header/Header';
@@ -226,29 +226,31 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
           iconSize = 26;
         } else if (route.name === ROUTES.MARKETPLACE) IconComponent = ShoppingBag;
 
-        const color = isAgendarTab
-          ? COLORS.primary[600]
-          : isFocused
-            ? COLORS.primary[500]
-            : COLORS.text.tertiary;
+        const color = isFocused ? COLORS.primary[500] : COLORS.text.tertiary;
 
         return (
-          <TouchableOpacity
+          <Pressable
             key={route.key}
             onPress={onPress}
-            style={[tabStyles.tab, isAgendarTab && tabStyles.tabAgendar]}
-            activeOpacity={0.7}
+            style={({ pressed, hovered }) => [
+              tabStyles.tab,
+              isAgendarTab && tabStyles.tabAgendar,
+              Platform.OS === 'web' && hovered && !isFocused && tabStyles.tabHover,
+              Platform.OS === 'web' && hovered && isFocused && tabStyles.tabHoverActive,
+              pressed && tabStyles.tabPressed,
+            ]}
             accessibilityRole="button"
+            accessibilityState={{ selected: isFocused }}
             accessibilityLabel={isProfileTab ? 'Mi perfil' : isAgendarTab ? 'Agendar servicio' : label}
           >
-            {isFocused && !isAgendarTab ? <View style={tabStyles.activeIndicator} /> : null}
+            {isFocused ? <View style={tabStyles.activeIndicator} /> : null}
             {isProfileTab ? (
               <ProfileTabIcon focused={isFocused} />
             ) : (
               <IconComponent
                 size={iconSize}
                 color={color}
-                strokeWidth={isFocused || isAgendarTab ? 2.25 : 2}
+                strokeWidth={isFocused ? 2.25 : 2}
               />
             )}
             <Text
@@ -259,16 +261,15 @@ const GlassTabBar = ({ state, descriptors, navigation }) => {
                 tabStyles.label,
                 {
                   color,
-                  fontWeight:
-                    isFocused || isAgendarTab
-                      ? TYPOGRAPHY.fontWeight.semibold
-                      : TYPOGRAPHY.fontWeight.medium,
+                  fontWeight: isFocused
+                    ? TYPOGRAPHY.fontWeight.semibold
+                    : TYPOGRAPHY.fontWeight.medium,
                 },
               ]}
             >
               {label}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         );
       })}
     </View>
@@ -291,9 +292,21 @@ const tabStyles = StyleSheet.create({
     paddingHorizontal: 2,
     gap: 3,
     minWidth: 0,
+    ...(Platform.OS === 'web' ? { cursor: 'pointer', transitionProperty: 'background-color', transitionDuration: '150ms' } : null),
   },
   tabAgendar: {
     paddingHorizontal: 4,
+  },
+  tabHover: {
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.md,
+  },
+  tabHoverActive: {
+    backgroundColor: COLORS.primary[50],
+    borderRadius: BORDERS.radius.md,
+  },
+  tabPressed: {
+    opacity: 0.88,
   },
   activeIndicator: {
     position: 'absolute',

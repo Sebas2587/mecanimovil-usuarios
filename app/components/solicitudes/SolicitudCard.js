@@ -14,9 +14,7 @@ import {
   resolveRepuestosServicioMeta,
   getRepuestosServicioIcon,
 } from '../../utils/solicitudRepuestosServicio';
-import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS } from '../../design-system/tokens/borders';
-import { SHADOWS } from '../../design-system/tokens/shadows';
+import { COLORS, BORDERS, SHADOWS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 
 /** Estado → superficie legible sobre canvas claro */
 const getEstadoSurfaceConfig = (estadoEfectivo) => {
@@ -141,9 +139,10 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
   );
 
   const fechaFormateada = useMemo(() => formatDate(solicitud.fecha_preferida), [solicitud.fecha_preferida]);
-  const horaFormateada = useMemo(() =>
-    solicitud.hora_preferida ? formatTime(solicitud.hora_preferida) : '',
-    [solicitud.hora_preferida]);
+  const horaFormateada = useMemo(
+    () => (solicitud.hora_preferida ? formatTime(solicitud.hora_preferida) : ''),
+    [solicitud.hora_preferida],
+  );
 
   const modalidadServicio = useMemo(() => resolveModalidadServicio(solicitud), [solicitud]);
   const repuestosMeta = useMemo(() => resolveRepuestosServicioMeta(solicitud), [solicitud]);
@@ -152,10 +151,23 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
     [solicitud, modalidadServicio],
   );
 
+  const vehicleLabel = useMemo(() => {
+    if (solicitud.vehiculo_info?.marca || solicitud.vehiculo_detail?.marca_nombre) {
+      const marca = solicitud.vehiculo_info?.marca || solicitud.vehiculo_detail?.marca_nombre;
+      const modelo = solicitud.vehiculo_info?.modelo || solicitud.vehiculo_detail?.modelo_nombre || '';
+      const year = solicitud.vehiculo_info?.year || solicitud.vehiculo_detail?.year;
+      return `${marca} ${modelo}${year ? ` ${year}` : ''}`.trim();
+    }
+    if (isSolicitudSinVehiculoEnCuenta(solicitud)) {
+      return 'Sin vehículo en tu cuenta';
+    }
+    return null;
+  }, [solicitud]);
+
   const getEstadoConfig = () => {
     const oferta = solicitud.oferta_seleccionada_detail || solicitud.oferta_seleccionada;
-    const tienePagoParcial = oferta?.estado_pago_repuestos === 'pagado' &&
-      oferta?.estado_pago_servicio === 'pendiente';
+    const tienePagoParcial = oferta?.estado_pago_repuestos === 'pagado'
+      && oferta?.estado_pago_servicio === 'pendiente';
 
     let estadoEfectivo = solicitud.estado_efectivo ?? solicitud.estado;
     if (estadoEfectivo === 'pagada' && tienePagoParcial) {
@@ -175,24 +187,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
     if (onPress) onPress(solicitud);
   };
 
-  const estadoParaIcono = solicitud.estado_efectivo ?? solicitud.estado;
-  const getEstadoIcon = () => {
-    const iconMap = {
-      creada: 'document-text',
-      seleccionando_servicios: 'list',
-      publicada: 'megaphone',
-      con_ofertas: 'pricetags',
-      pendiente_confirmacion: 'hourglass-outline',
-      esperando_creditos_proveedor: 'hourglass-outline',
-      adjudicada: 'checkmark-circle',
-      ofertas_adicionales_pendientes: 'mail-unread',
-      en_ejecucion: 'construct',
-      completada: 'checkmark-done-circle',
-      expirada: 'time',
-      cancelada: 'close-circle',
-    };
-    return iconMap[estadoParaIcono] || 'document-text';
-  };
+  const totalOfertas = solicitud.total_ofertas ?? 0;
 
   return (
     <TouchableOpacity
@@ -200,94 +195,89 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       onPress={handlePress}
       activeOpacity={0.85}
     >
-      <View style={[styles.estadoBadge, { backgroundColor: estadoConfig.bg, borderColor: estadoConfig.border }]}>
-        <Text style={[styles.estadoBadgeText, { color: estadoConfig.color }]}>{estadoConfig.texto}</Text>
-      </View>
-
       <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={[styles.iconContainer, { borderColor: estadoConfig.border }]}>
-            <Ionicons name={getEstadoIcon()} size={24} color={estadoConfig.color} />
+        <View style={styles.titleRow}>
+          <View style={styles.titleBlock}>
+            <View style={styles.titleLine}>
+              <Text style={styles.title} numberOfLines={2}>
+                {serviciosNombres}
+              </Text>
+              {totalOfertas > 0 ? (
+                <View style={styles.ofertasChip}>
+                  <Ionicons name="pricetags-outline" size={12} color={COLORS.text.secondary} />
+                  <Text style={styles.ofertasChipText}>
+                    {totalOfertas} oferta{totalOfertas !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+              ) : null}
+              {ofertasNuevasCount > 0 ? (
+                <View style={styles.ofertasNuevasBadge}>
+                  <Ionicons name="notifications" size={11} color={COLORS.text.inverse} />
+                  <Text style={styles.ofertasNuevasBadgeText}>{ofertasNuevasCount}</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title} numberOfLines={3}>
-              {serviciosNombres}
+
+          {vehicleLabel ? (
+            <View style={[styles.vehicleBadge, isSolicitudSinVehiculoEnCuenta(solicitud) && styles.vehicleBadgeMuted]}>
+              <Ionicons
+                name={isSolicitudSinVehiculoEnCuenta(solicitud) ? 'shield-checkmark-outline' : 'car-sport-outline'}
+                size={13}
+                color={COLORS.text.secondary}
+              />
+              <Text style={styles.vehicleBadgeText} numberOfLines={1}>
+                {vehicleLabel}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.metaSection}>
+          <View style={styles.infoRow}>
+            <Ionicons name="calendar-outline" size={14} color={COLORS.text.tertiary} />
+            <Text style={styles.infoText} numberOfLines={2}>
+              {fechaFormateada}
+              {horaFormateada ? ` a las ${horaFormateada}` : ''}
             </Text>
-            {ofertasNuevasCount > 0 && (
-              <View style={styles.ofertasNuevasBadge}>
-                <Ionicons name="notifications" size={12} color={COLORS.text.inverse} />
-                <Text style={styles.ofertasNuevasBadgeText}>{ofertasNuevasCount}</Text>
-              </View>
-            )}
           </View>
-        </View>
 
-        {(solicitud.vehiculo_info?.marca || solicitud.vehiculo_detail?.marca_nombre) ? (
-          <View style={styles.vehicleBadgeContainer}>
-            <View style={styles.vehicleBadge}>
-              <Ionicons name="car-sport" size={14} color={COLORS.primary[600]} />
-              <Text style={styles.vehicleBadgeText} numberOfLines={1}>
-                {solicitud.vehiculo_info?.marca || solicitud.vehiculo_detail?.marca_nombre}{' '}
-                {solicitud.vehiculo_info?.modelo || solicitud.vehiculo_detail?.modelo_nombre || ''}
-                {(solicitud.vehiculo_info?.year || solicitud.vehiculo_detail?.year) &&
-                  ` ${solicitud.vehiculo_info?.year || solicitud.vehiculo_detail?.year}`}
+          {modalidadServicio ? (
+            <View style={styles.infoRow}>
+              <Ionicons
+                name={getModalidadServicioIcon(modalidadServicio)}
+                size={14}
+                color={COLORS.text.tertiary}
+              />
+              <Text style={styles.infoText} numberOfLines={1}>
+                {modalidadServicio.label}
               </Text>
             </View>
-          </View>
-        ) : isSolicitudSinVehiculoEnCuenta(solicitud) ? (
-          <View style={styles.vehicleBadgeContainer}>
-            <View style={[styles.vehicleBadge, styles.vehicleBadgeMuted]}>
-              <Ionicons name="shield-checkmark-outline" size={14} color={COLORS.primary[600]} />
-              <Text style={styles.vehicleBadgeText} numberOfLines={1}>
-                Sin vehículo en tu cuenta
-              </Text>
-            </View>
-          </View>
-        ) : null}
+          ) : null}
 
-        <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={14} color={COLORS.text.tertiary} />
-          <Text style={styles.infoText} numberOfLines={2}>
-            {fechaFormateada}
-            {horaFormateada && ` a las ${horaFormateada}`}
-          </Text>
-        </View>
-
-        {modalidadServicio ? (
           <View style={styles.infoRow}>
             <Ionicons
-              name={getModalidadServicioIcon(modalidadServicio)}
+              name={getRepuestosServicioIcon(repuestosMeta.incluye)}
               size={14}
               color={COLORS.text.tertiary}
             />
             <Text style={styles.infoText} numberOfLines={1}>
-              {modalidadServicio.label}
+              {repuestosMeta.label}
             </Text>
           </View>
-        ) : null}
 
-        <View style={styles.infoRow}>
-          <Ionicons
-            name={getRepuestosServicioIcon(repuestosMeta.incluye)}
-            size={14}
-            color={COLORS.text.tertiary}
-          />
-          <Text style={styles.infoText} numberOfLines={1}>
-            {repuestosMeta.label}
-          </Text>
+          {modalidadServicio ? (
+            <View style={styles.infoRow}>
+              <Ionicons name="location-outline" size={14} color={COLORS.text.tertiary} />
+              <Text style={styles.infoText} numberOfLines={2}>
+                {ubicacionTexto}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
-        {modalidadServicio ? (
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={14} color={COLORS.text.tertiary} />
-            <Text style={styles.infoText} numberOfLines={2}>
-              {ubicacionTexto}
-            </Text>
-          </View>
-        ) : null}
-
-        {solicitud.estado === 'esperando_creditos_proveedor' &&
-          solicitud.fecha_limite_confirmacion_creditos && (
+        {solicitud.estado === 'esperando_creditos_proveedor'
+          && solicitud.fecha_limite_confirmacion_creditos ? (
             <View style={styles.countdownContainer}>
               <CountdownTimer
                 targetDate={solicitud.fecha_limite_confirmacion_creditos}
@@ -295,11 +285,11 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
                 size="small"
               />
             </View>
-          )}
+          ) : null}
 
-        {solicitud.estado === 'publicada' &&
-          solicitud.total_ofertas === 0 &&
-          solicitud.fecha_expiracion && (
+        {solicitud.estado === 'publicada'
+          && solicitud.total_ofertas === 0
+          && solicitud.fecha_expiracion ? (
             <View style={styles.countdownContainer}>
               <CountdownTimer
                 targetDate={solicitud.fecha_expiracion}
@@ -307,10 +297,10 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
                 size="small"
               />
             </View>
-          )}
+          ) : null}
 
-        {(solicitud.estado === 'adjudicada' || solicitud.estado === 'pendiente_pago') &&
-          solicitud.fecha_limite_pago && (
+        {(solicitud.estado === 'adjudicada' || solicitud.estado === 'pendiente_pago')
+          && solicitud.fecha_limite_pago ? (
             <View style={styles.countdownContainer}>
               <CountdownTimer
                 targetDate={solicitud.fecha_limite_pago}
@@ -318,18 +308,13 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
                 size="small"
               />
             </View>
-          )}
+          ) : null}
 
-        {solicitud.total_ofertas > 0 && (
-          <View style={styles.footer}>
-            <View style={styles.infoBadge}>
-              <Ionicons name="pricetags" size={14} color={COLORS.text.tertiary} />
-              <Text style={styles.infoText} numberOfLines={1}>
-                {solicitud.total_ofertas} oferta{solicitud.total_ofertas !== 1 ? 's' : ''}
-              </Text>
-            </View>
+        <View style={styles.footerRow}>
+          <View style={[styles.estadoBadge, { backgroundColor: estadoConfig.bg, borderColor: estadoConfig.border }]}>
+            <Text style={[styles.estadoBadgeText, { color: estadoConfig.color }]}>{estadoConfig.texto}</Text>
           </View>
-        )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -338,7 +323,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
 const styles = StyleSheet.create({
   card: {
     width: 280,
-    minHeight: 200,
+    minHeight: 160,
     borderRadius: BORDERS.radius.lg,
     overflow: 'hidden',
     position: 'relative',
@@ -349,139 +334,135 @@ const styles = StyleSheet.create({
   },
   cardFullWidth: {
     width: '100%',
-    minHeight: 180,
+    minHeight: 150,
   },
   estadoBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: BORDERS.radius.sm,
-    zIndex: 10,
     borderWidth: BORDERS.width.thin,
+    maxWidth: '100%',
   },
   estadoBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    letterSpacing: 0.3,
     textTransform: 'uppercase',
+    textAlign: 'right',
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.xs,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 14,
-    paddingTop: 42,
-    paddingBottom: 10,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
-  header: {
+  titleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
-  titleContainer: {
+  titleBlock: {
     flex: 1,
-    marginRight: 20,
-    paddingTop: 2,
-    position: 'relative',
+    minWidth: 0,
+    paddingRight: SPACING.xs,
+  },
+  titleLine: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: SPACING.xs,
   },
   title: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 4,
-    lineHeight: 24,
+    fontSize: TYPOGRAPHY.styles.h3.fontSize,
+    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
+    lineHeight: TYPOGRAPHY.styles.h3.fontSize * TYPOGRAPHY.styles.h3.lineHeight,
+    letterSpacing: TYPOGRAPHY.styles.h3.letterSpacing,
     color: COLORS.text.primary,
+    flexShrink: 1,
+  },
+  ofertasChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 3,
+    borderRadius: BORDERS.radius.sm,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    flexShrink: 0,
+  },
+  ofertasChipText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
   },
   ofertasNuevasBadge: {
-    position: 'absolute',
-    top: -4,
-    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.error.main,
-    borderRadius: 12,
+    borderRadius: BORDERS.radius.full,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    gap: 4,
+    gap: 3,
+    flexShrink: 0,
   },
   ofertasNuevasBadgeText: {
     color: COLORS.text.inverse,
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  vehicleBadgeContainer: {
-    marginBottom: 10,
-    alignSelf: 'flex-start',
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   vehicleBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: SPACING.xs,
     paddingVertical: 4,
     borderRadius: BORDERS.radius.sm,
     gap: 4,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[200],
-    backgroundColor: COLORS.primary[50],
-    maxWidth: 260,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.neutral.gray[50],
+    maxWidth: 180,
+    flexShrink: 0,
   },
   vehicleBadgeMuted: {
-    borderColor: COLORS.primary[200],
     backgroundColor: COLORS.neutral.gray[100],
   },
   vehicleBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary[800],
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
     flexShrink: 1,
+  },
+  metaSection: {
+    gap: SPACING.xxs,
+    paddingTop: SPACING.xxs,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: COLORS.border.light,
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
+    gap: SPACING.xs,
+    paddingVertical: 2,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
-    fontWeight: '400',
+    fontWeight: TYPOGRAPHY.fontWeight.regular,
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   countdownContainer: {
-    marginBottom: 8,
-    marginTop: 4,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 4,
-    paddingTop: 8,
-    paddingBottom: 2,
-  },
-  infoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BORDERS.radius.sm,
-    gap: 4,
-    flexShrink: 1,
-    maxWidth: '45%',
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
+    marginTop: SPACING.xs,
   },
 });
 

@@ -20,7 +20,7 @@ import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesListSkeleton';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { prefetchRequestDetail, REQUESTS_LIST_KEY } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
 import { showAlert } from '../../utils/platformAlert';
@@ -294,14 +294,18 @@ const MisSolicitudesScreen = () => {
             onPress={() => handleMainTabChange('solicitudes')}
             activeOpacity={0.7}
           >
-            <Text style={[styles.mainTabText, mainTab === 'solicitudes' && styles.activeMainTabText]}>Solicitudes</Text>
+            <Text style={[styles.mainTabText, mainTab === 'solicitudes' && styles.activeMainTabText]}>
+              Solicitudes
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.mainTab, mainTab === 'historial' && styles.activeMainTab]}
             onPress={() => handleMainTabChange('historial')}
             activeOpacity={0.7}
           >
-            <Text style={[styles.mainTabText, mainTab === 'historial' && styles.activeMainTabText]}>Historial</Text>
+            <Text style={[styles.mainTabText, mainTab === 'historial' && styles.activeMainTabText]}>
+              Historial
+            </Text>
           </TouchableOpacity>
         </View>
         <View style={styles.segmentContainer}>
@@ -310,7 +314,7 @@ const MisSolicitudesScreen = () => {
             return (
               <TouchableOpacity
                 key={item.key}
-                style={[styles.segment, active && styles.activeSegment]}
+                style={[styles.segmentButton, active && styles.activeSegmentButton]}
                 onPress={() => handleSegmentPress(item.key)}
                 activeOpacity={0.7}
               >
@@ -454,11 +458,11 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: SURFACE_SOFT,
-    borderRadius: BORDERS.radius.md,
+    borderRadius: 14,
     marginHorizontal: SPACING.container.horizontal,
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
     padding: 4,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
   },
@@ -470,12 +474,13 @@ const styles = StyleSheet.create({
   },
   activeMainTab: {
     backgroundColor: COLORS.background.paper,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   mainTabText: {
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.tertiary,
   },
   activeMainTabText: {
@@ -483,30 +488,34 @@ const styles = StyleSheet.create({
   },
   segmentContainer: {
     flexDirection: 'row',
-    paddingHorizontal: SPACING.container.horizontal,
-    paddingBottom: 8,
-    gap: 10,
-  },
-  segment: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
     backgroundColor: SURFACE_SOFT,
-    borderWidth: 1,
+    borderRadius: 14,
+    marginHorizontal: SPACING.container.horizontal,
+    marginBottom: SPACING.sm,
+    padding: 4,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
   },
-  activeSegment: {
-    backgroundColor: COLORS.primary[50],
-    borderColor: COLORS.primary[100],
+  segmentButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  activeSegmentButton: {
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   segmentText: {
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.tertiary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   activeSegmentText: {
-    color: COLORS.primary[500],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
   iconBtn: {
     width: 40,

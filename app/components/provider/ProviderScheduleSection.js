@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Clock } from 'lucide-react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import {
   buildWeeklyScheduleDisplayGroups,
@@ -17,10 +16,7 @@ export default function ProviderScheduleSection({ horarios }) {
 
   return (
     <View style={styles.section}>
-      <View style={styles.headerRow}>
-        <Clock size={18} color={COLORS.primary[500]} />
-        <Text style={styles.sectionTitle}>Horarios disponibles</Text>
-      </View>
+      <Text style={styles.sectionTitle}>Horarios disponibles</Text>
 
       <Card>
         {hasAny ? (
@@ -45,16 +41,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.container.horizontal,
     marginBottom: 20,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
+    marginBottom: 12,
   },
   card: {
     backgroundColor: COLORS.background.paper,

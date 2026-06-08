@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -130,6 +130,13 @@ const OfferCardDetailed = ({
     const mostrarListaRepuestos =
         ofertaDebeMostrarRepuestos(oferta, solicitud)
         && lineasTienenRepuestos(lineasConRepuestos);
+    const totalRepuestosItems = useMemo(
+        () => lineasConRepuestos.reduce(
+            (acc, linea) => acc + (linea.repuestos_info?.length || 0),
+            0,
+        ),
+        [lineasConRepuestos],
+    );
 
     return (
         <View style={styles.card}>
@@ -229,7 +236,9 @@ const OfferCardDetailed = ({
                         {costoRepuestos > 0 && (
                             <View style={styles.costRow}>
                                 <Text style={styles.costLabel}>
-                                    Repuestos (sin IVA) · incluidos
+                                    {totalRepuestosItems > 0
+                                        ? `Repuestos (${totalRepuestosItems} ${totalRepuestosItems === 1 ? 'ítem' : 'ítems'}) · sin IVA`
+                                        : 'Repuestos (sin IVA) · incluidos'}
                                 </Text>
                                 <Text style={styles.costValue}>${Math.round(costoRepuestos).toLocaleString()}</Text>
                             </View>
@@ -252,6 +261,11 @@ const OfferCardDetailed = ({
                                             servicioNombre={
                                                 lineasConRepuestos.length > 1 ? linea.nombre : null
                                             }
+                                            compact
+                                            coinbase
+                                            showHeaderTotal={false}
+                                            showListTotal={false}
+                                            headerTitle="Detalle de repuestos"
                                         />
                                     ) : null
                                 ))}
@@ -332,52 +346,54 @@ const OfferCardDetailed = ({
             })()}
 
             {ventanaTiempos ? (
-                <View style={styles.tiemposSection}>
-                    <Text style={styles.tiemposSectionTitle}>Tiempos estimados del servicio</Text>
+                <View style={styles.tiemposPanel}>
+                    <Text style={styles.tiemposPanelTitle}>Tiempos estimados</Text>
                     {ventanaTiempos.lineas?.length > 1 ? (
                         <View style={styles.tiemposLineasLista}>
                             {ventanaTiempos.lineas.map((linea) => (
                                 <View
                                     key={String(linea.id ?? linea.nombre)}
-                                    style={styles.tiemposLineaRow}
+                                    style={styles.tiemposRow}
                                 >
-                                    <Text style={styles.tiemposLineaNombre} numberOfLines={1}>
+                                    <Text style={styles.tiemposRowLabel} numberOfLines={1}>
                                         {linea.nombre}
                                     </Text>
-                                    <Text style={styles.tiemposLineaValor}>
+                                    <Text style={styles.tiemposRowValue}>
                                         {formatRangoDuracion(linea.minutosMin, linea.minutosMax)}
                                     </Text>
                                 </View>
                             ))}
                         </View>
                     ) : ventanaTiempos.rangoDuracionTexto ? (
-                        <Text style={styles.tiemposRango}>
-                            Duración configurada: {ventanaTiempos.rangoDuracionTexto}
-                        </Text>
+                        <View style={styles.tiemposRow}>
+                            <Text style={styles.tiemposRowLabel}>Duración configurada</Text>
+                            <Text style={styles.tiemposRowValue}>{ventanaTiempos.rangoDuracionTexto}</Text>
+                        </View>
                     ) : null}
                     {ventanaTiempos.horaInicio && ventanaTiempos.horaFinPromedio ? (
-                        <View style={styles.tiemposVentanaBlock}>
-                            <View style={styles.tiemposVentanaRow}>
-                                <Text style={styles.tiemposVentanaLabel}>Inicio estimado</Text>
-                                <Text style={styles.tiemposVentanaValor}>{ventanaTiempos.horaInicio}</Text>
+                        <>
+                            <View style={styles.tiemposDivider} />
+                            <View style={styles.tiemposRow}>
+                                <Text style={styles.tiemposRowLabel}>Inicio estimado</Text>
+                                <Text style={styles.tiemposRowValue}>{ventanaTiempos.horaInicio}</Text>
                             </View>
-                            <View style={styles.tiemposVentanaRow}>
-                                <Text style={styles.tiemposVentanaLabel}>Finalización estimada</Text>
-                                <Text style={styles.tiemposVentanaValor}>
+                            <View style={styles.tiemposRow}>
+                                <Text style={styles.tiemposRowLabel}>Finalización estimada</Text>
+                                <Text style={styles.tiemposRowValue}>
                                     {ventanaTiempos.horaFinPromedio}
                                 </Text>
                             </View>
                             {ventanaTiempos.horaFinMin
                                 && ventanaTiempos.horaFinMax
                                 && ventanaTiempos.horaFinMin !== ventanaTiempos.horaFinMax ? (
-                                    <Text style={styles.tiemposVentanaHint}>
-                                        Entre {ventanaTiempos.horaInicio} y {ventanaTiempos.horaFinMin}
+                                    <Text style={styles.tiemposHint}>
+                                        Ventana {ventanaTiempos.horaInicio} – {ventanaTiempos.horaFinMin}
                                         {' '}– {ventanaTiempos.horaFinMax} según duración mín./máx.
                                     </Text>
                                 ) : null}
-                        </View>
+                        </>
                     ) : (
-                        <Text style={styles.tiemposSinHora}>
+                        <Text style={styles.tiemposHint}>
                             Indica hora de servicio en tu solicitud para ver inicio y fin estimados.
                         </Text>
                     )}
@@ -577,7 +593,7 @@ const styles = StyleSheet.create({
         fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     costContainer: {
-        backgroundColor: COLORS.neutral.gray[100],
+        backgroundColor: COLORS.neutral.gray[50],
         borderRadius: BORDERS.radius.md,
         padding: SPACING.md,
         marginBottom: SPACING.md,
@@ -606,7 +622,7 @@ const styles = StyleSheet.create({
         color: COLORS.warning[800],
     },
     repuestosDetalleBlock: {
-        marginTop: SPACING.sm,
+        marginTop: SPACING.xs,
         gap: SPACING.xs,
     },
     divider: {
@@ -679,77 +695,52 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
         marginTop: SPACING.xxs,
     },
-    tiemposSection: {
+    tiemposPanel: {
         marginBottom: SPACING.md,
-        padding: SPACING.sm,
-        backgroundColor: COLORS.primary[50],
+        padding: SPACING.md,
+        backgroundColor: COLORS.neutral.gray[50],
         borderRadius: BORDERS.radius.md,
         borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.primary[100],
-    },
-    tiemposSectionTitle: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.primary[800],
-        marginBottom: SPACING.xs,
-    },
-    tiemposRango: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.secondary,
-        marginBottom: SPACING.xs,
-    },
-    tiemposLineasLista: {
-        marginBottom: SPACING.xs,
-        gap: 4,
-    },
-    tiemposLineaRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        borderColor: COLORS.border.light,
         gap: SPACING.xs,
     },
-    tiemposLineaNombre: {
-        flex: 1,
+    tiemposPanelTitle: {
         fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.text.primary,
+        marginBottom: SPACING.xxs,
     },
-    tiemposLineaValor: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.primary[700],
-    },
-    tiemposVentanaBlock: {
-        marginTop: SPACING.xs,
-        paddingTop: SPACING.xs,
-        borderTopWidth: BORDERS.width.thin,
-        borderTopColor: COLORS.primary[100],
-    },
-    tiemposVentanaRow: {
+    tiemposRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4,
+        gap: SPACING.sm,
     },
-    tiemposVentanaLabel: {
+    tiemposRowLabel: {
+        flex: 1,
         fontSize: TYPOGRAPHY.fontSize.sm,
         color: COLORS.text.secondary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
-    tiemposVentanaValor: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.primary[700],
+    tiemposRowValue: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
         fontVariant: ['tabular-nums'],
     },
-    tiemposVentanaHint: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
-        color: COLORS.text.tertiary,
-        marginTop: 4,
-        lineHeight: 16,
+    tiemposDivider: {
+        height: BORDERS.width.thin,
+        backgroundColor: COLORS.border.light,
+        marginVertical: SPACING.xs,
     },
-    tiemposSinHora: {
+    tiemposLineasLista: {
+        gap: SPACING.xxs,
+    },
+    tiemposHint: {
         fontSize: TYPOGRAPHY.fontSize.xs,
         color: COLORS.text.tertiary,
-        fontStyle: 'italic',
+        marginTop: SPACING.xxs,
+        lineHeight: 17,
     },
     descripcionSection: {
         marginBottom: SPACING.md,

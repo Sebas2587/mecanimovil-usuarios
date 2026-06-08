@@ -1989,10 +1989,6 @@ const FormularioSolicitud = ({
             {!ocultarSelectorServicios ? (
             <View style={{ marginBottom: 16 }}>
               <Text style={gs.sectionTitle}>Servicios disponibles</Text>
-              <Text style={[gs.sectionSub, { marginBottom: 12 }]}>
-                Selecciona los servicios que necesitas para tu {vehicle.marca_nombre} {vehicle.modelo_nombre}
-              </Text>
-              
 
               {/* Category Tabs */}
               {categoriasConServicios.length > 0 && (
