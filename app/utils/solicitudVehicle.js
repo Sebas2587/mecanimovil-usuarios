@@ -47,12 +47,21 @@ const ESTADOS_SOLICITUD_PUBLICA_CANCELABLES = new Set([
 ]);
 
 /**
+ * Espera respuesta del proveedor (confirmación o créditos): el cliente puede cancelar
+ * porque no depende de él que el proveedor no responda o no tenga saldo.
+ */
+const ESTADOS_ESPERA_PROVEEDOR_CANCELABLES = new Set([
+  'pendiente_confirmacion',
+  'esperando_creditos_proveedor',
+]);
+
+/**
  * True si el cliente puede cancelar desde la app (lista o detalle).
- * No aplica si ya eligió oferta (adjudicación / pago / ejecución).
+ * No aplica si ya está adjudicada, en pago o en ejecución.
  */
 export function puedeClienteCancelarSolicitudPublica(solicitud) {
   if (!solicitud || !solicitud.estado) return false;
-  if (solicitud.estado === 'pendiente_confirmacion') {
+  if (ESTADOS_ESPERA_PROVEEDOR_CANCELABLES.has(solicitud.estado)) {
     return true;
   }
   if (!ESTADOS_SOLICITUD_PUBLICA_CANCELABLES.has(solicitud.estado)) return false;
