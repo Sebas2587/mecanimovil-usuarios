@@ -94,6 +94,13 @@ const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
     [healthData],
   );
 
+  const { data: predictionsData, isLoading: predictionsLoading } = useQuery({
+    queryKey: ['vehicleHealthPredictions', vehicleId],
+    queryFn: () => VehicleHealthService.getVehiclePredictions(vehicleId),
+    enabled: !!vehicleId,
+    staleTime: 1000 * 60 * 15,
+  });
+
   const { data: vehicleServices = [], isLoading: servicesLoading } = useQuery({
     queryKey: ['vehicleServices', vehicleId],
     queryFn: () => getServicesByVehiculo(vehicleId),
@@ -106,11 +113,12 @@ const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
       healthComponents,
       vehicleServices,
       healthData?.alertas ?? [],
+      predictionsData?.predicciones ?? [],
     ),
-    [healthComponents, vehicleServices, healthData?.alertas],
+    [healthComponents, vehicleServices, healthData?.alertas, predictionsData?.predicciones],
   );
 
-  const loading = healthLoading || servicesLoading;
+  const loading = healthLoading || servicesLoading || predictionsLoading;
 
   if (!selectedVehicle) return null;
   if (!loading && recommendations.length === 0) return null;

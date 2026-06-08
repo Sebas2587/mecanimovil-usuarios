@@ -63,6 +63,13 @@ const HomeAgendamientoSheet = ({
     staleTime: 1000 * 60 * 2,
   });
 
+  const { data: predictionsData } = useQuery({
+    queryKey: ['vehicleHealthPredictions', vehicleId],
+    queryFn: () => VehicleHealthService.getVehiclePredictions(vehicleId),
+    enabled: visible && !!vehicleId,
+    staleTime: 1000 * 60 * 15,
+  });
+
   const healthComponents = useMemo(
     () => normalizeHealthComponentsList(healthData?.componentes ?? healthData),
     [healthData],
@@ -80,8 +87,9 @@ const HomeAgendamientoSheet = ({
       healthComponents,
       vehicleServices,
       healthData?.alertas ?? [],
+      predictionsData?.predicciones ?? [],
     ),
-    [healthComponents, vehicleServices, healthData?.alertas],
+    [healthComponents, vehicleServices, healthData?.alertas, predictionsData?.predicciones],
   );
 
   const serviciosIa = useMemo(
