@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { subscribeWebPush, unsubscribeWebPush, getWebPushStatus } from './webPushService';
 
 // setNotificationHandler se llama en App.js (nivel de módulo) para garantizar
 // que esté activo antes de que cualquier componente se monte.
@@ -103,24 +104,42 @@ class NotificationService {
   }
 
   /**
-   * Verificar si las notificaciones están disponibles
+   * Verificar si las notificaciones están disponibles.
+   * - En web: usa Web Push API nativa del navegador (no expo-notifications).
+   * - En nativo: usa expo-notifications.
    */
   isAvailable() {
-    // Si es web, las notificaciones push de Expo no están soportadas
-    if (Platform.OS === 'web') return false;
-
-    // NOTA: No bloqueamos por !Constants.isDevice aquí porque en algunos entornos 
-    // de producción/dev builds puede reportar false incorrectamente en dispositivos físicos.
+    if (Platform.OS === 'web') {
+      // Web Push esta disponible si el navegador soporta PushManager y Service Workers
+      if (typeof window === 'undefined') return false;
+      return 'PushManager' in window && 'serviceWorker' in navigator;
+    }
     return true;
   }
 
   /**
-   * Solicitar permisos para notificaciones
+   * Estado de las notificaciones web (util para debugging y UI).
+   */
+  async getWebPushStatus() {
+    if (Platform.OS !== 'web') return { supported: false };
+    return getWebPushStatus();
+  }
+
+  /**
+   * Solicitar permisos para notificaciones.
+   * En web: solicita permiso de notificacion nativo del navegador.
+   * En nativo: usa expo-notifications.
    */
   async requestPermissions() {
     console.log('📱 [NotificationService] Solicitando permisos...');
     try {
-      if (Platform.OS === 'web') return false;
+      if (Platform.OS === 'web') {
+        if (typeof window === 'undefined' || !('Notification' in window)) return false;
+        if (Notification.permission === 'granted') return true;
+        if (Notification.permission === 'denied') return false;
+        const result = await Notification.requestPermission();
+        return result === 'granted';
+      }
 
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       console.log('📱 [NotificationService] Estado actual de permisos:', existingStatus);
@@ -165,7 +184,28 @@ class NotificationService {
 
   async mostrarNotificacionLocal(titulo, mensaje, data = {}) {
     try {
-      // Web (y entornos sin módulo nativo): no hay scheduleNotificationAsync; evitar UnavailabilityError.
+      // En web: usar Notification API nativa del navegador (no expo-notifications)
+      if (Platform.OS === 'web') {
+        if (typeof window === 'undefined' || !('Notification' in window)) return;
+        if (Notification.permission !== 'granted') return;
+        // Service Workers activos pueden mostrar notificaciones con mas opciones
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.getRegistration('/sw.js');
+          if (reg) {
+            await reg.showNotification(titulo, {
+              body: mensaje,
+              icon: '/assets/images/app-icon.png',
+              data,
+              tag: (data?.type || 'local') + Date.now(),
+            });
+            return;
+          }
+        }
+        // Fallback: Notification API directa
+        new Notification(titulo, { body: mensaje });
+        return;
+      }
+
       if (!this.isAvailable()) {
         return;
       }

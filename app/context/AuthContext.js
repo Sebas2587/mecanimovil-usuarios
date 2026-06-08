@@ -9,6 +9,7 @@ import logger from '../utils/logger';
 import NotificationService from '../services/notificationService';
 import Constants from 'expo-constants';
 import { queryClient, clearPersistedQueryCache } from '../config/queryClient';
+import { subscribeWebPush, unsubscribeWebPush } from '../services/webPushService';
 
 // @react-native-google-signin/google-signin — solo binarios iOS/Android; no web ni Expo Go.
 const IS_EXPO_GO = Constants.appOwnership === 'expo';
@@ -181,6 +182,12 @@ export const AuthProvider = ({ children }) => {
     if (user && token) {
       const timer = setTimeout(() => {
         registrarPushToken();
+        // Web Push: suscribir al canal web cuando el usuario tiene sesion activa
+        if (Platform.OS === 'web') {
+          subscribeWebPush().catch((e) =>
+            logger.warn('[webPush] Error al suscribir (no critico):', e?.message || e)
+          );
+        }
       }, 1000);
 
       return () => clearTimeout(timer);
@@ -961,6 +968,15 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (_pushErr) {
         logger.warn('⚠️ No se pudo desactivar push token:', _pushErr?.message);
+      }
+
+      // Web Push: desuscribir del canal web al cerrar sesion
+      if (Platform.OS === 'web') {
+        try {
+          await unsubscribeWebPush();
+        } catch (_webPushErr) {
+          logger.warn('⚠️ No se pudo desactivar web push:', _webPushErr?.message);
+        }
       }
 
       // El cierre de sesión local debe ocurrir aunque el POST falle (red, CSRF, etc.).
