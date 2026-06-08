@@ -63,7 +63,7 @@ function HealthWearServiceCard({ rec, onAgendar }) {
 
       <TouchableOpacity
         style={styles.agendarLink}
-        onPress={() => onAgendar?.(svc)}
+        onPress={() => onAgendar?.(svc, rec)}
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityLabel={`Agendar ${svc.nombre}`}
@@ -81,13 +81,18 @@ function HealthWearServiceCard({ rec, onAgendar }) {
 const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
   const vehicleId = selectedVehicle?.id;
 
-  const { data: healthComponents = [], isLoading: healthLoading } = useQuery({
-    queryKey: ['vehicleHealthComponents', vehicleId],
-    queryFn: () => VehicleHealthService.getComponents(vehicleId),
+  // Misma fuente que VehicleHealthScreen (componentes + alertas del reporte completo).
+  const { data: healthData, isLoading: healthLoading } = useQuery({
+    queryKey: ['vehicleHealth', vehicleId],
+    queryFn: () => VehicleHealthService.getVehicleHealthWithPatches(vehicleId, true),
     enabled: !!vehicleId,
-    staleTime: 1000 * 60 * 5,
-    select: normalizeHealthComponentsList,
+    staleTime: 1000 * 60 * 2,
   });
+
+  const healthComponents = useMemo(
+    () => normalizeHealthComponentsList(healthData?.componentes ?? healthData),
+    [healthData],
+  );
 
   const { data: vehicleServices = [], isLoading: servicesLoading } = useQuery({
     queryKey: ['vehicleServices', vehicleId],
@@ -97,8 +102,12 @@ const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
   });
 
   const recommendations = useMemo(
-    () => buildHealthServiceRecommendations(healthComponents, vehicleServices),
-    [healthComponents, vehicleServices],
+    () => buildHealthServiceRecommendations(
+      healthComponents,
+      vehicleServices,
+      healthData?.alertas ?? [],
+    ),
+    [healthComponents, vehicleServices, healthData?.alertas],
   );
 
   const loading = healthLoading || servicesLoading;
@@ -126,7 +135,7 @@ const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
         >
           {recommendations.map((rec) => (
             <HealthWearServiceCard
-              key={`health-${rec.componentName}-${rec.service.id}`}
+              key={`health-${rec.componentKey}-${rec.service?.id ?? 'open'}`}
               rec={rec}
               onAgendar={onAgendarServicio}
             />

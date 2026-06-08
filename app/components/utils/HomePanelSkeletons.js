@@ -52,7 +52,7 @@ export const HomeTrendingChipsSkeleton = ({ count = 3 }) => (
 );
 
 /** Cards de mantenimiento por desgaste (HomeHealthServicesRow) */
-export const HomeHealthCardsSkeleton = ({ count = 2 }) => (
+export const HomeHealthCardsSkeleton = ({ count = 4 }) => (
   <ScrollView
     horizontal
     showsHorizontalScrollIndicator={false}

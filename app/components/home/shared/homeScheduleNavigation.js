@@ -27,6 +27,21 @@ export function navigateCrearSolicitudConServicio(navigation, { vehicle, servici
   });
 }
 
+/** Componente con desgaste sin servicio de catálogo asociado (solicitud abierta). */
+export function navigateCrearSolicitudDesdeDesgaste(
+  navigation,
+  { vehicle, componentName, descripcion = '' },
+) {
+  if (!vehicle?.id) return;
+  const texto = descripcion?.trim()
+    || (componentName ? `Mantenimiento sugerido por desgaste: ${componentName}` : '');
+  navigation.navigate(ROUTES.CREAR_SOLICITUD, {
+    vehicle,
+    descripcionPrellenada: texto,
+    ...inteligenteExtras(),
+  });
+}
+
 /** Solicitud dirigida a un proveedor concreto (explorar / perfil). */
 export function navigateCrearSolicitudConProveedor(navigation, { vehicle, provider }) {
   if (!vehicle?.id || !provider?.id) return;

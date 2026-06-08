@@ -56,13 +56,17 @@ const HomeAgendamientoSheet = ({
     reset,
   } = useAgendamientoAsistido();
 
-  const { data: healthComponents = [] } = useQuery({
-    queryKey: ['vehicleHealthComponents', vehicleId],
-    queryFn: () => VehicleHealthService.getComponents(vehicleId),
+  const { data: healthData } = useQuery({
+    queryKey: ['vehicleHealth', vehicleId],
+    queryFn: () => VehicleHealthService.getVehicleHealthWithPatches(vehicleId, true),
     enabled: visible && !!vehicleId,
-    staleTime: 1000 * 60 * 5,
-    select: normalizeHealthComponentsList,
+    staleTime: 1000 * 60 * 2,
   });
+
+  const healthComponents = useMemo(
+    () => normalizeHealthComponentsList(healthData?.componentes ?? healthData),
+    [healthData],
+  );
 
   const { data: vehicleServices = [] } = useQuery({
     queryKey: ['vehicleServices', vehicleId],
@@ -72,8 +76,12 @@ const HomeAgendamientoSheet = ({
   });
 
   const healthRecs = useMemo(
-    () => buildHealthServiceRecommendations(healthComponents, vehicleServices),
-    [healthComponents, vehicleServices],
+    () => buildHealthServiceRecommendations(
+      healthComponents,
+      vehicleServices,
+      healthData?.alertas ?? [],
+    ),
+    [healthComponents, vehicleServices, healthData?.alertas],
   );
 
   const serviciosIa = useMemo(

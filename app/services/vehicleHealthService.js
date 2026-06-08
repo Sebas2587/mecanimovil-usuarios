@@ -205,13 +205,35 @@ class VehicleHealthService {
     try {
       const response = await get(`/vehiculos/health/vehicle/${vehicleId}/components/`, {
         page,
-        page_size: 20
+        page_size: 50,
       });
       return response;
     } catch (error) {
       console.error('Error obteniendo componentes:', error);
       throw error;
     }
+  }
+
+  /**
+   * Todos los componentes de salud (pagina hasta agotar has_more).
+   * Usado en recomendaciones de mantenimiento para no perder alertas fuera de la página 1.
+   */
+  static async getAllComponents(vehicleId) {
+    const all = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore && page <= 20) {
+      const response = await this.getComponents(vehicleId, page);
+      const batch = Array.isArray(response)
+        ? response
+        : (response?.results ?? response?.componentes ?? []);
+      all.push(...batch);
+      hasMore = !Array.isArray(response) && response?.has_more === true;
+      page += 1;
+    }
+
+    return all;
   }
   
   /**

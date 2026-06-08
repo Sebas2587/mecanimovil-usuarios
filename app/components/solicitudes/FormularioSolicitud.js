@@ -266,14 +266,11 @@ const FormularioSolicitud = ({
     data: healthComponentsQuery = [],
   } = useQuery({
     queryKey: ['vehicleHealthComponents', vehiculoId],
-    queryFn: () => VehicleHealthService.getComponents(vehiculoId),
+    queryFn: () => VehicleHealthService.getAllComponents(vehiculoId),
     enabled: !!vehiculoId,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 30,
-    select: (data) => {
-      const results = Array.isArray(data) ? data : (data?.results || []);
-      return results;
-    },
+    select: (data) => (Array.isArray(data) ? data : (data?.results || data?.componentes || [])),
     placeholderData: () => {
       const vehicleReport = formData.vehiculo?.health_report;
       return Array.isArray(vehicleReport) && vehicleReport.length > 0 ? vehicleReport : undefined;

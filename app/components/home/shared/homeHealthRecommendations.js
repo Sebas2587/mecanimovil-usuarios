@@ -8,6 +8,12 @@ export function normalizeHealthComponentsList(data) {
   return [];
 }
 
+const ALERT_PRIORITY = {
+  CRITICO: 0,
+  URGENTE: 1,
+  ATENCION: 2,
+};
+
 /**
  * Recomendaciones de servicio según componentes de salud (misma lógica que FormularioSolicitud).
  */
@@ -30,7 +36,88 @@ export function resolveHealthComponentDisplayName(comp) {
   return 'Componente';
 }
 
-export function buildHealthServiceRecommendations(healthComponents = [], serviciosDisponibles = []) {
+export function resolveHealthComponentKey(comp) {
+  if (!comp) return 'componente';
+  const slug = comp.slug || comp.componente_detail?.slug || comp.icon_slug;
+  if (typeof slug === 'string' && slug.trim()) return slug.trim();
+  if (comp.id != null) return `id-${comp.id}`;
+  return resolveHealthComponentDisplayName(comp);
+}
+
+function resolveAlertLevel(comp) {
+  return (comp.nivel_alerta || comp.status || 'OPTIMO').toUpperCase();
+}
+
+function resolveRecommendationService(svcCandidate, availableById) {
+  const svcId = svcCandidate?.id;
+  if (!svcId) return null;
+  const fromCatalog = availableById.get(svcId);
+  if (fromCatalog) return fromCatalog;
+  return {
+    id: svcId,
+    nombre: svcCandidate.nombre || 'Servicio',
+    descripcion: svcCandidate.descripcion || '',
+    precio_referencia: svcCandidate.precio_referencia ?? null,
+  };
+}
+
+function resolveServicesForComponent(comp, alertas = [], availableById = new Map()) {
+  const resolved = [];
+  const seenIds = new Set();
+
+  const addCandidate = (svcCandidate) => {
+    const svc = resolveRecommendationService(svcCandidate, availableById);
+    if (!svc?.id || seenIds.has(svc.id)) return;
+    seenIds.add(svc.id);
+    resolved.push(svc);
+  };
+
+  const direct = Array.isArray(comp.servicios_asociados) ? comp.servicios_asociados : [];
+  direct.forEach(addCandidate);
+
+  const compSaludId = comp.id;
+  if (compSaludId && Array.isArray(alertas)) {
+    for (const alerta of alertas) {
+      const match =
+        alerta.componente_salud === compSaludId
+        || alerta.componente_salud_detail?.id === compSaludId;
+      if (!match) continue;
+      const fromAlerta = alerta.servicios_recomendados_detail || alerta.servicios_recomendados || [];
+      fromAlerta.forEach(addCandidate);
+    }
+  }
+
+  return resolved;
+}
+
+function buildGenericService(compName, comp) {
+  const mensaje = typeof comp?.mensaje_alerta === 'string' ? comp.mensaje_alerta.trim() : '';
+  return {
+    id: null,
+    nombre: mensaje || `Revisión de ${compName}`,
+    descripcion: mensaje,
+    isGeneric: true,
+  };
+}
+
+function sortComponentsByUrgency(a, b) {
+  const levelA = resolveAlertLevel(a);
+  const levelB = resolveAlertLevel(b);
+  const prioA = ALERT_PRIORITY[levelA] ?? 99;
+  const prioB = ALERT_PRIORITY[levelB] ?? 99;
+  if (prioA !== prioB) return prioA - prioB;
+  return (a.salud_porcentaje ?? a.salud ?? 100) - (b.salud_porcentaje ?? b.salud ?? 100);
+}
+
+/**
+ * Una card por cada componente con desgaste (ATENCION / URGENTE / CRITICO).
+ * Fuente alineada con VehicleHealthScreen: componentes + alertas del reporte de salud.
+ */
+export function buildHealthServiceRecommendations(
+  healthComponents = [],
+  serviciosDisponibles = [],
+  alertas = [],
+) {
   if (!healthComponents?.length) return [];
 
   const availableById = new Map();
@@ -39,43 +126,33 @@ export function buildHealthServiceRecommendations(healthComponents = [], servici
   }
 
   const recs = [];
-  const seenServiceIds = new Set();
+  const seenComponentKeys = new Set();
 
-  const critical = [...healthComponents]
-    .filter((c) => {
-      const level = c.nivel_alerta || c.status || 'OPTIMO';
-      return level !== 'OPTIMO';
-    })
-    .sort(
-      (a, b) =>
-        (a.salud_porcentaje ?? a.salud ?? 100) - (b.salud_porcentaje ?? b.salud ?? 100),
-    )
-    .slice(0, 6);
+  const worn = [...healthComponents]
+    .filter((c) => resolveAlertLevel(c) !== 'OPTIMO')
+    .sort(sortComponentsByUrgency);
 
-  for (const comp of critical) {
+  for (const comp of worn) {
+    const compKey = resolveHealthComponentKey(comp);
+    if (seenComponentKeys.has(compKey)) continue;
+    seenComponentKeys.add(compKey);
+
     const compName = resolveHealthComponentDisplayName(comp);
     const compHealth = comp.salud_porcentaje ?? comp.salud ?? 0;
-    const compLevel = comp.nivel_alerta || comp.status || 'ATENCION';
+    const compLevel = resolveAlertLevel(comp);
     const kmRest = comp.km_estimados_restantes ?? comp.km_restantes ?? null;
-    const services = Array.isArray(comp.servicios_asociados) ? comp.servicios_asociados : [];
+    const services = resolveServicesForComponent(comp, alertas, availableById);
+    const service = services[0] || buildGenericService(compName, comp);
 
-    for (const svcCandidate of services) {
-      const svcId = svcCandidate?.id;
-      if (!svcId || seenServiceIds.has(svcId)) continue;
-      const svc = availableById.get(svcId);
-      if (!svc) continue;
-
-      seenServiceIds.add(svcId);
-      recs.push({
-        componentName: compName,
-        componentHealth: compHealth,
-        componentLevel: compLevel,
-        kmRestantes: kmRest,
-        service: svc,
-      });
-      // Un servicio por componente: evita varias cards con el mismo desgaste
-      break;
-    }
+    recs.push({
+      componentKey: compKey,
+      componentName: compName,
+      componentHealth: compHealth,
+      componentLevel: compLevel,
+      kmRestantes: kmRest,
+      service,
+      needsOpenRequest: !services.length,
+    });
   }
 
   return recs;

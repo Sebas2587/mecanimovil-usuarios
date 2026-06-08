@@ -43,6 +43,7 @@ import { EXPLORE_MODE_CERCA, EXPLORE_MODE_PARA_TI } from '../../components/provi
 import { shortAddressLabel } from '../../components/home/shared/homeProviderListUtils';
 import {
   navigateCrearSolicitudConServicio,
+  navigateCrearSolicitudDesdeDesgaste,
   navigateCrearSolicitudDesdeTrending,
   navigateCrearSolicitudDesdeHome,
 } from '../../components/home/shared/homeScheduleNavigation';
@@ -189,9 +190,9 @@ const UserPanelScreen = () => {
       });
     }
     queryClient.prefetchQuery({
-      queryKey: ['vehicleHealthComponents', vid],
-      queryFn: () => VehicleHealthService.getComponents(vid),
-      staleTime: 1000 * 60 * 5,
+      queryKey: ['vehicleHealth', vid],
+      queryFn: () => VehicleHealthService.getVehicleHealthWithPatches(vid, true),
+      staleTime: 1000 * 60 * 2,
     });
   }, [selectedVehicle?.id, vehiclesCategoryKey, vehicles, queryClient]);
 
@@ -630,10 +631,21 @@ const UserPanelScreen = () => {
 
         <HomeHealthServicesRow
           selectedVehicle={selectedVehicle}
-          onAgendarServicio={(servicio) => {
+          onAgendarServicio={(servicio, rec) => {
+            if (rec?.needsOpenRequest || !servicio?.id) {
+              navigateCrearSolicitudDesdeDesgaste(navigation, {
+                vehicle: selectedVehicle,
+                componentName: rec?.componentName,
+                descripcion: servicio?.descripcion || servicio?.nombre,
+              });
+              return;
+            }
             navigateCrearSolicitudConServicio(navigation, {
               vehicle: selectedVehicle,
               servicio,
+              descripcion: rec?.componentName
+                ? `Mantenimiento sugerido: ${rec.componentName}`
+                : '',
             });
           }}
         />
