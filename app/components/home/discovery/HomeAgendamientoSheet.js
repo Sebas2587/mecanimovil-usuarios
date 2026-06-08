@@ -82,13 +82,16 @@ const HomeAgendamientoSheet = ({
     staleTime: 1000 * 60 * 5,
   });
 
+  // Solo las recomendaciones con servicio de catálogo vinculado se usan aquí
+  // (para chips de selección y preselección). Las que no tienen servicio se
+  // muestran en HomeHealthServicesRow con la opción de solicitud abierta.
   const healthRecs = useMemo(
     () => buildHealthServiceRecommendations(
       healthComponents,
       vehicleServices,
       healthData?.alertas ?? [],
       predictionsData?.predicciones ?? [],
-    ),
+    ).filter((rec) => rec?.service?.id),
     [healthComponents, vehicleServices, healthData?.alertas, predictionsData?.predicciones],
   );
 
@@ -128,8 +131,9 @@ const HomeAgendamientoSheet = ({
   useEffect(() => {
     if (!visible || !vehicleId || !iaActivo) return;
     if (serviciosSeleccionados.length > 0) return;
-    if (healthRecs.length > 0) {
-      setServiciosSeleccionados([healthRecs[0].service]);
+    const firstWithService = healthRecs.find((r) => r?.service?.id);
+    if (firstWithService) {
+      setServiciosSeleccionados([firstWithService.service]);
     }
   }, [visible, vehicleId, iaActivo, healthRecs, serviciosSeleccionados.length]);
 

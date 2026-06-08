@@ -11,11 +11,20 @@ export function normalizeHealthComponentsList(data) {
 const ALERT_PRIORITY = {
   CRITICO: 0,
   URGENTE: 1,
-  ATENCION: 2,
 };
 
-/** Palabras clave por slug — alineado con backend componente_servicio_sugerido.py */
+const ALERT_LEVEL_LABELS = {
+  CRITICO: 'Crítico',
+  URGENTE: 'Urgente',
+};
+
+/**
+ * Palabras clave por slug → qué debe contener el NOMBRE del servicio para
+ * considerarse relevante para ese componente.
+ * Incluye slugs en inglés (legacy) y en español (slugs actuales de la BD).
+ */
 const SLUG_SERVICE_KEYWORDS = {
+  // ── Inglés (slugs legacy) ────────────────────────────────────────────────
   tires: ['neumatico', 'neumático', 'goma', 'llanta', 'rotacion', 'rotación', 'alineacion', 'alineación', 'balanceo'],
   brakes: ['pastilla', 'freno'],
   'brake-discs': ['disco', 'rectificado', 'pastilla', 'freno'],
@@ -31,6 +40,24 @@ const SLUG_SERVICE_KEYWORDS = {
   'timing-belt': ['correa', 'distribucion', 'distribución'],
   exhaust: ['dpf', 'particula', 'partícula', 'filtro de part', 'escape'],
   adblue: ['adblue', 'urea'],
+  // ── Español (slugs actuales de la BD) ────────────────────────────────────
+  neumaticos: ['neumatico', 'neumático', 'goma', 'llanta', 'rotacion', 'rotación', 'alineacion', 'alineación', 'balanceo'],
+  'pastillas-freno': ['pastilla', 'freno'],
+  'discos-freno': ['disco', 'rectificado', 'pastilla', 'freno'],
+  'liquido-frenos': ['liquido de freno', 'líquido de freno', 'liquido frenos'],
+  'aceite-motor': ['aceite motor', 'cambio de aceite', 'aceite y filtro'],
+  'filtro-aceite': ['filtro de aceite', 'filtro aceite', 'aceite motor y filtro'],
+  'filtro-aire': ['filtro de aire', 'filtro aire'],
+  'filtro-habitaculo': ['filtro habitaculo', 'filtro habitáculo', 'filtro cabina', 'habitaculo', 'habitáculo'],
+  'filtro-cabina': ['filtro habitaculo', 'filtro habitáculo', 'filtro cabina', 'habitaculo', 'habitáculo'],
+  bujias: ['bujia', 'bujía'],
+  bateria: ['bateria', 'batería'],
+  refrigerante: ['refrigerante'],
+  amortiguadores: ['amortiguador'],
+  'correa-distribucion': ['correa', 'distribucion', 'distribución', 'correa de distribucion'],
+  embrague: ['embrague', 'disco de embrague'],
+  'aceite-transmision': ['aceite transmision', 'aceite de transmision', 'caja de cambio'],
+  'filtro-combustible': ['filtro combustible', 'filtro de combustible'],
 };
 
 const GENERIC_SERVICE_PATTERNS = [
@@ -42,7 +69,12 @@ const GENERIC_SERVICE_PATTERNS = [
 const COMBO_PENALTY = {
   'air-filter': ['aceite motor y filtro', -25],
   'cabin-filter': ['aceite motor y filtro', -25],
+  'filtro-aire': ['aceite motor y filtro', -25],
+  'filtro-habitaculo': ['aceite motor y filtro', -25],
+  'filtro-cabina': ['aceite motor y filtro', -25],
 };
+
+const ML_HINT_OPTIMO_PATTERN = /óptimo estado|sin proyección/i;
 
 function normalizeText(value) {
   return String(value || '')
@@ -69,10 +101,12 @@ function scoreServiceForSlug(slug, svc) {
 }
 
 /**
- * Recomendaciones de servicio según componentes de salud (misma lógica que FormularioSolicitud).
+ * Nombre canónico del componente (snapshot de salud del API).
  */
-export function resolveHealthComponentDisplayName(comp) {
+export function resolveHealthComponentDisplayName(comp, prediction = null) {
+  if (!comp && prediction?.componente) return String(prediction.componente).trim();
   if (!comp) return 'Componente';
+
   const n = comp.nombre;
   if (typeof n === 'string' && n.trim()) return n.trim();
   const detail = comp.componente_detail;
@@ -84,8 +118,9 @@ export function resolveHealthComponentDisplayName(comp) {
   if (typeof comp.componente_nombre === 'string' && comp.componente_nombre.trim()) {
     return comp.componente_nombre.trim();
   }
+  if (prediction?.componente) return String(prediction.componente).trim();
   if (typeof comp.slug === 'string' && comp.slug.trim()) {
-    return comp.slug.replace(/_/g, ' ');
+    return comp.slug.replace(/-/g, ' ');
   }
   return 'Componente';
 }
@@ -98,8 +133,19 @@ export function resolveHealthComponentKey(comp) {
   return resolveHealthComponentDisplayName(comp);
 }
 
-function resolveAlertLevel(comp) {
+export function resolveAlertLevel(comp) {
   return (comp.nivel_alerta || comp.status || 'OPTIMO').toUpperCase();
+}
+
+export function isCriticalOrUrgentComponent(comp) {
+  const level = resolveAlertLevel(comp);
+  return level === 'CRITICO' || level === 'URGENTE';
+}
+
+export function resolveAlertLevelLabel(comp) {
+  const level = resolveAlertLevel(comp);
+  if (comp?.nivel_alerta_display) return comp.nivel_alerta_display;
+  return ALERT_LEVEL_LABELS[level] || level;
 }
 
 function resolveRecommendationService(svcCandidate, availableById) {
@@ -157,59 +203,47 @@ function pickBestServiceForComponent(compKey, candidates, availableById) {
     .filter(Boolean)
     .sort((a, b) => b.score - a.score);
 
+  if (scored.length === 0) return null;
+
+  // Prefer a service with positive keyword match.
   const positive = scored.find((row) => row.score >= 1);
-  return positive?.svc || null;
+  if (positive) return positive.svc;
+
+  // Fallback: top-scored service that isn't flagged as a generic maintenance
+  // catch-all (those score -60). The backend already filtered irrelevant
+  // services via servicios_asociados, so score-0 items are still meaningful.
+  const nonGeneric = scored.find((row) => row.score > -55);
+  return nonGeneric?.svc || null;
 }
 
-function buildGenericService(compName, comp, prediction) {
-  const mlText = typeof prediction?.recomendacion === 'string' ? prediction.recomendacion.trim() : '';
+function resolveComponentHint(comp, prediction, compLevel) {
   const mensaje = typeof comp?.mensaje_alerta === 'string' ? comp.mensaje_alerta.trim() : '';
-  const nombre = mlText
-    ? mlText.split('.')[0].trim()
-    : (mensaje || `Revisión de ${compName}`);
-  return {
-    id: null,
-    nombre,
-    descripcion: mlText || mensaje,
-    isGeneric: true,
-  };
-}
+  if (mensaje) return mensaje;
 
-function componentNeedsAttention(comp, prediction) {
-  const level = resolveAlertLevel(comp);
-  if (level !== 'OPTIMO') return true;
-  if (!prediction) return false;
-  if (prediction.nivel_alerta && String(prediction.nivel_alerta).toUpperCase() !== 'OPTIMO') {
-    return true;
+  const ml = typeof prediction?.recomendacion === 'string' ? prediction.recomendacion.trim() : '';
+  if (!ml) return null;
+  if (ML_HINT_OPTIMO_PATTERN.test(ml)) return null;
+  if (compLevel === 'CRITICO' || compLevel === 'URGENTE') {
+    return ml;
   }
-  if (prediction.salud_actual != null && prediction.salud_actual < 70) return true;
-  if (prediction.dias_hasta_atencion != null && prediction.dias_hasta_atencion <= 30) return true;
-  return false;
-}
-
-function resolveComponentHealth(comp, prediction) {
-  const fromHealth = comp.salud_porcentaje ?? comp.salud;
-  if (fromHealth != null && prediction?.salud_actual != null) {
-    return Math.min(Number(fromHealth), Number(prediction.salud_actual));
-  }
-  return fromHealth ?? prediction?.salud_actual ?? 0;
+  return null;
 }
 
 function resolveKmRestantes(comp, prediction) {
+  const fromHealth = comp.km_estimados_restantes ?? comp.km_restantes;
+  if (fromHealth != null) return fromHealth;
   if (prediction?.km_hasta_servicio != null) return prediction.km_hasta_servicio;
-  return comp.km_estimados_restantes ?? comp.km_restantes ?? null;
+  return null;
 }
 
-function sortComponentsByUrgency(a, b, predMap) {
-  const predA = predMap.get(resolveHealthComponentKey(a));
-  const predB = predMap.get(resolveHealthComponentKey(b));
+function sortComponentsByUrgency(a, b) {
   const levelA = resolveAlertLevel(a);
   const levelB = resolveAlertLevel(b);
   const prioA = ALERT_PRIORITY[levelA] ?? 99;
   const prioB = ALERT_PRIORITY[levelB] ?? 99;
   if (prioA !== prioB) return prioA - prioB;
-  const healthA = resolveComponentHealth(a, predA);
-  const healthB = resolveComponentHealth(b, predB);
+  const healthA = a.salud_porcentaje ?? a.salud ?? 100;
+  const healthB = b.salud_porcentaje ?? b.salud ?? 100;
   return healthA - healthB;
 }
 
@@ -225,7 +259,8 @@ function dedupeGenericServiceCards(recs) {
 }
 
 /**
- * Una card por componente con desgaste, servicio específico por slug + predicción ML.
+ * Cards de mantenimiento: solo componentes CRITICO/URGENTE del snapshot de salud.
+ * ML enriquece km e hint; nunca define elegibilidad ni reemplaza nombres.
  */
 export function buildHealthServiceRecommendations(
   healthComponents = [],
@@ -249,36 +284,36 @@ export function buildHealthServiceRecommendations(
   const recs = [];
   const seenComponentKeys = new Set();
 
-  const worn = [...healthComponents]
-    .filter((c) => componentNeedsAttention(c, predMap.get(resolveHealthComponentKey(c))))
-    .sort((a, b) => sortComponentsByUrgency(a, b, predMap));
+  const urgentComponents = [...healthComponents]
+    .filter(isCriticalOrUrgentComponent)
+    .sort(sortComponentsByUrgency);
 
-  for (const comp of worn) {
+  for (const comp of urgentComponents) {
     const compKey = resolveHealthComponentKey(comp);
     if (seenComponentKeys.has(compKey)) continue;
     seenComponentKeys.add(compKey);
 
     const prediction = predMap.get(compKey) || null;
-    const compName = resolveHealthComponentDisplayName(comp);
-    const compHealth = resolveComponentHealth(comp, prediction);
+    const compName = resolveHealthComponentDisplayName(comp, prediction);
+    const compHealth = comp.salud_porcentaje ?? comp.salud ?? 0;
     const compLevel = resolveAlertLevel(comp);
+    const compLevelLabel = resolveAlertLevelLabel(comp);
     const kmRest = resolveKmRestantes(comp, prediction);
 
     const candidates = collectServiceCandidates(comp, alertas, prediction);
-    const service =
-      pickBestServiceForComponent(compKey, candidates, availableById)
-      || buildGenericService(compName, comp, prediction);
+    const service = pickBestServiceForComponent(compKey, candidates, availableById);
+    const hint = resolveComponentHint(comp, prediction, compLevel);
 
     recs.push({
       componentKey: compKey,
       componentName: compName,
       componentHealth: compHealth,
       componentLevel: compLevel,
+      componentLevelLabel: compLevelLabel,
       kmRestantes: kmRest,
-      service,
-      prediction,
+      service: service || null,
+      hint,
       needsOpenRequest: !service?.id,
-      mlRecomendacion: prediction?.recomendacion || null,
     });
   }
 

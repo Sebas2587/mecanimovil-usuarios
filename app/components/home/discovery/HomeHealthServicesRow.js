@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { HomeHealthCardsSkeleton } from '../../utils/HomePanelSkeletons';
 import { useQuery } from '@tanstack/react-query';
-import { Wrench, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import VehicleHealthService from '../../../services/vehicleHealthService';
@@ -25,39 +25,61 @@ function formatKm(km) {
 }
 
 function HealthWearServiceCard({ rec, onAgendar }) {
-  const svc = rec.service;
+  if (!rec) return null;
+
+  const svc = rec.service ?? null;
+  const svcId = svc?.id ?? null;
+  const svcNombre = svc?.nombre ?? null;
+  const hasService = Boolean(svcId);
+
   const pct = Math.round(rec.componentHealth ?? 0);
   const accent = getHealthColorToken(COLORS, pct);
   const kmLine = formatKm(rec.kmRestantes);
+  const levelLabel = rec.componentLevelLabel || rec.componentLevel || '';
+  const compName = rec.componentName || 'Componente';
+  const agendarLabel = hasService && svcNombre
+    ? `Agendar ${svcNombre}`
+    : `Agendar revisión de ${compName}`;
 
   return (
     <View style={styles.card}>
-      <View style={styles.topRow}>
-        
-        <View style={styles.topText}>
-          <Text style={styles.componentLabel} numberOfLines={1}>
-            {rec.componentName}
-          </Text>
-          <View style={styles.pctRow}>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${Math.min(100, Math.max(0, pct))}%`,
-                    backgroundColor: accent,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.pctText, { color: accent }]}>{pct}%</Text>
-          </View>
+      <Text style={styles.componentTitle} numberOfLines={2}>
+        {compName}
+      </Text>
+
+      <View style={styles.pctRow}>
+        <Text style={[styles.levelText, { color: accent }]}>
+          {levelLabel}
+        </Text>
+        <View style={styles.progressTrack}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${Math.min(100, Math.max(0, pct))}%`,
+                backgroundColor: accent,
+              },
+            ]}
+          />
         </View>
+        <Text style={[styles.pctText, { color: accent }]}>{pct}%</Text>
       </View>
 
-      <Text style={styles.svcName} numberOfLines={2}>
-        {svc.nombre}
-      </Text>
+      {hasService && svcNombre ? (
+        <Text style={styles.svcName} numberOfLines={2}>
+          {svcNombre}
+        </Text>
+      ) : (
+        <Text style={styles.svcPlaceholder} numberOfLines={2}>
+          Sin servicio en catálogo
+        </Text>
+      )}
+
+      {rec.hint ? (
+        <Text style={styles.hintLine} numberOfLines={2}>
+          {rec.hint}
+        </Text>
+      ) : null}
 
       {kmLine ? <Text style={styles.kmLine}>{kmLine}</Text> : null}
 
@@ -66,7 +88,7 @@ function HealthWearServiceCard({ rec, onAgendar }) {
         onPress={() => onAgendar?.(svc, rec)}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={`Agendar ${svc.nombre}`}
+        accessibilityLabel={agendarLabel}
       >
         <Text style={styles.agendarLinkText}>Agendar</Text>
         <ChevronRight size={16} color={COLORS.primary[500]} />
@@ -175,36 +197,26 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
     ...SHADOWS.sm,
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 10,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  componentLabel: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+  componentTitle: {
+    fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 6,
+    color: COLORS.text.primary,
+    lineHeight: 21,
+    marginBottom: 8,
+    minHeight: 42,
   },
   pctRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+    marginBottom: 8,
+  },
+  levelText: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    minWidth: 52,
   },
   progressTrack: {
     flex: 1,
@@ -225,12 +237,24 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   svcName: {
-    fontSize: TYPOGRAPHY.fontSize.md,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-    lineHeight: 21,
+    color: COLORS.text.secondary,
+    lineHeight: 18,
     marginBottom: 4,
-    minHeight: 42,
+  },
+  svcPlaceholder: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+  hintLine: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.tertiary,
+    lineHeight: 16,
+    marginBottom: 4,
   },
   kmLine: {
     fontSize: TYPOGRAPHY.fontSize.xs,

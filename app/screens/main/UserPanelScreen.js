@@ -636,7 +636,7 @@ const UserPanelScreen = () => {
               navigateCrearSolicitudDesdeDesgaste(navigation, {
                 vehicle: selectedVehicle,
                 componentName: rec?.componentName,
-                descripcion: servicio?.descripcion || servicio?.nombre,
+                descripcion: rec?.hint || undefined,
               });
               return;
             }
