@@ -53,6 +53,29 @@ class ChecklistClienteService {
    *   GPS opcional.
    * @returns {Promise<Object>} Respuesta del backend.
    */
+  /**
+   * Obtiene las recomendaciones ML generadas post-checklist para el cliente.
+   * Solo disponible si el checklist está en estado COMPLETADO.
+   *
+   * @param {number} instanceId - ID del `ChecklistInstance`.
+   * @returns {Promise<Object|null>} Objeto con recomendaciones, o null si no hay datos.
+   */
+  async obtenerRecomendacionesChecklist(instanceId) {
+    if (!instanceId) return null;
+    try {
+      const response = await get(`/checklists/instances/${instanceId}/recomendaciones/`);
+      return response;
+    } catch (error) {
+      const status = error?.status ?? error?.response?.status;
+      if (status === 400 || status === 403 || status === 404) {
+        // Checklist no completado o sin permiso → retornar null silenciosamente
+        return null;
+      }
+      console.warn('ChecklistClienteService: no se pudieron obtener recomendaciones:', error);
+      return null;
+    }
+  }
+
   async firmarChecklistComoCliente(instanceId, firmaBase64, ubicacion = null) {
     if (!instanceId) {
       throw new Error('Falta el ID del checklist para firmar.');
