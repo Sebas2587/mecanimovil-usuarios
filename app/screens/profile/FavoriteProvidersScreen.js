@@ -60,26 +60,8 @@ const FavoriteProvidersScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {favorites.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="heart-outline" size={64} color={COLORS.neutral.gray[300]} />
-            <Text style={styles.emptyTitle}>Aún no tienes proveedores favoritos</Text>
-            <Text style={styles.emptySubtitle}>
-              Guarda tus talleres o mecánicos favoritos tocando el corazón en su perfil
-            </Text>
-            <TouchableOpacity
-              style={styles.browseButton}
-              onPress={() => navigation.navigate(ROUTES.TALLERES)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.browseButtonText}>Buscar Talleres</Text>
-              <Ionicons name="arrow-forward" size={18} color={COLORS.text.onPrimary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.browseButtonSecondary}
-              onPress={() => navigation.navigate(ROUTES.MECANICOS)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.browseButtonSecondaryText}>Buscar Mecánicos</Text>
-            </TouchableOpacity>
+            <Ionicons name="heart-outline" size={48} color={COLORS.neutral.gray[300]} />
+            <Text style={styles.emptyMessage}>No hay proveedores favoritos</Text>
           </View>
         ) : (
           <View style={styles.list}>
@@ -113,44 +95,12 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
     paddingHorizontal: 24,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    marginTop: 20,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: COLORS.text.secondary,
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  browseButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: BORDERS.radius.md,
-    marginTop: 24,
-    gap: 8,
-  },
-  browseButtonText: {
+  emptyMessage: {
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text.onPrimary,
-  },
-  browseButtonSecondary: {
-    marginTop: 12,
-    paddingVertical: 12,
-  },
-  browseButtonSecondaryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary[700],
+    fontWeight: '500',
+    color: COLORS.text.secondary,
+    marginTop: 16,
+    textAlign: 'center',
   },
   list: {
     gap: 12,
