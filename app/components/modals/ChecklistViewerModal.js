@@ -182,6 +182,8 @@ const ChecklistViewerModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [mostrarFirmas, setMostrarFirmas] = useState(false);
+  const [recomendaciones, setRecomendaciones] = useState([]);
+  const [loadingRec, setLoadingRec] = useState(false);
   /** { uri, caption?, openId } | null — openId único por apertura (iOS: remount limpio de Image). */
   const [photoLightbox, setPhotoLightbox] = useState(null);
   const lightboxOpenSeqRef = useRef(0);
@@ -213,8 +215,14 @@ const ChecklistViewerModal = ({
       }
 
       const checklistFormateado = checklistClienteService.formatearChecklistParaCliente(checklistData);
-
       setChecklist(checklistFormateado);
+
+      // Cargar recomendaciones ML si el checklist está completado
+      const instanceId = checklistData?.id;
+      const estado = checklistData?.estado;
+      if (instanceId && (estado === 'COMPLETADO' || estado === 'completado')) {
+        cargarRecomendaciones(instanceId);
+      }
     } catch (err) {
       console.error('❌ Error cargando checklist:', err);
       setError(String(err.message || 'No se pudo cargar el checklist del servicio'));
@@ -228,6 +236,21 @@ const ChecklistViewerModal = ({
       setLoading(false);
     }
   }, [ordenId]);
+
+  const cargarRecomendaciones = useCallback(async (instanceId) => {
+    setLoadingRec(true);
+    try {
+      const data = await checklistClienteService.obtenerRecomendacionesChecklist(instanceId);
+      if (data?.recomendaciones) {
+        setRecomendaciones(data.recomendaciones);
+      }
+    } catch (err) {
+      // Recomendaciones son opcionales: fallo silencioso
+      console.warn('ChecklistViewerModal: no se pudieron cargar recomendaciones ML:', err);
+    } finally {
+      setLoadingRec(false);
+    }
+  }, []);
 
   // useEffect también debe ir antes de cualquier return
   useEffect(() => {
@@ -646,7 +669,88 @@ const ChecklistViewerModal = ({
         ) : null}
 
         {renderFirmas()}
+        {renderRecomendaciones()}
       </ScrollView>
+    );
+  };
+
+  // ─── RECOMENDACIONES ML ──────────────────────────────────────────────────
+  const REC_COLORS = { URGENTE: '#cf202f', ATENCION: '#fd7e14', PROACTIVA: '#2563EB' };
+  const REC_BG = { URGENTE: '#fff5f5', ATENCION: '#fffaf0', PROACTIVA: '#eff6ff' };
+
+  const renderRecomendaciones = () => {
+    if (loadingRec) {
+      return (
+        <View style={styles.recContainer}>
+          <ActivityIndicator size="small" color={DS_COLORS.primary[500]} />
+          <Text style={styles.recLoadingText}>Analizando con IA...</Text>
+        </View>
+      );
+    }
+
+    if (!recomendaciones || recomendaciones.length === 0) return null;
+
+    return (
+      <View style={styles.recSection}>
+        <View style={styles.recSectionHeader}>
+          <Ionicons name="bulb-outline" size={18} color={DS_COLORS.primary[500]} />
+          <Text style={styles.recSectionTitle}>
+            Recomendaciones del Taller ({recomendaciones.length})
+          </Text>
+        </View>
+        <Text style={styles.recSectionSub}>
+          Análisis automático basado en el estado de tu vehículo.
+        </Text>
+        {recomendaciones.map((rec, idx) => (
+          <View
+            key={idx}
+            style={[
+              styles.recCard,
+              {
+                borderLeftColor: REC_COLORS[rec.prioridad] ?? '#888',
+                backgroundColor: REC_BG[rec.prioridad] ?? DS_COLORS.background.paper,
+              },
+            ]}
+          >
+            <View style={styles.recCardHeader}>
+              <View style={[styles.recBadge, { backgroundColor: REC_COLORS[rec.prioridad] ?? '#888' }]}>
+                <Text style={styles.recBadgeText}>{rec.prioridad}</Text>
+              </View>
+              <Text style={styles.recComponenteNombre} numberOfLines={1}>
+                {rec.componente_nombre}
+              </Text>
+            </View>
+            <Text style={styles.recRazon}>{rec.razon}</Text>
+            {rec.servicios_sugeridos && rec.servicios_sugeridos.length > 0 && (
+              <TouchableOpacity
+                style={styles.recCTA}
+                onPress={() => {
+                  const servicio = rec.servicios_sugeridos[0];
+                  onCloseRef.current?.();
+                  // Navegar a crear solicitud con el servicio sugerido
+                  setTimeout(() => {
+                    try {
+                      const { navigateCrearSolicitudConServicio } = require('../../components/home/shared/homeScheduleNavigation');
+                      navigateCrearSolicitudConServicio(null, servicio.id);
+                    } catch (e) {
+                      console.warn('No se pudo navegar a agendar servicio:', e);
+                    }
+                  }, 300);
+                }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="calendar-outline" size={14} color={DS_COLORS.primary[500]} />
+                <Text style={styles.recCTAText}>
+                  Agendar: {rec.servicios_sugeridos[0].nombre}
+                  {rec.servicios_sugeridos[0].precio_referencia
+                    ? ` — $${Number(rec.servicios_sugeridos[0].precio_referencia).toLocaleString('es-CL')}`
+                    : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+      </View>
     );
   };
 
@@ -1492,6 +1596,97 @@ const styles = StyleSheet.create({
     color: DS_COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 16,
+  },
+  // ── Recomendaciones ML ─────────────────────────────────────────────────
+  recContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.md,
+  },
+  recLoadingText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.secondary,
+  },
+  recSection: {
+    marginTop: SPACING.md,
+    marginBottom: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
+  },
+  recSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  recSectionTitle: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: DS_COLORS.text.primary,
+  },
+  recSectionSub: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: DS_COLORS.text.secondary,
+    marginBottom: SPACING.sm,
+    lineHeight: 18,
+  },
+  recCard: {
+    borderLeftWidth: 4,
+    borderRadius: BORDERS.radius.md,
+    padding: SPACING.sm,
+    marginBottom: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+  },
+  recCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  recBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BORDERS.radius.pill,
+  },
+  recBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  recComponenteNombre: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.text.primary,
+  },
+  recRazon: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: DS_COLORS.text.secondary,
+    lineHeight: 18,
+    marginBottom: SPACING.xs,
+  },
+  recCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
+    backgroundColor: DS_COLORS.primary[50] ?? '#eff6ff',
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.primary[200] ?? '#bfdbfe',
+    marginTop: 4,
+  },
+  recCTAText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.primary[500],
+    lineHeight: 18,
   },
 });
 
