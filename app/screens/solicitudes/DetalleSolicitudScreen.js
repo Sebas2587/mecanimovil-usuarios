@@ -167,6 +167,23 @@ const DetalleSolicitudScreen = () => {
     && ofertaCatalogoActiva?.estado === 'en_chat',
   );
 
+  /** Pago parcial: repuestos confirmados, mano de obra pendiente (OpcionesPago → soloServicioPendiente). */
+  const ofertaConSaldoPendiente = useMemo(() => {
+    const o = solicitud?.oferta_seleccionada_detail;
+    if (!o) return null;
+    const repuestosPagados = o.estado_pago_repuestos === 'pagado';
+    const servicioPendiente = (o.estado_pago_servicio || 'pendiente') === 'pendiente';
+    const esParcial =
+      o.estado === 'pagada_parcialmente' || (repuestosPagados && servicioPendiente);
+    return esParcial && repuestosPagados && servicioPendiente ? o : null;
+  }, [solicitud?.oferta_seleccionada_detail]);
+
+  const montoSaldoPendiente = useMemo(() => {
+    if (!ofertaConSaldoPendiente) return 0;
+    const mo = parseFloat(ofertaConSaldoPendiente.costo_mano_obra || 0);
+    return Math.round(mo * 1.19);
+  }, [ofertaConSaldoPendiente]);
+
   const [procesando, setProcesando] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [tabActivo, setTabActivo] = useState(TAB_PRINCIPALES);
@@ -692,6 +709,7 @@ const DetalleSolicitudScreen = () => {
             <>
               {(() => {
                 const showPagar = ['pendiente_pago', 'adjudicada'].includes(solicitud.estado);
+                const showPagarSaldo = ofertaConSaldoPendiente != null;
                 const showChecklist =
                   ESTADOS_SOLICITUD_CON_CHECKLIST.includes(solicitud.estado) && ordenIdParaChecklist != null;
 
@@ -699,6 +717,35 @@ const DetalleSolicitudScreen = () => {
                   setChecklistOrdenId(null);
                   setShowChecklistModal(true);
                 };
+
+                const irOpcionesPago = () =>
+                  navigation.navigate('OpcionesPago', {
+                    solicitudId,
+                    origen: 'solicitud_publica',
+                    ofertaId: ofertaConSaldoPendiente?.id,
+                  });
+
+                if (showPagarSaldo) {
+                  return (
+                    <>
+                      <TouchableOpacity
+                        style={styles.footerPrimaryCta}
+                        onPress={irOpcionesPago}
+                      >
+                        <Text style={styles.footerPrimaryCtaText}>
+                          Pagar saldo restante (${montoSaldoPendiente.toLocaleString('es-CL')})
+                        </Text>
+                        <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
+                      </TouchableOpacity>
+                      {showChecklist ? (
+                        <TouchableOpacity style={styles.footerPrimaryCta} onPress={openChecklistPrincipal}>
+                          <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
+                          <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
+                        </TouchableOpacity>
+                      ) : null}
+                    </>
+                  );
+                }
 
                 if (showPagar) {
                   return (
