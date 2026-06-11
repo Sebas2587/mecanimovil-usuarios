@@ -24,6 +24,10 @@ import {
   getMercadoPagoBackUrls,
   navigateToMercadoPagoCheckout,
 } from '../../utils/mercadopagoCheckout';
+import {
+  calcularMontosPagoOferta,
+  formatearMontoCLP,
+} from '../../utils/calcularMontoPagoOferta';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { TOKENS, withOpacity } from '../../design-system/tokens';
 import AcuerdoServicioModal from '../../components/modals/AcuerdoServicioModal';
@@ -207,18 +211,23 @@ const OpcionesPagoScreen = () => {
       let costoManoObraSinIva = parseFloat(datosSolicitud.costo_mano_obra || 0);
       const costoGestionCompraSinIva = parseFloat(datosSolicitud.costo_gestion_compra || 0);
 
-      // Inferir mano de obra si es 0 pero hay total
-      let costoManoObraConIva;
+      // Montos de cobro MP (enteros CLP) — misma fórmula que el backend
+      const montosPago = calcularMontosPagoOferta({
+        costo_repuestos: costoRepuestos,
+        costo_gestion_compra: costoGestionCompraSinIva,
+        costo_mano_obra: costoManoObraSinIva,
+        monto_total: montoTotal,
+      });
+
+      // Inferir mano de obra sin IVA solo para desglose visual
+      let costoManoObraConIva = montosPago.servicio;
       if (costoManoObraSinIva === 0 && montoTotal > 0) {
         const totalServiciosConIva = Math.max(0, montoTotal - costoRepuestos);
         const totalServiciosSinIva = totalServiciosConIva / 1.19;
         costoManoObraSinIva = Math.max(0, totalServiciosSinIva - costoGestionCompraSinIva);
-        // Usar el valor exacto del API como base del monto con IVA (evita pérdida por redondeo)
-        costoManoObraConIva = Math.max(0, totalServiciosConIva - Math.round(costoGestionCompraSinIva * 1.19));
-      } else {
-        costoManoObraConIva = Math.round(costoManoObraSinIva * 1.19);
+        costoManoObraConIva = montosPago.servicio;
       }
-      const costoGestionCompraConIva = Math.round(costoGestionCompraSinIva * 1.19);
+      const costoGestionCompraConIva = costoGestionCompraSinIva * 1.19;
 
       const serviciosDetalle = datosSolicitud.servicios.map((servicio, index) => {
         let precioServicioSinIva = servicio.precio / 1.19;
@@ -271,10 +280,8 @@ const OpcionesPagoScreen = () => {
         costoGestionCompraConIva
       });
 
-      // Calcular monto total para pago anticipado de repuestos:
-      // - Repuestos: precio directo (sin IVA adicional)
-      // - Gestión de compra: con IVA (es un servicio)
-      const pagoAnticipadoRepuestos = Math.round(costoRepuestos + costoGestionCompraConIva);
+      // Montos de cobro alineados con Mercado Pago
+      const pagoAnticipadoRepuestos = montosPago.repuestos;
 
       // Estado de pago de la oferta (para pagos parciales)
       const estadoPagoRepuestos = datosSolicitud.estado_pago_repuestos || 'pendiente';
@@ -293,11 +300,10 @@ const OpcionesPagoScreen = () => {
         soloServicioPendiente
       });
 
-      // Si es pago parcial (solo falta pagar servicio), calcular solo el saldo pendiente
-      // Usar montoTotal exacto del API (no Math.round) para evitar pérdida de centavos en precios de prueba
-      let montoAPagar = montoTotal;
+      // Monto a pagar según contexto (enteros CLP, igual que MP)
+      let montoAPagar = montosPago.total;
       const subtotalSinIva = costoManoObraSinIva + costoRepuestos + costoGestionCompraSinIva;
-      const ivaCalculado = montoTotal - Math.round(montoTotal / 1.19); // IVA exacto basado en total real
+      const ivaCalculado = montosPago.total - (montosPago.total / 1.19);
       let desgloseParaMostrar = {
         costoRepuestos: costoRepuestos,
         costoManoObraSinIva: costoManoObraSinIva,
@@ -310,15 +316,15 @@ const OpcionesPagoScreen = () => {
 
       if (soloServicioPendiente) {
         // Solo falta pagar el servicio (mano de obra con IVA)
-        montoAPagar = costoManoObraConIva;
+        montoAPagar = montosPago.servicio;
         desgloseParaMostrar = {
           costoRepuestos: 0, // Ya pagado, no mostrar
           costoManoObraSinIva: costoManoObraSinIva,
           costoGestionCompraSinIva: 0, // Ya pagado, no mostrar
-          costoManoObraConIva: costoManoObraConIva,
+          costoManoObraConIva: montosPago.servicio,
           costoGestionCompraConIva: 0, // Ya pagado, no mostrar
           subtotalSinIva: costoManoObraSinIva,
-          iva: costoManoObraConIva - costoManoObraSinIva, // IVA exacto = con IVA - sin IVA
+          iva: montosPago.servicio - costoManoObraSinIva,
         };
         console.log('💰 Pago parcial detectado - Solo falta pagar servicio:', {
           montoAPagar,
@@ -345,6 +351,8 @@ const OpcionesPagoScreen = () => {
         costoGestionCompraConIva: desgloseParaMostrar.costoGestionCompraConIva,
         pagoAnticipadoRepuestos, // Repuestos (directo) + Gestión de compra (con IVA)
         totalConIva: montoAPagar, // Monto a pagar (ajustado si es pago parcial)
+        montosPago, // Montos por tipo de pago (repuestos/servicio/total) — igual que MP
+        precioTotalOfrecido: montosPago.total,
         proveedorPuedeRecibirPagos: datosSolicitud.proveedor_puede_recibir_pagos || false,
         ofertaId: datosSolicitud.oferta_id,
         fotoCotizacionRepuestos: datosSolicitud.foto_cotizacion_repuestos,
@@ -464,6 +472,23 @@ const OpcionesPagoScreen = () => {
       serviciosDetalle
     };
   }, [carritos, carrito, carritoLoading, esSolicitudPublica, esOfertaSecundaria, datosSolicitud, resumenPago]); // Recalcular cuando cambian datos de carrito, solicitud u oferta secundaria
+
+  // Monto que se cobrará en MP según la opción de pago seleccionada (entero CLP)
+  const montoActualPagoSeleccionado = React.useMemo(() => {
+    if (!resumenGlobal?.montosPago) return resumenGlobal?.totalConIva ?? null;
+    const { montosPago } = resumenGlobal;
+    if (resumenGlobal.soloServicioPendiente) return montosPago.servicio;
+    if (!resumenGlobal.tieneRepuestosParaPagar) return montosPago.total;
+    switch (tipoPagoRepuestos) {
+      case TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO:
+        return montosPago.repuestos;
+      case TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA:
+        return montosPago.servicio;
+      case TIPO_PAGO_REPUESTOS.TODO_ADELANTADO:
+      default:
+        return montosPago.total;
+    }
+  }, [resumenGlobal, tipoPagoRepuestos]);
 
   // Convertir URLs de fotos de servicios cuando cambien
   React.useEffect(() => {
@@ -994,7 +1019,7 @@ const OpcionesPagoScreen = () => {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Text style={[styles.servicioResumenNombre, { flex: 1, marginRight: 8 }]}>{servicio.servicio}</Text>
                     <Text style={styles.precioLinea}>
-                      ${(servicio.precioOriginal || servicio.precio).toLocaleString('es-CL')}
+                      ${formatearMontoCLP(servicio.precioOriginal || servicio.precio)}
                     </Text>
                   </View>
                   <View style={styles.proveedorResumenRow}>
@@ -1044,11 +1069,11 @@ const OpcionesPagoScreen = () => {
                     <View style={styles.infoPagoParcialContent}>
                       <Text style={styles.infoPagoParcialTitulo}>Ya pagado:</Text>
                       <Text style={styles.infoPagoParcialTexto}>
-                        • Repuestos: ${Math.round(resumenGlobal.costoRepuestosOriginal || 0).toLocaleString('es-CL')}
+                        • Repuestos: ${formatearMontoCLP(resumenGlobal.costoRepuestosOriginal || 0)}
                       </Text>
                       {resumenGlobal.costoGestionCompraOriginal > 0 && (
                         <Text style={styles.infoPagoParcialTexto}>
-                          • Gestión de compra: ${Math.round((resumenGlobal.costoGestionCompraOriginal || 0) * 1.19).toLocaleString('es-CL')}
+                          • Gestión de compra: ${formatearMontoCLP((resumenGlobal.costoGestionCompraOriginal || 0) * 1.19)}
                         </Text>
                       )}
                     </View>
@@ -1063,7 +1088,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseLabel}>🔧 Mano de obra (sin IVA)</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
-                      ${Math.round(resumenGlobal.costoManoObraSinIva).toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.costoManoObraSinIva)}
                     </Text>
                   </View>
 
@@ -1074,7 +1099,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseLabel}>Subtotal</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
-                      ${Math.round(resumenGlobal.subtotalSinIva || resumenGlobal.costoManoObraSinIva).toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.subtotalSinIva || resumenGlobal.costoManoObraSinIva)}
                     </Text>
                   </View>
 
@@ -1084,7 +1109,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseLabel}>📋 IVA (19% sobre mano de obra)</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
-                      ${(resumenGlobal.iva != null ? resumenGlobal.iva : (resumenGlobal.costoManoObraSinIva * 0.19)).toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.iva != null ? resumenGlobal.iva : (resumenGlobal.costoManoObraSinIva * 0.19))}
                     </Text>
                   </View>
 
@@ -1095,7 +1120,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseTotalLabel}>Saldo a pagar</Text>
                     </View>
                     <Text style={styles.desgloseTotalValue}>
-                      ${resumenGlobal.totalConIva?.toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.montosPago?.servicio ?? resumenGlobal.totalConIva)}
                     </Text>
                   </View>
                 </>
@@ -1108,7 +1133,7 @@ const OpcionesPagoScreen = () => {
                         <Text style={styles.desgloseLabel}>Mano de obra (sin IVA)</Text>
                       </View>
                       <Text style={styles.desgloseValue}>
-                        ${Math.round(resumenGlobal.costoManoObraSinIva).toLocaleString('es-CL')}
+                        ${formatearMontoCLP(resumenGlobal.costoManoObraSinIva)}
                       </Text>
                     </View>
                   )}
@@ -1123,7 +1148,7 @@ const OpcionesPagoScreen = () => {
                           <Text style={styles.desgloseLabel}>📦 Repuestos</Text>
                         </View>
                         <Text style={styles.desgloseValue}>
-                          ${Math.round(resumenGlobal.costoRepuestos).toLocaleString('es-CL')}
+                          ${formatearMontoCLP(resumenGlobal.costoRepuestos)}
                         </Text>
                       </View>
                     </>
@@ -1139,7 +1164,7 @@ const OpcionesPagoScreen = () => {
                           <Text style={[styles.desgloseLabel, { color: icon.warning }]}>🚚 Gestión de compra (sin IVA)</Text>
                         </View>
                         <Text style={[styles.desgloseValue, { color: icon.warning }]}>
-                          ${Math.round(resumenGlobal.costoGestionCompraSinIva).toLocaleString('es-CL')}
+                          ${formatearMontoCLP(resumenGlobal.costoGestionCompraSinIva)}
                         </Text>
                       </View>
                     </>
@@ -1152,7 +1177,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseLabel}>Subtotal</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
-                      ${Math.round((resumenGlobal.subtotalSinIva || (resumenGlobal.costoManoObraSinIva + resumenGlobal.costoRepuestos + resumenGlobal.costoGestionCompraSinIva))).toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.subtotalSinIva || (resumenGlobal.costoManoObraSinIva + resumenGlobal.costoRepuestos + resumenGlobal.costoGestionCompraSinIva))}
                     </Text>
                   </View>
 
@@ -1162,7 +1187,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseLabel}>📋 IVA (19% sobre servicios)</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
-                      ${(resumenGlobal.iva != null ? resumenGlobal.iva : ((resumenGlobal.costoManoObraSinIva + resumenGlobal.costoGestionCompraSinIva) * 0.19)).toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.iva != null ? resumenGlobal.iva : ((resumenGlobal.costoManoObraSinIva + resumenGlobal.costoGestionCompraSinIva) * 0.19))}
                     </Text>
                   </View>
 
@@ -1173,7 +1198,7 @@ const OpcionesPagoScreen = () => {
                       <Text style={styles.desgloseTotalLabel}>Total Cotización</Text>
                     </View>
                     <Text style={styles.desgloseTotalValue}>
-                      ${resumenGlobal.totalConIva?.toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.montosPago?.total ?? resumenGlobal.totalConIva)}
                     </Text>
                   </View>
                 </>
@@ -1214,7 +1239,7 @@ const OpcionesPagoScreen = () => {
                   <View style={styles.tipoPagoInfo}>
                     <Text style={styles.tipoPagoTitulo}>💰 Pagar Saldo Restante</Text>
                     <Text style={styles.tipoPagoMonto}>
-                      ${resumenGlobal.totalConIva?.toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.montosPago?.servicio ?? resumenGlobal.totalConIva)}
                     </Text>
                     <Text style={styles.tipoPagoDetalle}>
                       (Mano de obra)
@@ -1251,7 +1276,7 @@ const OpcionesPagoScreen = () => {
                     <View style={styles.tipoPagoInfo}>
                       <Text style={styles.tipoPagoTitulo}>💳 Pagar Repuestos Ahora</Text>
                       <Text style={styles.tipoPagoMonto}>
-                        ${resumenGlobal.pagoAnticipadoRepuestos?.toLocaleString('es-CL')}
+                        ${formatearMontoCLP(resumenGlobal.montosPago?.repuestos ?? resumenGlobal.pagoAnticipadoRepuestos)}
                       </Text>
                       {resumenGlobal.costoGestionCompraConIva > 0 && (
                         <Text style={styles.tipoPagoDetalle}>
@@ -1261,7 +1286,7 @@ const OpcionesPagoScreen = () => {
                     </View>
                   </View>
                   <Text style={styles.tipoPagoDescripcion}>
-                    El proveedor comprará los repuestos{resumenGlobal.costoGestionCompraConIva > 0 ? ' (incluye traslado)' : ''} y realizará el servicio. Pagas la mano de obra (${resumenGlobal.costoManoObraConIva?.toLocaleString('es-CL')}) después de que termine.
+                    El proveedor comprará los repuestos{resumenGlobal.costoGestionCompraConIva > 0 ? ' (incluye traslado)' : ''} y realizará el servicio. Pagas la mano de obra ($${formatearMontoCLP(resumenGlobal.montosPago?.servicio ?? resumenGlobal.costoManoObraConIva)}) después de que termine.
                   </Text>
                   <View style={styles.tipoPagoBadge}>
                     <Text style={styles.tipoPagoBadgeText}>Recomendado</Text>
@@ -1289,7 +1314,7 @@ const OpcionesPagoScreen = () => {
                     <View style={styles.tipoPagoInfo}>
                       <Text style={styles.tipoPagoTitulo}>💵 Pagar Todo Ahora</Text>
                       <Text style={styles.tipoPagoMonto}>
-                        ${resumenGlobal.totalConIva?.toLocaleString('es-CL')}
+                        ${formatearMontoCLP(resumenGlobal.montosPago?.total ?? resumenGlobal.totalConIva)}
                       </Text>
                     </View>
                   </View>
@@ -1319,7 +1344,7 @@ const OpcionesPagoScreen = () => {
                     <View style={styles.tipoPagoInfo}>
                       <Text style={styles.tipoPagoTitulo}>🛍️ Comprar mis propios repuestos</Text>
                       <Text style={styles.tipoPagoMonto}>
-                        ${(resumenGlobal.costoManoObraConIva || 0).toLocaleString('es-CL')}
+                        ${formatearMontoCLP(resumenGlobal.montosPago?.servicio ?? resumenGlobal.costoManoObraConIva)}
                       </Text>
                       <Text style={styles.tipoPagoDetalle}>
                         (Solo Mano de obra)
@@ -1348,7 +1373,7 @@ const OpcionesPagoScreen = () => {
                   <View style={styles.tipoPagoInfo}>
                     <Text style={styles.tipoPagoTitulo}>💵 Pagar Servicio</Text>
                     <Text style={styles.tipoPagoMonto}>
-                      ${resumenGlobal.totalConIva?.toLocaleString('es-CL')}
+                      ${formatearMontoCLP(resumenGlobal.montosPago?.total ?? resumenGlobal.totalConIva)}
                     </Text>
                     <Text style={styles.tipoPagoDetalle}>
                       (Mano de obra)
@@ -1399,7 +1424,7 @@ const OpcionesPagoScreen = () => {
                   <Text style={styles.desgloseLabel}>Total Servicios</Text>
                 </View>
                 <Text style={styles.desgloseValue}>
-                  ${Math.round(resumenGlobal.totalGeneral).toLocaleString('es-CL')}
+                  ${formatearMontoCLP(resumenGlobal.totalGeneral)}
                 </Text>
               </View>
 
@@ -1409,7 +1434,7 @@ const OpcionesPagoScreen = () => {
                   <Text style={styles.desgloseLabel}>IVA (19%)</Text>
                 </View>
                 <Text style={styles.desgloseValue}>
-                  ${Math.round(resumenGlobal.totalGeneral * 0.19).toLocaleString('es-CL')}
+                  ${formatearMontoCLP(resumenGlobal.totalGeneral * 0.19)}
                 </Text>
               </View>
 
@@ -1420,7 +1445,7 @@ const OpcionesPagoScreen = () => {
                   <Text style={styles.desgloseTotalLabel}>Total a pagar</Text>
                 </View>
                 <Text style={styles.desgloseTotalValue}>
-                  ${Math.round(resumenGlobal.totalGeneral * 1.19).toLocaleString('es-CL')}
+                  ${formatearMontoCLP(resumenGlobal.totalGeneral * 1.19)}
                 </Text>
               </View>
             </View>
@@ -1557,24 +1582,20 @@ const OpcionesPagoScreen = () => {
                   {(() => {
                     // Si es solicitud pública con desglose de repuestos
                     if ((esSolicitudPublica || esOfertaSecundaria) && resumenGlobal?.tieneDesgloseRepuestos) {
-                      // Si es pago parcial (solo falta pagar servicio)
+                      const monto = formatearMontoCLP(montoActualPagoSeleccionado);
                       if (resumenGlobal.soloServicioPendiente) {
-                        return `Pagar Saldo Restante ($${resumenGlobal.totalConIva?.toLocaleString('es-CL')})`;
+                        return `Pagar Saldo Restante ($${monto})`;
                       }
-                      // Si NO tiene repuestos para pagar (servicio sin repuestos)
                       if (!resumenGlobal.tieneRepuestosParaPagar) {
-                        return `Pagar Servicio ($${resumenGlobal.totalConIva?.toLocaleString('es-CL')})`;
+                        return `Pagar Servicio ($${monto})`;
                       }
-                      // Si el usuario eligió pagar solo repuestos
                       if (tipoPagoRepuestos === TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO) {
-                        return `Pagar Repuestos ($${resumenGlobal.pagoAnticipadoRepuestos?.toLocaleString('es-CL')})`;
+                        return `Pagar Repuestos ($${monto})`;
                       }
-                      // Si el usuario elige comprar sus propios repuestos
                       if (tipoPagoRepuestos === TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA) {
-                        return `Pagar Mano de Obra ($${(resumenGlobal.costoManoObraConIva || 0).toLocaleString('es-CL')})`;
+                        return `Pagar Mano de Obra ($${monto})`;
                       }
-                      // Si el usuario eligió pagar todo
-                      return `Pagar Todo ($${resumenGlobal.totalConIva?.toLocaleString('es-CL')})`;
+                      return `Pagar Todo ($${monto})`;
                     }
                     // Si no tiene desglose o es otro flujo
                     return 'Pagar con Mercado Pago';
