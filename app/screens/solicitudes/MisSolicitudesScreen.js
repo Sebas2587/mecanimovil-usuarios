@@ -90,7 +90,8 @@ const MisSolicitudesScreen = () => {
       'creada',
       'seleccionando_servicios',
     ];
-    const enProceso = ['pagada', 'en_ejecucion'];
+    // pagada_parcialmente: pago parcial de repuestos confirmado; el usuario aún debe pagar la mano de obra
+    const enProceso = ['pagada', 'pagada_parcialmente', 'en_ejecucion'];
     const solicitudesPipeline = [...new Set([...activas, ...enProceso])];
     return {
       solicitudes_pipeline: solicitudesPipeline,

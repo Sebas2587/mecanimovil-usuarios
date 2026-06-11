@@ -26,6 +26,8 @@ const WS_TYPES_REFRESH_SOLICITUDES = new Set([
   'rechazo_solicitud',
   'oferta_secundaria_creada',
   'reserva_creditos_expirada',
+  // Pago confirmado: la solicitud cambia a pagada o pagada_parcialmente → refrescar lista
+  'pago_completado',
 ]);
 
 function invalidateSolicitudesQueries(queryClient, payload, userId) {

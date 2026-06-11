@@ -17,10 +17,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import MercadoPagoService from '../../services/mercadopago';
 import { COLORS, ROUTES, MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { invalidateSolicitudesListQueries } from '../../hooks/useRequests';
+import { useAuth } from '../../context/AuthContext';
 import {
   resolveOfertaIdForPago,
   isOfertaNotFoundError,
@@ -33,6 +36,8 @@ import {
 const PaymentCallbackScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [status, setStatus] = useState('processing'); // processing, success, error
   const [message, setMessage] = useState('Procesando tu pago...');
   const autoNavTimerRef = useRef(null);
@@ -41,6 +46,10 @@ const PaymentCallbackScreen = () => {
     if (autoNavTimerRef.current) {
       clearTimeout(autoNavTimerRef.current);
       autoNavTimerRef.current = null;
+    }
+    // Invalidar cache para que MisSolicitudesScreen recargue con datos frescos
+    if (user?.id) {
+      invalidateSolicitudesListQueries(queryClient, user.id);
     }
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.history.replaceState({}, '', '/');
@@ -52,7 +61,7 @@ const PaymentCallbackScreen = () => {
         params: { screen: ROUTES.MIS_SOLICITUDES },
       }],
     });
-  }, [navigation]);
+  }, [navigation, queryClient, user?.id]);
 
   useEffect(() => {
     if (status !== 'success' || Platform.OS !== 'web') return undefined;
