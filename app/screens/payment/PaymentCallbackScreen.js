@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import MercadoPagoService from '../../services/mercadopago';
-import { COLORS, ROUTES } from '../../utils/constants';
+import { COLORS, ROUTES, MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   resolveOfertaIdForPago,
@@ -101,6 +101,8 @@ const PaymentCallbackScreen = () => {
   };
 
   useEffect(() => {
+    AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY).catch(() => {});
+
     // Verificar si hay un deep link guardado en AsyncStorage (cuando la app se reinicia)
     // O si viene directamente desde el navegador in-app
     const checkPendingDeepLink = async () => {

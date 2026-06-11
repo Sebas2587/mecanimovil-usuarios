@@ -9,22 +9,36 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAgendamiento } from '../../context/AgendamientoContext';
-import { ROUTES, MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
+import { ROUTES } from '../../utils/constants';
 import { getMediaURL } from '../../services/api';
 import MercadoPagoService from '../../services/mercadopago';
 import { parseOfertaIdFromExternalReference } from '../../utils/pagoOfertaId';
+import {
+  getMercadoPagoBackUrls,
+  navigateToMercadoPagoCheckout,
+} from '../../utils/mercadopagoCheckout';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { TOKENS, withOpacity } from '../../design-system/tokens';
 import AcuerdoServicioModal from '../../components/modals/AcuerdoServicioModal';
 
 function PaymentScreenShell({ children, backgroundColor }) {
-  return <View style={{ flex: 1, backgroundColor }}>{children}</View>;
+  return (
+    <View
+      style={[
+        { flex: 1, backgroundColor },
+        Platform.OS === 'web' ? { minHeight: 0 } : null,
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 const METODOS_PAGO = {
@@ -543,20 +557,7 @@ const OpcionesPagoScreen = () => {
           return;
         }
 
-        // Construir URLs de retorno
-        // IMPORTANTE: Usar el scheme de la app para deep linking
-        // Mercado Pago agregará automáticamente los parámetros de query:
-        // - status (approved, pending, rejected)
-        // - payment_id
-        // - external_reference
-        // - collection_status
-        // - payment_type
-        const scheme = 'mecanimovil';
-        const backUrls = {
-          success: `${scheme}://payment/success`,
-          failure: `${scheme}://payment/failure`,
-          pending: `${scheme}://payment/pending`,
-        };
+        const backUrls = getMercadoPagoBackUrls();
 
         console.log('🔗 URLs de retorno configuradas:', backUrls);
 
@@ -670,38 +671,8 @@ const OpcionesPagoScreen = () => {
           timestamp: Date.now()
         }));
 
-        // Abrir Checkout Pro en WebView modal
-        // Esto mantiene el contexto de la app y evita que se abran múltiples instancias
-        const result = await MercadoPagoService.openCheckoutPro(checkoutUrl);
-
-        console.log('📥 Resultado de preparar Checkout Pro:', result);
-
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'T',
-            location: 'OpcionesPagoScreen.js:checkout_webview',
-            message: 'Abriendo Checkout Pro en WebView modal',
-            data: { result, expectedDeepLink },
-            timestamp: Date.now()
-          })
-        }).catch(() => { });
-        // #endregion
-
-        // Navegar a la pantalla de WebView modal
-        if (result.useWebView && result.url) {
-          console.log('✅ Abriendo WebView modal para Checkout Pro');
-          await AsyncStorage.setItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY, String(Date.now()));
-          navigation.navigate('MercadoPagoWebView', {
-            checkoutUrl: result.url
-          });
-        } else {
-          throw new Error('No se pudo preparar el WebView para Checkout Pro');
-        }
+        // Abrir Checkout Pro (WebView en nativo, nueva pestaña en web)
+        await navigateToMercadoPagoCheckout({ checkoutUrl, navigation });
       } else {
         // Flujo tradicional - Pago con carrito
         const carritoActivo = carritos?.[0] || carrito;
@@ -713,13 +684,7 @@ const OpcionesPagoScreen = () => {
         console.log('💳 Iniciando proceso de pago con Mercado Pago');
         console.log('   - Carrito ID:', carritoActivo.id);
 
-        // Construir URLs de retorno
-        const scheme = 'mecanimovil';
-        const backUrls = {
-          success: `${scheme}://payment/success`,
-          failure: `${scheme}://payment/failure`,
-          pending: `${scheme}://payment/pending`,
-        };
+        const backUrls = getMercadoPagoBackUrls();
 
         // Crear preferencia de pago
         const preferencia = await MercadoPagoService.createPreference(
@@ -733,28 +698,7 @@ const OpcionesPagoScreen = () => {
         // Abrir Checkout Pro en navegador in-app
         // Usar init_point primero (producción), sandbox solo como fallback
         const checkoutUrl = preferencia.init_point || preferencia.sandbox_init_point;
-        const result = await MercadoPagoService.openCheckoutPro(checkoutUrl);
-
-        // Si el navegador retornó una URL (deep link), procesarla
-        if (result && result.url && result.url.startsWith('mecanimovil://')) {
-          navigation.navigate('PaymentCallback', {
-            url: result.url,
-            from_browser: true
-          });
-        } else {
-          // Verificar si hay un deep link pendiente
-          try {
-            const pendingDeepLink = await AsyncStorage.getItem('pending_deep_link');
-            if (pendingDeepLink) {
-              navigation.navigate('PaymentCallback', {
-                url: pendingDeepLink,
-                from_browser: true
-              });
-            }
-          } catch (e) {
-            console.warn('Error verificando deep link pendiente:', e);
-          }
-        }
+        await navigateToMercadoPagoCheckout({ checkoutUrl, navigation });
       }
     } catch (error) {
       console.error('❌ Error procesando pago con Mercado Pago:', error);
@@ -1783,6 +1727,18 @@ const getStyles = (typography, spacing, insets, colors) => StyleSheet.create({
   },
   content: {
     flex: 1,
+    minHeight: 0,
+    ...Platform.select({
+      web: {
+        flexBasis: 0,
+        flexGrow: 1,
+        flexShrink: 1,
+        height: 0,
+        overflow: 'auto',
+        overflowX: 'hidden',
+      },
+      default: {},
+    }),
   },
   scrollContent: {
     flexGrow: 1,

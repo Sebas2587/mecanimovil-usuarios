@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   AppState,
   Alert,
+  Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,16 +38,99 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
   const appStateRef = useRef(AppState.currentState);
   const loadingTimeoutRef = useRef(null);
   const pageLoadedRef = useRef(false);
-
-  if (!checkoutUrl) {
-    return null;
-  }
-
-  // Estado inicial del pago (para comparar si cambió)
   const estadoInicialPagoRef = useRef(null);
+  const [webVerificando, setWebVerificando] = useState(false);
+  const [webPagoConfirmado, setWebPagoConfirmado] = useState(false);
+  const mpTabRef = useRef(null);
 
-  // Cargar datos de pago pendiente al montar y verificar estado inicial
+  // ── WEB: abre el checkout en una nueva pestaña ──────────────────────────────
   useEffect(() => {
+    if (Platform.OS !== 'web' || !checkoutUrl || typeof window === 'undefined') return;
+
+    // Abrir Mercado Pago en nueva pestaña para no abandonar la SPA
+    const tab = window.open(checkoutUrl, '_blank', 'noopener');
+    mpTabRef.current = tab;
+
+    return () => {
+      AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY).catch(() => {});
+    };
+  }, [checkoutUrl]);
+
+  // ── WEB: sondear si la pestaña de MP se cerró (el usuario pagó o canceló) ──
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const interval = setInterval(async () => {
+      const tab = mpTabRef.current;
+      if (tab && tab.closed) {
+        clearInterval(interval);
+        // La pestaña se cerró; verificar estado del pago en el backend
+        await handleWebVerificarPago();
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Verificación manual del pago para web
+  const handleWebVerificarPago = async () => {
+    setWebVerificando(true);
+    try {
+      const pagoPendienteDataStr = await AsyncStorage.getItem('pago_pendiente_data');
+      if (!pagoPendienteDataStr) {
+        // Sin datos pendientes: volver sin hacer nada
+        navigation.goBack();
+        return;
+      }
+      const pagoPendienteData = JSON.parse(pagoPendienteDataStr);
+      const ofertaId = pagoPendienteData?.ofertaId;
+      const tipoPago = pagoPendienteData?.tipoPago;
+
+      if (!ofertaId) {
+        navigation.goBack();
+        return;
+      }
+
+      const resultado = await MercadoPagoService.verificarPagoMercadoPago(ofertaId, tipoPago);
+
+      if (resultado?.success && resultado?.payment_approved) {
+        await AsyncStorage.multiRemove(['pago_pendiente_data', 'pago_pendiente', 'expected_deep_link', 'pending_deep_link']);
+        await AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY);
+        setWebPagoConfirmado(true);
+        navigation.goBack();
+        setTimeout(() => {
+          navigation.navigate('PaymentCallback', {
+            status: 'success',
+            from_webview_verification: true,
+            ofertaId,
+            tipoPago,
+            paymentId: resultado.payment_id,
+          });
+        }, 300);
+      } else {
+        // Pago no encontrado o aún pendiente: volver a la pantalla anterior
+        await AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY);
+        navigation.goBack();
+        setTimeout(() => {
+          Alert.alert(
+            'Pago no confirmado',
+            'No encontramos un pago aprobado. Si ya pagaste, puede tardar unos minutos en procesarse.',
+            [{ text: 'OK' }],
+          );
+        }, 300);
+      }
+    } catch (err) {
+      console.error('❌ Error verificando pago en web:', err);
+      navigation.goBack();
+    } finally {
+      setWebVerificando(false);
+    }
+  };
+
+  // Cargar datos de pago pendiente al montar y verificar estado inicial (solo nativo)
+  useEffect(() => {
+    if (Platform.OS === 'web' || !checkoutUrl) return;
     const loadPagoPendiente = async () => {
       try {
         const pagoPendienteDataStr = await AsyncStorage.getItem('pago_pendiente_data');
@@ -159,10 +243,11 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
       }
       AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY).catch(() => {});
     };
-  }, [navigation]);
+  }, [navigation, checkoutUrl]);
 
   // Listener para detectar cuando la app vuelve al foreground
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
       if (
         appStateRef.current.match(/inactive|background/) &&
@@ -518,6 +603,61 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
     navigation.goBack();
   };
 
+  if (!checkoutUrl) {
+    return null;
+  }
+
+  // ── Pantalla de espera para web ─────────────────────────────────────────────
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.webWaitContainer}>
+        <Ionicons name="card-outline" size={56} color="#007EA7" style={{ marginBottom: 16 }} />
+        <Text style={styles.webWaitTitle}>Pago en Mercado Pago</Text>
+        <Text style={styles.webWaitSubtitle}>
+          Se abrió una nueva pestaña con Mercado Pago.{'\n'}
+          Completa tu pago allí y vuelve aquí cuando termines.
+        </Text>
+
+        {webVerificando ? (
+          <ActivityIndicator size="large" color="#007EA7" style={{ marginTop: 24 }} />
+        ) : (
+          <TouchableOpacity
+            style={styles.webVerifyButton}
+            onPress={handleWebVerificarPago}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+            <Text style={styles.webVerifyButtonText}>Ya pagué — Verificar pago</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={styles.webCancelButton}
+          onPress={() => {
+            if (mpTabRef.current && !mpTabRef.current.closed) {
+              mpTabRef.current.close();
+            }
+            AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY).catch(() => {});
+            navigation.goBack();
+          }}
+        >
+          <Text style={styles.webCancelButtonText}>Cancelar</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.webReopenButton}
+          onPress={() => {
+            const tab = window.open(checkoutUrl, '_blank', 'noopener');
+            mpTabRef.current = tab;
+          }}
+        >
+          <Ionicons name="open-outline" size={16} color="#007EA7" />
+          <Text style={styles.webReopenButtonText}>Volver a abrir Mercado Pago</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <Modal
       visible={true}
@@ -702,6 +842,66 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#666',
+  },
+  webWaitContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 32,
+  },
+  webWaitTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  webWaitSubtitle: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 32,
+  },
+  webVerifyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#007EA7',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 14,
+    marginBottom: 16,
+  },
+  webVerifyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  webCancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  webCancelButtonText: {
+    color: '#6B7280',
+    fontSize: 15,
+  },
+  webReopenButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#007EA7',
+    marginTop: 8,
+  },
+  webReopenButtonText: {
+    color: '#007EA7',
+    fontSize: 14,
   },
 });
 
