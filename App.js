@@ -38,6 +38,7 @@ import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queryClient, asyncStoragePersister, shouldPersistQuery } from './app/config/queryClient';
 import './app/services/tripTrackingService';
+import { discardStalePaymentSessionOnColdStart } from './app/utils/pagoPendienteStorage';
 
 // ─── Push notifications: handler de nivel de módulo (requerido por Expo docs) ───
 // Debe ejecutarse ANTES de que cualquier componente se monte, para que las
@@ -624,6 +625,19 @@ const MainImpl = ({ lastNotificationResponse }) => {
     }
   }, []);
 
+  const stalePaymentClearedRef = useRef(false);
+  useEffect(() => {
+    if (stalePaymentClearedRef.current) return;
+    stalePaymentClearedRef.current = true;
+    discardStalePaymentSessionOnColdStart()
+      .then((cleared) => {
+        if (cleared) {
+          logger.debug('🧹 Sesión de pago obsoleta descartada al iniciar la app');
+        }
+      })
+      .catch((e) => logger.warn('Error descartando sesión de pago obsoleta:', e));
+  }, []);
+
   // Listener para deep links - debe funcionar incluso cuando la app se reinicia
   // Este listener es CRÍTICO para capturar deep links cuando Mercado Pago redirige
   useEffect(() => {
@@ -952,29 +966,6 @@ const MainImpl = ({ lastNotificationResponse }) => {
             logger.warn('⚠️ Navegación falló, volviendo a guardar deep link');
             await AsyncStorage.setItem('pending_deep_link', pendingDeepLink);
           }
-        } else {
-          // SEGUNDO: Si no hay deep link pero hay datos de pago pendiente, verificar el estado
-          // Esto es útil cuando la app se reinicia y el deep link no se capturó
-          const pagoPendienteDataStr = await AsyncStorage.getItem('pago_pendiente_data');
-          if (pagoPendienteDataStr) {
-            const pagoPendienteData = JSON.parse(pagoPendienteDataStr);
-            const tiempoTranscurrido = Date.now() - (pagoPendienteData.timestamp || 0);
-
-            // Si han pasado más de 3 segundos, probablemente el pago se completó
-            if (tiempoTranscurrido > 3000) {
-              if (await shouldDeferPaymentCallbackForActiveCheckout()) {
-                return;
-              }
-              logger.debug('💾 Datos de pago pendiente encontrados, navegando a PaymentCallbackScreen para verificar estado');
-
-              // Navegar a PaymentCallbackScreen para que verifique el estado del pago
-              navigationRef.navigate('PaymentCallback', {
-                status: 'processing',
-                from_storage: true,
-                ofertaId: pagoPendienteData.ofertaId
-              });
-            }
-          }
         }
       } catch (e) {
         logger.warn('Error procesando deep link pendiente:', e);
@@ -993,7 +984,6 @@ const MainImpl = ({ lastNotificationResponse }) => {
     isAuthenticated,
     loading,
     navigateToPaymentCallback,
-    shouldDeferPaymentCallbackForActiveCheckout,
   ]); // Usar navigationRef, no navigationRef.isReady()
 
   // Listener para cuando la app vuelve al foreground después de estar en background
@@ -1201,31 +1191,6 @@ const MainImpl = ({ lastNotificationResponse }) => {
               }
             }
           }, 2000); // Aumentado a 2 segundos para dar más tiempo en desarrollo local
-        } else {
-          // SEGUNDO: Si no hay deep link pero hay datos de pago pendiente, verificar el estado
-          const pagoPendienteDataStr = await AsyncStorage.getItem('pago_pendiente_data');
-          if (pagoPendienteDataStr) {
-            const pagoPendienteData = JSON.parse(pagoPendienteDataStr);
-            const tiempoTranscurrido = Date.now() - (pagoPendienteData.timestamp || 0);
-
-            // Si han pasado más de 3 segundos, probablemente el pago se completó
-            if (tiempoTranscurrido > 3000) {
-              logger.debug('💾 Datos de pago pendiente encontrados después de autenticación, navegando a PaymentCallbackScreen');
-
-              setTimeout(async () => {
-                if (navigationRef.isReady() && isAuthenticated) {
-                  if (await shouldDeferPaymentCallbackForActiveCheckout()) {
-                    return;
-                  }
-                  navigationRef.navigate('PaymentCallback', {
-                    status: 'processing',
-                    from_storage: true,
-                    ofertaId: pagoPendienteData.ofertaId
-                  });
-                }
-              }, 2000);
-            }
-          }
         }
       } catch (e) {
         logger.warn('Error procesando deep link después de autenticación:', e);
@@ -1244,7 +1209,6 @@ const MainImpl = ({ lastNotificationResponse }) => {
     loading,
     navigationRef,
     navigateToPaymentCallback,
-    shouldDeferPaymentCallbackForActiveCheckout,
   ]);
 
   // Handler para onReady del NavigationContainer - Memoizado para evitar loops
@@ -1331,53 +1295,6 @@ const MainImpl = ({ lastNotificationResponse }) => {
             // El useEffect que procesa deep links después de autenticación se encargará de esto
           }
         }
-
-        // SEGUNDO: Si no hay deep link pendiente, verificar si hay datos de pago pendiente
-        // Esto puede ocurrir si la app se reinició antes de que llegara el deep link
-        const pagoPendienteDataStr = await AsyncStorage.getItem('pago_pendiente_data');
-        if (pagoPendienteDataStr) {
-          const pagoPendienteData = JSON.parse(pagoPendienteDataStr);
-          logger.debug('💾 Datos de pago pendiente encontrados en onReady:', pagoPendienteData);
-
-          // #region agent log
-          fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: 'debug-session',
-              runId: 'run1',
-              hypothesisId: 'Q',
-              location: 'App.js:Main:NavigationContainer:onReady:pago_pendiente_found',
-              message: 'Datos de pago pendiente encontrados en onReady',
-              data: {
-                pago_pendiente_data: pagoPendienteData,
-                is_authenticated: isAuthenticated,
-                loading
-              },
-              timestamp: Date.now()
-            })
-          }).catch(() => { });
-          // #endregion
-
-          // Si el usuario está autenticado, navegar a PaymentCallbackScreen
-          if (isAuthenticated && !loading) {
-            setTimeout(async () => {
-              if (navigationRef.isReady() && isAuthenticated) {
-                if (await shouldDeferPaymentCallbackForActiveCheckout()) {
-                  return;
-                }
-                navigationRef.navigate('PaymentCallback', {
-                  status: 'processing',
-                  from_storage: true,
-                  ofertaId: pagoPendienteData.ofertaId
-                });
-                logger.debug('✅ Navegado a PaymentCallbackScreen desde onReady con datos de pago pendiente');
-              }
-            }, 3000); // Aumentado a 3 segundos para dar más tiempo
-          } else {
-            logger.debug('⏳ Usuario no autenticado aún, los datos de pago se procesarán después de autenticación');
-          }
-        }
       } catch (e) {
         logger.warn('Error procesando deep link pendiente desde onReady:', e);
       }
@@ -1403,7 +1320,6 @@ const MainImpl = ({ lastNotificationResponse }) => {
     loading,
     navigationRef,
     navigateToPaymentCallback,
-    shouldDeferPaymentCallbackForActiveCheckout,
     flushPendingGuestPublicDeepLink,
     consumePendingPublicDeepLinkFromStorage,
   ]);

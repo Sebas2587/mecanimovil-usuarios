@@ -4,7 +4,7 @@
  * Esta pantalla maneja el retorno de Mercado Pago después de un pago.
  * Procesa los parámetros de la URL, confirma el pago con el backend y redirige.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -23,12 +25,51 @@ import {
   resolveOfertaIdForPago,
   isOfertaNotFoundError,
 } from '../../utils/pagoOfertaId';
+import {
+  clearPagoPendienteStorage,
+  isStaleProcessingCallback,
+} from '../../utils/pagoPendienteStorage';
 
 const PaymentCallbackScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const [status, setStatus] = useState('processing'); // processing, success, error
   const [message, setMessage] = useState('Procesando tu pago...');
+  const autoNavTimerRef = useRef(null);
+
+  const navigateToMisSolicitudes = useCallback(() => {
+    if (autoNavTimerRef.current) {
+      clearTimeout(autoNavTimerRef.current);
+      autoNavTimerRef.current = null;
+    }
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/');
+    }
+    navigation.reset({
+      index: 0,
+      routes: [{
+        name: 'TabNavigator',
+        params: { screen: ROUTES.MIS_SOLICITUDES },
+      }],
+    });
+  }, [navigation]);
+
+  useEffect(() => {
+    if (status !== 'success' || Platform.OS !== 'web') return undefined;
+    autoNavTimerRef.current = setTimeout(navigateToMisSolicitudes, 4000);
+    return () => {
+      if (autoNavTimerRef.current) {
+        clearTimeout(autoNavTimerRef.current);
+        autoNavTimerRef.current = null;
+      }
+    };
+  }, [status, navigateToMisSolicitudes]);
+
+  useEffect(() => () => {
+    if (autoNavTimerRef.current) {
+      clearTimeout(autoNavTimerRef.current);
+    }
+  }, []);
 
   // Función para parsear query params de una URL
   const parseQueryParams = (url) => {
@@ -102,6 +143,14 @@ const PaymentCallbackScreen = () => {
 
   useEffect(() => {
     AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY).catch(() => {});
+
+    const redirectHomeFromStaleSession = async () => {
+      await clearPagoPendienteStorage();
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.history.replaceState({}, '', '/');
+      }
+      navigation.reset({ index: 0, routes: [{ name: 'TabNavigator' }] });
+    };
 
     // Verificar si hay un deep link guardado en AsyncStorage (cuando la app se reinicia)
     // O si viene directamente desde el navegador in-app
@@ -338,9 +387,11 @@ const PaymentCallbackScreen = () => {
           return true; // Indica que se procesó un deep link pendiente
         }
         
-        // SEGUNDO: Si no hay deep link pendiente, verificar si hay datos de pago pendiente
-        // Esto puede ocurrir si la app se reinició antes de que llegara el deep link
-        // O si la app volvió al foreground después de estar en background (app de Mercado Pago)
+        // TERCERO: Solo al volver del foreground (app MP nativa) verificar estado en backend
+        if (!route.params?.from_foreground) {
+          return false;
+        }
+
         const pagoPendienteDataStr = await AsyncStorage.getItem('pago_pendiente_data');
         if (pagoPendienteDataStr) {
           const pagoPendienteData = JSON.parse(pagoPendienteDataStr);
@@ -1058,6 +1109,19 @@ const PaymentCallbackScreen = () => {
         console.log('📤 PaymentCallbackScreen: Procesando callback de Mercado Pago');
         console.log('   - Route params:', route.params);
         console.log('   - Route name:', route.name);
+
+        let initialUrlForStaleCheck = null;
+        try {
+          initialUrlForStaleCheck = await Linking.getInitialURL();
+        } catch (_) {
+          initialUrlForStaleCheck = null;
+        }
+
+        if (isStaleProcessingCallback(route.params, initialUrlForStaleCheck)) {
+          console.log('⚠️ Callback de pago obsoleto, redirigiendo al inicio');
+          await redirectHomeFromStaleSession();
+          return;
+        }
         
         // PRIMERO: Verificar si hay un deep link pendiente en AsyncStorage (cuando la app se reinicia)
         const hasPendingDeepLink = await checkPendingDeepLink();
@@ -1103,6 +1167,12 @@ const PaymentCallbackScreen = () => {
         }
         
         console.log('   - Parámetros finales combinados:', paymentParams);
+
+        if (isStaleProcessingCallback(paymentParams, initialUrlForStaleCheck)) {
+          console.log('⚠️ Callback de pago obsoleto (sin params MP), redirigiendo al inicio');
+          await redirectHomeFromStaleSession();
+          return;
+        }
         
         // #region agent log
         fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
@@ -1172,6 +1242,23 @@ const PaymentCallbackScreen = () => {
             Por favor, no cierres la aplicación
           </Text>
         )}
+        {(status === 'success' || status === 'error') && (
+          <>
+            {Platform.OS === 'web' && status === 'success' && (
+              <Text style={styles.subMessage}>
+                Serás redirigido a tus solicitudes en unos segundos
+              </Text>
+            )}
+            <TouchableOpacity
+              style={styles.continueButton}
+              onPress={navigateToMisSolicitudes}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Text style={styles.continueButtonText}>Ver mis solicitudes</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -1202,6 +1289,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  continueButton: {
+    marginTop: 24,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 10,
+    minWidth: 220,
+    alignItems: 'center',
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
