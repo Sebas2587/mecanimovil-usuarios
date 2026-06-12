@@ -503,12 +503,16 @@ const OpcionesPagoScreen = () => {
   }, [resumenGlobal, tipoPagoRepuestos]);
 
   // Desglose (subtotal neto, IVA y etiqueta) para el pago que se realizará ahora.
-  // Depende de la opción de pago seleccionada porque el IVA es proporcional a cada cobro:
-  //   • Repuestos adelantado: IVA solo sobre la gestión de compra (los repuestos se tratan
-  //     al precio de mercado, con IVA ya incorporado por el proveedor de partes).
-  //   • Solo servicio / labor: IVA = costoManoObra × 19 %.
-  //   • Todo junto: IVA = total − subtotalNeto.
-  // Fórmula: IVA = montoPago − subtotalNeto → garantiza que subtotal + IVA = montoPago exacto.
+  //
+  // El proveedor es contribuyente de IVA y ofrece un servicio integral: IVA 19 % aplica
+  // sobre TODOS los componentes (repuestos + gestión + mano de obra), igual que la fórmula
+  // precio_total_ofrecido = (rep + gest + mano) × 1,19.  Al dividir en pagos parciales:
+  //   • Repuestos adelantado : (rep + gest) × 1,19 → repuestos_pago + servicio_pago = total
+  //   • Solo labor           : mano × 1,19
+  //   • Todo junto           : total (ya incluye IVA de todo)
+  //
+  // Fórmula: IVA = montoPago − redondearCLP(subtotalNeto)  → subtotal + IVA = montoPago exacto.
+  // Si el IVA redondea a $0 (montos muy pequeños) se muestra "IVA incluido (< $1)".
   const desgloseActual = React.useMemo(() => {
     if (!resumenGlobal?.tieneDesgloseRepuestos || !resumenGlobal?.montosPago) return null;
     const {
@@ -519,50 +523,36 @@ const OpcionesPagoScreen = () => {
       soloServicioPendiente,
     } = resumenGlobal;
 
+    const ivaLabel = (iva, base) =>
+      iva > 0 ? `IVA 19 % (${base})` : `IVA incluido (< $1 CLP, redondeo)`;
+
     if (soloServicioPendiente) {
       const subtotal = redondearCLP(costoManoObraSinIva);
       const total = montosPago.servicio;
-      return {
-        subtotal,
-        iva: total - subtotal,
-        total,
-        ivaLabel: 'IVA (19% s/ mano de obra)',
-      };
+      const iva = total - subtotal;
+      return { subtotal, iva, total, ivaLabel: ivaLabel(iva, 'mano de obra') };
     }
 
     switch (tipoPagoRepuestos) {
       case TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO: {
+        // IVA sobre repuestos + gestión, igual que el total
         const subtotal = redondearCLP(costoRepuestos + costoGestionCompraSinIva);
         const total = montosPago.repuestos;
-        return {
-          subtotal,
-          iva: total - subtotal,
-          total,
-          ivaLabel: costoGestionCompraSinIva > 0
-            ? 'IVA (19% s/ gestión de compra)'
-            : 'IVA incluido en precio de repuestos',
-        };
+        const iva = total - subtotal;
+        return { subtotal, iva, total, ivaLabel: ivaLabel(iva, 'repuestos + gestión') };
       }
       case TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA: {
         const subtotal = redondearCLP(costoManoObraSinIva);
         const total = montosPago.servicio;
-        return {
-          subtotal,
-          iva: total - subtotal,
-          total,
-          ivaLabel: 'IVA (19% s/ mano de obra)',
-        };
+        const iva = total - subtotal;
+        return { subtotal, iva, total, ivaLabel: ivaLabel(iva, 'mano de obra') };
       }
       case TIPO_PAGO_REPUESTOS.TODO_ADELANTADO:
       default: {
         const subtotal = redondearCLP(costoRepuestos + costoManoObraSinIva + costoGestionCompraSinIva);
         const total = montosPago.total;
-        return {
-          subtotal,
-          iva: total - subtotal,
-          total,
-          ivaLabel: 'IVA (19%)',
-        };
+        const iva = total - subtotal;
+        return { subtotal, iva, total, ivaLabel: ivaLabel(iva, 'servicio completo') };
       }
     }
   }, [resumenGlobal, tipoPagoRepuestos]);

@@ -21,7 +21,10 @@ export function calcularMontoPagoOferta(tipoPago, {
   precioTotalOfrecido = 0,
 } = {}) {
   if (tipoPago === 'repuestos') {
-    return redondearCLP(costoRepuestos + costoGestionCompra * 1.19);
+    // IVA aplica sobre repuestos + gestión porque son parte del servicio integral,
+    // igual que el total = (rep + gest + mano) × 1.19.
+    // Así repuestos_payment + servicio_payment = total_payment exacto.
+    return redondearCLP((costoRepuestos + costoGestionCompra) * 1.19);
   }
   if (tipoPago === 'servicio') {
     return redondearCLP(costoManoObra * 1.19);
