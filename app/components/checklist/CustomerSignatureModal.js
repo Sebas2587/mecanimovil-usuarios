@@ -8,8 +8,8 @@
  * - El técnico ya firmó y el checklist está en `PENDIENTE_FIRMA_CLIENTE`.
  * - El cliente firma desde su propia app y dispara el cierre del servicio.
  *
- * Internamente usa `react-native-signature-canvas` (misma librería que la
- * app del proveedor) y opcionalmente captura la ubicación con
+ * Usa `SignaturePad` (canvas HTML5 en web; `react-native-signature-canvas` en
+ * nativo) y opcionalmente captura la ubicación con
  * `expo-location`.
  */
 import React, { useEffect, useRef, useState } from 'react';
@@ -25,7 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import SignatureScreen from 'react-native-signature-canvas';
+import SignaturePad from '../signature/SignaturePad';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -299,19 +299,13 @@ const CustomerSignatureModal = ({
           <View style={styles.canvasWrapper}>
             <Text style={styles.canvasHint}>Dibuja tu firma dentro del recuadro</Text>
             <View style={styles.canvasContainer}>
-              <SignatureScreen
+              <SignaturePad
                 ref={signatureRef}
                 onOK={handleSignatureOK}
                 onEmpty={handleSignatureEmpty}
                 onBegin={handleBegin}
                 webStyle={signatureWebStyle}
-                descriptionText=""
-                imageType="image/png"
-                trimWhitespace
-                autoClear={false}
-                scrollable={false}
-                nestedScrollEnabled={false}
-                showsVerticalScrollIndicator={false}
+                height={CANVAS_HEIGHT}
                 style={styles.signatureWebView}
               />
             </View>
