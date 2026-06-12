@@ -489,13 +489,15 @@ const OpcionesPagoScreen = () => {
   const montoActualPagoSeleccionado = React.useMemo(() => {
     if (!resumenGlobal?.montosPago) return resumenGlobal?.totalConIva ?? null;
     const { montosPago } = resumenGlobal;
-    if (resumenGlobal.soloServicioPendiente) return montosPago.servicio;
+    // Ya pagó repuestos → cobra el saldo exacto = total − lo_ya_cobrado
+    if (resumenGlobal.soloServicioPendiente) return montosPago.saldo;
     if (!resumenGlobal.tieneRepuestosParaPagar) return montosPago.total;
     switch (tipoPagoRepuestos) {
       case TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO:
         return montosPago.repuestos;
       case TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA:
-        return montosPago.servicio;
+        // Cliente trae sus propios repuestos → solo cobra labor
+        return montosPago.soloLabor;
       case TIPO_PAGO_REPUESTOS.TODO_ADELANTADO:
       default:
         return montosPago.total;
@@ -512,7 +514,8 @@ const OpcionesPagoScreen = () => {
   //   • Todo junto           : total (ya incluye IVA de todo)
   //
   // Fórmula: IVA = montoPago − redondearCLP(subtotalNeto)  → subtotal + IVA = montoPago exacto.
-  // Si el IVA redondea a $0 (montos muy pequeños) se muestra "IVA incluido (< $1)".
+  const IVA_LABEL_SII = 'IVA incluido según SII (19%)';
+
   const desgloseActual = React.useMemo(() => {
     if (!resumenGlobal?.tieneDesgloseRepuestos || !resumenGlobal?.montosPago) return null;
     const {
@@ -523,36 +526,36 @@ const OpcionesPagoScreen = () => {
       soloServicioPendiente,
     } = resumenGlobal;
 
-    const ivaLabel = (iva, base) =>
-      iva > 0 ? `IVA 19 % (${base})` : `IVA incluido (< $1 CLP, redondeo)`;
-
     if (soloServicioPendiente) {
+      // Saldo = total − repuestos_ya_cobrado. El subtotal que se muestra es el neto
+      // de la mano de obra; el IVA puede ser mayor a mano×0.19 porque absorbe los
+      // centavos que el redondeo no capturó en el primer pago.
+      const total = montosPago.saldo;
       const subtotal = redondearCLP(costoManoObraSinIva);
-      const total = montosPago.servicio;
       const iva = total - subtotal;
-      return { subtotal, iva, total, ivaLabel: ivaLabel(iva, 'mano de obra') };
+      return { subtotal, iva, total, ivaLabel: IVA_LABEL_SII };
     }
 
     switch (tipoPagoRepuestos) {
       case TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO: {
-        // IVA sobre repuestos + gestión, igual que el total
-        const subtotal = redondearCLP(costoRepuestos + costoGestionCompraSinIva);
         const total = montosPago.repuestos;
+        const subtotal = redondearCLP(costoRepuestos + costoGestionCompraSinIva);
         const iva = total - subtotal;
-        return { subtotal, iva, total, ivaLabel: ivaLabel(iva, 'repuestos + gestión') };
+        return { subtotal, iva, total, ivaLabel: IVA_LABEL_SII };
       }
       case TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA: {
+        // Solo cobra labor; no hay primer pago de repuestos involucrado
+        const total = montosPago.soloLabor;
         const subtotal = redondearCLP(costoManoObraSinIva);
-        const total = montosPago.servicio;
         const iva = total - subtotal;
-        return { subtotal, iva, total, ivaLabel: ivaLabel(iva, 'mano de obra') };
+        return { subtotal, iva, total, ivaLabel: IVA_LABEL_SII };
       }
       case TIPO_PAGO_REPUESTOS.TODO_ADELANTADO:
       default: {
-        const subtotal = redondearCLP(costoRepuestos + costoManoObraSinIva + costoGestionCompraSinIva);
         const total = montosPago.total;
+        const subtotal = redondearCLP(costoRepuestos + costoManoObraSinIva + costoGestionCompraSinIva);
         const iva = total - subtotal;
-        return { subtotal, iva, total, ivaLabel: ivaLabel(iva, 'servicio completo') };
+        return { subtotal, iva, total, ivaLabel: IVA_LABEL_SII };
       }
     }
   }, [resumenGlobal, tipoPagoRepuestos]);
@@ -1154,7 +1157,6 @@ const OpcionesPagoScreen = () => {
                 <>
                   {/* Información de lo ya pagado */}
                   <View style={styles.infoPagoParcialCard}>
-                    <Ionicons name="checkmark-circle" size={20} color={icon.success} />
                     <View style={styles.infoPagoParcialContent}>
                       <Text style={styles.infoPagoParcialTitulo}>Ya pagado:</Text>
                       <Text style={styles.infoPagoParcialTexto}>
@@ -1173,8 +1175,7 @@ const OpcionesPagoScreen = () => {
                   {/* Solo mostrar mano de obra (lo que falta pagar) */}
                   <View style={styles.desgloseRow}>
                     <View style={styles.desgloseItem}>
-                      <Ionicons name="construct-outline" size={20} color={icon.brand} />
-                      <Text style={styles.desgloseLabel}>🔧 Mano de obra (sin IVA)</Text>
+                      <Text style={styles.desgloseLabel}>Mano de obra (sin IVA)</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
                       ${formatearMontoCLP(resumenGlobal.costoManoObraSinIva)}
@@ -1195,7 +1196,7 @@ const OpcionesPagoScreen = () => {
                   {/* IVA — calculado como (montoPago − subtotalNeto) para que sumen exacto */}
                   <View style={styles.desgloseRow}>
                     <View style={styles.desgloseItem}>
-                      <Text style={styles.desgloseLabel}>📋 {desgloseActual?.ivaLabel ?? 'IVA (19% s/ mano de obra)'}</Text>
+                      <Text style={styles.desgloseLabel}>{desgloseActual?.ivaLabel ?? 'IVA incluido según SII (19%)'}</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
                       ${formatearMontoCLP(desgloseActual?.iva ?? (resumenGlobal.costoManoObraSinIva * 0.19))}
@@ -1233,8 +1234,7 @@ const OpcionesPagoScreen = () => {
                       {resumenGlobal.costoManoObraSinIva > 0 && <View style={styles.desgloseDivider} />}
                       <View style={styles.desgloseRow}>
                         <View style={styles.desgloseItem}>
-                          <Ionicons name="cog-outline" size={20} color={icon.muted} />
-                          <Text style={styles.desgloseLabel}>📦 Repuestos</Text>
+                          <Text style={styles.desgloseLabel}>Repuestos</Text>
                         </View>
                         <Text style={styles.desgloseValue}>
                           ${formatearMontoCLP(resumenGlobal.costoRepuestos)}
@@ -1249,10 +1249,9 @@ const OpcionesPagoScreen = () => {
                       <View style={styles.desgloseDivider} />
                       <View style={styles.desgloseRow}>
                         <View style={styles.desgloseItem}>
-                          <Ionicons name="car-outline" size={20} color={icon.warning} />
-                          <Text style={[styles.desgloseLabel, { color: icon.warning }]}>🚚 Gestión de compra (sin IVA)</Text>
+                          <Text style={styles.desgloseLabel}>Gestión de compra (sin IVA)</Text>
                         </View>
-                        <Text style={[styles.desgloseValue, { color: icon.warning }]}>
+                        <Text style={styles.desgloseValue}>
                           ${formatearMontoCLP(resumenGlobal.costoGestionCompraSinIva)}
                         </Text>
                       </View>
@@ -1273,7 +1272,7 @@ const OpcionesPagoScreen = () => {
                   {/* IVA — proporcional al pago seleccionado; etiqueta explica sobre qué base */}
                   <View style={styles.desgloseRow}>
                     <View style={styles.desgloseItem}>
-                      <Text style={styles.desgloseLabel}>📋 {desgloseActual?.ivaLabel ?? 'IVA (19%)'}</Text>
+                      <Text style={styles.desgloseLabel}>{desgloseActual?.ivaLabel ?? 'IVA incluido según SII (19%)'}</Text>
                     </View>
                     <Text style={styles.desgloseValue}>
                       ${formatearMontoCLP(desgloseActual?.iva ?? resumenGlobal.iva)}

@@ -46,7 +46,24 @@ export function formatearMontoCLP(monto) {
   });
 }
 
-/** Devuelve los tres montos posibles de pago para una oferta. */
+/**
+ * Devuelve los montos de cada forma de pago para una oferta.
+ *
+ * Hay dos escenarios distintos con nombres claros:
+ *
+ * • repuestos  – primer pago parcial: (rep + gestión) × 1.19
+ * • saldo      – segundo pago (lo que falta): total − repuestos
+ *                Garantiza repuestos + saldo = total SIEMPRE,
+ *                absorbiendo cualquier centavo que el redondeo
+ *                no capturó en el primer cobro.
+ * • soloLabor  – cuando el cliente compra sus propios repuestos
+ *                y el proveedor solo cobra mano de obra: mano × 1.19
+ *                (concepto distinto al saldo; no hay primer pago de repuestos)
+ * • total      – pago único que cubre todo.
+ *
+ * Nota: saldo ≠ soloLabor en general cuando hay redondeo
+ * (con valores reales suelen coincidir, con montos pequeños de prueba difieren).
+ */
 export function calcularMontosPagoOferta(oferta) {
   const costoRepuestos = parseFloat(oferta.costoRepuestos ?? oferta.costo_repuestos ?? 0);
   const costoGestionCompra = parseFloat(oferta.costoGestionCompra ?? oferta.costo_gestion_compra ?? 0);
@@ -57,10 +74,18 @@ export function calcularMontosPagoOferta(oferta) {
 
   const params = { costoRepuestos, costoGestionCompra, costoManoObra, precioTotalOfrecido };
 
+  const repuestosMonto = calcularMontoPagoOferta('repuestos', params);
+  const totalMonto = calcularMontoPagoOferta('total', params);
+
   return {
-    repuestos: calcularMontoPagoOferta('repuestos', params),
-    servicio: calcularMontoPagoOferta('servicio', params),
-    total: calcularMontoPagoOferta('total', params),
+    repuestos: repuestosMonto,
+    // Saldo garantizado: total - repuestos → la suma SIEMPRE cierra con el total
+    saldo: totalMonto - repuestosMonto,
+    // Solo labor (cliente compra sus propios repuestos, concepto diferente al saldo)
+    soloLabor: redondearCLP(costoManoObra * 1.19),
+    // Alias legacy para no romper código que lea .servicio
+    get servicio() { return this.saldo; },
+    total: totalMonto,
     precioTotalOfrecido,
   };
 }
