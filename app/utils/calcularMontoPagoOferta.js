@@ -46,3 +46,28 @@ export function calcularMontosPagoOferta(oferta) {
     precioTotalOfrecido,
   };
 }
+
+/** True cuando repuestos (si aplica) y mano de obra están pagados. */
+export function ofertaEstaTotalmentePagada(oferta) {
+  if (!oferta) return false;
+
+  const repuestosPagados = oferta.estado_pago_repuestos === 'pagado';
+  const servicioPendiente = (oferta.estado_pago_servicio || 'pendiente') === 'pendiente';
+  const esParcial =
+    oferta.estado === 'pagada_parcialmente' || (repuestosPagados && servicioPendiente);
+
+  if (esParcial) return false;
+
+  const servicioPagado = (oferta.estado_pago_servicio || 'pendiente') === 'pagado';
+  const costoRepuestos = parseFloat(oferta.costo_repuestos ?? oferta.costoRepuestos ?? 0);
+  const tieneRepuestos = costoRepuestos > 0;
+
+  if (tieneRepuestos) {
+    return repuestosPagados && servicioPagado;
+  }
+
+  return (
+    servicioPagado
+    || ['pagada', 'en_ejecucion', 'completada', 'finalizada', 'calificada'].includes(oferta.estado)
+  );
+}

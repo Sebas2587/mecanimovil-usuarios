@@ -409,7 +409,7 @@ const OfferCardDetailed = ({
                 </View>
             ) : null}
 
-            {/* 4. Acciones */}
+            {/* Acciones: chat + CTA o chat + estado informativo */}
             <View style={styles.actionsRow}>
                 <View style={styles.chatButtonWrap}>
                     <TouchableOpacity
@@ -432,15 +432,41 @@ const OfferCardDetailed = ({
                     ) : null}
                 </View>
 
-                {/* Botón Aceptar o Badge Aceptado */}
                 {isAccepted ? (
-                    <View style={styles.acceptedButton}>
-                        <Text style={styles.acceptButtonText}>
-                            {catalogoPendienteConfirmacion
-                                ? 'Proveedor elegido'
-                                : 'Oferta Aceptada'}
-                        </Text>
-                        <Ionicons name="checkmark-circle" size={18} color={COLORS.text.onPrimary} />
+                    <View
+                        style={[
+                            styles.acceptedInfoBox,
+                            styles.acceptedInfoBoxInRow,
+                            catalogoPendienteConfirmacion && styles.acceptedInfoBoxPending,
+                        ]}
+                    >
+                        <Ionicons
+                            name={
+                                catalogoPendienteConfirmacion
+                                    ? 'hourglass-outline'
+                                    : 'checkmark-circle-outline'
+                            }
+                            size={18}
+                            color={
+                                catalogoPendienteConfirmacion
+                                    ? COLORS.warning[700]
+                                    : COLORS.success[700]
+                            }
+                        />
+                        <View style={styles.acceptedInfoTextCol}>
+                            <Text style={styles.acceptedInfoLabel}>Estado de la oferta</Text>
+                            <Text
+                                style={[
+                                    styles.acceptedInfoValue,
+                                    catalogoPendienteConfirmacion && styles.acceptedInfoValuePending,
+                                ]}
+                                numberOfLines={1}
+                            >
+                                {catalogoPendienteConfirmacion
+                                    ? 'Proveedor elegido'
+                                    : 'Oferta aceptada'}
+                            </Text>
+                        </View>
                     </View>
                 ) : (
                     <TouchableOpacity
@@ -762,6 +788,7 @@ const styles = StyleSheet.create({
     },
     actionsRow: {
         flexDirection: 'row',
+        alignItems: 'stretch',
         gap: SPACING.sm,
     },
     chatButtonWrap: {
@@ -814,17 +841,45 @@ const styles = StyleSheet.create({
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.primary[600],
     },
-    acceptedButton: {
-        flex: 1,
-        flexDirection: 'row',
-        backgroundColor: COLORS.success[500],
+    acceptedInfoBox: {
+        backgroundColor: COLORS.success.light,
         borderRadius: BORDERS.radius.md,
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: SPACING.xs,
-        height: 48,
         borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.success[600],
+        borderColor: COLORS.success[200],
+    },
+    acceptedInfoBoxInRow: {
+        flex: 1,
+        minWidth: 0,
+        minHeight: 48,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.sm,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.xs,
+    },
+    acceptedInfoBoxPending: {
+        backgroundColor: COLORS.warning[50],
+        borderColor: COLORS.warning[200],
+    },
+    acceptedInfoTextCol: {
+        flex: 1,
+        minWidth: 0,
+        justifyContent: 'center',
+        gap: 2,
+    },
+    acceptedInfoLabel: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.text.tertiary,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        textTransform: 'uppercase',
+    },
+    acceptedInfoValue: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.success[800],
+    },
+    acceptedInfoValuePending: {
+        color: COLORS.warning[800],
     },
     disabledButton: {
         backgroundColor: COLORS.neutral.gray[200],
