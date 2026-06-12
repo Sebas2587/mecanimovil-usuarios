@@ -13,6 +13,7 @@ import {
   useSelectOffer,
   invalidateSolicitudesListQueries,
   requestDetailQueryKey,
+  refetchSolicitudesListQueries,
 } from '../hooks/useRequests';
 
 /** Tipos WS (client_status) que implican cambio en lista/detalle de solicitudes públicas. */
@@ -28,6 +29,7 @@ const WS_TYPES_REFRESH_SOLICITUDES = new Set([
   'reserva_creditos_expirada',
   // Pago confirmado: la solicitud cambia a pagada o pagada_parcialmente → refrescar lista
   'pago_completado',
+  'servicio_pendiente_firma',
 ]);
 
 function invalidateSolicitudesQueries(queryClient, payload, userId) {
@@ -36,6 +38,9 @@ function invalidateSolicitudesQueries(queryClient, payload, userId) {
   const rk = requestDetailQueryKey(sid);
   if (rk) {
     queryClient.invalidateQueries({ queryKey: rk });
+  }
+  if (userId) {
+    void refetchSolicitudesListQueries(queryClient, userId);
   }
 }
 

@@ -15,102 +15,7 @@ import {
   getRepuestosServicioIcon,
 } from '../../utils/solicitudRepuestosServicio';
 import { COLORS, BORDERS, SHADOWS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
-
-/** Estado → superficie legible sobre canvas claro */
-const getEstadoSurfaceConfig = (estadoEfectivo) => {
-  const configs = {
-    creada: {
-      color: COLORS.text.secondary,
-      bg: COLORS.neutral.gray[100],
-      border: COLORS.border.light,
-      texto: 'Creada',
-    },
-    seleccionando_servicios: {
-      color: COLORS.primary[700],
-      bg: COLORS.primary[50],
-      border: COLORS.primary[200],
-      texto: 'Seleccionando',
-    },
-    publicada: {
-      color: COLORS.primary[700],
-      bg: COLORS.primary[50],
-      border: COLORS.primary[200],
-      texto: 'Publicada',
-    },
-    con_ofertas: {
-      color: COLORS.warning[800],
-      bg: COLORS.warning[50],
-      border: COLORS.warning[200],
-      texto: 'Con Ofertas',
-    },
-    pendiente_confirmacion: {
-      color: COLORS.primary[700],
-      bg: COLORS.primary[50],
-      border: COLORS.primary[200],
-      texto: 'Esperando confirmación',
-    },
-    esperando_creditos_proveedor: {
-      color: COLORS.warning[800],
-      bg: COLORS.warning[50],
-      border: COLORS.warning[300],
-      texto: 'Esperando proveedor',
-    },
-    adjudicada: {
-      color: COLORS.success[800],
-      bg: COLORS.success.light,
-      border: COLORS.success[200],
-      texto: 'Adjudicada',
-    },
-    pagada: {
-      color: COLORS.success[800],
-      bg: COLORS.success.light,
-      border: COLORS.success[200],
-      texto: 'Pagada',
-    },
-    pagada_parcialmente: {
-      color: COLORS.warning[800],
-      bg: COLORS.warning[50],
-      border: COLORS.warning[200],
-      texto: 'Pagada Parcialmente',
-    },
-    expirada: {
-      color: COLORS.error[700],
-      bg: COLORS.error[50],
-      border: COLORS.error[200],
-      texto: 'Expirada',
-    },
-    cancelada: {
-      color: COLORS.error[700],
-      bg: COLORS.error[50],
-      border: COLORS.error[200],
-      texto: 'Cancelada',
-    },
-    ofertas_adicionales_pendientes: {
-      color: COLORS.warning[800],
-      bg: COLORS.warning[50],
-      border: COLORS.warning[200],
-      texto: 'Ofertas adicionales',
-    },
-    en_ejecucion: {
-      color: COLORS.primary[700],
-      bg: COLORS.primary[50],
-      border: COLORS.primary[200],
-      texto: 'En Progreso',
-    },
-    completada: {
-      color: COLORS.success[800],
-      bg: COLORS.success.light,
-      border: COLORS.success[200],
-      texto: 'Completada',
-    },
-  };
-  return configs[estadoEfectivo] || {
-    color: COLORS.text.secondary,
-    bg: COLORS.neutral.gray[100],
-    border: COLORS.border.light,
-    texto: estadoEfectivo,
-  };
-};
+import { getEstadoSolicitudSurface } from '../../utils/solicitudEstadoDisplay';
 
 const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
   const { obtenerOfertasNuevasCountPorSolicitud } = useSolicitudes();
@@ -164,24 +69,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
     return null;
   }, [solicitud]);
 
-  const getEstadoConfig = () => {
-    const oferta = solicitud.oferta_seleccionada_detail || solicitud.oferta_seleccionada;
-    const tienePagoParcial = oferta?.estado_pago_repuestos === 'pagado'
-      && oferta?.estado_pago_servicio === 'pendiente';
-
-    let estadoEfectivo = solicitud.estado_efectivo ?? solicitud.estado;
-    if (estadoEfectivo === 'pagada' && tienePagoParcial) {
-      estadoEfectivo = 'pagada_parcialmente';
-    }
-
-    const base = getEstadoSurfaceConfig(estadoEfectivo);
-    if (estadoEfectivo === 'ofertas_adicionales_pendientes' && solicitud.estado_display_efectivo) {
-      return { ...base, texto: solicitud.estado_display_efectivo };
-    }
-    return base;
-  };
-
-  const estadoConfig = getEstadoConfig();
+  const estadoConfig = getEstadoSolicitudSurface(solicitud);
 
   const handlePress = () => {
     if (onPress) onPress(solicitud);

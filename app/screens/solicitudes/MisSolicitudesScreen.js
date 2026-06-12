@@ -21,7 +21,7 @@ import { useSolicitudes } from '../../context/SolicitudesContext';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesListSkeleton';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
-import { prefetchRequestDetail, REQUESTS_LIST_KEY } from '../../hooks/useRequests';
+import { prefetchRequestDetail, refetchSolicitudesListQueries } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
 import { showAlert } from '../../utils/platformAlert';
 
@@ -156,16 +156,10 @@ const MisSolicitudesScreen = () => {
       const forceRefresh = route.params?.refreshList === true;
       if (forceRefresh) {
         navigation.setParams({ refreshList: undefined });
-        void cargarDatos();
-        return;
       }
 
-      const listKey = REQUESTS_LIST_KEY(user.id);
-      const state = queryClient.getQueryState(listKey);
-      if (state?.isStale !== false) {
-        void cargarDatos();
-      }
-    }, [user?.id, route.params?.refreshList, navigation, queryClient, cargarDatos]),
+      void refetchSolicitudesListQueries(queryClient, user.id);
+    }, [user?.id, route.params?.refreshList, navigation, queryClient]),
   );
 
   const solicitudesArray = Array.isArray(solicitudes) ? solicitudes : [];

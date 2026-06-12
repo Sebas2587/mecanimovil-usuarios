@@ -17,36 +17,17 @@ import {
     resolveUbicacionServicioTexto,
     getModalidadServicioIcon,
 } from '../../utils/solicitudModalidadServicio';
+import { getEstadoSolicitudSurface } from '../../utils/solicitudEstadoDisplay';
 
 /** Colores de badge alineados a estados de solicitud pública (Coinbase / superficies suaves). */
-export function getEstadoBadgeMeta(solicitud) {
-    const efectivo = solicitud.estado_efectivo ?? solicitud.estado;
-    const label =
-        efectivo === 'ofertas_adicionales_pendientes' && solicitud.estado_display_efectivo
-            ? solicitud.estado_display_efectivo
-            : solicitud.estado_display ||
-              (typeof efectivo === 'string' ? efectivo.replace(/_/g, ' ') : '—');
-    const map = {
-        creada: { color: COLORS.text.secondary, bg: COLORS.neutral.gray[100], border: COLORS.border.light },
-        seleccionando_servicios: { color: COLORS.primary[700], bg: COLORS.primary[50], border: COLORS.primary[200] },
-        publicada: { color: COLORS.primary[700], bg: COLORS.primary[50], border: COLORS.primary[200] },
-        con_ofertas: { color: COLORS.warning[800], bg: COLORS.warning[50], border: COLORS.warning[200] },
-        esperando_creditos_proveedor: { color: COLORS.warning[800], bg: COLORS.warning[50], border: COLORS.warning[300] },
-        adjudicada: { color: COLORS.success[800], bg: COLORS.success.light, border: COLORS.success[200] },
-        pendiente_pago: { color: COLORS.success[800], bg: COLORS.success.light, border: COLORS.success[200] },
-        pagada: { color: COLORS.success[800], bg: COLORS.success.light, border: COLORS.success[200] },
-        en_ejecucion: { color: COLORS.primary[700], bg: COLORS.primary[50], border: COLORS.primary[200] },
-        completada: { color: COLORS.success[800], bg: COLORS.success.light, border: COLORS.success[200] },
-        expirada: { color: COLORS.error[700], bg: COLORS.error[50], border: COLORS.error[200] },
-        cancelada: { color: COLORS.error[700], bg: COLORS.error[50], border: COLORS.error[200] },
-        ofertas_adicionales_pendientes: { color: COLORS.warning[800], bg: COLORS.warning[50], border: COLORS.warning[200] },
+export function getEstadoBadgeMeta(solicitud, options = {}) {
+    const surface = getEstadoSolicitudSurface(solicitud, options);
+    return {
+        label: surface.texto,
+        color: surface.color,
+        bg: surface.bg,
+        border: surface.border,
     };
-    const c = map[efectivo] || {
-        color: COLORS.text.secondary,
-        bg: COLORS.neutral.gray[100],
-        border: COLORS.border.light,
-    };
-    return { label, ...c };
 }
 
 const getUrgencyConfig = (urgencia) => {
@@ -75,7 +56,7 @@ const getUrgencyConfig = (urgencia) => {
     }
 };
 
-const ServiceSummaryCard = ({ solicitud }) => {
+const ServiceSummaryCard = ({ solicitud, checklistPendienteFirma = false }) => {
     if (!solicitud) return null;
 
     const urgencyConfig = getUrgencyConfig(solicitud.urgencia);
@@ -134,7 +115,7 @@ const ServiceSummaryCard = ({ solicitud }) => {
         () => resolveUbicacionServicioTexto(solicitud, modalidadServicio),
         [solicitud, modalidadServicio],
     );
-    const estadoBadge = getEstadoBadgeMeta(solicitud);
+    const estadoBadge = getEstadoBadgeMeta(solicitud, { checklistPendienteFirma });
     const fechaPreferida = solicitud.fecha_preferida || solicitud.fecha_creacion;
     const horaPreferida = solicitud.hora_preferida || solicitud.preferencia_horario;
 

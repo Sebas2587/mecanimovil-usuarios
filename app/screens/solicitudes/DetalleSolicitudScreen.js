@@ -37,7 +37,7 @@ import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard'
 import CertifiedVehicleCard from '../../components/solicitudes/CertifiedVehicleCard';
 import OfferCardDetailed from '../../components/solicitudes/OfferCardDetailed';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
-import PendingClientSignatureCard from '../../components/checklist/PendingClientSignatureCard';
+import CustomerSignatureModal from '../../components/checklist/CustomerSignatureModal';
 import PagoSaldoPendienteCierreBanner from '../../components/solicitudes/PagoSaldoPendienteCierreBanner';
 import DetalleSolicitudSkeleton from '../../components/utils/DetalleSolicitudSkeleton';
 
@@ -177,20 +177,43 @@ const DetalleSolicitudScreen = () => {
     [solicitud, ofertas, ofertasSecundarias],
   );
 
-  const pagoPrincipalCompleto = useMemo(
-    () => ofertaEstaTotalmentePagada(solicitud?.oferta_seleccionada_detail),
-    [solicitud?.oferta_seleccionada_detail],
-  );
-
   const [procesando, setProcesando] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [tabActivo, setTabActivo] = useState(TAB_PRINCIPALES);
   const [checklistOrdenId, setChecklistOrdenId] = useState(null);
   const [checklistPrincipalVisible, setChecklistPrincipalVisible] = useState(false);
   const [checklistVisiblePorOrdenId, setChecklistVisiblePorOrdenId] = useState({});
-  // Counter para forzar refetch de la card de firma diferida tras firmar.
+  const [checklistPrincipalData, setChecklistPrincipalData] = useState(null);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [signatureRefreshKey, setSignatureRefreshKey] = useState(0);
   const [fotoAmpliadaUrl, setFotoAmpliadaUrl] = useState(null);
+
+  const pagoPrincipalCompleto = useMemo(
+    () => ofertaEstaTotalmentePagada(solicitud?.oferta_seleccionada_detail),
+    [solicitud?.oferta_seleccionada_detail],
+  );
+
+  const requiereFirmaCliente = useMemo(() => {
+    if (!pagoPrincipalCompleto || !checklistPrincipalData) return false;
+    return (
+      checklistPrincipalData.requiere_firma_cliente === true
+      || checklistPrincipalData.estado === 'PENDIENTE_FIRMA_CLIENTE'
+    );
+  }, [pagoPrincipalCompleto, checklistPrincipalData]);
+
+  const handleSignatureSuccess = useCallback(() => {
+    setShowSignatureModal(false);
+    setSignatureRefreshKey((v) => v + 1);
+    queryClient.invalidateQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
+    });
+    queryClient.invalidateQueries({
+      predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
+    });
+    const rk = requestDetailQueryKey(solicitudId);
+    if (rk) queryClient.invalidateQueries({ queryKey: rk });
+    refetchRequestDetail();
+  }, [queryClient, solicitudId, refetchRequestDetail]);
 
   useEffect(() => {
     if (solicitudId == null || solicitudId === '') {
@@ -224,6 +247,7 @@ const DetalleSolicitudScreen = () => {
     if (ordenIds.size === 0) {
       setChecklistPrincipalVisible(false);
       setChecklistVisiblePorOrdenId({});
+      setChecklistPrincipalData(null);
       return;
     }
 
@@ -235,15 +259,27 @@ const DetalleSolicitudScreen = () => {
     );
     const map = Object.fromEntries(entries);
     setChecklistVisiblePorOrdenId(map);
-    setChecklistPrincipalVisible(
-      ordenIdParaChecklist != null ? map[String(ordenIdParaChecklist)] === true : false,
-    );
+    const principalVisible =
+      ordenIdParaChecklist != null ? map[String(ordenIdParaChecklist)] === true : false;
+    setChecklistPrincipalVisible(principalVisible);
+
+    if (principalVisible && ordenIdParaChecklist != null) {
+      try {
+        const data = await checklistClienteService.obtenerChecklistServicio(ordenIdParaChecklist);
+        setChecklistPrincipalData(data);
+      } catch {
+        setChecklistPrincipalData(null);
+      }
+    } else {
+      setChecklistPrincipalData(null);
+    }
   }, [ordenIdParaChecklist, ofertasSecundarias]);
 
   useEffect(() => {
     if (!solicitud) {
       setChecklistPrincipalVisible(false);
       setChecklistVisiblePorOrdenId({});
+      setChecklistPrincipalData(null);
       return;
     }
     refrescarChecklistsVisibles();
@@ -481,7 +517,10 @@ const DetalleSolicitudScreen = () => {
         )}
 
         {/* 2) Detalle de Solicitud */}
-        <ServiceSummaryCard solicitud={solicitud} />
+        <ServiceSummaryCard
+          solicitud={solicitud}
+          checklistPendienteFirma={requiereFirmaCliente}
+        />
 
         {esPendienteConfirmacion ? (
           <View style={styles.catalogoBanner}>
@@ -541,7 +580,7 @@ const DetalleSolicitudScreen = () => {
           </View>
         )}
 
-        {ofertaConSaldoPendiente && checklistPrincipalVisible ? (
+        {ofertaConSaldoPendiente && checklistPrincipalVisible && !requiereFirmaCliente ? (
           <PagoSaldoPendienteCierreBanner
             montoSaldo={montoSaldoPendiente}
             onPagar={() =>
@@ -553,46 +592,6 @@ const DetalleSolicitudScreen = () => {
             }
           />
         ) : null}
-
-        {/*
-          Firma diferida del cliente: si el técnico cerró el checklist y dejó
-          la orden en `pendiente_firma_cliente`, mostramos un CTA para firmar
-          desde la app del cliente (change firma-cliente-diferida-checklist).
-        */}
-        {(() => {
-          const ordenIdParaFirma =
-            solicitud?.oferta_seleccionada_detail?.solicitud_servicio_id ??
-            solicitud?.orden_id ??
-            solicitud?.solicitud_servicio_id ??
-            null;
-          if (!ordenIdParaFirma || !pagoPrincipalCompleto) return null;
-          const proveedorNombre =
-            solicitud?.oferta_seleccionada_detail?.proveedor?.nombre ||
-            solicitud?.oferta_seleccionada_detail?.proveedor_nombre ||
-            null;
-          const servicioNombre = serviciosResumenTexto !== 'Sin servicios'
-            ? serviciosResumenTexto
-            : 'Servicio contratado';
-          return (
-            <PendingClientSignatureCard
-              ordenId={ordenIdParaFirma}
-              servicioNombre={servicioNombre}
-              proveedorNombre={proveedorNombre}
-              refreshKey={signatureRefreshKey}
-              onSignatureSuccess={() => {
-                setSignatureRefreshKey((v) => v + 1);
-                queryClient.invalidateQueries({
-                  predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
-                });
-                queryClient.invalidateQueries({
-                  predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'activeRequests',
-                });
-                const rk = requestDetailQueryKey(solicitudId);
-                if (rk) queryClient.invalidateQueries({ queryKey: rk });
-              }}
-            />
-          );
-        })()}
 
         {/* C. Tabs: Ofertas recibidas | Ofertas adicionales */}
         <View style={styles.tabSection}>
@@ -667,6 +666,7 @@ const DetalleSolicitudScreen = () => {
                         disabled={isDisabled}
                         isAccepted={isWinner || esPendienteConfirmacion}
                         catalogoPendienteConfirmacion={esPendienteConfirmacion && isWinner}
+                        checklistPendienteFirma={isWinner && requiereFirmaCliente}
                       />
                     );
                   })}
@@ -766,6 +766,7 @@ const DetalleSolicitudScreen = () => {
                 const showPagar = ['pendiente_pago', 'adjudicada'].includes(solicitud.estado);
                 const showPagarSaldo = ofertaConSaldoPendiente != null;
                 const showChecklist = checklistPrincipalVisible;
+                const showFirmar = requiereFirmaCliente;
 
                 const openChecklistPrincipal = () => {
                   setChecklistOrdenId(null);
@@ -778,6 +779,24 @@ const DetalleSolicitudScreen = () => {
                     origen: 'solicitud_publica',
                     ofertaId: ofertaConSaldoPendiente?.id,
                   });
+
+                if (showFirmar && showChecklist) {
+                  return (
+                    <View style={styles.footerActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.footerPrimaryCta, styles.footerPrimaryCtaInRow]}
+                        onPress={() => setShowSignatureModal(true)}
+                      >
+                        <Text style={styles.footerPrimaryCtaText}>Revisar y firmar</Text>
+                        <Ionicons name="create-outline" size={18} color={COLORS.text.onPrimary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
+                        <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
+                        <Ionicons name="clipboard-outline" size={18} color={COLORS.text.primary} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }
 
                 if (showPagarSaldo) {
                   return (
@@ -835,6 +854,20 @@ const DetalleSolicitudScreen = () => {
                       >
                         <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
                         <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }
+
+                if (showFirmar) {
+                  return (
+                    <View style={styles.footerActionsSingle}>
+                      <TouchableOpacity
+                        style={styles.footerPrimaryCta}
+                        onPress={() => setShowSignatureModal(true)}
+                      >
+                        <Text style={styles.footerPrimaryCtaText}>Revisar y firmar</Text>
+                        <Ionicons name="create-outline" size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                     </View>
                   );
@@ -936,6 +969,22 @@ const DetalleSolicitudScreen = () => {
           servicioNombre={serviciosResumenTexto !== 'Sin servicios' ? serviciosResumenTexto : 'Servicio'}
         />
       )}
+
+      <CustomerSignatureModal
+        visible={showSignatureModal}
+        onClose={() => setShowSignatureModal(false)}
+        instanceId={checklistPrincipalData?.id}
+        servicioNombre={
+          serviciosResumenTexto !== 'Sin servicios' ? serviciosResumenTexto : 'Servicio contratado'
+        }
+        proveedorNombre={
+          solicitud?.oferta_seleccionada_detail?.proveedor?.nombre
+          || solicitud?.oferta_seleccionada_detail?.proveedor_nombre
+          || solicitud?.oferta_seleccionada_detail?.nombre_proveedor
+          || null
+        }
+        onSignatureSuccess={handleSignatureSuccess}
+      />
 
       <Modal visible={!!fotoAmpliadaUrl} transparent animationType="fade" onRequestClose={() => setFotoAmpliadaUrl(null)}>
         <Pressable style={styles.fotoLightboxBackdrop} onPress={() => setFotoAmpliadaUrl(null)}>

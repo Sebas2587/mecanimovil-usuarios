@@ -26,6 +26,7 @@ import {
     lineasTienenRepuestos,
 } from '../../utils/ofertaRepuestos';
 import { resolveCostosOfertaParaDisplay } from '../../utils/ofertaPrecioRepuestos';
+import { getEstadoOfertaDisplay } from '../../utils/solicitudEstadoDisplay';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -53,7 +54,13 @@ const OfferCardDetailed = ({
     isAccepted = false,
     esOfertaSecundaria = false,
     catalogoPendienteConfirmacion = false,
+    checklistPendienteFirma = false,
 }) => {
+    const estadoOfertaDisplay = useMemo(
+        () => getEstadoOfertaDisplay(oferta, { checklistPendienteFirma, catalogoPendienteConfirmacion }),
+        [oferta, checklistPendienteFirma, catalogoPendienteConfirmacion],
+    );
+
     const [proveedorFotoUrl, setProveedorFotoUrl] = useState(null);
 
     // Cargar foto del proveedor
@@ -437,34 +444,24 @@ const OfferCardDetailed = ({
                         style={[
                             styles.acceptedInfoBox,
                             styles.acceptedInfoBoxInRow,
-                            catalogoPendienteConfirmacion && styles.acceptedInfoBoxPending,
+                            estadoOfertaDisplay.pending && styles.acceptedInfoBoxPending,
                         ]}
                     >
                         <Ionicons
-                            name={
-                                catalogoPendienteConfirmacion
-                                    ? 'hourglass-outline'
-                                    : 'checkmark-circle-outline'
-                            }
+                            name={estadoOfertaDisplay.icon}
                             size={18}
-                            color={
-                                catalogoPendienteConfirmacion
-                                    ? COLORS.warning[700]
-                                    : COLORS.success[700]
-                            }
+                            color={estadoOfertaDisplay.color}
                         />
                         <View style={styles.acceptedInfoTextCol}>
                             <Text style={styles.acceptedInfoLabel}>Estado de la oferta</Text>
                             <Text
                                 style={[
                                     styles.acceptedInfoValue,
-                                    catalogoPendienteConfirmacion && styles.acceptedInfoValuePending,
+                                    estadoOfertaDisplay.pending && styles.acceptedInfoValuePending,
                                 ]}
-                                numberOfLines={1}
+                                numberOfLines={2}
                             >
-                                {catalogoPendienteConfirmacion
-                                    ? 'Proveedor elegido'
-                                    : 'Oferta aceptada'}
+                                {estadoOfertaDisplay.texto}
                             </Text>
                         </View>
                     </View>

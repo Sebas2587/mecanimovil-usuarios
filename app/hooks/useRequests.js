@@ -1,13 +1,12 @@
-import { Platform } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import solicitudesService, { normalizarSolicitudPublica } from '../services/solicitudesService';
 import ofertasService from '../services/ofertasService';
 import { useAuth } from '../context/AuthContext';
 
 const CACHE = {
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 45,
     gcTime: 1000 * 60 * 30,
-    refetchOnWindowFocus: Platform.OS === 'web',
+    refetchOnWindowFocus: true,
 };
 
 /** Claves React Query canónicas para listas de solicitudes del cliente. */
