@@ -1,6 +1,7 @@
 /**
  * Calcula el monto a cobrar en Mercado Pago para una oferta.
- * Réplica la lógica de crear_preferencia_pago_proveedor en el backend, sin redondear a entero.
+ * Devuelve siempre un entero CLP (Math.ceil) para que el valor mostrado en la app
+ * sea idéntico al que cobra Mercado Pago, que exige unit_price entero en CLP.
  */
 export function calcularMontoPagoOferta(tipoPago, {
   costoRepuestos = 0,
@@ -9,12 +10,13 @@ export function calcularMontoPagoOferta(tipoPago, {
   precioTotalOfrecido = 0,
 } = {}) {
   if (tipoPago === 'repuestos') {
-    return costoRepuestos + costoGestionCompra * 1.19;
+    return Math.ceil(costoRepuestos + costoGestionCompra * 1.19);
   }
   if (tipoPago === 'servicio') {
-    return costoManoObra * 1.19;
+    return Math.ceil(costoManoObra * 1.19);
   }
-  return precioTotalOfrecido;
+  // 'total': precio_total_ofrecido ya viene del proveedor; aplicar ceil por seguridad.
+  return Math.ceil(precioTotalOfrecido);
 }
 
 /** Formatea un monto CLP con hasta 2 decimales (sin redondear a entero). */

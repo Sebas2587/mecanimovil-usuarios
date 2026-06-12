@@ -483,24 +483,22 @@ const OpcionesPagoScreen = () => {
   }, [carritos, carrito, carritoLoading, esSolicitudPublica, esOfertaSecundaria, datosSolicitud, resumenPago]); // Recalcular cuando cambian datos de carrito, solicitud u oferta secundaria
 
   // Monto que se cobrará en MP según la opción de pago seleccionada.
-  // Se aplica Math.ceil para que coincida exactamente con lo que MP cobra (CLP entero, nunca menor).
+  // calcularMontoPagoOferta ya devuelve enteros CLP (Math.ceil), por lo que este valor
+  // coincide exactamente con lo que cobra Mercado Pago.
   const montoActualPagoSeleccionado = React.useMemo(() => {
-    const raw = (() => {
-      if (!resumenGlobal?.montosPago) return resumenGlobal?.totalConIva ?? null;
-      const { montosPago } = resumenGlobal;
-      if (resumenGlobal.soloServicioPendiente) return montosPago.servicio;
-      if (!resumenGlobal.tieneRepuestosParaPagar) return montosPago.total;
-      switch (tipoPagoRepuestos) {
-        case TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO:
-          return montosPago.repuestos;
-        case TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA:
-          return montosPago.servicio;
-        case TIPO_PAGO_REPUESTOS.TODO_ADELANTADO:
-        default:
-          return montosPago.total;
-      }
-    })();
-    return raw != null ? Math.ceil(raw) : raw;
+    if (!resumenGlobal?.montosPago) return resumenGlobal?.totalConIva ?? null;
+    const { montosPago } = resumenGlobal;
+    if (resumenGlobal.soloServicioPendiente) return montosPago.servicio;
+    if (!resumenGlobal.tieneRepuestosParaPagar) return montosPago.total;
+    switch (tipoPagoRepuestos) {
+      case TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO:
+        return montosPago.repuestos;
+      case TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA:
+        return montosPago.servicio;
+      case TIPO_PAGO_REPUESTOS.TODO_ADELANTADO:
+      default:
+        return montosPago.total;
+    }
   }, [resumenGlobal, tipoPagoRepuestos]);
 
   // Convertir URLs de fotos de servicios cuando cambien
