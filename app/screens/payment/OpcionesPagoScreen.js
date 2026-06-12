@@ -1444,10 +1444,10 @@ const OpcionesPagoScreen = () => {
               </Text>
             </View>
 
-            {/* Nota CLP: solo cuando hay desglose con IVA (los montos pueden tener centavos) */}
+            {/* Nota CLP: el peso chileno no tiene decimales; el monto se expresa en pesos enteros */}
             {(esSolicitudPublica || esOfertaSecundaria) && resumenGlobal?.tieneDesgloseRepuestos && (
               <Text style={styles.notaClpTexto}>
-                Los montos incluyen IVA (19 %). Mercado Pago procesa cobros en pesos chilenos enteros (CLP).
+                Los montos incluyen IVA (19 %) y se expresan en pesos chilenos enteros (CLP), tal como aparecerán en Mercado Pago y en la boleta del proveedor.
               </Text>
             )}
           </View>

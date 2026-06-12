@@ -1,7 +1,18 @@
 /**
+ * Redondeo a peso entero (half-up), idéntico al que aplica la boleta del SII
+ * y al que exige Mercado Pago (CLP no admite decimales). Centraliza el criterio
+ * para que app, backend y boleta muestren y cobren exactamente el mismo entero.
+ */
+export function redondearCLP(monto) {
+  const num = Number(monto);
+  if (!Number.isFinite(num)) return 0;
+  return Math.round(num);
+}
+
+/**
  * Calcula el monto a cobrar en Mercado Pago para una oferta.
- * Devuelve siempre un entero CLP (Math.ceil) para que el valor mostrado en la app
- * sea idéntico al que cobra Mercado Pago, que exige unit_price entero en CLP.
+ * Devuelve siempre un entero CLP porque el peso chileno no admite decimales:
+ * el valor mostrado en la app coincide exactamente con el que cobra Mercado Pago.
  */
 export function calcularMontoPagoOferta(tipoPago, {
   costoRepuestos = 0,
@@ -10,23 +21,25 @@ export function calcularMontoPagoOferta(tipoPago, {
   precioTotalOfrecido = 0,
 } = {}) {
   if (tipoPago === 'repuestos') {
-    return Math.ceil(costoRepuestos + costoGestionCompra * 1.19);
+    return redondearCLP(costoRepuestos + costoGestionCompra * 1.19);
   }
   if (tipoPago === 'servicio') {
-    return Math.ceil(costoManoObra * 1.19);
+    return redondearCLP(costoManoObra * 1.19);
   }
-  // 'total': precio_total_ofrecido ya viene del proveedor; aplicar ceil por seguridad.
-  return Math.ceil(precioTotalOfrecido);
+  // 'total': precio_total_ofrecido ya viene del proveedor.
+  return redondearCLP(precioTotalOfrecido);
 }
 
-/** Formatea un monto CLP con hasta 2 decimales (sin redondear a entero). */
+/**
+ * Formatea un monto en CLP como peso entero (sin decimales).
+ * El peso chileno no tiene centavos: mostrar decimales (p. ej. "2,38") es incorrecto
+ * y confunde al usuario, ya que nunca podría cobrarse ni facturarse ese valor.
+ */
 export function formatearMontoCLP(monto) {
-  if (monto == null || Number.isNaN(monto)) return '0';
-  const num = Number(monto);
-  const hasFraction = Math.abs(num - Math.trunc(num)) > 0.0001;
-  return num.toLocaleString('es-CL', {
-    minimumFractionDigits: hasFraction ? 2 : 0,
-    maximumFractionDigits: 2,
+  if (monto == null || Number.isNaN(Number(monto))) return '0';
+  return redondearCLP(monto).toLocaleString('es-CL', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
 }
 
