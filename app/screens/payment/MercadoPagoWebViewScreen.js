@@ -639,8 +639,8 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         {pagoPendienteInfo?.monto != null ? (
           <Text style={styles.webMontoLabel}>
             {pagoPendienteInfo.soloServicioPendiente || pagoPendienteInfo.tipoPago === 'servicio'
-              ? `Saldo restante: $${formatearMontoCLP(pagoPendienteInfo.montoPantalla ?? pagoPendienteInfo.monto)}`
-              : `Monto a pagar: $${formatearMontoCLP(pagoPendienteInfo.montoPantalla ?? pagoPendienteInfo.monto)}`}
+              ? `Saldo restante: $${formatearMontoCLP(pagoPendienteInfo.monto)}`
+              : `Monto a pagar: $${formatearMontoCLP(pagoPendienteInfo.monto)}`}
           </Text>
         ) : null}
 

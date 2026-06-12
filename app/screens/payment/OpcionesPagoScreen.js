@@ -482,21 +482,25 @@ const OpcionesPagoScreen = () => {
     };
   }, [carritos, carrito, carritoLoading, esSolicitudPublica, esOfertaSecundaria, datosSolicitud, resumenPago]); // Recalcular cuando cambian datos de carrito, solicitud u oferta secundaria
 
-  // Monto que se cobrará en MP según la opción de pago seleccionada (entero CLP)
+  // Monto que se cobrará en MP según la opción de pago seleccionada.
+  // Se aplica Math.ceil para que coincida exactamente con lo que MP cobra (CLP entero, nunca menor).
   const montoActualPagoSeleccionado = React.useMemo(() => {
-    if (!resumenGlobal?.montosPago) return resumenGlobal?.totalConIva ?? null;
-    const { montosPago } = resumenGlobal;
-    if (resumenGlobal.soloServicioPendiente) return montosPago.servicio;
-    if (!resumenGlobal.tieneRepuestosParaPagar) return montosPago.total;
-    switch (tipoPagoRepuestos) {
-      case TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO:
-        return montosPago.repuestos;
-      case TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA:
-        return montosPago.servicio;
-      case TIPO_PAGO_REPUESTOS.TODO_ADELANTADO:
-      default:
-        return montosPago.total;
-    }
+    const raw = (() => {
+      if (!resumenGlobal?.montosPago) return resumenGlobal?.totalConIva ?? null;
+      const { montosPago } = resumenGlobal;
+      if (resumenGlobal.soloServicioPendiente) return montosPago.servicio;
+      if (!resumenGlobal.tieneRepuestosParaPagar) return montosPago.total;
+      switch (tipoPagoRepuestos) {
+        case TIPO_PAGO_REPUESTOS.REPUESTOS_ADELANTADO:
+          return montosPago.repuestos;
+        case TIPO_PAGO_REPUESTOS.CLIENTE_COMPRA:
+          return montosPago.servicio;
+        case TIPO_PAGO_REPUESTOS.TODO_ADELANTADO:
+        default:
+          return montosPago.total;
+      }
+    })();
+    return raw != null ? Math.ceil(raw) : raw;
   }, [resumenGlobal, tipoPagoRepuestos]);
 
   // Convertir URLs de fotos de servicios cuando cambien
@@ -1441,6 +1445,13 @@ const OpcionesPagoScreen = () => {
                 El pago va directamente a la cuenta de Mercado Pago del proveedor. Mecanimovil no interviene en la transacción.
               </Text>
             </View>
+
+            {/* Nota CLP: solo cuando hay desglose con IVA (los montos pueden tener centavos) */}
+            {(esSolicitudPublica || esOfertaSecundaria) && resumenGlobal?.tieneDesgloseRepuestos && (
+              <Text style={styles.notaClpTexto}>
+                Los montos incluyen IVA (19 %). Mercado Pago procesa cobros en pesos chilenos enteros (CLP).
+              </Text>
+            )}
           </View>
         )}
 
@@ -2426,6 +2437,13 @@ const getStyles = (typography, spacing, insets, colors) => StyleSheet.create({
     gap: 10,
     borderWidth: 1,
     borderColor: colors.success[200],
+  },
+  notaClpTexto: {
+    fontSize: TOKENS.typography.fontSize.xs,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    marginTop: TOKENS.spacing.sm,
+    lineHeight: 16,
   },
   infoSeguroTexto: {
     flex: 1,
