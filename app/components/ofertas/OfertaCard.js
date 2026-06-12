@@ -324,7 +324,7 @@ const OfertaCard = ({
       // Totales (subtotal + IVA cuadran con precio_total_ofrecido; ver ofertaPrecioDesglose)
       subtotalSinIva: merged.subSinIva,
       iva: merged.iva,
-      total: merged.total || precioTotal,
+      total: merged.subSinIva + merged.iva,
       tieneDesglose
     };
   };
@@ -726,7 +726,7 @@ const OfertaCard = ({
                 <View style={styles.resumenPreciosTotalRow}>
                   <Text style={styles.resumenPreciosTotalLabel}>Total a pagar</Text>
                   <Text style={styles.resumenPreciosTotalValue}>
-                    ${formatearMontoCLP(desglose.total)}
+                    ${formatearMontoCLP(desglose.subtotalSinIva + desglose.iva)}
                   </Text>
                 </View>
               </View>

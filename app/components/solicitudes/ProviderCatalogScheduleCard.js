@@ -176,7 +176,7 @@ export default function ProviderCatalogScheduleCard({ proveedor, servicio, tipoP
         <View style={styles.divider} />
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>Total a pagar</Text>
-          <Text style={styles.totalValue}>{formatCLP(merged.total)}</Text>
+          <Text style={styles.totalValue}>{formatCLP(merged.subSinIva + merged.iva)}</Text>
         </View>
         {desglose.calc.mostrarNotaReconciliacion ? (
           <Text style={styles.notaReconciliacion}>

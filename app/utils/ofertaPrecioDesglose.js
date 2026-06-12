@@ -47,10 +47,20 @@ export function calcularDesgloseIvaOferta({
 
 /**
  * Resuelve el desglose final a mostrar.
- * Usa el IVA del API solo cuando sea positivo y coherente.
- * En cualquier otro caso usa el cálculo local (siempre > 0 cuando total > 0).
+ * Si hay montos por línea del proveedor, siempre usa el cálculo local: el API suele
+ * traer `precio_total_ofrecido` redondeado (ej. $5) aunque las líneas sumen distinto.
  */
 export function resolverDesgloseIvaMostrado(dApi, calc) {
+  const fromCalc = {
+    subSinIva: calc.subSinIvaDisplay,
+    iva: calc.ivaDisplay,
+    total: calc.subSinIvaDisplay + calc.ivaDisplay,
+  };
+
+  if (calc.tieneMontosProveedor && calc.sumSinIva > 0) {
+    return fromCalc;
+  }
+
   const TOL = 0.02;
   const apiIva = dApi != null && dApi.iva != null ? Number(dApi.iva) : null;
   const apiSub = dApi != null && dApi.subtotal_sin_iva != null ? Number(dApi.subtotal_sin_iva) : null;
@@ -71,9 +81,5 @@ export function resolverDesgloseIvaMostrado(dApi, calc) {
     return { subSinIva: apiSub, iva: apiIva, total: apiSub + apiIva };
   }
 
-  return {
-    subSinIva: calc.subSinIvaDisplay,
-    iva: calc.ivaDisplay,
-    total: calc.subSinIvaDisplay + calc.ivaDisplay,
-  };
+  return fromCalc;
 }
