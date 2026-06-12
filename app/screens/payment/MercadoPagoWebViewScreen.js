@@ -17,6 +17,8 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MercadoPagoService from '../../services/mercadopago';
 import { MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
+import { consumeMpCheckoutTab } from '../../utils/mercadopagoCheckout';
+import { formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
 import {
   resolveOfertaIdForPago,
   isOfertaNotFoundError,
@@ -41,15 +43,30 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
   const estadoInicialPagoRef = useRef(null);
   const [webVerificando, setWebVerificando] = useState(false);
   const [webPagoConfirmado, setWebPagoConfirmado] = useState(false);
+  const [webPopupBloqueado, setWebPopupBloqueado] = useState(false);
+  const [pagoPendienteInfo, setPagoPendienteInfo] = useState(null);
   const mpTabRef = useRef(null);
 
-  // ── WEB: abre el checkout en una nueva pestaña ──────────────────────────────
+  // ── WEB: usar pestaña pre-abierta en el click o abrir checkout como fallback ─
   useEffect(() => {
     if (Platform.OS !== 'web' || !checkoutUrl || typeof window === 'undefined') return;
 
-    // Abrir Mercado Pago en nueva pestaña para no abandonar la SPA
-    const tab = window.open(checkoutUrl, '_blank', 'noopener');
-    mpTabRef.current = tab;
+    const preOpenedTab = consumeMpCheckoutTab();
+    if (preOpenedTab && !preOpenedTab.closed) {
+      mpTabRef.current = preOpenedTab;
+      setWebPopupBloqueado(false);
+    } else {
+      const tab = window.open(checkoutUrl, '_blank', 'noopener');
+      mpTabRef.current = tab;
+      setWebPopupBloqueado(!tab);
+    }
+
+    AsyncStorage.getItem('pago_pendiente_data')
+      .then((raw) => {
+        if (!raw) return;
+        setPagoPendienteInfo(JSON.parse(raw));
+      })
+      .catch(() => {});
 
     return () => {
       AsyncStorage.removeItem(MP_CHECKOUT_WEBVIEW_ACTIVE_KEY).catch(() => {});
@@ -614,9 +631,18 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         <Ionicons name="card-outline" size={56} color="#007EA7" style={{ marginBottom: 16 }} />
         <Text style={styles.webWaitTitle}>Pago en Mercado Pago</Text>
         <Text style={styles.webWaitSubtitle}>
-          Se abrió una nueva pestaña con Mercado Pago.{'\n'}
-          Completa tu pago allí y vuelve aquí cuando termines.
+          {webPopupBloqueado
+            ? 'Tu navegador bloqueó la ventana de Mercado Pago.\nUsa el botón de abajo para abrirla.'
+            : 'Se abrió una nueva pestaña con Mercado Pago.\nCompleta tu pago allí y vuelve aquí cuando termines.'}
         </Text>
+
+        {pagoPendienteInfo?.monto != null ? (
+          <Text style={styles.webMontoLabel}>
+            {pagoPendienteInfo.soloServicioPendiente || pagoPendienteInfo.tipoPago === 'servicio'
+              ? `Saldo restante: $${formatearMontoCLP(pagoPendienteInfo.montoPantalla ?? pagoPendienteInfo.monto)}`
+              : `Monto a pagar: $${formatearMontoCLP(pagoPendienteInfo.montoPantalla ?? pagoPendienteInfo.monto)}`}
+          </Text>
+        ) : null}
 
         {webVerificando ? (
           <ActivityIndicator size="large" color="#007EA7" style={{ marginTop: 24 }} />
@@ -649,6 +675,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
           onPress={() => {
             const tab = window.open(checkoutUrl, '_blank', 'noopener');
             mpTabRef.current = tab;
+            setWebPopupBloqueado(!tab);
           }}
         >
           <Ionicons name="open-outline" size={16} color="#007EA7" />
@@ -862,7 +889,14 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: 16,
+  },
+  webMontoLabel: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#007EA7',
+    textAlign: 'center',
+    marginBottom: 24,
   },
   webVerifyButton: {
     flexDirection: 'row',

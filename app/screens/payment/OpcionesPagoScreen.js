@@ -23,6 +23,8 @@ import { parseOfertaIdFromExternalReference } from '../../utils/pagoOfertaId';
 import {
   getMercadoPagoBackUrls,
   navigateToMercadoPagoCheckout,
+  openMercadoPagoCheckoutTabSync,
+  closeMpCheckoutTab,
 } from '../../utils/mercadopagoCheckout';
 import {
   calcularMontosPagoOferta,
@@ -572,6 +574,9 @@ const OpcionesPagoScreen = () => {
       return;
     }
 
+    // En web: abrir pestaña SINCRÓNICAMENTE (antes de cualquier await) para evitar bloqueo de popups
+    openMercadoPagoCheckoutTabSync();
+
     try {
       setCreandoPreferencia(true);
 
@@ -581,6 +586,7 @@ const OpcionesPagoScreen = () => {
 
         // Verificar si el proveedor puede recibir pagos
         if (!resumenGlobal?.proveedorPuedeRecibirPagos) {
+          closeMpCheckoutTab();
           Alert.alert(
             'Proveedor no configurado',
             'El proveedor aún no ha configurado su cuenta de Mercado Pago para recibir pagos. Por favor, contacta al proveedor por el chat o usa transferencia bancaria.',
@@ -657,7 +663,9 @@ const OpcionesPagoScreen = () => {
           solicitudId: solicitudId || undefined,
           tipoPago: tipoPagoFinal,
           externalReference: preferencia.external_reference,
-          monto: preferencia.monto,
+          monto: preferencia.monto ?? montoActualPagoSeleccionado,
+          montoPantalla: montoActualPagoSeleccionado,
+          soloServicioPendiente: Boolean(resumenGlobal?.soloServicioPendiente),
           timestamp: Date.now(),
         };
         setPagoPendiente(pagoPendienteData);
@@ -709,6 +717,7 @@ const OpcionesPagoScreen = () => {
         // Flujo tradicional - Pago con carrito
         const carritoActivo = carritos?.[0] || carrito;
         if (!carritoActivo) {
+          closeMpCheckoutTab();
           Alert.alert('Error', 'No se encontró el carrito');
           return;
         }
@@ -733,6 +742,7 @@ const OpcionesPagoScreen = () => {
         await navigateToMercadoPagoCheckout({ checkoutUrl, navigation });
       }
     } catch (error) {
+      closeMpCheckoutTab();
       console.error('❌ Error procesando pago con Mercado Pago:', error);
       Alert.alert(
         'Error',
@@ -741,7 +751,21 @@ const OpcionesPagoScreen = () => {
     } finally {
       setCreandoPreferencia(false);
     }
-  }, [aceptaTerminos, carritos, carrito, esSolicitudPublica, esOfertaSecundaria, solicitudId, resumenPago, metodoPagoSeleccionado, datosSolicitud, navigation]);
+  }, [
+    aceptaTerminos,
+    carritos,
+    carrito,
+    esSolicitudPublica,
+    esOfertaSecundaria,
+    solicitudId,
+    resumenPago,
+    metodoPagoSeleccionado,
+    datosSolicitud,
+    navigation,
+    resumenGlobal,
+    montoActualPagoSeleccionado,
+    tipoPagoRepuestos,
+  ]);
 
   // Enviar comprobante por WhatsApp
   const handleEnviarComprobante = useCallback(async () => {
