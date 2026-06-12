@@ -29,7 +29,8 @@ import { useConversationsList } from '../../hooks/useChats';
 import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
 import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
 import { showAlert, showConfirm, showAlertButtons } from '../../utils/platformAlert';
-import { calcularMontosPagoOferta, formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
+import { calcularMontosPagoOferta, formatearMontoCLP, ofertaEstaTotalmentePagada } from '../../utils/calcularMontoPagoOferta';
+import checklistClienteService from '../../services/checklistService';
 
 // New Components
 import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard';
@@ -37,6 +38,7 @@ import CertifiedVehicleCard from '../../components/solicitudes/CertifiedVehicleC
 import OfferCardDetailed from '../../components/solicitudes/OfferCardDetailed';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import PendingClientSignatureCard from '../../components/checklist/PendingClientSignatureCard';
+import PagoSaldoPendienteCierreBanner from '../../components/solicitudes/PagoSaldoPendienteCierreBanner';
 import DetalleSolicitudSkeleton from '../../components/utils/DetalleSolicitudSkeleton';
 
 const TAB_PRINCIPALES = 'principales';
@@ -45,18 +47,6 @@ const TAB_ADICIONALES = 'adicionales';
 const ESTADOS_OFERTA_YA_RESUELTA = ['aceptada', 'pendiente_pago', 'pagada', 'en_ejecucion', 'completada', 'rechazada', 'expirada', 'retirada'];
 const ESTADOS_OFERTA_ACEPTADA = ['aceptada', 'pendiente_pago', 'pagada', 'en_ejecucion', 'completada'];
 const ESTADOS_OFERTA_PAGAR = ['aceptada', 'pendiente_pago'];
-// Estados del objeto solicitud_servicio (orden), no de la oferta
-const ESTADOS_SOLICITUD_CON_CHECKLIST = [
-  'checklist_en_progreso',
-  'en_proceso',
-  'en_ejecucion',
-  'checklist_completado',
-  'completada',
-  'finalizada',
-  'calificada',
-];
-
-/** ID de orden (solicitud_servicio) para checklist: detalle, campos planos y oferta ganadora en listas. */
 function resolverOrdenIdParaChecklist(solicitud, ofertasPrincipales = [], ofertasSecundarias = []) {
   if (!solicitud) return null;
   const toId = (v) => (v != null && v !== '' ? v : null);
@@ -76,8 +66,6 @@ function resolverOrdenIdParaChecklist(solicitud, ofertasPrincipales = [], oferta
   const win = all.find((o) => o && (o.id === selectedId || String(o.id) === String(selectedId)));
   return toId(win?.solicitud_servicio_id ?? win?.orden_id);
 }
-// Estados de la oferta que indican que ya tiene orden y el servicio avanzó (equivalente a orden creada)
-const ESTADOS_OFERTA_CON_ORDEN = ['pagada', 'en_ejecucion', 'completada', 'finalizada', 'calificada'];
 
 /** Altura fija del bloque de botones del header (debajo del safe area). */
 const HEADER_CONTENT_HEIGHT = 60;
@@ -184,10 +172,22 @@ const DetalleSolicitudScreen = () => {
     return calcularMontosPagoOferta(ofertaConSaldoPendiente).servicio;
   }, [ofertaConSaldoPendiente]);
 
+  const ordenIdParaChecklist = useMemo(
+    () => resolverOrdenIdParaChecklist(solicitud, ofertas, ofertasSecundarias),
+    [solicitud, ofertas, ofertasSecundarias],
+  );
+
+  const pagoPrincipalCompleto = useMemo(
+    () => ofertaEstaTotalmentePagada(solicitud?.oferta_seleccionada_detail),
+    [solicitud?.oferta_seleccionada_detail],
+  );
+
   const [procesando, setProcesando] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [tabActivo, setTabActivo] = useState(TAB_PRINCIPALES);
   const [checklistOrdenId, setChecklistOrdenId] = useState(null);
+  const [checklistPrincipalVisible, setChecklistPrincipalVisible] = useState(false);
+  const [checklistVisiblePorOrdenId, setChecklistVisiblePorOrdenId] = useState({});
   // Counter para forzar refetch de la card de firma diferida tras firmar.
   const [signatureRefreshKey, setSignatureRefreshKey] = useState(0);
   const [fotoAmpliadaUrl, setFotoAmpliadaUrl] = useState(null);
@@ -210,6 +210,50 @@ const DetalleSolicitudScreen = () => {
     setShowChecklistModal(false);
     setChecklistOrdenId(null);
   }, []);
+
+  const refrescarChecklistsVisibles = useCallback(async () => {
+    const ordenIds = new Set();
+    if (ordenIdParaChecklist != null) {
+      ordenIds.add(String(ordenIdParaChecklist));
+    }
+    (ofertasSecundarias || []).forEach((o) => {
+      const id = o?.solicitud_servicio_id ?? o?.orden_id;
+      if (id != null) ordenIds.add(String(id));
+    });
+
+    if (ordenIds.size === 0) {
+      setChecklistPrincipalVisible(false);
+      setChecklistVisiblePorOrdenId({});
+      return;
+    }
+
+    const entries = await Promise.all(
+      [...ordenIds].map(async (ordenId) => {
+        const visible = await checklistClienteService.tieneChecklistDisponible(ordenId);
+        return [ordenId, visible];
+      }),
+    );
+    const map = Object.fromEntries(entries);
+    setChecklistVisiblePorOrdenId(map);
+    setChecklistPrincipalVisible(
+      ordenIdParaChecklist != null ? map[String(ordenIdParaChecklist)] === true : false,
+    );
+  }, [ordenIdParaChecklist, ofertasSecundarias]);
+
+  useEffect(() => {
+    if (!solicitud) {
+      setChecklistPrincipalVisible(false);
+      setChecklistVisiblePorOrdenId({});
+      return;
+    }
+    refrescarChecklistsVisibles();
+  }, [solicitud, refrescarChecklistsVisibles, signatureRefreshKey]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (solicitud) refrescarChecklistsVisibles();
+    }, [solicitud, refrescarChecklistsVisibles]),
+  );
 
   // Handlers
   const ejecutarAceptarOferta = async (oferta) => {
@@ -393,8 +437,6 @@ const DetalleSolicitudScreen = () => {
 
   if (!solicitud) return null;
 
-  const ordenIdParaChecklist = resolverOrdenIdParaChecklist(solicitud, ofertas, ofertasSecundarias);
-
   return (
     <View style={[styles.container, webScreenFrame]}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
@@ -499,6 +541,19 @@ const DetalleSolicitudScreen = () => {
           </View>
         )}
 
+        {ofertaConSaldoPendiente && checklistPrincipalVisible ? (
+          <PagoSaldoPendienteCierreBanner
+            montoSaldo={montoSaldoPendiente}
+            onPagar={() =>
+              navigation.navigate('OpcionesPago', {
+                solicitudId,
+                origen: 'solicitud_publica',
+                ofertaId: ofertaConSaldoPendiente.id,
+              })
+            }
+          />
+        ) : null}
+
         {/*
           Firma diferida del cliente: si el técnico cerró el checklist y dejó
           la orden en `pendiente_firma_cliente`, mostramos un CTA para firmar
@@ -510,7 +565,7 @@ const DetalleSolicitudScreen = () => {
             solicitud?.orden_id ??
             solicitud?.solicitud_servicio_id ??
             null;
-          if (!ordenIdParaFirma) return null;
+          if (!ordenIdParaFirma || !pagoPrincipalCompleto) return null;
           const proveedorNombre =
             solicitud?.oferta_seleccionada_detail?.proveedor?.nombre ||
             solicitud?.oferta_seleccionada_detail?.proveedor_nombre ||
@@ -710,8 +765,7 @@ const DetalleSolicitudScreen = () => {
               {(() => {
                 const showPagar = ['pendiente_pago', 'adjudicada'].includes(solicitud.estado);
                 const showPagarSaldo = ofertaConSaldoPendiente != null;
-                const showChecklist =
-                  ESTADOS_SOLICITUD_CON_CHECKLIST.includes(solicitud.estado) && ordenIdParaChecklist != null;
+                const showChecklist = checklistPrincipalVisible;
 
                 const openChecklistPrincipal = () => {
                   setChecklistOrdenId(null);
@@ -727,31 +781,31 @@ const DetalleSolicitudScreen = () => {
 
                 if (showPagarSaldo) {
                   return (
-                    <>
+                    <View style={showChecklist ? styles.footerActionsRow : styles.footerActionsSingle}>
                       <TouchableOpacity
-                        style={styles.footerPrimaryCta}
+                        style={[styles.footerPrimaryCta, showChecklist && styles.footerPrimaryCtaInRow]}
                         onPress={irOpcionesPago}
                       >
-                        <Text style={styles.footerPrimaryCtaText}>
+                        <Text style={styles.footerPrimaryCtaText} numberOfLines={2}>
                           Pagar saldo restante (${formatearMontoCLP(montoSaldoPendiente)})
                         </Text>
                         <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                       {showChecklist ? (
-                        <TouchableOpacity style={styles.footerPrimaryCta} onPress={openChecklistPrincipal}>
-                          <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
-                          <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
+                        <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
+                          <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
+                          <Ionicons name="clipboard-outline" size={18} color={COLORS.text.primary} />
                         </TouchableOpacity>
                       ) : null}
-                    </>
+                    </View>
                   );
                 }
 
                 if (showPagar) {
                   return (
-                    <>
+                    <View style={showChecklist ? styles.footerActionsRow : styles.footerActionsSingle}>
                       <TouchableOpacity
-                        style={styles.footerPrimaryCta}
+                        style={[styles.footerPrimaryCta, showChecklist && styles.footerPrimaryCtaInRow]}
                         onPress={() =>
                           navigation.navigate('OpcionesPago', {
                             solicitudId,
@@ -763,21 +817,26 @@ const DetalleSolicitudScreen = () => {
                         <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                       {showChecklist ? (
-                        <TouchableOpacity style={styles.footerPrimaryCta} onPress={openChecklistPrincipal}>
-                          <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
-                          <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
+                        <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
+                          <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
+                          <Ionicons name="clipboard-outline" size={18} color={COLORS.text.primary} />
                         </TouchableOpacity>
                       ) : null}
-                    </>
+                    </View>
                   );
                 }
 
                 if (showChecklist) {
                   return (
-                    <TouchableOpacity style={styles.footerPrimaryCta} onPress={openChecklistPrincipal}>
-                      <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
-                      <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
-                    </TouchableOpacity>
+                    <View style={styles.footerActionsSingle}>
+                      <TouchableOpacity
+                        style={styles.footerPrimaryCta}
+                        onPress={openChecklistPrincipal}
+                      >
+                        <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
+                        <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
+                      </TouchableOpacity>
+                    </View>
                   );
                 }
 
@@ -788,42 +847,62 @@ const DetalleSolicitudScreen = () => {
             const ofertaParaPagar = ofertasSecundarias.find((o) =>
               ESTADOS_OFERTA_PAGAR.includes(o?.estado),
             );
-            const ofertaConChecklist = ofertasSecundarias.find(
-              (o) =>
-                (o?.solicitud_servicio_id ?? o?.orden_id) != null &&
-                ESTADOS_OFERTA_CON_ORDEN.includes(o?.estado),
-            );
+            const ofertaConChecklist = ofertasSecundarias.find((o) => {
+              const ordenId = o?.solicitud_servicio_id ?? o?.orden_id;
+              return ordenId != null && checklistVisiblePorOrdenId[String(ordenId)] === true;
+            });
             const hayAcciones = ofertaParaPagar || ofertaConChecklist;
+            const hayAmbasAcciones = ofertaParaPagar && ofertaConChecklist;
             return (
               <>
-                {ofertaParaPagar ? (
-                  <TouchableOpacity
-                    style={styles.footerPrimaryCta}
-                    onPress={() =>
-                      navigation.navigate('OpcionesPago', {
-                        solicitudId,
-                        ofertaId: ofertaParaPagar.id,
-                        origen: 'oferta_secundaria',
-                      })
-                    }
-                  >
-                    <Text style={styles.footerPrimaryCtaText}>Ir a Pagar</Text>
-                    <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
-                  </TouchableOpacity>
-                ) : null}
-                {ofertaConChecklist ? (
-                  <TouchableOpacity
-                    style={styles.footerPrimaryCta}
-                    onPress={() => {
-                      setChecklistOrdenId(
-                        ofertaConChecklist.solicitud_servicio_id ?? ofertaConChecklist.orden_id,
-                      );
-                      setShowChecklistModal(true);
-                    }}
-                  >
-                    <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
-                    <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
-                  </TouchableOpacity>
+                {hayAcciones ? (
+                  <View style={hayAmbasAcciones ? styles.footerActionsRow : styles.footerActionsSingle}>
+                    {ofertaParaPagar ? (
+                      <TouchableOpacity
+                        style={[styles.footerPrimaryCta, hayAmbasAcciones && styles.footerPrimaryCtaInRow]}
+                        onPress={() =>
+                          navigation.navigate('OpcionesPago', {
+                            solicitudId,
+                            ofertaId: ofertaParaPagar.id,
+                            origen: 'oferta_secundaria',
+                          })
+                        }
+                      >
+                        <Text style={styles.footerPrimaryCtaText}>Ir a Pagar</Text>
+                        <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
+                      </TouchableOpacity>
+                    ) : null}
+                    {ofertaConChecklist ? (
+                      <TouchableOpacity
+                        style={
+                          hayAmbasAcciones
+                            ? styles.footerSecondaryCta
+                            : styles.footerPrimaryCta
+                        }
+                        onPress={() => {
+                          setChecklistOrdenId(
+                            ofertaConChecklist.solicitud_servicio_id ?? ofertaConChecklist.orden_id,
+                          );
+                          setShowChecklistModal(true);
+                        }}
+                      >
+                        <Text
+                          style={
+                            hayAmbasAcciones
+                              ? styles.footerSecondaryCtaText
+                              : styles.footerPrimaryCtaText
+                          }
+                        >
+                          Ver Checklist
+                        </Text>
+                        <Ionicons
+                          name="clipboard-outline"
+                          size={18}
+                          color={hayAmbasAcciones ? COLORS.text.primary : COLORS.text.onPrimary}
+                        />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
                 ) : null}
                 {!hayAcciones && (
                   <View style={[styles.footerHintBadge, styles.footerHintBadgeStandalone]}>
@@ -1151,6 +1230,15 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: SPACING.sm,
   },
+  footerActionsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: SPACING.sm,
+  },
+  footerActionsSingle: {
+    width: '100%',
+  },
   /** Botón ancho completo, columna única (sticky inferior). */
   footerCancelLikeAccept: {
     width: '100%',
@@ -1177,6 +1265,8 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     height: 48,
+    minHeight: 48,
+    paddingHorizontal: SPACING.md,
     borderRadius: BORDERS.radius.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -1184,10 +1274,39 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
     backgroundColor: COLORS.primary[500],
     borderColor: COLORS.primary[600],
-    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+    ...(Platform.OS === 'web' ? { cursor: 'pointer', boxSizing: 'border-box' } : {}),
+  },
+  footerPrimaryCtaInRow: {
+    flex: 1,
+    width: 'auto',
+    minWidth: 0,
+    alignSelf: 'stretch',
   },
   footerPrimaryCtaText: {
+    flexShrink: 1,
     color: COLORS.text.onPrimary,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    textAlign: 'center',
+  },
+  footerSecondaryCta: {
+    flexShrink: 0,
+    flexDirection: 'row',
+    height: 48,
+    minHeight: 48,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDERS.radius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    borderWidth: BORDERS.width.thin,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderColor: COLORS.border.light,
+    alignSelf: 'stretch',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer', boxSizing: 'border-box' } : {}),
+  },
+  footerSecondaryCtaText: {
+    color: COLORS.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     fontSize: TYPOGRAPHY.fontSize.md,
   },

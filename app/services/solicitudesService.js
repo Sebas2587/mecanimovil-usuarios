@@ -631,8 +631,11 @@ class SolicitudesService {
       // Obtener la solicitud completa con oferta seleccionada
       const solicitud = await this.obtenerDetalleSolicitud(solicitudId);
 
-      if (solicitud.estado !== 'adjudicada' && solicitud.estado !== 'pagada' && solicitud.estado !== 'pendiente_pago') {
-        throw new Error('La solicitud debe estar adjudicada o pendiente de pago para obtener datos');
+      const ESTADOS_PAGO_PERMITIDOS = [
+        'adjudicada', 'pendiente_pago', 'pagada', 'pagada_parcialmente', 'en_ejecucion',
+      ];
+      if (!ESTADOS_PAGO_PERMITIDOS.includes(solicitud.estado)) {
+        throw new Error('La solicitud debe estar adjudicada o en ejecución para obtener datos de pago');
       }
 
       if (!solicitud.oferta_seleccionada_detail) {

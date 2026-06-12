@@ -25,6 +25,7 @@ import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Avatar from '../base/Avatar/Avatar';
 import checklistClienteService from '../../services/checklistService';
 import { signatureStoredToImageUri } from '../../utils/signatureImageUri';
+import { resolveToAbsoluteMediaUrl } from '../../utils/providerUtils';
 
 /** Atajos de color alineados al DS (evita hex sueltos en JSX) */
 const C = {
@@ -42,29 +43,40 @@ const C = {
   borderLight: DS_COLORS.border.light,
 };
 
-/** URL de foto de evidencia desde distintas formas del API. */
+/** Texto meta que el proveedor guarda al subir fotos (no es descripción de evidencia). */
+function esTextoConteoFotosEvidencia(texto) {
+  const t = String(texto || '').trim();
+  // Cubre: "1 foto(s) de evidencia", "2 fotos de evidencia", "3 foto de evidencia"
+  return /^\d+\s+foto(\(s\)|s)?\s+de\s+evidencia/i.test(t);
+}
+
+/** URL de foto de evidencia desde distintas formas del API (R2, cPanel, /media/ relativo). */
 function resolveEvidenciaUri(foto) {
-  if (foto == null) return '';
+  if (foto == null) return null;
+  let raw = null;
   if (typeof foto === 'string') {
-    const t = foto.trim();
-    return t || '';
+    raw = foto.trim() || null;
+  } else if (typeof foto === 'object') {
+    const candidates = [
+      foto.imagen_url,
+      foto.imagen_comprimida_url,
+      foto.imagen,
+      foto.url,
+      foto.uri,
+      foto.image,
+      foto.file,
+      foto.foto_url,
+      foto.archivo_url,
+    ];
+    for (const c of candidates) {
+      if (typeof c === 'string' && c.trim()) {
+        raw = c.trim();
+        break;
+      }
+    }
   }
-  if (typeof foto !== 'object') return '';
-  const candidates = [
-    foto.imagen_url,
-    foto.imagen_comprimida_url,
-    foto.imagen,
-    foto.url,
-    foto.uri,
-    foto.image,
-    foto.file,
-    foto.foto_url,
-    foto.archivo_url,
-  ];
-  for (const c of candidates) {
-    if (typeof c === 'string' && c.trim()) return c.trim();
-  }
-  return '';
+  if (!raw) return null;
+  return resolveToAbsoluteMediaUrl(raw);
 }
 
 /**
@@ -328,6 +340,7 @@ const ChecklistViewerModal = ({
         'Pregunta sin título'
       );
       const tipoPregunta = respuesta.item_info?.tipo_pregunta || respuesta.item_template_info?.tipo_pregunta;
+      const isPhotoItem = tipoPregunta === 'PHOTO';
       /** SIGNATURE guarda base64 en JSON; no mostrar eso como “chips” (parece código). */
       const isSignatureItem = tipoPregunta === 'SIGNATURE';
 
@@ -352,6 +365,9 @@ const ChecklistViewerModal = ({
           hasTextoMostrar = false;
         }
       }
+      if (hasTexto && esTextoConteoFotosEvidencia(respuesta.respuesta_texto)) {
+        hasTextoMostrar = false;
+      }
 
       const firmaSoloMarcada =
         isSignatureItem &&
@@ -363,7 +379,20 @@ const ChecklistViewerModal = ({
         !hasFecha;
 
       const fotos = respuesta.fotos && Array.isArray(respuesta.fotos) ? respuesta.fotos : [];
+      const fotosConUri = fotos
+        .map((foto) => {
+          const uri = resolveEvidenciaUri(foto);
+          if (!uri) return null;
+          const descripcionRaw =
+            foto && typeof foto === 'object' && foto.descripcion
+              ? String(foto.descripcion).trim()
+              : '';
+          const caption = descripcionRaw || 'Evidencia';
+          return { uri, caption, foto };
+        })
+        .filter(Boolean);
       const hasFotos = fotos.length > 0;
+      const hasFotosVisibles = fotosConUri.length > 0;
 
       const esTipoOpcionesTecnico =
         Boolean(tipoPregunta) && TIPOS_OPCION_TECNICO.has(tipoPregunta);
@@ -541,41 +570,43 @@ const ChecklistViewerModal = ({
           {hasFotos ? (
             <View style={styles.fotosContainer}>
               <Text style={styles.bundleSectionTitle}>
-                Evidencias ({fotos.length})
+                Evidencias ({fotosConUri.length || fotos.length})
               </Text>
-              <View style={styles.fotosRow}>
-                {fotos.map((foto, fotoIndex) => {
-                  const uri = resolveEvidenciaUri(foto);
-                  if (!uri) return null;
-                  const caption = String(
-                    (foto && typeof foto === 'object' && foto.descripcion) || 'Evidencia'
-                  );
-
-                  return (
+              {hasFotosVisibles ? (
+                <View style={styles.fotosRow}>
+                  {fotosConUri.map((item, fotoIndex) => (
                     <TouchableOpacity
-                      key={`${uri}-${fotoIndex}`}
+                      key={`${item.uri}-${fotoIndex}`}
                       style={styles.fotoContainer}
                       activeOpacity={0.88}
                       delayPressIn={0}
-                      onPress={() => openPhotoLightbox(uri, caption)}
+                      onPress={() => openPhotoLightbox(item.uri, item.caption)}
                       accessibilityRole="imagebutton"
                       accessibilityLabel="Ampliar foto de evidencia"
                     >
                       <Image
                         pointerEvents="none"
-                        source={{ uri }}
+                        source={{ uri: item.uri }}
                         style={styles.fotoImagen}
                         resizeMode="cover"
                         {...(Platform.OS === 'android' ? { resizeMethod: 'resize' } : {})}
                       />
                       <Text style={styles.fotoDescripcion} numberOfLines={2}>
-                        {caption}
+                        {item.caption}
                       </Text>
                       <Text style={styles.fotoTapHint}>Toca para ampliar</Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.fotosErrorWrap}>
+                  <Ionicons name="image-outline" size={18} color={C.textSecondary} />
+                  <Text style={styles.fotosErrorText}>
+                    Hay {fotos.length} foto(s) registradas, pero no se pudieron cargar. Intenta
+                    abrir el informe de nuevo en unos momentos.
+                  </Text>
+                </View>
+              )}
             </View>
           ) : null}
 
@@ -1429,6 +1460,23 @@ const styles = StyleSheet.create({
     marginTop: 2,
     marginBottom: SPACING.xxs,
     textAlign: 'center',
+  },
+  fotosErrorWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    backgroundColor: DS_COLORS.neutral.gray[50],
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
+  },
+  fotosErrorText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: DS_COLORS.text.secondary,
+    lineHeight: 20,
   },
 
   photoLightboxStack: {

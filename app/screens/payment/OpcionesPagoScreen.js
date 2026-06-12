@@ -137,12 +137,19 @@ const OpcionesPagoScreen = () => {
 
         if (esSolicitudPublica) {
           // Flujo de solicitud pública - Cargar datos de la solicitud
+          // Si llega ofertaId, usar obtenerDatosPagoOferta para evitar restricción de estado
+          // (ej. pagada_parcialmente / en_ejecucion cuando el cliente paga el saldo restante)
           try {
             setCargandoSolicitud(true);
-            console.log('💳 OpcionesPagoScreen: Cargando datos de solicitud pública:', solicitudId);
-
             const solicitudesService = (await import('../../services/solicitudesService')).default;
-            const datos = await solicitudesService.obtenerDatosPago(solicitudId);
+            let datos;
+            if (ofertaIdParam) {
+              console.log('💳 OpcionesPagoScreen: Cargando datos por ofertaId:', ofertaIdParam);
+              datos = await solicitudesService.obtenerDatosPagoOferta(solicitudId, ofertaIdParam);
+            } else {
+              console.log('💳 OpcionesPagoScreen: Cargando datos de solicitud pública:', solicitudId);
+              datos = await solicitudesService.obtenerDatosPago(solicitudId);
+            }
 
             console.log('✅ OpcionesPagoScreen: Datos de solicitud cargados:', datos);
             setDatosSolicitud(datos);
