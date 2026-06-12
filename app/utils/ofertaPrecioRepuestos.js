@@ -25,11 +25,11 @@ export function resolvePrecioTotalOfrecidoEfectivo(oferta, solicitud = null) {
   const sinRep = parseNum(oferta?.precio_sin_repuestos);
 
   if (incluye) {
-    if (conRep > 0) return Math.round(conRep);
-    return Math.round(totalOfrecido);
+    if (conRep > 0) return conRep;
+    return totalOfrecido;
   }
-  if (sinRep > 0) return Math.round(sinRep);
-  return Math.round(totalOfrecido);
+  if (sinRep > 0) return sinRep;
+  return totalOfrecido;
 }
 
 /**
@@ -44,7 +44,7 @@ export function resolveCostosOfertaParaDisplay(oferta, solicitud = null) {
 
   if (!incluyeRepuestos) {
     if (costoManoObra <= 0 && precioTotalOfrecido > 0) {
-      costoManoObra = Math.round(precioTotalOfrecido / 1.19);
+      costoManoObra = precioTotalOfrecido / 1.19;
     }
     return {
       incluyeRepuestos: false,

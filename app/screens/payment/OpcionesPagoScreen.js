@@ -771,7 +771,7 @@ const OpcionesPagoScreen = () => {
         `• ${s.servicio} - ${s.proveedor} (${s.fecha} a las ${s.hora})`
       ).join('\n') || '';
 
-      const mensaje = `Hola, quiero confirmar mi agendamiento:\n\n${serviciosTexto}\n\nTotal: $${Math.round(resumenGlobal?.totalGeneral || 0).toLocaleString('es-CL')}\n\nMétodo de pago: Transferencia Bancaria\n\nDatos de cuenta:\nBanco: ${DATOS_TRANSFERENCIA.banco}\nCuenta: ${DATOS_TRANSFERENCIA.numeroCuenta}\nTitular: ${DATOS_TRANSFERENCIA.titular}`;
+      const mensaje = `Hola, quiero confirmar mi agendamiento:\n\n${serviciosTexto}\n\nTotal: $${formatearMontoCLP(resumenGlobal?.totalGeneral || 0)}\n\nMétodo de pago: Transferencia Bancaria\n\nDatos de cuenta:\nBanco: ${DATOS_TRANSFERENCIA.banco}\nCuenta: ${DATOS_TRANSFERENCIA.numeroCuenta}\nTitular: ${DATOS_TRANSFERENCIA.titular}`;
 
       const whatsappUrl = `whatsapp://send?phone=${TELEFONO_WHATSAPP}&text=${encodeURIComponent(mensaje)}`;
 

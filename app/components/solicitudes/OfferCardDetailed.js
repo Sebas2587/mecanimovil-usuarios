@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { getMediaURL } from '../../services/api';
 import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
+import { formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
 import {
     resolveLineasServicioOferta,
     resolveServiciosSolicitud,
@@ -230,7 +231,7 @@ const OfferCardDetailed = ({
                         {costoManoObra > 0 && (
                             <View style={styles.costRow}>
                                 <Text style={styles.costLabel}>Mano de obra (sin IVA)</Text>
-                                <Text style={styles.costValue}>${Math.round(costoManoObra).toLocaleString()}</Text>
+                                <Text style={styles.costValue}>${formatearMontoCLP(costoManoObra)}</Text>
                             </View>
                         )}
                         {costoRepuestos > 0 && (
@@ -240,14 +241,14 @@ const OfferCardDetailed = ({
                                         ? `Repuestos (${totalRepuestosItems} ${totalRepuestosItems === 1 ? 'ítem' : 'ítems'}) · sin IVA`
                                         : 'Repuestos (sin IVA) · incluidos'}
                                 </Text>
-                                <Text style={styles.costValue}>${Math.round(costoRepuestos).toLocaleString()}</Text>
+                                <Text style={styles.costValue}>${formatearMontoCLP(costoRepuestos)}</Text>
                             </View>
                         )}
                         {(incluyeRepuestosEfectivo && costoGestion > 0) && (
                             <View style={styles.costRow}>
                                 <Text style={[styles.costLabel, styles.costLabelGestion]}>Gestión de compra (sin IVA)</Text>
                                 <Text style={[styles.costValue, styles.costValueGestion]}>
-                                    ${Math.round(costoGestion).toLocaleString()}
+                                    ${formatearMontoCLP(costoGestion)}
                                 </Text>
                             </View>
                         )}
@@ -276,16 +277,16 @@ const OfferCardDetailed = ({
                 )}
                 <View style={styles.costRow}>
                     <Text style={styles.costLabel}>Subtotal (sin IVA)</Text>
-                    <Text style={styles.costValue}>${Math.round(subSinIva).toLocaleString()}</Text>
+                    <Text style={styles.costValue}>${formatearMontoCLP(subSinIva)}</Text>
                 </View>
                 <View style={styles.costRow}>
                     <Text style={styles.costLabel}>IVA (19%)</Text>
-                    <Text style={styles.costValue}>${Math.round(ivaMonto).toLocaleString()}</Text>
+                    <Text style={styles.costValue}>${formatearMontoCLP(ivaMonto)}</Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.totalRow}>
                     <Text style={styles.totalLabel}>Total a pagar</Text>
-                    <Text style={styles.totalValue}>${merged.total.toLocaleString()}</Text>
+                    <Text style={styles.totalValue}>${formatearMontoCLP(subSinIva + ivaMonto)}</Text>
                 </View>
                 {mostrarNotaReconciliacion ? (
                     <Text style={styles.reconciliacionNota}>

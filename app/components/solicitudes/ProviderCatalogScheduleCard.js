@@ -19,10 +19,10 @@ import {
   lineasTienenRepuestos,
   resolveLineasServicioConRepuestos,
 } from '../../utils/ofertaRepuestos';
+import { formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
 
 function formatCLP(n) {
-  const v = Math.round(Number(n) || 0);
-  return `$${v.toLocaleString('es-CL')}`;
+  return `$${formatearMontoCLP(n)}`;
 }
 
 function CostRow({ label, value, highlight }) {

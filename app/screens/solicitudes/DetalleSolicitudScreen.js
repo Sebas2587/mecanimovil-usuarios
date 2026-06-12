@@ -29,6 +29,7 @@ import { useConversationsList } from '../../hooks/useChats';
 import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
 import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
 import { showAlert, showConfirm, showAlertButtons } from '../../utils/platformAlert';
+import { calcularMontosPagoOferta, formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
 
 // New Components
 import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard';
@@ -179,9 +180,8 @@ const DetalleSolicitudScreen = () => {
   }, [solicitud?.oferta_seleccionada_detail]);
 
   const montoSaldoPendiente = useMemo(() => {
-    if (!ofertaConSaldoPendiente) return 0;
-    const mo = parseFloat(ofertaConSaldoPendiente.costo_mano_obra || 0);
-    return Math.round(mo * 1.19);
+    if (!ofertaConSaldoPendiente) return null;
+    return calcularMontosPagoOferta(ofertaConSaldoPendiente).servicio;
   }, [ofertaConSaldoPendiente]);
 
   const [procesando, setProcesando] = useState(false);
@@ -252,7 +252,7 @@ const DetalleSolicitudScreen = () => {
   };
 
   const handleAceptarOferta = (oferta) => {
-    const msg = `¿Estás seguro de que deseas aceptar la oferta de ${oferta.nombre_proveedor} por $${Math.round(parseFloat(oferta.precio_total_ofrecido)).toLocaleString()}?`;
+    const msg = `¿Estás seguro de que deseas aceptar la oferta de ${oferta.nombre_proveedor} por $${formatearMontoCLP(parseFloat(oferta.precio_total_ofrecido))}?`;
     showConfirm('Confirmar Selección', msg, {
       confirmText: 'Aceptar Oferta',
       onConfirm: () => ejecutarAceptarOferta(oferta),
@@ -733,7 +733,7 @@ const DetalleSolicitudScreen = () => {
                         onPress={irOpcionesPago}
                       >
                         <Text style={styles.footerPrimaryCtaText}>
-                          Pagar saldo restante (${montoSaldoPendiente.toLocaleString('es-CL')})
+                          Pagar saldo restante (${formatearMontoCLP(montoSaldoPendiente)})
                         </Text>
                         <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>

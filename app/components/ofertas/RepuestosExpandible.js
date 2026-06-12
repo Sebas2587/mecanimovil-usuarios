@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS as LEGACY_COLORS, SPACING as LEGACY_SPACING } from '../../utils/constants';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import { formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
 
 /**
  * Componente expandible para mostrar repuestos en una oferta
@@ -75,7 +76,7 @@ const RepuestosExpandible = ({
               <View style={styles.precioContainer}>
                 <Text style={styles.precioLabel}>Total:</Text>
                 <Text style={styles.precioTotal}>
-                  ${parseInt(totalPrecio).toLocaleString()}
+                  ${formatearMontoCLP(totalPrecio)}
                 </Text>
               </View>
             ) : null}
@@ -132,7 +133,7 @@ const RepuestosExpandible = ({
                         Precio unitario
                       </Text>
                       <Text style={[styles.detalleValue, coinbase && styles.detalleValueCoinbase]}>
-                        ${parseInt(precioUnitario).toLocaleString()}
+                        ${formatearMontoCLP(precioUnitario)}
                       </Text>
                     </View>
                     <View style={[styles.detalleRow, styles.detalleRowSubtotal, coinbase && styles.detalleRowSubtotalCoinbase]}>
@@ -140,7 +141,7 @@ const RepuestosExpandible = ({
                         Subtotal
                       </Text>
                       <Text style={[styles.subtotal, coinbase && styles.subtotalCoinbase]}>
-                        ${parseInt(subtotal).toLocaleString()}
+                        ${formatearMontoCLP(subtotal)}
                       </Text>
                     </View>
                   </View>
@@ -152,7 +153,7 @@ const RepuestosExpandible = ({
             <View style={styles.totalContainer}>
               <Text style={styles.totalLabel}>Total repuestos:</Text>
               <Text style={styles.totalValue}>
-                ${parseInt(totalPrecio).toLocaleString()}
+                ${formatearMontoCLP(totalPrecio)}
               </Text>
             </View>
           ) : null}

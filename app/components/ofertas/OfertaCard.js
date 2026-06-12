@@ -10,6 +10,7 @@ import EstadoSolicitudBadge from '../solicitudes/EstadoSolicitudBadge';
 import { useTheme } from '../../design-system/theme/useTheme';
 import CountdownTimer from '../common/CountdownTimer';
 import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
+import { calcularMontosPagoOferta, formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
 
 // Habilitar LayoutAnimation en Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -321,9 +322,9 @@ const OfertaCard = ({
       costoRepuestos,
       costoGestionCompra,
       // Totales (subtotal + IVA cuadran con precio_total_ofrecido; ver ofertaPrecioDesglose)
-      subtotalSinIva: Math.round(subtotalSinIva),
-      iva: Math.round(iva),
-      total: merged.total || Math.round(precioTotal),
+      subtotalSinIva: merged.subSinIva,
+      iva: merged.iva,
+      total: merged.total || precioTotal,
       tieneDesglose
     };
   };
@@ -387,7 +388,7 @@ const OfertaCard = ({
         {/* Precio y chevron */}
         <View style={styles.headerPrecioContainer}>
           <Text style={styles.headerPrecio}>
-            ${parseInt(oferta.precio_total_ofrecido || 0).toLocaleString()}
+            ${formatearMontoCLP(oferta.precio_total_ofrecido || 0)}
           </Text>
           <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
             <Ionicons name="chevron-up" size={20} color={COLORS.textLight} />
@@ -429,7 +430,7 @@ const OfertaCard = ({
             <View style={styles.ofertaOriginalLink}>
               <Ionicons name="link-outline" size={14} color={COLORS.textLight} />
               <Text style={styles.ofertaOriginalLinkText}>
-                Relacionada con oferta original de ${parseInt(oferta.oferta_original_info.precio_total_ofrecido || 0).toLocaleString()}
+                Relacionada con oferta original de ${formatearMontoCLP(oferta.oferta_original_info.precio_total_ofrecido || 0)}
               </Text>
             </View>
           )}
@@ -613,7 +614,7 @@ const OfertaCard = ({
                           <Text style={styles.desgloseProveedorLabel}>🔧 Mano de obra (sin IVA)</Text>
                         </View>
                         <Text style={styles.desgloseProveedorValue}>
-                          ${Math.round(desglose.costoManoObra).toLocaleString()}
+                          ${formatearMontoCLP(desglose.costoManoObra)}
                         </Text>
                       </View>
                     )}
@@ -626,7 +627,7 @@ const OfertaCard = ({
                           <Text style={styles.desgloseProveedorLabel}>📦 Repuestos (sin IVA)</Text>
                         </View>
                         <Text style={styles.desgloseProveedorValue}>
-                          ${Math.round(desglose.costoRepuestos).toLocaleString()}
+                          ${formatearMontoCLP(desglose.costoRepuestos)}
                         </Text>
                       </View>
                     )}
@@ -639,7 +640,7 @@ const OfertaCard = ({
                           <Text style={[styles.desgloseProveedorLabel, { color: '#FF9800' }]}>🚚 Gestión de compra (sin IVA)</Text>
                         </View>
                         <Text style={[styles.desgloseProveedorValue, { color: '#FF9800' }]}>
-                          ${Math.round(desglose.costoGestionCompra).toLocaleString()}
+                          ${formatearMontoCLP(desglose.costoGestionCompra)}
                         </Text>
                       </View>
                     )}
@@ -682,7 +683,7 @@ const OfertaCard = ({
                             </View>
                             <View style={styles.servicioDesglosePrecioContainer}>
                               <Text style={[styles.servicioDesglosePrecio, esServicioPrincipal && styles.servicioDesglosePrecioPrincipal]}>
-                                ${Math.round(servicio.precio).toLocaleString()}
+                                ${formatearMontoCLP(servicio.precio)}
                               </Text>
                             </View>
                           </View>
@@ -709,14 +710,14 @@ const OfertaCard = ({
                 <View style={styles.resumenPreciosRow}>
                   <Text style={styles.resumenPreciosLabel}>Subtotal (sin IVA)</Text>
                   <Text style={styles.resumenPreciosValue}>
-                    ${desglose.subtotalSinIva.toLocaleString()}
+                    ${formatearMontoCLP(desglose.subtotalSinIva)}
                   </Text>
                 </View>
 
                 <View style={styles.resumenPreciosRow}>
                   <Text style={styles.resumenPreciosLabel}>📋 IVA (19%)</Text>
                   <Text style={styles.resumenPreciosValue}>
-                    ${desglose.iva.toLocaleString()}
+                    ${formatearMontoCLP(desglose.iva)}
                   </Text>
                 </View>
 
@@ -725,7 +726,7 @@ const OfertaCard = ({
                 <View style={styles.resumenPreciosTotalRow}>
                   <Text style={styles.resumenPreciosTotalLabel}>Total a pagar</Text>
                   <Text style={styles.resumenPreciosTotalValue}>
-                    ${desglose.total.toLocaleString()}
+                    ${formatearMontoCLP(desglose.total)}
                   </Text>
                 </View>
               </View>
@@ -744,52 +745,43 @@ const OfertaCard = ({
             {(() => {
               const tienePagoParcial = oferta.estado === 'pagada_parcialmente' ||
                 (oferta.estado_pago_repuestos === 'pagado' && oferta.estado_pago_servicio === 'pendiente');
-              return tienePagoParcial;
-            })() && (
+              if (!tienePagoParcial) return null;
+
+              const montosPago = calcularMontosPagoOferta(oferta);
+              const costoRepuestos = parseFloat(oferta.costo_repuestos || 0);
+              const costoGestion = parseFloat(oferta.costo_gestion_compra || 0);
+
+              return (
                 <View style={styles.pagoParcialContainer}>
                   <View style={styles.pagoParcialHeader}>
                     <Ionicons name="information-circle" size={20} color={colors.warning?.[600] || '#F59E0B'} />
                     <Text style={styles.pagoParcialTitulo}>Pago Parcial Realizado</Text>
                   </View>
 
-                  {/* Monto pagado */}
                   <View style={styles.pagoParcialInfo}>
                     <View style={styles.pagoParcialRow}>
                       <Text style={styles.pagoParcialLabel}>✅ Pagado:</Text>
                       <Text style={styles.pagoParcialValue}>
-                        ${(() => {
-                          // Calcular monto pagado: repuestos + gestión de compra (con IVA en gestión)
-                          const costoRepuestos = parseFloat(oferta.costo_repuestos || 0);
-                          const costoGestion = parseFloat(oferta.costo_gestion_compra || 0);
-                          const gestionConIva = Math.round(costoGestion * 1.19);
-                          const montoPagado = Math.round(costoRepuestos + gestionConIva);
-                          return montoPagado.toLocaleString('es-CL');
-                        })()}
+                        ${formatearMontoCLP(montosPago.repuestos)}
                       </Text>
                     </View>
                     <View style={styles.pagoParcialDetalle}>
                       <Text style={styles.pagoParcialDetalleText}>
-                        • Repuestos: ${Math.round(parseFloat(oferta.costo_repuestos || 0)).toLocaleString('es-CL')}
+                        • Repuestos: ${formatearMontoCLP(costoRepuestos)}
                       </Text>
-                      {parseFloat(oferta.costo_gestion_compra || 0) > 0 && (
+                      {costoGestion > 0 && (
                         <Text style={styles.pagoParcialDetalleText}>
-                          • Gestión de compra: ${Math.round(parseFloat(oferta.costo_gestion_compra || 0) * 1.19).toLocaleString('es-CL')}
+                          • Gestión de compra: ${formatearMontoCLP(costoGestion * 1.19)}
                         </Text>
                       )}
                     </View>
                   </View>
 
-                  {/* Saldo pendiente */}
                   <View style={styles.pagoParcialInfo}>
                     <View style={styles.pagoParcialRow}>
                       <Text style={styles.pagoParcialLabelPendiente}>⏳ Saldo pendiente:</Text>
                       <Text style={styles.pagoParcialValuePendiente}>
-                        ${(() => {
-                          // Calcular saldo pendiente: mano de obra con IVA
-                          const costoManoObra = parseFloat(oferta.costo_mano_obra || 0);
-                          const saldoPendiente = Math.round(costoManoObra * 1.19);
-                          return saldoPendiente.toLocaleString('es-CL');
-                        })()}
+                        ${formatearMontoCLP(montosPago.servicio)}
                       </Text>
                     </View>
                     <Text style={styles.pagoParcialDetalleText}>
@@ -797,7 +789,8 @@ const OfertaCard = ({
                     </Text>
                   </View>
                 </View>
-              )}
+              );
+            })()}
 
             {/* Descripción */}
             {oferta.descripcion_oferta && (
@@ -874,11 +867,7 @@ const OfertaCard = ({
               >
                 <Ionicons name="card-outline" size={18} color="#FFFFFF" />
                 <Text style={styles.pagarSaldoButtonText}>
-                  Pagar Saldo Pendiente (${(() => {
-                    const costoManoObra = parseFloat(oferta.costo_mano_obra || 0);
-                    const saldoPendiente = Math.round(costoManoObra * 1.19);
-                    return saldoPendiente.toLocaleString('es-CL');
-                  })()})
+                  Pagar Saldo Pendiente (${formatearMontoCLP(calcularMontosPagoOferta(oferta).servicio)})
                 </Text>
               </TouchableOpacity>
             )}
