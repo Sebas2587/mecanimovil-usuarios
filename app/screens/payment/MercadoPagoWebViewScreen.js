@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MercadoPagoService from '../../services/mercadopago';
 import { MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
-import { consumeMpCheckoutTab } from '../../utils/mercadopagoCheckout';
+import { consumeMpCheckoutTab, navigateMpTabToCheckout } from '../../utils/mercadopagoCheckout';
 import { formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
 import {
   resolveOfertaIdForPago,
@@ -55,6 +55,8 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
     if (preOpenedTab && !preOpenedTab.closed) {
       mpTabRef.current = preOpenedTab;
       setWebPopupBloqueado(false);
+      // Por si assignCheckoutUrlToTab aún no corrió o la pestaña sigue en about:blank
+      navigateMpTabToCheckout(preOpenedTab, checkoutUrl);
     } else {
       const tab = window.open(checkoutUrl, '_blank', 'noopener');
       mpTabRef.current = tab;
