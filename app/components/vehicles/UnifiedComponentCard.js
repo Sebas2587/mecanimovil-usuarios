@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { ChevronRight, Cloud, AlertTriangle, Calendar, Gauge, ClipboardEdit, ShieldCheck } from 'lucide-react-native';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
-import { getHealthColorToken, normalizePct } from '../../utils/healthFormat';
+import { getHealthColorToken, normalizePct, formatHealthActionWindow } from '../../utils/healthFormat';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -36,20 +36,6 @@ function ComponentIcon({ slug, size = 22, color }) {
   if (cfg.lib === 'FontAwesome5')
     return <FontAwesome5 name={cfg.name} size={size} color={color} />;
   return <Ionicons name={cfg.name} size={size} color={color} />;
-}
-
-// ─── Helpers de formato ───────────────────────────────────────────────────────
-function fmtKm(km) {
-  if (km == null) return null;
-  return `${Math.round(km).toLocaleString('es-CL')} km`;
-}
-
-function fmtDays(days) {
-  if (days == null) return null;
-  if (days <= 0) return 'Inmediato';
-  if (days < 30) return `${days} días`;
-  if (days < 365) return `${Math.round(days / 30)} mes${Math.round(days / 30) !== 1 ? 'es' : ''}`;
-  return `${(days / 365).toFixed(1)} años`;
 }
 
 // ─── Badge de nivel ────────────────────────────────────────────────────────────
@@ -118,8 +104,7 @@ const UnifiedComponentCard = memo(({ item, onPress }) => {
   const riesgo30    = pred?.probabilidad_falla_30;
   const factorClima = pred?.factor_clima ?? 1.0;
 
-  const kmLabel   = fmtKm(kmHasta);
-  const diasLabel = fmtDays(diasHasta);
+  const actionWindow = formatHealthActionWindow({ km: kmHasta, days: diasHasta });
   const showRisk  = riesgo30 != null && riesgo30 >= 25;
   const showClima = factorClima > 1.08;
 
@@ -148,14 +133,10 @@ const UnifiedComponentCard = memo(({ item, onPress }) => {
         </View>
 
         {/* Línea de predicción (próximo servicio) */}
-        {(kmLabel || diasLabel) && (
+        {(actionWindow) && (
           <View style={s.predRow}>
             <Gauge size={11} color={COLORS.text.tertiary} />
-            <Text style={s.predText}>
-              Próx. servicio
-              {kmLabel ? ` en ${esEstimado ? '~' : ''}${kmLabel}` : ''}
-              {diasLabel ? ` · ${esEstimado ? '~' : ''}${diasLabel}` : ''}
-            </Text>
+            <Text style={s.predText}>{actionWindow}</Text>
           </View>
         )}
 

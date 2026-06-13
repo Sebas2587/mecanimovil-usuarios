@@ -21,7 +21,9 @@ import {
 
 function formatKm(km) {
   if (km == null || Number.isNaN(Number(km))) return null;
-  return `~${Math.round(Number(km)).toLocaleString('es-CL')} km`;
+  const n = Math.round(Number(km));
+  if (n <= 0) return null;
+  return `${n.toLocaleString('es-CL')} km`;
 }
 
 function HealthWearServiceCard({ rec, onAgendar }) {

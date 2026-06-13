@@ -47,6 +47,7 @@ import {
   getHealthLabel,
   normalizePct,
   resolveVehicleHealthPct,
+  formatHealthActionWindow,
 } from '../../utils/healthFormat';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
@@ -1145,10 +1146,11 @@ const VehicleHealthScreen = ({ route }) => {
                 const km        = pred?.km_hasta_servicio ?? null;
                 const dias      = pred?.dias_hasta_atencion ?? null;
                 const fallback  = selectedMetric?.vida_util;
-                const immediate = km != null && km <= 0;
+                const immediate = (km != null && km <= 0) || (dias != null && dias <= 0);
                 const clima     = pred?.factor_clima ?? 1.0;
+                const actionWindow = formatHealthActionWindow({ km, days: dias });
 
-                if (!km && !fallback) return null;
+                if (!actionWindow && !fallback && !immediate) return null;
                 return (
                   <View style={styles.actionBlock}>
                     <Text style={styles.actionBlockLabel}>Cuándo actuar</Text>
@@ -1158,12 +1160,7 @@ const VehicleHealthScreen = ({ route }) => {
                       </Text>
                     ) : (
                       <Text style={styles.actionBlockValue}>
-                        {km != null
-                          ? `~${Math.round(km).toLocaleString('es-CL')} km`
-                          : fallback}
-                        {dias != null && dias > 0 && (
-                          ` · ~${dias < 30 ? `${dias} días` : `${Math.round(dias / 30)} ${Math.round(dias / 30) === 1 ? 'mes' : 'meses'}`}`
-                        )}
+                        {actionWindow || fallback}
                       </Text>
                     )}
                     {clima > 1.08 && (

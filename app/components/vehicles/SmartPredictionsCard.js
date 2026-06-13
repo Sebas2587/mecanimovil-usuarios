@@ -6,20 +6,10 @@ import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
-import { getHealthColorToken } from '../../utils/healthFormat';
+import { getHealthColorToken, formatHealthDaysRemaining, formatHealthKmRemaining } from '../../utils/healthFormat';
 
-const formatKm = (km) => {
-  if (km == null) return '—';
-  return `${Math.round(km).toLocaleString('es-CL')} km`;
-};
-
-const formatDays = (days) => {
-  if (days == null) return null;
-  if (days <= 0) return 'inmediato';
-  if (days < 30) return `${days} días`;
-  if (days < 365) return `${Math.round(days / 30)} meses`;
-  return `${(days / 365).toFixed(1)} años`;
-};
+const formatKm = formatHealthKmRemaining;
+const formatDays = formatHealthDaysRemaining;
 
 const PredictionItem = memo(({ prediction, onPress }) => {
   const salud = prediction.salud_actual ?? 0;
@@ -56,14 +46,14 @@ const PredictionItem = memo(({ prediction, onPress }) => {
           <Calendar size={12} color={COLORS.text.tertiary} />
           <Text style={styles.metricLabel}>Próxima mantención</Text>
           <Text style={styles.metricValue}>
-            {proximo ? `~${proximo}` : 'sin proyección'}
+            {proximo || 'sin proyección'}
           </Text>
         </View>
         <View style={styles.metricSep} />
         <View style={styles.metricBlock}>
           <Text style={styles.metricLabel}>En</Text>
           <Text style={styles.metricValue}>
-            {formatKm(prediction.km_hasta_servicio)}
+            {formatKm(prediction.km_hasta_servicio) || '—'}
           </Text>
         </View>
         {prediction.probabilidad_falla_30 != null && (

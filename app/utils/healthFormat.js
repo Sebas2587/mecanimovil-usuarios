@@ -146,3 +146,41 @@ export function normalizeKmRemaining(comp) {
   const n = typeof v === 'string' ? Number(v) : v;
   return Number.isFinite(n) ? n : null;
 }
+
+/**
+ * Kilometraje restante legible (sin símbolos de aproximación).
+ * @returns {string|null}  p. ej. "650 km"
+ */
+export function formatHealthKmRemaining(km) {
+  if (km == null || !Number.isFinite(Number(km))) return null;
+  const n = Math.round(Number(km));
+  if (n <= 0) return null;
+  return `${n.toLocaleString('es-CL')} km`;
+}
+
+/**
+ * Tiempo restante legible (sin símbolos de aproximación).
+ * @returns {string|null}  p. ej. "21 días", "2 meses"
+ */
+export function formatHealthDaysRemaining(days) {
+  if (days == null || !Number.isFinite(Number(days))) return null;
+  const n = Math.round(Number(days));
+  if (n <= 0) return null;
+  if (n < 30) return `${n} ${n === 1 ? 'día' : 'días'}`;
+  const meses = Math.round(n / 30);
+  if (n < 365) return `${meses} ${meses === 1 ? 'mes' : 'meses'}`;
+  const años = Number((n / 365).toFixed(1));
+  const añosTxt = años % 1 === 0 ? String(Math.round(años)) : años.toFixed(1);
+  return `${añosTxt} ${años === 1 ? 'año' : 'años'}`;
+}
+
+/**
+ * Ventana de acción en una sola línea: km y/o días, separados por ·
+ * @returns {string|null}
+ */
+export function formatHealthActionWindow({ km, days } = {}) {
+  const kmPart = formatHealthKmRemaining(km);
+  const daysPart = formatHealthDaysRemaining(days);
+  const parts = [kmPart, daysPart].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
+}
