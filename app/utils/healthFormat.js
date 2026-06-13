@@ -148,8 +148,8 @@ export function normalizeKmRemaining(comp) {
 }
 
 /**
- * Kilometraje restante legible (sin símbolos de aproximación).
- * @returns {string|null}  p. ej. "650 km"
+ * Kilometraje restante en formato chileno.
+ * @returns {string|null}  p. ej. "2.100 km"
  */
 export function formatHealthKmRemaining(km) {
   if (km == null || !Number.isFinite(Number(km))) return null;
@@ -159,28 +159,29 @@ export function formatHealthKmRemaining(km) {
 }
 
 /**
- * Tiempo restante legible (sin símbolos de aproximación).
- * @returns {string|null}  p. ej. "21 días", "2 meses"
+ * Tiempo restante con redacción conversacional.
+ * @returns {string|null}  p. ej. "en 21 días", "en 2 meses"
  */
 export function formatHealthDaysRemaining(days) {
   if (days == null || !Number.isFinite(Number(days))) return null;
   const n = Math.round(Number(days));
   if (n <= 0) return null;
-  if (n < 30) return `${n} ${n === 1 ? 'día' : 'días'}`;
+  if (n < 30) return `en ${n} ${n === 1 ? 'día' : 'días'}`;
   const meses = Math.round(n / 30);
-  if (n < 365) return `${meses} ${meses === 1 ? 'mes' : 'meses'}`;
+  if (n < 365) return `en ${meses} ${meses === 1 ? 'mes' : 'meses'}`;
   const años = Number((n / 365).toFixed(1));
   const añosTxt = años % 1 === 0 ? String(Math.round(años)) : años.toFixed(1);
-  return `${añosTxt} ${años === 1 ? 'año' : 'años'}`;
+  return `en ${añosTxt} ${años === 1 ? 'año' : 'años'}`;
 }
 
 /**
- * Ventana de acción en una sola línea: km y/o días, separados por ·
+ * Ventana de acción en una sola línea, lenguaje amigable.
+ * Ejemplos: "2.100 km", "en 2 meses", "2.100 km o en 2 meses"
  * @returns {string|null}
  */
 export function formatHealthActionWindow({ km, days } = {}) {
   const kmPart = formatHealthKmRemaining(km);
   const daysPart = formatHealthDaysRemaining(days);
-  const parts = [kmPart, daysPart].filter(Boolean);
-  return parts.length ? parts.join(' · ') : null;
+  if (kmPart && daysPart) return `${kmPart} o ${daysPart}`;
+  return kmPart || daysPart || null;
 }

@@ -6,16 +6,16 @@ import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
-import { getHealthColorToken, formatHealthDaysRemaining, formatHealthKmRemaining } from '../../utils/healthFormat';
-
-const formatKm = formatHealthKmRemaining;
-const formatDays = formatHealthDaysRemaining;
+import { getHealthColorToken, formatHealthActionWindow } from '../../utils/healthFormat';
 
 const PredictionItem = memo(({ prediction, onPress }) => {
   const salud = prediction.salud_actual ?? 0;
   const color = getHealthColorToken(COLORS, salud);
   const dias = prediction.dias_hasta_atencion;
-  const proximo = formatDays(dias);
+  const actionWindow = formatHealthActionWindow({
+    km: prediction.km_hasta_servicio,
+    days: dias,
+  });
   const isUrgent = salud < 40 || (dias != null && dias <= 30);
   const factorClima = prediction.factor_clima ?? 1.0;
 
@@ -44,23 +44,16 @@ const PredictionItem = memo(({ prediction, onPress }) => {
       <View style={styles.itemMetrics}>
         <View style={styles.metricBlock}>
           <Calendar size={12} color={COLORS.text.tertiary} />
-          <Text style={styles.metricLabel}>Próxima mantención</Text>
+          <Text style={styles.metricLabel}>Próxima revisión</Text>
           <Text style={styles.metricValue}>
-            {proximo || 'sin proyección'}
-          </Text>
-        </View>
-        <View style={styles.metricSep} />
-        <View style={styles.metricBlock}>
-          <Text style={styles.metricLabel}>En</Text>
-          <Text style={styles.metricValue}>
-            {formatKm(prediction.km_hasta_servicio) || '—'}
+            {actionWindow || 'Sin proyección'}
           </Text>
         </View>
         {prediction.probabilidad_falla_30 != null && (
           <>
             <View style={styles.metricSep} />
             <View style={styles.metricBlock}>
-              <Text style={styles.metricLabel}>Riesgo 30d</Text>
+              <Text style={styles.metricLabel}>Riesgo 30 días</Text>
               <Text style={[
                 styles.metricValue,
                 { color: prediction.probabilidad_falla_30 > 50 ? COLORS.feedback?.error?.main || '#D32F2F' : COLORS.text.primary },

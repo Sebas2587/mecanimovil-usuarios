@@ -13,17 +13,14 @@ import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tok
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import VehicleHealthService from '../../../services/vehicleHealthService';
 import { getServicesByVehiculo } from '../../../services/service';
-import { getHealthColorToken } from '../../../utils/healthFormat';
+import { getHealthColorToken, formatHealthKmRemaining } from '../../../utils/healthFormat';
 import {
   buildHealthServiceRecommendations,
   normalizeHealthComponentsList,
 } from '../shared/homeHealthRecommendations';
 
 function formatKm(km) {
-  if (km == null || Number.isNaN(Number(km))) return null;
-  const n = Math.round(Number(km));
-  if (n <= 0) return null;
-  return `${n.toLocaleString('es-CL')} km`;
+  return formatHealthKmRemaining(km);
 }
 
 function HealthWearServiceCard({ rec, onAgendar }) {
