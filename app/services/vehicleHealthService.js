@@ -87,7 +87,15 @@ class VehicleHealthService {
         opt.km != null &&
         Math.abs(Number(serverKm || 0) - opt.km) < 100;
 
-      if (backendProceso) {
+      // El servidor tiene un dato real más fresco (p. ej. checklist del proveedor):
+      // fuente autoritativa con ancla de km igual o posterior a la declarada.
+      const servidorTieneDatoFresco =
+        serverPct > 0 &&
+        !!serverFuente &&
+        serverFuente !== 'ENGINE' &&
+        Number(serverKm || 0) >= Number(opt.km || 0) - 100;
+
+      if (backendProceso || servidorTieneDatoFresco) {
         patches.delete(s);
         return c;
       }

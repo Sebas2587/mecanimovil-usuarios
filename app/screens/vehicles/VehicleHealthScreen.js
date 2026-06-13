@@ -316,10 +316,20 @@ const VehicleHealthScreen = ({ route }) => {
         opt.km != null &&
         Math.abs(Number(serverKm || 0) - opt.km) < 100;
 
-      if (backendProceso) {
+      // El servidor ya tiene un dato REAL más fresco que nuestra declaración:
+      // fuente autoritativa (no estimada por el motor) con ancla de km igual o
+      // posterior a la declarada. Cubre el caso de un servicio confirmado por
+      // checklist del proveedor (fuente=CHECKLIST), que antes quedaba oculto 24 h.
+      const servidorTieneDatoFresco =
+        serverPct > 0 &&
+        !!serverFuente &&
+        serverFuente !== 'ENGINE' &&
+        Number(serverKm || 0) >= Number(opt.km || 0) - 100;
+
+      if (backendProceso || servidorTieneDatoFresco) {
         patches.delete(s);
         mapChanged = true;
-        return c; // servidor ya tiene el dato real (≤65% por el cap del engine)
+        return c; // servidor manda: dato real y fresco
       }
 
       // Mantener parche optimista
