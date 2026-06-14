@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import solicitudesService, { normalizarSolicitudPublica } from '../services/solicitudesService';
 import ofertasService from '../services/ofertasService';
+import checklistClienteService from '../services/checklistService';
 import { useAuth } from '../context/AuthContext';
 
 const CACHE = {
@@ -143,6 +144,71 @@ export function prefetchRequestDetail(queryClient, solicitudId) {
         staleTime: CACHE.staleTime,
     });
 }
+
+/** Checklist principal de la orden vinculada a la solicitud (cacheado entre navegaciones). */
+export const checklistPrincipalQueryKey = (ordenId) => {
+    if (ordenId == null || ordenId === '') return null;
+    return ['checklistPrincipal', String(ordenId)];
+};
+
+export async function fetchChecklistPrincipalBundle(ordenId) {
+    try {
+        const data = await checklistClienteService.obtenerChecklistServicio(ordenId);
+        return { visible: true, data };
+    } catch {
+        return { visible: false, data: null };
+    }
+}
+
+export const useChecklistPrincipal = (ordenId) => {
+    const key = checklistPrincipalQueryKey(ordenId);
+    return useQuery({
+        queryKey: key || ['checklistPrincipal', '__disabled__'],
+        queryFn: () => fetchChecklistPrincipalBundle(ordenId),
+        enabled: key != null,
+        staleTime: CACHE.staleTime,
+        gcTime: CACHE.gcTime,
+        refetchOnWindowFocus: false,
+        retry: 0,
+        placeholderData: (prev) => prev,
+    });
+};
+
+/** Mapa ordenId → tiene checklist (ofertas secundarias en detalle de solicitud). */
+export const checklistsVisiblesQueryKey = (ordenIds) => {
+    if (!Array.isArray(ordenIds) || ordenIds.length === 0) return null;
+    const normalized = [...new Set(ordenIds.map((id) => String(id)))].sort();
+    return ['checklistsVisibles', normalized.join(',')];
+};
+
+export async function fetchChecklistsVisiblesMap(ordenIds) {
+    const unique = [...new Set(ordenIds.map((id) => String(id)))];
+    const entries = await Promise.all(
+        unique.map(async (ordenId) => {
+            try {
+                await checklistClienteService.obtenerChecklistServicio(ordenId);
+                return [ordenId, true];
+            } catch {
+                return [ordenId, false];
+            }
+        }),
+    );
+    return Object.fromEntries(entries);
+}
+
+export const useChecklistsVisiblesPorOrden = (ordenIds) => {
+    const key = checklistsVisiblesQueryKey(ordenIds);
+    return useQuery({
+        queryKey: key || ['checklistsVisibles', '__disabled__'],
+        queryFn: () => fetchChecklistsVisiblesMap(ordenIds),
+        enabled: key != null,
+        staleTime: CACHE.staleTime,
+        gcTime: CACHE.gcTime,
+        refetchOnWindowFocus: false,
+        retry: 0,
+        placeholderData: (prev) => prev,
+    });
+};
 
 export const useRequests = () => {
     const { user } = useAuth();

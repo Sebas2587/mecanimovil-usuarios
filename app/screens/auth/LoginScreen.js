@@ -36,6 +36,7 @@ import * as userService from '../../services/user';
 import ofertasService from '../../services/ofertasService';
 import vehiculoService from '../../services/vehicle';
 import { showAlert, showAlertButtons } from '../../utils/platformAlert';
+import LegalFooterLinks from '../../components/support/LegalFooterLinks';
 
 /**
  * 3 estados de UI tipo onboarding (Canva-like):
@@ -129,6 +130,7 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
 
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
@@ -222,9 +224,13 @@ const LoginScreen = () => {
   };
 
   const handleLogin = async () => {
-    if (!validate()) return;
+    if (!validate()) {
+      showAlert('Revisa el formulario', 'Completa los campos requeridos para continuar.');
+      return;
+    }
     setLoading(true);
     setErrors({});
+    setFormError('');
     try {
       const result = await login(email, password);
       if (result.success) {
@@ -243,11 +249,13 @@ const LoginScreen = () => {
           await AsyncStorage.multiRemove(['rememberMe', 'savedEmail', 'savedPassword']);
         }
       } else if (result.code === 'PROVIDER_ACCOUNT') {
-        showAlert(
-          'Cuenta de Proveedor',
-          'Esta cuenta está registrada como mecánico o taller.\n\nUsa la app MecaniMóvil Proveedores.',
-        );
+        const msg = 'Esta cuenta está registrada como mecánico o taller.\n\nUsa la app MecaniMóvil Proveedores.';
+        setFormError(msg);
+        showAlert('Cuenta de proveedor', msg);
       } else if (result.code === 'USER_NOT_FOUND' || /no.*registrad|no.*encontrad|usuario.*no.*existe/i.test(result.error || '')) {
+        const msg = 'No encontramos una cuenta con ese correo.';
+        setErrors({ email: msg });
+        setFormError(msg);
         showAlertButtons(
           'Cuenta no encontrada',
           'No encontramos una cuenta con ese correo. ¿Quieres registrarte?',
@@ -257,14 +265,16 @@ const LoginScreen = () => {
           ],
         );
       } else {
-        showAlert(
-          'Error al iniciar sesión',
-          result.error || 'Correo o contraseña incorrectos.',
-        );
+        const msg = result.error || 'Correo o contraseña incorrectos. Verifica tus datos e intenta de nuevo.';
+        setErrors({ password: 'Contraseña incorrecta' });
+        setFormError(msg);
+        showAlert('No pudimos iniciar sesión', msg);
       }
     } catch (error) {
       logger.error('Error inesperado en handleLogin:', error);
-      showAlert('Error al iniciar sesión', 'Ocurrió un problema. Verifica tu conexión.');
+      const msg = 'Ocurrió un problema. Verifica tu conexión e intenta de nuevo.';
+      setFormError(msg);
+      showAlert('Error al iniciar sesión', msg);
     } finally { setLoading(false); }
   };
 
@@ -325,10 +335,7 @@ const LoginScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.footer}>
-        Al continuar, aceptas los <Text style={styles.footerLink}>Términos de uso</Text> de
-        MecaniMóvil. Consulta nuestra <Text style={styles.footerLink}>Política de privacidad</Text>.
-      </Text>
+      <LegalFooterLinks textStyle={styles.footer} linkStyle={styles.footerLink} />
 
       <TouchableOpacity
         onPress={handleClearGoogleAccounts}
@@ -383,10 +390,7 @@ const LoginScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.footer}>
-        Al continuar, aceptas los <Text style={styles.footerLink}>Términos de uso</Text> de
-        MecaniMóvil. Consulta nuestra <Text style={styles.footerLink}>Política de privacidad</Text>.
-      </Text>
+      <LegalFooterLinks textStyle={styles.footer} linkStyle={styles.footerLink} />
     </>
   );
 
@@ -412,6 +416,13 @@ const LoginScreen = () => {
       </View>
 
       <View style={styles.card}>
+        {formError ? (
+          <View style={styles.formErrorBanner}>
+            <Ionicons name="alert-circle" size={18} color={COLORS.error[600]} />
+            <Text style={styles.formErrorText}>{formError}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.fieldWrap}>
           <Input
             label="Correo Electrónico"
@@ -467,21 +478,19 @@ const LoginScreen = () => {
         />
       </View>
 
-      <Text style={styles.footer}>
-        Al continuar, aceptas los <Text style={styles.footerLink}>Términos de uso</Text> de
-        MecaniMóvil. Consulta nuestra <Text style={styles.footerLink}>Política de privacidad</Text>.
-      </Text>
+      <LegalFooterLinks textStyle={styles.footer} linkStyle={styles.footerLink} />
     </>
   );
 
   /* ─── render ─────────────────────────────────────────────────────── */
   const scrollContent = (
     <ScrollView
+      style={Platform.OS === 'web' ? styles.webScroll : undefined}
       contentContainerStyle={[
         styles.scroll,
         { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 },
       ]}
-      showsVerticalScrollIndicator={false}
+      showsVerticalScrollIndicator={Platform.OS === 'web'}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode={Platform.OS === 'web' ? undefined : 'on-drag'}
     >
@@ -575,8 +584,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.background.default,
-    ...(Platform.OS === 'web' ? { height: '100%' } : null),
+    ...(Platform.OS === 'web'
+      ? { height: '100vh', maxHeight: '100vh', overflow: 'hidden' }
+      : null),
   },
+  webScroll: { flex: 1 },
   scroll: {
     paddingHorizontal: SPACING.container.horizontal,
     maxWidth: 480,
@@ -743,6 +755,23 @@ const styles = StyleSheet.create({
 
   /* Form fields */
   fieldWrap: { marginBottom: 14 },
+  formErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: 1,
+    borderColor: COLORS.error[200],
+    backgroundColor: COLORS.error[50],
+  },
+  formErrorText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.error[700],
+    lineHeight: 20,
+  },
   optionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

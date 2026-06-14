@@ -26,6 +26,7 @@ import Avatar from '../base/Avatar/Avatar';
 import checklistClienteService from '../../services/checklistService';
 import { signatureStoredToImageUri } from '../../utils/signatureImageUri';
 import { resolveToAbsoluteMediaUrl } from '../../utils/providerUtils';
+import { formatKmDisplay } from '../../utils/vehicleMileage';
 
 /** Atajos de color alineados al DS (evita hex sueltos en JSX) */
 const C = {
@@ -142,26 +143,30 @@ const TIPOS_OPCION_TECNICO = new Set([
   'ENGINE_INSPECTION',
 ]);
 
-function tituloOpcionTecnico(tipoPregunta) {
-  switch (tipoPregunta) {
-    case 'FLUID_LEVEL':
-      return 'Nivel indicado por el técnico';
-    case 'SELECT':
-      return 'Opción elegida por el técnico';
-    case 'MULTISELECT':
-    case 'SERVICE_SELECTION':
-    case 'VEHICLE_CONDITION':
-    case 'ELECTRICAL_CHECK':
-    case 'BRAKE_CHECK':
-    case 'SUSPENSION_CHECK':
-    case 'TIRE_CONDITION':
-    case 'EXTERIOR_INSPECTION':
-    case 'INTERIOR_INSPECTION':
-    case 'ENGINE_INSPECTION':
-      return 'Opciones indicadas por el técnico';
-    default:
-      return 'Selección del técnico';
+function esRespuestaKilometraje(tipoPregunta, pregunta) {
+  if (tipoPregunta === 'KILOMETER_INPUT') return true;
+  const p = String(pregunta || '').toLowerCase();
+  return /kilometraje|od[oó]metro|\bkm\b/.test(p);
+}
+
+function parseKmValor(texto, numero) {
+  if (numero != null && numero !== '') {
+    const n = Number(numero);
+    if (Number.isFinite(n)) return n;
   }
+  if (texto != null && String(texto).trim() !== '') {
+    const cleaned = String(texto).replace(/[^\d.,-]/g, '').replace(',', '.');
+    const n = parseFloat(cleaned);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function formatearNumeroChecklist(valor) {
+  const n = Number(valor);
+  if (!Number.isFinite(n)) return String(valor ?? '—');
+  if (Number.isInteger(n)) return n.toLocaleString('es-CL');
+  return n.toLocaleString('es-CL', { maximumFractionDigits: 2 });
 }
 
 /** Texto del badge de estado en el header; null = no mostrar badge. */
@@ -423,17 +428,15 @@ const ChecklistViewerModal = ({
         opcionesSel = seleccionRespuestaAChips(respuesta.respuesta_seleccion);
       }
 
+      const esKm = esRespuestaKilometraje(tipoPregunta, pregunta);
+      const kmValor = esKm
+        ? parseKmValor(respuesta.respuesta_texto, respuesta.respuesta_numero)
+        : null;
+
       let iconoTexto = null;
       let unidad = '';
-      let valorStyle = {};
-      if (hasTextoMostrar) {
-        if (tipoPregunta === 'KILOMETER_INPUT') {
-          iconoTexto = (
-            <Ionicons name="speedometer-outline" size={16} color={C.accent} style={styles.inlineIcon} />
-          );
-          unidad = ' km';
-          valorStyle = styles.valorKm;
-        } else if (tipoPregunta === 'FLUID_LEVEL') {
+      if (hasTextoMostrar && !esKm) {
+        if (tipoPregunta === 'FLUID_LEVEL') {
           iconoTexto = (
             <Ionicons name="water-outline" size={16} color={C.accent} style={styles.inlineIcon} />
           );
@@ -454,114 +457,102 @@ const ChecklistViewerModal = ({
           </View>
 
           {hasVerificacion ? (
-            <View style={styles.verifyBundle}>
-              <Text style={styles.bundleSectionTitle}>Verificación</Text>
+            <View style={styles.valorContenido}>
               {hasSeleccion ? (
-                <View style={styles.bundleBlock}>
-                  <Text style={styles.inlineMetaLabel}>{tituloOpcionTecnico(tipoPregunta)}</Text>
-                  {opcionesSel.length === 1 ? (
-                    <View style={styles.valorRow}>
-                      <Ionicons name="checkmark-circle" size={20} color={C.success} style={styles.inlineIcon} />
-                      <Text style={styles.valorSeleccionDestacada}>{String(opcionesSel[0])}</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.chipsWrap}>
-                      {opcionesSel.map((op, oi) => (
-                        <View key={String(oi)} style={styles.seleccionChip}>
-                          <Ionicons name="checkmark-circle" size={14} color={C.success} />
-                          <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
+                opcionesSel.length === 1 ? (
+                  <View style={styles.valorRowSimple}>
+                    <Ionicons name="checkmark-circle" size={18} color={C.success} />
+                    <Text style={styles.valorDestacado}>{String(opcionesSel[0])}</Text>
+                  </View>
+                ) : (
+                  <View style={styles.chipsWrap}>
+                    {opcionesSel.map((op, oi) => (
+                      <View key={String(oi)} style={styles.seleccionChip}>
+                        <Ionicons name="checkmark-circle" size={14} color={C.success} />
+                        <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )
               ) : null}
 
               {detalleOpcionFaltante ? (
-                <View style={[styles.bundleBlock, styles.bundleBlockAviso]}>
-                  <View style={styles.valorRow}>
-                    <Ionicons name="information-circle-outline" size={18} color={C.textSecondary} style={styles.inlineIcon} />
-                    <Text style={styles.avisoDetalleFaltante}>
-                      El técnico completó este paso, pero la opción elegida no quedó guardada en el informe. En servicios nuevos, aquí verás el mismo nivel u opción que eligió el taller (por ejemplo Normal, Bajo, etc.).
-                    </Text>
-                  </View>
+                <View style={styles.valorRowSimple}>
+                  <Ionicons name="information-circle-outline" size={18} color={C.textSecondary} />
+                  <Text style={styles.avisoDetalleFaltante}>
+                    El técnico completó este paso, pero la opción elegida no quedó guardada en el informe.
+                  </Text>
                 </View>
               ) : null}
 
-              {hasTextoMostrar ? (
-                <View style={styles.bundleBlock}>
-                  <Text style={styles.inlineMetaLabel}>Respuesta</Text>
-                  <View style={styles.valorRow}>
-                    {iconoTexto}
-                    <Text style={[styles.respuestaValor, valorStyle]}>
-                      {String(respuesta.respuesta_texto)}
-                      {unidad}
-                    </Text>
-                  </View>
+              {hasTextoMostrar && !esKm ? (
+                <View style={styles.valorRowSimple}>
+                  {iconoTexto}
+                  <Text style={styles.respuestaValor}>
+                    {String(respuesta.respuesta_texto)}
+                    {unidad}
+                  </Text>
+                </View>
+              ) : null}
+
+              {esKm && kmValor != null ? (
+                <View style={styles.valorRowSimple}>
+                  <Ionicons name="speedometer-outline" size={20} color={DS_COLORS.primary[600]} />
+                  <Text style={styles.kmValorPlano}>{formatKmDisplay(kmValor)} km</Text>
                 </View>
               ) : null}
 
               {firmaSoloMarcada ? (
-                <View style={styles.bundleBlock}>
-                  <Text style={styles.inlineMetaLabel}>Estado</Text>
-                  <View style={styles.valorRow}>
-                    <Ionicons name="checkmark-circle" size={16} color={C.success} style={styles.inlineIcon} />
-                    <Text style={styles.respuestaValor}>Firma registrada</Text>
-                  </View>
+                <View style={styles.valorRowSimple}>
+                  <Ionicons name="checkmark-circle" size={18} color={C.success} />
+                  <Text style={styles.respuestaValor}>Firma registrada</Text>
                 </View>
               ) : null}
 
-              {hasNumero ? (
-                <View style={styles.bundleBlock}>
-                  <Text style={styles.inlineMetaLabel}>Valor numérico</Text>
-                  <Text style={styles.respuestaValor}>{String(respuesta.respuesta_numero)}</Text>
-                </View>
+              {hasNumero && !esKm ? (
+                <Text style={styles.valorDestacado}>
+                  {formatearNumeroChecklist(respuesta.respuesta_numero)}
+                </Text>
               ) : null}
 
               {hasBoolean ? (
-                <View style={styles.bundleBlock}>
-                  <Text style={styles.inlineMetaLabel}>Estado</Text>
-                  <View style={styles.booleanResponse}>
-                    <Ionicons
-                      name={respuesta.respuesta_booleana ? 'checkmark-circle' : 'close-circle'}
-                      size={18}
-                      color={respuesta.respuesta_booleana ? C.success : C.error}
-                    />
-                    <Text
-                      style={[
-                        styles.respuestaValor,
-                        respuesta.respuesta_booleana ? styles.booleanOk : styles.booleanWarn,
-                      ]}
-                    >
-                      {respuesta.respuesta_booleana ? 'Correcto' : 'Requiere atención'}
-                    </Text>
-                  </View>
+                <View style={styles.valorRowSimple}>
+                  <Ionicons
+                    name={respuesta.respuesta_booleana ? 'checkmark-circle' : 'close-circle'}
+                    size={18}
+                    color={respuesta.respuesta_booleana ? C.success : C.error}
+                  />
+                  <Text
+                    style={[
+                      styles.respuestaValor,
+                      respuesta.respuesta_booleana ? styles.booleanOk : styles.booleanWarn,
+                    ]}
+                  >
+                    {respuesta.respuesta_booleana ? 'Correcto' : 'Requiere atención'}
+                  </Text>
                 </View>
               ) : null}
 
               {hasFecha ? (
-                <View style={styles.bundleBlock}>
-                  <Text style={styles.inlineMetaLabel}>Fecha y hora</Text>
-                  <View style={styles.valorRow}>
-                    <Ionicons name="calendar-outline" size={16} color={C.accent} style={styles.inlineIcon} />
-                    <Text style={styles.respuestaValor}>
-                      {(() => {
-                        try {
-                          const d = new Date(respuesta.respuesta_fecha);
-                          if (Number.isNaN(d.getTime())) return 'No disponible';
-                          return d.toLocaleString('es-CL', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            year: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          });
-                        } catch {
-                          return String(respuesta.respuesta_fecha);
-                        }
-                      })()}
-                    </Text>
-                  </View>
+                <View style={styles.valorRowSimple}>
+                  <Ionicons name="calendar-outline" size={18} color={C.accent} />
+                  <Text style={styles.respuestaValor}>
+                    {(() => {
+                      try {
+                        const d = new Date(respuesta.respuesta_fecha);
+                        if (Number.isNaN(d.getTime())) return 'No disponible';
+                        return d.toLocaleString('es-CL', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        });
+                      } catch {
+                        return String(respuesta.respuesta_fecha);
+                      }
+                    })()}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -569,7 +560,7 @@ const ChecklistViewerModal = ({
 
           {hasFotos ? (
             <View style={styles.fotosContainer}>
-              <Text style={styles.bundleSectionTitle}>
+              <Text style={styles.fotosSectionLabel}>
                 Evidencias ({fotosConUri.length || fotos.length})
               </Text>
               {hasFotosVisibles ? (
@@ -621,7 +612,7 @@ const ChecklistViewerModal = ({
       console.error('Error renderizando respuesta:', err);
       return (
         <View key={indexKey} style={styles.respuestaCard}>
-          <Text style={styles.inlineMetaLabel}>No se pudo mostrar este ítem</Text>
+          <Text style={styles.respuestaValor}>No se pudo mostrar este ítem</Text>
         </View>
       );
     }
@@ -791,104 +782,45 @@ const ChecklistViewerModal = ({
 
     const uriTecnico = signatureStoredToImageUri(checklist.firmaTecnico);
     const uriCliente = signatureStoredToImageUri(checklist.firmaCliente);
-    const tieneFirmaTecnico = Boolean(uriTecnico);
-    const tieneFirmaCliente = Boolean(uriCliente);
-
-    if (!tieneFirmaTecnico && !tieneFirmaCliente) {
-      return (
-        <View style={styles.firmasContainer}>
-          <TouchableOpacity
-            style={styles.firmasToggleButton}
-            onPress={() => setMostrarFirmas(!mostrarFirmas)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="create-outline" size={20} color={C.primary} />
-            <Text style={styles.firmasToggleText}>Ver firmas de conformidad</Text>
-            <Ionicons
-              name={mostrarFirmas ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={C.primary}
-            />
-          </TouchableOpacity>
-
-          {mostrarFirmas && (
-            <View style={styles.firmasContent}>
-              <View style={styles.sinFirmasContainer}>
-                <Ionicons name="document-outline" size={48} color={C.textLight} />
-                <Text style={styles.sinFirmasText}>No hay firmas disponibles para este servicio</Text>
-              </View>
-            </View>
-          )}
-        </View>
-      );
-    }
+    const firmas = [
+      uriTecnico ? { uri: uriTecnico, label: 'Técnico' } : null,
+      uriCliente ? { uri: uriCliente, label: 'Tu firma' } : null,
+    ].filter(Boolean);
 
     return (
-      <View style={styles.firmasContainer}>
+      <View style={styles.firmasSection}>
         <TouchableOpacity
-          style={styles.firmasToggleButton}
+          style={styles.firmasToggleRow}
           onPress={() => setMostrarFirmas(!mostrarFirmas)}
           activeOpacity={0.7}
         >
-          <Ionicons name="create-outline" size={20} color={C.primary} />
-          <Text style={styles.firmasToggleText}>
-            {mostrarFirmas ? 'Ocultar' : 'Ver'} firmas de conformidad
-          </Text>
+          <Ionicons name="create-outline" size={18} color={C.primary} />
+          <Text style={styles.firmasToggleText}>Firmas de conformidad</Text>
           <Ionicons
             name={mostrarFirmas ? 'chevron-up' : 'chevron-down'}
-            size={20}
-            color={C.primary}
+            size={18}
+            color={C.textSecondary}
           />
         </TouchableOpacity>
 
-        {mostrarFirmas && (
-          <View style={styles.firmasContent}>
-            <Text style={styles.firmasTitle}>Firmas de conformidad</Text>
-            <Text style={styles.firmasSubtitle}>
-              Estas firmas confirman que el servicio fue completado satisfactoriamente
-            </Text>
-
-            <View style={styles.firmasGrid}>
-              {tieneFirmaTecnico && (
-                <View style={styles.firmaCard}>
-                  <View style={styles.firmaHeader}>
-                    <Ionicons name="construct" size={20} color={C.primary} />
-                    <Text style={styles.firmaLabel}>Firma del Técnico</Text>
-                  </View>
-                  <View style={styles.firmaImageContainer}>
-                    <Image
-                      source={{ uri: uriTecnico }}
-                      style={styles.firmaImagen}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <Text style={styles.firmaDescripcion}>
-                    El técnico certifica que el trabajo fue realizado según los estándares
-                  </Text>
+        {mostrarFirmas ? (
+          firmas.length === 0 ? (
+            <Text style={styles.sinFirmasText}>No hay firmas registradas en este servicio.</Text>
+          ) : (
+            <View style={styles.firmasList}>
+              {firmas.map(({ uri, label }) => (
+                <View key={label} style={styles.firmaItem}>
+                  <Text style={styles.firmaEtiqueta}>{label}</Text>
+                  <Image
+                    source={{ uri }}
+                    style={styles.firmaImagen}
+                    resizeMode="contain"
+                  />
                 </View>
-              )}
-
-              {tieneFirmaCliente && (
-                <View style={styles.firmaCard}>
-                  <View style={styles.firmaHeader}>
-                    <Ionicons name="person" size={20} color={C.success} />
-                    <Text style={styles.firmaLabel}>Tu Firma</Text>
-                  </View>
-                  <View style={styles.firmaImageContainer}>
-                    <Image
-                      source={{ uri: uriCliente }}
-                      style={styles.firmaImagen}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <Text style={styles.firmaDescripcion}>
-                    Confirmas que el servicio fue completado a tu satisfacción
-                  </Text>
-                </View>
-              )}
+              ))}
             </View>
-          </View>
-        )}
+          )
+        ) : null}
       </View>
     );
   };
@@ -1307,66 +1239,50 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 22,
   },
-  verifyBundle: {
-    backgroundColor: DS_COLORS.neutral.gray[100],
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.sm,
+  valorContenido: {
     gap: SPACING.sm,
-    marginBottom: SPACING.sm,
+    marginTop: SPACING.xxs,
   },
-  bundleSectionTitle: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+  valorRowSimple: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    flexWrap: 'wrap',
+  },
+  valorDestacado: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: DS_COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 2,
+    color: DS_COLORS.text.primary,
+    lineHeight: 24,
   },
-  bundleBlock: {
-    gap: SPACING.xxs,
+  kmValorPlano: {
+    fontSize: TYPOGRAPHY.fontSize['3xl'],
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontFamily: TYPOGRAPHY.fontFamily.mono,
+    color: DS_COLORS.text.primary,
+    letterSpacing: -0.5,
   },
-  inlineMetaLabel: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+  fotosSectionLabel: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: DS_COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    color: DS_COLORS.text.secondary,
+    marginBottom: SPACING.xs,
   },
   chipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.xs,
   },
-  valorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
   inlineIcon: {
-    marginRight: SPACING.xs,
-  },
-  valorKm: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: DS_COLORS.primary[600],
+    marginRight: 0,
   },
   respuestaValor: {
     fontSize: TYPOGRAPHY.fontSize.base,
     color: DS_COLORS.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     lineHeight: 22,
-  },
-  booleanResponse: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: DS_COLORS.background.paper,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDERS.radius.md,
-    alignSelf: 'flex-start',
-    gap: SPACING.xs,
-    borderWidth: BORDERS.width.thin,
-    borderColor: DS_COLORS.border.light,
+    flex: 1,
   },
   booleanOk: {
     color: DS_COLORS.success[700],
@@ -1394,23 +1310,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: DS_COLORS.success[800],
-  },
-
-  valorSeleccionDestacada: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: DS_COLORS.text.primary,
-    lineHeight: 24,
-  },
-
-  bundleBlockAviso: {
-    backgroundColor: DS_COLORS.neutral.gray[50],
-    borderRadius: BORDERS.radius.md,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    borderWidth: BORDERS.width.thin,
-    borderColor: DS_COLORS.border.light,
   },
 
   avisoDetalleFaltante: {
@@ -1542,108 +1441,55 @@ const styles = StyleSheet.create({
     borderTopColor: DS_COLORS.border.light,
   },
 
-  firmasContainer: {
-    backgroundColor: DS_COLORS.background.paper,
+  firmasSection: {
     marginHorizontal: SPACING.md,
-    marginTop: SPACING.md,
+    marginTop: SPACING.lg,
     marginBottom: SPACING.lg,
-    borderRadius: BORDERS.radius.lg,
-    padding: SPACING.md,
-    borderWidth: BORDERS.width.thin,
-    borderColor: DS_COLORS.border.light,
-    ...SHADOWS.sm,
+    paddingTop: SPACING.md,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: DS_COLORS.border.light,
   },
-  firmasToggleButton: {
+  firmasToggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: DS_COLORS.neutral.gray[100],
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDERS.radius.md,
-    marginBottom: SPACING.sm,
-    borderWidth: BORDERS.width.thin,
-    borderColor: DS_COLORS.border.light,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   firmasToggleText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: DS_COLORS.text.primary,
-    marginLeft: SPACING.xs,
     flex: 1,
   },
-  firmasContent: {
-    marginTop: SPACING.xs,
+  firmasList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.lg,
+    marginTop: SPACING.md,
   },
-  sinFirmasContainer: {
-    alignItems: 'center',
-    paddingVertical: SPACING.lg,
+  firmaItem: {
+    flex: 1,
+    minWidth: 140,
+    gap: SPACING.xs,
+  },
+  firmaEtiqueta: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: DS_COLORS.text.secondary,
   },
   sinFirmasText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: DS_COLORS.text.secondary,
-    textAlign: 'center',
-    marginTop: SPACING.sm,
-  },
-  firmasTitle: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: DS_COLORS.text.primary,
-    marginBottom: SPACING.xs,
-    textAlign: 'center',
-  },
-  firmasSubtitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: DS_COLORS.text.secondary,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
+    marginTop: SPACING.md,
     lineHeight: 20,
-  },
-  firmasGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: SPACING.sm,
-  },
-  firmaCard: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: DS_COLORS.neutral.gray[100],
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.sm,
-    borderWidth: BORDERS.width.thin,
-    borderColor: DS_COLORS.border.light,
-  },
-  firmaHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
-    justifyContent: 'center',
-  },
-  firmaLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: DS_COLORS.text.primary,
-    marginLeft: SPACING.xs,
-    textAlign: 'center',
-  },
-  firmaImageContainer: {
-    backgroundColor: DS_COLORS.background.paper,
-    borderRadius: BORDERS.radius.sm,
-    padding: SPACING.xs,
-    marginBottom: SPACING.sm,
-    borderWidth: BORDERS.width.thin,
-    borderColor: DS_COLORS.border.light,
   },
   firmaImagen: {
     width: '100%',
-    height: 100,
-    borderRadius: BORDERS.radius.sm,
-    backgroundColor: DS_COLORS.neutral.gray[100],
-  },
-  firmaDescripcion: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: DS_COLORS.text.secondary,
-    textAlign: 'center',
-    lineHeight: 16,
+    height: 112,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: DS_COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: DS_COLORS.border.light,
   },
   // ── Recomendaciones ML ─────────────────────────────────────────────────
   recContainer: {

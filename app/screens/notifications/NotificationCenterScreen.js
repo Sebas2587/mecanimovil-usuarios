@@ -26,6 +26,27 @@ import { SHADOWS } from '../../design-system/tokens/shadows';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+/** `data` puede venir como objeto o JSON string desde la API. */
+function resolveNotificationData(data) {
+  if (!data) return {};
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return {};
+    }
+  }
+  return data;
+}
+
+/** IDs de solicitud son UUID — nunca usar parseInt (corrompe el id). */
+function resolveSolicitudIdFromNotification(notification) {
+  const payload = resolveNotificationData(notification?.data);
+  const raw = payload.solicitud_id ?? payload.solicitudId;
+  if (raw == null || String(raw).trim() === '') return null;
+  return String(raw).trim();
+}
+
 export default function NotificationCenterScreen({ navigation }) {
   const headerHeight = useHeaderHeight();
   const { height: windowHeight } = useWindowDimensions();
@@ -64,12 +85,19 @@ export default function NotificationCenterScreen({ navigation }) {
     }
 
     try {
-      if (notification.tipo === 'health_alert' && notification.data?.vehicle_id) {
-        navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: parseInt(notification.data.vehicle_id) });
-      } else if (notification.tipo === 'payment_reminder' && notification.data?.solicitud_id) {
-        navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: parseInt(notification.data.solicitud_id) });
-      } else if (notification.tipo === 'order_update' && notification.data?.solicitud_id) {
-        navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: parseInt(notification.data.solicitud_id) });
+      const payload = resolveNotificationData(notification.data);
+      const solicitudId = resolveSolicitudIdFromNotification(notification);
+      const vehicleId = payload.vehicle_id ?? payload.vehicleId;
+
+      if (notification.tipo === 'health_alert' && vehicleId) {
+        navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: String(vehicleId) });
+      } else if (notification.tipo === 'review_reminder') {
+        navigation.navigate(ROUTES.PROFILE, { screen: ROUTES.PENDING_REVIEWS });
+      } else if (
+        solicitudId &&
+        (notification.tipo === 'payment_reminder' || notification.tipo === 'order_update')
+      ) {
+        navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId });
       }
     } catch (error) {
       console.warn('Error navigating from notification:', error);
@@ -95,6 +123,9 @@ export default function NotificationCenterScreen({ navigation }) {
     } else if (item.tipo === 'order_update') {
       iconName = 'document-text';
       iconColor = COLORS.success[600];
+    } else if (item.tipo === 'review_reminder') {
+      iconName = 'star';
+      iconColor = COLORS.warning[600];
     }
 
     return (

@@ -13,15 +13,11 @@ import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tok
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import VehicleHealthService from '../../../services/vehicleHealthService';
 import { getServicesByVehiculo } from '../../../services/service';
-import { getHealthColorToken, formatHealthKmRemaining } from '../../../utils/healthFormat';
+import { getHealthColorToken } from '../../../utils/healthFormat';
 import {
   buildHealthServiceRecommendations,
   normalizeHealthComponentsList,
 } from '../shared/homeHealthRecommendations';
-
-function formatKm(km) {
-  return formatHealthKmRemaining(km);
-}
 
 function HealthWearServiceCard({ rec, onAgendar }) {
   if (!rec) return null;
@@ -33,15 +29,22 @@ function HealthWearServiceCard({ rec, onAgendar }) {
 
   const pct = Math.round(rec.componentHealth ?? 0);
   const accent = getHealthColorToken(COLORS, pct);
-  const kmLine = formatKm(rec.kmRestantes);
   const levelLabel = rec.componentLevelLabel || rec.componentLevel || '';
   const compName = rec.componentName || 'Componente';
   const agendarLabel = hasService && svcNombre
     ? `Agendar ${svcNombre}`
     : `Agendar revisión de ${compName}`;
 
+  const handlePress = () => onAgendar?.(svc, rec);
+
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={handlePress}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={agendarLabel}
+    >
       <Text style={styles.componentTitle} numberOfLines={2}>
         {compName}
       </Text>
@@ -64,35 +67,31 @@ function HealthWearServiceCard({ rec, onAgendar }) {
         <Text style={[styles.pctText, { color: accent }]}>{pct}%</Text>
       </View>
 
-      {hasService && svcNombre ? (
-        <Text style={styles.svcName} numberOfLines={2}>
-          {svcNombre}
-        </Text>
-      ) : (
-        <Text style={styles.svcPlaceholder} numberOfLines={2}>
-          Sin servicio en catálogo
-        </Text>
-      )}
+      <View style={styles.cardBody}>
+        {rec.actionLine ? (
+          <Text style={styles.actionLine}>
+            {rec.actionLine}
+          </Text>
+        ) : null}
 
-      {rec.hint ? (
-        <Text style={styles.hintLine} numberOfLines={2}>
-          {rec.hint}
-        </Text>
-      ) : null}
+        {rec.scheduleLine && rec.scheduleLine !== rec.actionLine ? (
+          <Text style={styles.scheduleLine}>
+            {rec.scheduleLine}
+          </Text>
+        ) : null}
 
-      {kmLine ? <Text style={styles.kmLine}>{kmLine}</Text> : null}
+        {hasService && svcNombre ? (
+          <Text style={styles.svcName} numberOfLines={1}>
+            {svcNombre}
+          </Text>
+        ) : null}
+      </View>
 
-      <TouchableOpacity
-        style={styles.agendarLink}
-        onPress={() => onAgendar?.(svc, rec)}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={agendarLabel}
-      >
+      <View style={styles.agendarLink}>
         <Text style={styles.agendarLinkText}>Agendar</Text>
         <ChevronRight size={16} color={COLORS.primary[500]} />
-      </TouchableOpacity>
-    </View>
+      </View>
+    </TouchableOpacity>
   );
 }
 
@@ -188,7 +187,7 @@ const styles = StyleSheet.create({
     paddingRight: 8,
   },
   card: {
-    width: 172,
+    width: 176,
     padding: 14,
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
@@ -196,13 +195,16 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
     ...SHADOWS.sm,
   },
+  cardBody: {
+    minHeight: 48,
+    marginBottom: 4,
+  },
   componentTitle: {
     fontSize: TYPOGRAPHY.fontSize.md,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     lineHeight: 21,
     marginBottom: 8,
-    minHeight: 42,
   },
   pctRow: {
     flexDirection: 'row',
@@ -236,29 +238,27 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   svcName: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
+    lineHeight: 16,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  actionLine: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.secondary,
-    lineHeight: 18,
-    marginBottom: 4,
+    lineHeight: 17,
+    marginBottom: 3,
+    flexShrink: 1,
   },
-  svcPlaceholder: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.tertiary,
-    fontStyle: 'italic',
-    marginBottom: 4,
-  },
-  hintLine: {
+  scheduleLine: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.text.tertiary,
-    lineHeight: 16,
-    marginBottom: 4,
-  },
-  kmLine: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.tertiary,
-    marginBottom: 6,
+    lineHeight: 15,
+    letterSpacing: -0.1,
+    flexShrink: 1,
   },
   agendarLink: {
     flexDirection: 'row',

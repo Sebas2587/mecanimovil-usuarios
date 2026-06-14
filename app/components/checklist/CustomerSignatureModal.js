@@ -12,10 +12,9 @@
  * nativo) y opcionalmente captura la ubicación con
  * `expo-location`.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Modal,
   Platform,
@@ -40,9 +39,39 @@ import {
   TYPOGRAPHY,
 } from '../../design-system/tokens';
 import checklistService from '../../services/checklistService';
+import { showAlert } from '../../utils/platformAlert';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CANVAS_HEIGHT = Math.min(Math.round(SCREEN_HEIGHT * 0.45), 380);
+const UBICACION_TIMEOUT_MS = 5000;
+
+async function obtenerUbicacionOpcional() {
+  if (Platform.OS === 'web') {
+    return null;
+  }
+
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      return null;
+    }
+
+    const loc = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('ubicacion_timeout')), UBICACION_TIMEOUT_MS);
+      }),
+    ]);
+
+    if (loc?.coords) {
+      return { lat: loc.coords.latitude, lng: loc.coords.longitude };
+    }
+  } catch (locError) {
+    console.warn('No se pudo obtener ubicación para la firma del cliente:', locError);
+  }
+
+  return null;
+}
 
 const CustomerSignatureModal = ({
   visible,
@@ -53,17 +82,17 @@ const CustomerSignatureModal = ({
   onSignatureSuccess,
 }) => {
   const signatureRef = useRef(null);
+  const submitIntentRef = useRef(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [obtainingLocation, setObtainingLocation] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      submitIntentRef.current = false;
       setHasDrawn(false);
       setSubmitting(false);
       setObtainingLocation(false);
-      setPendingSubmit(false);
       setTimeout(() => {
         try {
           signatureRef.current?.clearSignature();
@@ -121,92 +150,71 @@ const CustomerSignatureModal = ({
     setHasDrawn(false);
   };
 
-  const handleBegin = () => {
+  const handleBegin = useCallback(() => {
     setHasDrawn(true);
-  };
+  }, []);
 
   const handleConfirm = () => {
     if (!hasDrawn) {
-      Alert.alert(
-        'Firma vacía',
-        'Por favor dibuja tu firma antes de confirmar.'
-      );
+      showAlert('Firma vacía', 'Por favor dibuja tu firma antes de confirmar.');
       return;
     }
-    setPendingSubmit(true);
+    if (submitting) return;
+    submitIntentRef.current = true;
     signatureRef.current?.readSignature();
   };
 
-  // El callback `onOK` recibe la firma en Base64 cuando se llama
-  // `readSignature()`.
-  const handleSignatureOK = async (signatureBase64) => {
-    if (!pendingSubmit) {
+  const handleSignatureOK = useCallback(async (signatureBase64) => {
+    if (!submitIntentRef.current) {
       return;
     }
-
-    setPendingSubmit(false);
+    submitIntentRef.current = false;
 
     if (!signatureBase64) {
-      Alert.alert('Firma vacía', 'No se pudo capturar la firma. Intenta nuevamente.');
+      showAlert('Firma vacía', 'No se pudo capturar la firma. Intenta nuevamente.');
       return;
     }
 
+    const firmaCapturada = signatureBase64;
     setSubmitting(true);
 
     let ubicacion = null;
-    try {
+    if (Platform.OS !== 'web') {
       setObtainingLocation(true);
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        if (loc?.coords) {
-          ubicacion = { lat: loc.coords.latitude, lng: loc.coords.longitude };
-        }
-      }
-    } catch (locError) {
-      console.warn('No se pudo obtener ubicación para la firma del cliente:', locError);
-      ubicacion = null;
-    } finally {
+      ubicacion = await obtenerUbicacionOpcional();
       setObtainingLocation(false);
     }
 
     try {
       await checklistService.firmarChecklistComoCliente(
         instanceId,
-        signatureBase64,
+        firmaCapturada,
         ubicacion,
       );
 
-      Alert.alert(
+      onSignatureSuccess?.();
+      onClose?.();
+      showAlert(
         'Servicio confirmado',
         '¡Gracias por tu firma! Tu servicio quedó cerrado correctamente.',
-        [
-          {
-            text: 'Listo',
-            onPress: () => {
-              onSignatureSuccess?.();
-              onClose?.();
-            },
-          },
-        ],
       );
     } catch (error) {
       console.error('Error firmando como cliente:', error);
-      Alert.alert(
+      showAlert(
         'No se pudo firmar',
         error?.message || 'Ocurrió un error al registrar tu firma. Intenta nuevamente.',
       );
     } finally {
       setSubmitting(false);
+      setObtainingLocation(false);
     }
-  };
+  }, [instanceId, onClose, onSignatureSuccess]);
 
-  const handleSignatureEmpty = () => {
-    setPendingSubmit(false);
-    Alert.alert('Firma vacía', 'Por favor dibuja tu firma antes de confirmar.');
-  };
+  const handleSignatureEmpty = useCallback(() => {
+    submitIntentRef.current = false;
+    setHasDrawn(false);
+    showAlert('Firma vacía', 'Por favor dibuja tu firma antes de confirmar.');
+  }, []);
 
   const handleClose = () => {
     if (submitting) return;

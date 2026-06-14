@@ -41,6 +41,14 @@ function fmtKmCl(value) {
   return Math.floor(value).toLocaleString('es-CL');
 }
 
+/** Kilometraje para UI (es-CL: 235.000). */
+export function formatKmDisplay(value) {
+  if (value == null || value === '') return '—';
+  const n = Number(String(value).replace(/[^\d.,-]/g, '').replace(',', '.'));
+  if (!Number.isFinite(n)) return '—';
+  return fmtKmCl(n);
+}
+
 export function calcularBandaKilometraje(year) {
   if (year == null) return null;
   const y = typeof year === 'number' ? year : parseInt(String(year), 10);

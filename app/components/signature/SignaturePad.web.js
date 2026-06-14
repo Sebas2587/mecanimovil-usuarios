@@ -19,6 +19,13 @@ const SignaturePad = forwardRef(function SignaturePad(
   const isDrawingRef = useRef(false);
   const hasInkRef = useRef(false);
   const sizeRef = useRef({ width: 0, height: 0 });
+  const onBeginRef = useRef(onBegin);
+  const onOKRef = useRef(onOK);
+  const onEmptyRef = useRef(onEmpty);
+
+  onBeginRef.current = onBegin;
+  onOKRef.current = onOK;
+  onEmptyRef.current = onEmpty;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -46,6 +53,16 @@ const SignaturePad = forwardRef(function SignaturePad(
       const rect = container.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
 
+      const canvas = canvasRef.current;
+      let savedDataUrl = null;
+      if (hasInkRef.current && canvas && canvas.width > 0 && canvas.height > 0) {
+        try {
+          savedDataUrl = canvas.toDataURL('image/png');
+        } catch {
+          savedDataUrl = null;
+        }
+      }
+
       const dpr = window.devicePixelRatio || 1;
       const cssW = rect.width;
       const cssH = rect.height;
@@ -60,7 +77,20 @@ const SignaturePad = forwardRef(function SignaturePad(
       sizeRef.current = { width: cssW, height: cssH };
       fillCanvas(ctx, cssW, cssH);
       ctxRef.current = ctx;
-      hasInkRef.current = false;
+
+      if (savedDataUrl) {
+        hasInkRef.current = true;
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, cssW, cssH);
+        };
+        img.onerror = () => {
+          hasInkRef.current = false;
+        };
+        img.src = savedDataUrl;
+      } else {
+        hasInkRef.current = false;
+      }
     };
 
     resize();
@@ -80,7 +110,7 @@ const SignaturePad = forwardRef(function SignaturePad(
       canvas.setPointerCapture(event.pointerId);
       isDrawingRef.current = true;
       if (!hasInkRef.current) {
-        onBegin?.();
+        onBeginRef.current?.();
       }
       const point = getPoint(event);
       ctxRef.current?.beginPath();
@@ -120,7 +150,7 @@ const SignaturePad = forwardRef(function SignaturePad(
       canvas.removeEventListener('pointerup', endStroke);
       canvas.removeEventListener('pointercancel', endStroke);
     };
-  }, [backgroundColor, penColor, onBegin]);
+  }, [backgroundColor, penColor]);
 
   useImperativeHandle(ref, () => ({
     clearSignature: () => {
@@ -134,15 +164,15 @@ const SignaturePad = forwardRef(function SignaturePad(
     },
     readSignature: () => {
       if (!hasInkRef.current) {
-        onEmpty();
+        onEmptyRef.current?.();
         return;
       }
       const canvas = canvasRef.current;
       if (!canvas) {
-        onEmpty();
+        onEmptyRef.current?.();
         return;
       }
-      onOK(canvas.toDataURL('image/png'));
+      onOKRef.current?.(canvas.toDataURL('image/png'));
     },
   }));
 

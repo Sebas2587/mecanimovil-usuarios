@@ -11,6 +11,7 @@ import { useSolicitudes } from '../../context/SolicitudesContext';
 import { getUserVehicles } from '../../services/vehicle';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { useUnreadCount } from '../../hooks/useNotifications';
+import { usePendingReviews } from '../../hooks/usePendingReviews';
 import { useConversationsList } from '../../hooks/useChats';
 import { useVehiclesHealth } from '../../hooks/useVehicles';
 import { useUserAddresses } from '../../hooks/useAddress';
@@ -31,6 +32,7 @@ import {
   HomeSearchBar,
   HomeCategoryGrid,
   HomeContextualBanner,
+  HomePendingReviewBanner,
   HomeHighlightedRow,
   HomeNearbyRow,
   HomeTrendingServicesRow,
@@ -69,6 +71,8 @@ const UserPanelScreen = () => {
   const { solicitudesActivas, cargarSolicitudesActivas } = useSolicitudes();
   const { data: unreadData } = useUnreadCount();
   const unreadCount = typeof unreadData === 'number' ? unreadData : (unreadData?.count || 0);
+  const { data: pendingReviews = [], refetch: refetchPendingReviews } = usePendingReviews();
+  const pendingReviewCount = pendingReviews.length;
 
   const {
     data: serviceConversations = [],
@@ -98,7 +102,8 @@ const UserPanelScreen = () => {
     useCallback(() => {
       refetchServiceConversations();
       refetchMarketplaceConversations();
-    }, [refetchServiceConversations, refetchMarketplaceConversations]),
+      refetchPendingReviews();
+    }, [refetchServiceConversations, refetchMarketplaceConversations, refetchPendingReviews]),
   );
 
   // ── Vehicle selection ──
@@ -585,6 +590,13 @@ const UserPanelScreen = () => {
           onPressNotifications={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
         />
 
+        <HomePendingReviewBanner
+          count={pendingReviewCount}
+          onPress={() =>
+            navigation.navigate(ROUTES.PROFILE, { screen: ROUTES.PENDING_REVIEWS })
+          }
+        />
+
         {/* <HomeSearchBar onPress={handleOpenSearch} disabled={!selectedVehicle} /> */}
 
         <HomeCategoryGrid
@@ -636,7 +648,7 @@ const UserPanelScreen = () => {
               navigateCrearSolicitudDesdeDesgaste(navigation, {
                 vehicle: selectedVehicle,
                 componentName: rec?.componentName,
-                descripcion: rec?.hint || undefined,
+                descripcion: [rec?.actionLine, rec?.scheduleLine].filter(Boolean).join(' · ') || undefined,
               });
               return;
             }

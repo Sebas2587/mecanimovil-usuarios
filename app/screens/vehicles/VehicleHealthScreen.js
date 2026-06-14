@@ -39,6 +39,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { getVehicleById } from '../../services/vehicle';
 import UnifiedComponentCard, { SectionHeader } from '../../components/vehicles/UnifiedComponentCard';
+import ComponentDiagnosticInsights from '../../components/vehicles/ComponentDiagnosticInsights';
+import { buildShortDiagnosticSummary } from '../../utils/componentDiagnosticCopy';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
@@ -157,7 +159,6 @@ const VehicleHealthScreen = ({ route }) => {
 
   const pollingIntervalRef = useRef(null);
   const wsHandlerRef = useRef(null);
-  const syncTimerRef = useRef(null);
   const healthPollTimersRef = useRef([]);
   const loadDataRef = useRef(() => {});
   /**
@@ -223,7 +224,6 @@ const VehicleHealthScreen = ({ route }) => {
     loadData(true);
     return () => {
       clearInterval(pollingIntervalRef.current);
-      clearTimeout(syncTimerRef.current);
       clearHealthPollTimers();
     };
   }, [vehicleId, clearHealthPollTimers, optimisticHydrated]);
@@ -380,6 +380,21 @@ const VehicleHealthScreen = ({ route }) => {
 
   loadDataRef.current = loadData;
 
+  /** Aviso de actualización: banner in-app en web; push local en nativo. */
+  const notifyHealthUpdated = useCallback((vehiculoInfo, componentesActualizados = 0) => {
+    const countPart =
+      componentesActualizados > 0
+        ? ` · ${componentesActualizados} componente${componentesActualizados > 1 ? 's' : ''} actualizado${componentesActualizados > 1 ? 's' : ''}`
+        : '';
+    if (Platform.OS === 'web') {
+      setHealthBanner({
+        message: `Métricas de ${vehiculoInfo || 'tu vehículo'} actualizadas${countPart}.`,
+      });
+      return;
+    }
+    NotificationService.notificarSaludVehiculoActualizada(vehiculoInfo, componentesActualizados);
+  }, []);
+
   /**
    * Programa refetches progresivos después de declarar mantenimiento.
    * NO incluye delay 0 porque en ese instante Celery no ha recalculado
@@ -402,11 +417,8 @@ const VehicleHealthScreen = ({ route }) => {
 
     const handleUpdate = (data) => {
       if (data.vehicle_id && String(data.vehicle_id) === String(vehicleId)) {
-        console.log('🔔 Health Update Received');
-        NotificationService.notificarSaludVehiculoActualizada(
-          data.vehiculo_info || 'Vehículo',
-          data.componentes_actualizados || 0
-        );
+        if (__DEV__) console.log('🔔 Health Update Received');
+        notifyHealthUpdated(data.vehiculo_info || 'Vehículo', data.componentes_actualizados || 0);
         loadData(true);
       }
     };
@@ -419,7 +431,7 @@ const VehicleHealthScreen = ({ route }) => {
     return () => {
       if (wsHandlerRef.current) WebSocketService.offMessage('salud_vehiculo_actualizada', wsHandlerRef.current);
     };
-  }, [vehicleId]);
+  }, [vehicleId, notifyHealthUpdated]);
 
   useFocusEffect(
     useCallback(() => {
@@ -436,39 +448,14 @@ const VehicleHealthScreen = ({ route }) => {
 
   /**
    * Sincronizar con backend (recálculo asíncrono vía Celery).
-   * Flujo:
-   *  1. POST /sync/ → invalida cache Redis + encola tarea Celery
-   *  2. El WebSocket 'salud_vehiculo_actualizada' dispara loadData(true) cuando el worker termina
-   *  3. Como fallback, re-fetch progresivo a los 4 s y 10 s por si el WS no llega
+   * Tras el POST, re-fetch progresivo (WS opcional + polling a 2/5/10/20 s).
    */
   const handleSync = async () => {
     if (!vehicleId || syncing) return;
     setSyncing(true);
     try {
       await VehicleHealthService.syncVehicleHealth(vehicleId);
-
-      // Re-fetch progresivo: Celery suele completar en 2-5 s
-      syncTimerRef.current = setTimeout(() => loadData(true), 4000);
-      const fallbackTimer = setTimeout(() => loadData(true), 10000);
-
-      // Limpiar fallback si el WS ya actualizó antes
-      const originalRef = wsHandlerRef.current;
-      const onceHandler = (data) => {
-        if (data.vehicle_id && String(data.vehicle_id) === String(vehicleId)) {
-          clearTimeout(fallbackTimer);
-        }
-        if (originalRef) originalRef(data);
-      };
-      wsHandlerRef.current = onceHandler;
-      WebSocketService.onMessage('salud_vehiculo_actualizada', onceHandler);
-
-      // Liberar handler extra después de 12 s (tiempo máximo razonable)
-      setTimeout(() => {
-        WebSocketService.offMessage('salud_vehiculo_actualizada', onceHandler);
-        if (wsHandlerRef.current === onceHandler) wsHandlerRef.current = originalRef;
-        clearTimeout(fallbackTimer);
-      }, 12000);
-
+      scheduleHealthRefetchBurst();
     } catch (e) {
       console.error('Sync salud error:', e);
       showAlert(
@@ -1248,13 +1235,11 @@ const VehicleHealthScreen = ({ route }) => {
                 );
               })()}
 
-              {/* ── 5. Diagnóstico del motor ────────────────────── */}
-              {!!selectedMetric?.mensaje && (
-                <View style={styles.infoBox}>
-                  <Text style={styles.infoBoxLabel}>Diagnóstico</Text>
-                  <Text style={styles.infoBoxText}>{selectedMetric.mensaje}</Text>
-                </View>
-              )}
+              {/* ── 5. Detalle segmentado (sin párrafo crudo del motor) ── */}
+              <ComponentDiagnosticInsights
+                component={selectedMetric}
+                prediction={selectedMetric?._prediction}
+              />
 
               {serviciosDelComponente.length > 0 ? (
                 <>
@@ -1268,11 +1253,11 @@ const VehicleHealthScreen = ({ route }) => {
                       style={styles.serviceCard}
                       activeOpacity={0.85}
                       onPress={() => {
-                        const descripcion =
-                          selectedMetric?.mensaje &&
-                          selectedMetric.mensaje !== 'Sin observaciones.'
-                            ? `[${selectedMetric.name}] ${selectedMetric.mensaje}`
-                            : '';
+                        const descripcion = buildShortDiagnosticSummary(
+                          selectedMetric,
+                          selectedMetric?._prediction,
+                        );
+                        const name = selectedMetric?.name || 'Componente';
                         setSelectedMetric(null);
                         // Objeto completo evita async getServicioDetalle y asegura salto paso 2
                         const servicioPreseleccionado = {
@@ -1286,7 +1271,9 @@ const VehicleHealthScreen = ({ route }) => {
                         };
                         handleNavToService({
                           servicioPreseleccionado,
-                          descripcionPrellenada: descripcion,
+                          descripcionPrellenada: descripcion
+                            ? `[${name}] ${descripcion}`
+                            : `[${name}] Mantenimiento sugerido`,
                         });
                       }}
                     >

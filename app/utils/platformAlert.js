@@ -11,14 +11,20 @@ export function registerPlatformAlertHost(host) {
   alertHost = host;
 }
 
-export function showAlert(title, message = '') {
+export function showAlert(title, message = '', options = {}) {
   const t = title ?? '';
   const m = message ?? '';
+  const buttonText = options.buttonText || 'Entendido';
+
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    if (alertHost?.alert) {
+      alertHost.alert({ title: t, message: m, buttonText }).catch((e) => console.error('showAlert web host', e));
+      return;
+    }
     window.alert(m ? `${t}\n\n${m}` : t);
     return;
   }
-  Alert.alert(t, m);
+  Alert.alert(t, m, [{ text: buttonText }]);
 }
 
 /**

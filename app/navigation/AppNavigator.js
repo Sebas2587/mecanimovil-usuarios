@@ -35,6 +35,7 @@ import BookingCartScreen from '../screens/booking/BookingCartScreen';
 import BookingConfirmationScreen from '../screens/booking/BookingConfirmationScreen';
 import SupportScreen from '../screens/support/SupportScreen';
 import TermsScreen from '../screens/support/TermsScreen';
+import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
 
 import CarritoScreen from '../screens/cart/CarritoScreen';
 import OpcionesPagoScreen from '../screens/payment/OpcionesPagoScreen';
@@ -146,10 +147,11 @@ const ProfileStackNavigator = ({ tabRoot = false }) => (
     <ProfileStack.Screen name={ROUTES.ACTIVE_APPOINTMENTS} component={ActiveAppointmentsScreen} options={getHeaderOptions("Mis Agendamientos")} />
     <ProfileStack.Screen name={ROUTES.APPOINTMENT_DETAIL} component={AppointmentDetailScreen} options={getHeaderOptions("Detalle del Agendamiento")} />
     <ProfileStack.Screen name={ROUTES.SERVICES_HISTORY} component={ServiceHistoryScreen} options={getHeaderOptions("Historial de Servicios")} />
-    <ProfileStack.Screen name="PendingReviews" component={PendingReviewsScreen} options={getDarkGlassHeaderOptions("Calificaciones Pendientes")} />
-    <ProfileStack.Screen name="CreateReview" component={CreateReviewScreen} options={getDarkGlassHeaderOptions("Dejar Reseña")} />
+    <ProfileStack.Screen name="PendingReviews" component={PendingReviewsScreen} options={getHeaderOptions("Calificaciones pendientes")} />
+    <ProfileStack.Screen name="CreateReview" component={CreateReviewScreen} options={getHeaderOptions("Dejar reseña")} />
     <ProfileStack.Screen name={ROUTES.SUPPORT} component={SupportScreen} options={getDarkGlassHeaderOptions("Soporte")} />
     <ProfileStack.Screen name={ROUTES.TERMS} component={TermsScreen} options={getDarkGlassHeaderOptions("Términos y Condiciones")} />
+    <ProfileStack.Screen name={ROUTES.PRIVACY_POLICY} component={PrivacyPolicyScreen} options={getDarkGlassHeaderOptions("Política de Privacidad")} />
     <ProfileStack.Screen name={ROUTES.HISTORIAL_PAGOS} component={HistorialPagosScreen} options={getDarkGlassHeaderOptions("Historial de Pagos")} />
     <ProfileStack.Screen name={ROUTES.FAVORITE_PROVIDERS} component={FavoriteProvidersScreen} options={getDarkGlassHeaderOptions("Proveedores Favoritos")} />
   </ProfileStack.Navigator>

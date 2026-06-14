@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   Image,
   Dimensions,
   StatusBar,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -20,6 +20,8 @@ import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
+import { showAlert, showAlertButtons } from '../../utils/platformAlert';
+import LegalFooterLinks from '../../components/support/LegalFooterLinks';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -43,6 +45,7 @@ const RegisterScreen = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   const validate = () => {
@@ -108,7 +111,11 @@ const RegisterScreen = () => {
 
   const handleRegister = async () => {
     setErrors({});
-    if (!validate()) return;
+    setFormError('');
+    if (!validate()) {
+      showAlert('Revisa el formulario', 'Corrige los campos marcados antes de continuar.');
+      return;
+    }
 
     setLoading(true);
     setErrors({});
@@ -127,8 +134,9 @@ const RegisterScreen = () => {
       if (result && result.success === true) {
         setFirstName(''); setLastName(''); setEmail(''); setPassword(''); setConfirmPassword('');
         setAcceptTerms(false); setErrors({});
-        Alert.alert('Registro Exitoso', 'Tu cuenta ha sido creada correctamente. Por favor inicia sesión.', [{
-          text: 'OK', onPress: () => navigation.navigate(ROUTES.LOGIN)
+        setFormError('');
+        showAlertButtons('Registro exitoso', 'Tu cuenta ha sido creada correctamente. Por favor inicia sesión.', [{
+          text: 'Iniciar sesión', onPress: () => navigation.navigate(ROUTES.LOGIN)
         }]);
       } else {
         const errorMessage = result?.error || authError || 'Error al registrar usuario';
@@ -144,28 +152,33 @@ const RegisterScreen = () => {
 
         if (Object.keys(newErrors).length > 0) {
           setErrors(newErrors);
-          if (statusCode === 500 || statusCode === 503 || statusCode === 0) {
-            Alert.alert('Error en el Registro', errorMessage, [{ text: 'Entendido' }]);
-          } else if (statusCode === 409) {
-            Alert.alert('Usuario Ya Registrado', 'Este correo ya está registrado. Inicia sesión o utiliza otro correo.', [{ text: 'Entendido' }]);
+          setFormError(errorMessage);
+          if (statusCode === 409) {
+            showAlert('Usuario ya registrado', 'Este correo ya está registrado. Inicia sesión o utiliza otro correo.');
+          } else if (statusCode === 500 || statusCode === 503 || statusCode === 0) {
+            showAlert('Error en el registro', errorMessage);
+          } else {
+            showAlert('Revisa el formulario', errorMessage);
           }
         } else {
-          Alert.alert('Error en el Registro', errorMessage, [{ text: 'Entendido' }]);
+          setFormError(errorMessage);
+          showAlert('Error en el registro', errorMessage);
         }
       }
     } catch (error) {
       let errorMessage = 'Ocurrió un error inesperado. Intenta nuevamente.';
-      let errorTitle = 'Error en el Registro';
+      let errorTitle = 'Error en el registro';
 
       if (error.code === 'ERR_NETWORK' || error.message?.includes('Network')) {
-        errorTitle = 'Sin Conexión';
+        errorTitle = 'Sin conexión';
         errorMessage = 'No se pudo conectar al servidor. Verifica tu conexión a internet.';
       } else if (error.response?.status === 500) {
-        errorTitle = 'Error del Servidor';
+        errorTitle = 'Error del servidor';
         errorMessage = 'El servidor está experimentando problemas. Intenta más tarde.';
       }
 
-      Alert.alert(errorTitle, errorMessage, [{ text: 'Entendido' }]);
+      setFormError(errorMessage);
+      showAlert(errorTitle, errorMessage);
 
       if (error.response?.data) {
         const apiError = error.response.data;
@@ -186,10 +199,11 @@ const RegisterScreen = () => {
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
+        style={Platform.OS === 'web' ? styles.webScroll : undefined}
         contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40 }]}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={Platform.OS === 'web'}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        keyboardDismissMode={Platform.OS === 'web' ? undefined : 'on-drag'}
       >
         {/* Logo + Title */}
         <View style={styles.headerSection}>
@@ -210,6 +224,13 @@ const RegisterScreen = () => {
         </View>
 
         {/* Form */}
+        {formError ? (
+          <View style={styles.formErrorBanner}>
+            <Ionicons name="alert-circle" size={18} color={COLORS.error[600]} />
+            <Text style={styles.formErrorText}>{formError}</Text>
+          </View>
+        ) : null}
+
         <GlassCard style={styles.formCard}>
           <View style={styles.nameRow}>
             <View style={[styles.nameInput, { marginRight: 12 }]}>
@@ -256,9 +277,11 @@ const RegisterScreen = () => {
             <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
               {acceptTerms && <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />}
             </View>
-            <Text style={styles.termsText}>
-              Acepto los <Text style={styles.termsLink}>términos y condiciones</Text>
-            </Text>
+            <LegalFooterLinks
+              variant="register"
+              textStyle={styles.termsText}
+              linkStyle={styles.termsLink}
+            />
           </TouchableOpacity>
           {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
 
@@ -280,9 +303,16 @@ const RegisterScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background.default },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background.default,
+    ...(Platform.OS === 'web'
+      ? { height: '100vh', maxHeight: '100vh', overflow: 'hidden' }
+      : null),
+  },
+  webScroll: { flex: 1 },
 
-  scroll: { paddingHorizontal: SPACING.container.horizontal },
+  scroll: { paddingHorizontal: SPACING.container.horizontal, maxWidth: 480, width: '100%', alignSelf: 'center' },
   headerSection: { alignItems: 'center', marginBottom: 24 },
   logo: { width: 180, height: 60, marginBottom: 16 },
   headerTitle: {
@@ -329,6 +359,23 @@ const styles = StyleSheet.create({
   },
 
   formCard: { marginBottom: 20 },
+  formErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: 1,
+    borderColor: COLORS.error[200],
+    backgroundColor: COLORS.error[50],
+  },
+  formErrorText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.error[700],
+    lineHeight: 20,
+  },
   inputWrapper: { marginBottom: 16 },
   nameRow: { flexDirection: 'row', marginBottom: 16 },
   nameInput: { flex: 1 },

@@ -17,8 +17,10 @@ import { registerPlatformAlertHost } from '../../utils/platformAlert';
 const PlatformAlertHost = () => {
   const [confirmState, setConfirmState] = useState(null);
   const [actionState, setActionState] = useState(null);
+  const [simpleState, setSimpleState] = useState(null);
   const confirmResolverRef = useRef(null);
   const actionResolverRef = useRef(null);
+  const simpleResolverRef = useRef(null);
 
   const resolveConfirm = useCallback((value) => {
     confirmResolverRef.current?.(value);
@@ -32,10 +34,21 @@ const PlatformAlertHost = () => {
     setActionState(null);
   }, []);
 
+  const resolveSimple = useCallback(() => {
+    simpleResolverRef.current?.();
+    simpleResolverRef.current = null;
+    setSimpleState(null);
+  }, []);
+
   useEffect(() => {
     if (Platform.OS !== 'web') return undefined;
 
     registerPlatformAlertHost({
+      alert: ({ title, message, buttonText = 'Entendido' }) =>
+        new Promise((resolve) => {
+          simpleResolverRef.current = resolve;
+          setSimpleState({ title, message, buttonText });
+        }),
       confirm: ({ title, message, confirmText = 'Aceptar', cancelText = 'Cancelar', destructive = false }) =>
         new Promise((resolve) => {
           confirmResolverRef.current = resolve;
@@ -55,6 +68,35 @@ const PlatformAlertHost = () => {
 
   return (
     <>
+      <Modal
+        visible={!!simpleState}
+        transparent
+        animationType="fade"
+        onRequestClose={resolveSimple}
+      >
+        <Pressable style={styles.overlay} onPress={resolveSimple}>
+          <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation?.()}>
+            {simpleState?.title ? (
+              <Text style={styles.title}>{simpleState.title}</Text>
+            ) : null}
+            {simpleState?.message ? (
+              <Text style={styles.message}>{simpleState.message}</Text>
+            ) : null}
+            <View style={[styles.actionsRow, styles.actionsRowSingle]}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonPrimary, styles.buttonFull]}
+                onPress={resolveSimple}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.buttonPrimaryText}>
+                  {simpleState?.buttonText || 'Entendido'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <Modal
         visible={!!confirmState}
         transparent
@@ -180,12 +222,19 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: SPACING.sm,
   },
+  actionsRowSingle: {
+    justifyContent: 'stretch',
+  },
   button: {
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDERS.radius.md,
     minWidth: 96,
     alignItems: 'center',
+  },
+  buttonFull: {
+    flex: 1,
+    minWidth: 0,
   },
   buttonSecondary: {
     backgroundColor: COLORS.neutral.gray[100],

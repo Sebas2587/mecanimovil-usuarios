@@ -24,13 +24,12 @@ import chatService from '../../services/chatService';
 import solicitudesService from '../../services/solicitudesService';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { ROUTES } from '../../utils/constants';
-import { requestDetailQueryKey, useRequestDetail } from '../../hooks/useRequests';
+import { requestDetailQueryKey, useRequestDetail, useChecklistPrincipal, useChecklistsVisiblesPorOrden, checklistPrincipalQueryKey, checklistsVisiblesQueryKey } from '../../hooks/useRequests';
 import { useConversationsList } from '../../hooks/useChats';
 import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
 import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
 import { showAlert, showConfirm, showAlertButtons } from '../../utils/platformAlert';
 import { calcularMontosPagoOferta, formatearMontoCLP, ofertaEstaTotalmentePagada } from '../../utils/calcularMontoPagoOferta';
-import checklistClienteService from '../../services/checklistService';
 
 // New Components
 import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard';
@@ -177,15 +176,25 @@ const DetalleSolicitudScreen = () => {
     [solicitud, ofertas, ofertasSecundarias],
   );
 
+  const ordenIdsSecundarios = useMemo(
+    () => (ofertasSecundarias || [])
+      .map((o) => o?.solicitud_servicio_id ?? o?.orden_id)
+      .filter((id) => id != null)
+      .map(String),
+    [ofertasSecundarias],
+  );
+
+  const { data: checklistPrincipalBundle } = useChecklistPrincipal(ordenIdParaChecklist);
+  const { data: checklistVisiblePorOrdenId = {} } = useChecklistsVisiblesPorOrden(ordenIdsSecundarios);
+
+  const checklistPrincipalVisible = checklistPrincipalBundle?.visible === true;
+  const checklistPrincipalData = checklistPrincipalBundle?.data ?? null;
+
   const [procesando, setProcesando] = useState(false);
   const [showChecklistModal, setShowChecklistModal] = useState(false);
   const [tabActivo, setTabActivo] = useState(TAB_PRINCIPALES);
   const [checklistOrdenId, setChecklistOrdenId] = useState(null);
-  const [checklistPrincipalVisible, setChecklistPrincipalVisible] = useState(false);
-  const [checklistVisiblePorOrdenId, setChecklistVisiblePorOrdenId] = useState({});
-  const [checklistPrincipalData, setChecklistPrincipalData] = useState(null);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
-  const [signatureRefreshKey, setSignatureRefreshKey] = useState(0);
   const [fotoAmpliadaUrl, setFotoAmpliadaUrl] = useState(null);
 
   const pagoPrincipalCompleto = useMemo(
@@ -203,7 +212,6 @@ const DetalleSolicitudScreen = () => {
 
   const handleSignatureSuccess = useCallback(() => {
     setShowSignatureModal(false);
-    setSignatureRefreshKey((v) => v + 1);
     queryClient.invalidateQueries({
       predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'requests',
     });
@@ -212,8 +220,12 @@ const DetalleSolicitudScreen = () => {
     });
     const rk = requestDetailQueryKey(solicitudId);
     if (rk) queryClient.invalidateQueries({ queryKey: rk });
+    const ck = checklistPrincipalQueryKey(ordenIdParaChecklist);
+    if (ck) queryClient.invalidateQueries({ queryKey: ck });
+    const secKey = checklistsVisiblesQueryKey(ordenIdsSecundarios);
+    if (secKey) queryClient.invalidateQueries({ queryKey: secKey });
     refetchRequestDetail();
-  }, [queryClient, solicitudId, refetchRequestDetail]);
+  }, [queryClient, solicitudId, ordenIdParaChecklist, ordenIdsSecundarios, refetchRequestDetail]);
 
   useEffect(() => {
     if (solicitudId == null || solicitudId === '') {
@@ -233,63 +245,6 @@ const DetalleSolicitudScreen = () => {
     setShowChecklistModal(false);
     setChecklistOrdenId(null);
   }, []);
-
-  const refrescarChecklistsVisibles = useCallback(async () => {
-    const ordenIds = new Set();
-    if (ordenIdParaChecklist != null) {
-      ordenIds.add(String(ordenIdParaChecklist));
-    }
-    (ofertasSecundarias || []).forEach((o) => {
-      const id = o?.solicitud_servicio_id ?? o?.orden_id;
-      if (id != null) ordenIds.add(String(id));
-    });
-
-    if (ordenIds.size === 0) {
-      setChecklistPrincipalVisible(false);
-      setChecklistVisiblePorOrdenId({});
-      setChecklistPrincipalData(null);
-      return;
-    }
-
-    const entries = await Promise.all(
-      [...ordenIds].map(async (ordenId) => {
-        const visible = await checklistClienteService.tieneChecklistDisponible(ordenId);
-        return [ordenId, visible];
-      }),
-    );
-    const map = Object.fromEntries(entries);
-    setChecklistVisiblePorOrdenId(map);
-    const principalVisible =
-      ordenIdParaChecklist != null ? map[String(ordenIdParaChecklist)] === true : false;
-    setChecklistPrincipalVisible(principalVisible);
-
-    if (principalVisible && ordenIdParaChecklist != null) {
-      try {
-        const data = await checklistClienteService.obtenerChecklistServicio(ordenIdParaChecklist);
-        setChecklistPrincipalData(data);
-      } catch {
-        setChecklistPrincipalData(null);
-      }
-    } else {
-      setChecklistPrincipalData(null);
-    }
-  }, [ordenIdParaChecklist, ofertasSecundarias]);
-
-  useEffect(() => {
-    if (!solicitud) {
-      setChecklistPrincipalVisible(false);
-      setChecklistVisiblePorOrdenId({});
-      setChecklistPrincipalData(null);
-      return;
-    }
-    refrescarChecklistsVisibles();
-  }, [solicitud, refrescarChecklistsVisibles, signatureRefreshKey]);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (solicitud) refrescarChecklistsVisibles();
-    }, [solicitud, refrescarChecklistsVisibles]),
-  );
 
   // Handlers
   const ejecutarAceptarOferta = async (oferta) => {

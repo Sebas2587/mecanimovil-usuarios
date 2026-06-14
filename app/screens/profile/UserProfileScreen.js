@@ -99,11 +99,18 @@ const UserProfileScreen = () => {
             />
             <ProfileMenuItem
               icon="document-text-outline"
-              label="Términos Legales"
+              label="Términos y Condiciones"
+              iconBgColor={COLORS.neutral.gray[100]}
+              iconColor={COLORS.text.secondary}
+              onPress={() => navigation.navigate(ROUTES.TERMS)}
+            />
+            <ProfileMenuItem
+              icon="shield-checkmark-outline"
+              label="Política de Privacidad"
               iconBgColor={COLORS.neutral.gray[100]}
               iconColor={COLORS.text.secondary}
               isLast
-              onPress={() => navigation.navigate(ROUTES.TERMS)}
+              onPress={() => navigation.navigate(ROUTES.PRIVACY_POLICY)}
             />
           </ProfileMenuSection>
 

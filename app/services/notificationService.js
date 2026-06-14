@@ -194,7 +194,6 @@ class NotificationService {
           if (reg) {
             await reg.showNotification(titulo, {
               body: mensaje,
-              icon: '/assets/images/app-icon.png',
               data,
               tag: (data?.type || 'local') + Date.now(),
             });

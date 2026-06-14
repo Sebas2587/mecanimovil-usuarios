@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -29,8 +30,21 @@ import ChatSwipeableRow from '../../components/chats/ChatSwipeableRow';
 const ChatsListScreen = () => {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
+  const { height: windowHeight } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState('service');
   const [deletingId, setDeletingId] = useState(null);
+
+  /** RN Web: sin altura acotada al viewport el VirtualizedList no hace scroll interno. */
+  const webRootFrame =
+    Platform.OS === 'web'
+      ? {
+          height: windowHeight,
+          maxHeight: windowHeight,
+          minHeight: 0,
+          flex: 1,
+          overflow: 'hidden',
+        }
+      : null;
 
   const {
     data: conversations = [],
@@ -162,68 +176,76 @@ const ChatsListScreen = () => {
   const showSkeleton = isPending;
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, webRootFrame]}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-      <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.backBtn}
-            onPress={handleBack}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-          >
-            <Ionicons name="chevron-back" size={26} color={COLORS.text.primary} />
-          </TouchableOpacity>
-          <Text style={styles.screenTitle}>Mensajes</Text>
-          <View style={styles.backBtnPlaceholder} />
-        </View>
+      <View style={styles.mainColumn}>
+        <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={handleBack}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
+            >
+              <Ionicons name="chevron-back" size={26} color={COLORS.text.primary} />
+            </TouchableOpacity>
+            <Text style={styles.screenTitle}>Mensajes</Text>
+            <View style={styles.backBtnPlaceholder} />
+          </View>
 
-        <View style={styles.segmentContainer}>
-          <TouchableOpacity
-            style={[styles.segmentButton, activeTab === 'service' && styles.segmentActive]}
-            onPress={() => handleTabChange('service')}
-          >
-            <Text style={[styles.segmentText, activeTab === 'service' && styles.segmentTextActive]}>Servicios</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.segmentButton, activeTab === 'marketplace' && styles.segmentActive]}
-            onPress={() => handleTabChange('marketplace')}
-          >
-            <Text style={[styles.segmentText, activeTab === 'marketplace' && styles.segmentTextActive]}>
-              Negocios
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.segmentContainer}>
+            <TouchableOpacity
+              style={[styles.segmentButton, activeTab === 'service' && styles.segmentActive]}
+              onPress={() => handleTabChange('service')}
+            >
+              <Text style={[styles.segmentText, activeTab === 'service' && styles.segmentTextActive]}>
+                Servicios
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.segmentButton, activeTab === 'marketplace' && styles.segmentActive]}
+              onPress={() => handleTabChange('marketplace')}
+            >
+              <Text style={[styles.segmentText, activeTab === 'marketplace' && styles.segmentTextActive]}>
+                Negocios
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
 
-        {showSkeleton ? (
-          <ChatsListSkeleton />
-        ) : (
-          <FlatList
-            data={conversations}
-            renderItem={renderItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={[
-              styles.listContent,
-              conversations.length === 0 && styles.listContentEmpty,
-            ]}
-            refreshControl={
-              <RefreshControl
-                refreshing={pullRefreshing}
-                onRefresh={onRefresh}
-                tintColor={COLORS.primary[500]}
-              />
-            }
-            ListEmptyComponent={conversations.length === 0 ? listEmpty : null}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={8}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-            removeClippedSubviews={Platform.OS !== 'web'}
-          />
-        )}
-      </SafeAreaView>
+        <View style={styles.listContainer}>
+          {showSkeleton ? (
+            <ChatsListSkeleton />
+          ) : (
+            <FlatList
+              data={conversations}
+              renderItem={renderItem}
+              keyExtractor={keyExtractor}
+              contentContainerStyle={[
+                styles.listContent,
+                conversations.length === 0 && styles.listContentEmpty,
+              ]}
+              refreshControl={
+                <RefreshControl
+                  refreshing={pullRefreshing}
+                  onRefresh={onRefresh}
+                  tintColor={COLORS.primary[500]}
+                />
+              }
+              ListEmptyComponent={conversations.length === 0 ? listEmpty : null}
+              showsVerticalScrollIndicator={false}
+              initialNumToRender={8}
+              maxToRenderPerBatch={10}
+              windowSize={5}
+              removeClippedSubviews={Platform.OS !== 'web'}
+              style={styles.list}
+              {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
+            />
+          )}
+        </View>
+      </View>
     </View>
   );
 };
@@ -233,8 +255,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background.default,
   },
-  safe: {
+  mainColumn: {
     flex: 1,
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column' } : null),
+  },
+  safe: {
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  listContainer: {
+    flex: 1,
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { overflow: 'hidden' } : null),
+  },
+  list: {
+    ...(Platform.OS === 'web'
+      ? {
+          flexGrow: 1,
+          flexShrink: 1,
+          flexBasis: 0,
+          minHeight: 0,
+          overflow: 'scroll',
+          WebkitOverflowScrolling: 'touch',
+        }
+      : { flex: 1 }),
   },
   topBar: {
     flexDirection: 'row',

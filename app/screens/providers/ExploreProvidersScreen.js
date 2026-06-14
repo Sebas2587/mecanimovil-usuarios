@@ -153,17 +153,9 @@ const ExploreProvidersScreen = () => {
     [navigation, vehicle],
   );
 
-  const screenTitle = useMemo(() => {
-    if (isParaTiExplore) return 'Destacados';
-    if (isCercaExplore) return 'Cerca de ti';
-    if (categoryName) return categoryName;
-    return 'Explorar';
-  }, [isParaTiExplore, isCercaExplore, categoryName]);
-
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.body}>
-        {!categoryName ? <Text style={styles.screenTitle}>{screenTitle}</Text> : null}
         {!hasAddress ? (
           <Text style={styles.hintWarn}>
             Agrega una dirección en el inicio para ordenar por cercanía y ver quién está en tu zona.
@@ -220,12 +212,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: H_PAD,
     paddingTop: SPACING.sm,
-  },
-  screenTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-    marginBottom: SPACING.sm,
   },
   hintWarn: {
     fontSize: TYPOGRAPHY.fontSize.sm,

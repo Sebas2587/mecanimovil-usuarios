@@ -60,9 +60,9 @@ const AcuerdoServicioModal = ({ visible, onClose, proveedorNombre }) => {
                                 Si delegaste la compra de repuestos al proveedor, este se compromete a adquirir piezas nuevas y de la calidad acordada. Si seleccionaste la opción de "Comprar mis propios repuestos", el proveedor se exime de garantías relacionadas directamente con fallas de fábrica de dichas piezas.
                             </Text>
 
-                            <Text style={styles.sectionTitle}>4. Liberación de Pagos</Text>
+                            <Text style={styles.sectionTitle}>4. Pagos y Mercado Pago</Text>
                             <Text style={styles.paragraph}>
-                                El pago se realiza de manera segura mediante Mercado Pago. Conservarás en todo momento el comprobante digital de la transacción, el cual tiene plena validez legal.
+                                El pago se procesa mediante Mercado Pago y se acredita en la cuenta del proveedor. Mecanimovil no custodia el dinero del servicio; actúa como plataforma de intermediación conforme a los Términos y Condiciones. Conservarás el comprobante digital de la transacción, el cual tiene validez legal.
                             </Text>
 
                             <View style={styles.bottomPadding} />

@@ -1,6 +1,8 @@
 /**
  * Normaliza respuesta de GET .../health/vehicle/{id}/components/ (array o paginado).
  */
+import { formatHealthActionWindow } from '../../../utils/healthFormat';
+
 export function normalizeHealthComponentsList(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.results)) return data.results;
@@ -74,7 +76,39 @@ const COMBO_PENALTY = {
   'filtro-cabina': ['aceite motor y filtro', -25],
 };
 
-const ML_HINT_OPTIMO_PATTERN = /óptimo estado|sin proyección/i;
+/** Intervalos de referencia (km, meses) alineados con INDUSTRY_PRIORS del backend. */
+const COMPONENT_INTERVAL_HINTS = {
+  'aceite-motor': [10000, 6],
+  'filtro-aceite': [10000, 6],
+  'oil': [10000, 6],
+  'oil-filter': [10000, 6],
+  'filtro-aire': [20000, 12],
+  'air-filter': [20000, 12],
+  'filtro-combustible': [40000, 24],
+  'bujias': [40000, 24],
+  'spark-plug': [40000, 24],
+  bateria: [50000, 36],
+  battery: [50000, 36],
+  neumaticos: [40000, 36],
+  tires: [40000, 36],
+  'pastillas-freno': [18000, 18],
+  brakes: [18000, 18],
+  'discos-freno': [50000, 36],
+  'brake-discs': [50000, 36],
+  'liquido-frenos': [40000, 24],
+  'brake-fluid': [40000, 24],
+  amortiguadores: [80000, 48],
+  shocks: [80000, 48],
+  'correa-distribucion': [90000, 60],
+  'timing-belt': [90000, 60],
+  refrigerante: [40000, 24],
+  coolant: [40000, 24],
+  'aceite-transmision': [60000, 48],
+  embrague: [100000, 72],
+  'filtro-habitaculo': [20000, 12],
+  'filtro-cabina': [20000, 12],
+  'cabin-filter': [20000, 12],
+};
 
 function normalizeText(value) {
   return String(value || '')
@@ -216,24 +250,50 @@ function pickBestServiceForComponent(compKey, candidates, availableById) {
   return nonGeneric?.svc || null;
 }
 
-function resolveComponentHint(comp, prediction, compLevel) {
-  const mensaje = typeof comp?.mensaje_alerta === 'string' ? comp.mensaje_alerta.trim() : '';
-  if (mensaje) return mensaje;
-
-  const ml = typeof prediction?.recomendacion === 'string' ? prediction.recomendacion.trim() : '';
-  if (!ml) return null;
-  if (ML_HINT_OPTIMO_PATTERN.test(ml)) return null;
-  if (compLevel === 'CRITICO' || compLevel === 'URGENTE') {
-    return ml;
-  }
-  return null;
-}
-
 function resolveKmRestantes(comp, prediction) {
   const fromHealth = comp.km_estimados_restantes ?? comp.km_restantes;
   if (fromHealth != null) return fromHealth;
   if (prediction?.km_hasta_servicio != null) return prediction.km_hasta_servicio;
   return null;
+}
+
+export function resolveMaintenanceIntervalHint(compKey) {
+  const prior = COMPONENT_INTERVAL_HINTS[compKey];
+  if (!prior) return null;
+  const [km, months] = prior;
+  const kmPart = km ? `${Number(km).toLocaleString('es-CL')} km` : null;
+  const monthsPart = months ? `${months} meses` : null;
+  if (kmPart && monthsPart) return `Cada ${kmPart} · ${monthsPart}`;
+  if (kmPart) return `Cada ${kmPart}`;
+  if (monthsPart) return `Cada ${monthsPart}`;
+  return null;
+}
+
+/** Líneas accionables para cards del home (sin mensajes largos de historial/ML). */
+export function resolveComponentActionLines(comp, prediction, compLevel, compHealth) {
+  const compKey = resolveHealthComponentKey(comp);
+  const km = resolveKmRestantes(comp, prediction);
+  const days = prediction?.dias_hasta_atencion ?? prediction?.dias_hasta_critico ?? null;
+  const scheduleLine = resolveMaintenanceIntervalHint(compKey);
+
+  if (compLevel === 'CRITICO' || compHealth < 10 || (km != null && Number(km) <= 0)) {
+    return {
+      actionLine: 'Revisar ya',
+      scheduleLine,
+    };
+  }
+
+  const window = formatHealthActionWindow({ km, days });
+  if (window) {
+    const prefix = compLevel === 'URGENTE' ? 'Agendar pronto · ' : 'Próxima · ';
+    return { actionLine: `${prefix}${window}`, scheduleLine };
+  }
+
+  if (compLevel === 'URGENTE') {
+    return { actionLine: 'Programar pronto', scheduleLine };
+  }
+
+  return { actionLine: scheduleLine, scheduleLine: null };
 }
 
 function sortComponentsByUrgency(a, b) {
@@ -302,7 +362,12 @@ export function buildHealthServiceRecommendations(
 
     const candidates = collectServiceCandidates(comp, alertas, prediction);
     const service = pickBestServiceForComponent(compKey, candidates, availableById);
-    const hint = resolveComponentHint(comp, prediction, compLevel);
+    const { actionLine, scheduleLine } = resolveComponentActionLines(
+      comp,
+      prediction,
+      compLevel,
+      compHealth,
+    );
 
     recs.push({
       componentKey: compKey,
@@ -312,7 +377,8 @@ export function buildHealthServiceRecommendations(
       componentLevelLabel: compLevelLabel,
       kmRestantes: kmRest,
       service: service || null,
-      hint,
+      actionLine,
+      scheduleLine,
       needsOpenRequest: !service?.id,
     });
   }

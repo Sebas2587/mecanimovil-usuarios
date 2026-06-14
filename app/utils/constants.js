@@ -244,6 +244,7 @@ export const ROUTES = {
   EDIT_PROFILE: 'EditProfile',
   SUPPORT: 'Support',
   TERMS: 'Terms',
+  PRIVACY_POLICY: 'PrivacyPolicy',
   HISTORIAL_PAGOS: 'HistorialPagos',
 
   // Rutas para reviews de proveedores

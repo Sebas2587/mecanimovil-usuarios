@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Pressable,
-  StatusBar,
-  ScrollView,
-  TextInput,
   ActivityIndicator,
-  Platform,
   Alert,
+  Platform,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import { showAlert } from '../../utils/platformAlert';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS, SPACING, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { TAB_BAR_BASE_HEIGHT } from '../../components/home/shared/homeLayoutConstants';
+import { PENDING_REVIEWS_QUERY_KEY } from '../../hooks/usePendingReviews';
 
 function extractReviewSubmitError(error) {
   const data = error?.response?.data;
@@ -43,6 +45,7 @@ const CreateReviewScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { service } = route.params || {};
 
   const [rating, setRating] = useState(0);
@@ -98,6 +101,7 @@ const CreateReviewScreen = () => {
       };
 
       await post(`/usuarios/providers/${providerId}/reviews/`, reviewData);
+      queryClient.invalidateQueries({ queryKey: PENDING_REVIEWS_QUERY_KEY });
 
       if (Platform.OS === 'web') {
         showAlert(

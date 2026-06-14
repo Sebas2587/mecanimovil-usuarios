@@ -1,5 +1,15 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Pressable, FlatList, Image } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  FlatList,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,27 +22,243 @@ const ONBOARDING_BG_1 = require('../../../assets/images/onboarding-mechanic.png'
 const ONBOARDING_BG_2 = require('../../../assets/images/onboarding-health.png');
 const MECANIMOVIL_LOGO = require('../../../assets/images/logo-mecanimovil.png');
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CONTENT_MAX_WIDTH = 560;
+const WIDE_BREAKPOINT = 768;
+const COMPACT_BREAKPOINT = 420;
 
-const SlideGradient = ({ variant }) => {
-  const ink = COLORS.base.inkBlack ?? '#0B1220';
-  const a = variant === 'connect' ? COLORS.secondary[500] : COLORS.primary[500];
-  const b = variant === 'connect' ? COLORS.primary[600] : COLORS.secondary[600];
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
+const webPressable = Platform.OS === 'web' ? { cursor: 'pointer' } : null;
+
+/** En web, useWindowDimensions a veces no refleja el viewport real dentro del stack. */
+function useViewportDimensions() {
+  const { width, height } = useWindowDimensions();
+  const [webHeight, setWebHeight] = useState(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return height;
+    return Math.max(window.innerHeight, document.documentElement?.clientHeight ?? 0);
+  });
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+    const sync = () => {
+      setWebHeight(Math.max(window.innerHeight, document.documentElement?.clientHeight ?? 0));
+    };
+    sync();
+    window.addEventListener('resize', sync);
+    return () => window.removeEventListener('resize', sync);
+  }, []);
+
+  const viewportHeight = Platform.OS === 'web' ? webHeight : height;
+  return { width, height: viewportHeight };
+}
+
+/** En web usamos 100vh para que el slide ocupe el viewport aunque el flex del stack falle. */
+function slideHeightStyle(slideHeight) {
+  if (Platform.OS === 'web') {
+    return { height: '100vh', minHeight: '100vh' };
+  }
+  return { height: slideHeight, minHeight: slideHeight };
+}
+
+function useOnboardingLayout(viewportHeight, viewportWidth) {
+  const isWide = viewportWidth >= WIDE_BREAKPOINT;
+  const isCompact = viewportWidth < COMPACT_BREAKPOINT;
+  const slideWidth = viewportWidth;
+  const slideHeight = viewportHeight;
+  const contentWidth = Math.min(viewportWidth - 40, CONTENT_MAX_WIDTH);
+  const horizontalPadding = isWide ? 32 : Math.max(20, Math.round(viewportWidth * 0.06));
+  const logoWidth = Math.min(240, Math.round(viewportWidth * 0.52));
+  const logoHeight = Math.round(logoWidth * (56 / 240));
+  const titleSize = isWide
+    ? Math.min(44, TYPOGRAPHY.styles.h1.fontSize + 4)
+    : Math.min(TYPOGRAPHY.styles.h1.fontSize, Math.max(28, Math.round(viewportWidth * 0.088)));
+  const descriptionSize = isWide
+    ? TYPOGRAPHY.styles.body.fontSize + 1
+    : Math.min(TYPOGRAPHY.styles.body.fontSize, Math.max(14, Math.round(viewportWidth * 0.04)));
+  const bottomBarHeight = isCompact ? 132 : 96;
+
+  return {
+    isWide,
+    isCompact,
+    slideWidth,
+    slideHeight,
+    contentWidth,
+    horizontalPadding,
+    logoWidth,
+    logoHeight,
+    titleSize,
+    descriptionSize,
+    bottomBarHeight,
+  };
+}
+
+function buildSlideZones({ insets, layout }) {
+  const safeBottom = Math.max(insets.bottom, Platform.OS === 'web' ? 0 : 14);
+  const safeTop = Math.max(insets.top, Platform.OS === 'web' ? 0 : 10);
+  // Logo más abajo en web (safe area 0 deja el logo pegado al borde superior)
+  const logoTop =
+    safeTop +
+    (Platform.OS === 'web' ? Math.max(64, Math.round(layout.slideHeight * 0.09)) : 34);
+  const textPaddingBottom = safeBottom + layout.bottomBarHeight + 28;
+
+  return { logoTop, textPaddingBottom };
+}
+
+const OnboardingSlide = React.memo(function OnboardingSlide({
+  item,
+  index,
+  scrollX,
+  slideWidth,
+  slideHeight,
+  horizontalPadding,
+  titleSize,
+  descriptionSize,
+  zones,
+}) {
+  const imageSource = item.variant === 'connect' ? ONBOARDING_BG_1 : ONBOARDING_BG_2;
+  const inputRange = [(index - 1) * slideWidth, index * slideWidth, (index + 1) * slideWidth];
+
+  const imageTranslateX = scrollX.interpolate({
+    inputRange,
+    outputRange: [slideWidth * 0.08, 0, -slideWidth * 0.08],
+    extrapolate: 'clamp',
+  });
+
+  const imageScale = scrollX.interpolate({
+    inputRange,
+    outputRange: [1.06, 1, 1.06],
+    extrapolate: 'clamp',
+  });
+
+  const imageOpacity = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.75, 1, 0.75],
+    extrapolate: 'clamp',
+  });
+
+  const textOpacity = scrollX.interpolate({
+    inputRange,
+    outputRange: [0, 1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const textTranslateY = scrollX.interpolate({
+    inputRange,
+    outputRange: [20, 0, 20],
+    extrapolate: 'clamp',
+  });
 
   return (
-    <LinearGradient
-      colors={[withOpacity(ink, 1), withOpacity(a, 0.28), withOpacity(b, 0.22), withOpacity(ink, 1)]}
-      locations={[0, 0.28, 0.62, 1]}
-      start={{ x: 0.1, y: 0.0 }}
-      end={{ x: 0.9, y: 1 }}
-      style={StyleSheet.absoluteFill}
-    />
+    <View
+      style={[
+        styles.slide,
+        { width: slideWidth },
+        slideHeightStyle(slideHeight),
+      ]}
+    >
+      <View
+        style={[StyleSheet.absoluteFill, slideHeightStyle(slideHeight)]}
+        pointerEvents="none"
+      >
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              opacity: imageOpacity,
+              transform: [{ translateX: imageTranslateX }, { scale: imageScale }],
+            },
+          ]}
+        >
+          <Image
+            source={imageSource}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        </Animated.View>
+
+        <LinearGradient
+          colors={[
+            withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.35),
+            withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.55),
+            withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.9),
+          ]}
+          locations={[0, 0.55, 1]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+
+      <Animated.View
+        style={[
+          styles.textBlock,
+          {
+            paddingHorizontal: horizontalPadding,
+            paddingBottom: zones.textPaddingBottom,
+            opacity: textOpacity,
+            transform: [{ translateY: textTranslateY }],
+          },
+        ]}
+      >
+        <Text style={[styles.title, { fontSize: titleSize, lineHeight: Math.round(titleSize * 1.15) }]}>
+          {item.title[0]} <Text style={styles.titleAccent}>{item.title[1]}</Text> {item.title[2]}
+        </Text>
+        <Text
+          style={[
+            styles.description,
+            { fontSize: descriptionSize, lineHeight: Math.round(descriptionSize * 1.55) },
+          ]}
+        >
+          {item.description}
+        </Text>
+      </Animated.View>
+    </View>
   );
-};
+});
+
+const AnimatedDot = React.memo(function AnimatedDot({ index, scrollX, slideWidth, onPress }) {
+  const inputRange = [(index - 1) * slideWidth, index * slideWidth, (index + 1) * slideWidth];
+
+  const dotWidth = scrollX.interpolate({
+    inputRange,
+    outputRange: [10, 26, 10],
+    extrapolate: 'clamp',
+  });
+
+  const opacity = scrollX.interpolate({
+    inputRange,
+    outputRange: [0.22, 0.92, 0.22],
+    extrapolate: 'clamp',
+  });
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Ir al paso ${index + 1}`}
+      hitSlop={8}
+      style={({ pressed }) => [styles.dotHitArea, pressed && styles.skipTopPressed, webPressable]}
+    >
+      <Animated.View
+        style={[
+          styles.dot,
+          {
+            width: dotWidth,
+            opacity,
+            backgroundColor: withOpacity(COLORS.base.white, 0.86),
+          },
+        ]}
+      />
+    </Pressable>
+  );
+});
 
 export default function OnboardingScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { width: viewportWidth, height: viewportHeight } = useViewportDimensions();
+  const layout = useOnboardingLayout(viewportHeight, viewportWidth);
+  const zones = useMemo(() => buildSlideZones({ insets, layout }), [insets, layout]);
   const listRef = useRef(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
   const [index, setIndex] = useState(0);
 
   const slides = useMemo(
@@ -64,110 +290,199 @@ export default function OnboardingScreen({ navigation }) {
     navigation.replace(ROUTES.LOGIN);
   }, [navigation]);
 
+  const scrollToSlide = useCallback(
+    (targetIndex) => {
+      listRef.current?.scrollToOffset({
+        offset: targetIndex * layout.slideWidth,
+        animated: true,
+      });
+    },
+    [layout.slideWidth],
+  );
+
   const onNext = useCallback(() => {
     if (index >= slides.length - 1) {
       complete();
       return;
     }
-    listRef.current?.scrollToIndex({ index: index + 1, animated: true });
-  }, [complete, index, slides.length]);
+    scrollToSlide(index + 1);
+  }, [complete, index, scrollToSlide, slides.length]);
 
   const onViewableItemsChanged = useRef(({ viewableItems }) => {
     const first = viewableItems?.[0];
     if (first?.index != null) setIndex(first.index);
   }).current;
 
-  const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 70 }), []);
+  const viewabilityConfig = useMemo(() => ({ itemVisiblePercentThreshold: 60 }), []);
+
+  const getItemLayout = useCallback(
+    (_, itemIndex) => ({
+      length: layout.slideWidth,
+      offset: layout.slideWidth * itemIndex,
+      index: itemIndex,
+    }),
+    [layout.slideWidth],
+  );
+
+  const onScrollToIndexFailed = useCallback(
+    (info) => {
+      setTimeout(() => {
+        listRef.current?.scrollToOffset({
+          offset: info.index * layout.slideWidth,
+          animated: true,
+        });
+      }, 80);
+    },
+    [layout.slideWidth],
+  );
+
+  const onScroll = Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+    useNativeDriver: false,
+  });
+
+  const rootStyle = useMemo(
+    () =>
+      Platform.OS === 'web'
+        ? {
+            height: '100vh',
+            minHeight: '100vh',
+            maxHeight: '100vh',
+            overflow: 'hidden',
+          }
+        : { flex: 1 },
+    [],
+  );
+
+  const listStyle = useMemo(
+    () => [
+      styles.list,
+      Platform.OS === 'web'
+        ? { height: '100vh', minHeight: '100vh', flex: undefined }
+        : { flex: 1 },
+    ],
+    [],
+  );
+
+  const renderSlide = useCallback(
+    ({ item, index: slideIndex }) => (
+      <OnboardingSlide
+        item={item}
+        index={slideIndex}
+        scrollX={scrollX}
+        slideWidth={layout.slideWidth}
+        slideHeight={layout.slideHeight}
+        horizontalPadding={layout.horizontalPadding}
+        titleSize={layout.titleSize}
+        descriptionSize={layout.descriptionSize}
+        zones={zones}
+      />
+    ),
+    [layout, scrollX, zones],
+  );
+
+  const isLastSlide = index >= slides.length - 1;
+  const safeTop = Math.max(insets.top, Platform.OS === 'web' ? 0 : 10);
+  const safeBottom = Math.max(insets.bottom, Platform.OS === 'web' ? 0 : 14);
 
   return (
-    <View style={styles.container}>
-      <View style={[styles.logoWrap, { top: Math.max(insets.top, 10) + 26 }]}>
-        <Image source={MECANIMOVIL_LOGO} style={styles.logo} resizeMode="contain" />
+    <View style={[styles.container, rootStyle]}>
+      <View style={[styles.logoWrap, { top: zones.logoTop }]}>
+        <Image
+          source={MECANIMOVIL_LOGO}
+          style={{ width: layout.logoWidth, height: layout.logoHeight, opacity: 0.95 }}
+          resizeMode="contain"
+        />
       </View>
 
-      <FlatList
+      <Pressable
+        onPress={complete}
+        accessibilityRole="button"
+        accessibilityLabel="Saltar onboarding"
+        style={({ pressed }) => [
+          styles.skipTop,
+          { top: safeTop + 12 },
+          pressed && styles.skipTopPressed,
+          webPressable,
+        ]}
+      >
+        <Text style={styles.skipTopText}>Saltar</Text>
+      </Pressable>
+
+      <AnimatedFlatList
         ref={listRef}
         data={slides}
         horizontal
         pagingEnabled
+        bounces={false}
+        decelerationRate="fast"
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.key}
+        style={listStyle}
         contentContainerStyle={styles.listContent}
+        renderItem={renderSlide}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        renderItem={({ item }) => (
-          <View style={[styles.slide, { width: SCREEN_WIDTH }]}>
-            {item.variant === 'connect' || item.variant === 'health' ? (
-              <View style={StyleSheet.absoluteFill}>
-                {item.variant === 'connect' ? null : null}
-                {/* fill frame (soft) */}
-                <Image
-                  source={item.variant === 'connect' ? ONBOARDING_BG_1 : ONBOARDING_BG_2}
-                  style={[StyleSheet.absoluteFill, { opacity: 0.35 }]}
-                  resizeMode="cover"
-                  blurRadius={14}
-                />
-                {/* keep main image crisp (avoid over-scaling) */}
-                <View style={styles.crispContainWrap} pointerEvents="none">
-                  <Image
-                    source={item.variant === 'connect' ? ONBOARDING_BG_1 : ONBOARDING_BG_2}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="contain"
-                  />
-                </View>
-                <LinearGradient
-                  colors={[
-                    withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.35),
-                    withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.55),
-                    withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.9),
-                  ]}
-                  locations={[0, 0.55, 1]}
-                  start={{ x: 0.5, y: 0 }}
-                  end={{ x: 0.5, y: 1 }}
-                  style={StyleSheet.absoluteFill}
-                />
-              </View>
-            ) : (
-              <SlideGradient variant={item.variant} />
-            )}
-
-            <View style={[styles.textBlock, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + 160 }]}>
-              <Text style={styles.title}>
-                {item.title[0]} <Text style={styles.titleAccent}>{item.title[1]}</Text> {item.title[2]}
-              </Text>
-              <Text style={styles.description}>{item.description}</Text>
-            </View>
-          </View>
-        )}
+        getItemLayout={getItemLayout}
+        onScrollToIndexFailed={onScrollToIndexFailed}
+        keyboardShouldPersistTaps="handled"
+        {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
       />
 
-      <View style={[styles.bottomOverlay, { bottom: Math.max(insets.bottom, 14) + 26 }]}>
-        <View style={styles.dots}>
-          {slides.map((s, i) => {
-            const active = i === index;
-            return (
-              <View
-                key={s.key}
-                style={[
-                  styles.dot,
-                  active ? styles.dotActive : styles.dotInactive,
-                  active ? { width: 26 } : { width: 10 },
-                ]}
-              />
-            );
-          })}
+      <View
+        style={[
+          styles.bottomOverlay,
+          layout.isCompact ? styles.bottomOverlayStacked : styles.bottomOverlayRow,
+          {
+            bottom: safeBottom + 12,
+            paddingHorizontal: layout.horizontalPadding,
+          },
+        ]}
+        pointerEvents="box-none"
+      >
+        <View style={[styles.dots, layout.isCompact && styles.dotsCentered]}>
+          {slides.map((s, i) => (
+            <AnimatedDot
+              key={s.key}
+              index={i}
+              scrollX={scrollX}
+              slideWidth={layout.slideWidth}
+              onPress={() => scrollToSlide(i)}
+            />
+          ))}
         </View>
 
-        <View style={styles.primaryCta}>
-          <Button
-            title={index === slides.length - 1 ? 'Comenzar' : 'Siguiente'}
-            onPress={onNext}
-            type="primary"
-            variant="solid"
-            useGradient
-            size="md"
-            fullWidth
-          />
+        <View
+          style={[styles.ctaGroup, layout.isCompact && styles.ctaGroupStacked]}
+          pointerEvents="box-none"
+        >
+          {!isLastSlide ? (
+            <Pressable
+              onPress={complete}
+              accessibilityRole="button"
+              accessibilityLabel="Saltar onboarding"
+              style={({ pressed }) => [
+                styles.skipBottom,
+                pressed && styles.skipTopPressed,
+                webPressable,
+              ]}
+            >
+              <Text style={styles.skipBottomText}>Saltar</Text>
+            </Pressable>
+          ) : null}
+
+          <View style={[styles.primaryCta, layout.isCompact && styles.primaryCtaFull]}>
+            <Button
+              title={isLastSlide ? 'Comenzar' : 'Siguiente'}
+              onPress={onNext}
+              type="primary"
+              variant="solid"
+              useGradient
+              size="md"
+              fullWidth={layout.isCompact}
+            />
+          </View>
         </View>
       </View>
     </View>
@@ -179,8 +494,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.base.inkBlack ?? '#0B1220',
   },
+  list: {
+    flex: 1,
+  },
   listContent: {
-    flexGrow: 1,
+    alignItems: 'stretch',
   },
   logoWrap: {
     position: 'absolute',
@@ -190,25 +508,40 @@ const styles = StyleSheet.create({
     zIndex: 20,
     pointerEvents: 'none',
   },
-  logo: {
-    width: 240,
-    height: 56,
-    opacity: 0.95,
+  skipTop: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 30,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: withOpacity(COLORS.base.white, 0.08),
+    borderWidth: 1,
+    borderColor: withOpacity(COLORS.base.white, 0.14),
+  },
+  skipTopPressed: {
+    opacity: 0.72,
+  },
+  skipTopText: {
+    color: withOpacity(COLORS.base.white, 0.88),
+    fontSize: TYPOGRAPHY.fontSize?.sm ?? 14,
+    fontWeight: TYPOGRAPHY.fontWeight?.semibold ?? '600',
   },
   slide: {
-    flex: 1,
-    paddingHorizontal: 28,
+    overflow: 'hidden',
+    backgroundColor: COLORS.base.inkBlack ?? '#0B1220',
+    justifyContent: 'flex-end',
   },
   textBlock: {
-    flex: 1,
-    justifyContent: 'flex-end',
+    zIndex: 2,
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
   },
   title: {
     color: COLORS.base.white,
-    fontSize: TYPOGRAPHY.styles.h1.fontSize,
     fontWeight: TYPOGRAPHY.styles.h1.fontWeight,
     letterSpacing: TYPOGRAPHY.styles.h1.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.h1.fontSize * TYPOGRAPHY.styles.h1.lineHeight),
   },
   titleAccent: {
     color: COLORS.primary[400],
@@ -216,45 +549,75 @@ const styles = StyleSheet.create({
   description: {
     marginTop: 14,
     color: withOpacity(COLORS.base.white, 0.72),
-    fontSize: TYPOGRAPHY.styles.body.fontSize,
     fontWeight: TYPOGRAPHY.styles.body.fontWeight,
     letterSpacing: TYPOGRAPHY.styles.body.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.body.fontSize * TYPOGRAPHY.styles.body.lineHeight),
   },
   bottomOverlay: {
     position: 'absolute',
-    left: 18,
-    right: 18,
-    bottom: 0,
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    left: 0,
+    right: 0,
+    zIndex: 40,
+    paddingTop: 12,
+    gap: 14,
+  },
+  bottomOverlayRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  primaryCta: {
-    width: 160,
-  },
-  crispContainWrap: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
+  bottomOverlayStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   dots: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
+  dotsCentered: {
+    alignSelf: 'center',
+  },
   dot: {
     height: 6,
     borderRadius: 999,
   },
-  dotInactive: {
-    backgroundColor: withOpacity(COLORS.base.white, 0.22),
+  dotHitArea: {
+    paddingVertical: 10,
+    paddingHorizontal: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  dotActive: {
-    backgroundColor: withOpacity(COLORS.base.white, 0.86),
+  ctaGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 0,
   },
-  // CTA styles handled by design-system Button
+  ctaGroupStacked: {
+    width: '100%',
+    flexDirection: 'column-reverse',
+    alignItems: 'stretch',
+  },
+  skipBottom: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  skipBottomText: {
+    color: withOpacity(COLORS.base.white, 0.72),
+    fontSize: TYPOGRAPHY.fontSize?.sm ?? 14,
+    fontWeight: TYPOGRAPHY.fontWeight?.medium ?? '500',
+    textDecorationLine: 'underline',
+  },
+  primaryCta: {
+    minWidth: 148,
+    maxWidth: 220,
+  },
+  primaryCtaFull: {
+    minWidth: undefined,
+    maxWidth: undefined,
+    width: '100%',
+  },
 });
-
