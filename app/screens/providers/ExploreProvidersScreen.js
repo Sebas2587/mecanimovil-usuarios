@@ -57,6 +57,12 @@ const ExploreProvidersScreen = () => {
     enabled: !!vehicle && isUnifiedExplore,
   });
 
+  const categoryExploreEmpty =
+    isUnifiedExplore &&
+    !!categoryId &&
+    !unifiedQuery.isLoading &&
+    (unifiedQuery.categoryHasNoServices || unifiedQuery.providers.length === 0);
+
   const paraTiQuery = useExploreProvidersParaTi({
     vehicle,
     address,
@@ -157,7 +163,7 @@ const ExploreProvidersScreen = () => {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.body}>
-        <Text style={styles.screenTitle}>{screenTitle}</Text>
+        {!categoryName ? <Text style={styles.screenTitle}>{screenTitle}</Text> : null}
         {!hasAddress ? (
           <Text style={styles.hintWarn}>
             Agrega una dirección en el inicio para ordenar por cercanía y ver quién está en tu zona.
@@ -191,7 +197,11 @@ const ExploreProvidersScreen = () => {
                     ? 'No hay especialistas en la marca de tu vehículo.'
                     : isCercaExplore
                       ? 'No hay especialistas ni multimarca compatibles en tu radio.'
-                      : 'Amplía la zona o cambia de pestaña.'
+                      : categoryExploreEmpty
+                        ? unifiedQuery.categoryHasNoServices
+                          ? 'No hay servicios catalogados para esta categoría.'
+                          : 'Ningún proveedor cercano ofrece servicios de esta categoría para tu vehículo.'
+                        : 'Amplía la zona o cambia de pestaña.'
               }
             />
           </>

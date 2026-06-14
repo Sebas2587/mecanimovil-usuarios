@@ -149,12 +149,42 @@ export function filterProvidersBySearchQuery(providers, query) {
   });
 }
 
+export function providerOffersServicioIds(provider, servicioIdsSet) {
+  if (!servicioIdsSet?.size) return true;
+  const offers = provider?.panel_servicios || [];
+  return offers.some((o) => servicioIdsSet.has(o.servicio_id));
+}
+
+/** @deprecated Use providerOffersServicioIds — ya no hace fallback por especialidades de perfil. */
 export function providerMatchesCategory(p, categoryId, servicioIdsSet) {
-  if (!categoryId || !servicioIdsSet?.size) return true;
-  const offers = p.panel_servicios || [];
-  if (offers.some((o) => servicioIdsSet.has(o.servicio_id))) return true;
-  const esp = p.especialidades || [];
-  return esp.some((id) => id === categoryId);
+  return providerOffersServicioIds(p, servicioIdsSet);
+}
+
+export function filterProvidersByServicioIds(providers, servicioIds = []) {
+  const ids = (servicioIds || []).filter(Boolean);
+  if (!ids.length) return providers || [];
+  const set = new Set(ids);
+  return (providers || []).filter((p) => providerOffersServicioIds(p, set));
+}
+
+/** Orden explore por categoría: oferta del servicio → distancia → KPI. */
+export function compareProvidersByServiceOfferThenDistance(a, b, servicioIdsSet) {
+  if (servicioIdsSet?.size) {
+    const aOffer = providerOffersServicioIds(a, servicioIdsSet);
+    const bOffer = providerOffersServicioIds(b, servicioIdsSet);
+    if (aOffer && !bOffer) return -1;
+    if (!aOffer && bOffer) return 1;
+  }
+  return compareProvidersByDistanceThenKpi(a, b);
+}
+
+export function sortProvidersForCategoryExplore(providers, servicioIds = []) {
+  const ids = (servicioIds || []).filter(Boolean);
+  if (!ids.length) return providers || [];
+  const set = new Set(ids);
+  return [...(providers || [])].sort((a, b) =>
+    compareProvidersByServiceOfferThenDistance(a, b, set),
+  );
 }
 
 export function providerStableKey(provider) {

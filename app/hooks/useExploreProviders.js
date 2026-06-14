@@ -7,7 +7,11 @@ import {
   coordsFromSavedAddress,
   resolveVehicleMarcaId,
 } from '../components/home/shared/homeVehicleUtils';
-import { filterProvidersBySearchQuery } from '../utils/exploreProviderUtils';
+import {
+  filterProvidersBySearchQuery,
+  filterProvidersByServicioIds,
+  sortProvidersForCategoryExplore,
+} from '../utils/exploreProviderUtils';
 
 const EXPLORE_PROVIDER_LIMIT = 60;
 
@@ -47,7 +51,9 @@ export function useExploreProviders({
     return list.map((s) => s.id).filter(Boolean);
   }, [servicesQuery.data]);
 
-  const hasCategory = !!categoryId && servicioIds.length > 0;
+  const hasCategory = !!categoryId;
+  const categoryServicesReady = !categoryId || !servicesQuery.isLoading;
+  const hasCategoryServices = hasCategory && servicioIds.length > 0;
 
   const providersQuery = useQuery({
     queryKey: [
@@ -57,12 +63,16 @@ export function useExploreProviders({
       address?.id,
       servicioIds.join(','),
     ],
-    enabled: enabled && !!vehicle?.id && (!hasCategory || servicioIds.length > 0),
+    enabled:
+      enabled &&
+      !!vehicle?.id &&
+      categoryServicesReady &&
+      (!hasCategory || hasCategoryServices),
     staleTime: 1000 * 60 * 3,
     queryFn: async () => {
       const coords = await resolveCoords(address);
       return getExploreProvidersUnified(vehicle.id, {
-        servicioIds: hasCategory ? servicioIds : [],
+        servicioIds: hasCategoryServices ? servicioIds : [],
         limit: EXPLORE_PROVIDER_LIMIT,
         lat: coords?.lat,
         lng: coords?.lng,
@@ -73,21 +83,27 @@ export function useExploreProviders({
 
   const rawProviders = useMemo(() => {
     const data = providersQuery.data ?? [];
-    return Array.isArray(data) ? data : [];
-  }, [providersQuery.data]);
+    const list = Array.isArray(data) ? data : [];
+    if (!hasCategoryServices) return list;
+    return filterProvidersByServicioIds(list, servicioIds);
+  }, [providersQuery.data, hasCategoryServices, servicioIds]);
 
-  const providers = useMemo(
-    () => filterProvidersBySearchQuery(rawProviders, searchQuery),
-    [rawProviders, searchQuery],
-  );
+  const providers = useMemo(() => {
+    const searched = filterProvidersBySearchQuery(rawProviders, searchQuery);
+    if (!hasCategoryServices) return searched;
+    return sortProvidersForCategoryExplore(searched, servicioIds);
+  }, [rawProviders, searchQuery, hasCategoryServices, servicioIds]);
 
   return {
-    hasCategory,
-    categoryLoading: servicesQuery.isLoading,
+    hasCategory: hasCategoryServices,
+    categoryLoading: hasCategory && servicesQuery.isLoading,
+    categoryHasNoServices: hasCategory && categoryServicesReady && servicioIds.length === 0,
     providers,
     rawCount: rawProviders.length,
     hasAddress: !!address,
-    isLoading: providersQuery.isLoading || (hasCategory && servicesQuery.isLoading),
+    isLoading:
+      (hasCategory && servicesQuery.isLoading) ||
+      providersQuery.isLoading,
     isRefetching: providersQuery.isRefetching,
     refetch: providersQuery.refetch,
   };
