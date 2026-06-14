@@ -1,36 +1,49 @@
-import React, { useState, useLayoutEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   StatusBar,
   ScrollView,
   TextInput,
-  Alert,
   ActivityIndicator,
   Platform,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { post } from '../../services/api';
-import { COLORS } from '../../utils/constants';
+import { showAlert } from '../../utils/platformAlert';
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS, SPACING, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
+import { TAB_BAR_BASE_HEIGHT } from '../../components/home/shared/homeLayoutConstants';
 
-const GLASS_BG = Platform.select({
-  ios: 'rgba(255,255,255,0.06)',
-  android: 'rgba(255,255,255,0.10)',
-  default: 'rgba(255,255,255,0.08)',
-});
-const GLASS_BORDER = 'rgba(255,255,255,0.12)';
+function extractReviewSubmitError(error) {
+  const data = error?.response?.data;
+  if (!data) return error?.message || 'Intenta de nuevo en unos segundos.';
+  if (typeof data.error === 'string' && data.error.trim()) return data.error;
+  if (typeof data.detail === 'string' && data.detail.trim()) return data.detail;
+  if (Array.isArray(data) && data.length > 0) return String(data[0]);
+  if (typeof data === 'object') {
+    const firstKey = Object.keys(data)[0];
+    if (firstKey) {
+      const val = data[firstKey];
+      if (Array.isArray(val) && val.length) return `${firstKey}: ${val[0]}`;
+      if (typeof val === 'string') return `${firstKey}: ${val}`;
+    }
+  }
+  return 'Intenta de nuevo en unos segundos.';
+}
 
 const CreateReviewScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
-  const { service } = route.params;
+  const insets = useSafeAreaInsets();
+  const { service } = route.params || {};
 
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -46,26 +59,22 @@ const CreateReviewScreen = () => {
     claridad_explicacion: 0,
     informacion_relevante: 0,
     trato: 0,
-    entrego_repuestos: null, // true/false/null
+    entrego_repuestos: null,
   });
-
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerTitle: 'Dejar Reseña',
-      headerShown: true,
-      headerBackTitleVisible: false,
-      headerTintColor: '#F9FAFB',
-      headerTitleStyle: { fontWeight: '700', color: '#F9FAFB' },
-    });
-  }, [navigation]);
-
-  const handleRatingPress = (selectedRating) => {
-    setRating(selectedRating);
-  };
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      Alert.alert('Error', 'Por favor selecciona una calificación');
+      showAlert('Calificación requerida', 'Selecciona una calificación de 1 a 5 estrellas.');
+      return;
+    }
+
+    const serviceOrderId = service?.service_order_id;
+    const providerId = service?.provider?.provider_id;
+    if (!serviceOrderId || !providerId) {
+      showAlert(
+        'Datos incompletos',
+        'No pudimos identificar el servicio o el proveedor. Vuelve atrás e intenta de nuevo desde calificaciones pendientes.',
+      );
       return;
     }
 
@@ -73,8 +82,8 @@ const CreateReviewScreen = () => {
       setSubmitting(true);
 
       const reviewData = {
-        service_order_id: service.service_order_id,
-        rating: rating,
+        service_order_id: serviceOrderId,
+        rating,
         comment: comment.trim(),
         aspects: {
           puntualidad: aspects.puntualidad || null,
@@ -88,75 +97,85 @@ const CreateReviewScreen = () => {
         },
       };
 
-      // Determinar el provider_id basado en el tipo de proveedor
-      const providerId = service.provider.provider_id;
-
       await post(`/usuarios/providers/${providerId}/reviews/`, reviewData);
 
-      Alert.alert(
-        '¡Reseña enviada!',
-        'Gracias por compartir tu experiencia. Tu reseña ayudará a otros usuarios.',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack()
-          }
-        ]
-      );
+      if (Platform.OS === 'web') {
+        showAlert(
+          '¡Reseña enviada!',
+          'Gracias por compartir tu experiencia. Tu reseña ayudará a otros usuarios.',
+        );
+        navigation.goBack();
+      } else {
+        Alert.alert(
+          '¡Reseña enviada!',
+          'Gracias por compartir tu experiencia. Tu reseña ayudará a otros usuarios.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }],
+        );
+      }
     } catch (error) {
       console.error('Error al enviar reseña:', error);
-      Alert.alert(
-        'Error',
-        error.response?.data?.error || 'No se pudo enviar la reseña. Intenta de nuevo.'
-      );
+      showAlert('No se pudo enviar', extractReviewSubmitError(error));
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const renderStars = () => {
-    return (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <TouchableOpacity
-            key={star}
-            style={styles.starButton}
-            onPress={() => handleRatingPress(star)}
-          >
-            <Ionicons
-              name={star <= rating ? "star" : "star-outline"}
-              size={32}
-              color={star <= rating ? "#FFD700" : "#E0E0E0"}
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
   };
 
   const setAspectValue = (key, value) => {
     setAspects((prev) => ({ ...prev, [key]: value }));
   };
 
+  const ratingLabels = {
+    1: 'Muy malo',
+    2: 'Malo',
+    3: 'Regular',
+    4: 'Bueno',
+    5: 'Excelente',
+  };
+
+  const renderMainStars = () => (
+    <View style={styles.starsRow}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const active = star <= rating;
+        return (
+          <TouchableOpacity
+            key={star}
+            style={styles.starBtn}
+            onPress={() => setRating(star)}
+            accessibilityLabel={`${star} estrella${star > 1 ? 's' : ''}`}
+          >
+            <Ionicons
+              name={active ? 'star' : 'star-outline'}
+              size={36}
+              color={active ? COLORS.warning.main : COLORS.neutral.gray[300]}
+            />
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+
   const renderAspectRow = (label, key, helpText) => (
-    <View style={{ marginTop: 14 }}>
+    <View style={styles.aspectBlock}>
       <Text style={styles.aspectLabel}>{label}</Text>
       {helpText ? <Text style={styles.aspectHelp}>{helpText}</Text> : null}
       <View style={styles.aspectStarsRow}>
-        {[1, 2, 3, 4, 5].map((v) => (
-          <TouchableOpacity
-            key={`${key}-${v}`}
-            style={styles.aspectStarBtn}
-            onPress={() => setAspectValue(key, v)}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name={v <= (aspects[key] || 0) ? 'star' : 'star-outline'}
-              size={22}
-              color={v <= (aspects[key] || 0) ? '#60A5FA' : 'rgba(255,255,255,0.28)'}
-            />
-          </TouchableOpacity>
-        ))}
+        {[1, 2, 3, 4, 5].map((v) => {
+          const active = v <= (aspects[key] || 0);
+          return (
+            <TouchableOpacity
+              key={`${key}-${v}`}
+              style={styles.aspectStarBtn}
+              onPress={() => setAspectValue(key, v)}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name={active ? 'star' : 'star-outline'}
+                size={22}
+                color={active ? COLORS.primary[500] : COLORS.neutral.gray[300]}
+              />
+            </TouchableOpacity>
+          );
+        })}
         <TouchableOpacity
           style={styles.aspectClearBtn}
           onPress={() => setAspectValue(key, 0)}
@@ -169,7 +188,7 @@ const CreateReviewScreen = () => {
   );
 
   const renderBinaryRow = (label, key) => (
-    <View style={{ marginTop: 14 }}>
+    <View style={styles.aspectBlock}>
       <Text style={styles.aspectLabel}>{label}</Text>
       <View style={styles.binaryRow}>
         {[
@@ -181,11 +200,11 @@ const CreateReviewScreen = () => {
           return (
             <TouchableOpacity
               key={`${key}-${String(opt.id)}`}
-              style={[styles.binaryChip, active ? styles.binaryChipActive : styles.binaryChipIdle]}
+              style={[styles.binaryChip, active && styles.binaryChipActive]}
               onPress={() => setAspectValue(key, opt.id)}
               activeOpacity={0.85}
             >
-              <Text style={[styles.binaryChipText, active ? styles.binaryChipTextActive : styles.binaryChipTextIdle]}>
+              <Text style={[styles.binaryChipText, active && styles.binaryChipTextActive]}>
                 {opt.text}
               </Text>
             </TouchableOpacity>
@@ -195,86 +214,83 @@ const CreateReviewScreen = () => {
     </View>
   );
 
-  const getRatingText = () => {
-    const ratingTexts = {
-      1: 'Muy malo',
-      2: 'Malo',
-      3: 'Regular',
-      4: 'Bueno',
-      5: 'Excelente'
-    };
-    return ratingTexts[rating] || 'Selecciona una calificación';
-  };
+  const footerBottomPad = Math.max(insets.bottom, SPACING.md) + TAB_BAR_BASE_HEIGHT;
+
+  if (!service?.provider) {
+    return (
+      <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Servicio no disponible</Text>
+          <Text style={styles.emptyText}>No pudimos cargar los datos del servicio.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#030712" />
-      <LinearGradient colors={['#030712', '#0a1628', '#030712']} style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
-        <View style={{ position: 'absolute', top: -80, right: -60, width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(16,185,129,0.08)' }} />
-        <View style={{ position: 'absolute', top: 340, left: -90, width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(99,102,241,0.06)' }} />
-        <View style={{ position: 'absolute', bottom: -50, right: -40, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(6,182,212,0.05)' }} />
-      </View>
+    <SafeAreaView style={styles.container} edges={['left', 'right']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Información del servicio */}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: SPACING.xl + 88 + TAB_BAR_BASE_HEIGHT },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Servicio realizado */}
         <View style={styles.card}>
-          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
-          <View style={styles.cardHeader}>
-            <Ionicons name="receipt-outline" size={20} color="#93C5FD" style={{ marginRight: 8 }} />
-            <Text style={styles.cardTitle}>Detalles del Servicio</Text>
+          <Text style={styles.serviceHeroTitle} numberOfLines={3}>
+            {service.service_name}
+          </Text>
+
+          <View style={styles.providerRow}>
+            {service.provider.provider_photo ? (
+              <Image
+                source={{ uri: service.provider.provider_photo }}
+                style={styles.providerAvatar}
+                contentFit="cover"
+              />
+            ) : (
+              <View style={styles.providerPlaceholder}>
+                <Ionicons name="person" size={20} color={COLORS.text.tertiary} />
+              </View>
+            )}
+            <Text style={styles.providerName}>{service.provider.provider_name}</Text>
           </View>
 
-          <View style={styles.serviceInfoContainer}>
-            <View style={styles.providerRow}>
-              {service.provider.provider_photo ? (
-                <Image
-                  source={{ uri: service.provider.provider_photo }}
-                  style={styles.providerAvatar}
-                  contentFit="cover"
-                />
-              ) : (
-                <View style={styles.providerPlaceholder}>
-                  <Ionicons name="person" size={20} color="rgba(255,255,255,0.5)" />
-                </View>
-              )}
-              <View>
-                <Text style={styles.providerName}>{service.provider.provider_name}</Text>
-                <Text style={styles.serviceName}>{service.service_name}</Text>
-              </View>
-            </View>
+          <View style={styles.divider} />
 
-            <View style={styles.divider} />
-
-            <View style={styles.detailRow}>
-              <Ionicons name="car-outline" size={16} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.detailText}>{service.vehicle.full_name}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Ionicons name="calendar-outline" size={16} color="rgba(255,255,255,0.5)" />
-              <Text style={styles.detailText}>Completado el {new Date(service.completion_date).toLocaleDateString()}</Text>
-            </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="car-outline" size={16} color={COLORS.text.tertiary} />
+            <Text style={styles.detailText}>{service.vehicle?.full_name}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="calendar-outline" size={16} color={COLORS.text.tertiary} />
+            <Text style={styles.detailText}>
+              Completado el {new Date(service.completion_date).toLocaleDateString('es-CL')}
+            </Text>
           </View>
         </View>
 
-        {/* Calificación */}
+        {/* Calificación general */}
         <View style={styles.card}>
-          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
-          <Text style={styles.sectionTitleCenter}>¿Cómo calificarías el servicio?</Text>
-          {renderStars()}
-          <Text style={[styles.ratingText, { color: rating > 0 ? '#FBBF24' : 'rgba(255,255,255,0.45)' }]}>
-            {getRatingText()}
+          <Text style={styles.sectionTitle}>¿Cómo calificarías el servicio?</Text>
+          {renderMainStars()}
+          <Text style={[styles.ratingHint, rating > 0 && styles.ratingHintActive]}>
+            {ratingLabels[rating] || 'Selecciona una calificación'}
           </Text>
         </View>
 
         {/* Comentario */}
         <View style={styles.card}>
-          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
           <Text style={styles.inputLabel}>Cuéntanos tu experiencia (opcional)</Text>
           <TextInput
             style={styles.commentInput}
             placeholder="¿Qué te pareció el servicio? ¿El tiempo de espera fue adecuado?"
-            placeholderTextColor={'rgba(255,255,255,0.35)'}
+            placeholderTextColor={COLORS.text.disabled}
             value={comment}
             onChangeText={setComment}
             multiline
@@ -282,28 +298,29 @@ const CreateReviewScreen = () => {
             textAlignVertical="top"
             maxLength={500}
           />
-          <Text style={styles.characterCount}>
-            {comment.length}/500 caracteres
-          </Text>
+          <Text style={styles.characterCount}>{comment.length}/500</Text>
         </View>
 
-        {/* Aspectos (alimentan KPIs) */}
+        {/* Aspectos */}
         <View style={styles.card}>
-          {Platform.OS === 'ios' && <BlurView intensity={30} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />}
           <View style={styles.cardHeader}>
-            <Ionicons name="sparkles-outline" size={20} color="#93C5FD" style={{ marginRight: 8 }} />
+            <Ionicons name="sparkles-outline" size={20} color={COLORS.primary[500]} />
             <Text style={styles.cardTitle}>Aspectos del servicio</Text>
           </View>
           <Text style={styles.aspectIntro}>
-            Estos datos ayudan a que los mejores proveedores tengan más relevancia según su rendimiento reciente.
+            Opcional. Ayuda a destacar proveedores según su rendimiento reciente.
           </Text>
 
           {renderAspectRow('Puntualidad', 'puntualidad', '¿Llegó a tiempo?')}
           {!isMecanicoDomicilio
             ? renderAspectRow('Recepción / entrega a tiempo', 'recepcion_a_tiempo', 'Solo para talleres.')
             : null}
-          {!isMecanicoDomicilio ? renderAspectRow('Auto limpio al entregar', 'limpieza_auto', 'Solo para talleres.') : null}
-          {isMecanicoDomicilio ? renderAspectRow('Dejó limpia la zona', 'zona_limpia', 'Solo para domicilio.') : null}
+          {!isMecanicoDomicilio
+            ? renderAspectRow('Auto limpio al entregar', 'limpieza_auto', 'Solo para talleres.')
+            : null}
+          {isMecanicoDomicilio
+            ? renderAspectRow('Dejó limpia la zona', 'zona_limpia', 'Solo para domicilio.')
+            : null}
           {renderBinaryRow('Entregó los repuestos al finalizar', 'entrego_repuestos')}
           {renderAspectRow('Claridad al explicar fallas/solución', 'claridad_explicacion')}
           {renderAspectRow('Información relevante y comunicación', 'informacion_relevante')}
@@ -311,25 +328,27 @@ const CreateReviewScreen = () => {
         </View>
       </ScrollView>
 
-      {/* Botón de envío */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={[
+      <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
+        <Pressable
+          style={({ pressed }) => [
             styles.submitButton,
-            (rating === 0 || submitting) && styles.submitButtonDisabled
+            (rating === 0 || submitting) && styles.submitButtonDisabled,
+            pressed && !(rating === 0 || submitting) && styles.submitButtonPressed,
           ]}
           onPress={handleSubmit}
           disabled={rating === 0 || submitting}
+          accessibilityRole="button"
+          accessibilityLabel="Enviar reseña"
         >
           {submitting ? (
-            <ActivityIndicator size="small" color="#F9FAFB" />
+            <ActivityIndicator size="small" color={COLORS.text.onPrimary} />
           ) : (
             <>
-              <Ionicons name="send" size={16} color="#F9FAFB" />
-              <Text style={styles.submitButtonText}>Enviar Reseña</Text>
+              <Ionicons name="send" size={18} color={COLORS.text.onPrimary} />
+              <Text style={styles.submitButtonText}>Enviar reseña</Text>
             </>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -338,218 +357,258 @@ const CreateReviewScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.background.default,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: SPACING.md,
+    paddingBottom: SPACING.lg,
   },
   card: {
-    backgroundColor: GLASS_BG,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: GLASS_BORDER,
-    overflow: 'hidden',
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.md + 4,
+    marginBottom: SPACING.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: SPACING.sm,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F9FAFB',
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
   },
-  serviceInfoContainer: {
-    gap: 12,
+  serviceHeroTitle: {
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    lineHeight: 26,
+    marginBottom: SPACING.sm + 4,
   },
   providerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.sm,
   },
   providerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   providerPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.neutral.gray[100],
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   providerName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#F9FAFB',
-  },
-  serviceName: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    flex: 1,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.secondary,
   },
   divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginVertical: 4,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border.light,
+    marginVertical: SPACING.sm + 4,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 6,
   },
   detailText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
+    flex: 1,
   },
-  sectionTitleCenter: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#F9FAFB',
-    marginBottom: 16,
+  sectionTitle: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
     textAlign: 'center',
+    marginBottom: SPACING.sm,
   },
-  starsContainer: {
+  starsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
-  starButton: {
+  starBtn: {
     padding: 4,
-    marginHorizontal: 4,
+    marginHorizontal: 2,
   },
-  ratingText: {
-    fontSize: 16,
-    fontWeight: '600',
+  ratingHint: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
     textAlign: 'center',
+  },
+  ratingHintActive: {
+    color: COLORS.warning.dark,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#F9FAFB',
-    marginBottom: 12,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.sm,
   },
   commentInput: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(3,7,18,0.55)' : 'rgba(3,7,18,0.75)',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 14,
-    color: '#F9FAFB',
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.md,
+    padding: SPACING.md,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.primary,
     minHeight: 120,
-    marginBottom: 8,
-    textAlignVertical: 'top',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   characterCount: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
     textAlign: 'right',
-  },
-  footer: {
-    padding: 16,
-    backgroundColor: GLASS_BG,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.10)',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderLeftColor: GLASS_BORDER,
-    borderRightColor: GLASS_BORDER,
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007EA7',
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(110,231,183,0.25)',
-  },
-  submitButtonDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.10)',
-    borderColor: 'rgba(255,255,255,0.10)',
-  },
-  submitButtonText: {
-    color: '#F9FAFB',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    marginTop: 6,
   },
   aspectIntro: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
     lineHeight: 18,
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
+  },
+  aspectBlock: {
+    marginTop: SPACING.sm + 4,
   },
   aspectLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#F9FAFB',
-    marginBottom: 6,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    marginBottom: 4,
   },
   aspectHelp: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: -2,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
     marginBottom: 6,
   },
   aspectStarsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     flexWrap: 'wrap',
+    gap: 4,
   },
   aspectStarBtn: {
     padding: 4,
-    borderRadius: 10,
   },
   aspectClearBtn: {
-    marginLeft: 10,
+    marginLeft: SPACING.sm,
     paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingHorizontal: 12,
+    borderRadius: BORDERS.radius.pill,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   aspectClearText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.55)',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
   },
   binaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 2,
+    gap: SPACING.sm,
+    marginTop: 4,
   },
   binaryChip: {
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    borderRadius: BORDERS.radius.pill,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   binaryChipActive: {
-    backgroundColor: 'rgba(147,197,253,0.18)',
-    borderColor: 'rgba(147,197,253,0.35)',
-  },
-  binaryChipIdle: {
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.primary[200],
   },
   binaryChipText: {
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
   },
   binaryChipTextActive: {
-    color: '#93C5FD',
+    color: COLORS.primary[700],
   },
-  binaryChipTextIdle: {
-    color: 'rgba(255,255,255,0.6)',
+  footer: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    backgroundColor: COLORS.background.paper,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
+    zIndex: 20,
+    ...Platform.select({
+      ios: SHADOWS.sm,
+      android: { elevation: 8 },
+      web: {
+        position: 'sticky',
+        bottom: 0,
+        boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
+      },
+      default: {},
+    }),
+  },
+  submitButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.primary[500],
+    paddingVertical: 14,
+    borderRadius: BORDERS.radius.pill,
+    gap: 8,
+    ...Platform.select({
+      web: { cursor: 'pointer' },
+      default: {},
+    }),
+  },
+  submitButtonPressed: {
+    opacity: 0.9,
+  },
+  submitButtonDisabled: {
+    backgroundColor: COLORS.neutral.gray[300],
+  },
+  submitButtonText: {
+    color: COLORS.text.onPrimary,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.xl,
+  },
+  emptyTitle: {
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.sm,
+  },
+  emptyText: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
   },
 });
 
-export default CreateReviewScreen; 
+export default CreateReviewScreen;
