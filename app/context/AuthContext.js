@@ -93,6 +93,7 @@ export const AuthProvider = ({ children }) => {
             foto_perfil: parsedUser.foto_perfil || null,
             es_mecanico: parsedUser.es_mecanico || false,
             is_client: parsedUser.is_client || false,
+            cliente_id: parsedUser.cliente_id ?? null,
           };
 
           // Validación temprana: si el token es inválido/expirado, limpiar antes de restaurar sesión.
@@ -255,7 +256,7 @@ export const AuthProvider = ({ children }) => {
       // El backend devuelve snake_case, pero normalizamos para uso en frontend
       let normalizedUser = {
         id: response.user.id,
-        username: response.user.username || response.user.email, // Username técnico (email) para login
+        username: response.user.username || response.user.email,
         email: response.user.email || '',
         firstName: response.user.first_name || response.user.firstName || '',
         lastName: response.user.last_name || response.user.lastName || '',
@@ -266,6 +267,7 @@ export const AuthProvider = ({ children }) => {
         foto_perfil: response.user.foto_perfil || null,
         es_mecanico: response.user.es_mecanico !== undefined ? response.user.es_mecanico : false,
         is_client: response.user.is_client !== undefined ? response.user.is_client : true,
+        cliente_id: response.user.cliente_id ?? null,
       };
 
       // CRÍTICO: Validar que el usuario NO sea un proveedor antes de permitir login
@@ -389,8 +391,9 @@ export const AuthProvider = ({ children }) => {
             telefono: fullProfileData.telefono || normalizedUser.telefono || '',
             direccion: fullProfileData.direccion || normalizedUser.direccion || '',
             foto_perfil: fullProfileData.foto_perfil || normalizedUser.foto_perfil || null,
-            es_mecanico: false, // Asegurar que es_mecanico sea false (ya verificamos que no es proveedor)
-            is_client: fullProfileData.is_client !== undefined ? fullProfileData.is_client : true, // Asegurar que is_client sea true
+            es_mecanico: false,
+            is_client: fullProfileData.is_client !== undefined ? fullProfileData.is_client : true,
+            cliente_id: fullProfileData.cliente_id ?? normalizedUser.cliente_id ?? null,
           };
 
           // Actualizar estado y AsyncStorage con datos completos
@@ -625,6 +628,7 @@ export const AuthProvider = ({ children }) => {
         foto_perfil: response.user.foto_perfil || null,
         es_mecanico: response.user.es_mecanico !== undefined ? response.user.es_mecanico : false,
         is_client: response.user.is_client !== undefined ? response.user.is_client : true,
+        cliente_id: response.user.cliente_id ?? null,
       };
 
       // Guardrail proveedor

@@ -79,7 +79,7 @@ const CrearSolicitudScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { crearSolicitud } = useSolicitudes();
 
   // Incremented after successful submit to force FormularioSolicitud re-mount
@@ -307,7 +307,10 @@ const CrearSolicitudScreen = () => {
     !(servicioPreseleccionado && servicioPreseleccionado.id);
   const [initialDataReady, setInitialDataReady] = useState(!needsPreloadServicios);
   const [direcciones, setDirecciones] = useState([]);
-  const [clienteId, setClienteId] = useState(null);
+
+  // El cliente_id viene del contexto de autenticación — disponible desde el momento de login.
+  // No hay race condition: si el usuario está autenticado, este valor siempre existe.
+  const [clienteId, setClienteId] = useState(() => user?.cliente_id ?? null);
 
   // TanStack Query for Vehicles - Auto refresh when focused or cache updates
   const {
@@ -339,13 +342,13 @@ const CrearSolicitudScreen = () => {
     });
   }, [allVehicles]);
 
+  // Sincronizar cliente_id si cambia el objeto user (ej. token refreshed mid-session).
+  // El VehiculoLiteSerializer no retorna cliente_detail, así que este efecto ya no depende de vehículos.
   useEffect(() => {
-    // Sync client ID if not set
-    if (!clienteId && vehiculos.length > 0 && vehiculos[0].cliente_detail?.id) {
-      console.log('✅ CrearSolicitudScreen: Sincronizando Cliente ID desde vehículos:', vehiculos[0].cliente_detail.id);
-      setClienteId(vehiculos[0].cliente_detail.id);
+    if (user?.cliente_id && !clienteId) {
+      setClienteId(user.cliente_id);
     }
-  }, [vehiculos, clienteId]);
+  }, [user?.cliente_id, clienteId]);
 
   // Mantener ref actualizada para refetchVehicles (evita incluirla en deps de useFocusEffect)
   refetchVehiclesRef.current = refetchVehicles;
@@ -638,12 +641,10 @@ const CrearSolicitudScreen = () => {
   );
 
   const cargarDatos = async () => {
-    // Only load non-vehicle data (addresses, client details)
-    // Vehicles are now handled by useQuery
-    // But we still set generic loading state for initial render
+    // Carga de datos no relacionados con vehículos. Los vehículos se manejan con useQuery.
+    // El clienteId ya viene del contexto de auth (user.cliente_id); solo se hace fetch como
+    // fallback para sesiones antiguas cuyo cache de AsyncStorage no incluía cliente_id todavía.
 
-    // Si aún no hay vehículos en caché y la query está cargando, mantener overlay de carga
-    // Solo en la carga inicial (initialLoadDoneRef impide que loading vuelva a true después)
     if (
       !isPreCompra &&
       !initialLoadDoneRef.current &&
@@ -654,27 +655,22 @@ const CrearSolicitudScreen = () => {
     }
 
     try {
-      const [direccionesData, clienteData] = await Promise.all([
-        locationService.getUserAddresses(),
-        userService.getClienteDetails().catch(() => null)
-      ]);
-
+      const direccionesData = await locationService.getUserAddresses();
       setDirecciones(Array.isArray(direccionesData) ? direccionesData : []);
 
-      // Obtener ID del cliente
-      let clienteIdValue = null;
-      if (clienteData && clienteData.id) {
-        clienteIdValue = clienteData.id;
+      // Fallback solo si el cliente_id no estaba en la sesión cacheada (sesiones pre-fix).
+      if (!clienteId) {
+        try {
+          const clienteData = await userService.getClienteDetails();
+          if (clienteData?.id) {
+            setClienteId(clienteData.id);
+          }
+        } catch {
+          // No crítico — el submit validará con mensaje apropiado.
+        }
       }
-
-      if (clienteIdValue) {
-        setClienteId(clienteIdValue);
-        console.log('CrearSolicitudScreen: Cliente ID cargado:', clienteIdValue);
-      }
-
     } catch (error) {
-      console.error('Error cargando direcciones/cliente:', error);
-      // Non-blocking error for addresses
+      console.error('Error cargando direcciones:', error);
     } finally {
       if (isPreCompra || !isLoadingVehicles) {
         setLoading(false);
@@ -783,10 +779,20 @@ const CrearSolicitudScreen = () => {
 
       // Validar que tenemos el ID del cliente
       if (!clienteId) {
-        Alert.alert(
-          'Error',
-          'No se pudo obtener la información del cliente. Por favor, inicia sesión nuevamente.'
-        );
+        // Si no hay sesión activa: el usuario cerró sesión o el token expiró
+        if (!user || !token) {
+          Alert.alert(
+            'Sesión expirada',
+            'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.',
+            [{ text: 'Iniciar sesión', onPress: () => navigation.navigate(ROUTES.LOGIN) }]
+          );
+        } else {
+          // Usuario autenticado pero sin perfil de cliente creado (caso muy infrecuente)
+          Alert.alert(
+            'Perfil incompleto',
+            'No encontramos un perfil de cliente asociado a tu cuenta. Contacta a soporte si el problema persiste.'
+          );
+        }
         setCreando(false);
         return;
       }
