@@ -6,7 +6,7 @@ import {
   ScrollView,
   Alert,
   TouchableOpacity,
-  Platform,
+  ActivityIndicator,
   StatusBar
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,40 +34,32 @@ import solicitudesService, { normalizarSolicitudPublica } from '../../services/s
 import { validarSinServicioActivoDuplicado } from '../../utils/solicitudActivaGuard';
 import { syncSolicitudesListAfterChange } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
-import { showAlert, showAlertButtons } from '../../utils/platformAlert';
+import { showAlert } from '../../utils/platformAlert';
 import { formatApiErrorMessage } from '../../utils/formatApiError';
 
-/** Vuelve al panel (misma UX que mobile). En web Alert no ejecuta onPress → alert nativo + reset. */
-function goToUserPanelDashboard(navigation) {
-  navigation.reset({
-    index: 0,
-    routes: [
-      {
-        name: 'TabNavigator',
-        state: {
-          index: 0,
-          routes: [
-            {
-              name: ROUTES.HOME,
-              state: {
-                index: 0,
-                routes: [{ name: ROUTES.USER_PANEL }],
-              },
-            },
-          ],
-        },
-      },
-    ],
-  });
-}
+/**
+ * Sale de Nueva Solicitud y muestra confirmación en la pantalla destino.
+ * Mismo patrón que CalendarioProveedorScreen: reset con TabNavigator + pantalla de solicitudes.
+ */
+function finishCrearSolicitudSuccess(navigation, { solicitudId, title, message }) {
+  const routes = solicitudId
+    ? [
+        { name: 'TabNavigator' },
+        { name: ROUTES.DETALLE_SOLICITUD, params: { solicitudId } },
+      ]
+    : [
+        { name: 'TabNavigator' },
+        { name: ROUTES.MIS_SOLICITUDES, params: { refreshList: true } },
+      ];
 
-function alertSuccessAndGoToPanel(navigation, title, message) {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    window.alert(message ? `${title}\n\n${message}` : title);
-    goToUserPanelDashboard(navigation);
-    return;
-  }
-  Alert.alert(title, message, [{ text: 'OK', onPress: () => goToUserPanelDashboard(navigation) }]);
+  navigation.reset({
+    index: routes.length - 1,
+    routes,
+  });
+
+  requestAnimationFrame(() => {
+    showAlert(title, message);
+  });
 }
 
 /**
@@ -1063,13 +1055,12 @@ const CrearSolicitudScreen = () => {
             await syncSolicitudesListAfterChange(queryClient, user.id, paraLista);
           }
 
-          setSubmitCount((prev) => prev + 1);
-
-          alertSuccessAndGoToPanel(
-            navigation,
-            'Solicitud enviada',
-            'El proveedor recibió tu solicitud con el precio de su catálogo y debe confirmar la asignación.',
-          );
+          finishCrearSolicitudSuccess(navigation, {
+            solicitudId,
+            title: 'Solicitud enviada',
+            message:
+              'El proveedor recibió tu solicitud con el precio de su catálogo y debe confirmar la asignación.',
+          });
         } catch (error) {
           const mensaje =
             error.response?.data?.error
@@ -1186,30 +1177,20 @@ const CrearSolicitudScreen = () => {
             await syncSolicitudesListAfterChange(queryClient, user.id, paraLista);
           }
 
-          setSubmitCount(prev => prev + 1);
-
-          alertSuccessAndGoToPanel(
-            navigation,
-            'Éxito',
-            'Solicitud creada y publicada con éxito. Los proveedores podrán ver tu solicitud y hacer ofertas.'
-          );
+          finishCrearSolicitudSuccess(navigation, {
+            solicitudId,
+            title: 'Solicitud creada',
+            message:
+              'Tu solicitud fue publicada con éxito. Los proveedores podrán verla y hacer ofertas.',
+          });
         } catch (error) {
           console.error('CrearSolicitudScreen: ❌ Error publicando solicitud:', error);
-          // Si hay error al publicar, navegar al detalle para que el usuario pueda publicarla manualmente
-          Alert.alert(
-            'Solicitud creada',
-            'Tu solicitud ha sido creada. Sin embargo, hubo un error al publicarla. Puedes publicarla manualmente desde el detalle.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  navigation.navigate(ROUTES.DETALLE_SOLICITUD, {
-                    solicitudId: solicitudId
-                  });
-                }
-              }
-            ]
-          );
+          finishCrearSolicitudSuccess(navigation, {
+            solicitudId,
+            title: 'Solicitud creada',
+            message:
+              'Tu solicitud fue creada, pero hubo un problema al publicarla. Puedes publicarla manualmente desde el detalle.',
+          });
         }
       } else {
         // ESTE BLOQUE NUNCA DEBERÍA EJECUTARSE porque cuando se completa el paso 6,
@@ -1235,27 +1216,20 @@ const CrearSolicitudScreen = () => {
             };
             await syncSolicitudesListAfterChange(queryClient, user.id, paraLista);
           }
-          alertSuccessAndGoToPanel(
-            navigation,
-            'Éxito',
-            'Solicitud creada y publicada con éxito. Los proveedores podrán ver tu solicitud y hacer ofertas.'
-          );
+          finishCrearSolicitudSuccess(navigation, {
+            solicitudId,
+            title: 'Solicitud creada',
+            message:
+              'Tu solicitud fue publicada con éxito. Los proveedores podrán verla y hacer ofertas.',
+          });
         } catch (error) {
           console.error('CrearSolicitudScreen: ❌ Error publicando solicitud (fallback):', error);
-          Alert.alert(
-            'Solicitud creada',
-            'Tu solicitud ha sido creada. Sin embargo, hubo un error al publicarla. Puedes publicarla manualmente desde el detalle.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  navigation.navigate(ROUTES.DETALLE_SOLICITUD, {
-                    solicitudId: solicitudId
-                  });
-                }
-              }
-            ]
-          );
+          finishCrearSolicitudSuccess(navigation, {
+            solicitudId,
+            title: 'Solicitud creada',
+            message:
+              'Tu solicitud fue creada, pero hubo un problema al publicarla. Puedes publicarla manualmente desde el detalle.',
+          });
         }
       }
     } catch (error) {
@@ -1316,7 +1290,7 @@ const CrearSolicitudScreen = () => {
       {creando && (
         <View style={styles.creatingOverlay}>
           <View style={styles.creatingCard}>
-            <CrearSolicitudScreenSkeleton contentPaddingBottom={0} />
+            <ActivityIndicator size="large" color={COLORS.primary[500]} />
             <Text style={styles.creatingText}>Creando solicitud...</Text>
           </View>
         </View>
@@ -1460,22 +1434,21 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   creatingCard: {
-    width: '94%',
-    maxWidth: 520,
+    paddingHorizontal: 28,
+    paddingVertical: 24,
     borderRadius: BORDERS.radius.modal.lg,
-    overflow: 'hidden',
+    alignItems: 'center',
+    gap: 12,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
     ...SHADOWS.modal,
   },
   creatingText: {
-    marginTop: 0,
     fontSize: 16,
     color: COLORS.text.primary,
     fontWeight: '600',
     textAlign: 'center',
-    paddingVertical: 14,
   },
 });
 
