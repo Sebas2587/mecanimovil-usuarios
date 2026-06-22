@@ -9,6 +9,7 @@ import {
   StatusBar,
   Platform,
   useWindowDimensions,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -21,8 +22,10 @@ import { SHADOWS } from '../../design-system/tokens/shadows';
 import {
   generarDiasCalendario,
   obtenerDisponibilidadConDuracion,
+  obtenerMecanicosAptosAgenda,
   resolverFechasAgendaReales,
 } from '../../services/disponibilidadProveedorService';
+import { modalidadLabel } from '../../utils/providerModalidad';
 import {
   PASO_FORMULARIO_UBICACION,
   resolveAgendaParams,
@@ -98,6 +101,9 @@ export default function CalendarioProveedorScreen() {
   const [agendaSinDias, setAgendaSinDias] = useState(false);
   const [confirmandoSolicitud, setConfirmandoSolicitud] = useState(false);
   const [solicitudConfirmada, setSolicitudConfirmada] = useState(false);
+  const [mecanicosAptos, setMecanicosAptos] = useState([]);
+  const [miembroSeleccionado, setMiembroSeleccionado] = useState(null);
+  const [loadingMecanicos, setLoadingMecanicos] = useState(false);
   const confirmandoSolicitudRef = useRef(false);
   const solicitudConfirmadaRef = useRef(false);
 
@@ -105,6 +111,38 @@ export default function CalendarioProveedorScreen() {
     () => shouldFinalizarSolicitudEnCalendario({ returnRoute, returnParams }),
     [returnRoute, returnParams],
   );
+
+  const requierePickerTecnico = tipoNorm === 'taller' && mecanicosAptos.length > 0;
+
+  const cargarMecanicos = useCallback(async () => {
+    if (tipoNorm !== 'taller' || !proveedorId) {
+      setMecanicosAptos([]);
+      setMiembroSeleccionado(null);
+      return;
+    }
+    try {
+      setLoadingMecanicos(true);
+      const lista = await obtenerMecanicosAptosAgenda({
+        tallerId: proveedorId,
+        ofertaServicioId,
+      });
+      setMecanicosAptos(lista);
+      if (lista.length === 1) {
+        setMiembroSeleccionado(lista[0].id);
+      } else if (lista.length === 0) {
+        setMiembroSeleccionado(null);
+      }
+    } catch {
+      setMecanicosAptos([]);
+      setMiembroSeleccionado(null);
+    } finally {
+      setLoadingMecanicos(false);
+    }
+  }, [proveedorId, ofertaServicioId, tipoNorm]);
+
+  useEffect(() => {
+    cargarMecanicos();
+  }, [cargarMecanicos]);
 
   const cargarDias = useCallback(async () => {
     if (!proveedorId || !tipoNorm) {
@@ -116,6 +154,12 @@ export default function CalendarioProveedorScreen() {
       setLoadingDias(false);
       return;
     }
+    if (requierePickerTecnico && !miembroSeleccionado) {
+      setFechasHabilitadas(new Set());
+      setFechaSeleccionada(null);
+      setLoadingDias(false);
+      return;
+    }
     try {
       setLoadingDias(true);
       setError(null);
@@ -124,6 +168,7 @@ export default function CalendarioProveedorScreen() {
         tipoProveedor: tipoNorm,
         proveedorId,
         ofertaServicioId,
+        miembroTallerId: miembroSeleccionado,
         diasCalendario: diasBase,
       });
       if (sinHorarioConfigurado) {
@@ -149,7 +194,7 @@ export default function CalendarioProveedorScreen() {
     } finally {
       setLoadingDias(false);
     }
-  }, [proveedorId, ofertaServicioId, tipoNorm, diasBase]);
+  }, [proveedorId, ofertaServicioId, tipoNorm, diasBase, miembroSeleccionado, requierePickerTecnico]);
 
   useEffect(() => {
     cargarDias();
@@ -165,6 +210,7 @@ export default function CalendarioProveedorScreen() {
         proveedorId,
         fecha,
         ofertaServicioId,
+        miembroTallerId: miembroSeleccionado,
       });
       setDisponibilidadDia(data);
     } catch (e) {
@@ -173,7 +219,7 @@ export default function CalendarioProveedorScreen() {
     } finally {
       setLoadingSlots(false);
     }
-  }, [proveedorId, ofertaServicioId, tipoNorm]);
+  }, [proveedorId, ofertaServicioId, tipoNorm, miembroSeleccionado]);
 
   useEffect(() => {
     if (fechaSeleccionada) cargarSlots(fechaSeleccionada);
@@ -221,6 +267,7 @@ export default function CalendarioProveedorScreen() {
           ...formPayload,
           fecha_preferida: fechaSeleccionada,
           hora_preferida: slotSeleccionado.hora || null,
+          miembro_taller_preferido: miembroSeleccionado,
         },
         pendingConfirmOferta.oferta_servicio_id,
         {
@@ -265,6 +312,7 @@ export default function CalendarioProveedorScreen() {
     returnParams,
     fechaSeleccionada,
     slotSeleccionado,
+    miembroSeleccionado,
     irADetalleSolicitudCreada,
   ]);
 
@@ -284,6 +332,7 @@ export default function CalendarioProveedorScreen() {
         fecha: fechaSeleccionada,
         hora: slotSeleccionado.hora,
         hora_fin_estimada: slotSeleccionado.hora_fin_estimada,
+        miembroTallerId: miembroSeleccionado,
       },
     };
     paramsVuelta.pasoDestinoTrasCalendario = pasoDestinoTrasCalendario;
@@ -299,13 +348,23 @@ export default function CalendarioProveedorScreen() {
     handleConfirmarYFinalizarSolicitud,
     returnParams,
     pasoDestinoTrasCalendario,
+    miembroSeleccionado,
     returnRoute,
     navigation,
   ]);
 
+  const seleccionarMiembro = useCallback((id) => {
+    setMiembroSeleccionado(id);
+    setFechaSeleccionada(null);
+    setSlotSeleccionado(null);
+    setFechasHabilitadas(null);
+    setDisponibilidadDia(null);
+  }, []);
+
   const confirmarDeshabilitado =
     !fechaSeleccionada
     || !slotSeleccionado
+    || (requierePickerTecnico && !miembroSeleccionado)
     || confirmandoSolicitud
     || solicitudConfirmada;
 
@@ -365,6 +424,56 @@ export default function CalendarioProveedorScreen() {
         <Text style={styles.preferenciaHint}>
           Elige el horario que prefieres. El proveedor lo confirma al responder tu solicitud.
         </Text>
+
+        {requierePickerTecnico ? (
+          <>
+            <Text style={styles.sectionLabel}>Elige tu técnico</Text>
+            {loadingMecanicos ? (
+              <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 12 }} />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tecnicoCarousel}
+              >
+                {mecanicosAptos.map((m) => {
+                  const sel = miembroSeleccionado === m.id;
+                  const modLabel = m.modalidad_display || modalidadLabel(m.modalidad_tecnico);
+                  return (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.tecnicoCard, sel && styles.tecnicoCardSelected]}
+                      onPress={() => seleccionarMiembro(m.id)}
+                      activeOpacity={0.85}
+                    >
+                      {m.foto_url ? (
+                        <Image source={{ uri: m.foto_url }} style={styles.tecnicoAvatar} />
+                      ) : (
+                        <View style={styles.tecnicoAvatarPlaceholder}>
+                          <Text style={styles.tecnicoAvatarInitial}>
+                            {(m.nombre || '?').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      <Text style={[styles.tecnicoNombre, sel && styles.tecnicoNombreSelected]} numberOfLines={2}>
+                        {m.nombre}
+                      </Text>
+                      {modLabel ? (
+                        <Text style={[styles.tecnicoModalidad, sel && styles.tecnicoModalidadSelected]} numberOfLines={1}>
+                          {modLabel}
+                        </Text>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+            {!miembroSeleccionado && !loadingMecanicos ? (
+              <Text style={styles.hint}>Selecciona un técnico para ver su agenda</Text>
+            ) : null}
+          </>
+        ) : null}
+
         <Text style={styles.sectionLabel}>Fecha</Text>
         {loadingDias ? (
           <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 16 }} />
@@ -700,5 +809,60 @@ const styles = StyleSheet.create({
     color: COLORS.text.inverse,
     fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  tecnicoCarousel: {
+    gap: SPACING.sm,
+    paddingBottom: SPACING.sm,
+  },
+  tecnicoCard: {
+    width: 112,
+    alignItems: 'center',
+    padding: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+  },
+  tecnicoCardSelected: {
+    borderColor: COLORS.primary[500],
+    backgroundColor: COLORS.primary[50],
+  },
+  tecnicoAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginBottom: 6,
+  },
+  tecnicoAvatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginBottom: 6,
+    backgroundColor: COLORS.neutral.gray[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tecnicoAvatarInitial: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.primary[600],
+  },
+  tecnicoNombre: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+    textAlign: 'center',
+  },
+  tecnicoNombreSelected: {
+    color: COLORS.primary[700],
+  },
+  tecnicoModalidad: {
+    fontSize: 10,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  tecnicoModalidadSelected: {
+    color: COLORS.primary[600],
   },
 });

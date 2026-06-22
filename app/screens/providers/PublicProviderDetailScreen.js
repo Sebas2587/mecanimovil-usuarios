@@ -22,6 +22,7 @@ import ProviderCompletedJobsSection from '../../components/provider/ProviderComp
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
 import ProviderCatalogServiceCard from '../../components/provider/ProviderCatalogServiceCard';
 import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
+import ProviderTeamSection from '../../components/provider/ProviderTeamSection';
 import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
 
 import { fetchPublicProviderFicha, getProviderReviews } from '../../services/providers';
@@ -41,6 +42,7 @@ import { filtrarServiciosCatalogoPerfilProveedor } from '../../utils/servicioVeh
 import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
 import { isProviderMultimarca } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
+import { useProviderTeam } from '../../hooks/useProviders';
 
 const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
 
@@ -140,6 +142,11 @@ const PublicProviderDetailScreen = () => {
   useEffect(() => {
     reload();
   }, [reload]);
+
+  const { data: equipoPublico = [] } = useProviderTeam(
+    providerType === 'taller' ? providerId : null,
+  );
+  const tieneEquipoPublico = providerType === 'taller' && equipoPublico.length > 0;
 
   const handleShare = useCallback(async () => {
     if (providerId == null || providerId === '' || !providerType || !details) return;
@@ -364,7 +371,11 @@ const PublicProviderDetailScreen = () => {
         );
       })()}
 
-      <ProviderScheduleSection horarios={details?.horarios_semanales || []} />
+      {tieneEquipoPublico ? (
+        <ProviderTeamSection miembros={equipoPublico} />
+      ) : (
+        <ProviderScheduleSection horarios={details?.horarios_semanales || []} />
+      )}
 
       <TrustSection documents={documents || []} />
 

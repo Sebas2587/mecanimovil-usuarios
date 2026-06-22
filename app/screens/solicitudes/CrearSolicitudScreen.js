@@ -116,6 +116,7 @@ const CrearSolicitudScreen = () => {
       ...(prev || {}),
       fecha_preferida: slotSeleccionado.fecha,
       hora_preferida: slotSeleccionado.hora || '',
+      miembro_taller_preferido: slotSeleccionado.miembroTallerId ?? null,
     }));
     const paso =
       typeof pasoDestinoTrasCalendario === 'number' && pasoDestinoTrasCalendario >= 1
@@ -126,7 +127,7 @@ const CrearSolicitudScreen = () => {
       slotSeleccionado: undefined,
       pasoDestinoTrasCalendario: undefined,
     });
-  }, [slotSeleccionado?.fecha, slotSeleccionado?.hora, pasoDestinoTrasCalendario, navigation]);
+  }, [slotSeleccionado?.fecha, slotSeleccionado?.hora, slotSeleccionado?.miembroTallerId, pasoDestinoTrasCalendario, navigation]);
 
   // Clave estable para useFocusEffect: `route.params` suele ser un objeto nuevo en cada render del
   // navigator y recreaba el callback → doble foco / refetch y setInitialData en momentos raros.
@@ -918,6 +919,10 @@ const CrearSolicitudScreen = () => {
         ubicacion_servicio: ubicacionServicio // Enviar en formato GeoJSON: {"type": "Point", "coordinates": [lng, lat]}
         // fecha_expiracion se calcula automáticamente en el modelo (48 horas desde ahora)
       };
+
+      if (formData.miembro_taller_preferido) {
+        solicitudData.miembro_taller_preferido = formData.miembro_taller_preferido;
+      }
 
       if (sinVehiculo) {
         solicitudData.sin_vehiculo_registrado = true;

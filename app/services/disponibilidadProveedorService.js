@@ -41,11 +41,13 @@ export async function obtenerDiasDisponiblesAgenda({
   tipoProveedor,
   proveedorId,
   ofertaServicioId,
+  miembroTallerId,
   dias = 14,
 }) {
   const path = `${basePath(tipoProveedor, proveedorId)}/dias_disponibles_agenda/`;
   const params = { dias };
   if (ofertaServicioId) params.oferta_servicio_id = ofertaServicioId;
+  if (miembroTallerId) params.miembro_taller = miembroTallerId;
   return get(path, params);
 }
 
@@ -54,11 +56,30 @@ export async function obtenerDisponibilidadConDuracion({
   proveedorId,
   fecha,
   ofertaServicioId,
+  miembroTallerId,
 }) {
   const path = `${basePath(tipoProveedor, proveedorId)}/disponibilidad_con_duracion/`;
   const params = { fecha };
   if (ofertaServicioId) params.oferta_servicio_id = ofertaServicioId;
+  if (miembroTallerId) params.miembro_taller = miembroTallerId;
   return get(path, params);
+}
+
+/** Mecánicos aptos para el picker de agenda (solo talleres con equipo). */
+export async function obtenerMecanicosAptosAgenda({
+  tallerId,
+  ofertaServicioId,
+  modalidad,
+}) {
+  const params = {};
+  if (ofertaServicioId) params.oferta_servicio_id = ofertaServicioId;
+  if (modalidad) params.modalidad = modalidad;
+  const res = await get(
+    `/usuarios/talleres/${tallerId}/mecanicos-aptos-agenda/`,
+    params,
+    { requiresAuth: false },
+  );
+  return Array.isArray(res?.miembros) ? res.miembros : [];
 }
 
 /**
@@ -69,8 +90,32 @@ export async function resolverFechasAgendaReales({
   tipoProveedor,
   proveedorId,
   ofertaServicioId,
+  miembroTallerId,
   diasCalendario = [],
 }) {
+  // Con técnico elegido, la API filtra por su agenda (no usar horario genérico del taller).
+  if (miembroTallerId) {
+    try {
+      const diasRes = await obtenerDiasDisponiblesAgenda({
+        tipoProveedor,
+        proveedorId,
+        ofertaServicioId,
+        miembroTallerId,
+        dias: diasCalendario.length || 14,
+      });
+      const fechasApi = Array.isArray(diasRes?.fechas_disponibles)
+        ? diasRes.fechas_disponibles
+        : [];
+      return {
+        fechas: fechasApi.sort(),
+        sinHorarioConfigurado: false,
+        diasLaborables: new Set(),
+      };
+    } catch {
+      return { fechas: [], sinHorarioConfigurado: true, diasLaborables: new Set() };
+    }
+  }
+
   const horarios = await obtenerHorariosSemanalesProveedor({
     tipoProveedor,
     proveedorId,
@@ -94,6 +139,7 @@ export async function resolverFechasAgendaReales({
       tipoProveedor,
       proveedorId,
       ofertaServicioId,
+      miembroTallerId,
       dias: diasCalendario.length || 14,
     });
     const fechasApi = Array.isArray(diasRes?.fechas_disponibles)
@@ -123,6 +169,7 @@ export async function resolverFechasAgendaReales({
           proveedorId,
           fecha: dia.fecha,
           ofertaServicioId,
+          miembroTallerId,
         });
         if (
           data?.proveedor_disponible

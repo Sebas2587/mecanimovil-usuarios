@@ -181,6 +181,30 @@ export const useProviderWeeklySchedule = (id, type) => {
     });
 };
 
+export const useProviderTeam = (id, options = {}) => {
+    const { ofertaServicioId = null, modalidad = null } = options;
+    return useQuery({
+        queryKey: ['providerTeam', id, ofertaServicioId, modalidad],
+        queryFn: async () => {
+            const safeId = typeof id === 'number' ? id : parseInt(String(id), 10);
+            const params = {};
+            if (ofertaServicioId) params.oferta_servicio_id = ofertaServicioId;
+            if (modalidad) params.modalidad = modalidad;
+            const response = await get(
+                `/usuarios/talleres/${safeId}/equipo-publico/`,
+                params,
+                { requiresAuth: false },
+            );
+            return Array.isArray(response?.miembros) ? response.miembros : [];
+        },
+        enabled: !!id,
+        staleTime: 1000 * 60 * 5,
+        gcTime: 1000 * 60 * 30,
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
+};
+
 export const useProviderDocuments = (id, type) => {
     return useQuery({
         queryKey: ['providerDocuments', type, id],

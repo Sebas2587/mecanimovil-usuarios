@@ -498,6 +498,36 @@ const DetalleSolicitudScreen = () => {
                 ? ` · ${String(ofertaCatalogoActiva.hora_disponible).substring(0, 5)}`
                 : ''}
             </Text>
+            {ofertaCatalogoActiva.miembro_taller_detail ? (
+              <View style={styles.tecnicoPropuestoRow}>
+                {ofertaCatalogoActiva.miembro_taller_detail.foto_url ? (
+                  <Image
+                    source={{ uri: ofertaCatalogoActiva.miembro_taller_detail.foto_url }}
+                    style={styles.tecnicoPropuestoAvatar}
+                  />
+                ) : (
+                  <View style={styles.tecnicoPropuestoAvatarPlaceholder}>
+                    <Ionicons name="person" size={18} color={COLORS.primary[500]} />
+                  </View>
+                )}
+                <View style={styles.tecnicoPropuestoInfo}>
+                  <Text style={styles.tecnicoPropuestoNombre}>
+                    {ofertaCatalogoActiva.miembro_taller_detail.nombre}
+                  </Text>
+                  {ofertaCatalogoActiva.es_cambio_tecnico ? (
+                    <Text style={styles.tecnicoPropuestoHint}>
+                      El proveedor propone otro técnico para este servicio
+                    </Text>
+                  ) : ofertaCatalogoActiva.miembro_taller_detail.especialidades?.length ? (
+                    <Text style={styles.tecnicoPropuestoHint} numberOfLines={2}>
+                      {ofertaCatalogoActiva.miembro_taller_detail.especialidades
+                        .map((e) => e.nombre)
+                        .join(' · ')}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
             {ofertaCatalogoActiva.motivo_fecha_alternativa ? (
               <Text style={styles.fechaAlternativaMotivo}>
                 {ofertaCatalogoActiva.motivo_fecha_alternativa}
@@ -1415,6 +1445,39 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.primary,
     marginBottom: 4,
+  },
+  tecnicoPropuestoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 4,
+    gap: 10,
+  },
+  tecnicoPropuestoAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  tecnicoPropuestoAvatarPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tecnicoPropuestoInfo: {
+    flex: 1,
+  },
+  tecnicoPropuestoNombre: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: '600',
+    color: COLORS.text.primary,
+  },
+  tecnicoPropuestoHint: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+    marginTop: 2,
   },
   fechaAlternativaMotivo: {
     fontSize: TYPOGRAPHY.fontSize.sm,

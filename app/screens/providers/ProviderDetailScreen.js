@@ -33,12 +33,14 @@ import ProviderCompletedJobsSection from '../../components/provider/ProviderComp
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
 import ProviderCatalogServiceCard from '../../components/provider/ProviderCatalogServiceCard';
 import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
+import ProviderTeamSection from '../../components/provider/ProviderTeamSection';
 import ReviewCard from '../../components/reviews/ReviewCard';
 
 import {
   useProviderDetails,
   useProviderServices,
   useProviderWeeklySchedule,
+  useProviderTeam,
   useProviderDocuments,
   useProviderReviews,
   useProviderCompletedJobs,
@@ -144,6 +146,10 @@ const ProviderDetailScreen = () => {
     vehicleForSchedule,
   );
   const { data: schedule } = useProviderWeeklySchedule(idToLoad, providerType);
+  const { data: equipoPublico = [] } = useProviderTeam(
+    providerType === 'taller' ? idToLoad : null,
+  );
+  const tieneEquipoPublico = providerType === 'taller' && equipoPublico.length > 0;
   const { data: documents } = useProviderDocuments(idToLoad, providerType);
   const { data: reviewsData } = useProviderReviews(idToLoad, providerType);
   const { data: completedJobs = [] } = useProviderCompletedJobs(idToLoad, providerType);
@@ -405,7 +411,11 @@ const ProviderDetailScreen = () => {
           );
         })()}
 
-        <ProviderScheduleSection horarios={schedule || []} />
+        {tieneEquipoPublico ? (
+          <ProviderTeamSection miembros={equipoPublico} />
+        ) : (
+          <ProviderScheduleSection horarios={schedule || []} />
+        )}
 
         {/* Reviews */}
         <View style={styles.section}>

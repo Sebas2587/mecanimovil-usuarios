@@ -151,7 +151,7 @@ export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extra
     lng = parseFloat(extras.lng);
   }
 
-  return {
+  const payload = {
     oferta_servicio_id: ofertaIds[0] ?? ofertaServicioId,
     oferta_servicio_ids: ofertaIds,
     vehiculo_id: formData.vehiculo?.id,
@@ -174,6 +174,10 @@ export function buildConfirmarCandidatoPayload(formData, ofertaServicioId, extra
     metadata_ia_entrada: extras.metadata_ia_entrada ?? formData.ia_analisis_snapshot ?? null,
     score_match: extras.score_match,
   };
+  if (formData.miembro_taller_preferido) {
+    payload.miembro_taller_preferido = formData.miembro_taller_preferido;
+  }
+  return payload;
 }
 
 /** Normaliza distancia_km del API (número o string) para UI. */
