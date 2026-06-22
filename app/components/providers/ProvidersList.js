@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import ProviderModal from '../modals/ProviderModal';
 import { formatCurrency } from '../../utils/format';
+import { modalidadBadges } from '../../utils/providerModalidad';
 
 /**
  * Componente para mostrar la lista de proveedores (talleres o mecánicos)
@@ -53,6 +54,17 @@ const ProvidersList = ({
 
       <View style={styles.providerInfo}>
         <Text style={styles.providerName}>{item.nombre}</Text>
+
+        {modalidadBadges(item).length > 0 && (
+          <View style={styles.modalidadRow}>
+            {modalidadBadges(item).map((b) => (
+              <View key={b.key} style={styles.modalidadBadge}>
+                <MaterialIcons name={b.icon} size={12} color="#4C669F" />
+                <Text style={styles.modalidadBadgeText}>{b.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Información específica según el tipo de proveedor */}
         {type === 'taller' && (item.direccion_fisica?.direccion_completa || item.direccion) && (
@@ -183,6 +195,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 5,
+  },
+  modalidadRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 5,
+  },
+  modalidadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FB',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  modalidadBadgeText: {
+    fontSize: 11,
+    color: '#4C669F',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   infoRow: {
     flexDirection: 'row',

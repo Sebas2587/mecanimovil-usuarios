@@ -10,6 +10,8 @@ import {
   weeklyHorariosHasAnyActiveSlot,
 } from '../../utils/providerUtils';
 import ProviderKpiTierBadge from './ProviderKpiTierBadge';
+import { modalidadBadges } from '../../utils/providerModalidad';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -179,6 +181,17 @@ const ProviderHeader = ({
         </View>
 
         <Text style={styles.type}>{[type, location].filter(Boolean).join(' • ') || type}</Text>
+
+        {modalidadBadges(provider).length > 0 && (
+          <View style={styles.modalidadRow}>
+            {modalidadBadges(provider).map((b) => (
+              <View key={b.key} style={styles.modalidadBadge}>
+                <MaterialIcons name={b.icon} size={13} color={COLORS.primary[500]} />
+                <Text style={styles.modalidadBadgeText}>{b.label}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
@@ -369,6 +382,27 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.secondary,
     marginBottom: 12,
+  },
+  modalidadRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  modalidadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.primary[50] ?? '#EEF2FB',
+    borderRadius: BORDERS.radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginRight: 8,
+    marginBottom: 6,
+  },
+  modalidadBadgeText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.primary[500],
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    marginLeft: 5,
   },
   statsRow: {
     flexDirection: 'row',
