@@ -273,6 +273,7 @@ export function mapCandidatoToOfertaComparador(candidato) {
     solicitud_requiere_repuestos: candidato.solicitud_requiere_repuestos,
     rating_proveedor: candidato.proveedor?.rating,
     a_domicilio: candidato.a_domicilio,
+    modalidad_atencion: candidato.modalidad_atencion ?? candidato.proveedor?.modalidad_atencion,
     score_match: candidato.score_match,
     match_factores: candidato.match_factores || {},
     explicacion: candidato.explicacion,
