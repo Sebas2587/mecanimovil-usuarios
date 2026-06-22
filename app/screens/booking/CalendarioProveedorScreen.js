@@ -395,7 +395,7 @@ export default function CalendarioProveedorScreen() {
           keyboardShouldPersistTaps="handled"
           {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
         >
-        {estadoActual?.ocupado && (
+        {estadoActual?.ocupado ? (
           <View style={styles.badgeOcupado}>
             <Clock size={16} color={COLORS.warning[700]} />
             <Text style={styles.badgeOcupadoText}>
@@ -408,26 +408,28 @@ export default function CalendarioProveedorScreen() {
                 : ''}
             </Text>
           </View>
-        )}
-
-        {!estadoActual?.ocupado && fechaSeleccionada === diasBase[0]?.fecha && (
-          <View style={styles.badgeLibre}>
-            <Text style={styles.badgeLibreText}>Disponible para agendar hoy</Text>
-          </View>
-        )}
-
-        {duracion?.etiqueta ? (
-          <Text style={styles.duracionHint}>
-            Duración estimada: {duracion.etiqueta}
-          </Text>
         ) : null}
-        <Text style={styles.preferenciaHint}>
-          Elige el horario que prefieres. El proveedor lo confirma al responder tu solicitud.
-        </Text>
+
+        {!estadoActual?.ocupado && (duracion?.etiqueta || fechaSeleccionada === diasBase[0]?.fecha) ? (
+          <View style={styles.metaRow}>
+            {!estadoActual?.ocupado && fechaSeleccionada === diasBase[0]?.fecha ? (
+              <View style={styles.metaChip}>
+                <Text style={styles.metaChipText}>Hoy disponible</Text>
+              </View>
+            ) : null}
+            {duracion?.etiqueta ? (
+              <View style={[styles.metaChip, styles.metaChipMuted]}>
+                <Text style={[styles.metaChipText, styles.metaChipTextMuted]}>
+                  {duracion.etiqueta}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         {requierePickerTecnico ? (
           <>
-            <Text style={styles.sectionLabel}>Elige tu técnico</Text>
+            <Text style={styles.sectionLabel}>Técnico</Text>
             {loadingMecanicos ? (
               <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 12 }} />
             ) : (
@@ -468,22 +470,18 @@ export default function CalendarioProveedorScreen() {
                 })}
               </ScrollView>
             )}
-            {!miembroSeleccionado && !loadingMecanicos ? (
-              <Text style={styles.hint}>Selecciona un técnico para ver su agenda</Text>
-            ) : null}
           </>
         ) : null}
 
-        <Text style={styles.sectionLabel}>Fecha</Text>
+        <Text style={[styles.sectionLabel, requierePickerTecnico && styles.sectionLabelTight]}>Fecha</Text>
         {loadingDias ? (
           <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 16 }} />
         ) : (
           <>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
             {agendaSinDias && !error ? (
-              <Text style={styles.hint}>
-                No hay horarios libres en los próximos 14 días según su agenda y la duración de este
-                servicio (puede haber citas ya reservadas).
+              <Text style={styles.hintCompact}>
+                Sin horarios libres en los próximos 14 días.
               </Text>
             ) : null}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.diasRow}>
@@ -511,15 +509,15 @@ export default function CalendarioProveedorScreen() {
           </>
         )}
 
-        <Text style={[styles.sectionLabel, { marginTop: SPACING.lg }]}>Horario</Text>
+        <Text style={styles.sectionLabel}>Horario</Text>
         {loadingSlots ? (
-          <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 20 }} />
+          <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 12 }} />
         ) : !fechaSeleccionada ? (
-          <Text style={styles.hint}>Selecciona un día disponible</Text>
+          <Text style={styles.hintCompact}>Elige un día</Text>
         ) : slots.length === 0 ? (
           <View style={styles.emptySlots}>
-            <CalendarDays size={28} color={COLORS.neutral.gray[400]} />
-            <Text style={styles.hint}>Sin horarios libres este día</Text>
+            <CalendarDays size={24} color={COLORS.neutral.gray[400]} />
+            <Text style={styles.hintCompact}>Sin horarios este día</Text>
           </View>
         ) : (
           <View style={styles.slotsGrid}>
@@ -646,7 +644,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs,
     padding: SPACING.sm,
     borderRadius: BORDERS.radius.md,
     backgroundColor: COLORS.warning[50],
@@ -658,42 +656,46 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.warning[800],
   },
-  badgeLibre: {
-    marginTop: SPACING.sm,
-    paddingVertical: 6,
-    paddingHorizontal: SPACING.sm,
-    alignSelf: 'flex-start',
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: SPACING.sm,
+  },
+  metaChip: {
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: BORDERS.radius.full,
     backgroundColor: withOpacity(COLORS.success[500], 0.12),
   },
-  badgeLibreText: {
+  metaChipMuted: {
+    backgroundColor: COLORS.neutral.gray[100],
+  },
+  metaChipText: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.success[700],
   },
-  duracionHint: {
-    marginTop: SPACING.xs,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.tertiary,
-  },
-  preferenciaHint: {
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.xs,
-    fontSize: TYPOGRAPHY.fontSize.sm,
+  metaChipTextMuted: {
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.secondary,
-    lineHeight: 20,
   },
   scroll: {
     paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
+    paddingTop: SPACING.xs,
   },
   sectionLabel: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.secondary,
-    marginBottom: SPACING.sm,
+    marginBottom: SPACING.xs,
+    marginTop: SPACING.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
+  },
+  sectionLabelTight: {
+    marginTop: SPACING.xs,
   },
   diasRow: {
     flexGrow: 0,
@@ -777,10 +779,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: SPACING.lg,
   },
+  hintCompact: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.tertiary,
+    marginBottom: SPACING.xs,
+  },
   emptySlots: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.xl,
-    gap: SPACING.sm,
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    paddingVertical: SPACING.md,
   },
   errorText: {
     color: COLORS.error.main,
@@ -812,7 +821,7 @@ const styles = StyleSheet.create({
   },
   tecnicoCarousel: {
     gap: SPACING.sm,
-    paddingBottom: SPACING.sm,
+    paddingBottom: SPACING.xs,
   },
   tecnicoCard: {
     width: 112,

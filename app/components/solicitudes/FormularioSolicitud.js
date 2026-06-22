@@ -198,6 +198,7 @@ const FormularioSolicitud = ({
     detalles_ubicacion: (initialData?.detalles_ubicacion && typeof initialData.detalles_ubicacion === 'string') ? initialData.detalles_ubicacion : '',
     fecha_preferida: (initialData?.fecha_preferida && typeof initialData.fecha_preferida === 'string') ? initialData.fecha_preferida : '',
     hora_preferida: (initialData?.hora_preferida && typeof initialData.hora_preferida === 'string') ? initialData.hora_preferida : '',
+    miembro_taller_preferido: initialData?.miembro_taller_preferido ?? null,
     ubicacion_servicio: initialData?.ubicacion_servicio || null,
     sin_vehiculo_registrado: initialData?.sin_vehiculo_registrado === true,
     fotos_necesidad: Array.isArray(initialData?.fotos_necesidad) ? initialData.fotos_necesidad : [],
@@ -601,6 +602,13 @@ const FormularioSolicitud = ({
         }
         if (initialData.hora_preferida !== undefined && prev.hora_preferida !== initialData.hora_preferida) {
           cambios.hora_preferida = initialData.hora_preferida;
+          hayCambios = true;
+        }
+        if (
+          initialData.miembro_taller_preferido !== undefined
+          && prev.miembro_taller_preferido !== initialData.miembro_taller_preferido
+        ) {
+          cambios.miembro_taller_preferido = initialData.miembro_taller_preferido;
           hayCambios = true;
         }
         if (initialData.ubicacion_servicio !== undefined && prev.ubicacion_servicio !== initialData.ubicacion_servicio) {

@@ -140,6 +140,11 @@ const DetalleSolicitudScreen = () => {
     return detalle ? [detalle] : [];
   }, [esPendienteConfirmacion, ofertas, solicitud?.oferta_seleccionada_detail]);
 
+  const layoutCatalogoUnificado = useMemo(
+    () => esPendienteConfirmacion && ofertasVisibles.length <= 1,
+    [esPendienteConfirmacion, ofertasVisibles.length],
+  );
+
   const ofertaCatalogoActiva = useMemo(() => {
     const selId = solicitud?.oferta_seleccionada;
     return (
@@ -466,18 +471,62 @@ const DetalleSolicitudScreen = () => {
           keyboardShouldPersistTaps="handled"
           {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
         >
-        {/* 1) Vehículo (primero) */}
-        {solicitud.vehiculo_info && (
-          <CertifiedVehicleCard vehiculo={solicitud.vehiculo_info} />
+        {layoutCatalogoUnificado ? (
+          <View style={styles.unifiedSolicitudCard}>
+            <ServiceSummaryCard
+              solicitud={solicitud}
+              vehiculo={solicitud.vehiculo_info}
+              checklistPendienteFirma={requiereFirmaCliente}
+              embedded
+              ocultarPreciosCatalogo
+              ocultarMetaCatalogo
+            />
+            <View style={styles.unifiedSectionDivider} />
+            <View style={styles.unifiedOfferHeader}>
+              <Text style={styles.unifiedOfferTitle}>Proveedor y precio</Text>
+              <Text style={styles.unifiedOfferHint}>
+                El taller debe confirmar antes de que puedas pagar.
+              </Text>
+            </View>
+            {ofertasVisibles.length > 0 ? ofertasVisibles.map((oferta) => {
+              const isWinner = solicitud.oferta_seleccionada === oferta.id;
+              return (
+                <OfferCardDetailed
+                  key={oferta.id}
+                  oferta={oferta}
+                  solicitud={solicitud}
+                  chatUnreadCount={solicitudChatUnread}
+                  onChatPress={handleChat}
+                  onAceptarPress={handleAceptarOferta}
+                  onProfilePress={handleProfilePress}
+                  disabled={procesando || esPendienteConfirmacion}
+                  isAccepted={isWinner || esPendienteConfirmacion}
+                  catalogoPendienteConfirmacion={esPendienteConfirmacion && isWinner}
+                  checklistPendienteFirma={isWinner && requiereFirmaCliente}
+                  embedded
+                  resumidoCatalogo
+                />
+              );
+            }) : (
+              <View style={styles.unifiedOfferLoading}>
+                <ActivityIndicator size="small" color={COLORS.primary[500]} />
+                <Text style={styles.unifiedOfferHint}>Cargando tu elección del catálogo…</Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          <>
+            {solicitud.vehiculo_info ? (
+              <CertifiedVehicleCard vehiculo={solicitud.vehiculo_info} />
+            ) : null}
+            <ServiceSummaryCard
+              solicitud={solicitud}
+              checklistPendienteFirma={requiereFirmaCliente}
+            />
+          </>
         )}
 
-        {/* 2) Detalle de Solicitud */}
-        <ServiceSummaryCard
-          solicitud={solicitud}
-          checklistPendienteFirma={requiereFirmaCliente}
-        />
-
-        {esPendienteConfirmacion ? (
+        {!layoutCatalogoUnificado && esPendienteConfirmacion ? (
           <View style={styles.catalogoBanner}>
             <Ionicons name="hourglass-outline" size={22} color={COLORS.primary[600]} />
             <View style={styles.catalogoBannerTextWrap}>
@@ -579,6 +628,7 @@ const DetalleSolicitudScreen = () => {
         ) : null}
 
         {/* C. Tabs: Ofertas recibidas | Ofertas adicionales */}
+        {!layoutCatalogoUnificado ? (
         <View style={styles.tabSection}>
           <View style={styles.segmentContainer}>
             <TouchableOpacity
@@ -719,6 +769,7 @@ const DetalleSolicitudScreen = () => {
             </View>
           )}
         </View>
+        ) : null}
 
         </ScrollView>
       </View>
@@ -1399,6 +1450,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
+  },
+  unifiedSolicitudCard: {
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    overflow: 'hidden',
+    ...SHADOWS.sm,
+  },
+  unifiedSectionDivider: {
+    height: BORDERS.width.thin,
+    backgroundColor: COLORS.border.light,
+    marginHorizontal: SPACING.md,
+  },
+  unifiedOfferHeader: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xs,
+  },
+  unifiedOfferTitle: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  unifiedOfferHint: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  unifiedOfferLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.lg,
   },
   catalogoBanner: {
     flexDirection: 'row',

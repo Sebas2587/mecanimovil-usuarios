@@ -9,17 +9,19 @@ import {
 } from '../../utils/solicitudServicios';
 import {
     resolveRepuestosServicioMeta,
-    getRepuestosServicioIcon,
 } from '../../utils/solicitudRepuestosServicio';
 import { resolvePrecioTotalOfrecidoEfectivo } from '../../utils/ofertaPrecioRepuestos';
 import {
     resolveModalidadServicio,
     resolveUbicacionServicioTexto,
     getModalidadServicioIcon,
+    getUbicacionServicioLabel,
 } from '../../utils/solicitudModalidadServicio';
 import { getEstadoSolicitudSurface } from '../../utils/solicitudEstadoDisplay';
+import { resolveTecnicoPreferido, especialidadesTecnicoTexto } from '../../utils/solicitudTecnicoPreferido';
+import SolicitudDetalleRow from './SolicitudDetalleRow';
 
-/** Colores de badge alineados a estados de solicitud pública (Coinbase / superficies suaves). */
+/** Colores de badge alineados a estados de solicitud pública. */
 export function getEstadoBadgeMeta(solicitud, options = {}) {
     const surface = getEstadoSolicitudSurface(solicitud, options);
     return {
@@ -35,31 +37,65 @@ const getUrgencyConfig = (urgencia) => {
         case 'alta':
             return {
                 color: COLORS.error[700],
-                label: 'Urgencia Alta',
+                label: 'Urgencia alta',
                 bg: COLORS.error[50],
                 icon: 'lightning-bolt',
             };
         case 'media':
             return {
                 color: COLORS.warning[800],
-                label: 'Urgencia Media',
+                label: 'Urgencia media',
                 bg: COLORS.warning[50],
                 icon: 'clock-alert-outline',
             };
         default:
             return {
                 color: COLORS.success[700],
-                label: 'Urgencia Baja',
+                label: 'Urgencia baja',
                 bg: COLORS.success[50],
                 icon: 'calendar-clock',
             };
     }
 };
 
-const ServiceSummaryCard = ({ solicitud, checklistPendienteFirma = false }) => {
+function VehiculoStrip({ vehiculo }) {
+    if (!vehiculo) return null;
+    const year = vehiculo.year || vehiculo.anio || vehiculo.año;
+    const meta = [year, vehiculo.cilindraje ? `${vehiculo.cilindraje}L` : null, vehiculo.patente]
+        .filter(Boolean)
+        .join(' · ');
+
+    return (
+        <View style={styles.vehiculoStrip}>
+            <View style={styles.vehiculoIcon}>
+                <Ionicons name="car-sport-outline" size={18} color={COLORS.primary[600]} />
+            </View>
+            <View style={styles.vehiculoTextWrap}>
+                <Text style={styles.vehiculoTitulo} numberOfLines={1}>
+                    {[vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' ')}
+                </Text>
+                {meta ? (
+                    <Text style={styles.vehiculoMeta} numberOfLines={1}>
+                        {meta}
+                    </Text>
+                ) : null}
+            </View>
+        </View>
+    );
+}
+
+const ServiceSummaryCard = ({
+    solicitud,
+    checklistPendienteFirma = false,
+    vehiculo = null,
+    embedded = false,
+    ocultarPreciosCatalogo = false,
+    ocultarMetaCatalogo = false,
+}) => {
     if (!solicitud) return null;
 
     const urgencyConfig = getUrgencyConfig(solicitud.urgencia);
+    const estadoBadge = getEstadoBadgeMeta(solicitud, { checklistPendienteFirma });
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Pendiente';
@@ -89,19 +125,15 @@ const ServiceSummaryCard = ({ solicitud, checklistPendienteFirma = false }) => {
                     const n = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
                     return n || p.username || (p.id != null ? `Proveedor #${p.id}` : 'Proveedor');
                 });
-                const lista = nombres.join(', ');
                 return {
                     titulo:
                         nombres.length === 1
                             ? 'Dirigida a un proveedor'
                             : `Dirigida a ${nombres.length} proveedores`,
-                    detalle: lista,
+                    detalle: nombres.join(', '),
                 };
             }
-            return {
-                titulo: 'Dirigida a proveedores específicos',
-                detalle: null,
-            };
+            return { titulo: 'Dirigida a proveedores específicos', detalle: null };
         }
         return {
             titulo: 'Abierta a todos los proveedores',
@@ -115,15 +147,19 @@ const ServiceSummaryCard = ({ solicitud, checklistPendienteFirma = false }) => {
         () => resolveUbicacionServicioTexto(solicitud, modalidadServicio),
         [solicitud, modalidadServicio],
     );
-    const estadoBadge = getEstadoBadgeMeta(solicitud, { checklistPendienteFirma });
     const fechaPreferida = solicitud.fecha_preferida || solicitud.fecha_creacion;
     const horaPreferida = solicitud.hora_preferida || solicitud.preferencia_horario;
+    const horaTexto = formatTime(horaPreferida);
+    const cuandoTexto = horaTexto
+        ? `${formatDate(fechaPreferida)} · ${horaTexto}`
+        : formatDate(fechaPreferida);
 
     const serviciosSolicitud = useMemo(() => resolveServiciosSolicitud(solicitud), [solicitud]);
     const multiServicio = serviciosSolicitud.length > 1;
     const tituloServicios = solicitud.servicio_nombre || formatServiciosTitulo(serviciosSolicitud);
 
     const lineasOfertaCatalogo = useMemo(() => {
+        if (ocultarPreciosCatalogo) return [];
         const oferta = solicitud?.oferta_seleccionada_detail;
         const detalles = oferta?.detalles_servicios;
         if (!Array.isArray(detalles) || detalles.length <= 1) return [];
@@ -132,18 +168,94 @@ const ServiceSummaryCard = ({ solicitud, checklistPendienteFirma = false }) => {
             nombre: d.servicio_nombre || 'Servicio',
             precio: parseFloat(d.precio_servicio || 0),
         }));
-    }, [solicitud?.oferta_seleccionada_detail]);
+    }, [solicitud?.oferta_seleccionada_detail, ocultarPreciosCatalogo]);
 
     const repuestosMeta = useMemo(() => resolveRepuestosServicioMeta(solicitud), [solicitud]);
+    const tecnicoPreferido = useMemo(() => resolveTecnicoPreferido(solicitud), [solicitud]);
+    const vehiculoMostrar = vehiculo || solicitud.vehiculo_info || null;
+
+    const estadoBadgeNode = (
+        <View
+            style={[
+                styles.estadoBadge,
+                { backgroundColor: estadoBadge.bg, borderColor: estadoBadge.border },
+            ]}
+        >
+            <Text style={[styles.estadoBadgeText, { color: estadoBadge.color }]} numberOfLines={2}>
+                {estadoBadge.label}
+            </Text>
+        </View>
+    );
+
+    const detailRows = [
+        {
+            key: 'cuando',
+            icon: 'calendar-outline',
+            label: 'Cuándo',
+            value: cuandoTexto,
+        },
+        modalidadServicio
+            ? {
+                key: 'modalidad',
+                icon: getModalidadServicioIcon(modalidadServicio),
+                label: 'Modalidad',
+                value: modalidadServicio.label,
+            }
+            : null,
+        tecnicoPreferido
+            ? {
+                key: 'tecnico',
+                icon: 'person-outline',
+                label: 'Técnico',
+                value: tecnicoPreferido.nombre,
+                hint: especialidadesTecnicoTexto(tecnicoPreferido)
+                    || tecnicoPreferido.modalidad_display
+                    || null,
+            }
+            : null,
+        {
+            key: 'ubicacion',
+            icon: 'location-outline',
+            label: getUbicacionServicioLabel(modalidadServicio),
+            value: ubicacionTexto,
+        },
+        !ocultarMetaCatalogo
+            ? {
+                key: 'repuestos',
+                icon: repuestosMeta.incluye ? 'construct-outline' : 'remove-circle-outline',
+                label: 'Repuestos',
+                value: repuestosMeta.label,
+                hint: repuestosMeta.fuente === 'proveedor' ? 'Según configuración del proveedor' : null,
+            }
+            : null,
+        !ocultarMetaCatalogo
+            ? {
+                key: 'modo',
+                icon: 'git-network-outline',
+                label: 'Alcance',
+                value: modoSolicitud.titulo,
+                hint: modoSolicitud.detalle,
+            }
+            : null,
+    ].filter(Boolean);
 
     return (
-        <View style={styles.card}>
+        <View style={[styles.card, embedded && styles.cardEmbedded]}>
+            <VehiculoStrip vehiculo={vehiculoMostrar} />
+
             <View style={styles.header}>
-                <View style={[styles.urgencyBadge, { backgroundColor: urgencyConfig.bg }]}>
-                    <MaterialCommunityIcons name={urgencyConfig.icon} size={14} color={urgencyConfig.color} />
-                    <Text style={[styles.urgencyText, { color: urgencyConfig.color }]}>
-                        {urgencyConfig.label}
-                    </Text>
+                <View style={styles.headerBadges}>
+                    <View style={[styles.chip, { backgroundColor: urgencyConfig.bg }]}>
+                        <MaterialCommunityIcons
+                            name={urgencyConfig.icon}
+                            size={13}
+                            color={urgencyConfig.color}
+                        />
+                        <Text style={[styles.chipText, { color: urgencyConfig.color }]}>
+                            {urgencyConfig.label}
+                        </Text>
+                    </View>
+                    {estadoBadgeNode}
                 </View>
                 <Text style={styles.idText}>#{solicitud.id ? solicitud.id.slice(0, 8) : '---'}</Text>
             </View>
@@ -153,33 +265,35 @@ const ServiceSummaryCard = ({ solicitud, checklistPendienteFirma = false }) => {
             {multiServicio ? (
                 <View style={styles.serviciosLista}>
                     {serviciosSolicitud.map((s) => (
-                        <View key={String(s.id ?? s.nombre)} style={styles.servicioRow}>
-                            <Ionicons name="construct-outline" size={14} color={COLORS.text.tertiary} />
-                            <Text style={styles.servicioNombre} numberOfLines={2}>
-                                {s.nombre}
-                            </Text>
-                        </View>
+                        <Text key={String(s.id ?? s.nombre)} style={styles.servicioNombre} numberOfLines={2}>
+                            · {s.nombre}
+                        </Text>
                     ))}
                 </View>
             ) : null}
 
+            {solicitud.descripcion_problema ? (
+                <Text style={styles.description} numberOfLines={4}>
+                    {solicitud.descripcion_problema}
+                </Text>
+            ) : null}
+
             {lineasOfertaCatalogo.length > 0 ? (
-                <View style={styles.ofertaPreciosBlock}>
-                    <Text style={styles.ofertaPreciosLabel}>Precio por servicio (oferta seleccionada)</Text>
+                <View style={styles.preciosInline}>
                     {lineasOfertaCatalogo.map((linea) => (
-                        <View key={String(linea.id ?? linea.nombre)} style={styles.servicioRow}>
-                            <Text style={styles.servicioNombre} numberOfLines={2}>
+                        <View key={String(linea.id ?? linea.nombre)} style={styles.precioLinea}>
+                            <Text style={styles.precioLineaNombre} numberOfLines={1}>
                                 {linea.nombre}
                             </Text>
                             {linea.precio > 0 ? (
-                                <Text style={styles.servicioPrecio}>{formatCLPServicio(linea.precio)}</Text>
+                                <Text style={styles.precioLineaValor}>{formatCLPServicio(linea.precio)}</Text>
                             ) : null}
                         </View>
                     ))}
                     {solicitud?.oferta_seleccionada_detail ? (
-                        <View style={styles.totalOfertaRow}>
-                            <Text style={styles.totalOfertaLabel}>Total oferta</Text>
-                            <Text style={styles.totalOfertaValue}>
+                        <View style={styles.precioTotalLinea}>
+                            <Text style={styles.precioTotalLabel}>Total</Text>
+                            <Text style={styles.precioTotalValor}>
                                 {formatCLPServicio(
                                     resolvePrecioTotalOfrecidoEfectivo(
                                         solicitud.oferta_seleccionada_detail,
@@ -192,120 +306,17 @@ const ServiceSummaryCard = ({ solicitud, checklistPendienteFirma = false }) => {
                 </View>
             ) : null}
 
-            {solicitud.descripcion_problema && (
-                <Text style={styles.description} numberOfLines={3}>
-                    {solicitud.descripcion_problema}
-                </Text>
-            )}
-
-            <View style={styles.gridContainer}>
-                <View style={styles.gridItem}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="flag-outline" size={18} color={COLORS.text.secondary} />
-                    </View>
-                    <View style={styles.gridItemTextWrap}>
-                        <Text style={styles.gridLabel}>Estado</Text>
-                        <View
-                            style={[
-                                styles.estadoBadge,
-                                {
-                                    backgroundColor: estadoBadge.bg,
-                                    borderColor: estadoBadge.border,
-                                },
-                            ]}
-                        >
-                            <Text style={[styles.estadoBadgeText, { color: estadoBadge.color }]} numberOfLines={2}>
-                                {estadoBadge.label}
-                            </Text>
-                        </View>
-                    </View>
-                </View>
-
-                <View style={styles.gridItem}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="calendar-outline" size={18} color={COLORS.text.secondary} />
-                    </View>
-                    <View>
-                        <Text style={styles.gridLabel}>Fecha solicitada</Text>
-                        <Text style={styles.gridValue}>{formatDate(fechaPreferida)}</Text>
-                    </View>
-                </View>
-
-                {modalidadServicio ? (
-                    <View style={styles.gridItem}>
-                        <View style={styles.iconContainer}>
-                            <Ionicons
-                                name={getModalidadServicioIcon(modalidadServicio)}
-                                size={18}
-                                color={COLORS.text.secondary}
-                            />
-                        </View>
-                        <View>
-                            <Text style={styles.gridLabel}>Modalidad</Text>
-                            <Text style={styles.gridValue}>{modalidadServicio.label}</Text>
-                        </View>
-                    </View>
-                ) : null}
-
-                <View style={styles.gridItem}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="location-outline" size={18} color={COLORS.text.secondary} />
-                    </View>
-                    <View style={styles.gridItemTextWrap}>
-                        <Text style={styles.gridLabel}>
-                            {modalidadServicio?.tipo === 'taller' ? 'Dirección del taller' : 'Ubicación'}
-                        </Text>
-                        <Text style={styles.gridValue} numberOfLines={2}>
-                            {ubicacionTexto}
-                        </Text>
-                    </View>
-                </View>
-
-                <View style={styles.gridItem}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="time-outline" size={18} color={COLORS.text.secondary} />
-                    </View>
-                    <View>
-                        <Text style={styles.gridLabel}>Horario</Text>
-                        <Text style={styles.gridValue} numberOfLines={1}>
-                            {formatTime(horaPreferida) || 'Por coordinar'}
-                        </Text>
-                    </View>
-                </View>
-
-                <View style={styles.gridItem}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="git-network-outline" size={18} color={COLORS.text.secondary} />
-                    </View>
-                    <View style={styles.gridItemTextWrap}>
-                        <Text style={styles.gridLabel}>Modo de solicitud</Text>
-                        <Text style={styles.gridValue}>{modoSolicitud.titulo}</Text>
-                        {modoSolicitud.detalle ? (
-                            <Text style={styles.gridValueSecondary} numberOfLines={4}>
-                                {modoSolicitud.detalle}
-                            </Text>
-                        ) : null}
-                    </View>
-                </View>
-
-                <View style={styles.gridItem}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons
-                            name={getRepuestosServicioIcon(repuestosMeta.incluye)}
-                            size={18}
-                            color={COLORS.text.secondary}
-                        />
-                    </View>
-                    <View style={styles.gridItemTextWrap}>
-                        <Text style={styles.gridLabel}>Repuestos</Text>
-                        <Text style={styles.gridValue}>{repuestosMeta.label}</Text>
-                        {repuestosMeta.fuente === 'proveedor' ? (
-                            <Text style={styles.gridValueSecondary} numberOfLines={2}>
-                                Según configuración del proveedor
-                            </Text>
-                        ) : null}
-                    </View>
-                </View>
+            <View style={styles.detailsSection}>
+                {detailRows.map((row, index) => (
+                    <SolicitudDetalleRow
+                        key={row.key}
+                        icon={row.icon}
+                        label={row.label}
+                        value={row.value}
+                        hint={row.hint}
+                        isLast={index === detailRows.length - 1}
+                    />
+                ))}
             </View>
         </View>
     );
@@ -321,151 +332,72 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border.light,
         ...SHADOWS.sm,
     },
+    cardEmbedded: {
+        marginBottom: 0,
+        borderWidth: 0,
+        borderRadius: 0,
+        ...SHADOWS.none,
+        paddingBottom: SPACING.sm,
+    },
+    vehiculoStrip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.sm,
+        marginBottom: SPACING.md,
+        paddingBottom: SPACING.sm,
+        borderBottomWidth: BORDERS.width.thin,
+        borderBottomColor: COLORS.border.light,
+    },
+    vehiculoIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: BORDERS.radius.sm,
+        backgroundColor: COLORS.primary[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    vehiculoTextWrap: {
+        flex: 1,
+        minWidth: 0,
+    },
+    vehiculoTitulo: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
+    },
+    vehiculoMeta: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        color: COLORS.text.secondary,
+        marginTop: 2,
+    },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
+        gap: SPACING.sm,
         marginBottom: SPACING.sm,
     },
-    urgencyBadge: {
+    headerBadges: {
+        flex: 1,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.xs,
+        alignItems: 'center',
+    },
+    chip: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: SPACING.sm,
         paddingVertical: SPACING.xxs,
         borderRadius: BORDERS.radius.badge.md,
-        gap: SPACING.xxs,
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
+        gap: 4,
     },
-    urgencyText: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        textTransform: 'uppercase',
-    },
-    idText: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontFamily: Platform.select({ ios: 'Courier New', android: 'monospace' }),
-        color: COLORS.text.tertiary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
-    },
-    title: {
-        fontSize: TYPOGRAPHY.fontSize.xl,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.text.primary,
-        marginBottom: SPACING.xs,
-        letterSpacing: TYPOGRAPHY.letterSpacing.tight,
-    },
-    serviciosLista: {
-        marginBottom: SPACING.sm,
-        gap: SPACING.xs,
-    },
-    servicioRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.xs,
-    },
-    servicioNombre: {
-        flex: 1,
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.secondary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
-    },
-    servicioPrecio: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.text.primary,
-    },
-    ofertaPreciosBlock: {
-        backgroundColor: COLORS.neutral.gray[100],
-        borderRadius: BORDERS.radius.md,
-        padding: SPACING.sm,
-        marginBottom: SPACING.sm,
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
-        gap: SPACING.xs,
-    },
-    ofertaPreciosLabel: {
+    chipText: {
         fontSize: TYPOGRAPHY.fontSize.xs,
-        color: COLORS.text.tertiary,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         textTransform: 'uppercase',
-        marginBottom: SPACING.xxs,
-    },
-    totalOfertaRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: SPACING.xs,
-        paddingTop: SPACING.xs,
-        borderTopWidth: BORDERS.width.thin,
-        borderTopColor: COLORS.border.light,
-    },
-    totalOfertaLabel: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.text.primary,
-    },
-    totalOfertaValue: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.primary[700],
-    },
-    description: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        color: COLORS.text.secondary,
-        lineHeight: 22,
-        marginBottom: SPACING.md,
-        fontWeight: TYPOGRAPHY.fontWeight.regular,
-    },
-    gridContainer: {
-        flexDirection: 'column',
-        backgroundColor: COLORS.neutral.gray[100],
-        borderRadius: BORDERS.radius.md,
-        padding: SPACING.md,
-        gap: SPACING.md,
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
-    },
-    gridItem: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: SPACING.sm,
-    },
-    gridItemTextWrap: {
-        flex: 1,
-        minWidth: 0,
-    },
-    iconContainer: {
-        width: 32,
-        height: 32,
-        borderRadius: BORDERS.radius.sm,
-        backgroundColor: COLORS.background.paper,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
-    },
-    gridLabel: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
-        color: COLORS.text.tertiary,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        textTransform: 'uppercase',
-        marginBottom: 2,
-    },
-    gridValue: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.primary,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    },
-    gridValueSecondary: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.secondary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
-        marginTop: SPACING.xxs,
-        lineHeight: 18,
     },
     estadoBadge: {
-        alignSelf: 'flex-start',
         paddingHorizontal: SPACING.sm,
         paddingVertical: SPACING.xxs,
         borderRadius: BORDERS.radius.badge.md,
@@ -473,9 +405,82 @@ const styles = StyleSheet.create({
         maxWidth: '100%',
     },
     estadoBadgeText: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        lineHeight: 16,
+    },
+    idText: {
+        fontSize: TYPOGRAPHY.fontSize.xs,
+        fontFamily: Platform.select({ ios: 'Courier New', android: 'monospace' }),
+        color: COLORS.text.tertiary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+        marginTop: 2,
+    },
+    title: {
+        fontSize: TYPOGRAPHY.fontSize.xl,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.xxs,
+        letterSpacing: TYPOGRAPHY.letterSpacing.tight,
+    },
+    serviciosLista: {
+        marginBottom: SPACING.xs,
+        gap: 2,
+    },
+    servicioNombre: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+        lineHeight: 18,
+    },
+    description: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
+        lineHeight: 20,
+        marginBottom: SPACING.sm,
+    },
+    preciosInline: {
+        marginBottom: SPACING.sm,
+        gap: SPACING.xxs,
+    },
+    precioLinea: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: SPACING.sm,
+    },
+    precioLineaNombre: {
+        flex: 1,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        color: COLORS.text.secondary,
+    },
+    precioLineaValor: {
         fontSize: TYPOGRAPHY.fontSize.sm,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        lineHeight: 18,
+        color: COLORS.text.primary,
+    },
+    precioTotalLinea: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: SPACING.xxs,
+        paddingTop: SPACING.xxs,
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.border.light,
+    },
+    precioTotalLabel: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.primary,
+    },
+    precioTotalValor: {
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.primary[700],
+    },
+    detailsSection: {
+        marginTop: SPACING.xs,
+        paddingTop: SPACING.xxs,
     },
 });
 

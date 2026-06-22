@@ -27,6 +27,12 @@ import {
 } from '../../utils/ofertaRepuestos';
 import { resolveCostosOfertaParaDisplay } from '../../utils/ofertaPrecioRepuestos';
 import { getEstadoOfertaDisplay } from '../../utils/solicitudEstadoDisplay';
+import { resolveTecnicoPreferido } from '../../utils/solicitudTecnicoPreferido';
+import TecnicoPreferidoRow from './TecnicoPreferidoRow';
+import {
+    resolveModalidadServicio,
+    servicioEsADomicilio,
+} from '../../utils/solicitudModalidadServicio';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -55,6 +61,8 @@ const OfferCardDetailed = ({
     esOfertaSecundaria = false,
     catalogoPendienteConfirmacion = false,
     checklistPendienteFirma = false,
+    embedded = false,
+    resumidoCatalogo = false,
 }) => {
     const estadoOfertaDisplay = useMemo(
         () => getEstadoOfertaDisplay(oferta, { checklistPendienteFirma, catalogoPendienteConfirmacion }),
@@ -145,16 +153,30 @@ const OfferCardDetailed = ({
         ),
         [lineasConRepuestos],
     );
+    const tecnicoAsignado = useMemo(
+        () => resolveTecnicoPreferido(solicitud, oferta),
+        [solicitud, oferta],
+    );
+    const modalidadServicio = useMemo(
+        () => resolveModalidadServicio(solicitud, oferta),
+        [solicitud, oferta],
+    );
+    const esServicioDomicilio = servicioEsADomicilio(modalidadServicio);
+    const etiquetaTipoProveedor = useMemo(() => {
+        if (oferta.tipo_proveedor === 'mecanico') return 'Mecánico a domicilio';
+        if (esServicioDomicilio) return 'Servicio a domicilio';
+        return 'Taller certificado';
+    }, [oferta.tipo_proveedor, esServicioDomicilio]);
 
     return (
-        <View style={styles.card}>
-            {etiquetaServicios ? (
+        <View style={[styles.card, embedded && styles.cardEmbedded]}>
+            {!resumidoCatalogo && etiquetaServicios ? (
                 <View style={styles.servicioLabelRow}>
                     <Ionicons name="construct-outline" size={14} color={COLORS.text.tertiary} />
                     <Text style={styles.servicioLabelText}>{etiquetaServicios}</Text>
                 </View>
             ) : null}
-            {multiServicio && lineasServicio.length > 0 ? (
+            {!resumidoCatalogo && multiServicio && lineasServicio.length > 0 ? (
                 <View style={styles.serviciosLista}>
                     {lineasServicio.map((linea) => (
                         <View key={String(linea.id ?? linea.nombre)} style={styles.servicioLineaRow}>
@@ -169,7 +191,7 @@ const OfferCardDetailed = ({
                 </View>
             ) : null}
             {/* 1. Perfil del Ofertante */}
-            <View style={styles.header}>
+            <View style={[styles.header, resumidoCatalogo && styles.headerCompact]}>
                 <TouchableOpacity
                     style={styles.profileRow}
                     onPress={() => onProfilePress && onProfilePress(oferta)}
@@ -192,7 +214,7 @@ const OfferCardDetailed = ({
                         </View>
                         <View style={styles.viewProfileRow}>
                             <Text style={styles.providerType}>
-                                {oferta.tipo_proveedor === 'taller' ? 'Taller Certificado' : 'Mecánico a Domicilio'}
+                                {etiquetaTipoProveedor}
                             </Text>
                             <Ionicons name="chevron-forward" size={12} color={COLORS.text.tertiary} style={{ marginLeft: 4, marginTop: 1 }} />
                         </View>
@@ -205,8 +227,12 @@ const OfferCardDetailed = ({
                 </View>
             </View>
 
+            {tecnicoAsignado && !resumidoCatalogo ? (
+                <TecnicoPreferidoRow tecnico={tecnicoAsignado} variant="inline" />
+            ) : null}
+
             {/* 2. Promesas de Valor (Tags) */}
-            <View style={styles.tagsRow}>
+            <View style={[styles.tagsRow, resumidoCatalogo && styles.tagsRowCompact]}>
                 <View style={styles.tag}>
                     <Ionicons name="shield-checkmark-outline" size={14} color={COLORS.text.tertiary} />
                     <Text style={styles.tagText}>Garantía {oferta.garantia_ofrecida || '3 meses'}</Text>
@@ -219,8 +245,8 @@ const OfferCardDetailed = ({
                 ) : null}
             </View>
 
-            {/* 3. Desglose de Costos (Container Gris) */}
-            <View style={styles.costContainer}>
+            {/* 3. Desglose de Costos */}
+            <View style={[styles.costContainer, embedded && styles.costContainerFlat]}>
                 {multiServicio && lineasConPrecio.length > 1 && !mostrarLineasProveedor ? (
                     <>
                         <Text style={styles.costSectionLabel}>Por servicio</Text>
@@ -417,6 +443,27 @@ const OfferCardDetailed = ({
             ) : null}
 
             {/* Acciones: chat + CTA o chat + estado informativo */}
+            {resumidoCatalogo && isAccepted ? (
+                <TouchableOpacity
+                    style={styles.chatWideButton}
+                    onPress={() => onChatPress(oferta)}
+                    accessibilityLabel={
+                        chatUnreadCount > 0
+                            ? `Chat, ${chatUnreadCount} mensajes sin leer`
+                            : 'Abrir chat con el proveedor'
+                    }
+                >
+                    <Ionicons name="chatbubble-ellipses-outline" size={20} color={COLORS.primary[600]} />
+                    <Text style={styles.chatWideButtonText}>Chat con el proveedor</Text>
+                    {chatUnreadCount > 0 ? (
+                        <View style={styles.chatWideUnreadBadge}>
+                            <Text style={styles.chatUnreadBadgeText}>
+                                {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                            </Text>
+                        </View>
+                    ) : null}
+                </TouchableOpacity>
+            ) : (
             <View style={styles.actionsRow}>
                 <View style={styles.chatButtonWrap}>
                     <TouchableOpacity
@@ -476,6 +523,7 @@ const OfferCardDetailed = ({
                     </TouchableOpacity>
                 )}
             </View>
+            )}
         </View>
     );
 };
@@ -489,6 +537,13 @@ const styles = StyleSheet.create({
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
         ...SHADOWS.sm,
+    },
+    cardEmbedded: {
+        marginBottom: 0,
+        borderWidth: 0,
+        borderRadius: 0,
+        paddingTop: SPACING.sm,
+        ...SHADOWS.none,
     },
     servicioLabelRow: {
         flexDirection: 'row',
@@ -537,6 +592,9 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         marginBottom: SPACING.md,
+    },
+    headerCompact: {
+        marginBottom: SPACING.sm,
     },
     profileRow: {
         flexDirection: 'row',
@@ -600,6 +658,9 @@ const styles = StyleSheet.create({
         gap: SPACING.xs,
         marginBottom: SPACING.md,
     },
+    tagsRowCompact: {
+        marginBottom: SPACING.sm,
+    },
     tag: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -623,6 +684,14 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.md,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
+    },
+    costContainerFlat: {
+        backgroundColor: 'transparent',
+        borderWidth: 0,
+        borderRadius: 0,
+        paddingHorizontal: 0,
+        paddingTop: 0,
+        marginBottom: SPACING.sm,
     },
     costRow: {
         flexDirection: 'row',
@@ -787,6 +856,32 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'stretch',
         gap: SPACING.sm,
+    },
+    chatWideButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: SPACING.sm,
+        minHeight: 48,
+        paddingHorizontal: SPACING.md,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.primary[50],
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.primary[200],
+    },
+    chatWideButtonText: {
+        fontSize: TYPOGRAPHY.fontSize.sm,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.primary[700],
+    },
+    chatWideUnreadBadge: {
+        backgroundColor: COLORS.error.main,
+        borderRadius: 10,
+        minWidth: 18,
+        height: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 4,
     },
     chatButtonWrap: {
         position: 'relative',
