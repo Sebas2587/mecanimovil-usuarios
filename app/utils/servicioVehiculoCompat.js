@@ -96,35 +96,51 @@ export function servicioOfertaCompatibleConVehiculo(servicio, vehicle) {
   );
 
   if (ofertaMarcaId != null) {
-    return marcaId != null && Number(ofertaMarcaId) === Number(marcaId);
-  }
-  if (ofertaMarcaNombre) {
-    return marcasCoinciden(ofertaMarcaNombre, marcaNombre);
+    if (marcaId == null || Number(ofertaMarcaId) !== Number(marcaId)) {
+      return false;
+    }
+  } else if (ofertaMarcaNombre) {
+    if (!marcasCoinciden(ofertaMarcaNombre, marcaNombre)) {
+      return false;
+    }
+  } else {
+    const marcas = Array.isArray(servicio.marcas_info) ? servicio.marcas_info : [];
+    if (marcas.length > 0) {
+      if (marcaId != null && marcas.some((m) => Number(m.id) === Number(marcaId))) {
+        // marca ok
+      } else if (marcaNombre) {
+        if (!marcas.some((m) => marcasCoinciden(normalizeMarcaNombre(m.nombre), marcaNombre))) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    } else {
+      const modelos = Array.isArray(servicio.modelos_info) ? servicio.modelos_info : [];
+      if (modelos.length > 0) {
+        if (modeloId != null && modelos.some((m) => Number(m.id) === Number(modeloId))) {
+          // modelo ok via catalog
+        } else if (marcaId != null && modelos.some((m) => Number(m.marca_id) === Number(marcaId))) {
+          // marca ok via catalog modelos
+        } else if (marcaNombre) {
+          if (!modelos.some((m) => marcasCoinciden(normalizeMarcaNombre(m.marca_nombre), marcaNombre))) {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      }
+    }
   }
 
-  const marcas = Array.isArray(servicio.marcas_info) ? servicio.marcas_info : [];
-  if (marcas.length > 0) {
-    if (marcaId != null && marcas.some((m) => Number(m.id) === Number(marcaId))) {
-      return true;
-    }
-    if (marcaNombre) {
-      return marcas.some((m) => marcasCoinciden(normalizeMarcaNombre(m.nombre), marcaNombre));
-    }
-    return false;
-  }
+  const ofertaModeloId =
+    servicio.modelo_vehiculo_id
+    ?? servicio.modelo_vehiculo_seleccionado
+    ?? servicio.modelo_vehiculo_info?.id
+    ?? null;
 
-  const modelos = Array.isArray(servicio.modelos_info) ? servicio.modelos_info : [];
-  if (modelos.length > 0) {
-    if (modeloId != null && modelos.some((m) => Number(m.id) === Number(modeloId))) {
-      return true;
-    }
-    if (marcaId != null && modelos.some((m) => Number(m.marca_id) === Number(marcaId))) {
-      return true;
-    }
-    if (marcaNombre) {
-      return modelos.some((m) => marcasCoinciden(normalizeMarcaNombre(m.marca_nombre), marcaNombre));
-    }
-    return false;
+  if (ofertaModeloId != null) {
+    return modeloId != null && Number(ofertaModeloId) === Number(modeloId);
   }
 
   return true;

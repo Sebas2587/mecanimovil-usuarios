@@ -20,17 +20,40 @@ function normalizeTipoMotorVehiculo(value) {
   return normalizeTipoMotorOferta(value) || 'GASOLINA';
 }
 
-/** Prioridad marca + motor: oferta específica al motor del vehículo gana sobre universal. */
+export function prioridadOfertaParaMarca(oferta, marcaId) {
+  const oid = ofertaMarcaId(oferta);
+  if (marcaId == null) {
+    return oid == null ? 1 : 0;
+  }
+  if (oid === marcaId) return 2;
+  if (oid == null) return 0;
+  return -2;
+}
+
+export function prioridadOfertaParaModelo(oferta, modeloId) {
+  const oid = ofertaModeloId(oferta);
+  if (modeloId == null) {
+    return oid == null ? 1 : 0;
+  }
+  if (oid === modeloId) return 2;
+  if (oid == null) return 0;
+  return -2;
+}
+
+/** Prioridad marca + modelo + motor para el vehículo del cliente. */
 export function prioridadOfertaParaVehiculo(oferta, vehicle) {
-  const { marcaId } = resolveVehiculoMarcaModelo(vehicle);
+  const { marcaId, modeloId } = resolveVehiculoMarcaModelo(vehicle);
   const marcaPrio = prioridadOfertaParaMarca(oferta, marcaId);
   if (marcaPrio < 0) return marcaPrio;
-  if (!vehicle?.id) return marcaPrio;
+  const modeloPrio = prioridadOfertaParaModelo(oferta, modeloId);
+  if (modeloPrio < 0) return modeloPrio;
+
+  if (!vehicle?.id) return marcaPrio * 10 + modeloPrio;
 
   const motorOferta = normalizeTipoMotorOferta(oferta?.tipo_motor);
-  if (!motorOferta) return marcaPrio;
+  if (!motorOferta) return marcaPrio * 10 + modeloPrio;
   const motorV = normalizeTipoMotorVehiculo(vehicle.tipo_motor);
-  if (motorOferta === motorV) return marcaPrio + 2;
+  if (motorOferta === motorV) return marcaPrio * 10 + modeloPrio + 2;
   return -3;
 }
 
@@ -45,11 +68,26 @@ export function ofertaMarcaId(oferta) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+export function ofertaModeloId(oferta) {
+  const raw =
+    oferta?.modelo_vehiculo_id
+    ?? oferta?.modelo_vehiculo_seleccionado
+    ?? oferta?.modelo_vehiculo_info?.id
+    ?? null;
+  if (raw == null || raw === '') return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export function etiquetaMarcaOferta(oferta) {
   const mid = ofertaMarcaId(oferta);
+  const modeloNombre = oferta?.modelo_vehiculo_info?.nombre?.trim()
+    || oferta?.modelo_vehiculo_nombre?.trim();
   if (mid == null) return 'Precio base';
   const nombre = oferta?.marca_vehiculo_nombre || oferta?.marca_vehiculo_info?.nombre;
-  return nombre?.trim() || `Marca #${mid}`;
+  const marcaLabel = nombre?.trim() || `Marca #${mid}`;
+  if (modeloNombre) return `${marcaLabel} · ${modeloNombre}`;
+  return marcaLabel;
 }
 
 export function montoPrecioPublicoOferta(oferta) {
@@ -59,16 +97,6 @@ export function montoPrecioPublicoOferta(oferta) {
   }
   const p = Number(oferta?.precio_publicado_cliente || 0);
   return Number.isFinite(p) && p > 0 ? p : null;
-}
-
-export function prioridadOfertaParaMarca(oferta, marcaId) {
-  const oid = ofertaMarcaId(oferta);
-  if (marcaId == null) {
-    return oid == null ? 1 : 0;
-  }
-  if (oid === marcaId) return 2;
-  if (oid == null) return 0;
-  return -2;
 }
 
 export function elegirOfertaParaMarca(ofertas, vehicle) {
@@ -117,6 +145,8 @@ export function buildTarifasPorMarca(ofertas) {
     ofertaId: o.oferta_id ?? o.id,
     marcaId: ofertaMarcaId(o) ?? 0,
     marcaLabel: etiquetaMarcaOferta(o),
+    modeloId: ofertaModeloId(o),
+    modeloLabel: o?.modelo_vehiculo_info?.nombre?.trim() || o?.modelo_vehiculo_nombre?.trim() || null,
     precioPublico: montoPrecioPublicoOferta(o),
     disponible: o.disponible !== false,
   }));
