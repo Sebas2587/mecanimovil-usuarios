@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { COLORS as LEGACY_COLORS, SPACING as LEGACY_SPACING } from '../../utils/constants';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 import { formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
+import { normalizeRepuestosInfo } from '../../utils/ofertaRepuestos';
 
 /**
  * Componente expandible para mostrar repuestos en una oferta
@@ -20,12 +21,14 @@ const RepuestosExpandible = ({
 }) => {
   const [expandido, setExpandido] = useState(false);
 
-  if (!repuestos || repuestos.length === 0) {
+  const repuestosNormalizados = normalizeRepuestosInfo(repuestos);
+
+  if (!repuestosNormalizados || repuestosNormalizados.length === 0) {
     return null;
   }
 
-  const totalRepuestos = repuestos.length;
-  const totalPrecio = repuestos.reduce((sum, rep) => {
+  const totalRepuestos = repuestosNormalizados.length;
+  const totalPrecio = repuestosNormalizados.reduce((sum, rep) => {
     // CORRECCIÓN: Usar precio personalizado del proveedor si existe, sino usar precio_referencia del catálogo
     const precio = parseFloat(rep.precio !== undefined && rep.precio !== null ? rep.precio : (rep.precio_referencia || 0));
     const cantidad = rep.cantidad || 1;
@@ -92,10 +95,12 @@ const RepuestosExpandible = ({
 
       {expandido && (
         <View style={[styles.repuestosList, coinbase && styles.repuestosListCoinbase]}>
-          {repuestos.map((repuesto, index) => {
+          {repuestosNormalizados.map((repuesto, index) => {
             const cantidad = repuesto.cantidad || 1;
             const precioUnitario = parseFloat(repuesto.precio !== undefined && repuesto.precio !== null ? repuesto.precio : (repuesto.precio_referencia || 0));
             const subtotal = precioUnitario * cantidad;
+            const calidadLabel = repuesto.calidad_repuesto_label || '';
+            const marcaDisplay = repuesto.marca_repuesto || repuesto.marca || '';
 
             return (
               <View
@@ -110,14 +115,33 @@ const RepuestosExpandible = ({
                     >
                       {repuesto.nombre}
                     </Text>
-                    {repuesto.marca ? (
-                      <Text
-                        style={[styles.repuestoMarca, coinbase && styles.repuestoMarcaCoinbase]}
-                        numberOfLines={1}
-                      >
-                        {repuesto.marca}
-                      </Text>
-                    ) : null}
+                    <View style={styles.repuestoMetaRow}>
+                      {calidadLabel ? (
+                        <View
+                          style={[
+                            styles.calidadBadge,
+                            coinbase && styles.calidadBadgeCoinbase,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.calidadBadgeText,
+                              coinbase && styles.calidadBadgeTextCoinbase,
+                            ]}
+                          >
+                            {calidadLabel}
+                          </Text>
+                        </View>
+                      ) : null}
+                      {marcaDisplay ? (
+                        <Text
+                          style={[styles.repuestoMarca, coinbase && styles.repuestoMarcaCoinbase]}
+                          numberOfLines={1}
+                        >
+                          {marcaDisplay}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                   <View style={styles.repuestoDetalles}>
                     <View style={styles.detalleRow}>
@@ -330,10 +354,42 @@ const styles = StyleSheet.create({
   repuestoMarca: {
     fontSize: 12,
     color: LEGACY_COLORS.textLight,
+    flexShrink: 1,
   },
   repuestoMarcaCoinbase: {
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.text.tertiary,
+  },
+  repuestoMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    marginTop: 2,
+  },
+  calidadBadge: {
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderRadius: BORDERS.radius.sm,
+    backgroundColor: '#E8F4FD',
+    borderWidth: 1,
+    borderColor: '#BBDEFB',
+  },
+  calidadBadgeCoinbase: {
+    backgroundColor: COLORS.neutral.gray[50],
+    borderColor: COLORS.border.light,
+  },
+  calidadBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: LEGACY_COLORS.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  calidadBadgeTextCoinbase: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.secondary,
   },
   repuestoDetalles: {
     gap: LEGACY_SPACING.xs / 2,

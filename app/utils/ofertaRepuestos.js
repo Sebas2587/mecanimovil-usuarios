@@ -2,13 +2,33 @@
  * Normaliza líneas de servicio con repuestos desde ofertas (postulación o catálogo).
  */
 
+const CALIDAD_REPUESTO_LABELS = {
+  original: 'Original',
+  oem: 'OEM',
+  alternativo: 'Alternativo',
+};
+
 function normalizeRepuesto(rep) {
   if (!rep || typeof rep !== 'object') return null;
   const cantidad = rep.cantidad ?? rep.cantidad_estimada ?? 1;
+  const marcaRepuesto = (rep.marca_repuesto ?? '').trim();
+  const marcaCatalogo = (rep.marca_catalogo ?? rep.marca ?? '').trim();
+  const calidad = rep.calidad_repuesto ?? '';
+  const calidadLabel =
+    rep.calidad_repuesto_label
+    || CALIDAD_REPUESTO_LABELS[calidad]
+    || '';
+  const marcaDisplay = marcaRepuesto || marcaCatalogo;
+
   return {
     ...rep,
     cantidad,
     cantidad_estimada: rep.cantidad_estimada ?? cantidad,
+    marca_repuesto: marcaRepuesto,
+    marca_catalogo: marcaCatalogo,
+    marca: marcaDisplay,
+    calidad_repuesto: calidad,
+    calidad_repuesto_label: calidadLabel,
   };
 }
 
