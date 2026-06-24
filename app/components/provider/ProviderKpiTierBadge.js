@@ -20,6 +20,9 @@ export default function ProviderKpiTierBadge({
   if (!presentation) return null;
 
   if (variant === 'profile') {
+    const a11yLabel = presentation.reason
+      ? `Nivel ${presentation.label}. ${presentation.reason}`
+      : `Nivel ${presentation.label}`;
     return (
       <View
         style={[
@@ -31,7 +34,7 @@ export default function ProviderKpiTierBadge({
           style,
         ]}
         accessibilityRole="text"
-        accessibilityLabel={`Nivel ${presentation.label}`}
+        accessibilityLabel={a11yLabel}
       >
         <Ionicons name="ribbon-outline" size={15} color={presentation.text_color} />
         <Text style={[styles.profileText, { color: presentation.text_color }]} numberOfLines={1}>
@@ -64,12 +67,15 @@ export default function ProviderKpiTierBadge({
   }
 
   const floatBg = withOpacity(presentation.bg_color, 0.95);
+  const floatA11y = presentation.reason
+    ? `Nivel ${presentation.label}. ${presentation.reason}`
+    : `Nivel ${presentation.label}`;
   return (
     <View
       style={[styles.floatingWrap, style]}
       pointerEvents="none"
       accessibilityRole="text"
-      accessibilityLabel={`Nivel ${presentation.label}`}
+      accessibilityLabel={floatA11y}
     >
       <View
         style={[

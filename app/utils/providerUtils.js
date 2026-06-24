@@ -294,7 +294,14 @@ export const getKpiTierPresentation = (kpiBadge, provider = null, options = {}) 
   const text_color = isValidHexColor(kpiBadge.text_color) ? kpiBadge.text_color.trim() : palette.text_color;
   const border_color = isValidHexColor(kpiBadge.border_color) ? kpiBadge.border_color.trim() : palette.border_color;
 
-  return { label, bg_color, text_color, border_color, styleCode };
+  return {
+    label,
+    bg_color,
+    text_color,
+    border_color,
+    styleCode,
+    reason: kpiBadge.reason != null ? String(kpiBadge.reason).trim() : '',
+  };
 };
 
 /** `dia_semana` del API: 0=Lunes … 6=Domingo (igual que Python weekday). */
