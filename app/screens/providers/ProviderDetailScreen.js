@@ -617,12 +617,21 @@ const ProviderDetailScreen = () => {
           const addr =
             provider.direccion_fisica?.direccion_completa ||
             provider.direccion_fisica?.direccion ||
-            provider.direccion_fisica?.calle ||
+            [provider.direccion_fisica?.calle, provider.direccion_fisica?.numero]
+              .filter(Boolean)
+              .join(' ') ||
             provider.direccion_taller ||
             provider.direccion ||
             null;
           const comuna = provider.direccion_fisica?.comuna || provider.comuna || '';
-          const display = [addr, comuna].filter(Boolean).join(', ') || 'Dirección no disponible.';
+          // Si `direccion` ya trae comuna/ciudad completos, no duplicar
+          const addrAlreadyHasComuna =
+            comuna &&
+            addr &&
+            String(addr).toLowerCase().includes(String(comuna).toLowerCase());
+          const display = addrAlreadyHasComuna
+            ? addr
+            : [addr, comuna].filter(Boolean).join(', ') || 'Dirección no disponible.';
 
           return (
             <View style={styles.section}>
