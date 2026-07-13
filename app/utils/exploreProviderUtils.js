@@ -15,8 +15,33 @@ export function mergeProviderLists(talleres = [], mecanicos = []) {
   return [...withKind(talleres, 'taller'), ...withKind(mecanicos, 'mecanico')];
 }
 
+/** Pin inventado histórico (Santiago centro) — no mostrar como distancia real. */
+const DEFAULT_SANTIAGO_LAT = -33.4489;
+const DEFAULT_SANTIAGO_LNG = -70.6693;
+const DEFAULT_PIN_EPS = 0.00015;
+
+export function isLikelyDefaultSantiagoPin(provider) {
+  const u = provider?.ubicacion;
+  let lat;
+  let lng;
+  if (u?.coordinates?.length >= 2) {
+    lng = Number(u.coordinates[0]);
+    lat = Number(u.coordinates[1]);
+  } else {
+    lat = Number(provider?.latitud ?? provider?.latitude);
+    lng = Number(provider?.longitud ?? provider?.longitude);
+  }
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  return (
+    Math.abs(lat - DEFAULT_SANTIAGO_LAT) < DEFAULT_PIN_EPS &&
+    Math.abs(lng - DEFAULT_SANTIAGO_LNG) < DEFAULT_PIN_EPS
+  );
+}
+
 /** Parsea distancia del proveedor a km (número), tolerando respuestas del serializer. */
 export function normalizeDistanceKm(provider) {
+  // Pin histórico Santiago centro: distancia PostGIS engañosa → tratar como sin geo
+  if (isLikelyDefaultSantiagoPin(provider)) return null;
   const raw = provider?.distance ?? provider?.distancia_km ?? provider?.distancia;
   if (raw == null || raw === '') return null;
   if (typeof raw === 'object') {
@@ -225,29 +250,6 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 }
 
 /** Coordenadas del proveedor (GeoJSON o campos sueltos). */
-/** Pin inventado histórico (Santiago centro) — no mostrar como distancia real. */
-const DEFAULT_SANTIAGO_LAT = -33.4489;
-const DEFAULT_SANTIAGO_LNG = -70.6693;
-const DEFAULT_PIN_EPS = 0.00015;
-
-export function isLikelyDefaultSantiagoPin(provider) {
-  const u = provider?.ubicacion;
-  let lat;
-  let lng;
-  if (u?.coordinates?.length >= 2) {
-    lng = Number(u.coordinates[0]);
-    lat = Number(u.coordinates[1]);
-  } else {
-    lat = Number(provider?.latitud ?? provider?.latitude);
-    lng = Number(provider?.longitud ?? provider?.longitude);
-  }
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
-  return (
-    Math.abs(lat - DEFAULT_SANTIAGO_LAT) < DEFAULT_PIN_EPS &&
-    Math.abs(lng - DEFAULT_SANTIAGO_LNG) < DEFAULT_PIN_EPS
-  );
-}
-
 export function coordsFromProvider(provider) {
   if (isLikelyDefaultSantiagoPin(provider)) return null;
   const u = provider?.ubicacion;

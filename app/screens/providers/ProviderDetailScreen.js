@@ -614,24 +614,29 @@ const ProviderDetailScreen = () => {
             );
           }
 
-          const addr =
-            provider.direccion_fisica?.direccion_completa ||
-            provider.direccion_fisica?.direccion ||
-            [provider.direccion_fisica?.calle, provider.direccion_fisica?.numero]
-              .filter(Boolean)
-              .join(' ') ||
-            provider.direccion_taller ||
-            provider.direccion ||
+          const df = provider.direccion_fisica;
+          const calleNumero = [df?.calle, df?.numero].filter(Boolean).join(' ').trim();
+          const rawDireccion =
+            (typeof provider.direccion === 'string' && provider.direccion.trim()) ||
+            (typeof provider.usuario?.direccion === 'string' && provider.usuario.direccion.trim()) ||
             null;
-          const comuna = provider.direccion_fisica?.comuna || provider.comuna || '';
-          // Si `direccion` ya trae comuna/ciudad completos, no duplicar
+          const addr =
+            (df?.direccion_completa && String(df.direccion_completa).trim()) ||
+            (df?.direccion && String(df.direccion).trim()) ||
+            calleNumero ||
+            (provider.direccion_taller && String(provider.direccion_taller).trim()) ||
+            rawDireccion ||
+            null;
+          const comuna = df?.comuna || provider.comuna || '';
+          // Si la dirección ya trae comuna/ciudad, no duplicar
           const addrAlreadyHasComuna =
             comuna &&
             addr &&
             String(addr).toLowerCase().includes(String(comuna).toLowerCase());
           const display = addrAlreadyHasComuna
             ? addr
-            : [addr, comuna].filter(Boolean).join(', ') || 'Dirección no disponible.';
+            : [addr, comuna].filter(Boolean).join(', ') ||
+              'Este taller aún no ha publicado su dirección.';
 
           return (
             <View style={styles.section}>

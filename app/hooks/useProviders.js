@@ -124,14 +124,14 @@ export const useProviderDetails = (id, type) => {
             const endpoint = type === 'taller'
                 ? `/usuarios/talleres/${safeId}/`
                 : `/usuarios/mecanicos-domicilio/${safeId}/`;
-            return await get(endpoint, {}, { requiresAuth: false });
+            // forceRefresh: dirección/geo cambian desde prov y no deben quedar pegados en caché HTTP
+            return await get(endpoint, {}, { requiresAuth: false, forceRefresh: true });
         },
         enabled: safeId != null && !!type,
-        staleTime: 1000 * 60 * 5,   // 5 min
-        gcTime: 1000 * 60 * 30,     // 30 min en memoria
-        refetchOnMount: false,       // no refetch si los datos son frescos
-        refetchOnWindowFocus: false,
-        // refetchInterval eliminado: el polling cada 30s multiplicaba los requests al backend
+        staleTime: 1000 * 30,
+        gcTime: 1000 * 60 * 30,
+        refetchOnMount: 'always',
+        refetchOnWindowFocus: true,
     });
 };
 
