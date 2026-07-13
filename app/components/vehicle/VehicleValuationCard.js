@@ -29,7 +29,6 @@ const VehicleValuationCard = ({
     onTransferPress,
     onEditPress,
     onHealthPress,
-    onValueDetailPress,
 }) => {
     const onTransfer = onTransferPress || onSellPress;
     const { data, isLoading } = useVehicleValuationForecast(vehicle, { enabled: !!vehicle?.id });
@@ -146,20 +145,6 @@ const VehicleValuationCard = ({
                         </Text>
                     </View>
                 </>
-            ) : null}
-
-            {onValueDetailPress ? (
-                <TouchableOpacity
-                    style={styles.detailLink}
-                    onPress={onValueDetailPress}
-                    activeOpacity={0.85}
-                    accessibilityRole="button"
-                >
-                    <Text style={[TYPOGRAPHY.styles.captionBold, styles.detailLinkText]}>
-                        Ver análisis completo de valor y liquidez
-                    </Text>
-                    <ChevronRight size={16} color={COLORS.primary[600]} strokeWidth={2} />
-                </TouchableOpacity>
             ) : null}
 
             <Text style={[TYPOGRAPHY.styles.caption, styles.footnote]}>

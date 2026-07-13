@@ -1,0 +1,93 @@
+export const HISTOGRAM_BUCKETS = 40;
+
+/**
+ * Distribución estilo Airbnb (colina) centrada en el valor del auto.
+ * Si hay histograma real del backend, se usa; si no, se sintetiza desde el rango GetAPI.
+ */
+export function resolvePriceHistogram({
+  histogram = [],
+  valorReal = 0,
+  rangoMin = 0,
+  rangoMax = 0,
+  buckets = HISTOGRAM_BUCKETS,
+}) {
+  if (Array.isArray(histogram) && histogram.length > 0) {
+    return { buckets: histogram, origen: 'mercado' };
+  }
+  return {
+    buckets: buildMountainHistogram(valorReal, rangoMin, rangoMax, buckets),
+    origen: 'estimado',
+  };
+}
+
+export function buildMountainHistogram(valorReal, rangoMin, rangoMax, buckets = HISTOGRAM_BUCKETS) {
+  const valor = Number(valorReal) || 0;
+  if (valor <= 0) return [];
+
+  const lo = Number(rangoMin) > 0 ? Number(rangoMin) : Math.round(valor * 0.82);
+  const hi = Number(rangoMax) > 0 ? Number(rangoMax) : Math.round(valor * 1.18);
+  // Ampliar un poco fuera del rango probable para que las barras grises
+  // fuera del selection se vean como en Airbnb.
+  const pad = Math.round((hi - lo) * 0.35);
+  const axisLo = Math.max(0, lo - pad);
+  const axisHi = hi + pad;
+  const span = Math.max(axisHi - axisLo, 1);
+  const step = Math.max(1, Math.floor(span / buckets));
+  const center = valor;
+  const sigma = Math.max(span / 5.5, step * 2.2);
+
+  const raw = [];
+  for (let i = 0; i < buckets; i += 1) {
+    const edgeLo = axisLo + i * step;
+    const edgeHi = i === buckets - 1 ? axisHi : edgeLo + step;
+    const mid = (edgeLo + edgeHi) / 2;
+    const gaussian = Math.exp(-0.5 * ((mid - center) / sigma) ** 2);
+    // Ruido leve para que no se vea una campana perfecta (más “Airbnb”)
+    const jitter = 0.85 + ((i * 17) % 7) * 0.03;
+    raw.push({ edgeLo, edgeHi, gaussian: gaussian * jitter });
+  }
+
+  const maxG = Math.max(...raw.map((b) => b.gaussian), 0.01);
+  return raw.map((b) => ({
+    bucket_start: b.edgeLo,
+    bucket_end: b.edgeHi,
+    count: Math.round(b.gaussian * 100),
+    normalized: Number((b.gaussian / maxG).toFixed(3)),
+    is_user_bucket: b.edgeLo <= valor && valor < b.edgeHi,
+  }));
+}
+
+export function formatCLP(value) {
+  return new Intl.NumberFormat('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0,
+  }).format(value || 0);
+}
+
+export function formatCompactMillions(value) {
+  const n = Number(value) || 0;
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1).replace('.0', '')}M`;
+  if (n >= 1_000) return `$${Math.round(n / 1_000)}K`;
+  return `$${n}`;
+}
+
+/**
+ * Ajusta la tasa anual de depreciación según salud del vehículo.
+ * Salud alta protege valor (baja la tasa); salud baja acelera la pérdida.
+ */
+export function adjustRateByHealth(tasaAnualPct, healthScore) {
+  const tasa = Number(tasaAnualPct);
+  if (!Number.isFinite(tasa)) return 7;
+  const health = Math.max(0, Math.min(100, Number(healthScore) || 70));
+  // 100 salud → ~0.55x tasa; 70 → 1.0x; 40 → ~1.35x; 0 → ~1.6x
+  const factor = 1.6 - (health / 100) * 1.05;
+  return Number((tasa * factor).toFixed(2));
+}
+
+export function projectValueAtYears(valorHoy, tasaAnualPct, years) {
+  const valor = Number(valorHoy) || 0;
+  if (valor <= 0) return 0;
+  const rate = (Number(tasaAnualPct) || 0) / 100;
+  return Math.max(0, Math.round(valor * (1 - rate) ** years));
+}

@@ -1,177 +1,283 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Rect, Line, Circle } from 'react-native-svg';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, PanResponder, Platform } from 'react-native';
+import Svg, { Rect, Line } from 'react-native-svg';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
+import {
+  resolvePriceHistogram,
+  formatCLP,
+  formatCompactMillions,
+} from '../../utils/vehicleValueChart';
 
-const CONFIDENCE_COPY = {
-  alta: 'Alta confianza',
-  media: 'Confianza media',
-  estimado: 'Estimado',
-};
+const THUMB = 28;
+const THUMB_R = THUMB / 2;
+const BAR_H = 88;
+const TRACK_Y = BAR_H + 2;
+const MIN_GAP = 0.06;
+const ACTIVE = COLORS.primary[500];
+const INACTIVE = COLORS.neutral.gray[200];
+const TRACK_INACTIVE = COLORS.neutral.gray[200];
 
 /**
- * Histograma estilo Airbnb (rango de precios) con paleta Tinder.
+ * Histograma de precios estilo Airbnb (colina + dual thumb interactivo).
+ * X = precio · Y = densidad de mercado · thumbs = rango de venta probable.
  */
 const VehicleValueHistogramChart = ({
   histogram = [],
   valorReal = 0,
   rangoMin = 0,
   rangoMax = 0,
-  confianza = 'estimado',
-  compact = false,
-  height = 88,
+  height = BAR_H,
 }) => {
-  const hasData = Array.isArray(histogram) && histogram.length > 0;
+  const [width, setWidth] = useState(0);
+  const { buckets } = useMemo(
+    () => resolvePriceHistogram({ histogram, valorReal, rangoMin, rangoMax }),
+    [histogram, valorReal, rangoMin, rangoMax],
+  );
 
-  const chartContent = useMemo(() => {
-    if (!hasData) return null;
-    const width = compact ? 280 : 320;
-    const chartH = height - (compact ? 8 : 16);
-    const barW = Math.max(3, (width - histogram.length * 2) / histogram.length);
-    const gap = 2;
-    const maxNorm = Math.max(...histogram.map((b) => b.normalized || 0), 0.01);
+  const axisLo = buckets[0]?.bucket_start ?? 0;
+  const axisHi = buckets[buckets.length - 1]?.bucket_end ?? 1;
+  const axisSpan = Math.max(1, axisHi - axisLo);
 
-    const bars = histogram.map((bucket, i) => {
-      const h = Math.max(4, (bucket.normalized / maxNorm) * (chartH - 12));
-      const x = i * (barW + gap);
-      const y = chartH - h;
-      const fill = bucket.in_range ? COLORS.primary[500] : COLORS.neutral.gray[200];
-      return (
-        <Rect
-          key={`bar-${i}`}
-          x={x}
-          y={y}
-          width={barW}
-          height={h}
-          rx={2}
-          fill={fill}
-        />
-      );
-    });
+  const priceToRatio = useCallback(
+    (price) => Math.min(1, Math.max(0, (Number(price) - axisLo) / axisSpan)),
+    [axisLo, axisSpan],
+  );
 
-    let markerX = null;
-    if (valorReal > 0) {
-      const lo = histogram[0]?.bucket_start ?? 0;
-      const hi = histogram[histogram.length - 1]?.bucket_end ?? lo + 1;
-      const span = Math.max(1, hi - lo);
-      const ratio = Math.min(1, Math.max(0, (valorReal - lo) / span));
-      markerX = ratio * (histogram.length * (barW + gap) - gap);
-    }
+  const ratioToPrice = useCallback(
+    (ratio) => Math.round(axisLo + ratio * axisSpan),
+    [axisLo, axisSpan],
+  );
+
+  const defaultLeft = priceToRatio(rangoMin > 0 ? rangoMin : axisLo);
+  const defaultRight = priceToRatio(rangoMax > 0 ? rangoMax : axisHi);
+
+  const [leftRatio, setLeftRatio] = useState(defaultLeft);
+  const [rightRatio, setRightRatio] = useState(defaultRight);
+  const leftRef = useRef(defaultLeft);
+  const rightRef = useRef(defaultRight);
+  const startRef = useRef(0);
+
+  useEffect(() => {
+    leftRef.current = defaultLeft;
+    rightRef.current = defaultRight;
+    setLeftRatio(defaultLeft);
+    setRightRatio(defaultRight);
+  }, [defaultLeft, defaultRight]);
+
+  const drawable = Math.max(0, width - THUMB);
+
+  const makeResponder = useCallback(
+    (which) =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+          startRef.current = which === 'left' ? leftRef.current : rightRef.current;
+        },
+        onPanResponderMove: (_e, g) => {
+          if (drawable <= 0) return;
+          let next = startRef.current + g.dx / drawable;
+          if (which === 'left') {
+            next = Math.max(0, Math.min(next, rightRef.current - MIN_GAP));
+            leftRef.current = next;
+            setLeftRatio(next);
+          } else {
+            next = Math.min(1, Math.max(next, leftRef.current + MIN_GAP));
+            rightRef.current = next;
+            setRightRatio(next);
+          }
+        },
+      }),
+    [drawable],
+  );
+
+  const leftPan = useMemo(() => makeResponder('left'), [makeResponder]);
+  const rightPan = useMemo(() => makeResponder('right'), [makeResponder]);
+
+  if (!buckets.length) return null;
+
+  const barH = height;
+  const trackY = barH + 2;
+  const svgH = trackY + THUMB_R + 2;
+  const boxH = svgH;
+
+  const minPrice = ratioToPrice(leftRatio);
+  const maxPrice = ratioToPrice(rightRatio);
+
+  const chart = (() => {
+    if (width <= 0) return null;
+    const gap = 1.25;
+    const n = buckets.length;
+    const barW = Math.max(2.5, (drawable - n * gap) / n);
+    const maxNorm = Math.max(...buckets.map((b) => b.normalized || 0), 0.01);
 
     return (
-      <Svg width={width} height={chartH}>
-        {bars}
-        {markerX != null ? (
-          <>
-            <Line
-              x1={markerX}
-              y1={0}
-              x2={markerX}
-              y2={chartH}
-              stroke={COLORS.primary[600]}
-              strokeWidth={2}
+      <Svg width={width} height={svgH} pointerEvents="none">
+        {buckets.map((b, i) => {
+          const h = Math.max(4, ((b.normalized || 0) / maxNorm) * (barH - 8));
+          const x = THUMB_R + i * (barW + gap);
+          const y = barH - h;
+          const mid = (b.bucket_start + b.bucket_end) / 2;
+          const inRange = mid >= minPrice && mid <= maxPrice;
+          return (
+            <Rect
+              key={`b-${i}`}
+              x={x}
+              y={y}
+              width={barW}
+              height={h}
+              rx={1}
+              fill={inRange ? ACTIVE : INACTIVE}
             />
-            <Circle cx={markerX} cy={6} r={4} fill={COLORS.primary[600]} />
-          </>
-        ) : null}
+          );
+        })}
+        {/* Track full (gris) */}
+        <Line
+          x1={THUMB_R}
+          y1={trackY}
+          x2={width - THUMB_R}
+          y2={trackY}
+          stroke={TRACK_INACTIVE}
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
+        {/* Track activo (rosa) */}
+        <Line
+          x1={THUMB_R + leftRatio * drawable}
+          y1={trackY}
+          x2={THUMB_R + rightRatio * drawable}
+          y2={trackY}
+          stroke={ACTIVE}
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
       </Svg>
     );
-  }, [histogram, hasData, compact, height, valorReal]);
-
-  if (!hasData) {
-    return (
-      <View style={[styles.empty, compact && styles.emptyCompact]}>
-        <Text style={styles.emptyTitle}>
-          {confianza === 'estimado'
-            ? 'Aún no hay suficientes autos comparables publicados'
-            : 'Recopilando datos del mercado'}
-        </Text>
-        <Text style={styles.emptyHint}>
-          Mostramos el valor según tasación y salud de tu vehículo.
-        </Text>
-      </View>
-    );
-  }
+  })();
 
   return (
     <View style={styles.wrap}>
-      {!compact ? (
-        <View style={styles.headerRow}>
-          <Text style={styles.sectionTitle}>Rango en el mercado</Text>
-          <Text style={styles.confidenceChip}>{CONFIDENCE_COPY[confianza] || CONFIDENCE_COPY.estimado}</Text>
+      <Text style={styles.title}>Rango de venta</Text>
+      <Text style={styles.subtitle}>Según mercado y salud de tu auto</Text>
+
+      <View style={[styles.box, { height: boxH }]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+        {chart}
+        <View
+          style={[styles.thumb, { left: leftRatio * drawable, top: trackY - THUMB_R }]}
+          {...leftPan.panHandlers}
+          accessibilityLabel="Precio mínimo"
+        />
+        <View
+          style={[styles.thumb, { left: rightRatio * drawable, top: trackY - THUMB_R }]}
+          {...rightPan.panHandlers}
+          accessibilityLabel="Precio máximo"
+        />
+      </View>
+
+      <View style={styles.inputs}>
+        <View style={styles.inputCol}>
+          <Text style={styles.inputLabel}>Mínimo</Text>
+          <View style={styles.inputBox}>
+            <Text style={styles.inputValue} numberOfLines={1}>
+              {formatCLP(minPrice)}
+            </Text>
+          </View>
         </View>
-      ) : null}
-      <View style={styles.chartRow}>{chartContent}</View>
-      {!compact && rangoMin > 0 && rangoMax > 0 ? (
-        <View style={styles.rangeLabels}>
-          <Text style={styles.rangeText}>
-            ${Math.round(rangoMin / 1_000_000)}M
-          </Text>
-          <Text style={styles.rangeText}>
-            ${Math.round(rangoMax / 1_000_000)}M
-          </Text>
+        <View style={[styles.inputCol, styles.inputColRight]}>
+          <Text style={styles.inputLabel}>Máximo</Text>
+          <View style={styles.inputBox}>
+            <Text style={styles.inputValue} numberOfLines={1}>
+              {formatCLP(maxPrice)}
+            </Text>
+          </View>
         </View>
+      </View>
+
+      {valorReal > 0 ? (
+        <Text style={styles.pinHint}>
+          Tu auto hoy: {formatCompactMillions(valorReal)}
+        </Text>
       ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  wrap: {
-    width: '100%',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.xs,
-  },
-  sectionTitle: {
+  wrap: { width: '100%' },
+  title: {
     ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
   },
-  confidenceChip: {
+  subtitle: {
     ...TYPOGRAPHY.styles.caption,
-    color: COLORS.primary[600],
-    backgroundColor: COLORS.primary[50],
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 2,
-    borderRadius: BORDERS.radius.pill,
-    overflow: 'hidden',
+    color: COLORS.text.tertiary,
+    marginBottom: SPACING.sm,
   },
-  chartRow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 72,
+  box: {
+    width: '100%',
+    position: 'relative',
+    overflow: 'visible',
   },
-  rangeLabels: {
+  thumb: {
+    position: 'absolute',
+    width: THUMB,
+    height: THUMB,
+    borderRadius: THUMB_R,
+    backgroundColor: '#FFFFFF',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.neutral.gray[200],
+    // Sombra suave tipo Airbnb (thumbs blancos flotantes)
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.18,
+        shadowRadius: 4,
+      },
+      android: { elevation: 4 },
+      web: {
+        boxShadow: '0 2px 8px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.04)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.16,
+        shadowRadius: 4,
+        elevation: 4,
+      },
+    }),
+  },
+  inputs: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: SPACING.xxs,
+    marginTop: SPACING.md,
+    gap: SPACING.sm,
   },
-  rangeText: {
+  inputCol: { flex: 1 },
+  inputColRight: { alignItems: 'stretch' },
+  inputLabel: {
     ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.tertiary,
-  },
-  empty: {
-    backgroundColor: COLORS.base.soft,
-    borderRadius: BORDERS.radius.md,
-    padding: SPACING.md,
-    minHeight: 72,
-    justifyContent: 'center',
-  },
-  emptyCompact: {
-    padding: SPACING.sm,
-    minHeight: 56,
-  },
-  emptyTitle: {
-    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.secondary,
+    marginBottom: 4,
   },
-  emptyHint: {
+  inputBox: {
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDERS.radius.lg,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.background.paper,
+  },
+  inputValue: {
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.text.primary,
+  },
+  pinHint: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
-    marginTop: 2,
+    textAlign: 'center',
+    marginTop: SPACING.sm,
   },
 });
 

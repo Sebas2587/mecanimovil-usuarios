@@ -420,9 +420,6 @@ const VehicleProfileScreen = () => {
                         vehicleYear={vehicle.year}
                         healthScore={profileHealthScorePct}
                         onHealthPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: vehicle.id, vehicle })}
-                        onValueDetailPress={() =>
-                            navigation.navigate(ROUTES.VEHICLE_VALUE, { vehicleId: vehicle.id, vehicle })
-                        }
                         onTransferPress={() =>
                             navigation.navigate(ROUTES.TRANSFERENCIA_RESUMEN, {
                                 vehicle,

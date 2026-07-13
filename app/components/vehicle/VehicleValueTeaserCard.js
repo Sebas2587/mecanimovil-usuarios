@@ -1,38 +1,41 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { ChevronRight, TrendingDown, TrendingUp, Minus } from 'lucide-react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { useVehicleValuationForecast } from '../../hooks/useVehicleValuationForecast';
 import VehicleValueHistogramChart from './VehicleValueHistogramChart';
-
-const LIQUIDEZ_CONFIG = {
-  facil: { label: 'Fácil de vender', color: COLORS.success.main, bg: COLORS.success.light },
-  moderado: { label: 'Venta moderada', color: COLORS.warning.main, bg: COLORS.warning.light },
-  dificil: { label: 'Difícil de vender', color: COLORS.error.main, bg: COLORS.error.light },
-  calculando: { label: 'Calculando…', color: COLORS.text.secondary, bg: COLORS.neutral.gray[100] },
-};
-
-const formatCLP = (value) =>
-  new Intl.NumberFormat('es-CL', {
-    style: 'currency',
-    currency: 'CLP',
-    maximumFractionDigits: 0,
-  }).format(value || 0);
+import {
+  adjustRateByHealth,
+  projectValueAtYears,
+  formatCLP,
+} from '../../utils/vehicleValueChart';
 
 /**
- * Teaser del home: valor hoy + liquidez + mini histograma.
+ * Tarjeta minimalista del home: valor hoy + histograma Airbnb interactivo.
+ * Sin badge “Recopilando datos” (confunde: el scrape es batch, no live).
  */
-const VehicleValueTeaserCard = ({ vehicle, onPress }) => {
-  const { data, isLoading, isError } = useVehicleValuationForecast(vehicle, {
+const VehicleValueTeaserCard = ({ vehicle, healthScore }) => {
+  const { data, isLoading } = useVehicleValuationForecast(vehicle, {
     enabled: !!vehicle?.id,
   });
 
-  const liquidez = data?.liquidez || {};
-  const liquCfg = LIQUIDEZ_CONFIG[liquidez.label] || LIQUIDEZ_CONFIG.calculando;
-  const proyeccion1y = useMemo(() => {
-    const items = data?.proyeccion || [];
-    return items.find((p) => p.anio_offset === 1) || null;
-  }, [data?.proyeccion]);
+  const health = Number(healthScore) || vehicle?.salud_general || 70;
+
+  const valorHoy = useMemo(() => {
+    if (data?.valor_real_hoy) return data.valor_real_hoy;
+    return vehicle?.precio_sugerido_final || vehicle?.precio_mercado_promedio || 0;
+  }, [data, vehicle]);
+
+  const tasaAjustada = useMemo(() => {
+    const base = data?.meta?.tasa_depreciacion_anual_pct ?? 7;
+    return adjustRateByHealth(base, health);
+  }, [data?.meta?.tasa_depreciacion_anual_pct, health]);
+
+  const valor1y = useMemo(
+    () => projectValueAtYears(valorHoy, tasaAjustada, 1),
+    [valorHoy, tasaAjustada],
+  );
+
+  const healthProtects = health >= 80;
 
   if (!vehicle?.id) return null;
 
@@ -40,68 +43,36 @@ const VehicleValueTeaserCard = ({ vehicle, onPress }) => {
     return (
       <View style={styles.card}>
         <ActivityIndicator color={COLORS.primary[500]} />
-        <Text style={styles.loadingText}>Calculando valor de tu auto…</Text>
       </View>
     );
   }
-
-  if (isError) {
-    return (
-      <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.9}>
-        <Text style={styles.title}>¿Cuánto vale tu auto hoy?</Text>
-        <Text style={styles.errorText}>No pudimos cargar la valoración. Toca para reintentar.</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  const valorHoy = data?.valor_real_hoy || vehicle.precio_sugerido_final || vehicle.precio_mercado_promedio || 0;
 
   return (
-    <TouchableOpacity
+    <View
       style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.92}
-      accessibilityRole="button"
-      accessibilityLabel={`Valor estimado ${formatCLP(valorHoy)}. ${liquCfg.label}. Ver detalle.`}
+      accessibilityRole="summary"
+      accessibilityLabel={`Valor estimado ${formatCLP(valorHoy)}.`}
     >
-      <View style={styles.topRow}>
-        <View style={styles.titleBlock}>
-          <Text style={styles.title}>¿Cuánto vale tu auto hoy?</Text>
-          <Text style={styles.value}>{formatCLP(valorHoy)}</Text>
-        </View>
-        <ChevronRight size={20} color={COLORS.text.tertiary} strokeWidth={2} />
-      </View>
-
-      <View style={[styles.liquidezBadge, { backgroundColor: liquCfg.bg }]}>
-        <Text style={[styles.liquidezText, { color: liquCfg.color }]}>{liquCfg.label}</Text>
-      </View>
+      <Text style={styles.title}>¿Cuánto vale tu auto hoy?</Text>
+      <Text style={styles.value}>{formatCLP(valorHoy)}</Text>
 
       <VehicleValueHistogramChart
         histogram={data?.histograma}
         valorReal={valorHoy}
         rangoMin={data?.valor_real_rango_min}
         rangoMax={data?.valor_real_rango_max}
-        confianza={data?.confianza}
-        compact
-        height={64}
+        height={88}
       />
 
-      {proyeccion1y ? (
-        <View style={styles.footerRow}>
-          <Text style={styles.footerLabel}>En 1 año (estimado)</Text>
-          <View style={styles.footerValueRow}>
-            {proyeccion1y.tendencia === 'depreciacion' ? (
-              <TrendingDown size={14} color={COLORS.error.main} strokeWidth={2} />
-            ) : proyeccion1y.tendencia === 'apreciacion' ? (
-              <TrendingUp size={14} color={COLORS.success.main} strokeWidth={2} />
-            ) : (
-              <Minus size={14} color={COLORS.text.tertiary} strokeWidth={2} />
-            )}
-            <Text style={styles.footerValue}>{formatCLP(proyeccion1y.valor)}</Text>
-          </View>
-        </View>
-      ) : null}
-    </TouchableOpacity>
+      <View style={styles.footer}>
+        <Text style={styles.footerLabel}>
+          {healthProtects
+            ? `Salud ${Math.round(health)}% · protege el valor en el tiempo`
+            : `En 1 año (con tu salud actual)`}
+        </Text>
+        <Text style={styles.footerValue}>{formatCLP(valor1y)}</Text>
+      </View>
+    </View>
   );
 };
 
@@ -113,16 +84,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
     padding: SPACING.md,
     marginBottom: SPACING.md,
-    gap: SPACING.sm,
-  },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  titleBlock: {
-    flex: 1,
-    minWidth: 0,
+    gap: SPACING.xs,
   },
   title: {
     ...TYPOGRAPHY.styles.captionBold,
@@ -131,47 +93,26 @@ const styles = StyleSheet.create({
   value: {
     ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
-    marginTop: 2,
+    marginBottom: SPACING.xs,
   },
-  liquidezBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
-    borderRadius: BORDERS.radius.pill,
-  },
-  liquidezText: {
-    ...TYPOGRAPHY.styles.captionBold,
-  },
-  footerRow: {
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: SPACING.xxs,
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.border.light,
+    gap: SPACING.sm,
   },
   footerLabel: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-  },
-  footerValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    flex: 1,
   },
   footerValue: {
     ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
-  },
-  loadingText: {
-    ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.secondary,
-    marginTop: SPACING.xs,
-  },
-  errorText: {
-    ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.secondary,
-    marginTop: SPACING.xs,
   },
 });
 

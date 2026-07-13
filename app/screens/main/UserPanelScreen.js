@@ -200,14 +200,6 @@ const UserPanelScreen = () => {
     return solicitudesActivas.find((s) => solicitudVisibleParaVehiculoDashboard(s, vid)) ?? null;
   }, [solicitudesActivas, activeSolicitudesCount, selectedVehicle?.id]);
 
-  const openVehicleValueDetail = useCallback(() => {
-    if (!selectedVehicle) return;
-    navigation.navigate(ROUTES.VEHICLE_VALUE, {
-      vehicleId: selectedVehicle.id,
-      vehicle: selectedVehicle,
-    });
-  }, [navigation, selectedVehicle]);
-
   const { data: userAddresses } = useUserAddresses();
   const addressList = useMemo(
     () => (Array.isArray(userAddresses) ? userAddresses : []),
@@ -389,10 +381,7 @@ const UserPanelScreen = () => {
           onSelectCategory={handleCategorySelect}
         />
 
-        <VehicleValueTeaserCard
-          vehicle={selectedVehicle}
-          onPress={openVehicleValueDetail}
-        />
+        <VehicleValueTeaserCard vehicle={selectedVehicle} healthScore={healthScore} />
 
         <HomeContextualBanner
           solicitud={firstVisibleSolicitud}
