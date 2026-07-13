@@ -3,15 +3,10 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { useVehicleValuationForecast } from '../../hooks/useVehicleValuationForecast';
 import VehicleValueHistogramChart from './VehicleValueHistogramChart';
-import {
-  adjustRateByHealth,
-  projectValueAtYears,
-  formatCLP,
-} from '../../utils/vehicleValueChart';
+import { adjustRateByHealth, formatCLP } from '../../utils/vehicleValueChart';
 
 /**
- * Tarjeta minimalista del home: valor hoy + histograma Airbnb interactivo.
- * Sin badge “Recopilando datos” (confunde: el scrape es batch, no live).
+ * Tarjeta del home: valor + histograma interactivo + progreso de scrape.
  */
 const VehicleValueTeaserCard = ({ vehicle, healthScore }) => {
   const { data, isLoading } = useVehicleValuationForecast(vehicle, {
@@ -19,6 +14,9 @@ const VehicleValueTeaserCard = ({ vehicle, healthScore }) => {
   });
 
   const health = Number(healthScore) || vehicle?.salud_general || 70;
+  const scrape = data?.meta?.scrape || {};
+  const scrapeActive = scrape.state === 'pending' || scrape.state === 'running';
+  const scrapePct = Math.max(0, Math.min(100, Number(scrape.progress_pct) || 0));
 
   const valorHoy = useMemo(() => {
     if (data?.valor_real_hoy) return data.valor_real_hoy;
@@ -27,19 +25,16 @@ const VehicleValueTeaserCard = ({ vehicle, healthScore }) => {
 
   const tasaAjustada = useMemo(() => {
     const base = data?.meta?.tasa_depreciacion_anual_pct ?? 7;
+    // Si el backend ya aplicó salud, no doblar el ajuste.
+    if (String(data?.meta?.fuente_tasa || '').includes('salud')) {
+      return Number(base);
+    }
     return adjustRateByHealth(base, health);
-  }, [data?.meta?.tasa_depreciacion_anual_pct, health]);
-
-  const valor1y = useMemo(
-    () => projectValueAtYears(valorHoy, tasaAjustada, 1),
-    [valorHoy, tasaAjustada],
-  );
-
-  const healthProtects = health >= 80;
+  }, [data?.meta?.tasa_depreciacion_anual_pct, data?.meta?.fuente_tasa, health]);
 
   if (!vehicle?.id) return null;
 
-  if (isLoading) {
+  if (isLoading && !data) {
     return (
       <View style={styles.card}>
         <ActivityIndicator color={COLORS.primary[500]} />
@@ -56,22 +51,27 @@ const VehicleValueTeaserCard = ({ vehicle, healthScore }) => {
       <Text style={styles.title}>¿Cuánto vale tu auto hoy?</Text>
       <Text style={styles.value}>{formatCLP(valorHoy)}</Text>
 
+      {scrapeActive ? (
+        <View style={styles.progressBlock}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>{scrape.message || 'Buscando datos del mercado…'}</Text>
+            <Text style={styles.progressPct}>{scrapePct}%</Text>
+          </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${scrapePct}%` }]} />
+          </View>
+        </View>
+      ) : null}
+
       <VehicleValueHistogramChart
         histogram={data?.histograma}
         valorReal={valorHoy}
         rangoMin={data?.valor_real_rango_min}
         rangoMax={data?.valor_real_rango_max}
+        tasaAnualPct={tasaAjustada}
+        demanda={data?.demanda || data?.meta?.demanda}
         height={88}
       />
-
-      <View style={styles.footer}>
-        <Text style={styles.footerLabel}>
-          {healthProtects
-            ? `Salud ${Math.round(health)}% · protege el valor en el tiempo`
-            : `En 1 año (con tu salud actual)`}
-        </Text>
-        <Text style={styles.footerValue}>{formatCLP(valor1y)}</Text>
-      </View>
     </View>
   );
 };
@@ -95,24 +95,35 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     marginBottom: SPACING.xs,
   },
-  footer: {
+  progressBlock: {
+    marginBottom: SPACING.sm,
+    gap: 6,
+  },
+  progressHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.border.light,
+    alignItems: 'center',
     gap: SPACING.sm,
   },
-  footerLabel: {
+  progressLabel: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     flex: 1,
   },
-  footerValue: {
+  progressPct: {
     ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.text.primary,
+    color: COLORS.primary[600],
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.neutral.gray[200],
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: COLORS.primary[500],
+    borderRadius: 3,
   },
 });
 

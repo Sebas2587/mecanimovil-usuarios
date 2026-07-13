@@ -91,3 +91,123 @@ export function projectValueAtYears(valorHoy, tasaAnualPct, years) {
   const rate = (Number(tasaAnualPct) || 0) / 100;
   return Math.max(0, Math.round(valor * (1 - rate) ** years));
 }
+
+export function projectValueAtMonths(valorHoy, tasaAnualPct, months) {
+  return projectValueAtYears(valorHoy, tasaAnualPct, Number(months) / 12);
+}
+
+/**
+ * Trayectoria de PRECIO (no demanda): cuándo el valor proyectado
+ * caería dentro del rango elegido. No afirma “mejor momento de vender”.
+ */
+export function buildPricePathInsight({
+  valorHoy,
+  tasaAnualPct,
+  minPrice,
+  maxPrice,
+  maxMonths = 36,
+}) {
+  const valor = Number(valorHoy) || 0;
+  const min = Number(minPrice) || 0;
+  const max = Number(maxPrice) || 0;
+  const tasa = Number(tasaAnualPct) || 0;
+
+  if (valor <= 0 || max <= min) {
+    return { kind: 'none', title: '', detail: '', months: null };
+  }
+
+  const inRangeNow = valor >= min && valor <= max;
+  if (inRangeNow) {
+    return {
+      kind: 'in_range',
+      title: 'Tu valor de hoy está en este rango',
+      detail: 'Eso es precio objetivo, no demanda. Mira la señal de mercado abajo para decidir si vender ya.',
+      months: 0,
+      midPrice: Math.round((min + max) / 2),
+    };
+  }
+
+  let hitMonth = null;
+  for (let m = 1; m <= maxMonths; m += 1) {
+    const v = projectValueAtMonths(valor, tasa, m);
+    if (v >= min && v <= max) {
+      hitMonth = m;
+      break;
+    }
+  }
+
+  if (hitMonth != null) {
+    const label =
+      hitMonth < 12
+        ? `~${hitMonth} mes${hitMonth === 1 ? '' : 'es'}`
+        : `~${(hitMonth / 12).toFixed(1).replace('.0', '')} años`;
+    return {
+      kind: 'path',
+      title: `Tu valor llegaría a este rango en ${label}`,
+      detail: 'Proyección por depreciación/salud. No indica si habrá más o menos compradores ese mes.',
+      months: hitMonth,
+      midPrice: Math.round((min + max) / 2),
+    };
+  }
+
+  if (valor > max && tasa >= 0) {
+    for (let m = 1; m <= maxMonths; m += 1) {
+      if (projectValueAtMonths(valor, tasa, m) <= max) {
+        const label = m < 12 ? `~${m}m` : `~${(m / 12).toFixed(1)}a`;
+        return {
+          kind: 'path',
+          title: `Bajaría a tu máximo en ${label}`,
+          detail: 'Solo trayectoria de precio. La demanda puede cambiar antes.',
+          months: m,
+          midPrice: max,
+        };
+      }
+    }
+  }
+
+  if (valor < min && tasa > 0) {
+    return {
+      kind: 'unreachable',
+      title: 'Ese mínimo no se alcanza depreciando',
+      detail: 'El valor tiende a bajar, no a subir hacia ese piso. Ajusta el rango.',
+      months: null,
+      midPrice: min,
+    };
+  }
+
+  if (valor < min && tasa <= 0) {
+    return {
+      kind: 'unreachable',
+      title: 'Rango por encima de la proyección',
+      detail: 'Con la tasa actual no llegarías a ese mínimo. Baja el mínimo o mejora salud.',
+      months: null,
+      midPrice: min,
+    };
+  }
+
+  return {
+    kind: 'info',
+    title: 'Fuera de trayectoria',
+    detail: 'Mueve el rango para ver cuándo tu valor proyectado lo cruzaría.',
+    months: null,
+    midPrice: Math.round((min + max) / 2),
+  };
+}
+
+/** @deprecated alias — usar buildPricePathInsight */
+export function buildSellTimingInsight(args) {
+  return buildPricePathInsight(args);
+}
+
+export function buildHorizonChips(valorHoy, tasaAnualPct) {
+  const horizons = [
+    { key: '0', label: 'Hoy', months: 0 },
+    { key: '6', label: '6m', months: 6 },
+    { key: '12', label: '1a', months: 12 },
+    { key: '36', label: '3a', months: 36 },
+  ];
+  return horizons.map((h) => ({
+    ...h,
+    valor: projectValueAtMonths(valorHoy, tasaAnualPct, h.months),
+  }));
+}

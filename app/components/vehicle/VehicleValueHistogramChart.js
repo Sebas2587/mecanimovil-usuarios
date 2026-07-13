@@ -6,26 +6,28 @@ import {
   resolvePriceHistogram,
   formatCLP,
   formatCompactMillions,
+  buildPricePathInsight,
+  buildHorizonChips,
 } from '../../utils/vehicleValueChart';
 
 const THUMB = 28;
 const THUMB_R = THUMB / 2;
 const BAR_H = 88;
-const TRACK_Y = BAR_H + 2;
 const MIN_GAP = 0.06;
 const ACTIVE = COLORS.primary[500];
 const INACTIVE = COLORS.neutral.gray[200];
 const TRACK_INACTIVE = COLORS.neutral.gray[200];
 
 /**
- * Histograma de precios estilo Airbnb (colina + dual thumb interactivo).
- * X = precio · Y = densidad de mercado · thumbs = rango de venta probable.
+ * Histograma Airbnb + insight de cuándo vender según el rango elegido.
  */
 const VehicleValueHistogramChart = ({
   histogram = [],
   valorReal = 0,
   rangoMin = 0,
   rangoMax = 0,
+  tasaAnualPct = 7,
+  demanda = null,
   height = BAR_H,
 }) => {
   const [width, setWidth] = useState(0);
@@ -95,15 +97,31 @@ const VehicleValueHistogramChart = ({
   const leftPan = useMemo(() => makeResponder('left'), [makeResponder]);
   const rightPan = useMemo(() => makeResponder('right'), [makeResponder]);
 
+  const minPrice = ratioToPrice(leftRatio);
+  const maxPrice = ratioToPrice(rightRatio);
+
+  const timing = useMemo(
+    () =>
+      buildPricePathInsight({
+        valorHoy: valorReal,
+        tasaAnualPct,
+        minPrice,
+        maxPrice,
+      }),
+    [valorReal, tasaAnualPct, minPrice, maxPrice],
+  );
+
+  const horizons = useMemo(
+    () => buildHorizonChips(valorReal, tasaAnualPct),
+    [valorReal, tasaAnualPct],
+  );
+
   if (!buckets.length) return null;
 
   const barH = height;
   const trackY = barH + 2;
   const svgH = trackY + THUMB_R + 2;
   const boxH = svgH;
-
-  const minPrice = ratioToPrice(leftRatio);
-  const maxPrice = ratioToPrice(rightRatio);
 
   const chart = (() => {
     if (width <= 0) return null;
@@ -132,7 +150,6 @@ const VehicleValueHistogramChart = ({
             />
           );
         })}
-        {/* Track full (gris) */}
         <Line
           x1={THUMB_R}
           y1={trackY}
@@ -142,7 +159,6 @@ const VehicleValueHistogramChart = ({
           strokeWidth={2}
           strokeLinecap="round"
         />
-        {/* Track activo (rosa) */}
         <Line
           x1={THUMB_R + leftRatio * drawable}
           y1={trackY}
@@ -156,10 +172,24 @@ const VehicleValueHistogramChart = ({
     );
   })();
 
+  const timingTone =
+    timing.kind === 'in_range'
+      ? COLORS.primary[600]
+      : timing.kind === 'path'
+        ? COLORS.text.primary
+        : COLORS.text.secondary;
+
+  const demandaTone =
+    demanda?.recomendacion === 'vender_ahora'
+      ? COLORS.success.main
+      : demanda?.recomendacion === 'esperar'
+        ? COLORS.warning.main
+        : COLORS.text.secondary;
+
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>Rango de venta</Text>
-      <Text style={styles.subtitle}>Según mercado y salud de tu auto</Text>
+      <Text style={styles.subtitle}>Precio objetivo vs. cuándo tu valor lo cruzaría</Text>
 
       <View style={[styles.box, { height: boxH }]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
         {chart}
@@ -184,7 +214,7 @@ const VehicleValueHistogramChart = ({
             </Text>
           </View>
         </View>
-        <View style={[styles.inputCol, styles.inputColRight]}>
+        <View style={styles.inputCol}>
           <Text style={styles.inputLabel}>Máximo</Text>
           <View style={styles.inputBox}>
             <Text style={styles.inputValue} numberOfLines={1}>
@@ -194,11 +224,46 @@ const VehicleValueHistogramChart = ({
         </View>
       </View>
 
-      {valorReal > 0 ? (
-        <Text style={styles.pinHint}>
-          Tu auto hoy: {formatCompactMillions(valorReal)}
-        </Text>
+      {timing.kind !== 'none' ? (
+        <View style={styles.timingCard}>
+          <Text style={styles.sectionEyebrow}>Trayectoria de precio</Text>
+          <Text style={[styles.timingTitle, { color: timingTone }]}>{timing.title}</Text>
+          <Text style={styles.timingDetail}>{timing.detail}</Text>
+        </View>
       ) : null}
+
+      <View style={styles.timingCard}>
+        <Text style={styles.sectionEyebrow}>Demanda del mercado</Text>
+        <Text style={[styles.timingTitle, { color: demandaTone }]}>
+          {demanda?.titulo || 'Aún midiendo la demanda'}
+        </Text>
+        <Text style={styles.timingDetail}>
+          {demanda?.detalle ||
+            'Para saber si el próximo mes es mejor que hoy hace falta ver rotación y oferta de avisos similares en el tiempo.'}
+        </Text>
+        {(demanda?.razones || []).slice(0, 2).map((r, i) => (
+          <Text key={i} style={styles.reason}>
+            · {r}
+          </Text>
+        ))}
+      </View>
+
+      <View style={styles.horizonRow}>
+        {horizons.map((h) => {
+          const active =
+            timing.months != null &&
+            ((h.months === 0 && timing.months === 0) ||
+              (h.months > 0 && Math.abs(h.months - timing.months) <= (h.months === 6 ? 3 : 6)));
+          return (
+            <View key={h.key} style={[styles.horizonChip, active && styles.horizonChipActive]}>
+              <Text style={[styles.horizonLabel, active && styles.horizonLabelActive]}>{h.label}</Text>
+              <Text style={[styles.horizonValue, active && styles.horizonValueActive]} numberOfLines={1}>
+                {formatCompactMillions(h.valor)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 };
@@ -227,7 +292,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.neutral.gray[200],
-    // Sombra suave tipo Airbnb (thumbs blancos flotantes)
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -255,7 +319,6 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   inputCol: { flex: 1 },
-  inputColRight: { alignItems: 'stretch' },
   inputLabel: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
@@ -273,11 +336,61 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
-  pinHint: {
+  timingCard: {
+    marginTop: SPACING.sm,
+    padding: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.base.soft,
+  },
+  sectionEyebrow: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
-    textAlign: 'center',
+    marginBottom: 2,
+  },
+  timingTitle: {
+    ...TYPOGRAPHY.styles.captionBold,
+  },
+  timingDetail: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
+  reason: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
+  horizonRow: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
     marginTop: SPACING.sm,
+  },
+  horizonChip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+  },
+  horizonChipActive: {
+    borderColor: COLORS.primary[500],
+    backgroundColor: COLORS.primary[50],
+  },
+  horizonLabel: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+  },
+  horizonLabelActive: {
+    color: COLORS.primary[600],
+  },
+  horizonValue: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.primary,
+    marginTop: 2,
+  },
+  horizonValueActive: {
+    color: COLORS.primary[600],
   },
 });
 

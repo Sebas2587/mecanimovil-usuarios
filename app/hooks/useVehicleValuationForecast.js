@@ -1,8 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { getVehicleValorReal } from '../services/vehicle';
 
+function scrapeIsActive(data) {
+  const state = data?.meta?.scrape?.state;
+  return state === 'pending' || state === 'running';
+}
+
 /**
  * Valor real, liquidez y proyección del vehículo seleccionado.
+ * Mientras el scrape on-demand corre, refresca cada 3s para mostrar %.
  */
 export function useVehicleValuationForecast(vehicle, { enabled = true, refresh = false } = {}) {
   const vehicleId = vehicle?.id ?? null;
@@ -13,5 +19,6 @@ export function useVehicleValuationForecast(vehicle, { enabled = true, refresh =
     staleTime: 1000 * 60 * 10,
     gcTime: 1000 * 60 * 60,
     queryFn: () => getVehicleValorReal(vehicleId, { refresh }),
+    refetchInterval: (query) => (scrapeIsActive(query.state.data) ? 3000 : false),
   });
 }
