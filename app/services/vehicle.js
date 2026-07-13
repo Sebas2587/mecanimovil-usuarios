@@ -408,6 +408,22 @@ export const getVehicleAppraisal = async (vehicleId) => {
 };
 
 /**
+ * Valor real, liquidez y proyección del vehículo.
+ * @param {number} vehicleId
+ * @param {{ refresh?: boolean }} [options]
+ */
+export const getVehicleValorReal = async (vehicleId, options = {}) => {
+  try {
+    const params = options.refresh ? { refresh: '1' } : {};
+    const data = await get(`/vehiculos/${vehicleId}/valor-real/`, params);
+    return data;
+  } catch (error) {
+    console.error(`Error obteniendo valor real ${vehicleId}:`, error);
+    throw error;
+  }
+};
+
+/**
  * Obtiene el historial COMPLETO de servicios de un vehículo (todos los dueños).
  * Solo accesible por el dueño actual.
  */

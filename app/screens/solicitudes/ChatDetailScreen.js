@@ -9,29 +9,35 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Image } from 'expo-image';
 import {
-    Car,
-    FileText,
-    CircleX,
     Paperclip,
-    Send,
+    ArrowUp,
     X,
-    ChevronRight,
+    Image as ImageIcon,
+    Camera,
+    FileText,
 } from 'lucide-react-native';
-import { COLORS, TYPOGRAPHY, BORDERS, withOpacity } from '../../design-system/tokens';
+import { COLORS, TYPOGRAPHY, BORDERS, SPACING, withOpacity } from '../../design-system/tokens';
 import BackButton from '../../components/navigation/BackButton';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import AttachmentStagingTray from '../../components/chats/AttachmentStagingTray';
+import AudioRecorderBar from '../../components/chats/AudioRecorderBar';
+import ChatMessageRow, { prepareChatListItems } from '../../components/chats/ChatMessageRow';
+import {
+  appendChatFileToFormData,
+  normalizeChatMessage,
+  normalizeAttachmentRef,
+} from '../../utils/chatAttachmentMedia';
 
 import chatService from '../../services/chatService';
 import websocketService from '../../services/websocketService'; // Global WS for broadcasts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import serverConfig from '../../config/serverConfig';
-import { isChatAttachmentImage, resolveChatAttachmentUri } from '../../utils/chatAttachmentMedia';
 import { ROUTES } from '../../utils/constants';
 import { CONVERSATIONS_KEYS } from '../../hooks/useChats';
 
-/** Altura aproximada de la barra de composición (input + botones + safe area mínima). */
-const CHAT_COMPOSER_MIN_HEIGHT = 76;
+/** Altura aproximada de la barra de composición (input compacto Airbnb + safe area mínima). */
+const CHAT_COMPOSER_MIN_HEIGHT = 64;
 
 const ChatDetailScreen = () => {
     const route = useRoute();
@@ -41,7 +47,7 @@ const ChatDetailScreen = () => {
     const isWeb = Platform.OS === 'web';
 
     const styles = getStyles();
-    const composerBottomPad = Math.max(insets.bottom, 16);
+    const composerBottomPad = Math.max(insets.bottom, 10);
     const composerBlockHeight = CHAT_COMPOSER_MIN_HEIGHT + composerBottomPad;
 
     const webScreenFrame = isWeb
@@ -64,10 +70,15 @@ const ChatDetailScreen = () => {
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
-    const [attachment, setAttachment] = useState(null); // { uri, type, name, mimeType }
+    const [attachments, setAttachments] = useState([]);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [voiceRecording, setVoiceRecording] = useState(false);
+    const [attachMenuVisible, setAttachMenuVisible] = useState(false);
     const flatListRef = useRef(null);
     const sentMessagesRef = useRef(new Set());
+    const currentUserIdRef = useRef(null);
+    /** temp-* aún no confirmados por HTTP/WS */
+    const pendingOptimisticRef = useRef(new Set());
     /** context_id de la conversación = id solicitud pública; para filtrar WS sin conversation_id. */
     const solicitudContextRef = useRef(null);
 
@@ -88,6 +99,7 @@ const ChatDetailScreen = () => {
                     const user = JSON.parse(userJson);
                     console.log('👤 [CHAT DETAIL] Loaded user ID:', user.id);
                     setCurrentUserId(user.id);
+                    currentUserIdRef.current = user.id;
                 } else {
                     console.warn('⚠️ [CHAT DETAIL] No user found in storage');
                 }
@@ -108,59 +120,42 @@ const ChatDetailScreen = () => {
      * loadData fusionará el buffer con los mensajes cargados del servidor.
      */
     const addMessageToState = useCallback((newMsg) => {
-        // Sin id no podemos deduplicar → ignorar
-        if (newMsg.id == null) return;
+        const normalized = normalizeChatMessage(newMsg);
+        if (normalized.id == null) return;
 
         if (!isLoadedRef.current) {
-            pendingWsMessagesRef.current.push(newMsg);
+            pendingWsMessagesRef.current.push(normalized);
             return;
         }
 
         setMessages((prev) => {
-            const idStr = String(newMsg.id);
+            const idStr = String(normalized.id);
+            const ownId = currentUserIdRef.current;
+            const isOwn =
+                ownId != null &&
+                String(normalized.sender_id ?? normalized.sender?.id) === String(ownId);
 
-            // Si ya existe en el estado, enriquecer con attachment si el nuevo lo trae
             const existingIdx = prev.findIndex(
                 (m) => m.id != null && String(m.id) === idStr
             );
             if (existingIdx !== -1) {
                 const existing = prev[existingIdx];
                 const hasNewAttachment =
-                    (newMsg.attachment || newMsg.archivo_adjunto) &&
+                    (normalized.attachment || normalized.archivo_adjunto) &&
                     !existing.attachment &&
                     !existing.archivo_adjunto;
-                if (hasNewAttachment) {
+                if (hasNewAttachment || existing.is_temp) {
                     const updated = [...prev];
                     updated[existingIdx] = {
                         ...existing,
-                        attachment: newMsg.attachment ?? newMsg.archivo_adjunto,
-                        archivo_adjunto: newMsg.archivo_adjunto ?? newMsg.attachment,
-                    };
-                    return updated;
-                }
-                return prev;
-            }
-
-            // Lo enviamos nosotros (optimistic) - ignorar el eco del servidor
-            // a menos que traiga attachment real (URL de servidor vs file://)
-            if (sentMessagesRef.current.has(idStr)) {
-                const optimisticIdx = prev.findIndex(
-                    (m) => m.is_temp && (
-                        m.content === newMsg.content ||
-                        (m.attachment && newMsg.attachment)
-                    )
-                );
-                if (
-                    optimisticIdx !== -1 &&
-                    newMsg.attachment &&
-                    !String(newMsg.attachment).startsWith('file://')
-                ) {
-                    const updated = [...prev];
-                    updated[optimisticIdx] = {
-                        ...updated[optimisticIdx],
-                        id: newMsg.id,
-                        attachment: newMsg.attachment,
-                        archivo_adjunto: newMsg.archivo_adjunto ?? newMsg.attachment,
+                        ...normalized,
+                        attachment: normalized.attachment ?? existing.attachment,
+                        archivo_adjunto:
+                            normalized.archivo_adjunto ??
+                            normalized.attachment ??
+                            existing.archivo_adjunto,
+                        attachment_mime: normalized.attachment_mime || existing.attachment_mime,
+                        attachment_name: normalized.attachment_name || existing.attachment_name,
                         is_temp: false,
                     };
                     return updated;
@@ -168,7 +163,56 @@ const ChatDetailScreen = () => {
                 return prev;
             }
 
-            return [newMsg, ...prev];
+            // Eco propio: reemplazar temp pendiente (evita duplicado optimistic + WS)
+            if (isOwn && pendingOptimisticRef.current.size > 0) {
+                const incomingContent = normalized.content || '';
+                let optIdx = -1;
+                for (let i = prev.length - 1; i >= 0; i -= 1) {
+                    const m = prev[i];
+                    if (!m.is_temp || !pendingOptimisticRef.current.has(String(m.id))) continue;
+                    if (String(m.sender_id) !== String(ownId)) continue;
+                    if ((m.content || '') !== incomingContent) continue;
+                    if (!!m.attachment !== !!normalized.attachment) continue;
+                    optIdx = i;
+                    break;
+                }
+                if (optIdx === -1) {
+                    for (let i = prev.length - 1; i >= 0; i -= 1) {
+                        const m = prev[i];
+                        if (m.is_temp && pendingOptimisticRef.current.has(String(m.id))) {
+                            optIdx = i;
+                            break;
+                        }
+                    }
+                }
+                if (optIdx !== -1) {
+                    pendingOptimisticRef.current.delete(String(prev[optIdx].id));
+                    sentMessagesRef.current.add(idStr);
+                    const updated = [...prev];
+                    updated[optIdx] = {
+                        ...prev[optIdx],
+                        ...normalized,
+                        id: normalized.id,
+                        attachment: normalized.attachment ?? prev[optIdx].attachment,
+                        archivo_adjunto:
+                            normalized.archivo_adjunto ??
+                            normalized.attachment ??
+                            prev[optIdx].archivo_adjunto,
+                        attachment_mime:
+                            normalized.attachment_mime || prev[optIdx].attachment_mime,
+                        attachment_name:
+                            normalized.attachment_name || prev[optIdx].attachment_name,
+                        is_temp: false,
+                    };
+                    return updated;
+                }
+            }
+
+            if (sentMessagesRef.current.has(idStr)) {
+                return prev;
+            }
+
+            return [normalized, ...prev];
         });
     }, []);
 
@@ -196,11 +240,13 @@ const ChatDetailScreen = () => {
 
             const msgsData = await chatService.getMessages(conversationId);
             const raw = msgsData?.results ?? msgsData;
-            const loadedList = (Array.isArray(raw) ? raw : []).map((m) => ({
-                ...m,
-                content: m.content ?? m.message ?? m.mensaje ?? '',
-                attachment: m.attachment ?? m.archivo_adjunto ?? null,
-            }));
+            const loadedList = (Array.isArray(raw) ? raw : []).map((m) =>
+                normalizeChatMessage({
+                    ...m,
+                    content: m.content ?? m.message ?? m.mensaje ?? '',
+                    attachment: normalizeAttachmentRef(m.attachment ?? m.archivo_adjunto),
+                }),
+            );
 
             isLoadedRef.current = true;
 
@@ -244,17 +290,16 @@ const ChatDetailScreen = () => {
         chatService.connect(conversationId, (raw) => {
             const msgId = raw.id ?? raw.mensaje_id ?? null;
             if (msgId == null) return;
-            const normalized = {
+            const normalized = normalizeChatMessage({
                 id: msgId,
                 content: raw.content ?? raw.message ?? raw.mensaje ?? '',
                 sender_id: raw.sender_id ?? raw.sender?.id,
                 sender: raw.sender ?? { id: raw.sender_id ?? raw.sender?.id },
                 timestamp: raw.timestamp ?? raw.created_at,
                 created_at: raw.created_at ?? raw.timestamp,
-                attachment: raw.attachment ?? raw.archivo_adjunto ?? null,
-                archivo_adjunto: raw.archivo_adjunto ?? raw.attachment ?? null,
+                attachment: normalizeAttachmentRef(raw.attachment ?? raw.archivo_adjunto),
                 is_read: raw.is_read ?? false,
-            };
+            });
             addMessageToState(normalized);
         });
 
@@ -288,16 +333,25 @@ const ChatDetailScreen = () => {
             const msgId = data.mensaje_id ?? data.id ?? null;
             if (msgId == null) return;
 
-            const newMessage = {
+            // El remitente ya recibe el eco por el WS de conversación; evita doble inserción
+            if (
+                currentUserIdRef.current != null &&
+                data.sender_id != null &&
+                String(data.sender_id) === String(currentUserIdRef.current)
+            ) {
+                return;
+            }
+
+            const newMessage = normalizeChatMessage({
                 id: msgId,
                 content: data.mensaje ?? data.content ?? data.message ?? '',
                 sender_id: data.sender_id,
                 sender: { id: data.sender_id, username: data.enviado_por },
                 created_at: data.timestamp ?? new Date().toISOString(),
                 timestamp: data.timestamp ?? new Date().toISOString(),
-                attachment: data.archivo_adjunto ?? data.attachment ?? null,
+                attachment: normalizeAttachmentRef(data.archivo_adjunto ?? data.attachment),
                 is_read: false,
-            };
+            });
 
             addMessageToState(newMessage);
         };
@@ -315,356 +369,446 @@ const ChatDetailScreen = () => {
         };
     }, [conversationId, addMessageToState, loadData]);
 
-    const handlePickAttachment = async () => {
+    const listItems = React.useMemo(
+        () => prepareChatListItems(messages, currentUserId),
+        [messages, currentUserId],
+    );
+
+    const mapAssetToAttachment = (asset, fallbackType = 'image') => {
+        const mime = asset.mimeType || asset.mime || '';
+        const name = asset.fileName || asset.name || '';
+        const lower = name.toLowerCase();
+        const isVideo =
+            asset.type === 'video' ||
+            mime.startsWith('video/') ||
+            /\.(mp4|mov|webm|m4v)$/i.test(lower);
+        const isAudio =
+            mime.startsWith('audio/') ||
+            /\.(mp3|m4a|wav|aac|ogg|caf)$/i.test(lower);
+        const type = isVideo ? 'video' : isAudio ? 'audio' : fallbackType;
+        const ext = isVideo ? 'mp4' : isAudio ? 'm4a' : 'jpg';
+        return {
+            uri: asset.uri,
+            type,
+            name: name || `${type}_${Date.now()}.${ext}`,
+            mimeType:
+                mime ||
+                (isVideo ? 'video/mp4' : isAudio ? 'audio/m4a' : 'image/jpeg'),
+        };
+    };
+
+    const pickFromGallery = async () => {
+        try {
+            if (Platform.OS !== 'web') {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permiso denegado', 'Se requiere acceso a la galería.');
+                    return;
+                }
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images', 'videos'],
+                quality: 0.8,
+                allowsMultipleSelection: true,
+                selectionLimit: 10,
+                allowsEditing: false,
+            });
+
+            if (!result.canceled && result.assets?.length > 0) {
+                const mapped = result.assets.map((a) => mapAssetToAttachment(a));
+                setAttachments((prev) => [...prev, ...mapped].slice(0, 10));
+            }
+        } catch (error) {
+            console.error('Error picking gallery:', error);
+            Alert.alert('Error', 'No se pudo abrir la galería.');
+        }
+    };
+
+    const pickFromCamera = async () => {
+        try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permiso denegado', 'Se requiere permiso para acceder a la cámara.');
+                return;
+            }
+
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets?.length > 0) {
+                const mapped = mapAssetToAttachment(result.assets[0]);
+                setAttachments((prev) => [...prev, mapped].slice(0, 10));
+            }
+        } catch (error) {
+            console.error('Error launching camera:', error);
+            Alert.alert('Error', 'No se pudo abrir la cámara.');
+        }
+    };
+
+    const pickDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: '*/*',
+                copyToCacheDirectory: true,
+                multiple: true,
+            });
+
+            if (!result.canceled && result.assets?.length > 0) {
+                const mapped = result.assets.map((asset) => {
+                    const lower = (asset.name || '').toLowerCase();
+                    const mime = asset.mimeType || '';
+                    if (mime.startsWith('video/') || /\.(mp4|mov|webm)$/i.test(lower)) {
+                        return mapAssetToAttachment(asset, 'video');
+                    }
+                    if (mime.startsWith('audio/') || /\.(mp3|m4a|wav|aac)$/i.test(lower)) {
+                        return mapAssetToAttachment(asset, 'audio');
+                    }
+                    if (mime.startsWith('image/') || /\.(jpe?g|png|gif|webp)$/i.test(lower)) {
+                        return mapAssetToAttachment(asset, 'image');
+                    }
+                    return {
+                        uri: asset.uri,
+                        type: 'document',
+                        name: asset.name || `documento_${Date.now()}`,
+                        mimeType: mime || (lower.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream'),
+                    };
+                });
+                setAttachments((prev) => [...prev, ...mapped].slice(0, 10));
+            }
+        } catch (err) {
+            console.log('Error picking document', err);
+        }
+    };
+
+    const handlePickAttachment = () => {
+        // Alert.alert con botones no funciona de forma fiable en web (RN).
+        if (Platform.OS === 'web') {
+            setAttachMenuVisible(true);
+            return;
+        }
         Alert.alert(
             'Adjuntar archivo',
             'Selecciona el tipo de archivo',
             [
-                {
-                    text: 'Galería de fotos',
-                    onPress: async () => {
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                            quality: 0.8,
-                            allowsEditing: false, // Send full image
-                        });
-
-                        if (!result.canceled && result.assets && result.assets.length > 0) {
-                            const asset = result.assets[0];
-                            setAttachment({
-                                uri: asset.uri,
-                                type: 'image',
-                                name: asset.fileName || `image_${Date.now()}.jpg`,
-                                mimeType: asset.mimeType || 'image/jpeg'
-                            });
-                        }
-                    }
-                },
-                {
-                    text: 'Cámara',
-                    onPress: async () => {
-                        try {
-                            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                            if (status !== 'granted') {
-                                Alert.alert('Permiso denegado', 'Se requiere permiso para acceder a la cámara.');
-                                return;
-                            }
-
-                            const result = await ImagePicker.launchCameraAsync({
-                                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                                quality: 0.8,
-                            });
-
-                            if (!result.canceled && result.assets && result.assets.length > 0) {
-                                const asset = result.assets[0];
-                                setAttachment({
-                                    uri: asset.uri,
-                                    type: 'image',
-                                    name: `camera_${Date.now()}.jpg`,
-                                    mimeType: 'image/jpeg'
-                                });
-                            }
-                        } catch (error) {
-                            console.error("Error launching camera:", error);
-                            Alert.alert('Error', 'No se pudo abrir la cámara.');
-                        }
-                    }
-                },
-                {
-                    text: 'Documento',
-                    onPress: async () => {
-                        try {
-                            const result = await DocumentPicker.getDocumentAsync({
-                                type: '*/*', // All files
-                                copyToCacheDirectory: true
-                            });
-
-                            if (!result.canceled && result.assets && result.assets.length > 0) {
-                                const asset = result.assets[0];
-                                setAttachment({
-                                    uri: asset.uri,
-                                    type: 'document',
-                                    name: asset.name,
-                                    mimeType: asset.mimeType
-                                });
-                            }
-                        } catch (err) {
-                            console.log('Error picking document', err);
-                        }
-                    }
-                },
-                {
-                    text: 'Cancelar',
-                    style: 'cancel'
-                }
-            ]
+                { text: 'Galería (fotos y videos)', onPress: pickFromGallery },
+                { text: 'Cámara', onPress: pickFromCamera },
+                { text: 'Documento', onPress: pickDocument },
+                { text: 'Cancelar', style: 'cancel' },
+            ],
         );
     };
 
-    const sendMessage = async () => {
-        const text = inputText.trim();
-        console.log('📤 [CHAT DETAIL] Attempting to send message:', { text, hasAttachment: !!attachment, currentUserId });
+    const runAttachOption = async (option) => {
+        setAttachMenuVisible(false);
+        if (option === 'gallery') await pickFromGallery();
+        else if (option === 'camera') await pickFromCamera();
+        else if (option === 'document') await pickDocument();
+    };
 
-        // Allow sending if there is an attachment OR text
-        if ((!text && !attachment) || !currentUserId) {
-            console.warn('❌ [CHAT DETAIL] Cannot send: missing text/attachment or user ID', { text, hasAttachment: !!attachment, currentUserId });
-            return;
+    const sendSingleMessage = async ({ text, attachmentItem, optimisticId }) => {
+        const formData = new FormData();
+        const safeText = typeof text === 'string' ? text : '';
+        if (safeText) formData.append('content', safeText);
+        if (attachmentItem) {
+            await appendChatFileToFormData(formData, 'attachment', attachmentItem);
         }
 
+        const realMsg = await chatService.sendMessageHTTP(conversationId, formData, true);
+
+        if (realMsg?.id) {
+            sentMessagesRef.current.add(String(realMsg.id));
+            setTimeout(() => {
+                sentMessagesRef.current.delete(String(realMsg.id));
+            }, 30000);
+        }
+        pendingOptimisticRef.current.delete(String(optimisticId));
+
+        const normalizedReal = normalizeChatMessage({
+            ...realMsg,
+            content: realMsg?.content ?? realMsg?.message ?? realMsg?.mensaje ?? safeText,
+            attachment: normalizeAttachmentRef(realMsg?.attachment ?? realMsg?.archivo_adjunto),
+            attachment_mime: attachmentItem?.mimeType || attachmentItem?.mime || null,
+            attachment_name:
+                attachmentItem?.name ||
+                (realMsg?.attachment
+                    ? String(realMsg.attachment).split('?')[0].split('/').pop()
+                    : null),
+            is_temp: false,
+        });
+
+        // Reemplaza temp y elimina cualquier eco WS que ya haya insertado el mismo id
+        setMessages((prev) => {
+            const realId = normalizedReal?.id != null ? String(normalizedReal.id) : null;
+            const filtered = prev.filter((m) => {
+                if (m.id === optimisticId) return false;
+                if (realId && String(m.id) === realId) return false;
+                return true;
+            });
+            return [normalizedReal, ...filtered];
+        });
+    };
+
+    const sendMessage = async (audioAttachment = null) => {
+        const text = inputText.trim();
+        const queue = audioAttachment ? [audioAttachment] : [...attachments];
+
+        if ((!text && queue.length === 0) || !currentUserId) return;
+
         setSending(true);
+        setInputText('');
+        const queueSnapshot = [...queue];
+        if (!audioAttachment) setAttachments([]);
 
-        // Optimistic UI: create temp message
-        const tempMsg = {
-            id: `temp-${Date.now()}`,
-            content: text,
-            sender_id: currentUserId,
-            timestamp: new Date().toISOString(),
-            is_temp: true,
-            attachment: attachment ? attachment.uri : null // Preview
-        };
+        const payloads =
+            queueSnapshot.length > 0
+                ? queueSnapshot.map((att, index) => ({
+                      attachment: att,
+                      content: index === queueSnapshot.length - 1 ? text : '',
+                  }))
+                : [{ attachment: null, content: text }];
 
-        setMessages(prev => [tempMsg, ...prev]);
-        setInputText(''); // Clear input immediately
-        const tempAttachment = attachment;
-        setAttachment(null); // Clear attachment
+        const optimisticIds = payloads.map((p, i) => `temp-${Date.now()}-${i}`);
+        optimisticIds.forEach((id) => pendingOptimisticRef.current.add(String(id)));
+        const optimisticMessages = payloads.map((p, i) =>
+            normalizeChatMessage({
+                id: optimisticIds[i],
+                content: typeof p.content === 'string' ? p.content : '',
+                sender_id: currentUserId,
+                timestamp: new Date().toISOString(),
+                is_temp: true,
+                attachment: p.attachment?.uri ?? null,
+                attachment_mime: p.attachment?.mimeType || p.attachment?.mime || null,
+                attachment_name: p.attachment?.name || null,
+            }),
+        );
+
+        setMessages((prev) => [...optimisticMessages.reverse(), ...prev]);
 
         try {
-            // Send via HTTP with FormData
-            const formData = new FormData();
-            if (text) formData.append('content', text);
-            if (tempAttachment) {
-                formData.append('attachment', {
-                    uri: tempAttachment.uri,
-                    name: tempAttachment.name,
-                    type: tempAttachment.mimeType || 'application/octet-stream'
+            for (let i = 0; i < payloads.length; i += 1) {
+                await sendSingleMessage({
+                    text: payloads[i].content,
+                    attachmentItem: payloads[i].attachment,
+                    optimisticId: optimisticIds[i],
                 });
             }
-
-            const realMsg = await chatService.sendMessageHTTP(conversationId, formData, true); // true = isMultipart
-
-            // Add to sent messages set to avoid duplicate from WebSocket
-            if (realMsg && realMsg.id) {
-                sentMessagesRef.current.add(String(realMsg.id));
-                // Clear after 30 seconds
-                setTimeout(() => {
-                    sentMessagesRef.current.delete(String(realMsg.id));
-                }, 30000);
-            }
-
-            // Replace temp message with real one
-            setMessages(prev =>
-                prev.map((m) =>
-                    m.id === tempMsg.id
-                        ? {
-                              ...realMsg,
-                              content: realMsg.content ?? realMsg.message ?? realMsg.mensaje ?? text,
-                              attachment: realMsg.attachment ?? realMsg.archivo_adjunto ?? null,
-                          }
-                        : m,
-                ),
-            );
         } catch (error) {
             console.error('Error sending message:', error);
-            // Remove temp message on error
-            setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
+            optimisticIds.forEach((id) => pendingOptimisticRef.current.delete(String(id)));
+            setMessages((prev) => prev.filter((m) => !optimisticIds.includes(m.id)));
+            if (!audioAttachment) setAttachments(queueSnapshot);
             Alert.alert('Error', 'No se pudo enviar el mensaje. Intenta nuevamente.');
-            // Restore text if failed? Maybe too complex for now
         } finally {
             setSending(false);
         }
     };
 
-    const renderHeader = () => {
-        const providerName = conversation?.other_participant?.full_name || 'Proveedor';
+    const handleAudioRecorded = (audioAttachment) => {
+        sendMessage(audioAttachment);
+    };
 
-        const vehicleInfo = conversation?.context_info?.title || '';
-        const serviceInfo = conversation?.context_info?.subtitle || '';
-        const contextText = serviceInfo ? `${vehicleInfo} • ${serviceInfo}` : vehicleInfo || 'Detalles del chat';
+    const renderHeader = () => {
+        const providerName =
+            conversation?.other_participant?.full_name ||
+            conversation?.other_participant?.username ||
+            'Proveedor';
+
+        const vehicleInfo = (conversation?.context_info?.title || '').trim();
+        const serviceInfo = (conversation?.context_info?.subtitle || '').trim();
+        const contextSubtitle = [vehicleInfo, serviceInfo].filter(Boolean).join(' • ');
+
+        const openContext = () => {
+            const type = conversation?.context_info?.type;
+            const id = conversation?.context_info?.id;
+            if (!type || !id) return;
+
+            const lowerType = type.toLowerCase();
+            if (
+                lowerType === 'solicitudservicio' ||
+                lowerType === 'solicitud' ||
+                lowerType.includes('solicitud')
+            ) {
+                navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: id });
+            } else if (
+                lowerType === 'vehiculo' ||
+                lowerType === 'vehicle' ||
+                lowerType.includes('vehiculo')
+            ) {
+                navigation.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: id });
+            }
+        };
+
+        const hasContext = !!(conversation?.context_info?.type && conversation?.context_info?.id);
 
         return (
-            <View style={[styles.header, { paddingTop: insets.top }]}>
-                <View style={styles.headerTop}>
+            <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
+                <View style={styles.headerRow}>
                     <BackButton onPress={() => navigation.goBack()} style={styles.backButton} />
 
-                    <Image
-                        source={conversation?.other_participant?.foto_perfil || 'https://via.placeholder.com/40'}
-                        style={styles.headerAvatar}
-                        contentFit="cover"
-                        transition={200}
-                    />
-
-                    <View style={styles.headerInfo}>
-                        <Text style={styles.headerName}>{providerName || conversation?.other_participant?.username || 'Proveedor'}</Text>
-                        <Text style={styles.headerRole}>
-                            {conversation?.other_participant?.es_mecanico ? 'Mecánico' : 'Usuario'} • Conectado
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Context Bar */}
-                <TouchableOpacity
-                    style={styles.contextBar}
-                    onPress={() => {
-                        const type = conversation?.context_info?.type;
-                        const id = conversation?.context_info?.id;
-                        // console.log('Navigation Context:', { type, id, routes: ROUTES }); // Debug log
-
-                        if (!type || !id) return;
-
-                        const lowerType = type.toLowerCase();
-
-                        if (lowerType === 'solicitudservicio' || lowerType === 'solicitud' || lowerType.includes('solicitud')) {
-                            navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: id });
-                        } else if (lowerType === 'vehiculo' || lowerType === 'vehicle' || lowerType.includes('vehiculo')) {
-                            navigation.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: id });
-                        } else {
-                            // Fallback for debugging
-                            if (__DEV__) {
-                                Alert.alert('Debug', `Unknown context type: ${type}, ID: ${id}`);
+                    <TouchableOpacity
+                        style={styles.headerIdentity}
+                        onPress={hasContext ? openContext : undefined}
+                        activeOpacity={hasContext ? 0.85 : 1}
+                        disabled={!hasContext}
+                    >
+                        <Image
+                            source={
+                                conversation?.other_participant?.foto_perfil ||
+                                'https://via.placeholder.com/40'
                             }
-                        }
-                    }}
-                >
-                    <View style={styles.contextIcon}>
-                        <Car size={16} color={COLORS.primary[500]} />
-                    </View>
-                    <Text style={styles.contextText}>{contextText}</Text>
-                    <ChevronRight size={16} color={COLORS.text.tertiary} />
-                </TouchableOpacity>
+                            style={styles.headerAvatar}
+                            contentFit="cover"
+                            transition={200}
+                        />
+                        <View style={styles.headerTextCol}>
+                            <Text style={styles.headerName} numberOfLines={1}>
+                                {providerName}
+                            </Text>
+                            <Text style={styles.headerContext} numberOfLines={1}>
+                                {contextSubtitle ||
+                                    (conversation?.other_participant?.es_mecanico
+                                        ? 'Mecánico'
+                                        : 'Chat')}
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    {hasContext ? (
+                        <TouchableOpacity
+                            style={styles.detailsPill}
+                            onPress={openContext}
+                            accessibilityLabel="Ver detalles"
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.detailsPillText}>Detalles</Text>
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.detailsPillPlaceholder} />
+                    )}
+                </View>
             </View>
         );
     };
 
-    const renderMessage = ({ item }) => {
-        const senderId = item.sender_id ?? item.sender?.id;
-        const isMe =
-            currentUserId != null &&
-            senderId != null &&
-            String(senderId) === String(currentUserId);
-        const messageBody = item.content ?? item.message ?? item.mensaje ?? '';
-        const attachmentUri = item.attachment ?? item.archivo_adjunto;
-        const hasAttachment = !!attachmentUri;
-        const imageUri = hasAttachment
-            ? resolveChatAttachmentUri(attachmentUri, () => serverConfig.getMediaURL())
-            : '';
-        const showAsImage = hasAttachment && isChatAttachmentImage(attachmentUri);
+    const renderMessage = ({ item, index }) => {
+        const isMe = item.isMe;
+        const newestOwnRead =
+            index === 0 &&
+            isMe &&
+            item.messages?.[0]?.is_read &&
+            !item.messages?.[0]?.is_temp;
 
         return (
-            <View style={[
-                styles.messageContainer,
-                isMe ? styles.messageRight : styles.messageLeft,
-                hasAttachment ? { maxWidth: '70%' } : {} // Allow more width for images
-            ]}>
-                <View style={[
-                    styles.bubble,
-                    isMe ? styles.bubbleRight : styles.bubbleLeft,
-                    hasAttachment ? { padding: 4 } : {} // Less padding for images
-                ]}>
-                    {hasAttachment && (
-                        <View style={styles.attachmentContainer}>
-                            {showAsImage && imageUri ? (
-                                <TouchableOpacity onPress={() => setSelectedImage(imageUri)}>
-                                    <Image
-                                        source={{ uri: imageUri }}
-                                        style={styles.messageImage}
-                                        contentFit="cover"
-                                        cachePolicy="disk"
-                                    />
-                                </TouchableOpacity>
-                            ) : (
-                                <View style={styles.documentAttachment}>
-                                    <FileText size={24} color={isMe ? COLORS.text.onPrimary : COLORS.primary[600]} />
-                                    <Text style={[styles.documentText, isMe ? { color: COLORS.text.onPrimary } : { color: COLORS.text.primary }]} numberOfLines={1}>
-                                        {typeof attachmentUri === 'string' ? attachmentUri.split('?')[0].split('/').pop() : 'Documento'}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-                    )}
-
-                    {!!messageBody && (
-                        <Text style={[
-                            styles.messageText,
-                            isMe ? styles.textRight : styles.textLeft,
-                            hasAttachment ? { paddingHorizontal: 10, paddingBottom: 6 } : {}
-                        ]}>{messageBody}</Text>
-                    )}
-
-                    <Text style={[
-                        styles.messageTime,
-                        isMe ? styles.timeRight : styles.timeLeft,
-                        hasAttachment ? { paddingRight: 10, paddingBottom: 6 } : {}
-                    ]}>
-                        {(item.timestamp || item.created_at)
-                            ? new Date(item.timestamp || item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            : ''}
-                    </Text>
-                </View>
-            </View>
+            <ChatMessageRow
+                item={item}
+                isMe={isMe}
+                currentUserId={currentUserId}
+                onImagePress={setSelectedImage}
+                getMediaBase={() => serverConfig.getMediaURL()}
+                showReadReceipt={newestOwnRead}
+            />
         );
     };
+
+    const canSend = inputText.trim().length > 0 || attachments.length > 0;
 
     const composerBlock = (
         <>
-            {attachment && (
-                <View style={styles.previewContainer}>
-                    <View style={styles.previewWrapper}>
-                        {attachment.type === 'document' ? (
-                            <View style={styles.docPreview}>
-                                <FileText size={24} color={COLORS.text.secondary} />
-                                <Text style={styles.previewName} numberOfLines={1}>{attachment.name}</Text>
-                            </View>
-                        ) : (
-                            <Image source={{ uri: attachment.uri }} style={styles.imagePreview} contentFit="cover" />
-                        )}
-                        <TouchableOpacity style={styles.removePreviewButton} onPress={() => setAttachment(null)}>
-                            <CircleX size={24} color={COLORS.error.main} />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            )}
+            <AttachmentStagingTray
+                attachments={attachments}
+                onRemove={(removeIndex) =>
+                    setAttachments((prev) => prev.filter((_, i) => i !== removeIndex))
+                }
+            />
 
+            {/*
+              Tres slots fijos (adjuntar / input / mic). El mic NUNCA cambia de índice
+              en el árbol, así la grabación no se pierde al expandir la barra.
+            */}
             <View style={[styles.inputContainer, { paddingBottom: composerBottomPad }]}>
-                <TouchableOpacity style={styles.iconButton} onPress={handlePickAttachment}>
-                    <Paperclip size={24} color={COLORS.primary[500]} />
-                </TouchableOpacity>
-
-                <View style={styles.inputWrapper}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Escribe un mensaje..."
-                        placeholderTextColor={COLORS.text.disabled}
-                        value={inputText}
-                        onChangeText={setInputText}
-                        multiline
-                        blurOnSubmit={false}
-                        returnKeyType="send"
-                        onSubmitEditing={Platform.OS !== 'web' ? sendMessage : undefined}
-                        onKeyPress={Platform.OS === 'web' ? (e) => {
-                            if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
-                                e.preventDefault?.();
-                                sendMessage();
-                            }
-                        } : undefined}
-                    />
+                <View style={[styles.attachSlot, voiceRecording && styles.slotCollapsed]}>
+                    {!voiceRecording ? (
+                        <TouchableOpacity
+                            style={styles.attachButton}
+                            onPress={handlePickAttachment}
+                            accessibilityLabel="Adjuntar archivo"
+                            hitSlop={8}
+                        >
+                            <Paperclip size={20} color={COLORS.text.secondary} strokeWidth={2} />
+                        </TouchableOpacity>
+                    ) : null}
                 </View>
 
-                <TouchableOpacity
-                    style={[styles.sendButton, (!inputText.trim() && !attachment) && styles.sendButtonDisabled]}
-                    onPress={sendMessage}
-                    disabled={!inputText.trim() && !attachment}
+                <View style={[styles.composerMainSlot, voiceRecording && styles.slotCollapsed]}>
+                    {!voiceRecording ? (
+                        <View style={styles.inputWrapper}>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Escribe un mensaje..."
+                                placeholderTextColor={COLORS.text.disabled}
+                                value={inputText}
+                                onChangeText={setInputText}
+                                multiline
+                                blurOnSubmit={false}
+                                returnKeyType="send"
+                                {...(Platform.OS === 'web' ? { rows: 1 } : {})}
+                                onSubmitEditing={Platform.OS !== 'web' ? () => sendMessage() : undefined}
+                                onKeyPress={
+                                    Platform.OS === 'web'
+                                        ? (e) => {
+                                              if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+                                                  e.preventDefault?.();
+                                                  if (canSend) sendMessage();
+                                              }
+                                          }
+                                        : undefined
+                                }
+                            />
+                            {canSend ? (
+                                <View style={styles.trailingAction}>
+                                    <TouchableOpacity
+                                        style={styles.sendButton}
+                                        onPress={() => sendMessage()}
+                                        disabled={sending}
+                                        accessibilityLabel="Enviar mensaje"
+                                    >
+                                        {sending ? (
+                                            <ActivityIndicator size="small" color={COLORS.text.onPrimary} />
+                                        ) : (
+                                            <ArrowUp
+                                                size={16}
+                                                color={COLORS.text.onPrimary}
+                                                strokeWidth={2.5}
+                                            />
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            ) : null}
+                        </View>
+                    ) : null}
+                </View>
+
+                <View
+                    style={[
+                        voiceRecording ? styles.recordingSlot : styles.trailingAction,
+                        canSend && !voiceRecording ? styles.slotCollapsed : null,
+                    ]}
                 >
-                    <Send
-                        size={20}
-                        color={(!inputText.trim() && !attachment) ? COLORS.text.disabled : COLORS.text.onPrimary}
+                    <AudioRecorderBar
+                        onRecorded={handleAudioRecorded}
+                        onRecordingChange={setVoiceRecording}
+                        disabled={sending || (canSend && !voiceRecording)}
+                        variant="inline"
                     />
-                </TouchableOpacity>
+                </View>
             </View>
         </>
     );
 
     const listPaddingTopForComposer =
-        composerBlockHeight + (attachment ? 56 : 0);
+        composerBlockHeight + (attachments.length > 0 ? 72 : 0);
 
     return (
         <View style={[styles.container, webScreenFrame]}>
@@ -679,9 +823,9 @@ const ChatDetailScreen = () => {
                 ) : (
                     <FlatList
                         ref={flatListRef}
-                        data={messages}
+                        data={listItems}
                         renderItem={renderMessage}
-                        keyExtractor={item => String(item.id)}
+                        keyExtractor={(item) => item.key}
                         style={isWeb ? styles.listWeb : undefined}
                         contentContainerStyle={[
                             styles.listContent,
@@ -706,6 +850,59 @@ const ChatDetailScreen = () => {
                     {composerBlock}
                 </KeyboardAvoidingView>
             )}
+
+            <Modal
+                visible={attachMenuVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setAttachMenuVisible(false)}
+            >
+                <View style={styles.attachSheetOverlay}>
+                    <TouchableOpacity
+                        style={StyleSheet.absoluteFillObject}
+                        activeOpacity={1}
+                        onPress={() => setAttachMenuVisible(false)}
+                    />
+                    <View style={styles.attachSheet}>
+                        <Text style={styles.attachSheetTitle}>Adjuntar</Text>
+                        <TouchableOpacity
+                            style={styles.attachSheetRow}
+                            onPress={() => runAttachOption('gallery')}
+                        >
+                            <View style={styles.attachSheetIcon}>
+                                <ImageIcon size={20} color={COLORS.text.primary} />
+                            </View>
+                            <Text style={styles.attachSheetLabel}>Galería (fotos y videos)</Text>
+                        </TouchableOpacity>
+                        {Platform.OS !== 'web' ? (
+                            <TouchableOpacity
+                                style={styles.attachSheetRow}
+                                onPress={() => runAttachOption('camera')}
+                            >
+                                <View style={styles.attachSheetIcon}>
+                                    <Camera size={20} color={COLORS.text.primary} />
+                                </View>
+                                <Text style={styles.attachSheetLabel}>Cámara</Text>
+                            </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity
+                            style={styles.attachSheetRow}
+                            onPress={() => runAttachOption('document')}
+                        >
+                            <View style={styles.attachSheetIcon}>
+                                <FileText size={20} color={COLORS.text.primary} />
+                            </View>
+                            <Text style={styles.attachSheetLabel}>Documento</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.attachSheetCancel}
+                            onPress={() => setAttachMenuVisible(false)}
+                        >
+                            <Text style={styles.attachSheetCancelText}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             <Modal
                 visible={!!selectedImage}
@@ -767,60 +964,69 @@ const getStyles = () => StyleSheet.create({
     },
     header: {
         backgroundColor: COLORS.background.paper,
-        borderBottomWidth: BORDERS.width.thin,
+        borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: COLORS.border.light,
         zIndex: 10,
+        paddingBottom: SPACING.xs,
     },
-    headerTop: {
+    headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        minHeight: 56,
+        paddingHorizontal: SPACING.md,
+        minHeight: 52,
+        gap: SPACING.xs,
     },
     backButton: {
-        marginRight: 8,
+        marginRight: 0,
+        flexShrink: 0,
     },
-    headerAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 12,
-        backgroundColor: COLORS.neutral.gray[200],
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
-    },
-    headerInfo: {
+    headerIdentity: {
         flex: 1,
-    },
-    headerName: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.text.primary,
-        lineHeight: 20,
-    },
-    headerRole: {
-        fontSize: 12,
-        color: COLORS.text.secondary,
-        fontWeight: '500',
-    },
-    contextBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.neutral.gray[100],
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: COLORS.border.light,
+        minWidth: 0,
+        gap: SPACING.sm,
     },
-    contextIcon: {
-        marginRight: 8,
-    },
-    contextText: {
+    headerTextCol: {
         flex: 1,
-        fontSize: 12,
-        color: COLORS.primary[700],
-        fontWeight: '600',
+        minWidth: 0,
+    },
+    detailsPill: {
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 8,
+        borderRadius: BORDERS.radius.pill,
+        backgroundColor: COLORS.neutral.gray[100],
+        flexShrink: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    detailsPillPlaceholder: {
+        width: 72,
+        height: 32,
+    },
+    detailsPillText: {
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.primary,
+    },
+    headerAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.neutral.gray[200],
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.border.light,
+        flexShrink: 0,
+    },
+    headerName: {
+        ...TYPOGRAPHY.styles.bodyBold,
+        fontSize: 15,
+        lineHeight: 20,
+        color: COLORS.text.primary,
+    },
+    headerContext: {
+        ...TYPOGRAPHY.styles.small,
+        color: COLORS.text.secondary,
+        marginTop: 1,
     },
     listContent: {
         paddingHorizontal: 16,
@@ -898,58 +1104,165 @@ const getStyles = () => StyleSheet.create({
     },
     inputContainer: {
         flexDirection: 'row',
-        alignItems: 'flex-end',
-        paddingHorizontal: 16,
-        paddingTop: 12,
+        alignItems: 'center',
+        paddingHorizontal: SPACING.md,
+        paddingTop: SPACING.xs,
         backgroundColor: COLORS.background.paper,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: COLORS.border.light,
+        gap: SPACING.xs,
     },
-    iconButton: {
-        padding: 10,
+    attachButton: {
+        width: 36,
+        height: 36,
+        borderRadius: BORDERS.radius.full,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 2,
+        flexShrink: 0,
+    },
+    attachSlot: {
+        width: 36,
+        height: 36,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    composerMainSlot: {
+        flex: 1,
+        minWidth: 0,
+    },
+    slotCollapsed: {
+        width: 0,
+        height: 0,
+        minHeight: 0,
+        margin: 0,
+        padding: 0,
+        overflow: 'hidden',
+        opacity: 0,
+        flex: 0,
+        pointerEvents: 'none',
     },
     inputWrapper: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.neutral.gray[100],
-        borderRadius: 24,
-        borderWidth: BORDERS.width.thin,
+        backgroundColor: COLORS.neutral.gray[50],
+        borderRadius: BORDERS.radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.border.light,
-        marginHorizontal: 8,
-        paddingHorizontal: 12,
-        marginBottom: 8,
+        paddingLeft: SPACING.sm + 2,
+        paddingRight: 4,
         minHeight: 44,
+        maxHeight: 120,
     },
     input: {
         flex: 1,
         maxHeight: 100,
-        paddingVertical: 10,
-        paddingRight: 8,
-        fontSize: 14,
+        paddingTop: 10,
+        paddingBottom: 10,
+        paddingRight: SPACING.xs,
+        margin: 0,
+        fontSize: 15,
+        lineHeight: 20,
         color: COLORS.text.primary,
+        ...(Platform.OS === 'web'
+            ? {
+                  outlineStyle: 'none',
+                  minHeight: 20,
+                  height: 'auto',
+                  resize: 'none',
+              }
+            : null),
     },
-    clipButton: {
-        padding: 4,
+    trailingAction: {
+        width: 32,
+        height: 32,
+        marginVertical: 6,
+        marginRight: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
     },
     sendButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: COLORS.primary[500],
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: COLORS.neutral.gray[800],
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 8,
-        marginLeft: 4,
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.primary[600],
+    },
+    sendButtonActive: {
+        backgroundColor: COLORS.neutral.gray[800],
     },
     sendButtonDisabled: {
         backgroundColor: COLORS.neutral.gray[200],
-        borderColor: COLORS.border.light,
+    },
+    recordingSlot: {
+        flex: 1,
+        minHeight: 44,
+        justifyContent: 'center',
+    },
+    recordingActionSlotFull: {
+        flex: 1,
+        minHeight: 44,
+    },
+    actionSlot: {
+        width: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    attachSheetOverlay: {
+        flex: 1,
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.4),
+        justifyContent: 'flex-end',
+        padding: SPACING.md,
+        ...(Platform.OS === 'web' ? { cursor: 'default' } : null),
+    },
+    attachSheet: {
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.xl,
+        paddingTop: SPACING.sm,
+        paddingBottom: SPACING.xs,
+        paddingHorizontal: SPACING.xs,
+    },
+    attachSheetTitle: {
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.tertiary,
+        textAlign: 'center',
+        marginBottom: SPACING.xs,
+        marginTop: SPACING.xxs,
+    },
+    attachSheetRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: SPACING.sm,
+        paddingHorizontal: SPACING.sm,
+        borderRadius: BORDERS.radius.md,
+        gap: SPACING.sm,
+    },
+    attachSheetIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: COLORS.neutral.gray[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    attachSheetLabel: {
+        ...TYPOGRAPHY.styles.body,
+        color: COLORS.text.primary,
+        flex: 1,
+    },
+    attachSheetCancel: {
+        marginTop: SPACING.xxs,
+        paddingVertical: SPACING.sm,
+        alignItems: 'center',
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: COLORS.border.light,
+    },
+    attachSheetCancelText: {
+        ...TYPOGRAPHY.styles.bodyBold,
+        color: COLORS.text.secondary,
     },
     previewContainer: {
         paddingHorizontal: 16,

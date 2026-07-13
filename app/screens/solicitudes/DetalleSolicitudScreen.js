@@ -40,11 +40,11 @@ import { useConversationsList } from '../../hooks/useChats';
 import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
 import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
 import { showAlert, showConfirm, showAlertButtons } from '../../utils/platformAlert';
+import { resolveOfertaProviderNav } from '../../utils/resolveOfertaProviderNav';
 import { calcularMontosPagoOferta, formatearMontoCLP, ofertaEstaTotalmentePagada } from '../../utils/calcularMontoPagoOferta';
 
 // New Components
-import ServiceSummaryCard from '../../components/solicitudes/ServiceSummaryCard';
-import CertifiedVehicleCard from '../../components/solicitudes/CertifiedVehicleCard';
+import ServiceSummaryCard, { getEstadoBadgeMeta } from '../../components/solicitudes/ServiceSummaryCard';
 import OfferCardDetailed from '../../components/solicitudes/OfferCardDetailed';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import CustomerSignatureModal from '../../components/checklist/CustomerSignatureModal';
@@ -79,7 +79,10 @@ function resolverOrdenIdParaChecklist(solicitud, ofertasPrincipales = [], oferta
 }
 
 /** Altura fija del bloque de botones del header (debajo del safe area). */
-const HEADER_CONTENT_HEIGHT = 60;
+const HEADER_CONTENT_HEIGHT = 52;
+/** Altura del bloque fijo: safe area + paddingTop + fila + paddingBottom. */
+const getHeaderBlockHeight = (topInset) =>
+  topInset + SPACING.xs + HEADER_CONTENT_HEIGHT + SPACING.xs;
 /** Espacio reservado bajo el scroll para que el contenido no quede tapado por el footer (web: footer fijo). */
 const FOOTER_SCROLL_PADDING = 120;
 
@@ -227,6 +230,11 @@ const DetalleSolicitudScreen = () => {
     );
   }, [pagoPrincipalCompleto, checklistPrincipalData]);
 
+  const estadoHeaderBadge = useMemo(
+    () => (solicitud ? getEstadoBadgeMeta(solicitud, { checklistPendienteFirma: requiereFirmaCliente }) : null),
+    [solicitud, requiereFirmaCliente],
+  );
+
   const handleSignatureSuccess = useCallback(() => {
     setShowSignatureModal(false);
     queryClient.invalidateQueries({
@@ -341,16 +349,18 @@ const DetalleSolicitudScreen = () => {
   };
 
   const handleProfilePress = (oferta) => {
-    // proveedor_id_detail = taller.id o mecanico_domicilio.id (perfil del proveedor)
-    // oferta.proveedor = usuario.id (FK al modelo Usuario, NO sirve para la API de talleres/mecánicos)
-    const providerId = oferta.proveedor_id_detail || oferta.proveedor;
-    const providerType = oferta.tipo_proveedor; // 'taller' or 'mecanico'
-
-    if (!providerId) return;
+    const nav = resolveOfertaProviderNav(oferta);
+    if (!nav?.providerId || !nav?.providerType) {
+      showAlert(
+        'Perfil no disponible',
+        'No pudimos abrir el perfil de este proveedor. Intenta desde el listado de talleres o mecánicos.',
+      );
+      return;
+    }
 
     navigation.navigate(ROUTES.PROVIDER_DETAIL, {
-      providerId: providerId,
-      providerType: providerType
+      providerId: nav.providerId,
+      providerType: nav.providerType,
     });
   };
 
@@ -449,14 +459,37 @@ const DetalleSolicitudScreen = () => {
     <View style={[styles.container, webScreenFrame]}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <View style={styles.headerContent}>
           <BackButton onPress={() => navigation.goBack()} />
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Detalle de Solicitud</Text>
-            <Text style={styles.headerSubtitle}>ID: {String(solicitudId).slice(0, 8)}</Text>
+            <Text style={styles.headerTitle}>Solicitud</Text>
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {serviciosResumenTexto !== 'Sin servicios'
+                ? serviciosResumenTexto
+                : `#${String(solicitudId).slice(0, 8)}`}
+            </Text>
           </View>
-          <View style={{ width: 40 }} />
+          {estadoHeaderBadge ? (
+            <View
+              style={[
+                styles.headerEstadoBadge,
+                {
+                  backgroundColor: estadoHeaderBadge.bg,
+                  borderColor: estadoHeaderBadge.border,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.headerEstadoBadgeText, { color: estadoHeaderBadge.color }]}
+                numberOfLines={1}
+              >
+                {estadoHeaderBadge.label}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.headerSideSpacer} />
+          )}
         </View>
       </View>
 
@@ -466,7 +499,7 @@ const DetalleSolicitudScreen = () => {
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingTop: insets.top + HEADER_CONTENT_HEIGHT,
+              paddingTop: getHeaderBlockHeight(insets.top) + SPACING.md,
               paddingBottom:
                 Platform.OS === 'web'
                   ? Math.max(insets.bottom, 16) + FOOTER_SCROLL_PADDING
@@ -481,11 +514,12 @@ const DetalleSolicitudScreen = () => {
           <View style={styles.unifiedSolicitudCard}>
             <ServiceSummaryCard
               solicitud={solicitud}
-              vehiculo={solicitud.vehiculo_info}
+              vehiculo={solicitud.vehiculo_info || solicitud.vehiculo_detail}
               checklistPendienteFirma={requiereFirmaCliente}
               embedded
               ocultarPreciosCatalogo
               ocultarMetaCatalogo
+              ocultarEstadoBadge
             />
             <View style={styles.unifiedSectionDivider} />
             <View style={styles.unifiedOfferHeader}>
@@ -521,20 +555,19 @@ const DetalleSolicitudScreen = () => {
             )}
           </View>
         ) : (
-          <>
-            {solicitud.vehiculo_info ? (
-              <CertifiedVehicleCard vehiculo={solicitud.vehiculo_info} />
-            ) : null}
+          <View style={styles.solicitudGroup}>
             <ServiceSummaryCard
               solicitud={solicitud}
+              vehiculo={solicitud.vehiculo_info || solicitud.vehiculo_detail}
               checklistPendienteFirma={requiereFirmaCliente}
+              ocultarEstadoBadge
             />
-          </>
+          </View>
         )}
 
         {!layoutCatalogoUnificado && esPendienteConfirmacion ? (
           <View style={styles.catalogoBanner}>
-            <Hourglass size={22} color={COLORS.primary[600]} />
+            <Hourglass size={20} color={COLORS.text.secondary} />
             <View style={styles.catalogoBannerTextWrap}>
               <Text style={styles.catalogoBannerTitle}>Esperando confirmación del proveedor</Text>
               <Text style={styles.catalogoBannerSub}>
@@ -1064,45 +1097,76 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
     backgroundColor: COLORS.background.paper,
-    borderBottomWidth: BORDERS.width.thin,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border.light,
-    ...SHADOWS.sm,
+    paddingBottom: SPACING.xs,
   },
   headerContent: {
     height: HEADER_CONTENT_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.container.horizontal,
+    paddingHorizontal: SPACING.md,
+    gap: SPACING.xs,
   },
   headerTitleContainer: {
+    flex: 1,
     alignItems: 'center',
+    minWidth: 0,
+    paddingHorizontal: SPACING.xs,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.bodyBold,
+    fontSize: 16,
+    lineHeight: 20,
     color: COLORS.text.primary,
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: COLORS.text.tertiary,
-    fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.secondary,
+    marginTop: 1,
+    textAlign: 'center',
+  },
+  headerSideSpacer: {
+    width: 40,
+    height: 40,
+  },
+  headerEstadoBadge: {
+    minWidth: 40,
+    maxWidth: 120,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 5,
+    borderRadius: BORDERS.radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    flexShrink: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerEstadoBadgeText: {
+    ...TYPOGRAPHY.styles.small,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    lineHeight: 16,
+    textAlign: 'center',
   },
   scrollContent: {
-    paddingHorizontal: SPACING.container.horizontal,
+    paddingHorizontal: SPACING.md,
     ...Platform.select({
       web: { flexGrow: 0 },
       default: { flexGrow: 1 },
     }),
   },
-  tabSection: {
-    marginTop: SPACING.sm,
+  solicitudGroup: {
+    marginBottom: SPACING.sm,
   },
-  segmentContainer: {
+  tabSection: {
     marginTop: SPACING.md,
   },
+  segmentContainer: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
   offersSection: {
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
   },
   accionSecundariaButton: {
     flexDirection: 'row',
@@ -1148,8 +1212,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   offersTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
     marginBottom: SPACING.xxs,
   },
@@ -1161,18 +1224,15 @@ const styles = StyleSheet.create({
   compareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
-    paddingHorizontal: 12,
+    backgroundColor: COLORS.neutral.gray[100],
+    paddingHorizontal: SPACING.md,
     paddingVertical: 8,
-    borderRadius: 99,
+    borderRadius: BORDERS.radius.pill,
     gap: 6,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[200],
   },
   compareButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: COLORS.primary[700],
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.primary,
   },
   offersSubtitle: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -1237,11 +1297,10 @@ const styles = StyleSheet.create({
   footer: {
     width: '100%',
     backgroundColor: COLORS.background.paper,
-    borderTopWidth: BORDERS.width.thin,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.border.light,
-    paddingTop: 16,
-    paddingHorizontal: 20,
-    ...SHADOWS.sm,
+    paddingTop: SPACING.md,
+    paddingHorizontal: SPACING.md,
   },
   /** Web: barra inferior siempre visible (paridad con sticky en app). */
   footerWeb: {
@@ -1270,13 +1329,11 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     height: 48,
-    borderRadius: BORDERS.radius.md,
+    borderRadius: BORDERS.radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
     gap: SPACING.xs,
-    borderWidth: BORDERS.width.thin,
     backgroundColor: COLORS.error.main,
-    borderColor: COLORS.error.dark,
     ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
   },
   footerCancelLikeAcceptText: {
@@ -1293,13 +1350,11 @@ const styles = StyleSheet.create({
     height: 48,
     minHeight: 48,
     paddingHorizontal: SPACING.md,
-    borderRadius: BORDERS.radius.md,
+    borderRadius: BORDERS.radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
     gap: SPACING.xs,
-    borderWidth: BORDERS.width.thin,
     backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[600],
     ...(Platform.OS === 'web' ? { cursor: 'pointer', boxSizing: 'border-box' } : {}),
   },
   footerPrimaryCtaInRow: {
@@ -1321,11 +1376,11 @@ const styles = StyleSheet.create({
     height: 48,
     minHeight: 48,
     paddingHorizontal: SPACING.md,
-    borderRadius: BORDERS.radius.md,
+    borderRadius: BORDERS.radius.pill,
     justifyContent: 'center',
     alignItems: 'center',
     gap: SPACING.xs,
-    borderWidth: BORDERS.width.thin,
+    borderWidth: StyleSheet.hairlineWidth,
     backgroundColor: COLORS.neutral.gray[100],
     borderColor: COLORS.border.light,
     alignSelf: 'stretch',
@@ -1434,46 +1489,42 @@ const styles = StyleSheet.create({
   catalogoBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
-    marginHorizontal: SPACING.md,
+    gap: SPACING.sm,
     marginBottom: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.neutral.gray[50],
     borderRadius: BORDERS.radius.lg,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[200],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
   },
   catalogoBannerTextWrap: {
     flex: 1,
   },
   catalogoBannerTitle: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
     marginBottom: 4,
   },
   catalogoBannerSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   fechaAlternativaCard: {
-    marginHorizontal: SPACING.md,
     marginBottom: SPACING.md,
     padding: SPACING.md,
     backgroundColor: COLORS.warning[50],
     borderRadius: BORDERS.radius.lg,
-    borderWidth: BORDERS.width.thin,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.warning[200],
   },
   fechaAlternativaTitle: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
     marginBottom: 6,
   },
   fechaAlternativaBody: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.primary,
     marginBottom: 4,
   },
@@ -1518,7 +1569,7 @@ const styles = StyleSheet.create({
   fechaAlternativaBtn: {
     backgroundColor: COLORS.primary[600],
     paddingVertical: 12,
-    borderRadius: BORDERS.radius.md,
+    borderRadius: BORDERS.radius.pill,
     alignItems: 'center',
   },
   fechaAlternativaBtnText: {

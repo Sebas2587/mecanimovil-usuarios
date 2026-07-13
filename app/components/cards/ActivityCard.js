@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { ChevronRight } from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY, BORDERS, SPACING } from '../../design-system/tokens';
 import Tag from '../base/Tag/Tag';
@@ -13,6 +14,7 @@ const ActivityCard = ({
   statusLabel,
   statusVariant = 'neutral',
   dateLabel,
+  avatarUri,
   onPress,
 }) => (
   <TouchableOpacity
@@ -22,6 +24,14 @@ const ActivityCard = ({
     disabled={!onPress}
     accessibilityRole="button"
   >
+    {avatarUri ? (
+      <Image
+        source={avatarUri}
+        style={styles.avatar}
+        contentFit="cover"
+        transition={200}
+      />
+    ) : null}
     <View style={styles.content}>
       <View style={styles.top}>
         <Text style={styles.title} numberOfLines={1}>
@@ -56,6 +66,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
     gap: SPACING.sm,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.neutral.gray[200],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   content: {
     flex: 1,

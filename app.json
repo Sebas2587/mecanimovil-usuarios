@@ -22,6 +22,7 @@
         ],
         "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicacion para iniciar y mostrar telemetria del viaje.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Necesitamos tu ubicacion en segundo plano para continuar registrando kilometros durante el viaje.",
+        "NSMicrophoneUsageDescription": "Permitir usar el micrófono para enviar mensajes de voz en el chat.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -45,7 +46,8 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_LOCATION"
+        "FOREGROUND_SERVICE_LOCATION",
+        "RECORD_AUDIO"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-icon.png",
@@ -122,11 +124,13 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Permitir usar el micrófono para dictar la descripción del problema.",
+          "microphonePermission": "Permitir usar el micrófono para dictar la descripción del problema y enviar mensajes de voz.",
           "speechRecognitionPermission": "Permitir reconocimiento de voz para describir tu necesidad."
         }
       ],
-      "./plugins/withAndroidSingleTask.js"
+      "./plugins/withAndroidSingleTask.js",
+      "expo-audio",
+      "expo-video"
     ],
     "extra": {
       "publicListingWebOrigin": "https://mecanimovil-usuarios.vercel.app",

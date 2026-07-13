@@ -27,6 +27,7 @@ import VehicleProvidersScreen from '../screens/vehicles/VehicleProvidersScreen';
 import VehicleHistoryScreen from '../screens/vehicles/VehicleHistoryScreen';
 import VehicleHealthScreen from '../screens/vehicles/VehicleHealthScreen';
 import VehicleProfileScreen from '../screens/vehicles/VehicleProfileScreen';
+import VehicleValueScreen from '../screens/vehicles/VehicleValueScreen';
 import ActiveAppointmentsScreen from '../screens/appointments/ActiveAppointmentsScreen';
 import AppointmentDetailScreen from '../screens/appointments/AppointmentDetailScreen';
 import ServiceHistoryScreen from '../screens/appointments/ServiceHistoryScreen';
@@ -256,6 +257,7 @@ const AppNavigator = () => (
     <Stack.Screen name={ROUTES.CHATS_LIST} component={ChatsListScreen} options={getHeaderOptions('Mensajes')} />
     <Stack.Screen name={ROUTES.CHAT_DETAIL} component={ChatDetailScreen} />
     <Stack.Screen name={ROUTES.VEHICLE_PROFILE} component={VehicleProfileScreen} />
+    <Stack.Screen name={ROUTES.VEHICLE_VALUE} component={VehicleValueScreen} />
     <Stack.Screen name={ROUTES.VEHICLE_HEALTH} component={VehicleHealthScreen} />
     <Stack.Screen name={ROUTES.VEHICLE_HISTORY} component={VehicleHistoryScreen} />
     <Stack.Screen name={ROUTES.MY_VEHICLES} component={MisVehiculosScreen} options={getHeaderOptions('Mis vehículos')} />

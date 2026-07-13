@@ -72,7 +72,7 @@ export default function ComparadorCandidatosCatalogoModal({
       presentationStyle="fullScreen"
       onRequestClose={onClose}
     >
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
+      <View style={[styles.screen, { paddingTop: insets.top + SPACING.xs }]}>
         <View style={styles.header}>
           <View style={styles.headerText}>
             <Text style={styles.title}>Comparación detallada</Text>

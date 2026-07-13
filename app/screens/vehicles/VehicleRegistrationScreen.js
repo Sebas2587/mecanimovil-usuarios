@@ -713,7 +713,7 @@ const VehicleRegistrationScreen = () => {
             <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
             {/* Header */}
-            <View style={[styles.headerSafeArea, { paddingTop: insets.top }]}>
+            <View style={[styles.headerSafeArea, { paddingTop: insets.top + SPACING.xs }]}>
                 <View style={styles.header}>
                     <BackButton onPress={handleBackPress} />
                     <Text style={styles.headerTitle}>Nuevo Vehículo</Text>

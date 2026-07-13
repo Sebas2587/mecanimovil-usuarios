@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import { useAgendamientoAsistido } from '../../../hooks/useAgendamientoAsistido';
 import { isAsistidoHabilitado } from '../../../services/agendamientoAsistidoService';
 import VehicleHealthService from '../../../services/vehicleHealthService';
@@ -225,7 +225,7 @@ const HomeAgendamientoSheet = ({
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        style={[styles.root, { paddingTop: insets.top }]}
+        style={[styles.root, { paddingTop: insets.top + SPACING.xs }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <View style={styles.header}>

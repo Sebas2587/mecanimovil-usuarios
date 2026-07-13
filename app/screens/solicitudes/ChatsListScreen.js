@@ -15,18 +15,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { Car, MessageSquare } from 'lucide-react-native';
-import { COLORS } from '../../design-system/tokens/colors';
-import { SPACING } from '../../design-system/tokens/spacing';
-import { BORDERS } from '../../design-system/tokens/borders';
-import { SHADOWS } from '../../design-system/tokens/shadows';
+import { MessageSquare } from 'lucide-react-native';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import { useQueryClient } from '@tanstack/react-query';
 import { useConversationsList, CONVERSATIONS_KEYS } from '../../hooks/useChats';
 import ChatsListSkeleton from '../../components/utils/ChatsListSkeleton';
 import chatService from '../../services/chatService';
 import ChatSwipeableRow from '../../components/chats/ChatSwipeableRow';
-import BackButton from '../../components/navigation/BackButton';
+import { attachmentPreviewLabel, getMessageAttachmentUri } from '../../utils/chatAttachmentMedia';
 
 const ChatsListScreen = () => {
   const navigation = useNavigation();
@@ -90,10 +87,18 @@ const ChatsListScreen = () => {
   const renderItem = useCallback(
     ({ item }) => {
       const otherUser = item.other_participant;
-      const name = otherUser ? `${otherUser.first_name} ${otherUser.last_name}` : 'Usuario desconocido';
+      const name =
+        otherUser?.full_name ||
+        [otherUser?.first_name, otherUser?.last_name].filter(Boolean).join(' ') ||
+        otherUser?.username ||
+        'Proveedor';
       const serviceTitle = item.context_info?.subtitle || 'Consultas Generales';
       const vehicleInfo = item.context_info?.title || 'Detalles no disponibles';
-      const lastMsg = item.last_message?.content || 'Inicia la conversación';
+      const lastMsgText = item.last_message?.content;
+      const lastAttachment = getMessageAttachmentUri(item.last_message);
+      const lastMsg =
+        lastMsgText ||
+        (lastAttachment ? attachmentPreviewLabel(item.last_message) : 'Inicia la conversación');
       const time = item.last_message?.timestamp
         ? new Date(item.last_message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         : '';
@@ -110,28 +115,15 @@ const ChatsListScreen = () => {
           <TouchableOpacity
             style={styles.card}
             onPress={() => navigation.navigate(ROUTES.CHAT_DETAIL, { conversationId: item.id })}
-            activeOpacity={0.8}
+            activeOpacity={0.92}
             disabled={isDeleting}
           >
-          <Text style={styles.serviceTitle} numberOfLines={1}>
-            {serviceTitle}
-          </Text>
-          <View style={styles.vehicleBadge}>
-            <Car size={14} color={COLORS.primary[500]} strokeWidth={1.75} />
-            <Text style={styles.vehicleText} numberOfLines={1}>
-              {vehicleInfo}
-            </Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.providerContainer}>
-            <View style={styles.avatarWrapper}>
-              <Image
-                source={otherUser?.photo_url || 'https://via.placeholder.com/50'}
-                style={styles.avatar}
-                contentFit="cover"
-                transition={200}
-              />
-            </View>
+            <Image
+              source={otherUser?.foto_perfil || 'https://via.placeholder.com/50'}
+              style={styles.avatar}
+              contentFit="cover"
+              transition={200}
+            />
             <View style={styles.infoColumn}>
               <View style={styles.nameTimeRow}>
                 <Text style={styles.providerName} numberOfLines={1}>
@@ -139,6 +131,9 @@ const ChatsListScreen = () => {
                 </Text>
                 <Text style={styles.timeText}>{time}</Text>
               </View>
+              <Text style={styles.contextLine} numberOfLines={1}>
+                {vehicleInfo} · {serviceTitle}
+              </Text>
               <View style={styles.messageRow}>
                 <Text style={[styles.lastMessage, unread && styles.lastMessageUnread]} numberOfLines={1}>
                   {lastMsg}
@@ -150,8 +145,7 @@ const ChatsListScreen = () => {
                 ) : null}
               </View>
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
         </ChatSwipeableRow>
       );
     },
@@ -265,70 +259,40 @@ const styles = StyleSheet.create({
     height: 40,
   },
   screenTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.h5,
     color: COLORS.text.primary,
   },
   listContent: {
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingTop: SPACING.md,
     paddingBottom: 100,
+    gap: SPACING.sm,
   },
   listContentEmpty: {
     flexGrow: 1,
   },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.background.paper,
-    padding: SPACING.md,
+    paddingVertical: 14,
+    paddingHorizontal: SPACING.md,
     borderRadius: BORDERS.radius.lg,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  serviceTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.primary[700],
-    marginBottom: 6,
-  },
-  vehicleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.neutral.gray[100],
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-  },
-  vehicleText: {
-    fontSize: 12,
-    color: COLORS.text.secondary,
-    marginLeft: 4,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.border.light,
-    marginBottom: 10,
-  },
-  providerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatarWrapper: {
-    marginRight: 12,
+    gap: SPACING.sm,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: COLORS.neutral.gray[200],
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
   },
   infoColumn: {
     flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
   },
   nameTimeRow: {
@@ -338,15 +302,19 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   providerName: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
     flex: 1,
     marginRight: 8,
   },
   timeText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
+  },
+  contextLine: {
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.tertiary,
+    marginBottom: 4,
   },
   messageRow: {
     flexDirection: 'row',
@@ -354,7 +322,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lastMessage: {
-    fontSize: 14,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     flex: 1,
     marginRight: 8,
@@ -364,18 +332,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   unreadBadge: {
-    backgroundColor: COLORS.success[500],
+    backgroundColor: COLORS.primary[500],
     borderRadius: 10,
-    minWidth: 18,
-    height: 18,
+    minWidth: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
   },
   unreadText: {
-    color: COLORS.text.inverse,
-    fontSize: 10,
-    fontWeight: 'bold',
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.onPrimary,
+    fontWeight: '700',
   },
   emptyState: {
     alignItems: 'center',

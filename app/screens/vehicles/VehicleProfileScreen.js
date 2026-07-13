@@ -414,11 +414,15 @@ const VehicleProfileScreen = () => {
                     />
 
                     <VehicleValuationCard
+                        vehicle={vehicle}
                         marketValue={vehicle.precio_mercado_promedio || 0}
                         suggestedValue={vehicle.precio_sugerido_final || 0}
                         vehicleYear={vehicle.year}
                         healthScore={profileHealthScorePct}
                         onHealthPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: vehicle.id, vehicle })}
+                        onValueDetailPress={() =>
+                            navigation.navigate(ROUTES.VEHICLE_VALUE, { vehicleId: vehicle.id, vehicle })
+                        }
                         onTransferPress={() =>
                             navigation.navigate(ROUTES.TRANSFERENCIA_RESUMEN, {
                                 vehicle,

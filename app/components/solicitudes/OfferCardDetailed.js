@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from '../base/Icon/Icon';
 import { Image } from 'expo-image';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
-import { getMediaURL } from '../../services/api';
 import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
 import { formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
 import {
@@ -33,6 +32,7 @@ import {
     resolveModalidadServicio,
     servicioEsADomicilio,
 } from '../../utils/solicitudModalidadServicio';
+import { useOfertaProveedorFotoUrl } from '../../hooks/useResolvedMediaUrl';
 
 const formatDate = (dateString) => {
     if (!dateString) return null;
@@ -69,32 +69,7 @@ const OfferCardDetailed = ({
         [oferta, checklistPendienteFirma, catalogoPendienteConfirmacion],
     );
 
-    const [proveedorFotoUrl, setProveedorFotoUrl] = useState(null);
-
-    // Cargar foto del proveedor
-    useEffect(() => {
-        const cargarFoto = async () => {
-            // Prioridad: proveedor_foto (del serializer) > usuario.foto_perfil > fallback
-            let foto = oferta.proveedor_foto ||
-                oferta.proveedor_info?.usuario?.foto_perfil ||
-                oferta.taller_info?.usuario?.foto_perfil ||
-                null;
-
-            if (foto) {
-                if (foto.startsWith('http')) {
-                    setProveedorFotoUrl(foto);
-                } else {
-                    try {
-                        const url = await getMediaURL(foto);
-                        setProveedorFotoUrl(url);
-                    } catch (e) {
-                        console.log('Error loading provider photo', e);
-                    }
-                }
-            }
-        };
-        cargarFoto();
-    }, [oferta]);
+    const proveedorFotoUrl = useOfertaProveedorFotoUrl(oferta);
 
     // Cálculos de costos según modo con/sin repuestos de la propuesta
     const costosEfectivos = resolveCostosOfertaParaDisplay(oferta, solicitud);
@@ -163,17 +138,28 @@ const OfferCardDetailed = ({
     );
     const esServicioDomicilio = servicioEsADomicilio(modalidadServicio);
     const etiquetaTipoProveedor = useMemo(() => {
-        if (oferta.tipo_proveedor === 'mecanico') return 'Mecánico a domicilio';
+        const tipoNav = String(oferta.proveedor_tipo_detail || oferta.tipo_proveedor || '').toLowerCase();
+        if (tipoNav === 'mecanico') return 'Mecánico a domicilio';
         if (esServicioDomicilio) return 'Servicio a domicilio';
         return 'Taller certificado';
-    }, [oferta.tipo_proveedor, esServicioDomicilio]);
+    }, [oferta.proveedor_tipo_detail, oferta.tipo_proveedor, esServicioDomicilio]);
 
     return (
         <View style={[styles.card, embedded && styles.cardEmbedded]}>
             {!resumidoCatalogo && etiquetaServicios ? (
                 <View style={styles.servicioLabelRow}>
-                    <Icon name="construct-outline" size={14} color={COLORS.text.tertiary} />
-                    <Text style={styles.servicioLabelText}>{etiquetaServicios}</Text>
+                    <View style={styles.servicioLabelLeft}>
+                        <Icon name="construct-outline" size={14} color={COLORS.text.tertiary} />
+                        <Text style={styles.servicioLabelText} numberOfLines={2}>
+                            {etiquetaServicios}
+                        </Text>
+                    </View>
+                    <View style={[styles.tag, styles.tagGarantia]}>
+                        <Icon name="shield-checkmark-outline" size={14} color={COLORS.primary[600]} />
+                        <Text style={[styles.tagText, styles.tagGarantiaText]}>
+                            Garantía {oferta.garantia_ofrecida || '3 meses'}
+                        </Text>
+                    </View>
                 </View>
             ) : null}
             {!resumidoCatalogo && multiServicio && lineasServicio.length > 0 ? (
@@ -229,29 +215,36 @@ const OfferCardDetailed = ({
                     </View>
                 </TouchableOpacity>
 
-                <View style={styles.ratingBadge}>
-                    <Icon name="star" size={14} color={COLORS.warning[600]} />
-                    <Text style={styles.ratingScore}>{rating.toFixed(1)}</Text>
-                </View>
+                {resumidoCatalogo ? (
+                    <View style={[styles.tag, styles.tagGarantia]}>
+                        <Icon name="shield-checkmark-outline" size={14} color={COLORS.primary[600]} />
+                        <Text style={[styles.tagText, styles.tagGarantiaText]}>
+                            Garantía {oferta.garantia_ofrecida || '3 meses'}
+                        </Text>
+                    </View>
+                ) : (
+                    <View style={styles.ratingBadge}>
+                        <Icon name="star" size={14} color={COLORS.warning[600]} />
+                        <Text style={styles.ratingScore}>{rating.toFixed(1)}</Text>
+                    </View>
+                )}
             </View>
 
             {tecnicoAsignado && !resumidoCatalogo ? (
                 <TecnicoPreferidoRow tecnico={tecnicoAsignado} variant="inline" />
             ) : null}
 
-            {/* 2. Promesas de Valor (Tags) */}
-            <View style={[styles.tagsRow, resumidoCatalogo && styles.tagsRowCompact]}>
-                <View style={styles.tag}>
-                    <Icon name="shield-checkmark-outline" size={14} color={COLORS.text.tertiary} />
-                    <Text style={styles.tagText}>Garantía {oferta.garantia_ofrecida || '3 meses'}</Text>
-                </View>
-                {duracionTagTexto ? (
-                    <View style={styles.tag}>
-                        <Icon name="time-outline" size={14} color={COLORS.text.tertiary} />
-                        <Text style={styles.tagText}>{duracionTagTexto} est.</Text>
+            {/* 2. Duración (garantía va junto al título del servicio) */}
+            {duracionTagTexto ? (
+                <View style={[styles.tagsRow, resumidoCatalogo && styles.tagsRowCompact]}>
+                    <View style={[styles.tag, styles.tagDuracion]}>
+                        <Icon name="time-outline" size={14} color={COLORS.text.secondary} />
+                        <Text style={[styles.tagText, styles.tagDuracionText]}>
+                            {duracionTagTexto} est.
+                        </Text>
                     </View>
-                ) : null}
-            </View>
+                </View>
+            ) : null}
 
             {/* 3. Desglose de Costos */}
             <View style={[styles.costContainer, embedded && styles.costContainerFlat]}>
@@ -539,12 +532,11 @@ const OfferCardDetailed = ({
 const styles = StyleSheet.create({
     card: {
         backgroundColor: COLORS.background.paper,
-        borderRadius: BORDERS.radius.card.lg,
+        borderRadius: BORDERS.radius.lg,
         padding: SPACING.md,
         marginBottom: SPACING.md,
-        borderWidth: BORDERS.width.thin,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.border.light,
-        ...SHADOWS.sm,
     },
     cardEmbedded: {
         marginBottom: 0,
@@ -555,17 +547,26 @@ const styles = StyleSheet.create({
     },
     servicioLabelRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.xs,
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: SPACING.sm,
         marginBottom: SPACING.sm,
         paddingBottom: SPACING.sm,
-        borderBottomWidth: BORDERS.width.thin,
+        borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: COLORS.border.light,
     },
+    servicioLabelLeft: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: SPACING.xs,
+        minWidth: 0,
+    },
     servicioLabelText: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.text.secondary,
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.primary,
+        flex: 1,
+        minWidth: 0,
     },
     serviciosLista: {
         marginBottom: SPACING.sm,
@@ -579,20 +580,20 @@ const styles = StyleSheet.create({
     },
     servicioLineaNombre: {
         flex: 1,
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.primary,
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.text.secondary,
         fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     servicioLineaPrecio: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.text.primary,
     },
     costSectionLabel: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
+        ...TYPOGRAPHY.styles.small,
         color: COLORS.text.tertiary,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         textTransform: 'uppercase',
+        letterSpacing: 0.4,
         marginBottom: SPACING.xs,
     },
     header: {
@@ -611,25 +612,26 @@ const styles = StyleSheet.create({
         gap: SPACING.sm,
     },
     avatar: {
-        width: 48,
-        height: 48,
+        width: 56,
+        height: 56,
         borderRadius: BORDERS.radius.md,
         backgroundColor: COLORS.neutral.gray[100],
-        borderWidth: BORDERS.width.thin,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.border.light,
     },
     avatarPlaceholder: {
         backgroundColor: COLORS.primary[50],
         alignItems: 'center',
         justifyContent: 'center',
+        borderColor: COLORS.primary[100],
     },
     avatarInitial: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.h4,
         color: COLORS.primary[600],
     },
     providerInfo: {
         flex: 1,
+        minWidth: 0,
     },
     nameRow: {
         flexDirection: 'row',
@@ -637,18 +639,19 @@ const styles = StyleSheet.create({
         gap: SPACING.xxs,
     },
     providerName: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h4,
         color: COLORS.text.primary,
+        flexShrink: 1,
     },
     providerType: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     viewProfileRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        marginTop: 2,
     },
     ratingBadge: {
         flexDirection: 'row',
@@ -658,21 +661,21 @@ const styles = StyleSheet.create({
         paddingVertical: SPACING.xxs,
         borderRadius: BORDERS.radius.sm,
         gap: SPACING.xxs,
-        borderWidth: BORDERS.width.thin,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.warning[200],
     },
     ratingScore: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.warning[800],
     },
     ratingCount: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.small,
         color: COLORS.warning[700],
         opacity: 0.9,
     },
     tagsRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: SPACING.xs,
         marginBottom: SPACING.md,
     },
@@ -684,24 +687,38 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: SPACING.xxs,
         paddingHorizontal: SPACING.sm,
-        paddingVertical: SPACING.xxs,
-        backgroundColor: COLORS.neutral.gray[100],
-        borderRadius: BORDERS.radius.sm,
-        borderWidth: BORDERS.width.thin,
+        paddingVertical: 5,
+        borderRadius: BORDERS.radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
+        flexShrink: 0,
+        maxWidth: '48%',
+    },
+    tagGarantia: {
+        backgroundColor: COLORS.primary[50],
+        borderColor: COLORS.primary[200],
+    },
+    tagDuracion: {
+        backgroundColor: COLORS.neutral.gray[50],
         borderColor: COLORS.border.light,
     },
     tagText: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.small,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    },
+    tagGarantiaText: {
+        color: COLORS.primary[700],
+    },
+    tagDuracionText: {
         color: COLORS.text.secondary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     costContainer: {
         backgroundColor: COLORS.neutral.gray[50],
         borderRadius: BORDERS.radius.md,
         padding: SPACING.md,
         marginBottom: SPACING.md,
-        borderWidth: BORDERS.width.thin,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.border.light,
+        gap: SPACING.xs,
     },
     costContainerFlat: {
         backgroundColor: 'transparent',
@@ -714,17 +731,18 @@ const styles = StyleSheet.create({
     costRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: SPACING.xs,
+        alignItems: 'flex-start',
+        gap: SPACING.sm,
     },
     costLabel: {
-        fontSize: TYPOGRAPHY.fontSize.base,
+        flex: 1,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     costValue: {
-        fontSize: TYPOGRAPHY.fontSize.base,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.text.primary,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        fontVariant: ['tabular-nums'],
     },
     costLabelGestion: {
         color: COLORS.warning[700],
@@ -737,73 +755,75 @@ const styles = StyleSheet.create({
         gap: SPACING.xs,
     },
     divider: {
-        height: BORDERS.width.thin,
+        height: StyleSheet.hairlineWidth,
         backgroundColor: COLORS.border.light,
-        marginVertical: SPACING.sm,
+        marginVertical: SPACING.xs,
     },
     totalRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        gap: SPACING.sm,
     },
     totalLabel: {
-        fontSize: TYPOGRAPHY.fontSize.base,
+        ...TYPOGRAPHY.styles.h5,
+        fontFamily: TYPOGRAPHY.fontFamily.semibold,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.text.secondary,
-        letterSpacing: 0.25,
+        color: COLORS.text.primary,
     },
     totalValue: {
-        fontSize: TYPOGRAPHY.fontSize.xl,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h4,
+        fontFamily: TYPOGRAPHY.fontFamily.semibold,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.primary[600],
+        fontVariant: ['tabular-nums'],
     },
     reconciliacionNota: {
-        marginTop: SPACING.sm,
-        fontSize: TYPOGRAPHY.fontSize.xs,
+        marginTop: SPACING.xs,
+        ...TYPOGRAPHY.styles.small,
         color: COLORS.text.tertiary,
-        lineHeight: 18,
-        fontStyle: 'italic',
+        lineHeight: 16,
     },
     fechaSection: {
         marginBottom: SPACING.md,
     },
     fechaRow: {
-        marginBottom: 6,
+        marginBottom: SPACING.xs,
     },
     fechaLabel: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.small,
+        fontFamily: TYPOGRAPHY.fontFamily.medium,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
         color: COLORS.text.tertiary,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
         marginBottom: 2,
     },
     fechaValue: {
-        fontSize: TYPOGRAPHY.fontSize.base,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.text.primary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     fechaAlternativaBlock: {
         marginTop: SPACING.sm,
         padding: SPACING.sm,
         backgroundColor: COLORS.warning[50],
         borderRadius: BORDERS.radius.md,
-        borderLeftWidth: 3,
-        borderLeftColor: COLORS.warning[500],
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.warning[200],
+        gap: SPACING.xxs,
     },
     fechaAlternativaTitle: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.warning[800],
-        marginBottom: SPACING.xs,
-    },
-    fechaAlternativaRow: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.primary,
         marginBottom: SPACING.xxs,
     },
-    fechaAlternativaMotivo: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+    fechaAlternativaRow: {
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
-        fontStyle: 'italic',
+    },
+    fechaAlternativaMotivo: {
+        ...TYPOGRAPHY.styles.small,
+        color: COLORS.text.tertiary,
         marginTop: SPACING.xxs,
     },
     tiemposPanel: {
@@ -811,14 +831,17 @@ const styles = StyleSheet.create({
         padding: SPACING.md,
         backgroundColor: COLORS.neutral.gray[50],
         borderRadius: BORDERS.radius.md,
-        borderWidth: BORDERS.width.thin,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.border.light,
         gap: SPACING.xs,
     },
     tiemposPanelTitle: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.text.primary,
+        ...TYPOGRAPHY.styles.small,
+        fontFamily: TYPOGRAPHY.fontFamily.semibold,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.text.tertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
         marginBottom: SPACING.xxs,
     },
     tiemposRow: {
@@ -829,18 +852,16 @@ const styles = StyleSheet.create({
     },
     tiemposRowLabel: {
         flex: 1,
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     tiemposRowValue: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.text.primary,
         fontVariant: ['tabular-nums'],
     },
     tiemposDivider: {
-        height: BORDERS.width.thin,
+        height: StyleSheet.hairlineWidth,
         backgroundColor: COLORS.border.light,
         marginVertical: SPACING.xs,
     },
@@ -848,25 +869,28 @@ const styles = StyleSheet.create({
         gap: SPACING.xxs,
     },
     tiemposHint: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
+        ...TYPOGRAPHY.styles.small,
         color: COLORS.text.tertiary,
         marginTop: SPACING.xxs,
-        lineHeight: 17,
+        lineHeight: 16,
     },
     descripcionSection: {
         marginBottom: SPACING.md,
         paddingTop: SPACING.sm,
-        borderTopWidth: BORDERS.width.thin,
+        borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: COLORS.border.light,
     },
     descripcionLabel: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.small,
+        fontFamily: TYPOGRAPHY.fontFamily.medium,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
         color: COLORS.text.tertiary,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
         marginBottom: SPACING.xs,
     },
     descripcionText: {
-        fontSize: TYPOGRAPHY.fontSize.base,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         lineHeight: 20,
     },
@@ -884,12 +908,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: SPACING.md,
         borderRadius: BORDERS.radius.md,
         backgroundColor: COLORS.primary[50],
-        borderWidth: BORDERS.width.thin,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.primary[200],
     },
     chatWideButtonText: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.primary[700],
     },
     chatWideUnreadBadge: {

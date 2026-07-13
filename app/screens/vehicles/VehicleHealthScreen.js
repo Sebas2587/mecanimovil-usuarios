@@ -939,7 +939,7 @@ const VehicleHealthScreen = ({ route }) => {
     <View style={[styles.screen, webRootStyle]}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
-      <View style={[styles.screenHeader, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.screenHeader, { paddingTop: insets.top + SPACING.xs }]}>
         <BackButton onPress={() => navigation.goBack()} color={COLORS.text.primary} />
         <Text style={styles.screenTitle}>Salud del Vehículo</Text>
         <View style={{ width: 40 }} />

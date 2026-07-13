@@ -283,7 +283,7 @@ const MisSolicitudesScreen = () => {
   const renderHeaderChrome = useCallback(() => {
     const segments = mainTab === 'solicitudes' ? solicitudesSegments : historialSegments;
     return (
-      <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
+      <View style={[styles.headerContainer, { paddingTop: insets.top + SPACING.xs }]}>
         <View style={styles.navRow}>
           <BackButton onPress={() => navigation.goBack()} />
           <View style={{ width: 40 }} />

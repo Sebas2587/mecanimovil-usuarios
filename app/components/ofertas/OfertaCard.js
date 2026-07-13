@@ -11,6 +11,7 @@ import { useTheme } from '../../design-system/theme/useTheme';
 import CountdownTimer from '../common/CountdownTimer';
 import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
 import { calcularMontosPagoOferta, formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
+import { resolveOfertaProviderNav } from '../../utils/resolveOfertaProviderNav';
 import Icon from '../base/Icon/Icon';
 
 // Habilitar LayoutAnimation en Android
@@ -112,17 +113,13 @@ const OfertaCard = ({
   }, [oferta]);
 
   const handleVerPerfilProveedor = () => {
-    if (oferta.tipo_proveedor) {
-      const providerId = oferta.proveedor_id_detail || oferta.proveedor;
-      const providerType = oferta.tipo_proveedor === 'taller' ? 'taller' : 'mecanico';
+    const nav = resolveOfertaProviderNav(oferta);
+    if (!nav?.providerId || !nav?.providerType) return;
 
-      if (providerId) {
-        navigation.navigate(ROUTES.PROVIDER_DETAIL, {
-          providerId: providerId,
-          providerType: providerType
-        });
-      }
-    }
+    navigation.navigate(ROUTES.PROVIDER_DETAIL, {
+      providerId: nav.providerId,
+      providerType: nav.providerType,
+    });
   };
 
   const formatDate = (dateString) => {

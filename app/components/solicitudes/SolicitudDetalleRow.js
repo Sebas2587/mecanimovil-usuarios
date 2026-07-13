@@ -41,7 +41,7 @@ export default function SolicitudDetalleRow({
 const styles = StyleSheet.create({
   row: {
     paddingVertical: SPACING.sm,
-    borderBottomWidth: BORDERS.width.thin,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border.light,
     gap: SPACING.xxs,
   },
@@ -55,25 +55,25 @@ const styles = StyleSheet.create({
     gap: SPACING.xxs,
   },
   label: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+    ...TYPOGRAPHY.styles.small,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.tertiary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
     flexShrink: 1,
   },
   valueBlock: {
     paddingLeft: 18,
   },
   value: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     lineHeight: 20,
     flexWrap: 'wrap',
   },
   hint: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.secondary,
     marginTop: 2,
     lineHeight: 16,

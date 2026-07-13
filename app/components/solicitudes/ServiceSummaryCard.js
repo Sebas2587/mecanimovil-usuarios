@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import Icon from '../base/Icon/Icon';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import {
@@ -19,6 +20,7 @@ import {
 } from '../../utils/solicitudModalidadServicio';
 import { getEstadoSolicitudSurface } from '../../utils/solicitudEstadoDisplay';
 import { resolveTecnicoPreferido, especialidadesTecnicoTexto } from '../../utils/solicitudTecnicoPreferido';
+import { useVehiculoFotoUrl } from '../../hooks/useResolvedMediaUrl';
 import SolicitudDetalleRow from './SolicitudDetalleRow';
 
 /** Colores de badge alineados a estados de solicitud pública. */
@@ -39,6 +41,7 @@ const getUrgencyConfig = (urgencia) => {
                 color: COLORS.error[700],
                 label: 'Urgencia alta',
                 bg: COLORS.error[50],
+                border: COLORS.error[200],
                 icon: 'lightning-bolt',
             };
         case 'media':
@@ -46,33 +49,49 @@ const getUrgencyConfig = (urgencia) => {
                 color: COLORS.warning[800],
                 label: 'Urgencia media',
                 bg: COLORS.warning[50],
+                border: COLORS.warning[200],
                 icon: 'clock-alert-outline',
             };
         default:
             return {
-                color: COLORS.success[700],
+                color: COLORS.primary[700],
                 label: 'Urgencia baja',
-                bg: COLORS.success[50],
+                bg: COLORS.primary[50],
+                border: COLORS.primary[200],
                 icon: 'calendar-clock',
             };
     }
 };
 
-function VehiculoStrip({ vehiculo }) {
+function VehiculoStrip({ vehiculo, solicitud, solicitudIdShort = null }) {
+    const fotoUrl = useVehiculoFotoUrl(vehiculo, solicitud);
     if (!vehiculo) return null;
+
     const year = vehiculo.year || vehiculo.anio || vehiculo.año;
     const meta = [year, vehiculo.cilindraje ? `${vehiculo.cilindraje}L` : null, vehiculo.patente]
         .filter(Boolean)
         .join(' · ');
+    const marca = vehiculo.marca || vehiculo.marca_nombre;
+    const modelo = vehiculo.modelo || vehiculo.modelo_nombre;
 
     return (
         <View style={styles.vehiculoStrip}>
-            <View style={styles.vehiculoIcon}>
-                <Icon name="car-sport-outline" size={18} color={COLORS.primary[600]} />
-            </View>
+            {fotoUrl ? (
+                <Image
+                    source={{ uri: fotoUrl }}
+                    style={styles.vehiculoFoto}
+                    contentFit="cover"
+                    transition={200}
+                />
+            ) : (
+                <View style={[styles.vehiculoFoto, styles.vehiculoFotoPlaceholder]}>
+                    <Icon name="car-sport-outline" size={22} color={COLORS.primary[500]} />
+                </View>
+            )}
             <View style={styles.vehiculoTextWrap}>
+                <Text style={styles.vehiculoEyebrow}>Vehículo</Text>
                 <Text style={styles.vehiculoTitulo} numberOfLines={1}>
-                    {[vehiculo.marca, vehiculo.modelo].filter(Boolean).join(' ')}
+                    {[marca, modelo].filter(Boolean).join(' ')}
                 </Text>
                 {meta ? (
                     <Text style={styles.vehiculoMeta} numberOfLines={1}>
@@ -80,6 +99,11 @@ function VehiculoStrip({ vehiculo }) {
                     </Text>
                 ) : null}
             </View>
+            {solicitudIdShort ? (
+                <Text style={styles.idText} numberOfLines={1}>
+                    #{solicitudIdShort}
+                </Text>
+            ) : null}
         </View>
     );
 }
@@ -91,11 +115,14 @@ const ServiceSummaryCard = ({
     embedded = false,
     ocultarPreciosCatalogo = false,
     ocultarMetaCatalogo = false,
+    /** Si true, no pinta el badge de estado (p. ej. ya está en el header de la pantalla). */
+    ocultarEstadoBadge = false,
 }) => {
-    if (!solicitud) return null;
-
-    const urgencyConfig = getUrgencyConfig(solicitud.urgencia);
-    const estadoBadge = getEstadoBadgeMeta(solicitud, { checklistPendienteFirma });
+    const urgencyConfig = getUrgencyConfig(solicitud?.urgencia);
+    const estadoBadge = useMemo(
+        () => (solicitud ? getEstadoBadgeMeta(solicitud, { checklistPendienteFirma }) : null),
+        [solicitud, checklistPendienteFirma],
+    );
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Pendiente';
@@ -113,6 +140,40 @@ const ServiceSummaryCard = ({
         if (!timeString) return null;
         return String(timeString).substring(0, 5);
     };
+
+    const modalidadServicio = useMemo(
+        () => (solicitud ? resolveModalidadServicio(solicitud) : null),
+        [solicitud],
+    );
+    const ubicacionTexto = useMemo(
+        () => (solicitud ? resolveUbicacionServicioTexto(solicitud, modalidadServicio) : null),
+        [solicitud, modalidadServicio],
+    );
+    const serviciosSolicitud = useMemo(
+        () => (solicitud ? resolveServiciosSolicitud(solicitud) : []),
+        [solicitud],
+    );
+    const lineasOfertaCatalogo = useMemo(() => {
+        if (!solicitud || ocultarPreciosCatalogo) return [];
+        const oferta = solicitud?.oferta_seleccionada_detail;
+        const detalles = oferta?.detalles_servicios;
+        if (!Array.isArray(detalles) || detalles.length <= 1) return [];
+        return detalles.map((d) => ({
+            id: d.id ?? d.servicio,
+            nombre: d.servicio_nombre || 'Servicio',
+            precio: parseFloat(d.precio_servicio || 0),
+        }));
+    }, [solicitud, ocultarPreciosCatalogo]);
+    const repuestosMeta = useMemo(
+        () => (solicitud ? resolveRepuestosServicioMeta(solicitud) : null),
+        [solicitud],
+    );
+    const tecnicoPreferido = useMemo(
+        () => (solicitud ? resolveTecnicoPreferido(solicitud) : null),
+        [solicitud],
+    );
+
+    if (!solicitud || !estadoBadge) return null;
 
     const getModoSolicitud = () => {
         const tipo = String(solicitud.tipo_solicitud || 'global').toLowerCase();
@@ -142,11 +203,6 @@ const ServiceSummaryCard = ({
     };
 
     const modoSolicitud = getModoSolicitud();
-    const modalidadServicio = useMemo(() => resolveModalidadServicio(solicitud), [solicitud]);
-    const ubicacionTexto = useMemo(
-        () => resolveUbicacionServicioTexto(solicitud, modalidadServicio),
-        [solicitud, modalidadServicio],
-    );
     const fechaPreferida = solicitud.fecha_preferida || solicitud.fecha_creacion;
     const horaPreferida = solicitud.hora_preferida || solicitud.preferencia_horario;
     const horaTexto = formatTime(horaPreferida);
@@ -154,38 +210,13 @@ const ServiceSummaryCard = ({
         ? `${formatDate(fechaPreferida)} · ${horaTexto}`
         : formatDate(fechaPreferida);
 
-    const serviciosSolicitud = useMemo(() => resolveServiciosSolicitud(solicitud), [solicitud]);
     const multiServicio = serviciosSolicitud.length > 1;
     const tituloServicios = solicitud.servicio_nombre || formatServiciosTitulo(serviciosSolicitud);
-
-    const lineasOfertaCatalogo = useMemo(() => {
-        if (ocultarPreciosCatalogo) return [];
-        const oferta = solicitud?.oferta_seleccionada_detail;
-        const detalles = oferta?.detalles_servicios;
-        if (!Array.isArray(detalles) || detalles.length <= 1) return [];
-        return detalles.map((d) => ({
-            id: d.id ?? d.servicio,
-            nombre: d.servicio_nombre || 'Servicio',
-            precio: parseFloat(d.precio_servicio || 0),
-        }));
-    }, [solicitud?.oferta_seleccionada_detail, ocultarPreciosCatalogo]);
-
-    const repuestosMeta = useMemo(() => resolveRepuestosServicioMeta(solicitud), [solicitud]);
-    const tecnicoPreferido = useMemo(() => resolveTecnicoPreferido(solicitud), [solicitud]);
-    const vehiculoMostrar = vehiculo || solicitud.vehiculo_info || null;
-
-    const estadoBadgeNode = (
-        <View
-            style={[
-                styles.estadoBadge,
-                { backgroundColor: estadoBadge.bg, borderColor: estadoBadge.border },
-            ]}
-        >
-            <Text style={[styles.estadoBadgeText, { color: estadoBadge.color }]} numberOfLines={2}>
-                {estadoBadge.label}
-            </Text>
-        </View>
-    );
+    const vehiculoMostrar =
+        vehiculo
+        || solicitud.vehiculo_info
+        || solicitud.vehiculo_detail
+        || null;
 
     const detailRows = [
         {
@@ -219,7 +250,7 @@ const ServiceSummaryCard = ({
             label: getUbicacionServicioLabel(modalidadServicio),
             value: ubicacionTexto,
         },
-        !ocultarMetaCatalogo
+        !ocultarMetaCatalogo && repuestosMeta
             ? {
                 key: 'repuestos',
                 icon: repuestosMeta.incluye ? 'construct-outline' : 'remove-circle-outline',
@@ -241,26 +272,31 @@ const ServiceSummaryCard = ({
 
     return (
         <View style={[styles.card, embedded && styles.cardEmbedded]}>
-            <VehiculoStrip vehiculo={vehiculoMostrar} />
+            <VehiculoStrip
+                vehiculo={vehiculoMostrar}
+                solicitud={solicitud}
+                solicitudIdShort={solicitud.id ? String(solicitud.id).slice(0, 8) : null}
+            />
 
-            <View style={styles.header}>
-                <View style={styles.headerBadges}>
-                    <View style={[styles.chip, { backgroundColor: urgencyConfig.bg }]}>
-                        <Icon
-                            name={urgencyConfig.icon}
-                            size={13}
-                            color={urgencyConfig.color}
-                        />
-                        <Text style={[styles.chipText, { color: urgencyConfig.color }]}>
-                            {urgencyConfig.label}
-                        </Text>
-                    </View>
-                    {estadoBadgeNode}
+            <View style={styles.titleRow}>
+                <Text style={styles.title} numberOfLines={2}>
+                    {tituloServicios}
+                </Text>
+                <View
+                    style={[
+                        styles.chip,
+                        {
+                            backgroundColor: urgencyConfig.bg,
+                            borderColor: urgencyConfig.border,
+                        },
+                    ]}
+                >
+                    <Icon name={urgencyConfig.icon} size={12} color={urgencyConfig.color} />
+                    <Text style={[styles.chipText, { color: urgencyConfig.color }]}>
+                        {urgencyConfig.label}
+                    </Text>
                 </View>
-                <Text style={styles.idText}>#{solicitud.id ? solicitud.id.slice(0, 8) : '---'}</Text>
             </View>
-
-            <Text style={styles.title}>{tituloServicios}</Text>
 
             {multiServicio ? (
                 <View style={styles.serviciosLista}>
@@ -276,6 +312,21 @@ const ServiceSummaryCard = ({
                 <Text style={styles.description} numberOfLines={4}>
                     {solicitud.descripcion_problema}
                 </Text>
+            ) : null}
+
+            {!ocultarEstadoBadge ? (
+                <View style={styles.estadoRow}>
+                    <View
+                        style={[
+                            styles.estadoBadge,
+                            { backgroundColor: estadoBadge.bg, borderColor: estadoBadge.border },
+                        ]}
+                    >
+                        <Text style={[styles.estadoBadgeText, { color: estadoBadge.color }]} numberOfLines={1}>
+                            {estadoBadge.label}
+                        </Text>
+                    </View>
+                </View>
             ) : null}
 
             {lineasOfertaCatalogo.length > 0 ? (
@@ -325,12 +376,11 @@ const ServiceSummaryCard = ({
 const styles = StyleSheet.create({
     card: {
         backgroundColor: COLORS.background.paper,
-        borderRadius: BORDERS.radius.card.lg,
+        borderRadius: BORDERS.radius.lg,
         padding: SPACING.md,
         marginBottom: SPACING.md,
-        borderWidth: BORDERS.width.thin,
+        borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.border.light,
-        ...SHADOWS.sm,
     },
     cardEmbedded: {
         marginBottom: 0,
@@ -344,100 +394,120 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: SPACING.sm,
         marginBottom: SPACING.md,
-        paddingBottom: SPACING.sm,
-        borderBottomWidth: BORDERS.width.thin,
+        paddingBottom: SPACING.md,
+        borderBottomWidth: StyleSheet.hairlineWidth,
         borderBottomColor: COLORS.border.light,
     },
-    vehiculoIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: BORDERS.radius.sm,
-        backgroundColor: COLORS.primary[50],
+    vehiculoFoto: {
+        width: 56,
+        height: 56,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.neutral.gray[100],
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: COLORS.border.light,
+    },
+    vehiculoFotoPlaceholder: {
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: COLORS.primary[50],
+        borderColor: COLORS.primary[100],
     },
     vehiculoTextWrap: {
         flex: 1,
         minWidth: 0,
     },
+    vehiculoEyebrow: {
+        ...TYPOGRAPHY.styles.small,
+        fontFamily: TYPOGRAPHY.fontFamily.medium,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+        color: COLORS.text.tertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+        marginBottom: 2,
+    },
     vehiculoTitulo: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.h5,
+        fontFamily: TYPOGRAPHY.fontFamily.semibold,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.text.primary,
     },
     vehiculoMeta: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         marginTop: 2,
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        gap: SPACING.sm,
-        marginBottom: SPACING.sm,
-    },
-    headerBadges: {
-        flex: 1,
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: SPACING.xs,
-        alignItems: 'center',
-    },
-    chip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: SPACING.sm,
-        paddingVertical: SPACING.xxs,
-        borderRadius: BORDERS.radius.badge.md,
-        gap: 4,
-    },
-    chipText: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        textTransform: 'uppercase',
-    },
-    estadoBadge: {
-        paddingHorizontal: SPACING.sm,
-        paddingVertical: SPACING.xxs,
-        borderRadius: BORDERS.radius.badge.md,
-        borderWidth: BORDERS.width.thin,
-        maxWidth: '100%',
-    },
-    estadoBadgeText: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        lineHeight: 16,
-    },
     idText: {
-        fontSize: TYPOGRAPHY.fontSize.xs,
-        fontFamily: Platform.select({ ios: 'Courier New', android: 'monospace' }),
+        ...TYPOGRAPHY.styles.small,
         color: COLORS.text.tertiary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
+        alignSelf: 'flex-start',
         marginTop: 2,
+        flexShrink: 0,
+    },
+    titleRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: SPACING.sm,
+        marginBottom: SPACING.xxs,
     },
     title: {
-        fontSize: TYPOGRAPHY.fontSize.xl,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h4,
+        fontFamily: TYPOGRAPHY.fontFamily.semibold,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.text.primary,
-        marginBottom: SPACING.xxs,
-        letterSpacing: TYPOGRAPHY.letterSpacing.tight,
+        flex: 1,
+        minWidth: 0,
     },
     serviciosLista: {
         marginBottom: SPACING.xs,
         gap: 2,
     },
     servicioNombre: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
         lineHeight: 18,
     },
     description: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         lineHeight: 20,
         marginBottom: SPACING.sm,
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: 5,
+        borderRadius: BORDERS.radius.pill,
+        gap: 4,
+        borderWidth: StyleSheet.hairlineWidth,
+        flexShrink: 0,
+        maxWidth: '46%',
+    },
+    chipText: {
+        ...TYPOGRAPHY.styles.small,
+        fontFamily: TYPOGRAPHY.fontFamily.semibold,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+        flexShrink: 1,
+    },
+    estadoRow: {
+        marginBottom: SPACING.md,
+    },
+    estadoBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: 5,
+        borderRadius: BORDERS.radius.sm,
+        borderWidth: 1,
+        maxWidth: '100%',
+    },
+    estadoBadgeText: {
+        ...TYPOGRAPHY.styles.small,
+        fontFamily: TYPOGRAPHY.fontFamily.semibold,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        lineHeight: 16,
     },
     preciosInline: {
         marginBottom: SPACING.sm,
@@ -451,12 +521,11 @@ const styles = StyleSheet.create({
     },
     precioLineaNombre: {
         flex: 1,
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
     },
     precioLineaValor: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.text.primary,
     },
     precioTotalLinea: {
@@ -465,22 +534,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: SPACING.xxs,
         paddingTop: SPACING.xxs,
-        borderTopWidth: BORDERS.width.thin,
+        borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: COLORS.border.light,
     },
     precioTotalLabel: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.text.primary,
     },
     precioTotalValor: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.primary[700],
+        ...TYPOGRAPHY.styles.h5,
+        fontFamily: TYPOGRAPHY.fontFamily.semibold,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.primary[600],
     },
     detailsSection: {
-        marginTop: SPACING.xs,
-        paddingTop: SPACING.xxs,
+        marginTop: SPACING.xxs,
+        paddingTop: SPACING.xs,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: COLORS.border.light,
     },
 });
 

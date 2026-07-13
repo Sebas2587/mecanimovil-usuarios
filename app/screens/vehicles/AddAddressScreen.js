@@ -160,7 +160,7 @@ const AddAddressScreen = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
         <BackButton onPress={handleGoBack} />
         <Text style={styles.headerTitle}>Nueva Dirección</Text>
         <View style={styles.headerSpacer} />

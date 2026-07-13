@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Pencil, ChevronRight } from 'lucide-react-native';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
@@ -7,13 +7,20 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Button from '../base/Button/Button';
 import { getHealthColorToken } from '../../utils/healthFormat';
+import { useVehicleValuationForecast } from '../../hooks/useVehicleValuationForecast';
 
-const DEPRECIATION_RATE_PCT = 7;
+const LIQUIDEZ_SHORT = {
+  facil: 'Fácil de vender',
+  moderado: 'Venta moderada',
+  dificil: 'Difícil de vender',
+  calculando: 'Liquidez en cálculo',
+};
 
 /**
- * Valorización del vehículo (Airbnb-style) con enlace claro a salud.
+ * Valorización del vehículo (Airbnb-style) con datos del motor valor-real.
  */
 const VehicleValuationCard = ({
+    vehicle,
     marketValue,
     suggestedValue,
     vehicleYear,
@@ -22,20 +29,34 @@ const VehicleValuationCard = ({
     onTransferPress,
     onEditPress,
     onHealthPress,
+    onValueDetailPress,
 }) => {
     const onTransfer = onTransferPress || onSellPress;
+    const { data, isLoading } = useVehicleValuationForecast(vehicle, { enabled: !!vehicle?.id });
+
     const formatCurrency = (value) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(value || 0);
 
+    const valorReal = data?.valor_real_hoy || suggestedValue || marketValue || 0;
+    const valorMercado = data?.meta?.valor_getapi_ajustado || marketValue || 0;
+    const proyeccion1 = (data?.proyeccion || []).find((p) => p.anio_offset === 1);
+    const tasaDep = data?.meta?.tasa_depreciacion_anual_pct;
+    const liquidezLabel = data?.liquidez?.label;
+    const confianza = data?.confianza || 'estimado';
+
     const yearNum = Number(vehicleYear);
     const vehicleAge = Number.isFinite(yearNum) ? new Date().getFullYear() - yearNum : null;
-    const showDepreciation = Number(marketValue) > 0 && vehicleAge != null && vehicleAge >= 0;
+    const showDepreciation = Number(valorReal) > 0 && (tasaDep != null || (vehicleAge != null && vehicleAge >= 0));
     const score = Math.round(Number(healthScore) || 0);
     const healthColor = getHealthColorToken(COLORS, score);
 
     return (
         <View style={styles.container}>
             <Text style={[TYPOGRAPHY.styles.h5, styles.title]}>Valorización</Text>
+
+            {isLoading ? (
+                <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: SPACING.sm }} />
+            ) : null}
 
             {onHealthPress ? (
                 <TouchableOpacity
@@ -59,12 +80,44 @@ const VehicleValuationCard = ({
             ) : null}
 
             <View style={styles.valueRow}>
-                <Text style={[TYPOGRAPHY.styles.body, styles.valueLabel]}>Valor de mercado</Text>
+                <Text style={[TYPOGRAPHY.styles.body, styles.valueLabel]}>Valor real estimado</Text>
                 <View style={styles.valueRight}>
                     <Text style={[TYPOGRAPHY.styles.bodyBold, styles.valueText]}>
-                        {formatCurrency(marketValue)}
+                        {formatCurrency(valorReal)}
                     </Text>
-                    {(marketValue === 0 || marketValue === '0') && onEditPress ? (
+                    {confianza === 'estimado' ? (
+                        <Text style={[TYPOGRAPHY.styles.caption, styles.estimadoHint]}>Estimado</Text>
+                    ) : null}
+                </View>
+            </View>
+
+            {liquidezLabel ? (
+                <View style={styles.liquidezRow}>
+                    <Text style={[TYPOGRAPHY.styles.caption, styles.valueLabel]}>Facilidad de venta</Text>
+                    <Text style={[TYPOGRAPHY.styles.captionBold, styles.liquidezValue]}>
+                        {LIQUIDEZ_SHORT[liquidezLabel] || liquidezLabel}
+                    </Text>
+                </View>
+            ) : null}
+
+            <View style={styles.divider} />
+
+            <View style={styles.valueRow}>
+                <View style={styles.valueLeft}>
+                    <Text style={[TYPOGRAPHY.styles.body, styles.valueLabel]}>
+                        Referencia de mercado
+                    </Text>
+                    <View style={styles.badge}>
+                        <Text style={[TYPOGRAPHY.styles.captionBold, styles.badgeText]}>
+                            GetAPI + salud
+                        </Text>
+                    </View>
+                </View>
+                <View style={styles.valueRight}>
+                    <Text style={[TYPOGRAPHY.styles.bodyBold, styles.suggestedValue]}>
+                        {formatCurrency(valorMercado)}
+                    </Text>
+                    {(valorMercado === 0 || valorMercado === '0') && onEditPress ? (
                         <TouchableOpacity
                             onPress={onEditPress}
                             style={styles.editLink}
@@ -80,40 +133,37 @@ const VehicleValuationCard = ({
                 </View>
             </View>
 
-            <View style={styles.divider} />
-
-            <View style={styles.valueRow}>
-                <View style={styles.valueLeft}>
-                    <Text style={[TYPOGRAPHY.styles.body, styles.valueLabel]}>
-                        Valor sugerido certificado
-                    </Text>
-                    <View style={styles.badge}>
-                        <Text style={[TYPOGRAPHY.styles.captionBold, styles.badgeText]}>
-                            +5% por salud
-                        </Text>
-                    </View>
-                </View>
-                <Text style={[TYPOGRAPHY.styles.bodyBold, styles.suggestedValue]}>
-                    {formatCurrency(suggestedValue)}
-                </Text>
-            </View>
-
             {showDepreciation ? (
                 <>
                     <View style={styles.divider} />
                     <View style={styles.valueRow}>
                         <Text style={[TYPOGRAPHY.styles.caption, styles.depreciationLabel]}>
-                            Depreciación estimada
+                            Proyección en 1 año
                         </Text>
-                        <Text style={[TYPOGRAPHY.styles.caption, styles.depreciationLabel]}>
-                            ≈ {DEPRECIATION_RATE_PCT}%/año según antigüedad
+                        <Text style={[TYPOGRAPHY.styles.captionBold, styles.depreciationLabel]}>
+                            {proyeccion1 ? formatCurrency(proyeccion1.valor) : '—'}
+                            {tasaDep != null ? ` · ≈ ${tasaDep}%/año` : ''}
                         </Text>
                     </View>
                 </>
             ) : null}
 
+            {onValueDetailPress ? (
+                <TouchableOpacity
+                    style={styles.detailLink}
+                    onPress={onValueDetailPress}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                >
+                    <Text style={[TYPOGRAPHY.styles.captionBold, styles.detailLinkText]}>
+                        Ver análisis completo de valor y liquidez
+                    </Text>
+                    <ChevronRight size={16} color={COLORS.primary[600]} strokeWidth={2} />
+                </TouchableOpacity>
+            ) : null}
+
             <Text style={[TYPOGRAPHY.styles.caption, styles.footnote]}>
-                El valor sugerido se recalcula con cada servicio registrado.
+                El valor se actualiza con datos de mercado y cada servicio registrado.
             </Text>
 
             <Button title="Transferir vehículo" onPress={onTransfer} fullWidth />
@@ -171,6 +221,15 @@ const styles = StyleSheet.create({
         gap: SPACING.sm,
         paddingVertical: 2,
     },
+    liquidezRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: SPACING.xxs,
+    },
+    liquidezValue: {
+        color: COLORS.primary[600],
+    },
     valueLeft: {
         flexShrink: 1,
     },
@@ -182,6 +241,10 @@ const styles = StyleSheet.create({
     },
     valueText: {
         color: COLORS.text.primary,
+    },
+    estimadoHint: {
+        color: COLORS.warning.dark,
+        marginTop: 2,
     },
     suggestedValue: {
         color: COLORS.primary[600],
@@ -213,6 +276,17 @@ const styles = StyleSheet.create({
     },
     editLinkText: {
         color: COLORS.primary[600],
+    },
+    detailLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: SPACING.sm,
+        paddingVertical: SPACING.xs,
+    },
+    detailLinkText: {
+        color: COLORS.primary[600],
+        flex: 1,
     },
     footnote: {
         color: COLORS.text.tertiary,

@@ -16,8 +16,11 @@ export function resolveOfertaProveedorFotoUrl(oferta) {
     || oferta.mecanico_info?.foto_perfil_url
     || oferta.mecanico_info?.usuario?.foto_perfil_url
     || oferta.proveedor_info?.foto_perfil
+    || oferta.proveedor_info?.usuario?.foto_perfil
     || oferta.taller_info?.foto_perfil
+    || oferta.taller_info?.usuario?.foto_perfil
     || oferta.mecanico_info?.foto_perfil
+    || oferta.mecanico_info?.usuario?.foto_perfil
     || null;
 
   return resolveToAbsoluteMediaUrl(raw);

@@ -18,7 +18,9 @@ import { useConversationsList } from '../../hooks/useChats';
 import ActivityCard from '../../components/cards/ActivityCard';
 import EmptyState from '../../components/base/EmptyState/EmptyState';
 import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
+import AppHeader from '../../components/navigation/AppHeader';
 import { TAB_BAR_BASE_HEIGHT } from '../../components/home/shared/homeLayoutConstants';
+import { attachmentPreviewLabel, getMessageAttachmentUri } from '../../utils/chatAttachmentMedia';
 import * as userService from '../../services/user';
 
 const SEGMENTS = [
@@ -154,29 +156,44 @@ const ActividadScreen = () => {
         />
       );
     }
-    return conversations.map((c) => (
-      <ActivityCard
-        key={String(c.id)}
-        title={c.other_party_name || c.titulo || 'Chat'}
-        subtitle={c.last_message_preview || c.ultimo_mensaje}
-        statusLabel={
-          (c.unread_count ?? 0) > 0 ? `${c.unread_count} nuevo${c.unread_count > 1 ? 's' : ''}` : null
-        }
-        statusVariant="accent"
-        onPress={() =>
-          navigation.navigate(ROUTES.CHAT_DETAIL, {
-            conversationId: c.id,
-            conversation: c,
-          })
-        }
-      />
-    ));
+    return conversations.map((c) => {
+      const providerName =
+        c.other_participant?.full_name ||
+        [c.other_participant?.first_name, c.other_participant?.last_name]
+          .filter(Boolean)
+          .join(' ') ||
+        c.other_participant?.username ||
+        'Proveedor';
+      const lastMsg = c.last_message?.content;
+      const lastAttachment = getMessageAttachmentUri(c.last_message);
+      const preview = lastMsg || (lastAttachment ? attachmentPreviewLabel(c.last_message) : 'Inicia la conversación');
+
+      return (
+        <ActivityCard
+          key={String(c.id)}
+          title={providerName}
+          subtitle={preview}
+          avatarUri={c.other_participant?.foto_perfil}
+          statusLabel={
+            (c.unread_count ?? 0) > 0 ? `${c.unread_count} nuevo${c.unread_count > 1 ? 's' : ''}` : null
+          }
+          statusVariant="accent"
+          onPress={() =>
+            navigation.navigate(ROUTES.CHAT_DETAIL, {
+              conversationId: c.id,
+              conversation: c,
+            })
+          }
+        />
+      );
+    });
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" />
-      <Text style={styles.pageTitle}>Actividad</Text>
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      {/* Mismo AppHeader que Cuenta / stack (safe area + tipografía h5) */}
+      <AppHeader title="Actividad" />
 
       <SegmentedControl
         segments={segmentItems}
@@ -212,12 +229,7 @@ const styles = StyleSheet.create({
   },
   segments: {
     paddingHorizontal: SPACING.container.horizontal,
-    marginBottom: SPACING.md,
-  },
-  pageTitle: {
-    ...TYPOGRAPHY.styles.h2,
-    color: COLORS.text.primary,
-    paddingHorizontal: SPACING.container.horizontal,
+    marginTop: SPACING.sm,
     marginBottom: SPACING.md,
   },
   loading: {

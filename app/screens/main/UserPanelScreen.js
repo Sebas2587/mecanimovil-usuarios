@@ -3,7 +3,6 @@ import { View, StyleSheet, ScrollView, StatusBar, RefreshControl, Platform } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClipboardList, MessageCircle } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
@@ -12,7 +11,6 @@ import { getUserVehicles } from '../../services/vehicle';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { useUnreadCount } from '../../hooks/useNotifications';
 import { usePendingReviews } from '../../hooks/usePendingReviews';
-import { useConversationsList } from '../../hooks/useChats';
 import { useVehiclesHealth } from '../../hooks/useVehicles';
 import { useUserAddresses } from '../../hooks/useAddress';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
@@ -34,8 +32,8 @@ import {
   HomeHighlightedRow,
   HomeMarketActivitySection,
   HomeVehicleSelectorModal,
-  HomeQuickActions,
 } from '../../components/home/discovery';
+import VehicleValueTeaserCard from '../../components/vehicle/VehicleValueTeaserCard';
 import { EXPLORE_MODE_PARA_TI } from '../../components/providers/explore';
 import { useTripTracking } from '../../context/TripTrackingContext';
 import { TRIP_ACTIVE_BAR_HEIGHT, TRIP_ACTIVE_BAR_GAP } from '../../components/trip/TripActiveBar';
@@ -53,20 +51,6 @@ const UserPanelScreen = () => {
   const { data: pendingReviews = [], refetch: refetchPendingReviews } = usePendingReviews();
   const pendingReviewCount = pendingReviews.length;
 
-  const {
-    data: serviceConversations = [],
-    refetch: refetchServiceConversations,
-  } = useConversationsList('service');
-
-  const chatsUnreadTotal = useMemo(
-    () =>
-      (Array.isArray(serviceConversations) ? serviceConversations : []).reduce(
-        (acc, c) => acc + (Number(c?.unread_count) || 0),
-        0,
-      ),
-    [serviceConversations],
-  );
-
   useFocusEffect(
     useCallback(() => {
       cargarSolicitudesActivas();
@@ -75,9 +59,8 @@ const UserPanelScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      refetchServiceConversations();
       refetchPendingReviews();
-    }, [refetchServiceConversations, refetchPendingReviews]),
+    }, [refetchPendingReviews]),
   );
 
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
@@ -217,34 +200,13 @@ const UserPanelScreen = () => {
     return solicitudesActivas.find((s) => solicitudVisibleParaVehiculoDashboard(s, vid)) ?? null;
   }, [solicitudesActivas, activeSolicitudesCount, selectedVehicle?.id]);
 
-  const quickActionItems = useMemo(
-    () => [
-      {
-        key: 'solicitudes',
-        title: 'Solicitudes',
-        sub:
-          activeSolicitudesCount > 0
-            ? `${activeSolicitudesCount} activa${activeSolicitudesCount > 1 ? 's' : ''}`
-            : 'Mis solicitudes',
-        icon: <ClipboardList size={18} color={COLORS.primary[600]} strokeWidth={2} />,
-        iconBg: COLORS.primary[50],
-        onPress: () => navigation.navigate(ROUTES.ACTIVIDAD),
-      },
-      {
-        key: 'mensajes',
-        title: 'Mensajes',
-        sub:
-          chatsUnreadTotal > 0
-            ? `${chatsUnreadTotal} mensaje${chatsUnreadTotal > 1 ? 's' : ''} sin leer`
-            : 'Chats con proveedores',
-        icon: <MessageCircle size={18} color={COLORS.primary[600]} strokeWidth={2} />,
-        iconBg: COLORS.primary[50],
-        onPress: () => navigation.navigate(ROUTES.ACTIVIDAD),
-        badgeCount: chatsUnreadTotal,
-      },
-    ],
-    [navigation, activeSolicitudesCount, chatsUnreadTotal],
-  );
+  const openVehicleValueDetail = useCallback(() => {
+    if (!selectedVehicle) return;
+    navigation.navigate(ROUTES.VEHICLE_VALUE, {
+      vehicleId: selectedVehicle.id,
+      vehicle: selectedVehicle,
+    });
+  }, [navigation, selectedVehicle]);
 
   const { data: userAddresses } = useUserAddresses();
   const addressList = useMemo(
@@ -343,6 +305,9 @@ const UserPanelScreen = () => {
     if (selectedVehicle?.id) {
       extras.push(refetchPanelParaTi());
       extras.push(refetchMarketActivity());
+      extras.push(
+        queryClient.invalidateQueries({ queryKey: ['vehicleValorReal', selectedVehicle.id] }),
+      );
     }
     await Promise.all([
       refetchVehicles(),
@@ -424,7 +389,10 @@ const UserPanelScreen = () => {
           onSelectCategory={handleCategorySelect}
         />
 
-        <HomeQuickActions items={quickActionItems} />
+        <VehicleValueTeaserCard
+          vehicle={selectedVehicle}
+          onPress={openVehicleValueDetail}
+        />
 
         <HomeContextualBanner
           solicitud={firstVisibleSolicitud}
