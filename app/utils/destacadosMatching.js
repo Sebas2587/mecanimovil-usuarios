@@ -1,32 +1,22 @@
 /**
- * Destacados (home) — pipeline de matching estilo Airbnb "For you".
+ * Destacados (home) — pipeline aprobado (distancia pura).
  *
- * Roles de descubrimiento:
- * - Destacados: curados por compatibilidad con la MARCA del vehículo del usuario.
- * - Cerca de ti: ordenados por distancia (geo), con cobertura de marca cuando aplica.
+ * Reglas de negocio:
+ * - Todos son talleres; elegibles por marca (y modelo vía ofertas del backend).
+ * - No se excluye por distancia / ciudad / radar.
+ * - Orden: distancia ascendente (más cercano primero).
+ * - Cupo del rail: takeLimit (12 en home).
  *
- * Ejes del proveedor (todos son talleres):
- * 1. Modalidad: en_taller | a_domicilio | ambas  → utils/providerModalidad.js
- * 2. Cobertura: especialista | multimarca         → utils/providerBrandCoverage.js
- *
- * Pipeline (orden fijo):
- * 1. brandEligible  — solo quienes cubren la marca del vehículo (nunca especialista de otra marca)
- * 2. rankForBrand   — especialistas de la marca primero, luego multimarca; dentro de cada grupo KPI
- * 3. localizeSoft   — preferir ciudad + radar, con fallback progresivo para no vaciar la sección
- * 4. takeLimit      — cortar al cupo del panel
+ * Cobertura marca: utils/providerBrandCoverage.js
+ * Modalidad (tag UI): utils/providerModalidad.js — no filtra matching.
  */
 
 import { coversBrand } from './providerBrandCoverage';
 import {
-  compareProvidersByMarcaThenKpi,
   isProviderMultimarca,
   tagProviderMarcaFlags,
 } from './providerUtils';
-import {
-  filterProvidersForDestacadosPanel,
-  providerMatchesUserCityContext,
-} from '../components/home/shared/homeAddressUtils';
-import { isProviderWithinRadar, normalizeDistanceKm } from './exploreProviderUtils';
+import { normalizeDistanceKm } from './exploreProviderUtils';
 
 /**
  * ¿Compatible con la marca del vehículo del usuario?
@@ -40,7 +30,6 @@ export function isBrandCompatible(provider, marcaId, marcaNombre) {
   if (marcaNombre) {
     return coversBrand(provider, marcaNombre);
   }
-  // Sin marca conocida: el backend ya filtró por vehiculo_id; no descartar.
   return true;
 }
 
@@ -54,42 +43,37 @@ export function filterBrandEligible(providers, { marcaId, marcaNombre } = {}) {
 }
 
 /**
- * Etapa 2 — ranking Airbnb-like: especialistas de la marca → multimarca → KPI.
+ * Etapa 2 — orden por distancia pura (asc). Sin distancia → al final.
  */
-export function rankForBrand(providers) {
-  return [...(providers || [])].sort(compareProvidersByMarcaThenKpi);
-}
-
-/**
- * Etapa 3 — localización suave.
- * Preferencia: (ciudad ∩ radar) → ciudad → radar → todos elegibles por marca.
- * Evita el empty state cuando hay talleres compatibles fuera del radio estricto.
- */
-export function localizeSoft(providers, cityContext) {
-  const list = providers || [];
-  if (list.length === 0) return [];
-
-  const preferred = filterProvidersForDestacadosPanel(list, cityContext);
-  if (preferred.length > 0) return preferred;
-
-  if (cityContext?.labels?.length) {
-    const inCity = list.filter((p) => providerMatchesUserCityContext(p, cityContext));
-    if (inCity.length > 0) return inCity;
-  }
-
-  const inRadar = list.filter((p) => {
-    const km = normalizeDistanceKm(p);
-    if (km == null) return false;
-    return isProviderWithinRadar(p);
+export function rankByDistance(providers) {
+  return [...(providers || [])].sort((a, b) => {
+    const da = normalizeDistanceKm(a);
+    const db = normalizeDistanceKm(b);
+    const aUnknown = da == null;
+    const bUnknown = db == null;
+    if (aUnknown && bUnknown) return 0;
+    if (aUnknown) return 1;
+    if (bUnknown) return -1;
+    return da - db;
   });
-  if (inRadar.length > 0) return inRadar;
+}
 
-  // Fallback final: todos los compatibles por marca (orden ya aplicado).
-  return list;
+/** @deprecated Usar rankByDistance. Conservado por imports legacy. */
+export function rankForBrand(providers) {
+  return rankByDistance(providers);
 }
 
 /**
- * Etapa 4 — cupo del rail.
+ * @deprecated El plan aprobado no corta por ciudad/radar; se conserva por compat.
+ * Devuelve la lista tal cual (relleno = identidad).
+ */
+export function localizeSoft(providers, _cityContext, { limit = 12 } = {}) {
+  const n = Math.max(0, Number(limit) || 12);
+  return (providers || []).slice(0, n);
+}
+
+/**
+ * Etapa 3 — cupo del rail.
  */
 export function takeLimit(providers, limit = 12) {
   const n = Math.max(0, Number(limit) || 12);
@@ -98,24 +82,21 @@ export function takeLimit(providers, limit = 12) {
 
 /**
  * Pipeline completo Destacados.
- * @param {object[]} providers — respuesta cruda (talleres + mecánicos) ya con _panelKind
+ * @param {object[]} providers — respuesta cruda ya con _panelKind y distance cuando exista
  * @param {{ marcaId?: number|string, marcaNombre?: string, cityContext?: object, limit?: number }} options
  */
 export function buildDestacadosList(providers, options = {}) {
-  const { marcaId, marcaNombre, cityContext, limit = 12 } = options;
+  const { marcaId, marcaNombre, limit = 12 } = options;
 
   const eligible = filterBrandEligible(providers, { marcaId, marcaNombre });
-  const ranked = rankForBrand(eligible);
-  const localized = localizeSoft(ranked, cityContext);
-  // Re-rank tras localizar para mantener especialistas-primero dentro del subset.
-  const finalRanked = rankForBrand(localized);
+  const ranked = rankByDistance(eligible);
 
   return {
-    providers: takeLimit(finalRanked, limit),
+    providers: takeLimit(ranked, limit),
     meta: {
       fetched: (providers || []).length,
       brandEligible: eligible.length,
-      afterLocalize: localized.length,
+      afterLocalize: ranked.length,
       specialists: eligible.filter((p) => !isProviderMultimarca(p)).length,
       multibrand: eligible.filter((p) => isProviderMultimarca(p)).length,
     },

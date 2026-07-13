@@ -45,8 +45,15 @@ function attachPanelKind(arr, kind) {
 }
 
 function finalizeNearbyProviders(merged, options = {}) {
-  const maxKm = clampRecommendationRadiusKm(options.maxKm ?? PROVIDER_RECOMMENDATION_MAX_KM);
-  const requireInRadius = options.requireInRadius !== false;
+  const rawMax = options.maxKm;
+  const unlimited =
+    rawMax == null ||
+    rawMax === Number.POSITIVE_INFINITY ||
+    options.requireInRadius === false && !Number.isFinite(Number(rawMax));
+  const maxKm = unlimited
+    ? Number.POSITIVE_INFINITY
+    : clampRecommendationRadiusKm(rawMax ?? PROVIDER_RECOMMENDATION_MAX_KM);
+  const requireInRadius = options.requireInRadius !== false && Number.isFinite(maxKm);
   const keepUnknownDistance = options.keepUnknownDistance === true;
   const preferMarca = options.preferMarcaSpecialists === true;
   const sortCmp = preferMarca
@@ -59,6 +66,7 @@ function finalizeNearbyProviders(merged, options = {}) {
     if (km == null) {
       return keepUnknownDistance || !requireInRadius;
     }
+    if (!requireInRadius || !Number.isFinite(maxKm)) return true;
     return km <= maxKm;
   });
   list.sort(sortCmp);
@@ -69,7 +77,8 @@ function finalizeNearbyProviders(merged, options = {}) {
 }
 
 /**
- * Enriquece proveedores con distancias desde /cerca/ (mismo radio 100 m – 5 km).
+ * Enriquece proveedores con distancias desde /cerca/ + Haversine.
+ * Para Destacados: pasar `unlimitedRadius: true` (sin corte de 5 km).
  */
 export async function enrichProvidersWithNearbyDistance(
   providers,
@@ -83,12 +92,15 @@ export async function enrichProvidersWithNearbyDistance(
   }
   const nearbyLimit = options.nearbyFetchLimit ?? 100;
   const onlyEnrichExisting = options.onlyEnrichExisting !== false;
+  const unlimitedRadius = options.unlimitedRadius === true;
 
   const nearby = await getNearbyProvidersForPanel(lat, lng, marcaId, {
     limit: nearbyLimit,
-    maxKm: options.maxKm ?? PROVIDER_RECOMMENDATION_MAX_KM,
+    maxKm: unlimitedRadius ? null : (options.maxKm ?? PROVIDER_RECOMMENDATION_MAX_KM),
+    unlimitedRadius,
     requireInRadius: false,
     skipClientSlice: true,
+    keepUnknownDistance: true,
   });
   const distMap = new Map(
     nearby
@@ -1160,8 +1172,8 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
       ...PANEL_SERVICIOS_QUERY,
     };
     const [tRes, mRes] = await Promise.all([
-      get('/usuarios/talleres/proveedores_filtrados/', params),
-      get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params),
+      get('/usuarios/talleres/proveedores_filtrados/', params, { forceRefresh: true }),
+      get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params, { forceRefresh: true }),
     ]);
 
     let raw = [
@@ -1175,18 +1187,28 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
         raw = await enrichProvidersWithNearbyDistance(raw, lat, lng, marcaId, {
           onlyEnrichExisting: true,
           nearbyFetchLimit: scope === 'explore' ? 120 : 80,
+          unlimitedRadius: true,
         });
       } catch (distErr) {
         console.warn('No se pudo enriquecer distancia en Destacados:', distErr);
       }
     }
 
-    const { providers } = buildDestacadosList(raw, {
+    const cupo = scope === 'explore' ? Math.max(limit, 40) : limit;
+    const { providers, meta } = buildDestacadosList(raw, {
       marcaId,
       marcaNombre,
       cityContext: scope === 'panel' ? cityContext : null,
-      limit: scope === 'explore' ? Math.max(limit, 40) : limit,
+      limit: cupo,
     });
+
+    if (__DEV__ && meta) {
+      console.log(
+        `[Destacados] vehiculo=${vehiculoId} marca=${marcaId || marcaNombre || '?'} ` +
+          `fetched=${meta.fetched} eligible=${meta.brandEligible} ` +
+          `(esp=${meta.specialists} mm=${meta.multibrand}) shown=${providers.length}`,
+      );
+    }
 
     return providers;
   } catch (error) {
@@ -1227,15 +1249,17 @@ function dedupeProvidersByStableKey(providers) {
   return deduped;
 }
 
-/** Une talleres + mecánicos de `/cerca/` para un punto y radio dados. */
+/** Une talleres + mecánicos de `/cerca/`. Si maxKm es null/undefined, no envía `dist` (sin corte por radio). */
 async function fetchCercaProvidersMerged(lat, lng, maxKm, marcaId) {
   const baseParams = {
     lat,
     lng,
-    dist: maxKm,
     ordenar_por: 'distancia',
     ...PANEL_SERVICIOS_QUERY,
   };
+  if (maxKm != null && Number.isFinite(Number(maxKm))) {
+    baseParams.dist = Number(maxKm);
+  }
   if (marcaId != null && marcaId !== '') {
     baseParams.marca = marcaId;
   }
@@ -1252,9 +1276,9 @@ async function fetchCercaProvidersMerged(lat, lng, maxKm, marcaId) {
 }
 
 /**
- * Talleres y mecánicos cercanos según dirección (PostGIS /cerca/).
- * Incluye especialistas en la marca del vehículo y multimarca dentro del radio.
- * Orden: distancia ascendente. Sin fallback a proveedores que no atienden la marca.
+ * Talleres y mecánicos según dirección (PostGIS /cerca/).
+ * Por defecto: radio 5 km (Cerca de ti).
+ * Con `unlimitedRadius: true` o `maxKm: null`: sin corte por dist (Destacados).
  */
 export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}) => {
   const la = Number(lat);
@@ -1263,9 +1287,12 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
     return [];
   }
 
-  const maxKm = clampRecommendationRadiusKm(
-    options.maxKm ?? options.distTaller ?? options.distMecanico ?? PROVIDER_RECOMMENDATION_MAX_KM,
-  );
+  const unlimitedRadius = options.unlimitedRadius === true || options.maxKm === null;
+  const maxKm = unlimitedRadius
+    ? null
+    : clampRecommendationRadiusKm(
+        options.maxKm ?? options.distTaller ?? options.distMecanico ?? PROVIDER_RECOMMENDATION_MAX_KM,
+      );
   const marcaFallback = options.marcaFallback === true;
 
   try {
@@ -1279,8 +1306,8 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
 
     const finalized = finalizeNearbyProviders(withDistance, {
       limit: options.limit ?? 24,
-      maxKm,
-      requireInRadius: options.requireInRadius,
+      maxKm: unlimitedRadius ? Number.POSITIVE_INFINITY : maxKm,
+      requireInRadius: unlimitedRadius ? false : options.requireInRadius,
       keepUnknownDistance: options.keepUnknownDistance ?? true,
       skipClientSlice: options.skipClientSlice,
       sortByDistanceOnly: options.sortByDistanceOnly !== false,
@@ -1289,7 +1316,7 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
 
     if (__DEV__) {
       console.log(
-        `[Cerca panel] ${finalized.length} proveedores (raw=${deduped.length}, marca=${marcaId ?? 'todas'}, radio=${maxKm}km)`,
+        `[Cerca panel] ${finalized.length} proveedores (raw=${deduped.length}, marca=${marcaId ?? 'todas'}, radio=${unlimitedRadius ? 'sin límite' : `${maxKm}km`})`,
       );
     }
 

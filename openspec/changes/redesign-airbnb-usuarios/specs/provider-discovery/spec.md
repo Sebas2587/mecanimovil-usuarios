@@ -22,26 +22,25 @@ Todas las interfaces que listen proveedores o mecánicos de taller (Destacados, 
 - WHEN ve la sección «Cerca de ti»
 - THEN las cards son idénticas en anatomía a las de Destacados del home (misma tipografía, badge, meta), en grid 2 columnas
 
-La sección Destacados del home **SHALL** mostrar proveedores compatibles con la marca del vehículo seleccionado (especialistas de esa marca **y** multimarca que la atienden). Modalidad (`en_taller` / `a_domicilio` / `ambas`) es elegible y se muestra como tag; no filtra el matching.
+La sección Destacados del home **SHALL** mostrar proveedores compatibles con la marca del vehículo seleccionado (especialistas de esa marca **y** multimarca). Modalidad es tag UI; no filtra matching. **SHALL NOT** excluir por radio/ciudad. Orden: **distancia pura** (ascendente).
 
 Pipeline canónico (`utils/destacadosMatching.js`):
 1. **Fetch** por `vehiculo_id` sin `solo_especialistas` (backend: especialistas + multimarca de la marca).
 2. **brandEligible** — `coversBrand`; nunca especialistas de otra marca.
-3. **rankForBrand** — especialistas primero, luego multimarca; dentro de cada grupo orden KPI.
-4. **localizeSoft** (solo scope `panel`) — preferir ciudad ∩ radar → ciudad → radar → todos elegibles (evita empty state artificial).
-5. **takeLimit** — cupo del rail.
+3. **rankByDistance** — más cercano primero; sin distancia al final.
+4. **takeLimit** — cupo del rail (12 home).
 
-Roles vs «Cerca de ti»: Destacados = curado por marca (Airbnb "For you"); Cerca de ti = orden por distancia.
+Roles: Destacados = elegibles por marca, orden distancia; Cerca de ti puede seguir usando radio opcional.
 
 #### Scenario: Usuario con Fiat y solo multimarca cercanos
 - GIVEN usuario con Fiat y dirección, y en zona solo hay talleres multimarca que atienden Fiat
 - WHEN abre Inicio
 - THEN Destacados lista esos talleres (tags Multimarca + modalidad), no empty state de “sin especialistas”
 
-#### Scenario: Usuario con Fiat
-- GIVEN usuario con Fiat seleccionado y dirección definida
-- WHEN abre Inicio
-- THEN Destacados lista talleres especialistas Fiat (cualquier modalidad) y multimarca que cubren Fiat, nunca especialistas de otra marca sin cobertura
+#### Scenario: Varios compatibles ordenados por distancia
+- GIVEN usuario con Fiat y varios talleres compatibles a distintas distancias
+- WHEN abre Destacados
+- THEN el rail lista hasta 12 ordenados por km ascendente (sin cortar en el primero cercano)
 
 ### Requirement: Grid responsivo 2 columnas
 Los listados de proveedores (Explore y rails del home) **SHALL** renderizar cards en 2 columnas como base, adaptándose al ancho disponible (más columnas en pantallas anchas, mínimo de card ~160pt), estilo listing Airbnb: imagen arriba con radius, título, rating ★, distancia, tags.

@@ -561,7 +561,30 @@ export const getProviderImageCandidatesResolved = (provider) => {
 /**
  * Devuelve la distancia formateada del proveedor o null.
  */
+/** Pin inventado histórico Santiago centro — no mostrar km falso. */
+const DEFAULT_SANTIAGO_LAT = -33.4489;
+const DEFAULT_SANTIAGO_LNG = -70.6693;
+
+function providerLooksLikeDefaultSantiagoPin(provider) {
+  const u = provider?.ubicacion;
+  let lat;
+  let lng;
+  if (u?.coordinates?.length >= 2) {
+    lng = Number(u.coordinates[0]);
+    lat = Number(u.coordinates[1]);
+  } else {
+    lat = Number(provider?.latitud ?? provider?.latitude);
+    lng = Number(provider?.longitud ?? provider?.longitude);
+  }
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  return Math.abs(lat - DEFAULT_SANTIAGO_LAT) < 0.00015 && Math.abs(lng - DEFAULT_SANTIAGO_LNG) < 0.00015;
+}
+
+/**
+ * Devuelve la distancia formateada del proveedor o null.
+ */
 export const getProviderDistance = (provider) => {
+  if (providerLooksLikeDefaultSantiagoPin(provider)) return null;
   const raw = provider?.distance ?? provider?.distancia_km ?? provider?.distancia;
   if (raw == null || raw === '') return null;
   let d =
