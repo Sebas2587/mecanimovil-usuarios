@@ -12,7 +12,8 @@ import {
   Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { Ionicons } from '@expo/vector-icons';
+import { CreditCard, CircleCheck, ExternalLink, X } from 'lucide-react-native';
+import { COLORS, withOpacity } from '../../design-system/tokens';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MercadoPagoService from '../../services/mercadopago';
@@ -630,7 +631,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
   if (Platform.OS === 'web') {
     return (
       <View style={styles.webWaitContainer}>
-        <Ionicons name="card-outline" size={56} color="#007EA7" style={{ marginBottom: 16 }} />
+        <CreditCard size={56} color={COLORS.primary[500]} style={{ marginBottom: 16 }} />
         <Text style={styles.webWaitTitle}>Pago en Mercado Pago</Text>
         <Text style={styles.webWaitSubtitle}>
           {webPopupBloqueado
@@ -647,14 +648,14 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         ) : null}
 
         {webVerificando ? (
-          <ActivityIndicator size="large" color="#007EA7" style={{ marginTop: 24 }} />
+          <ActivityIndicator size="large" color={COLORS.primary[500]} style={{ marginTop: 24 }} />
         ) : (
           <TouchableOpacity
             style={styles.webVerifyButton}
             onPress={handleWebVerificarPago}
             activeOpacity={0.8}
           >
-            <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+            <CircleCheck size={20} color={COLORS.text.inverse} />
             <Text style={styles.webVerifyButtonText}>Ya pagué — Verificar pago</Text>
           </TouchableOpacity>
         )}
@@ -680,7 +681,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
             setWebPopupBloqueado(!tab);
           }}
         >
-          <Ionicons name="open-outline" size={16} color="#007EA7" />
+          <ExternalLink size={16} color={COLORS.primary[500]} />
           <Text style={styles.webReopenButtonText}>Volver a abrir Mercado Pago</Text>
         </TouchableOpacity>
       </View>
@@ -701,7 +702,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
             style={styles.closeButton}
             onPress={handleClose}
           >
-            <Ionicons name="close" size={24} color="#333" />
+            <X size={24} color={COLORS.text.primary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Procesando pago</Text>
           <View style={styles.placeholder} />
@@ -819,7 +820,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
         {/* Loading indicator */}
         {loading && !pageLoadedRef.current && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007EA7" />
+            <ActivityIndicator size="large" color={COLORS.primary[500]} />
             <Text style={styles.loadingText}>Cargando Mercado Pago...</Text>
           </View>
         )}
@@ -831,7 +832,7 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background.default,
   },
   header: {
     flexDirection: 'row',
@@ -840,8 +841,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   closeButton: {
     padding: 8,
@@ -849,7 +850,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text.primary,
   },
   placeholder: {
     width: 40, // Mismo ancho que el botón de cerrar para centrar el título
@@ -865,30 +866,30 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: withOpacity(COLORS.background.paper, 0.9),
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
+    color: COLORS.text.secondary,
   },
   webWaitContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: COLORS.background.default,
     padding: 32,
   },
   webWaitTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#111827',
+    color: COLORS.text.primary,
     textAlign: 'center',
     marginBottom: 12,
   },
   webWaitSubtitle: {
     fontSize: 15,
-    color: '#6B7280',
+    color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 16,
@@ -896,7 +897,7 @@ const styles = StyleSheet.create({
   webMontoLabel: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#007EA7',
+    color: COLORS.primary[500],
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -904,14 +905,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
     paddingVertical: 14,
     paddingHorizontal: 28,
     borderRadius: 14,
     marginBottom: 16,
   },
   webVerifyButtonText: {
-    color: '#fff',
+    color: COLORS.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -921,7 +922,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   webCancelButtonText: {
-    color: '#6B7280',
+    color: COLORS.text.secondary,
     fontSize: 15,
   },
   webReopenButton: {
@@ -932,11 +933,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#007EA7',
+    borderColor: COLORS.primary[500],
     marginTop: 8,
   },
   webReopenButtonText: {
-    color: '#007EA7',
+    color: COLORS.primary[500],
     fontSize: 14,
   },
 });

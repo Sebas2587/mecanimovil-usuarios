@@ -6,19 +6,20 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  StatusBar,
   Platform,
   useWindowDimensions,
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, Clock, CalendarDays } from 'lucide-react-native';
+import { Clock, CalendarDays } from 'lucide-react-native';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import { SHADOWS } from '../../design-system/tokens/shadows';
+import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
+import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
 import {
   generarDiasCalendario,
   obtenerDisponibilidadConDuracion,
@@ -34,6 +35,7 @@ import {
 import {
   buildConfirmarCandidatoPayload,
   confirmarCandidato,
+  confirmarCatalogoProveedor,
 } from '../../services/agendamientoAsistidoService';
 import { ROUTES } from '../../utils/constants';
 import { showAlert, showAlertButtons } from '../../utils/platformAlert';
@@ -253,7 +255,7 @@ export default function CalendarioProveedorScreen() {
   );
 
   const handleConfirmarYFinalizarSolicitud = useCallback(async () => {
-    const { formPayload, pendingConfirmOferta } = returnParams;
+    const { formPayload, pendingConfirmOferta } = returnParams || {};
     if (!formPayload || !pendingConfirmOferta?.oferta_servicio_id) {
       showAlert('Error', 'Faltan datos para confirmar la solicitud.');
       return;
@@ -279,7 +281,14 @@ export default function CalendarioProveedorScreen() {
           lng: pendingConfirmOferta.lng,
         },
       );
-      const resultado = await confirmarCandidato(payload);
+      // Catálogo perfil / comparador: mismo endpoint, sin exigir flag IA en cliente
+      const esCatalogoPerfil =
+        returnRoute === ROUTES.CREAR_SOLICITUD
+        || returnParams?.flujoCatalogoProveedor === true
+        || returnParams?.fromProviderDetail === true;
+      const resultado = esCatalogoPerfil
+        ? await confirmarCatalogoProveedor(payload)
+        : await confirmarCandidato(payload);
       const solicitudId = resultado?.solicitud_id || resultado?.solicitud?.id;
       solicitudConfirmadaRef.current = true;
       setSolicitudConfirmada(true);
@@ -310,6 +319,7 @@ export default function CalendarioProveedorScreen() {
     }
   }, [
     returnParams,
+    returnRoute,
     fechaSeleccionada,
     slotSeleccionado,
     miembroSeleccionado,
@@ -370,27 +380,16 @@ export default function CalendarioProveedorScreen() {
 
   return (
     <View style={[styles.container, webScreenFrame]}>
-      <StatusBar barStyle="dark-content" />
-      <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.7}>
-          <ArrowLeft size={22} color={COLORS.text.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <CalendarDays size={16} color={COLORS.primary[500]} />
-          <View style={styles.headerTitles}>
-            <Text style={styles.headerTitle}>Elegir horario</Text>
-            <Text style={styles.headerSub} numberOfLines={1}>
-              {proveedorNombre}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.headerSpacer} />
-      </View>
+      <SolicitudFlowHeader
+        title="Elegir horario"
+        subtitle={proveedorNombre}
+        onBack={() => navigation.goBack()}
+      />
 
       <View style={styles.scrollHost}>
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 88 }]}
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]}
           showsVerticalScrollIndicator={Platform.OS === 'web'}
           keyboardShouldPersistTaps="handled"
           {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
@@ -544,7 +543,7 @@ export default function CalendarioProveedorScreen() {
         </ScrollView>
       </View>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
+      <StickyFooterCTA>
         <TouchableOpacity
           style={[styles.confirmBtn, confirmarDeshabilitado && styles.confirmBtnDisabled]}
           onPress={() => {
@@ -563,7 +562,7 @@ export default function CalendarioProveedorScreen() {
             </Text>
           )}
         </TouchableOpacity>
-      </View>
+      </StickyFooterCTA>
     </View>
   );
 }
@@ -578,54 +577,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     ...(Platform.OS === 'web' ? { overflow: 'hidden' } : null),
-  },
-  header: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-    borderBottomWidth: BORDERS.width.thin,
-    borderBottomColor: COLORS.border.light,
-    backgroundColor: COLORS.background.paper,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  headerCenter: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-    paddingHorizontal: SPACING.xs,
-  },
-  headerTitles: {
-    alignItems: 'center',
-    maxWidth: '85%',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    letterSpacing: 0.3,
-  },
-  headerSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 40,
   },
   scrollView: {
     flex: 1,
@@ -686,13 +637,10 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xs,
   },
   sectionLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.h6,
     color: COLORS.text.secondary,
     marginBottom: SPACING.xs,
     marginTop: SPACING.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   sectionLabelTight: {
     marginTop: SPACING.xs,
@@ -707,7 +655,7 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
     borderRadius: BORDERS.radius.md,
     alignItems: 'center',
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: COLORS.neutral.gray[100],
     borderWidth: 1,
     borderColor: COLORS.border.light,
   },
@@ -748,7 +696,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.sm,
     borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: COLORS.neutral.gray[100],
     borderWidth: 1,
     borderColor: COLORS.border.light,
     alignItems: 'center',
@@ -793,16 +741,8 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: COLORS.error.main,
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     marginVertical: SPACING.md,
-  },
-  footer: {
-    flexShrink: 0,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    backgroundColor: COLORS.background.paper,
-    borderTopWidth: BORDERS.width.thin,
-    borderTopColor: COLORS.border.light,
   },
   confirmBtn: {
     backgroundColor: COLORS.primary[500],
@@ -815,9 +755,8 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   confirmBtnText: {
+    ...TYPOGRAPHY.styles.button,
     color: COLORS.text.inverse,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   tecnicoCarousel: {
     gap: SPACING.sm,

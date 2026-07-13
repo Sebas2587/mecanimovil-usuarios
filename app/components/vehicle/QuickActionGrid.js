@@ -1,154 +1,113 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Gauge, History, ChevronRight } from 'lucide-react-native';
-import { COLORS, withOpacity } from '../../design-system/tokens/colors';
-import { getHealthColorToken } from '../../utils/healthFormat';
-import { SPACING } from '../../design-system/tokens/spacing';
-import { BORDERS } from '../../design-system/tokens/borders';
-import { SHADOWS } from '../../design-system/tokens/shadows';
-import { TYPOGRAPHY } from '../../design-system/tokens/typography';
-
-/** Dígitos tabulares (tipografía / métricas). */
-const tabularNumericStyle = { fontVariant: ['tabular-nums'] };
-
-const ICON_SM = 18;
-const ICON_STROKE = 2;
+import { Gauge, History, Navigation, ChevronRight } from 'lucide-react-native';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import { getHealthColorToken, getHealthLabel } from '../../utils/healthFormat';
 
 /**
- * Accesos compactos a Salud e Historial (perfil vehículo).
- * Layout horizontal + tipografía tokenizada; números con variantes tabulares.
+ * Accesos del perfil — grilla 3 columnas (Airbnb listing shortcuts).
  */
-const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPress }) => {
+const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPress, onTripPress }) => {
   const score = Math.round(Number(healthScore) || 0);
   const healthColor = getHealthColorToken(COLORS, score);
   const count = Math.max(0, Math.round(Number(serviceCount) || 0));
+  const healthLabel = getHealthLabel(score);
 
-  const ActionCard = ({ children, onPress, accessibilityLabel }) => (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.75}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      {children}
-    </TouchableOpacity>
-  );
+  const tiles = [
+    {
+      key: 'health',
+      title: 'Salud',
+      subtitle: `${score}% · ${healthLabel}`,
+      icon: <Gauge size={20} color={healthColor} strokeWidth={1.75} fill="none" />,
+      onPress: onHealthPress,
+    },
+    {
+      key: 'history',
+      title: 'Historial',
+      subtitle: `${count} ${count === 1 ? 'servicio' : 'servicios'}`,
+      icon: <History size={20} color={COLORS.text.primary} strokeWidth={1.75} fill="none" />,
+      onPress: onHistoryPress,
+    },
+  ];
+
+  if (onTripPress) {
+    tiles.push({
+      key: 'trip',
+      title: 'Viaje GPS',
+      subtitle: 'Actualizar km',
+      icon: <Navigation size={20} color={COLORS.text.primary} strokeWidth={1.75} fill="none" />,
+      onPress: onTripPress,
+    });
+  }
 
   return (
-    <View style={styles.container}>
-      <ActionCard
-        onPress={onHealthPress}
-        accessibilityLabel={`Salud del motor, ${score} por ciento. Abrir detalle`}
-      >
-        <View style={[styles.iconWrap, { backgroundColor: withOpacity(healthColor, 0.12) }]}>
-          <Gauge size={ICON_SM} color={healthColor} strokeWidth={ICON_STROKE} />
-        </View>
-        <View style={styles.body}>
-          <Text style={styles.label} numberOfLines={1}>
-            Salud motor
-          </Text>
-          <View style={styles.metricRow}>
-            <Text style={[styles.metricValue, { color: healthColor }, tabularNumericStyle]}>
-              {score}
-              <Text style={[styles.metricUnit, { color: healthColor }]}>%</Text>
-            </Text>
-            <Text style={styles.metricHint} numberOfLines={1}>
-              óptimo
-            </Text>
+    <View style={styles.grid}>
+      {tiles.map((tile) => (
+        <TouchableOpacity
+          key={tile.key}
+          style={styles.tile}
+          onPress={tile.onPress}
+          activeOpacity={0.92}
+          disabled={!tile.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={`${tile.title}. ${tile.subtitle}`}
+        >
+          <View style={styles.tileTop}>
+            <View style={styles.iconCircle}>{tile.icon}</View>
+            <ChevronRight size={14} color={COLORS.text.tertiary} strokeWidth={2} />
           </View>
-        </View>
-        <ChevronRight size={16} color={COLORS.text.tertiary} strokeWidth={ICON_STROKE} />
-      </ActionCard>
-
-      <ActionCard
-        onPress={onHistoryPress}
-        accessibilityLabel={`Historial de servicios, ${count} registrados. Abrir`}
-      >
-        <View style={[styles.iconWrap, { backgroundColor: COLORS.warning[50] }]}>
-          <History size={ICON_SM} color={COLORS.warning[700]} strokeWidth={ICON_STROKE} />
-        </View>
-        <View style={styles.body}>
-          <Text style={styles.label} numberOfLines={1}>
-            Historial
+          <Text style={styles.title} numberOfLines={1}>
+            {tile.title}
           </Text>
-          <View style={styles.metricRow}>
-            <Text style={[styles.metricValue, styles.metricValueNeutral, tabularNumericStyle]}>
-              {count}
-            </Text>
-            <Text style={styles.metricHint} numberOfLines={1}>
-              {count === 1 ? 'servicio' : 'servicios'}
-            </Text>
-          </View>
-        </View>
-        <ChevronRight size={16} color={COLORS.text.tertiary} strokeWidth={ICON_STROKE} />
-      </ActionCard>
+          <Text style={styles.subtitle} numberOfLines={2}>
+            {tile.subtitle}
+          </Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  grid: {
     flexDirection: 'row',
+    gap: SPACING.sm,
     paddingHorizontal: SPACING.container.horizontal,
     marginBottom: SPACING.md,
-    gap: SPACING.sm,
   },
-  card: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.card.md,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    gap: SPACING.sm,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  iconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: BORDERS.radius.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  body: {
+  tile: {
     flex: 1,
     minWidth: 0,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    minHeight: 96,
+  },
+  tileTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.xs,
+  },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.neutral.gray[100],
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  label: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-    letterSpacing: TYPOGRAPHY.letterSpacing.tight,
-    marginBottom: 2,
-  },
-  metricRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
-    columnGap: 4,
-  },
-  metricValue: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    letterSpacing: TYPOGRAPHY.letterSpacing.tight,
-  },
-  metricValueNeutral: {
+  title: {
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
   },
-  metricUnit: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  metricHint: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.tertiary,
-    flexShrink: 1,
+  subtitle: {
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.secondary,
+    marginTop: 2,
   },
 });
 

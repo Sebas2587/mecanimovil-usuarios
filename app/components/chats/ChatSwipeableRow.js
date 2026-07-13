@@ -7,9 +7,9 @@ import {
   Animated,
   Pressable,
 } from 'react-native';
+import Icon from '../base/Icon/Icon';
 import { Swipeable } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../design-system/tokens/colors';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 
@@ -61,7 +61,7 @@ export default function ChatSwipeableRow({ rowKey, onDelete, disabled, children 
             accessibilityRole="button"
             accessibilityLabel="Eliminar conversación"
           >
-            <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+            <Icon name="trash-outline" size={24} color={COLORS.text.inverse} />
             <Text style={styles.actionLabel}>Eliminar</Text>
           </Pressable>
         </Animated.View>
@@ -135,13 +135,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionLabel: {
-    color: '#FFFFFF',
+    color: COLORS.text.inverse,
     fontSize: 12,
     fontWeight: '700',
   },
   deletingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.75)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.75),
     borderRadius: BORDERS.radius.lg,
     justifyContent: 'center',
     alignItems: 'center',

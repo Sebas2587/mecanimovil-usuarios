@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Bell, User } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
+import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import HomeServiceLocation from './HomeServiceLocation';
 
 /**
@@ -88,7 +88,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
-    ...SHADOWS.sm,
   },
   headerAvatar: {
     marginLeft: 8,
@@ -102,7 +101,9 @@ const styles = StyleSheet.create({
   avatarFallback: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.background.paper,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
   },
   bellBadge: {
     position: 'absolute',

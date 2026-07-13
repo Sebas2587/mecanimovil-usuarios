@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from './constants';
+import { COLORS as DS } from '../design-system/tokens/colors';
 
 /** Pestaña de MP abierta sincrónicamente en el click del usuario (evita bloqueo de popups en web). */
 let activeMpCheckoutTab = null;
@@ -38,17 +39,17 @@ const MP_TAB_LOADING_HTML = `<!DOCTYPE html>
     * { box-sizing: border-box; }
     body {
       margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      font-family: system-ui, -apple-system, sans-serif; background: #f4f6f8; color: #1a1a1a;
+      font-family: system-ui, -apple-system, sans-serif; background: ${DS.background.default}; color: ${DS.text.primary};
     }
     .wrap { text-align: center; padding: 24px; max-width: 320px; }
     .spinner {
       width: 40px; height: 40px; margin: 0 auto 20px;
-      border: 3px solid #e0e0e0; border-top-color: #007EA7;
+      border: 3px solid ${DS.border.light}; border-top-color: ${DS.primary[500]};
       border-radius: 50%; animation: spin 0.8s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     h1 { font-size: 18px; font-weight: 600; margin: 0 0 8px; }
-    p { font-size: 14px; color: #666; margin: 0; line-height: 1.5; }
+    p { font-size: 14px; color: ${DS.text.secondary}; margin: 0; line-height: 1.5; }
   </style>
 </head>
 <body>

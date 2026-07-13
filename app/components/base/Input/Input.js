@@ -1,46 +1,18 @@
 /**
- * Input Component - MecaniMóvil
- * Componente de entrada de texto reutilizable con nueva paleta de colores
+ * Input — Airbnb-style, tokens only, sin darkGlass
  */
+import React, { useState, useMemo } from 'react';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../../design-system/tokens';
+import Icon from '../Icon/Icon';
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { TOKENS } from '../../../design-system/tokens';
-
-// Fallback values in case tokens are not ready
-const SAFE_COLORS = TOKENS?.colors || {
-  border: { error: '#EF4444', focus: '#3B82F6', main: '#E5E7EB' },
-  background: { paper: '#FFFFFF', error: '#FEF2F2' },
-  neutral: { gray: { 100: '#F3F4F6' } },
-  text: { primary: '#111827', secondary: '#4B5563', hint: '#9CA3AF' },
-  error: { main: '#EF4444' }
+const SIZES = {
+  sm: { height: 40, px: 12, fontSize: TYPOGRAPHY.fontSize.sm },
+  md: { height: 48, px: 16, fontSize: TYPOGRAPHY.fontSize.md },
+  lg: { height: 52, px: 18, fontSize: TYPOGRAPHY.fontSize.lg },
 };
 
-const SAFE_TYPOGRAPHY = TOKENS?.typography || {
-  fontSize: { xs: 12, sm: 14, md: 16, lg: 18 },
-  fontWeight: { medium: '500' }
-};
-
-const SAFE_SPACING = TOKENS?.spacing || {
-  xs: 4, sm: 8, md: 16, lg: 24,
-  inputPadding: 16
-};
-
-const SAFE_BORDERS = TOKENS?.borders || {
-  radius: { input: { md: 8 } },
-  width: { thin: 1 }
-};
-
-const SAFE_SHADOWS = TOKENS?.shadows || {
-  inputFocus: {},
-  none: {}
-};
-
-/**
- * Input Component
- * ... (docs remain same)
- */
 const Input = ({
   placeholder,
   value,
@@ -63,221 +35,120 @@ const Input = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const sizeSpec = SIZES[size] || SIZES.md;
 
-  // Memoizar estilos según el tamaño
-  const sizeStyles = useMemo(() => {
-    switch (size) {
-      case 'sm':
-        return {
-          height: 40,
-          paddingHorizontal: (SAFE_SPACING.inputPadding || 16) * 0.75,
-          fontSize: SAFE_TYPOGRAPHY.fontSize?.sm || 14,
-        };
-      case 'lg':
-        return {
-          height: 56,
-          paddingHorizontal: (SAFE_SPACING.inputPadding || 16) * 1.25,
-          fontSize: SAFE_TYPOGRAPHY.fontSize?.lg || 18,
-        };
-      default: // md
-        return {
-          height: 48,
-          paddingHorizontal: SAFE_SPACING.inputPadding || 16,
-          fontSize: SAFE_TYPOGRAPHY.fontSize?.md || 16,
-        };
-    }
-  }, [size]);
-
-  const borderRadius = SAFE_BORDERS.radius?.input?.md || 8;
-
-  // Memoizar estilos según la variante y estado
   const containerStyles = useMemo(() => {
-    const isDark = appearance === 'darkGlass';
-    const borderMain = isDark ? 'rgba(255,255,255,0.10)' : SAFE_COLORS.border?.main;
-    const borderFocus = isDark ? 'rgba(147,197,253,0.35)' : SAFE_COLORS.border?.focus;
     const borderColor = error
-      ? SAFE_COLORS.border?.error
-      : (isFocused ? borderFocus : borderMain);
-    
-    let backgroundColor = isDark
-      ? (variant === 'filled'
-        ? (Platform.OS === 'ios' ? 'rgba(3,7,18,0.55)' : 'rgba(3,7,18,0.75)')
-        : (Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)'))
-      : (SAFE_COLORS.background?.paper || '#FFF');
+      ? COLORS.border.error
+      : isFocused
+        ? COLORS.border.focus
+        : COLORS.border.light;
+
+    let backgroundColor = COLORS.background.paper;
     if (variant === 'filled') {
-      backgroundColor = isDark
-        ? (Platform.OS === 'ios' ? 'rgba(3,7,18,0.55)' : 'rgba(3,7,18,0.75)')
-        : (error ? SAFE_COLORS.background?.error : SAFE_COLORS.neutral?.gray?.[100]);
+      backgroundColor = error ? COLORS.background.error : COLORS.neutral.gray[100];
     } else if (error) {
-      backgroundColor = SAFE_COLORS.background?.error;
+      backgroundColor = COLORS.background.error;
     }
 
     return {
-      height: sizeStyles.height,
-      paddingHorizontal: sizeStyles.paddingHorizontal,
-      borderRadius,
+      height: sizeSpec.height,
+      paddingHorizontal: sizeSpec.px,
+      borderRadius: BORDERS.radius.input.md,
       borderColor,
-      borderWidth: SAFE_BORDERS.width?.thin || 1,
+      borderWidth: BORDERS.width.thin,
       backgroundColor,
+      ...(isFocused && !error ? SHADOWS.inputFocus : SHADOWS.none),
     };
-  }, [sizeStyles, borderRadius, variant, error, isFocused, appearance]);
+  }, [error, isFocused, sizeSpec, variant]);
 
-  const handleFocus = useCallback(() => {
-    setIsFocused(true);
-  }, []);
-
-  const handleBlur = useCallback(() => {
-    setIsFocused(false);
-  }, []);
-
-  const togglePasswordVisibility = useCallback(() => {
-    setIsPasswordVisible(prev => !prev);
-  }, []);
+  const iconColor = COLORS.text.secondary;
 
   return (
-    <View style={[styles.container, style]}>
-      {label && (
-        <Text
-          style={[
-            styles.label,
-            {
-              color: appearance === 'darkGlass' ? '#F9FAFB' : SAFE_COLORS.text?.primary,
-              fontSize: SAFE_TYPOGRAPHY.fontSize?.sm || 14,
-              fontWeight: SAFE_TYPOGRAPHY.fontWeight?.medium || '500',
-              marginBottom: SAFE_SPACING.xs || 4,
-            },
-          ]}
-        >
-          {label}
-        </Text>
-      )}
-      <View style={[styles.inputContainer, containerStyles]}>
-        {leftIcon && (
+    <View style={[styles.wrap, style]}>
+      {label ? (
+        <Text style={[TYPOGRAPHY.styles.label, styles.label]}>{label}</Text>
+      ) : null}
+      <View style={[styles.container, containerStyles]}>
+        {leftIcon ? (
           <TouchableOpacity
             onPress={onLeftIconPress}
-            style={styles.leftIcon}
             disabled={!onLeftIconPress}
-            activeOpacity={0.7}
+            style={styles.iconBtn}
           >
-            <Ionicons
-              name={leftIcon}
-              size={20}
-              color={appearance === 'darkGlass' ? 'rgba(255,255,255,0.55)' : SAFE_COLORS.text?.secondary}
-            />
+            {typeof leftIcon === 'string' ? (
+              <Icon name={leftIcon} size={20} color={iconColor} />
+            ) : (
+              leftIcon
+            )}
           </TouchableOpacity>
-        )}
+        ) : null}
         <TextInput
+          style={[
+            styles.input,
+            TYPOGRAPHY.styles.body,
+            { fontSize: sizeSpec.fontSize, color: COLORS.text.primary },
+          ]}
           placeholder={placeholder}
-          placeholderTextColor={appearance === 'darkGlass' ? 'rgba(255,255,255,0.35)' : SAFE_COLORS.text?.hint}
+          placeholderTextColor={COLORS.text.hint}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
-          editable={true}
-          selectTextOnFocus={false}
-          style={[
-            styles.input,
-            {
-              fontSize: sizeStyles.fontSize,
-              color: appearance === 'darkGlass' ? '#F9FAFB' : SAFE_COLORS.text?.primary,
-              paddingLeft: leftIcon ? (SAFE_SPACING.xs || 4) : 0,
-              paddingRight: secureTextEntry 
-                ? 36 // Espacio suficiente para el icono del ojo (22px icono + 8px padding + 6px margin)
-                : (rightIcon ? (SAFE_SPACING.xs || 4) : 0),
-            },
-          ]}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           {...props}
         />
-        {rightIcon && !secureTextEntry && (
+        {secureTextEntry ? (
+          <TouchableOpacity
+            onPress={() => setIsPasswordVisible((v) => !v)}
+            style={styles.iconBtn}
+            hitSlop={8}
+          >
+            {isPasswordVisible ? (
+              <EyeOff size={20} color={iconColor} />
+            ) : (
+              <Eye size={20} color={iconColor} />
+            )}
+          </TouchableOpacity>
+        ) : rightIcon ? (
           <TouchableOpacity
             onPress={onRightIconPress}
-            style={styles.rightIcon}
             disabled={!onRightIconPress}
-            activeOpacity={0.7}
+            style={styles.iconBtn}
           >
-            <Ionicons
-              name={rightIcon}
-              size={20}
-              color={appearance === 'darkGlass' ? 'rgba(255,255,255,0.55)' : SAFE_COLORS.text?.secondary}
-            />
+            {typeof rightIcon === 'string' ? (
+              <Icon name={rightIcon} size={20} color={iconColor} />
+            ) : (
+              rightIcon
+            )}
           </TouchableOpacity>
-        )}
-        {secureTextEntry && (
-          <TouchableOpacity
-            onPress={togglePasswordVisibility}
-            style={styles.eyeIcon}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
-              size={22}
-              color={appearance === 'darkGlass' ? 'rgba(255,255,255,0.55)' : SAFE_COLORS.text?.secondary}
-            />
-          </TouchableOpacity>
-        )}
+        ) : null}
       </View>
-      {(helperText || error) && (
-        <Text
-          style={[
-            styles.helperText,
-            {
-              color: error ? SAFE_COLORS.error?.main : SAFE_COLORS.text?.hint,
-              fontSize: SAFE_TYPOGRAPHY.fontSize?.xs || 12,
-              marginTop: SAFE_SPACING.xs || 4,
-            },
-          ]}
-        >
-          {error || helperText}
-        </Text>
-      )}
+      {error ? (
+        <Text style={[TYPOGRAPHY.styles.small, styles.error]}>{error}</Text>
+      ) : helperText ? (
+        <Text style={[TYPOGRAPHY.styles.small, styles.helper]}>{helperText}</Text>
+      ) : null}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  wrap: { marginBottom: SPACING.md },
+  label: { color: COLORS.text.primary, marginBottom: SPACING.xs },
   container: {
-    width: '100%',
-  },
-  label: {
-    // Estilos definidos inline para usar tokens
-  },
-  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    overflow: 'hidden',
   },
   input: {
     flex: 1,
     paddingVertical: 0,
-    margin: 0,
-    textAlignVertical: 'center',
-    includeFontPadding: false,
-    minHeight: 0,
   },
-  eyeIcon: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-  leftIcon: {
-    marginRight: SAFE_SPACING.xs || 4,
-  },
-  rightIcon: {
-    marginLeft: SAFE_SPACING.xs || 4,
-  },
-  helperText: {
-    // Estilos definidos inline
-  },
-  errorText: {
-    // Estilos definidos inline para usar tokens
-  },
+  iconBtn: { paddingHorizontal: 4 },
+  error: { color: COLORS.error.main, marginTop: SPACING.xxs },
+  helper: { color: COLORS.text.tertiary, marginTop: SPACING.xxs },
 });
 
 export default Input;
-

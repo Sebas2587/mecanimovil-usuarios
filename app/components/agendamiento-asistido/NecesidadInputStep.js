@@ -10,6 +10,7 @@ import {
 import { Mic, Sparkles } from 'lucide-react-native';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { useNecesidadSpeech } from '../../hooks/useNecesidadSpeech';
 import { AGENDAMIENTO_THEME as T } from './theme';
 
@@ -200,14 +201,14 @@ const styles = StyleSheet.create({
     marginTop: 10,
     padding: 12,
     borderRadius: BORDERS.radius?.md ?? 10,
-    backgroundColor: '#FFF7E6',
+    backgroundColor: COLORS.warning.light,
     borderWidth: 1,
-    borderColor: '#F4B00055',
+    borderColor: withOpacity(COLORS.warning.main, 0.33),
   },
   alertaText: {
     fontSize: 13,
     lineHeight: 19,
-    color: '#9E6F00',
+    color: COLORS.warning.dark,
     marginBottom: 4,
   },
   interpretacionText: {
@@ -238,6 +239,6 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 8,
     fontSize: 13,
-    color: '#CF202F',
+    color: COLORS.error.main,
   },
 });

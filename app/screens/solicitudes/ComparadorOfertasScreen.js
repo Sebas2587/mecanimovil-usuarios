@@ -12,8 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { GitCompare } from 'lucide-react-native';
+import { CircleAlert, ArrowLeftRight } from 'lucide-react-native';
 import ComparadorCatalogoCompareFooter from '../../components/agendamiento-asistido/ComparadorCatalogoCompareFooter';
 import { ROUTES } from '../../utils/constants';
 import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
@@ -29,7 +28,7 @@ import { PROVIDER_RECOMMENDATION_MAX_KM } from '../../utils/exploreProviderUtils
 import { resolveMarcaVehiculoNombre } from '../../utils/catalogoComparadorCobertura';
 import { extraerComunasDesdeDireccion } from '../../utils/extraerComunasDesdeDireccion';
 import { resolveUbicacionConfirmacionFromOferta } from '../../utils/solicitudModalidadServicio';
-import { COLORS } from '../../design-system/tokens/colors';
+import { COLORS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 import { ROUTES as APP_ROUTES } from '../../utils/constants';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -384,7 +383,6 @@ const ComparadorOfertasScreen = () => {
         <SolicitudFlowHeader
           title="Comparar ofertas"
           subtitle={modoCatalogo ? 'Elige tu proveedor' : undefined}
-          icon={GitCompare}
           onBack={() => navigation.goBack()}
         />
       </View>
@@ -408,7 +406,7 @@ const ComparadorOfertasScreen = () => {
     return shell(
         <View style={styles.emptyContainer}>
           <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.error[50], borderColor: COLORS.error[200] }]}>
-            <Ionicons name="alert-circle" size={48} color={COLORS.error.main} />
+            <CircleAlert size={48} color={COLORS.error.main} strokeWidth={1.75} />
           </View>
           <Text style={styles.emptyTitle}>Error de Validación</Text>
           <Text style={styles.emptyText}>{errorValidacion}</Text>
@@ -429,7 +427,7 @@ const ComparadorOfertasScreen = () => {
     return shell(
         <View style={styles.emptyContainer}>
           <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.warning[50], borderColor: COLORS.warning[200] }]}>
-            <MaterialIcons name="compare-arrows" size={48} color={COLORS.warning.main} />
+            <ArrowLeftRight size={48} color={COLORS.warning.main} strokeWidth={1.75} />
           </View>
           <Text style={styles.emptyTitle}>
             {modoCatalogo ? 'Sin proveedores' : 'Ofertas Insuficientes'}
@@ -541,14 +539,14 @@ const styles = StyleSheet.create({
       : null),
   },
   scrollContent: {
-    padding: 16,
+    padding: SPACING.md,
     flexGrow: 0,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: SPACING.lg,
   },
   loadingCard: {
     borderRadius: BORDERS.radius.xl,
@@ -560,21 +558,20 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   loadingTitle: {
-    marginTop: 16,
-    fontSize: 16,
-    fontWeight: '600',
+    marginTop: SPACING.md,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
   loadingSubtitle: {
-    marginTop: 4,
-    fontSize: 12,
+    marginTop: SPACING.xxs,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: SPACING.lg,
   },
   emptyIconContainer: {
     width: 80,
@@ -586,32 +583,29 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
+    ...TYPOGRAPHY.styles.h3,
+    marginBottom: SPACING.xs,
     textAlign: 'center',
     color: COLORS.text.primary,
   },
   emptyText: {
-    fontSize: 14,
+    ...TYPOGRAPHY.styles.body,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-    paddingHorizontal: 16,
+    marginBottom: SPACING.lg,
+    paddingHorizontal: SPACING.md,
     color: COLORS.text.secondary,
   },
   emptyButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xl,
     borderRadius: BORDERS.radius.md,
     backgroundColor: COLORS.primary[500],
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.primary[600],
   },
   emptyButtonText: {
+    ...TYPOGRAPHY.styles.button,
     color: COLORS.text.onPrimary,
-    fontSize: 14,
-    fontWeight: '600',
   },
   processingOverlay: {
     position: 'absolute',
@@ -635,9 +629,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
   },
   processingText: {
-    marginTop: 16,
-    fontSize: 14,
-    fontWeight: '600',
+    marginTop: SPACING.md,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
 });

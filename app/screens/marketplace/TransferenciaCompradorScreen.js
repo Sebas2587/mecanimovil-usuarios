@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
+import { Camera, X } from 'lucide-react-native';
+import AppHeader from '../../components/navigation/AppHeader';
+import Button from '../../components/base/Button/Button';
 import TransferenciaService from '../../services/transferenciaService';
 import { ROUTES } from '../../utils/constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, withOpacity } from '../../design-system/tokens';
 
-const { width, height } = Dimensions.get('window');
 const SCAN_AREA_SIZE = 280;
 
 const TransferenciaCompradorScreen = () => {
     const [permission, requestPermission] = useCameraPermissions();
     const [scanned, setScanned] = useState(false);
     const navigation = useNavigation();
-    const theme = useTheme();
-
-    const colors = theme.colors;
-    const typography = theme.typography;
 
     useEffect(() => {
-        // Solicitar permiso al montar si no está concedido
         if (permission && !permission.granted && permission.canAskAgain) {
             requestPermission();
         }
@@ -31,25 +28,17 @@ const TransferenciaCompradorScreen = () => {
         setScanned(true);
 
         try {
-            // El data debería ser el token. El backend complete_transfer espera { token: '...' }
-            // Pero el QR tiene el token puro?
-            // Revisemos generate_transfer_token en backend:
-            // return Response({ 'token': ..., 'qr_data': ... })
-            // El QRCode en Vendedor usa `tokenData.token`.
-            // Entonces el data escaneado ES el token.
-
             const token = data;
 
             const result = await TransferenciaService.completeTransfer(token);
 
             const vName = result.vehicle_name || 'Vehículo';
             const vYear = result.vehicle_year || '';
-            const sellerName = result.seller_name || 'Vendedor';
 
             navigation.replace(ROUTES.TRANSFERENCIA_EXITO || 'TransferenciaExito', {
                 vehicleId: result.vehicle_id,
                 vehicleName: vYear ? `${vName} ${vYear}` : vName,
-                newOwner: sellerName,
+                newOwner: result.new_owner_name || result.new_owner || 'Tú',
             });
 
         } catch (error) {
@@ -61,41 +50,57 @@ const TransferenciaCompradorScreen = () => {
         }
     };
 
+    const handleGoBack = () => navigation.goBack();
+
     if (!permission) {
-        return <View style={{ flex: 1, backgroundColor: 'black' }} />;
+        return <View style={styles.cameraPlaceholder} />;
     }
 
     if (!permission.granted) {
         return (
-            <View style={styles.container}>
-                <Text style={[styles.message, { color: colors.text.primary }]}>
-                    Necesitamos permiso para usar la cámara y escanear el código QR.
-                </Text>
-                <TouchableOpacity onPress={requestPermission} style={styles.button}>
-                    <Text style={styles.buttonText}>Conceder Permiso</Text>
-                </TouchableOpacity>
-            </View>
+            <SafeAreaView style={styles.focusRoot} edges={['top', 'bottom']}>
+                <AppHeader title="Escanear código" onBack={handleGoBack} />
+                <View style={styles.permissionBody}>
+                    <View style={styles.permissionIcon}>
+                        <Camera size={32} color={COLORS.primary[500]} strokeWidth={2} />
+                    </View>
+                    <Text style={[TYPOGRAPHY.styles.h3, styles.permissionTitle]}>
+                        Permiso de cámara
+                    </Text>
+                    <Text style={[TYPOGRAPHY.styles.body, styles.permissionMessage]}>
+                        Necesitamos acceso a la cámara para escanear el código QR del vendedor.
+                    </Text>
+                    <Button title="Conceder permiso" onPress={requestPermission} fullWidth />
+                </View>
+            </SafeAreaView>
         );
     }
 
     return (
-        <View style={styles.container}>
+        <View style={styles.cameraRoot}>
             <CameraView
                 style={StyleSheet.absoluteFillObject}
                 facing="back"
                 onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
                 barcodeScannerSettings={{
-                    barcodeTypes: ["qr"],
+                    barcodeTypes: ['qr'],
                 }}
             />
 
-            {/* Overlay Oscuro */}
-            <View style={styles.overlay}>
-                <View style={styles.overlayTop} />
+            <SafeAreaView style={styles.overlay} edges={['top']}>
+                <View style={styles.overlayTop}>
+                    <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={handleGoBack}
+                        hitSlop={12}
+                    >
+                        <X size={28} color={COLORS.base.white} strokeWidth={2} />
+                    </TouchableOpacity>
+                </View>
+
                 <View style={styles.row}>
                     <View style={styles.overlaySide} />
-                    <View style={[styles.scanArea, { borderColor: colors.primary[500] }]}>
-                        {/* Esquinas del scanner para estética */}
+                    <View style={styles.scanArea}>
                         <View style={[styles.corner, styles.topLeft]} />
                         <View style={[styles.corner, styles.topRight]} />
                         <View style={[styles.corner, styles.bottomLeft]} />
@@ -103,42 +108,58 @@ const TransferenciaCompradorScreen = () => {
                     </View>
                     <View style={styles.overlaySide} />
                 </View>
+
                 <View style={styles.overlayBottom}>
-                    <Text style={[styles.instructionText, { fontSize: typography.fontSize.lg }]}>
+                    <Text style={[TYPOGRAPHY.styles.h5, styles.instructionText]}>
                         Escanea el código del vendedor
                     </Text>
-                    <TouchableOpacity
-                        style={styles.closeButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Ionicons name="close-circle" size={50} color="white" />
-                    </TouchableOpacity>
+                    <Text style={[TYPOGRAPHY.styles.caption, styles.instructionHint]}>
+                        Centra el QR dentro del marco
+                    </Text>
                 </View>
-            </View>
+            </SafeAreaView>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    focusRoot: {
         flex: 1,
-        backgroundColor: 'black',
+        backgroundColor: COLORS.background.default,
+    },
+    cameraRoot: {
+        flex: 1,
+        backgroundColor: COLORS.text.primary,
+    },
+    cameraPlaceholder: {
+        flex: 1,
+        backgroundColor: COLORS.text.primary,
+    },
+    permissionBody: {
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        paddingHorizontal: SPACING.container.horizontal,
+        gap: SPACING.md,
     },
-    message: {
+    permissionIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: COLORS.primary[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: SPACING.xs,
+    },
+    permissionTitle: {
+        color: COLORS.text.primary,
         textAlign: 'center',
-        paddingBottom: 10,
-        color: 'white'
     },
-    button: {
-        padding: 10,
-        backgroundColor: '#007EA7',
-        borderRadius: 5,
-    },
-    buttonText: {
-        color: 'white',
-        fontWeight: 'bold',
+    permissionMessage: {
+        color: COLORS.text.secondary,
+        textAlign: 'center',
+        marginBottom: SPACING.sm,
+        lineHeight: 22,
     },
     overlay: {
         ...StyleSheet.absoluteFillObject,
@@ -146,9 +167,22 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     overlayTop: {
-        flex: 1,
-        width: '100%',
-        backgroundColor: 'rgba(0,0,0,0.6)',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        paddingHorizontal: SPACING.md,
+        paddingTop: SPACING.xs,
+        zIndex: 2,
+    },
+    closeButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'flex-start',
     },
     row: {
         flexDirection: 'row',
@@ -156,40 +190,43 @@ const styles = StyleSheet.create({
     overlaySide: {
         flex: 1,
         height: SCAN_AREA_SIZE,
-        backgroundColor: 'rgba(0,0,0,0.6)',
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.55),
     },
     scanArea: {
         width: SCAN_AREA_SIZE,
         height: SCAN_AREA_SIZE,
         backgroundColor: 'transparent',
-        borderWidth: 1,
+        borderWidth: 2,
+        borderColor: COLORS.primary[500],
+        borderRadius: BORDERS.radius.md,
     },
     overlayBottom: {
         flex: 1,
         width: '100%',
-        backgroundColor: 'rgba(0,0,0,0.6)',
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.55),
         alignItems: 'center',
-        paddingTop: 30,
+        paddingTop: SPACING.lg,
+        gap: SPACING.xs,
     },
     instructionText: {
-        color: 'white',
-        fontWeight: 'bold',
-        marginBottom: 20,
+        color: COLORS.base.white,
+        textAlign: 'center',
+    },
+    instructionHint: {
+        color: withOpacity(COLORS.base.white, 0.75),
+        textAlign: 'center',
     },
     corner: {
         position: 'absolute',
-        width: 20,
-        height: 20,
-        borderColor: 'white',
-        borderWidth: 4,
+        width: 24,
+        height: 24,
+        borderColor: COLORS.base.white,
+        borderWidth: 3,
     },
     topLeft: { top: -2, left: -2, borderRightWidth: 0, borderBottomWidth: 0 },
     topRight: { top: -2, right: -2, borderLeftWidth: 0, borderBottomWidth: 0 },
     bottomLeft: { bottom: -2, left: -2, borderRightWidth: 0, borderTopWidth: 0 },
     bottomRight: { bottom: -2, right: -2, borderLeftWidth: 0, borderTopWidth: 0 },
-    closeButton: {
-        marginTop: 20,
-    }
 });
 
 export default TransferenciaCompradorScreen;

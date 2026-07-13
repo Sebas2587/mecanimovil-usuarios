@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 const CARD_WIDTH = 280;
 const CARD_GAP = 16;
@@ -48,7 +48,7 @@ const CompletedJobCard = ({ job }) => {
   return (
     <View style={styles.card}>
       <View style={styles.cardRow}>
-        <Ionicons
+        <Icon
           name="construct-outline"
           size={18}
           color={COLORS.success.main}
@@ -60,7 +60,7 @@ const CompletedJobCard = ({ job }) => {
       </View>
       {vehicleLabel && (
         <View style={styles.cardRow}>
-          <Ionicons
+          <Icon
             name="car-outline"
             size={18}
             color={COLORS.text.tertiary}
@@ -83,7 +83,7 @@ const ProviderCompletedJobsSection = ({ jobs = [] }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons
+          <Icon
             name="checkmark-done-circle-outline"
             size={18}
             color={COLORS.primary[500]}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../base/Icon/Icon';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 
@@ -10,8 +10,8 @@ const ProfileMenuItem = ({
   onPress,
   isLast,
   badge,
-  iconColor = COLORS.primary[600],
-  iconBgColor = COLORS.primary[50],
+  iconColor = COLORS.text.primary,
+  iconBgColor = COLORS.neutral.gray[100],
   isSwitch,
   switchValue,
   onSwitchChange,
@@ -25,8 +25,8 @@ const ProfileMenuItem = ({
         disabled={isSwitch}
       >
         <View style={styles.leftContent}>
-          <View style={[styles.iconContainer, { backgroundColor: iconBgColor }]}>
-            <Ionicons name={icon} size={18} color={iconColor} />
+          <View style={styles.iconContainer}>
+            <Icon name={icon} size={18} color={iconColor} />
           </View>
           <Text style={styles.label}>{label}</Text>
         </View>
@@ -47,7 +47,7 @@ const ProfileMenuItem = ({
               value={switchValue}
             />
           ) : (
-            <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
+            <Icon name="chevron-forward" size={20} color={COLORS.text.tertiary} />
           )}
         </View>
       </TouchableOpacity>
@@ -76,6 +76,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'transparent',
   },
   label: {
     fontSize: 16,

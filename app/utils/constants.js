@@ -25,45 +25,32 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const safeColors = DESIGN_COLORS || {};
 
 export const COLORS = {
-  // Colores primarios (nueva paleta)
-  primary: safeColors.primary?.[500] ?? '#003459',      // Deep Space Blue #003459
-  primaryDark: safeColors.primary?.[700] ?? '#002244',
-  primaryLight: safeColors.primary?.[300] ?? '#006699',
-  secondary: safeColors.secondary?.[500] ?? '#007EA7',    // Cerulean #007EA7
-  secondaryDark: safeColors.secondary?.[700] ?? '#005a7a',
-  secondaryLight: safeColors.secondary?.[300] ?? '#00a3cc',
+  // Flat shim — valores solo desde design-system (sin hex literales)
+  primary: safeColors.primary[500],
+  primaryDark: safeColors.primary[700],
+  primaryLight: safeColors.primary[300],
+  secondary: safeColors.secondary[500],
+  secondaryDark: safeColors.secondary[700],
+  secondaryLight: safeColors.secondary[300],
 
-  // Colores de fondo
-  background: safeColors.background?.default ?? '#FFFFFF',
-  white: safeColors.neutral?.white ?? '#FFFFFF',
-  black: safeColors.base?.inkBlack ?? '#000000',
+  background: safeColors.background.default,
+  white: safeColors.neutral.white,
+  black: safeColors.base.inkBlack,
 
-  // Colores de texto
-  text: safeColors.text?.primary ?? '#000000',
-  textLight: safeColors.text?.secondary ?? '#666666',
-  textDark: safeColors.text?.primary ?? '#000000',
+  text: safeColors.text.primary,
+  textLight: safeColors.text.secondary,
+  textDark: safeColors.text.primary,
 
-  // Colores semánticos
-  success: safeColors.success?.[500] ?? '#10B981',
-  danger: safeColors.error?.[500] ?? '#EF4444',
-  warning: safeColors.warning?.[500] ?? '#F59E0B',
-  info: safeColors.info?.[500] ?? '#3B82F6',
+  success: safeColors.success[500],
+  danger: safeColors.error[500],
+  warning: safeColors.warning[500],
+  info: safeColors.info?.[500] ?? safeColors.primary[500],
 
-  // Estados
-  disabled: safeColors.states?.disabled?.text ?? '#9CA3AF',
-  lightGray: safeColors.neutral?.gray?.[300] ?? '#D1D5DB',
-  borderLight: safeColors.border?.light ?? '#E5E7EB',
-  inputBackground: safeColors.background?.paper ?? '#FFFFFF',
-
-  // Colores para el efecto glassmórfico (nueva paleta)
-  glass: {
-    primary: safeColors.glass?.primary?.background ?? 'rgba(0, 52, 89, 0.1)',
-    secondary: safeColors.glass?.accent?.background ?? 'rgba(0, 126, 167, 0.1)',
-    white: safeColors.glass?.light?.background ?? 'rgba(255, 255, 255, 0.9)',
-    dark: safeColors.glass?.dark?.background ?? 'rgba(0, 0, 0, 0.7)',
-    overlay: safeColors.background?.overlay ?? 'rgba(0, 0, 0, 0.5)',
-    border: safeColors.glass?.light?.border ?? 'rgba(255, 255, 255, 0.2)',
-  },
+  disabled: safeColors.states?.disabled?.text ?? safeColors.neutral.gray[400],
+  lightGray: safeColors.neutral.gray[300],
+  borderLight: safeColors.border.light,
+  inputBackground: safeColors.background.paper,
+  overlay: safeColors.background.overlay,
 };
 
 // Tamaños de fuente responsivos
@@ -214,9 +201,13 @@ export const ROUTES = {
 
   // Rutas principales de la aplicación
   HOME: 'Home',
+  /** Tab Actividad — inbox unificado */
+  ACTIVIDAD: 'Actividad',
   /** Pantalla raíz del stack Home (UserPanelScreen) */
   USER_PANEL: 'UserPanel',
   PROFILE: 'Profile',
+  /** Alias tab Cuenta */
+  CUENTA: 'Profile',
   SERVICES: 'Services',
   SERVICE_LIST: 'ServiceList',
   SERVICE_DETAIL: 'ServiceDetail',
@@ -294,7 +285,8 @@ export const ROUTES = {
   PUBLIC_PROVIDER_DETAIL: 'PublicProviderDetail',
   OFFERS_LIST: 'OffersList',
 
-  // Rutas de Transferencia Digital
+  // Rutas de Transferencia Digital (P2P, historial)
+  TRANSFERENCIA_RESUMEN: 'TransferenciaResumen',
   TRANSFERENCIA_VENDEDOR: 'TransferenciaVendedor',
   TRANSFERENCIA_COMPRADOR: 'TransferenciaComprador',
   TRANSFERENCIA_EXITO: 'TransferenciaExito',

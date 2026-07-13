@@ -6,12 +6,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Dimensions,
   StatusBar,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import { AlertCircle, Check } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,11 +21,10 @@ import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens
 import { showAlert, showAlertButtons } from '../../utils/platformAlert';
 import LegalFooterLinks from '../../components/support/LegalFooterLinks';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
+const ICON_STROKE = 1.75;
 
-const GlassCard = ({ children, style }) => (
+const FormCard = ({ children, style }) => (
   <View style={[styles.card, style]}>{children}</View>
 );
 
@@ -226,12 +223,12 @@ const RegisterScreen = () => {
         {/* Form */}
         {formError ? (
           <View style={styles.formErrorBanner}>
-            <Ionicons name="alert-circle" size={18} color={COLORS.error[600]} />
+            <AlertCircle size={18} color={COLORS.error.main} strokeWidth={ICON_STROKE} />
             <Text style={styles.formErrorText}>{formError}</Text>
           </View>
         ) : null}
 
-        <GlassCard style={styles.formCard}>
+        <FormCard style={styles.formCard}>
           <View style={styles.nameRow}>
             <View style={[styles.nameInput, { marginRight: 12 }]}>
               <Input label="Nombre" placeholder="Juan" value={firstName}
@@ -275,7 +272,7 @@ const RegisterScreen = () => {
           {/* Terms */}
           <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(!acceptTerms)}>
             <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
-              {acceptTerms && <Ionicons name="checkmark" size={14} color={COLORS.text.inverse} />}
+              {acceptTerms && <Check size={14} color={COLORS.text.inverse} strokeWidth={2.5} />}
             </View>
             <LegalFooterLinks
               variant="register"
@@ -292,11 +289,10 @@ const RegisterScreen = () => {
             isLoading={loading}
             type="primary"
             variant="solid"
-            useGradient
             size="md"
             fullWidth
           />
-        </GlassCard>
+        </FormCard>
       </ScrollView>
     </View>
   );
@@ -316,18 +312,12 @@ const styles = StyleSheet.create({
   headerSection: { alignItems: 'center', marginBottom: 24 },
   logo: { width: 180, height: 60, marginBottom: 16 },
   headerTitle: {
-    fontSize: TYPOGRAPHY.styles.h2.fontSize,
-    fontWeight: TYPOGRAPHY.styles.h2.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.h2.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.h2.fontSize * TYPOGRAPHY.styles.h2.lineHeight),
+    ...TYPOGRAPHY.styles.h2,
     color: COLORS.text.primary,
     marginBottom: 6,
   },
   headerSub: {
-    fontSize: TYPOGRAPHY.styles.body.fontSize,
-    fontWeight: TYPOGRAPHY.styles.body.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.body.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.body.fontSize * TYPOGRAPHY.styles.body.lineHeight),
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.secondary,
     textAlign: 'center',
   },
@@ -335,17 +325,11 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border.light },
   tab: { flex: 1, paddingVertical: 14, alignItems: 'center', position: 'relative' },
   tabTextActive: {
-    fontSize: TYPOGRAPHY.styles.label.fontSize,
-    fontWeight: TYPOGRAPHY.styles.label.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.label.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.label.fontSize * TYPOGRAPHY.styles.label.lineHeight),
+    ...TYPOGRAPHY.styles.label,
     color: COLORS.text.primary,
   },
   tabTextInactive: {
-    fontSize: TYPOGRAPHY.styles.label.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    letterSpacing: TYPOGRAPHY.styles.label.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.label.fontSize * TYPOGRAPHY.styles.label.lineHeight),
+    ...TYPOGRAPHY.styles.label,
     color: COLORS.text.tertiary,
   },
   tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: COLORS.primary[500] },
@@ -372,9 +356,8 @@ const styles = StyleSheet.create({
   },
   formErrorText: {
     flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.error[700],
-    lineHeight: 20,
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.error.main,
   },
   inputWrapper: { marginBottom: 16 },
   nameRow: { flexDirection: 'row', marginBottom: 16 },
@@ -384,15 +367,19 @@ const styles = StyleSheet.create({
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border.dark, marginRight: 10, alignItems: 'center', justifyContent: 'center' },
   checkboxChecked: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
   termsText: {
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    fontWeight: TYPOGRAPHY.styles.caption.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.caption.letterSpacing,
-    lineHeight: Math.round(TYPOGRAPHY.styles.caption.fontSize * TYPOGRAPHY.styles.caption.lineHeight),
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     flex: 1,
   },
-  termsLink: { color: COLORS.primary[500], fontWeight: TYPOGRAPHY.fontWeight.medium },
-  errorText: { color: COLORS.error[500], fontSize: 12, marginBottom: 8 },
+  termsLink: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[500],
+  },
+  errorText: {
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.error.main,
+    marginBottom: 8,
+  },
 });
 
 export default RegisterScreen;

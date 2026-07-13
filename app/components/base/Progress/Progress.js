@@ -5,37 +5,16 @@
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { TOKENS } from '../../../design-system/tokens';
+import { COLORS, TOKENS } from '../../../design-system/tokens';
 
-// Fallback values in case tokens are not ready
-const SAFE_COLORS = TOKENS?.colors || {
-  primary: { 500: '#003459' },
-  secondary: { 500: '#007EA7' },
-  accent: { 500: '#10B981' },
-  error: { 500: '#EF4444' },
-  success: { 500: '#10B981' },
-  warning: { 500: '#F59E0B' },
-  info: { 500: '#3B82F6' },
-  neutral: { gray: { 200: '#E5E7EB' } },
-  text: { primary: '#111827', secondary: '#4B5563' }
-};
-
-const SAFE_TYPOGRAPHY = TOKENS?.typography || {
-  fontSize: { xs: 12, sm: 14 },
-  fontWeight: { medium: '500' }
-};
-
-const SAFE_SPACING = TOKENS?.spacing || {
-  xs: 4, sm: 8
-};
-
-const SAFE_BORDERS = TOKENS?.borders || {
-  radius: { full: 9999 }
-};
+const SAFE_COLORS = COLORS;
+const SAFE_TYPOGRAPHY = TOKENS?.typography || {};
+const SAFE_SPACING = TOKENS?.spacing || {};
+const SAFE_BORDERS = TOKENS?.borders || {};
 
 /**
  * Progress Component
- * 
+ *
  * @param {number} value - Valor del progreso (0-100)
  * @param {string} variant - Variante: 'linear' o 'circular'
  * @param {string} color - Color: 'primary', 'secondary', 'accent', 'success', 'warning', 'error'
@@ -46,8 +25,8 @@ const SAFE_BORDERS = TOKENS?.borders || {
 const Progress = ({
   value = 0,
   max = 100,
-  type = 'primary', // primary, secondary, accent, danger, success, warning, info
-  size = 'md', // sm, md, lg
+  type = 'primary',
+  size = 'md',
   showLabel = false,
   label,
   style,
@@ -63,32 +42,29 @@ const Progress = ({
     }).start();
   }, [value, max]);
 
-  // Calcular porcentaje
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
   const width = animatedValue.interpolate({
     inputRange: [0, max],
     outputRange: ['0%', '100%'],
   });
 
-  // Obtener color según el tipo
   const getColor = () => {
     switch (type) {
-      case 'secondary': return SAFE_COLORS.secondary?.[500] || '#007EA7';
-      case 'accent': return SAFE_COLORS.accent?.[500] || '#10B981';
-      case 'danger': return SAFE_COLORS.error?.[500] || '#EF4444';
-      case 'success': return SAFE_COLORS.success?.[500] || '#10B981';
-      case 'warning': return SAFE_COLORS.warning?.[500] || '#F59E0B';
-      case 'info': return SAFE_COLORS.info?.[500] || '#3B82F6';
-      default: return SAFE_COLORS.primary?.[500] || '#3B82F6';
+      case 'secondary': return SAFE_COLORS.secondary[500];
+      case 'accent': return SAFE_COLORS.accent[500];
+      case 'danger': return SAFE_COLORS.error[500];
+      case 'success': return SAFE_COLORS.success[500];
+      case 'warning': return SAFE_COLORS.warning[500];
+      case 'info': return SAFE_COLORS.info[500];
+      default: return SAFE_COLORS.primary[500];
     }
   };
 
-  // Obtener altura según el tamaño
   const getHeight = () => {
     switch (size) {
       case 'sm': return 4;
       case 'lg': return 12;
-      default: return 8; // md
+      default: return 8;
     }
   };
 
@@ -106,7 +82,7 @@ const Progress = ({
                 styles.labelText,
                 {
                   fontSize: SAFE_TYPOGRAPHY.fontSize?.sm || 14,
-                  color: SAFE_COLORS.text?.primary || '#111827',
+                  color: SAFE_COLORS.text.primary,
                 },
               ]}
             >
@@ -119,7 +95,7 @@ const Progress = ({
                 styles.percentageText,
                 {
                   fontSize: SAFE_TYPOGRAPHY.fontSize?.xs || 12,
-                  color: SAFE_COLORS.text?.secondary || '#4B5563',
+                  color: SAFE_COLORS.text.secondary,
                 },
               ]}
             >
@@ -135,7 +111,7 @@ const Progress = ({
           {
             height,
             borderRadius,
-            backgroundColor: SAFE_COLORS.neutral?.gray?.[200] || '#E5E7EB',
+            backgroundColor: SAFE_COLORS.neutral.gray[200],
           },
         ]}
       >

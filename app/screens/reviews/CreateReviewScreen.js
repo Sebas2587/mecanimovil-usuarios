@@ -15,11 +15,18 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  User,
+  Car,
+  CalendarDays,
+  Sparkles,
+  Send,
+  Star,
+} from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { post } from '../../services/api';
 import { showAlert } from '../../utils/platformAlert';
-import { COLORS } from '../../design-system/tokens/colors';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { BORDERS, SPACING, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { TAB_BAR_BASE_HEIGHT } from '../../components/home/shared/homeLayoutConstants';
 import { PENDING_REVIEWS_QUERY_KEY } from '../../hooks/usePendingReviews';
@@ -147,10 +154,11 @@ const CreateReviewScreen = () => {
             onPress={() => setRating(star)}
             accessibilityLabel={`${star} estrella${star > 1 ? 's' : ''}`}
           >
-            <Ionicons
-              name={active ? 'star' : 'star-outline'}
+            <Star
               size={36}
               color={active ? COLORS.warning.main : COLORS.neutral.gray[300]}
+              fill={active ? COLORS.warning.main : 'transparent'}
+              strokeWidth={1.75}
             />
           </TouchableOpacity>
         );
@@ -172,10 +180,11 @@ const CreateReviewScreen = () => {
               onPress={() => setAspectValue(key, v)}
               activeOpacity={0.85}
             >
-              <Ionicons
-                name={active ? 'star' : 'star-outline'}
+              <Star
                 size={22}
                 color={active ? COLORS.primary[500] : COLORS.neutral.gray[300]}
+                fill={active ? COLORS.primary[500] : 'transparent'}
+                strokeWidth={1.75}
               />
             </TouchableOpacity>
           );
@@ -259,7 +268,7 @@ const CreateReviewScreen = () => {
               />
             ) : (
               <View style={styles.providerPlaceholder}>
-                <Ionicons name="person" size={20} color={COLORS.text.tertiary} />
+                <User size={20} color={COLORS.text.tertiary} strokeWidth={1.75} />
               </View>
             )}
             <Text style={styles.providerName}>{service.provider.provider_name}</Text>
@@ -268,11 +277,11 @@ const CreateReviewScreen = () => {
           <View style={styles.divider} />
 
           <View style={styles.detailRow}>
-            <Ionicons name="car-outline" size={16} color={COLORS.text.tertiary} />
+            <Car size={16} color={COLORS.text.tertiary} strokeWidth={1.75} />
             <Text style={styles.detailText}>{service.vehicle?.full_name}</Text>
           </View>
           <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={16} color={COLORS.text.tertiary} />
+            <CalendarDays size={16} color={COLORS.text.tertiary} strokeWidth={1.75} />
             <Text style={styles.detailText}>
               Completado el {new Date(service.completion_date).toLocaleDateString('es-CL')}
             </Text>
@@ -308,7 +317,7 @@ const CreateReviewScreen = () => {
         {/* Aspectos */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <Ionicons name="sparkles-outline" size={20} color={COLORS.primary[500]} />
+            <Sparkles size={20} color={COLORS.primary[500]} strokeWidth={1.75} />
             <Text style={styles.cardTitle}>Aspectos del servicio</Text>
           </View>
           <Text style={styles.aspectIntro}>
@@ -348,7 +357,7 @@ const CreateReviewScreen = () => {
             <ActivityIndicator size="small" color={COLORS.text.onPrimary} />
           ) : (
             <>
-              <Ionicons name="send" size={18} color={COLORS.text.onPrimary} />
+              <Send size={18} color={COLORS.text.onPrimary} strokeWidth={1.75} />
               <Text style={styles.submitButtonText}>Enviar reseña</Text>
             </>
           )}
@@ -567,7 +576,7 @@ const styles = StyleSheet.create({
       web: {
         position: 'sticky',
         bottom: 0,
-        boxShadow: '0 -2px 8px rgba(0,0,0,0.06)',
+        boxShadow: `0 -2px 8px ${withOpacity(COLORS.base.inkBlack, 0.06)}`,
       },
       default: {},
     }),

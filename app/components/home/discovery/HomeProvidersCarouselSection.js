@@ -13,7 +13,7 @@ import { HomePanelCard } from '../shared/HomePanelCard';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import ProviderPreviewCard from '../ProviderPreviewCard';
 import { formatProviderForCard } from '../../../utils/providerUtils';
-import { CARD_GAP, GRID_CARD_W, H_PAD } from '../shared/homeLayoutConstants';
+import { CARD_GAP, H_PAD } from '../shared/homeLayoutConstants';
 
 /**
  * Carrusel horizontal 2×N de proveedores con encabezado y estados vacío/carga.
@@ -35,12 +35,15 @@ const HomeProvidersCarouselSection = ({
   spacingTop = false,
   /** 'offers' | 'bookings' — footer de ProviderPreviewCard */
   cardFooterVariant = 'offers',
+  /** Marca del vehículo del usuario, para el tag «Especialista {Marca}». */
+  userBrandName = null,
 }) => {
   const { width: windowWidth } = useWindowDimensions();
   /** En web el panel usa LAYOUT_WIDTH (máx. 480); SCREEN_WIDTH del navegador generaba overflow horizontal. */
   const nearbyPageWidth =
     Platform.OS === 'web' ? Math.min(windowWidth, 480) : windowWidth;
-  const nearbyCardW = GRID_CARD_W;
+  /** Mitad del ancho de página menos gutters (responsive; GRID_CARD_W fijo rompía en web). */
+  const nearbyCardW = (nearbyPageWidth - H_PAD * 2 - CARD_GAP) / 2;
 
   const nearbyPages = useMemo(() => {
     const list = providers;
@@ -106,20 +109,18 @@ const HomeProvidersCarouselSection = ({
             >
               {pair.map((p) => {
                 const { id: _pid, ...card } = formatProviderForCard(p);
-                const kindLabel = p._panelKind === 'taller' ? 'Taller' : 'A domicilio';
                 return (
                   <ProviderPreviewCard
                     key={`${p._panelKind}-${p.id}`}
                     {...card}
                     provider={p}
-                    typeLabel={kindLabel}
-                    specialty={card.specialty || 'Servicios y diagnóstico'}
+                    specialty={card.specialty || null}
                     serviceOffers={card.serviceOffers}
                     cardFooterVariant={cardFooterVariant}
                     reviews={card.reviews}
                     bookingsCount={card.bookingsCount}
                     kpiBadge={p.kpi_badge || null}
-                    appearance="light"
+                    userBrandName={userBrandName}
                     width={nearbyCardW}
                     omitRightMargin
                     onPress={() => onProviderPress(p)}

@@ -71,7 +71,7 @@ function Stat({ value, label }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(10,11,13,0.45)',
+    backgroundColor: COLORS.background.overlay,
   },
   modal: {
     marginHorizontal: 20,

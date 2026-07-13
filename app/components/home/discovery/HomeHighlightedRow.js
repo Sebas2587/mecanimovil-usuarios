@@ -19,12 +19,13 @@ const HomeHighlightedRow = ({
     <HomeProvidersCarouselSection
       title={resolvedTitle}
       cardFooterVariant="bookings"
+      userBrandName={selectedVehicle.marca_nombre || null}
       providers={providers}
       loading={loading}
       emptyRequiresAddress
       hasSelectedAddress={hasSelectedAddress}
-      emptyNoAddressMessage="Selecciona una dirección para ver destacados en tu ciudad."
-      emptyNoResultsMessage="No hay especialistas en la marca de tu auto en tu zona. Revisa «Cerca de ti» (multimarca y especialistas) o crea una solicitud."
+      emptyNoAddressMessage="Elige una dirección para ver talleres recomendados cerca de ti."
+      emptyNoResultsMessage="Aún no hay talleres que atiendan tu marca en esta zona. Explora «Cerca de ti» o agenda un servicio."
       onProviderPress={onProviderPress}
       onSeeAll={onSeeAll}
       seeAllWhen={!loading && (hasSelectedAddress || providers.length > 0)}

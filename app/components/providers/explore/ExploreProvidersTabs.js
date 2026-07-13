@@ -1,60 +1,34 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
+import React, { useMemo } from 'react';
+import { StyleSheet } from 'react-native';
+import { SPACING } from '../../../design-system/tokens';
+import SegmentedControl from '../../base/SegmentedControl/SegmentedControl';
 import { EXPLORE_TABS } from './exploreProvidersConstants';
 
 /** Pestañas tipo segmento (Todos / Talleres / A domicilio). */
-const ExploreProvidersTabs = ({ activeTab, onTabChange, counts = {} }) => (
-  <View style={styles.track} accessibilityRole="tablist">
-    {EXPLORE_TABS.map((tab) => {
-      const active = activeTab === tab.id;
-      const count = counts[tab.id];
-      const label =
-        count != null && count > 0 ? `${tab.label} (${count})` : tab.label;
-      return (
-        <TouchableOpacity
-          key={tab.id}
-          style={[styles.tab, active && styles.tabActive]}
-          onPress={() => onTabChange(tab.id)}
-          activeOpacity={0.85}
-          accessibilityRole="tab"
-          accessibilityState={{ selected: active }}
-        >
-          <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
-            {label}
-          </Text>
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-);
+const ExploreProvidersTabs = ({ activeTab, onTabChange, counts = {} }) => {
+  const segments = useMemo(
+    () =>
+      EXPLORE_TABS.map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+        count: counts[tab.id],
+      })),
+    [counts],
+  );
+
+  return (
+    <SegmentedControl
+      segments={segments}
+      value={activeTab}
+      onChange={onTabChange}
+      style={styles.control}
+    />
+  );
+};
 
 const styles = StyleSheet.create({
-  track: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-    marginBottom: 12,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    marginBottom: -1,
-  },
-  tabActive: {
-    borderBottomColor: COLORS.primary[500],
-  },
-  tabText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.tertiary,
-  },
-  tabTextActive: {
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[600],
+  control: {
+    marginBottom: SPACING.sm,
   },
 });
 

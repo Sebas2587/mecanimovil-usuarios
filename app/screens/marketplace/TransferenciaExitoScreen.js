@@ -1,69 +1,80 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Animatable from 'react-native-animatable';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../../design-system/theme/useTheme';
-import Container from '../../components/layout/Container/Container';
+import { Check, Car, User } from 'lucide-react-native';
 import Button from '../../components/base/Button/Button';
 import { ROUTES } from '../../utils/constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../design-system/tokens';
 
 const TransferenciaExitoScreen = () => {
     const navigation = useNavigation();
     const route = useRoute();
-    const theme = useTheme();
 
     const { vehicleName, newOwner } = route.params || {};
 
-    const colors = theme.colors;
-    const typography = theme.typography;
-    const spacing = theme.spacing;
-
     const handleFinish = () => {
-        // Navegar a Mis Vehículos y resetear el stack para evitar volver atrás
         navigation.reset({
-            index: 0,
-            routes: [{ name: 'TabNavigator', state: { routes: [{ name: ROUTES.MIS_VEHICULOS }] } }],
+            index: 1,
+            routes: [
+                { name: 'TabNavigator' },
+                { name: ROUTES.MY_VEHICLES },
+            ],
         });
     };
 
     return (
-        <Container safeArea style={styles.container}>
+        <SafeAreaView style={styles.focusRoot} edges={['top', 'bottom']}>
             <View style={styles.content}>
                 <Animatable.View
                     animation="bounceIn"
                     duration={1500}
-                    style={[styles.iconContainer, { backgroundColor: colors.success.light }]}
+                    style={styles.iconContainer}
                 >
-                    <Ionicons name="checkmark" size={80} color={colors.success.main} />
+                    <Check size={56} color={COLORS.success.main} strokeWidth={2.5} />
                 </Animatable.View>
 
                 <Animatable.Text
                     animation="fadeInUp"
                     delay={500}
-                    style={[styles.title, { color: colors.text.primary, fontSize: typography.fontSize['3xl'] }]}
+                    style={[TYPOGRAPHY.styles.h2, styles.title]}
                 >
-                    ¡Transferencia Exitosa!
+                    ¡Transferencia exitosa!
                 </Animatable.Text>
 
-                <Animatable.View animation="fadeInUp" delay={800} style={styles.details}>
-                    <Text style={[styles.detailLabel, { color: colors.text.secondary }]}>
-                        Vehículo transferido:
-                    </Text>
-                    <Text style={[styles.detailValue, { color: colors.text.primary, fontSize: typography.fontSize.xl }]}>
-                        {vehicleName || 'Vehículo'}
-                    </Text>
+                <Animatable.View animation="fadeInUp" delay={800} style={[styles.detailsCard, SHADOWS.sm]}>
+                    <View style={styles.detailRow}>
+                        <View style={styles.detailIcon}>
+                            <Car size={18} color={COLORS.primary[500]} strokeWidth={2} />
+                        </View>
+                        <View style={styles.detailContent}>
+                            <Text style={[TYPOGRAPHY.styles.caption, styles.detailLabel]}>
+                                Vehículo transferido
+                            </Text>
+                            <Text style={[TYPOGRAPHY.styles.h4, styles.detailValue]}>
+                                {vehicleName || 'Vehículo'}
+                            </Text>
+                        </View>
+                    </View>
 
-                    <View style={[styles.divider, { backgroundColor: colors.border.light }]} />
+                    <View style={styles.divider} />
 
-                    <Text style={[styles.detailLabel, { color: colors.text.secondary }]}>
-                        Nuevo Dueño:
-                    </Text>
-                    <Text style={[styles.detailValue, { color: colors.text.primary, fontSize: typography.fontSize.lg }]}>
-                        {newOwner || 'Usuario'}
-                    </Text>
+                    <View style={styles.detailRow}>
+                        <View style={styles.detailIcon}>
+                            <User size={18} color={COLORS.primary[500]} strokeWidth={2} />
+                        </View>
+                        <View style={styles.detailContent}>
+                            <Text style={[TYPOGRAPHY.styles.caption, styles.detailLabel]}>
+                                Nuevo dueño
+                            </Text>
+                            <Text style={[TYPOGRAPHY.styles.h5, styles.detailValue]}>
+                                {newOwner || 'Usuario'}
+                            </Text>
+                        </View>
+                    </View>
 
-                    <Text style={[styles.infoText, { color: colors.text.hint, marginTop: spacing.lg }]}>
+                    <Text style={[TYPOGRAPHY.styles.caption, styles.infoText]}>
                         El historial de mantenimiento ha sido transferido junto con el vehículo.
                     </Text>
                 </Animatable.View>
@@ -73,65 +84,81 @@ const TransferenciaExitoScreen = () => {
                 <Button
                     title="Ir a mi Garaje"
                     onPress={handleFinish}
-                    style={styles.button}
+                    fullWidth
                 />
             </Animatable.View>
-        </Container>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    focusRoot: {
         flex: 1,
+        backgroundColor: COLORS.background.default,
     },
     content: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 30,
+        paddingHorizontal: SPACING.container.horizontal,
     },
     iconContainer: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
+        width: 112,
+        height: 112,
+        borderRadius: 56,
+        backgroundColor: COLORS.success.light,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 30,
+        marginBottom: SPACING.lg,
     },
     title: {
-        fontWeight: 'bold',
-        marginBottom: 40,
+        color: COLORS.text.primary,
         textAlign: 'center',
+        marginBottom: SPACING.lg,
     },
-    details: {
+    detailsCard: {
         width: '100%',
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.card.lg,
+        padding: SPACING.lg,
+    },
+    detailRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: SPACING.sm,
+    },
+    detailIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.primary[50],
         alignItems: 'center',
+        justifyContent: 'center',
+    },
+    detailContent: {
+        flex: 1,
     },
     detailLabel: {
-        fontSize: 14,
-        marginBottom: 5,
+        color: COLORS.text.secondary,
+        marginBottom: SPACING.xxs,
     },
     detailValue: {
-        fontWeight: 'bold',
-        marginBottom: 15,
-        textAlign: 'center',
+        color: COLORS.text.primary,
     },
     divider: {
-        width: '60%',
-        height: 1,
-        marginVertical: 15,
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: COLORS.border.light,
+        marginVertical: SPACING.md,
     },
     infoText: {
+        color: COLORS.text.tertiary,
         textAlign: 'center',
-        fontSize: 12,
-        fontStyle: 'italic',
+        marginTop: SPACING.md,
+        lineHeight: 18,
     },
     footer: {
-        padding: 20,
-        marginBottom: 20,
-    },
-    button: {
-        width: '100%',
+        paddingHorizontal: SPACING.container.horizontal,
+        paddingBottom: SPACING.lg,
     },
 });
 

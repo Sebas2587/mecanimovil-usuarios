@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../../utils/format';
-import { COLORS } from '../../utils/constants';
+import { COLORS, withOpacity } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 /**
  * Componente Modal para mostrar detalles de proveedores (talleres o mecánicos)
@@ -97,31 +97,31 @@ const ProviderModal = ({
     return (
       <View style={styles.starsContainer}>
         {[...Array(fullStars)].map((_, i) => (
-          <Ionicons
+          <Icon
             key={`full-${i}`}
             name="star"
             size={size}
-            color="#FFD700"
+            color={COLORS.warning.main}
             style={styles.starIcon}
           />
         ))}
 
         {halfStar && (
-          <Ionicons
+          <Icon
             key="half"
             name="star-half"
             size={size}
-            color="#FFD700"
+            color={COLORS.warning.main}
             style={styles.starIcon}
           />
         )}
 
         {[...Array(emptyStars)].map((_, i) => (
-          <Ionicons
+          <Icon
             key={`empty-${i}`}
             name="star-outline"
             size={size}
-            color="#FFD700"
+            color={COLORS.warning.main}
             style={styles.starIcon}
           />
         ))}
@@ -141,7 +141,7 @@ const ProviderModal = ({
           {/* Encabezado del modal */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={COLORS.textDark} />
+              <Icon name="close" size={24} color={COLORS.text.primary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
               {type === 'taller' ? 'Detalle del Taller' : 'Detalle del Mecánico'}
@@ -161,10 +161,10 @@ const ProviderModal = ({
                 />
               ) : (
                 <View style={styles.providerImagePlaceholder}>
-                  <Ionicons
+                  <Icon
                     name={type === 'taller' ? 'business' : 'person'}
                     size={60}
-                    color={COLORS.white}
+                    color={COLORS.text.inverse}
                   />
                 </View>
               )}
@@ -197,7 +197,7 @@ const ProviderModal = ({
               <View style={styles.sectionContainer}>
                 <Text style={styles.sectionTitle}>Servicio disponible</Text>
                 <View style={styles.serviceCard}>
-                  <Ionicons name="construct" size={20} color={COLORS.primary} style={styles.serviceIcon} />
+                  <Icon name="construct" size={20} color={COLORS.primary[500]} style={styles.serviceIcon} />
                   <View style={styles.serviceInfo}>
                     <Text style={styles.serviceName}>{servicio.nombre}</Text>
 
@@ -238,21 +238,21 @@ const ProviderModal = ({
 
               {provider.direccion && (
                 <View style={styles.contactItem}>
-                  <Ionicons name="location-outline" size={20} color={COLORS.primary} />
+                  <Icon name="location-outline" size={20} color={COLORS.primary[500]} />
                   <Text style={styles.contactText}>{provider.direccion}</Text>
                 </View>
               )}
 
               {provider.telefono && (
                 <View style={styles.contactItem}>
-                  <Ionicons name="call-outline" size={20} color={COLORS.primary} />
+                  <Icon name="call-outline" size={20} color={COLORS.primary[500]} />
                   <Text style={styles.contactText}>{provider.telefono}</Text>
                 </View>
               )}
 
               {type === 'taller' && provider.horario_atencion && (
                 <View style={styles.contactItem}>
-                  <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+                  <Icon name="time-outline" size={20} color={COLORS.primary[500]} />
                   <Text style={styles.contactText}>{provider.horario_atencion}</Text>
                 </View>
               )}
@@ -273,7 +273,7 @@ const ProviderModal = ({
               style={[styles.actionButton, styles.callButton]}
               onPress={handleCall}
             >
-              <Ionicons name="call-outline" size={20} color="#fff" />
+              <Icon name="call-outline" size={20} color={COLORS.text.inverse} />
               <Text style={styles.actionButtonText}>Llamar</Text>
             </TouchableOpacity>
 
@@ -281,7 +281,7 @@ const ProviderModal = ({
               style={[styles.actionButton, styles.mapButton]}
               onPress={handleOpenMap}
             >
-              <Ionicons name="location-outline" size={20} color="#fff" />
+              <Icon name="location-outline" size={20} color={COLORS.text.inverse} />
               <Text style={styles.actionButtonText}>Ver ubicación</Text>
             </TouchableOpacity>
           </View>
@@ -295,15 +295,15 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.5),
   },
   modalContent: {
     height: '90%',
-    backgroundColor: 'white',
+    backgroundColor: COLORS.background.paper,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: COLORS.base.inkBlack,
     shadowOffset: {
       width: 0,
       height: -3
@@ -319,8 +319,8 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: COLORS.white,
+    borderBottomColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   closeButton: {
     position: 'absolute',
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     textAlign: 'center',
   },
   scrollView: {
@@ -339,8 +339,8 @@ const styles = StyleSheet.create({
   header: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: COLORS.glass.white,
+    borderBottomColor: COLORS.border.light,
+    backgroundColor: COLORS.background.default,
     alignItems: 'center',
   },
   providerImage: {
@@ -348,14 +348,14 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     marginBottom: 15,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.neutral.gray[100],
   },
   providerImagePlaceholder: {
     width: 120,
     height: 120,
     borderRadius: 60,
     marginBottom: 15,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginBottom: 8,
     textAlign: 'center',
   },
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
   },
   reviewsText: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: COLORS.text.tertiary,
     marginLeft: 8,
   },
   typeBadge: {
@@ -393,33 +393,33 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   workshopType: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
   },
   mechanicType: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.secondary[500],
   },
   typeBadgeText: {
-    color: COLORS.white,
+    color: COLORS.text.inverse,
     fontSize: 14,
     fontWeight: '600',
   },
   sectionContainer: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.border.light,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginBottom: 12,
   },
   serviceCard: {
     flexDirection: 'row',
-    backgroundColor: COLORS.glass.white,
+    backgroundColor: COLORS.background.default,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: COLORS.base.inkBlack,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: COLORS.primary[500],
     marginBottom: 10,
   },
   priceContainer: {
@@ -449,18 +449,18 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: COLORS.text.tertiary,
     marginBottom: 4,
   },
   priceValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.secondary,
+    color: COLORS.secondary[500],
   },
   priceUnavailable: {
     fontSize: 14,
     fontStyle: 'italic',
-    color: COLORS.textLight,
+    color: COLORS.text.tertiary,
   },
   contactItem: {
     flexDirection: 'row',
@@ -470,21 +470,21 @@ const styles = StyleSheet.create({
   contactText: {
     marginLeft: 12,
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text.primary,
     flex: 1,
     lineHeight: 22,
   },
   descriptionText: {
     fontSize: 15,
-    color: COLORS.text,
+    color: COLORS.text.primary,
     lineHeight: 22,
   },
   actionButtons: {
     flexDirection: 'row',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: COLORS.white,
+    borderTopColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   actionButton: {
     flex: 1,
@@ -496,13 +496,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 6,
   },
   callButton: {
-    backgroundColor: COLORS.secondary,
+    backgroundColor: COLORS.secondary[500],
   },
   mapButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
   },
   actionButtonText: {
-    color: 'white',
+    color: COLORS.text.inverse,
     fontWeight: 'bold',
     marginLeft: 8,
     fontSize: 16,

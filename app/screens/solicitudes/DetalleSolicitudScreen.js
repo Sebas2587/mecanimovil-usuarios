@@ -15,9 +15,20 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Hourglass,
+  User,
+  GitCompare,
+  Files,
+  Link,
+  CircleX,
+  PenLine,
+  ClipboardList,
+  CreditCard,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
+import BackButton from '../../components/navigation/BackButton';
+import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
 
 // Services & Context
 import chatService from '../../services/chatService';
@@ -39,6 +50,7 @@ import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import CustomerSignatureModal from '../../components/checklist/CustomerSignatureModal';
 import PagoSaldoPendienteCierreBanner from '../../components/solicitudes/PagoSaldoPendienteCierreBanner';
 import DetalleSolicitudSkeleton from '../../components/utils/DetalleSolicitudSkeleton';
+import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
 
 const TAB_PRINCIPALES = 'principales';
 const TAB_ADICIONALES = 'adicionales';
@@ -439,13 +451,7 @@ const DetalleSolicitudScreen = () => {
 
       <View style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerContent}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
-          </TouchableOpacity>
+          <BackButton onPress={() => navigation.goBack()} />
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Detalle de Solicitud</Text>
             <Text style={styles.headerSubtitle}>ID: {String(solicitudId).slice(0, 8)}</Text>
@@ -528,7 +534,7 @@ const DetalleSolicitudScreen = () => {
 
         {!layoutCatalogoUnificado && esPendienteConfirmacion ? (
           <View style={styles.catalogoBanner}>
-            <Ionicons name="hourglass-outline" size={22} color={COLORS.primary[600]} />
+            <Hourglass size={22} color={COLORS.primary[600]} />
             <View style={styles.catalogoBannerTextWrap}>
               <Text style={styles.catalogoBannerTitle}>Esperando confirmación del proveedor</Text>
               <Text style={styles.catalogoBannerSub}>
@@ -556,7 +562,7 @@ const DetalleSolicitudScreen = () => {
                   />
                 ) : (
                   <View style={styles.tecnicoPropuestoAvatarPlaceholder}>
-                    <Ionicons name="person" size={18} color={COLORS.primary[500]} />
+                    <User size={18} color={COLORS.primary[500]} />
                   </View>
                 )}
                 <View style={styles.tecnicoPropuestoInfo}>
@@ -630,34 +636,17 @@ const DetalleSolicitudScreen = () => {
         {/* C. Tabs: Ofertas recibidas | Ofertas adicionales */}
         {!layoutCatalogoUnificado ? (
         <View style={styles.tabSection}>
-          <View style={styles.segmentContainer}>
-            <TouchableOpacity
-              style={[styles.segmentButton, tabActivo === TAB_PRINCIPALES && styles.segmentActive]}
-              onPress={() => setTabActivo(TAB_PRINCIPALES)}
-            >
-              <Text style={[styles.segmentText, tabActivo === TAB_PRINCIPALES && styles.segmentTextActive]}>
-                Ofertas recibidas
-              </Text>
-              {ofertas.length > 0 && (
-                <View style={styles.segmentBadge}>
-                  <Text style={styles.segmentBadgeText}>{ofertas.length}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            {ofertasSecundarias.length > 0 && (
-              <TouchableOpacity
-                style={[styles.segmentButton, tabActivo === TAB_ADICIONALES && styles.segmentActive]}
-                onPress={() => setTabActivo(TAB_ADICIONALES)}
-              >
-                <Text style={[styles.segmentText, tabActivo === TAB_ADICIONALES && styles.segmentTextActive]}>
-                  Ofertas adicionales
-                </Text>
-                <View style={styles.segmentBadge}>
-                  <Text style={styles.segmentBadgeText}>{ofertasSecundarias.length}</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
+          <SegmentedControl
+            segments={[
+              { id: TAB_PRINCIPALES, label: 'Ofertas recibidas', count: ofertas.length },
+              ...(ofertasSecundarias.length > 0
+                ? [{ id: TAB_ADICIONALES, label: 'Ofertas adicionales', count: ofertasSecundarias.length }]
+                : []),
+            ]}
+            value={tabActivo}
+            onChange={setTabActivo}
+            style={styles.segmentContainer}
+          />
 
           {/* Contenido según tab activo */}
           {tabActivo === TAB_PRINCIPALES && (
@@ -675,7 +664,7 @@ const DetalleSolicitudScreen = () => {
                           style={styles.compareButton}
                           onPress={handleCompararOfertas}
                         >
-                          <Ionicons name="git-compare-outline" size={16} color={COLORS.primary[500]} />
+                          <GitCompare size={16} color={COLORS.primary[500]} />
                           <Text style={styles.compareButtonText}>Comparar</Text>
                         </TouchableOpacity>
                       </View>
@@ -708,7 +697,7 @@ const DetalleSolicitudScreen = () => {
                 </>
               ) : (
                 <View style={styles.emptyState}>
-                  <Ionicons name="documents-outline" size={48} color={COLORS.text.disabled} />
+                  <Files size={48} color={COLORS.text.disabled} />
                   <Text style={styles.emptyStateText}>
                     {esPendienteConfirmacion
                       ? 'Cargando tu elección del catálogo…'
@@ -746,7 +735,7 @@ const DetalleSolicitudScreen = () => {
                 return (
                   <View key={oferta.id} style={styles.ofertaSecundariaWrapper}>
                     <View style={styles.referenciaSolicitudBar}>
-                      <Ionicons name="link-outline" size={14} color={COLORS.text.tertiary} />
+                      <Link size={14} color={COLORS.text.tertiary} />
                       <Text style={styles.referenciaSolicitudText}>
                         Oferta adicional para esta solicitud ({nombreServicio})
                         {fechaOriginal ? ` · Alternativa a la oferta del ${fechaOriginal}` : ''}
@@ -792,7 +781,7 @@ const DetalleSolicitudScreen = () => {
               accessibilityRole="button"
             >
               <Text style={styles.footerCancelLikeAcceptText}>Cancelar solicitud</Text>
-              <Ionicons name="close-circle-outline" size={18} color={COLORS.text.onError} />
+              <CircleX size={18} color={COLORS.text.onError} />
             </TouchableOpacity>
           ) : null}
 
@@ -824,11 +813,11 @@ const DetalleSolicitudScreen = () => {
                         onPress={() => setShowSignatureModal(true)}
                       >
                         <Text style={styles.footerPrimaryCtaText}>Revisar y firmar</Text>
-                        <Ionicons name="create-outline" size={18} color={COLORS.text.onPrimary} />
+                        <PenLine size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                       <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                         <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
-                        <Ionicons name="clipboard-outline" size={18} color={COLORS.text.primary} />
+                        <ClipboardList size={18} color={COLORS.text.primary} />
                       </TouchableOpacity>
                     </View>
                   );
@@ -844,12 +833,12 @@ const DetalleSolicitudScreen = () => {
                         <Text style={styles.footerPrimaryCtaText} numberOfLines={2}>
                           Pagar saldo restante (${formatearMontoCLP(montoSaldoPendiente)})
                         </Text>
-                        <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
+                        <CreditCard size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                       {showChecklist ? (
                         <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                           <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
-                          <Ionicons name="clipboard-outline" size={18} color={COLORS.text.primary} />
+                          <ClipboardList size={18} color={COLORS.text.primary} />
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -869,12 +858,12 @@ const DetalleSolicitudScreen = () => {
                         }
                       >
                         <Text style={styles.footerPrimaryCtaText}>Ir a Pagar</Text>
-                        <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
+                        <CreditCard size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                       {showChecklist ? (
                         <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                           <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
-                          <Ionicons name="clipboard-outline" size={18} color={COLORS.text.primary} />
+                          <ClipboardList size={18} color={COLORS.text.primary} />
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -889,7 +878,7 @@ const DetalleSolicitudScreen = () => {
                         onPress={openChecklistPrincipal}
                       >
                         <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
-                        <Ionicons name="clipboard-outline" size={18} color={COLORS.text.onPrimary} />
+                        <ClipboardList size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                     </View>
                   );
@@ -903,7 +892,7 @@ const DetalleSolicitudScreen = () => {
                         onPress={() => setShowSignatureModal(true)}
                       >
                         <Text style={styles.footerPrimaryCtaText}>Revisar y firmar</Text>
-                        <Ionicons name="create-outline" size={18} color={COLORS.text.onPrimary} />
+                        <PenLine size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                     </View>
                   );
@@ -938,7 +927,7 @@ const DetalleSolicitudScreen = () => {
                         }
                       >
                         <Text style={styles.footerPrimaryCtaText}>Ir a Pagar</Text>
-                        <Ionicons name="card-outline" size={18} color={COLORS.text.onPrimary} />
+                        <CreditCard size={18} color={COLORS.text.onPrimary} />
                       </TouchableOpacity>
                     ) : null}
                     {ofertaConChecklist ? (
@@ -964,8 +953,7 @@ const DetalleSolicitudScreen = () => {
                         >
                           Ver Checklist
                         </Text>
-                        <Ionicons
-                          name="clipboard-outline"
+                        <ClipboardList
                           size={18}
                           color={hayAmbasAcciones ? COLORS.text.primary : COLORS.text.onPrimary}
                         />
@@ -1087,12 +1075,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.container.horizontal,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
   headerTitleContainer: {
     alignItems: 'center',
   },
@@ -1117,48 +1099,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   segmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.neutral.gray[100],
-    borderRadius: 14,
-    padding: 4,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
     marginTop: SPACING.md,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    borderRadius: BORDERS?.radius?.md ?? 8,
-  },
-  segmentActive: {
-    backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  segmentText: {
-    fontSize: TYPOGRAPHY?.fontSize?.sm ?? 14,
-    fontWeight: TYPOGRAPHY?.fontWeight?.medium ?? '500',
-    color: COLORS.text.tertiary,
-  },
-  segmentTextActive: {
-    color: COLORS.text.primary,
-    fontWeight: TYPOGRAPHY?.fontWeight?.semibold ?? '600',
-  },
-  segmentBadge: {
-    backgroundColor: COLORS.primary[100],
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 99,
-  },
-  segmentBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary[700],
   },
   offersSection: {
     marginTop: SPACING.sm,
@@ -1446,7 +1387,7 @@ const styles = StyleSheet.create({
   },
   fotoLightboxBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.92),
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,

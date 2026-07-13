@@ -22,13 +22,14 @@ const HomeParaTiSection = ({
     <HomeProvidersCarouselSection
       icon={<Sparkles size={16} color={COLORS.primary[500]} />}
       title="Para ti"
+      userBrandName={selectedVehicle.marca_nombre || null}
       hint={`Destacados para tu ${marcaLabel} ${modeloLabel} según desempeño en MecaniMóvil.`.trim()}
       providers={providers}
       loading={loading}
       emptyRequiresAddress={false}
       hasSelectedAddress
       emptyNoAddressMessage=""
-      emptyNoResultsMessage="Aún no hay especialistas destacados para tu marca. Explora los más cercanos abajo o crea una solicitud."
+      emptyNoResultsMessage="Aún no hay talleres destacados para tu marca. Explora los más cercanos abajo o agenda un servicio."
       onProviderPress={onProviderPress}
       onSeeAll={onSeeAll}
       seeAllWhen={!loading && (providers.length > 0 || !!selectedVehicle)}

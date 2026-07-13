@@ -1,124 +1,109 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, Platform } from 'react-native';
-import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
-import { HomePanelCard } from '../shared/HomePanelCard';
-import { CARD_GAP, QUICK_ACTION_CARD_W, QUICK_ACTION_SNAP_INTERVAL } from '../shared/homeLayoutConstants';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 
 /**
- * Carrusel horizontal de accesos rápidos (Servicios, Solicitudes, etc.).
+ * Accesos rápidos del home — grilla 2 columnas (Airbnb summary tiles).
+ * Solo 2 ítems: ambos visibles, sin scroll horizontal ni lista apilada.
  */
-const HomeQuickActions = ({ items = [] }) => (
-  <ScrollView
-    horizontal
-    nestedScrollEnabled={Platform.OS !== 'web'}
-    showsHorizontalScrollIndicator={Platform.OS === 'web'}
-    decelerationRate={Platform.OS === 'web' ? undefined : 'fast'}
-    snapToInterval={Platform.OS === 'web' ? undefined : QUICK_ACTION_SNAP_INTERVAL}
-    snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
-    disableIntervalMomentum={Platform.OS === 'web' ? undefined : true}
-    contentContainerStyle={styles.scrollContent}
-    style={[styles.scrollOuter, Platform.OS === 'web' && styles.scrollOuterWeb]}
-    keyboardShouldPersistTaps="handled"
-  >
-    {items.map((it) => (
-      <HomePanelCard
-        key={it.key}
-        style={[styles.card, { width: QUICK_ACTION_CARD_W }]}
-        innerStyle={styles.cardInner}
-        onPress={it.onPress}
-      >
-        <View style={styles.iconWrap}>
-          <View style={[styles.iconBox, { backgroundColor: it.iconBg }]}>{it.icon}</View>
-          {(it.badgeCount ?? 0) > 0 ? (
-            <View style={styles.badge} accessibilityElementsHidden>
-              <Text style={styles.badgeText}>
-                {(it.badgeCount ?? 0) > 99 ? '99+' : it.badgeCount}
-              </Text>
+const HomeQuickActions = ({ items = [] }) => {
+  if (!items.length) return null;
+
+  return (
+    <View style={styles.grid} accessibilityRole="list">
+      {items.map((it) => {
+        const badgeCount = it.badgeCount ?? 0;
+        return (
+          <TouchableOpacity
+            key={it.key}
+            style={styles.tile}
+            onPress={it.onPress}
+            activeOpacity={0.92}
+            disabled={!it.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={it.sub ? `${it.title}. ${it.sub}` : it.title}
+          >
+            <View style={styles.tileTop}>
+              <View style={styles.iconCircle}>{it.icon}</View>
+              {badgeCount > 0 ? (
+                <View style={styles.badge} accessibilityElementsHidden>
+                  <Text style={styles.badgeText}>
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </Text>
+                </View>
+              ) : (
+                <ChevronRight size={16} color={COLORS.text.tertiary} strokeWidth={2} />
+              )}
             </View>
-          ) : null}
-        </View>
-        <View style={styles.textCol}>
-          <Text style={styles.title} numberOfLines={1}>
-            {it.title}
-          </Text>
-          <Text style={styles.sub} numberOfLines={2}>
-            {it.sub}
-          </Text>
-        </View>
-      </HomePanelCard>
-    ))}
-  </ScrollView>
-);
+            <Text style={styles.title} numberOfLines={1}>
+              {it.title}
+            </Text>
+            {it.sub ? (
+              <Text style={styles.subtitle} numberOfLines={2}>
+                {it.sub}
+              </Text>
+            ) : null}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  scrollOuter: {
-    marginBottom: 16,
-    marginHorizontal: -2,
-  },
-  scrollOuterWeb: {
-    overflow: 'scroll',
-  },
-  scrollContent: {
+  grid: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: CARD_GAP,
-    paddingVertical: 2,
-    paddingRight: 12,
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  card: {
-    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-  },
-  cardInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 16,
-    minHeight: 76,
-  },
-  iconWrap: {
-    position: 'relative',
-    width: 44,
-    height: 44,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: BORDERS.radius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: COLORS.error.main,
-    borderRadius: BORDERS.radius.full,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 2,
-    borderColor: COLORS.background.paper,
-  },
-  badgeText: {
-    color: COLORS.text.inverse,
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  textCol: {
+  tile: {
     flex: 1,
     minWidth: 0,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    minHeight: 108,
+  },
+  tileTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.sm,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.neutral.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
-  sub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+  subtitle: {
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    marginTop: 1,
+    marginTop: 2,
+  },
+  badge: {
+    backgroundColor: COLORS.primary[500],
+    borderRadius: BORDERS.radius.full,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  badgeText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.inverse,
+    fontSize: TYPOGRAPHY.fontSize.xs,
   },
 });
 

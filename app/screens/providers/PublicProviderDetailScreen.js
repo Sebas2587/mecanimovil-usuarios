@@ -6,15 +6,14 @@ import {
   ScrollView,
   StatusBar,
   Platform,
-  TouchableOpacity,
   Linking,
   Share,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { MapPin } from 'lucide-react-native';
+import { MapPin, Globe, Star, Smartphone, Apple, Play } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
-import { buildPublicProviderUrl, buildDeepLinkProviderUrl } from '../../config/publicListing';
+import { buildPublicProviderUrl, buildDeepLinkProviderUrl, getAppStoreUrl, getPlayStoreUrl } from '../../config/publicListing';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
@@ -23,7 +22,7 @@ import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
 import ProviderCatalogServiceCard from '../../components/provider/ProviderCatalogServiceCard';
 import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
 import ProviderTeamSection from '../../components/provider/ProviderTeamSection';
-import MarketplaceDownloadBanner from '../../components/marketplace/MarketplaceDownloadBanner';
+import Button from '../../components/base/Button/Button';
 
 import { fetchPublicProviderFicha, getProviderReviews } from '../../services/providers';
 import {
@@ -45,6 +44,9 @@ import { goBackFromProviderProfile } from '../../utils/navigationBack';
 import { useProviderTeam } from '../../hooks/useProviders';
 
 const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
+
+/** Divisor hairline entre secciones — patrón Airbnb. */
+const Divider = () => <View style={styles.divider} />;
 
 const PublicProviderDetailScreen = () => {
   const navigation = useNavigation();
@@ -228,12 +230,12 @@ const PublicProviderDetailScreen = () => {
       <View style={[styles.container, styles.centerContent]}>
         <StatusBar barStyle="dark-content" />
         <Text style={styles.errorText}>Enlace de perfil no válido o incompleto.</Text>
-        <TouchableOpacity
-          style={styles.fallbackPrimaryButton}
+        <Button
+          title="Ir a iniciar sesión"
+          type="primary"
           onPress={() => navigation.navigate(ROUTES.LOGIN)}
-        >
-          <Text style={styles.fallbackPrimaryText}>Ir a iniciar sesión</Text>
-        </TouchableOpacity>
+          style={styles.fallbackPrimaryButton}
+        />
       </View>
     );
   }
@@ -255,12 +257,19 @@ const PublicProviderDetailScreen = () => {
           {loadError ||
             'No se pudo cargar la ficha del especialista. Comprueba tu conexión e inténtalo de nuevo.'}
         </Text>
-        <TouchableOpacity style={styles.fallbackPrimaryButton} onPress={() => reload()}>
-          <Text style={styles.fallbackPrimaryText}>Reintentar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={{ marginTop: 16 }} onPress={() => navigation.navigate(ROUTES.LOGIN)}>
-          <Text style={styles.linkText}>Iniciar sesión</Text>
-        </TouchableOpacity>
+        <Button
+          title="Reintentar"
+          type="primary"
+          onPress={() => reload()}
+          style={styles.fallbackPrimaryButton}
+        />
+        <Button
+          title="Iniciar sesión"
+          type="primary"
+          variant="text"
+          onPress={() => navigation.navigate(ROUTES.LOGIN)}
+          style={styles.fallbackLinkButton}
+        />
       </View>
     );
   }
@@ -278,8 +287,36 @@ const PublicProviderDetailScreen = () => {
       />
 
       <View style={styles.bannerWrap}>
-        <MarketplaceDownloadBanner forPublicProfile />
+        <View style={styles.downloadBanner}>
+          <View style={styles.downloadBannerTitleRow}>
+            <Smartphone size={20} color={COLORS.primary[500]} strokeWidth={2} />
+            <Text style={styles.downloadBannerTitle}>Consigue MecaniMóvil</Text>
+          </View>
+          <Text style={styles.downloadBannerSub}>
+            Descarga la app para solicitar servicios, chatear con el especialista y agendar.
+          </Text>
+          <View style={styles.downloadBannerActions}>
+            <Button
+              title="App Store"
+              type="primary"
+              size="sm"
+              iconNode={<Apple size={18} color={COLORS.text.onPrimary} strokeWidth={2} />}
+              onPress={() => Linking.openURL(getAppStoreUrl()).catch(() => {})}
+              style={styles.downloadBannerBtn}
+            />
+            <Button
+              title="Google Play"
+              type="secondary"
+              size="sm"
+              iconNode={<Play size={18} color={COLORS.text.primary} strokeWidth={2} />}
+              onPress={() => Linking.openURL(getPlayStoreUrl()).catch(() => {})}
+              style={styles.downloadBannerBtn}
+            />
+          </View>
+        </View>
       </View>
+
+      <Divider />
 
       {/* Cobertura / Dirección */}
       {(() => {
@@ -338,6 +375,8 @@ const PublicProviderDetailScreen = () => {
         );
       })()}
 
+      <Divider />
+
       {/* Cobertura de marcas */}
       {(() => {
         const tipoCobertura = provider?.tipo_cobertura_marca;
@@ -352,7 +391,9 @@ const PublicProviderDetailScreen = () => {
 
             {esMultimarca ? (
               <View style={styles.multimarcaBadge}>
-                <Text style={styles.multimarcaBadgeIcon}>🌐</Text>
+                <View style={styles.multimarcaBadgeIconWrap}>
+                  <Globe size={24} color={COLORS.primary[600]} />
+                </View>
                 <View>
                   <Text style={styles.multimarcaBadgeTitle}>Proveedor Multimarca</Text>
                   <Text style={styles.multimarcaBadgeSub}>Atiende vehículos de cualquier marca</Text>
@@ -362,7 +403,13 @@ const PublicProviderDetailScreen = () => {
               <View style={styles.tagsRow}>
                 {(provider.marcas_atendidas_nombres || []).map((brand, i) => (
                   <View key={i} style={[styles.tagBadge, styles.tagBadgeSpecialista]}>
-                    <Text style={styles.tagText}>⭐ {brand}</Text>
+                    <Star
+                      size={12}
+                      color={COLORS.secondary[600]}
+                      fill={COLORS.secondary[500]}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={[styles.tagText, styles.tagTextEspecialista]}>{brand}</Text>
                   </View>
                 ))}
               </View>
@@ -371,17 +418,23 @@ const PublicProviderDetailScreen = () => {
         );
       })()}
 
+      <Divider />
+
       {tieneEquipoPublico ? (
         <ProviderTeamSection miembros={equipoPublico} />
       ) : (
         <ProviderScheduleSection horarios={details?.horarios_semanales || []} />
       )}
 
+      <Divider />
+
       <TrustSection documents={documents || []} />
+
+      <Divider />
 
       {/* SECCIÓN DE SERVICIOS PÚBLICA */}
       {serviciosVisibles.length > 0 ? (
-        <View style={styles.section}>
+        <View style={[styles.section, styles.sectionLast]}>
           <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
           {esMultimarcaProveedor ? (
             <Text style={styles.sectionHint}>
@@ -416,20 +469,20 @@ const PublicProviderDetailScreen = () => {
       <PortfolioCarousel portfolio={provider.portafolio || []} />
 
       {/* CTA Login */}
-      <View style={[styles.section, { marginTop: 20, marginBottom: 40 }]}>
+      <View style={[styles.section, styles.ctaSection]}>
         <Card style={styles.ctaCard}>
           <Text style={styles.ctaTitle}>¿Necesitas un servicio?</Text>
           <Text style={styles.ctaText}>
             Inicia sesión para solicitar presupuestos, chatear con este especialista y agendar tu
             atención.
           </Text>
-          <TouchableOpacity
-            style={styles.ctaButton}
+          <Button
+            title="Iniciar Sesión"
+            type="primary"
+            size="lg"
+            fullWidth
             onPress={() => navigation.navigate(ROUTES.LOGIN)}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.ctaButtonText}>Iniciar Sesión</Text>
-          </TouchableOpacity>
+          />
         </Card>
       </View>
     </>
@@ -475,12 +528,59 @@ const styles = StyleSheet.create({
   },
   bannerWrap: {
     paddingHorizontal: SPACING.container.horizontal,
-    marginTop: -36,
-    marginBottom: 8,
+    marginTop: SPACING.lg,
+  },
+  downloadBanner: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDERS.radius.lg,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+  },
+  downloadBannerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  downloadBannerTitle: {
+    fontSize: TYPOGRAPHY.fontSize.md,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+  },
+  downloadBannerSub: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    lineHeight: 18,
+    marginBottom: 14,
+  },
+  downloadBannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  downloadBannerBtn: {
+    flex: 1,
+    minWidth: 142,
+    maxWidth: Platform.OS === 'web' ? 220 : 200,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border.light,
+    marginHorizontal: SPACING.container.horizontal,
+    marginVertical: SPACING.lg,
   },
   section: {
     paddingHorizontal: SPACING.container.horizontal,
-    marginBottom: 20,
+  },
+  sectionLast: {
+    marginBottom: SPACING.lg,
+  },
+  ctaSection: {
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.xl + SPACING.xs,
   },
   iconTitleRow: {
     flexDirection: 'row',
@@ -559,8 +659,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.primary[100],
   },
-  multimarcaBadgeIcon: {
-    fontSize: 28,
+  multimarcaBadgeIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.primary[100],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   multimarcaBadgeTitle: {
     fontSize: TYPOGRAPHY.fontSize.base,
@@ -573,8 +678,11 @@ const styles = StyleSheet.create({
     color: COLORS.primary[500],
   },
   tagBadgeSpecialista: {
-    backgroundColor: COLORS.success?.light || '#EAF9EF',
-    borderColor: COLORS.success?.main || '#05b169',
+    backgroundColor: COLORS.secondary[50],
+    borderColor: COLORS.secondary[200],
+  },
+  tagTextEspecialista: {
+    color: COLORS.secondary[700],
   },
   tagsRow: {
     flexDirection: 'row',
@@ -618,33 +726,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 20,
   },
-  ctaButton: {
-    width: '100%',
-    paddingVertical: 14,
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
-    backgroundColor: COLORS.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  ctaButtonText: {
-    color: COLORS.text.inverse,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
   fallbackPrimaryButton: {
-    marginTop: 20,
+    marginTop: SPACING.lg,
     width: '85%',
     maxWidth: 320,
-    paddingVertical: 14,
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
-    backgroundColor: COLORS.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  fallbackPrimaryText: {
-    color: COLORS.text.inverse,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  fallbackLinkButton: {
+    marginTop: SPACING.md,
   },
   errorText: {
     color: COLORS.text.primary,
@@ -652,11 +740,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: TYPOGRAPHY.fontSize.base,
     lineHeight: 22,
-  },
-  linkText: {
-    color: COLORS.primary[500],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
   },
 });
 

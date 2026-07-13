@@ -5,11 +5,10 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
-import MarketplaceVehicleDetailScreen from '../screens/marketplace/MarketplaceVehicleDetailScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import { ROUTES } from '../utils/constants';
-import { getMarketplaceVehicleIdFromWebPath, getPublicProviderFromWebPath } from '../utils/publicListingRoute';
+import { getPublicProviderFromWebPath } from '../utils/publicListingRoute';
 import { COLORS } from '../design-system/tokens';
 import SplashScreen from '../components/utils/SplashScreen';
 import PlatformAlertHost from '../components/common/PlatformAlertHost';
@@ -49,12 +48,11 @@ const authLegalWebScreenOptions = Platform.OS === 'web'
   : {};
 
 /**
- * Navegador para autenticación. Si la URL es una ficha pública (web), abre el detalle
- * del marketplace primero — sin forzar login a visitantes sin app / sin cuenta.
+ * Navegador para autenticación. Si la URL es una ficha pública de proveedor (web), abre el detalle
+ * primero — sin forzar login a visitantes sin app / sin cuenta.
+ * Deep links de marketplace/vehicle se ignoran (pantalla eliminada).
  */
-const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehicleIdProp }) => {
-  const fromVehiclePath = Platform.OS === 'web' ? getMarketplaceVehicleIdFromWebPath() : null;
-  const marketplaceVehicleId = marketplaceVehicleIdProp ?? fromVehiclePath;
+const AuthNavigator = ({ registerSuccess }) => {
   const publicProviderData = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
 
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
@@ -77,13 +75,12 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
 
   const initialRouteName = useMemo(() => {
     if (publicProviderData) return ROUTES.PROVIDER_DETAIL;
-    if (marketplaceVehicleId) return ROUTES.MARKETPLACE_VEHICLE_DETAIL;
     if (registerSuccess) return ROUTES.REGISTER;
     if (hasSeenOnboarding === false) return ROUTES.ONBOARDING;
     return ROUTES.LOGIN;
-  }, [publicProviderData, marketplaceVehicleId, registerSuccess, hasSeenOnboarding]);
+  }, [publicProviderData, registerSuccess, hasSeenOnboarding]);
 
-  if (hasSeenOnboarding == null && !publicProviderData && !marketplaceVehicleId && !registerSuccess) {
+  if (hasSeenOnboarding == null && !publicProviderData && !registerSuccess) {
     return <SplashScreen />;
   }
 
@@ -94,7 +91,7 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
       screenOptions={{
         headerShown: false,
         // No usar opacity: progress en la card inicial: en Android release el progress puede
-        // quedar en 0 un tiempo → pantalla “gris” (fondo nativo) y sin UI.
+        // quedar en 0 un tiempo → pantalla "gris" (fondo nativo) y sin UI.
         cardStyle: { backgroundColor: COLORS.background.default },
       }}
     >
@@ -105,7 +102,7 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
           Platform.OS === 'web'
             ? {
                 cardStyle: {
-                  backgroundColor: COLORS.base?.inkBlack ?? '#0B1220',
+                  backgroundColor: COLORS.base.inkBlack,
                   flex: 1,
                   width: '100%',
                   height: '100vh',
@@ -150,16 +147,6 @@ const AuthNavigator = ({ registerSuccess, marketplaceVehicleId: marketplaceVehic
                   WebkitOverflowScrolling: 'touch',
                 },
               }
-            : undefined
-        }
-      />
-      <Stack.Screen
-        name={ROUTES.MARKETPLACE_VEHICLE_DETAIL}
-        component={MarketplaceVehicleDetailScreen}
-        options={{ headerShown: false }}
-        initialParams={
-          marketplaceVehicleId != null && !Number.isNaN(marketplaceVehicleId)
-            ? { vehicleId: marketplaceVehicleId }
             : undefined
         }
       />

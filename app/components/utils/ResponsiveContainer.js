@@ -9,7 +9,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SPACING } from '../../utils/constants';
+import { COLORS, SPACING } from '../../design-system/tokens';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -28,8 +28,8 @@ const ResponsiveContainer = ({
   scrollable = false,
   keyboardAware = true,
   statusBarStyle = 'dark-content',
-  statusBarBackgroundColor = COLORS.background,
-  backgroundColor = COLORS.background,
+  statusBarBackgroundColor = COLORS.background.default,
+  backgroundColor = COLORS.background.default,
   padding = SPACING.md,
   showsVerticalScrollIndicator = false,
   refreshControl,

@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
+import { COLORS } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 // Using linear gradient or just solid colors based on design? User said dynamic background for icon.
 
 // 0. Category Images Mapping
@@ -33,20 +34,18 @@ const RequestCard = ({ request, onPress }) => {
     const getStatusConfig = (status, offersCount) => {
         // Ofertas adicionales pendientes: priorizar sobre completada/finalizada
         if (status === 'ofertas_adicionales_pendientes') {
-            return { bg: '#FEF3C7', color: '#B45309' }; // Amber: por revisar
+            return { bg: COLORS.warning[100], color: COLORS.warning[700] };
         }
-        // Green for active/offers
         if (status === 'con_ofertas' || (offersCount && offersCount > 0)) {
-            return { bg: '#DCFCE7', color: '#15803D' };
+            return { bg: COLORS.success[100], color: COLORS.success[600] };
         }
-        // Blue for other active states
         if (['aceptada_por_proveedor', 'en_proceso', 'checklist_en_progreso', 'en_ejecucion'].includes(status)) {
-            return { bg: '#DBEAFE', color: '#1E40AF' };
+            return { bg: COLORS.info[100], color: COLORS.info[700] };
         }
         if (status === 'completada') {
-            return { bg: '#D1FAE5', color: '#047857' }; // Green completed
+            return { bg: COLORS.success[100], color: COLORS.success[700] };
         }
-        return { bg: '#F3F4F6', color: '#4B5563' };
+        return { bg: COLORS.neutral.gray[100], color: COLORS.text.secondary };
     };
 
     const statusEfectivo = request.estado_efectivo ?? request.estado;
@@ -116,7 +115,7 @@ const RequestCard = ({ request, onPress }) => {
                         // contentFit="contain" // Maybe better for icons? No, cover fills the box.
                         />
                     ) : (
-                        <Ionicons name={categoryIcon} size={20} color={colors.primary?.main || '#003459'} />
+                        <Icon name={categoryIcon} size={20} color={colors.primary?.main || COLORS.primary[500]} />
                     )}
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
@@ -133,7 +132,7 @@ const RequestCard = ({ request, onPress }) => {
                 </Text>
 
                 <View style={styles.vehicleRow}>
-                    <Ionicons name="car-sport" size={14} color="#6B7280" />
+                    <Icon name="car-sport" size={14} color={COLORS.text.tertiary} />
                     <Text style={styles.vehicleName} numberOfLines={1}>
                         {vehicleName}
                     </Text>
@@ -160,8 +159,8 @@ const RequestCard = ({ request, onPress }) => {
                                             cachePolicy="memory-disk"
                                         />
                                     ) : (
-                                        <View style={[styles.miniAvatar, { backgroundColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' }]}>
-                                            <Ionicons name="person" size={14} color="#FFFFFF" />
+                                        <View style={[styles.miniAvatar, { backgroundColor: COLORS.neutral.gray[300], justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Icon name="person" size={14} color={COLORS.text.inverse} />
                                         </View>
                                     )}
                                 </View>
@@ -180,7 +179,7 @@ const RequestCard = ({ request, onPress }) => {
                 {/* Always show time remaining if available */}
                 {request.tiempo_restante && (
                     <View style={styles.timeBadge}>
-                        <Ionicons name="time" size={12} color={colors.secondary?.[500] || '#007EA7'} />
+                        <Icon name="time" size={12} color={colors.secondary?.[500] || COLORS.secondary[500]} />
                         <Text style={styles.timeText}>
                             {request.tiempo_restante}
                         </Text>
@@ -200,13 +199,13 @@ const getStyles = (theme) => {
     return StyleSheet.create({
         container: {
             width: 280,
-            backgroundColor: '#FFFFFF',
-            borderRadius: 12, // Matched HomeVehicleCard (was 24)
-            padding: 12,      // Matched HomeVehicleCard (was 16)
+            backgroundColor: COLORS.background.paper,
+            borderRadius: 12,
+            padding: 12,
             marginRight: 16,
             borderWidth: 1,
-            borderColor: '#E5E7EB', // Matched HomeVehicleCard (was #F3F4F6)
-            shadowColor: '#000',
+            borderColor: COLORS.border.light,
+            shadowColor: COLORS.base.inkBlack,
             shadowOffset: { width: 0, height: 1 }, // Matched HomeVehicleCard
             shadowOpacity: 0.05,
             shadowRadius: 2, // Matched HomeVehicleCard
@@ -224,7 +223,7 @@ const getStyles = (theme) => {
             width: 40,
             height: 40,
             borderRadius: 16,
-            backgroundColor: '#EFF6FF', // Blue 50
+            backgroundColor: COLORS.primary[50],
             justifyContent: 'center',
             alignItems: 'center',
         },
@@ -254,7 +253,7 @@ const getStyles = (theme) => {
         serviceTitle: {
             fontSize: 14,
             fontWeight: '600',
-            color: '#111827',
+            color: COLORS.text.primary,
             marginBottom: 4,
             lineHeight: 20,
         },
@@ -266,11 +265,11 @@ const getStyles = (theme) => {
         vehicleName: {
             fontSize: 12,
             fontWeight: '500',
-            color: '#6B7280',
+            color: COLORS.text.tertiary,
             maxWidth: 120,
         },
         plateBadge: {
-            backgroundColor: '#F3F4F6',
+            backgroundColor: COLORS.neutral.gray[100],
             paddingHorizontal: 6,
             paddingVertical: 2,
             borderRadius: 4,
@@ -278,7 +277,7 @@ const getStyles = (theme) => {
         plateText: {
             fontSize: 10,
             fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-            color: '#6B7280',
+            color: COLORS.text.tertiary,
             fontWeight: '600',
         },
         footer: {
@@ -287,7 +286,7 @@ const getStyles = (theme) => {
             alignItems: 'center',
             paddingTop: 12,
             borderTopWidth: 1,
-            borderTopColor: '#F9FAFB',
+            borderTopColor: COLORS.background.default,
         },
         offersContainer: {
             flexDirection: 'row',
@@ -309,26 +308,26 @@ const getStyles = (theme) => {
             width: 24,
             height: 24,
             borderRadius: 12,
-            backgroundColor: '#E5E7EB',
+            backgroundColor: COLORS.neutral.gray[200],
             borderWidth: 2,
-            borderColor: '#FFFFFF',
+            borderColor: COLORS.background.paper,
         },
         offersText: {
             fontSize: 12,
             fontWeight: '600',
-            color: '#374151',
+            color: COLORS.neutral.gray[700],
             marginLeft: 4,
         },
         noOffersText: {
             fontSize: 12,
-            color: '#9CA3AF',
+            color: COLORS.neutral.gray[400],
             fontStyle: 'italic',
             fontWeight: '500',
         },
         timeBadge: {
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: '#EFF6FF',
+            backgroundColor: COLORS.primary[50],
             paddingHorizontal: 8,
             paddingVertical: 4,
             borderRadius: 12,
@@ -337,7 +336,7 @@ const getStyles = (theme) => {
         timeText: {
             fontSize: 12,
             fontWeight: '600',
-            color: colors.secondary?.[500] || '#007EA7',
+            color: colors.secondary?.[500] || COLORS.secondary[500],
         }
     });
 };

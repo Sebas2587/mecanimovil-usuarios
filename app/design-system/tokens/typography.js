@@ -1,30 +1,30 @@
 /**
- * Sistema de Tipografía MecaniMóvil
- * Escala tipográfica consistente
- * 
- * IMPORTANTE: Este archivo NO debe tener ninguna lógica condicional
- * para evitar problemas con el motor Hermes de React Native
+ * Tipografía MecaniMóvil — Poppins (Airbnb-style)
  */
+
+const POPPINS = 'Poppins_400Regular';
+const POPPINS_MEDIUM = 'Poppins_500Medium';
+const POPPINS_SEMIBOLD = 'Poppins_600SemiBold';
 
 const TYPOGRAPHY = Object.freeze({
   fontFamily: Object.freeze({
-    regular: 'System',
-    medium: 'System',
-    bold: 'System',
-    /** Números / importes — ver design-system Coinbase (mono) */
+    regular: POPPINS,
+    medium: POPPINS_MEDIUM,
+    bold: POPPINS_SEMIBOLD,
+    semibold: POPPINS_SEMIBOLD,
     mono: 'monospace',
   }),
   fontSize: Object.freeze({
     xs: 10,
-    sm: 12,
-    base: 14,
-    md: 16,
-    lg: 18,
+    sm: 11,
+    base: 13,
+    md: 15,
+    lg: 17,
     xl: 20,
     '2xl': 24,
-    '3xl': 28,
-    '4xl': 32,
-    '5xl': 36,
+    '3xl': 30,
+    '4xl': 34,
+    '5xl': 40,
   }),
   fontWeight: Object.freeze({
     light: '300',
@@ -35,9 +35,9 @@ const TYPOGRAPHY = Object.freeze({
   }),
   lineHeight: Object.freeze({
     tight: 1.2,
-    normal: 1.5,
-    relaxed: 1.75,
-    loose: 2,
+    normal: 1.45,
+    relaxed: 1.6,
+    loose: 1.75,
   }),
   letterSpacing: Object.freeze({
     tighter: -0.5,
@@ -45,85 +45,110 @@ const TYPOGRAPHY = Object.freeze({
     normal: 0,
     wide: 0.25,
     wider: 0.5,
+    section: 0.8,
   }),
   styles: Object.freeze({
     h1: Object.freeze({
-      fontSize: 32,
-      fontWeight: '400',
-      lineHeight: 1.2,
+      fontSize: 30,
+      fontFamily: POPPINS_SEMIBOLD,
+      fontWeight: '600',
+      lineHeight: 36,
       letterSpacing: -0.5,
     }),
     h2: Object.freeze({
-      fontSize: 28,
-      fontWeight: '400',
-      lineHeight: 1.2,
-      letterSpacing: -0.5,
+      fontSize: 24,
+      fontFamily: POPPINS_SEMIBOLD,
+      fontWeight: '600',
+      lineHeight: 30,
+      letterSpacing: -0.25,
     }),
     h3: Object.freeze({
       fontSize: 20,
+      fontFamily: POPPINS_SEMIBOLD,
       fontWeight: '600',
-      lineHeight: 1.3,
+      lineHeight: 26,
       letterSpacing: -0.25,
     }),
     h4: Object.freeze({
-      fontSize: 18,
+      fontSize: 17,
+      fontFamily: POPPINS_SEMIBOLD,
       fontWeight: '600',
-      lineHeight: 1.4,
+      lineHeight: 22,
       letterSpacing: 0,
     }),
+    h5: Object.freeze({
+      fontSize: 15,
+      fontFamily: POPPINS_MEDIUM,
+      fontWeight: '500',
+      lineHeight: 20,
+      letterSpacing: 0,
+    }),
+    h6: Object.freeze({
+      fontSize: 13,
+      fontFamily: POPPINS_MEDIUM,
+      fontWeight: '500',
+      lineHeight: 16,
+      letterSpacing: 0.8,
+      textTransform: 'uppercase',
+    }),
     body: Object.freeze({
-      fontSize: 16,
+      fontSize: 15,
+      fontFamily: POPPINS,
       fontWeight: '400',
-      lineHeight: 1.5,
+      lineHeight: 22,
       letterSpacing: 0,
     }),
     bodyBold: Object.freeze({
-      fontSize: 16,
+      fontSize: 15,
+      fontFamily: POPPINS_SEMIBOLD,
       fontWeight: '600',
-      lineHeight: 1.5,
+      lineHeight: 22,
       letterSpacing: 0,
     }),
     caption: Object.freeze({
-      fontSize: 14,
+      fontSize: 13,
+      fontFamily: POPPINS,
       fontWeight: '400',
-      lineHeight: 1.5,
+      lineHeight: 18,
       letterSpacing: 0,
     }),
     captionBold: Object.freeze({
-      fontSize: 14,
+      fontSize: 13,
+      fontFamily: POPPINS_SEMIBOLD,
       fontWeight: '600',
-      lineHeight: 1.5,
+      lineHeight: 18,
       letterSpacing: 0,
     }),
     small: Object.freeze({
-      fontSize: 12,
+      fontSize: 11,
+      fontFamily: POPPINS,
       fontWeight: '400',
-      lineHeight: 1.5,
+      lineHeight: 14,
       letterSpacing: 0,
     }),
     button: Object.freeze({
-      fontSize: 16,
+      fontSize: 15,
+      fontFamily: POPPINS_SEMIBOLD,
       fontWeight: '600',
-      lineHeight: 1.2,
+      lineHeight: 20,
       letterSpacing: 0,
     }),
     label: Object.freeze({
-      fontSize: 14,
+      fontSize: 13,
+      fontFamily: POPPINS_MEDIUM,
       fontWeight: '500',
-      lineHeight: 1.4,
+      lineHeight: 18,
       letterSpacing: 0,
     }),
-    /** Montos y métricas destacadas (panel, pagos, KPIs) */
     numberDisplay: Object.freeze({
-      fontSize: 32,
-      fontWeight: '700',
-      lineHeight: 38,
-      letterSpacing: -0.75,
-      fontFamily: 'monospace',
+      fontSize: 30,
+      fontFamily: POPPINS_SEMIBOLD,
+      fontWeight: '600',
+      lineHeight: 36,
+      letterSpacing: -0.5,
     }),
   }),
 });
 
 export { TYPOGRAPHY };
 export default TYPOGRAPHY;
-

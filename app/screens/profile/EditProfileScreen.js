@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { User, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { useAuth } from '../../context/AuthContext';
@@ -220,11 +220,11 @@ const EditProfileScreen = () => {
               <Image source={{ uri: profileImage }} style={styles.avatar} />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Ionicons name="person" size={40} color={COLORS.text.tertiary} />
+                <User size={40} color={COLORS.text.tertiary} strokeWidth={1.75} />
               </View>
             )}
             <View style={styles.cameraBadge}>
-              <Ionicons name="camera" size={14} color={COLORS.text.onPrimary} />
+              <Camera size={14} color={COLORS.text.onPrimary} strokeWidth={2} />
             </View>
           </TouchableOpacity>
         </View>

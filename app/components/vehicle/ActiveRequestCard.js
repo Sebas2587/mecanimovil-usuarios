@@ -4,7 +4,6 @@ import { ArrowRight } from 'lucide-react-native';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
-import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 const ActiveRequestCard = ({ request, onPress }) => {
@@ -77,7 +76,6 @@ const styles = StyleSheet.create({
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
         overflow: 'hidden',
-        ...SHADOWS.md,
     },
     header: {
         flexDirection: 'row',

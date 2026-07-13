@@ -1,18 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, StatusBar, TouchableOpacity, Platform, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, StatusBar, Platform, useWindowDimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LogOut } from 'lucide-react-native';
 import { TAB_BAR_BASE_HEIGHT } from '../../components/home/shared/homeLayoutConstants';
-import { Ionicons } from '@expo/vector-icons';
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import { confirmDestructive } from '../../utils/platformAlert';
-import { COLORS, SPACING, BORDERS } from '../../design-system/tokens';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
+import Button from '../../components/base/Button/Button';
 
 import MemberCard from '../../components/profile/MemberCard';
 import ProfileMenuSection from '../../components/profile/ProfileMenuSection';
 import ProfileMenuItem from '../../components/profile/ProfileMenuItem';
+
+const ICON_STROKE = 1.75;
 
 const UserProfileScreen = () => {
   const navigation = useNavigation();
@@ -66,24 +69,23 @@ const UserProfileScreen = () => {
         <View style={styles.content}>
           <ProfileMenuSection title="GESTIÓN">
             <ProfileMenuItem
+              icon="car-sport-outline"
+              label="Mis vehículos"
+              onPress={() => navigation.navigate(ROUTES.VEHICLES_LIST)}
+            />
+            <ProfileMenuItem
               icon="receipt-outline"
               label="Historial de Pagos"
-              iconBgColor={COLORS.primary[50]}
-              iconColor={COLORS.primary[600]}
               onPress={() => navigation.navigate(ROUTES.HISTORIAL_PAGOS)}
             />
             <ProfileMenuItem
               icon="star-outline"
               label="Calificaciones Pendientes"
-              iconBgColor={COLORS.warning[50]}
-              iconColor={COLORS.warning[600]}
               onPress={() => navigation.navigate(ROUTES.PENDING_REVIEWS)}
             />
             <ProfileMenuItem
               icon="heart-outline"
               label="Favoritos"
-              iconBgColor={COLORS.error.light}
-              iconColor={COLORS.error.main}
               isLast
               onPress={() => navigation.navigate(ROUTES.FAVORITE_PROVIDERS)}
             />
@@ -93,31 +95,31 @@ const UserProfileScreen = () => {
             <ProfileMenuItem
               icon="headset-outline"
               label="Ayuda y Chat"
-              iconBgColor={COLORS.success.light}
-              iconColor={COLORS.success[700]}
               onPress={() => navigation.navigate(ROUTES.SUPPORT)}
             />
             <ProfileMenuItem
               icon="document-text-outline"
               label="Términos y Condiciones"
-              iconBgColor={COLORS.neutral.gray[100]}
-              iconColor={COLORS.text.secondary}
               onPress={() => navigation.navigate(ROUTES.TERMS)}
             />
             <ProfileMenuItem
               icon="shield-checkmark-outline"
               label="Política de Privacidad"
-              iconBgColor={COLORS.neutral.gray[100]}
-              iconColor={COLORS.text.secondary}
               isLast
               onPress={() => navigation.navigate(ROUTES.PRIVACY_POLICY)}
             />
           </ProfileMenuSection>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.75}>
-            <Ionicons name="log-out-outline" size={20} color={COLORS.error[500]} />
-            <Text style={styles.logoutText}>Cerrar Sesión</Text>
-          </TouchableOpacity>
+          <Button
+            title="Cerrar Sesión"
+            onPress={handleLogout}
+            type="danger"
+            variant="outline"
+            size="md"
+            fullWidth
+            style={styles.logoutButton}
+            iconNode={<LogOut size={20} color={COLORS.error.main} strokeWidth={ICON_STROKE} />}
+          />
 
           <View style={styles.versionContainer}>
             <Text style={styles.versionText}>v2.5.0 • MecaniMóvil Inc.</Text>
@@ -147,30 +149,17 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
-    borderWidth: 1,
-    borderColor: COLORS.error[500],
     marginTop: 8,
+    borderColor: COLORS.error.main,
     backgroundColor: COLORS.error.light,
-    gap: 8,
-  },
-  logoutText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text.primary,
   },
   versionContainer: {
     marginTop: 28,
     alignItems: 'center',
   },
   versionText: {
-    fontSize: 12,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
-    fontWeight: '500',
   },
 });
 

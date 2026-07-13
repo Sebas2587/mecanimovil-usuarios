@@ -1,15 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { CheckCircle2, Gauge, ClipboardList } from 'lucide-react-native';
-import { COLORS } from '../../utils/constants';
-import { COLORS as DS_COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Card from '../base/Card/Card';
 import Avatar from '../base/Avatar/Avatar';
+import Icon from '../base/Icon/Icon';
 
 
 const VehicleHistoryCard = ({ vehiculo, solicitudes, onPress }) => {
@@ -37,7 +36,7 @@ const VehicleHistoryCard = ({ vehiculo, solicitudes, onPress }) => {
         {/* Header del vehículo */}
         <View style={styles.vehicleHeader}>
           <View style={styles.vehicleInfo}>
-            <Ionicons name="car" size={24} color={COLORS.primary} />
+            <Icon name="car" size={24} color={COLORS.primary[500]} />
             <View style={styles.vehicleDetails}>
               <Text style={styles.vehicleName}>
                 {vehiculo.marca_nombre} {vehiculo.modelo_nombre}
@@ -56,15 +55,15 @@ const VehicleHistoryCard = ({ vehiculo, solicitudes, onPress }) => {
         {/* Estadísticas */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: '#28A745' }]}>{completados}</Text>
+            <Text style={[styles.statNumber, { color: COLORS.success.main }]}>{completados}</Text>
             <Text style={styles.statLabel}>Completados</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: '#DC3545' }]}>{cancelados}</Text>
+            <Text style={[styles.statNumber, { color: COLORS.error.main }]}>{cancelados}</Text>
             <Text style={styles.statLabel}>Cancelados</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statNumber, { color: COLORS.primary }]}>
+            <Text style={[styles.statNumber, { color: COLORS.primary[500] }]}>
               ${totalGastado.toLocaleString('es-CL')}
             </Text>
             <Text style={styles.statLabel}>Total Gastado</Text>
@@ -75,7 +74,7 @@ const VehicleHistoryCard = ({ vehiculo, solicitudes, onPress }) => {
         {ultimoServicio && (
           <View style={styles.lastServiceContainer}>
             <View style={styles.lastServiceHeader}>
-              <Ionicons name="time-outline" size={16} color={COLORS.textLight} />
+              <Icon name="time-outline" size={16} color={COLORS.text.secondary} />
               <Text style={styles.lastServiceTitle}>Último servicio:</Text>
             </View>
             <Text style={styles.lastServiceDate}>
@@ -92,7 +91,7 @@ const VehicleHistoryCard = ({ vehiculo, solicitudes, onPress }) => {
         {/* Indicador de ver más */}
         <View style={styles.viewMoreContainer}>
           <Text style={styles.viewMoreText}>Ver historial completo</Text>
-          <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+          <Icon name="chevron-forward" size={16} color={COLORS.primary[500]} />
         </View>
       </TouchableOpacity>
     </Card>
@@ -122,12 +121,12 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginBottom: 2,
   },
   vehicleSubtitle: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
   },
   totalServicesContainer: {
     alignItems: 'center',
@@ -135,11 +134,11 @@ const styles = StyleSheet.create({
   totalServicesNumber: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.primary[500],
   },
   totalServicesLabel: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -147,7 +146,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: COLORS.lightGray,
+    borderColor: COLORS.neutral.gray[300],
     marginBottom: 12,
   },
   statItem: {
@@ -159,11 +158,11 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   lastServiceContainer: {
-    backgroundColor: 'rgba(0, 122, 255, 0.05)',
+    backgroundColor: withOpacity(COLORS.primary[500], 0.05),
     padding: 12,
     borderRadius: 8,
     marginBottom: 12,
@@ -175,18 +174,18 @@ const styles = StyleSheet.create({
   },
   lastServiceTitle: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
     marginLeft: 4,
   },
   lastServiceDate: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginBottom: 2,
   },
   lastServiceName: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
   },
   viewMoreContainer: {
     flexDirection: 'row',
@@ -196,7 +195,7 @@ const styles = StyleSheet.create({
   },
   viewMoreText: {
     fontSize: 14,
-    color: COLORS.primary,
+    color: COLORS.primary[500],
     fontWeight: '600',
     marginRight: 4,
   },
@@ -283,28 +282,28 @@ function resolveHistoryItemCost(item, oferta) {
  */
 function createHistoryRowStyles(isDark) {
   const cardBg = isDark
-    ? withOpacity(DS_COLORS.base.white, 0.06)
-    : DS_COLORS.background.paper;
+    ? withOpacity(COLORS.base.white, 0.06)
+    : COLORS.background.paper;
   const border = isDark
-    ? withOpacity(DS_COLORS.base.white, 0.12)
-    : DS_COLORS.border.light;
-  const textPrimary = isDark ? DS_COLORS.neutral.gray[50] : DS_COLORS.text.primary;
+    ? withOpacity(COLORS.base.white, 0.12)
+    : COLORS.border.light;
+  const textPrimary = isDark ? COLORS.neutral.gray[50] : COLORS.text.primary;
   const textSecondary = isDark
-    ? withOpacity(DS_COLORS.base.white, 0.55)
-    : DS_COLORS.text.secondary;
+    ? withOpacity(COLORS.base.white, 0.55)
+    : COLORS.text.secondary;
   const textMuted = isDark
-    ? withOpacity(DS_COLORS.base.white, 0.45)
-    : DS_COLORS.text.tertiary;
+    ? withOpacity(COLORS.base.white, 0.45)
+    : COLORS.text.tertiary;
   const sectionBg = isDark
-    ? withOpacity(DS_COLORS.base.white, 0.04)
-    : DS_COLORS.neutral.gray[100];
-  const primaryBtn = isDark ? DS_COLORS.primary[200] : DS_COLORS.primary[700];
+    ? withOpacity(COLORS.base.white, 0.04)
+    : COLORS.neutral.gray[100];
+  const primaryBtn = isDark ? COLORS.primary[200] : COLORS.primary[700];
   const primaryBorder = isDark
-    ? withOpacity(DS_COLORS.primary[300], 0.45)
-    : DS_COLORS.primary[200];
+    ? withOpacity(COLORS.primary[300], 0.45)
+    : COLORS.primary[200];
   const primaryBg = isDark
-    ? withOpacity(DS_COLORS.primary[500], 0.12)
-    : DS_COLORS.primary[50];
+    ? withOpacity(COLORS.primary[500], 0.12)
+    : COLORS.primary[50];
 
   return StyleSheet.create({
     rowContainer: {
@@ -355,17 +354,17 @@ function createHistoryRowStyles(isDark) {
       paddingVertical: 2,
       borderRadius: BORDERS.radius.full,
       backgroundColor: isDark
-        ? withOpacity(DS_COLORS.base.white, 0.1)
-        : DS_COLORS.primary[50],
+        ? withOpacity(COLORS.base.white, 0.1)
+        : COLORS.primary[50],
       borderWidth: BORDERS.width.thin,
       borderColor: isDark
-        ? withOpacity(DS_COLORS.base.white, 0.15)
-        : DS_COLORS.primary[100],
+        ? withOpacity(COLORS.base.white, 0.15)
+        : COLORS.primary[100],
     },
     pillTipoText: {
       fontSize: TYPOGRAPHY.fontSize.sm,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: isDark ? DS_COLORS.primary[200] : DS_COLORS.primary[700],
+      color: isDark ? COLORS.primary[200] : COLORS.primary[700],
     },
     pillKm: {
       flexDirection: 'row',
@@ -375,8 +374,8 @@ function createHistoryRowStyles(isDark) {
       paddingVertical: 3,
       borderRadius: BORDERS.radius.md,
       backgroundColor: isDark
-        ? withOpacity(DS_COLORS.base.white, 0.08)
-        : DS_COLORS.neutral.gray[200],
+        ? withOpacity(COLORS.base.white, 0.08)
+        : COLORS.neutral.gray[200],
     },
     pillKmText: {
       fontSize: TYPOGRAPHY.fontSize.sm,
@@ -391,23 +390,23 @@ function createHistoryRowStyles(isDark) {
       paddingVertical: 3,
       borderRadius: BORDERS.radius.md,
       backgroundColor: isDark
-        ? withOpacity(DS_COLORS.success[500], 0.15)
-        : DS_COLORS.success[50],
+        ? withOpacity(COLORS.success[500], 0.15)
+        : COLORS.success[50],
       borderWidth: BORDERS.width.thin,
       borderColor: isDark
-        ? withOpacity(DS_COLORS.success[400], 0.4)
-        : DS_COLORS.success[200],
+        ? withOpacity(COLORS.success[400], 0.4)
+        : COLORS.success[200],
     },
     pillVerifiedText: {
       fontSize: TYPOGRAPHY.fontSize.sm,
       fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: isDark ? DS_COLORS.success[200] : DS_COLORS.success[700],
+      color: isDark ? COLORS.success[200] : COLORS.success[700],
     },
     divider: {
       height: 1,
       backgroundColor: isDark
-        ? withOpacity(DS_COLORS.base.white, 0.08)
-        : DS_COLORS.border.light,
+        ? withOpacity(COLORS.base.white, 0.08)
+        : COLORS.border.light,
       marginVertical: SPACING.md,
     },
     serviceBlock: {
@@ -450,27 +449,27 @@ function createHistoryRowStyles(isDark) {
       minWidth: 0,
       justifyContent: 'flex-end',
       backgroundColor: isDark
-        ? withOpacity(DS_COLORS.success[500], 0.15)
-        : DS_COLORS.success[50],
+        ? withOpacity(COLORS.success[500], 0.15)
+        : COLORS.success[50],
       paddingHorizontal: SPACING.md,
       paddingVertical: SPACING.xs,
       borderRadius: BORDERS.radius.md,
       borderWidth: BORDERS.width.thin,
       borderColor: isDark
-        ? withOpacity(DS_COLORS.success[400], 0.4)
-        : DS_COLORS.success[200],
+        ? withOpacity(COLORS.success[400], 0.4)
+        : COLORS.success[200],
       gap: SPACING.sm,
     },
     costLabel: {
       fontSize: TYPOGRAPHY.fontSize.xs,
-      color: isDark ? DS_COLORS.success[300] : DS_COLORS.success[700],
+      color: isDark ? COLORS.success[300] : COLORS.success[700],
       fontWeight: TYPOGRAPHY.fontWeight.bold,
       textTransform: 'uppercase',
       letterSpacing: TYPOGRAPHY.letterSpacing.wider,
     },
     costValue: {
       fontSize: TYPOGRAPHY.fontSize.md,
-      color: isDark ? DS_COLORS.success[200] : DS_COLORS.success[600],
+      color: isDark ? COLORS.success[200] : COLORS.success[600],
       fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
     checklistButton: {
@@ -559,9 +558,9 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
 
   const displayCostAmount = resolveHistoryItemCost(item, oferta);
   const kmIconColor = isDark
-    ? withOpacity(DS_COLORS.base.white, 0.55)
-    : DS_COLORS.text.tertiary;
-  const checklistChevron = isDark ? DS_COLORS.primary[200] : DS_COLORS.primary[600];
+    ? withOpacity(COLORS.base.white, 0.55)
+    : COLORS.text.tertiary;
+  const checklistChevron = isDark ? COLORS.primary[200] : COLORS.primary[600];
 
   return (
     <View style={s.rowContainer}>
@@ -600,7 +599,7 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
             <View style={s.pillVerified}>
               <CheckCircle2
                 size={12}
-                color={isDark ? DS_COLORS.success[300] : DS_COLORS.success[600]}
+                color={isDark ? COLORS.success[300] : COLORS.success[600]}
               />
               <Text style={s.pillVerifiedText}>Registrado</Text>
             </View>
@@ -634,7 +633,7 @@ export const VehicleServiceHistoryRow = ({ item, onViewChecklist, variant = 'lig
         >
           <ClipboardList size={16} color={checklistChevron} />
           <Text style={s.checklistButtonText}>Ver informe de servicio</Text>
-          <Ionicons name="chevron-forward" size={16} color={checklistChevron} />
+          <Icon name="chevron-forward" size={16} color={checklistChevron} />
         </TouchableOpacity>
       ) : null}
     </View>

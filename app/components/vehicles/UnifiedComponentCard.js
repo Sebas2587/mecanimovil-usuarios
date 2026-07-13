@@ -1,7 +1,28 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { ChevronRight, Cloud, AlertTriangle, Calendar, Gauge, ClipboardEdit, ShieldCheck } from 'lucide-react-native';
+import {
+  ChevronRight,
+  Cloud,
+  AlertTriangle,
+  Calendar,
+  Gauge,
+  ClipboardEdit,
+  ShieldCheck,
+  Wrench,
+  Droplet,
+  Filter,
+  Wind,
+  AirVent,
+  Thermometer,
+  Droplets,
+  CircleStop,
+  Disc,
+  CircleAlert,
+  Zap,
+  Battery,
+  Link,
+  ArrowUpDown,
+} from 'lucide-react-native';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { getHealthColorToken, normalizePct, formatHealthActionWindow } from '../../utils/healthFormat';
 import { SPACING } from '../../design-system/tokens/spacing';
@@ -10,32 +31,27 @@ import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 // ─── Icono por slug ───────────────────────────────────────────────────────────
-const ICON_MAP = {
-  'aceite-motor':        { lib: 'MaterialCommunityIcons', name: 'oil' },
-  'filtro-aceite':       { lib: 'MaterialCommunityIcons', name: 'filter' },
-  'filtro-aire':         { lib: 'MaterialCommunityIcons', name: 'air-filter' },
-  'filtro-cabina':       { lib: 'MaterialCommunityIcons', name: 'air-conditioner' },
-  'refrigerante':        { lib: 'MaterialCommunityIcons', name: 'car-coolant-level' },
-  'adblue':              { lib: 'MaterialCommunityIcons', name: 'water-plus' },
-  'pastillas-freno':     { lib: 'MaterialCommunityIcons', name: 'car-brake-pad' },
-  'discos-freno':        { lib: 'MaterialCommunityIcons', name: 'disc' },
-  'liquido-frenos':      { lib: 'MaterialCommunityIcons', name: 'car-brake-fluid-level' },
-  'neumaticos':          { lib: 'MaterialCommunityIcons', name: 'car-tire-alert' },
-  'bujias':              { lib: 'MaterialCommunityIcons', name: 'spark-plug' },
-  'bateria':             { lib: 'MaterialCommunityIcons', name: 'car-battery' },
-  'correa-distribucion': { lib: 'MaterialCommunityIcons', name: 'link-variant' },
-  'amortiguadores':      { lib: 'MaterialCommunityIcons', name: 'car-shocks' },
-  'dpf':                 { lib: 'MaterialCommunityIcons', name: 'exhaust' },
-  'default':             { lib: 'Ionicons',               name: 'construct-outline' },
+const COMPONENT_ICON_MAP = {
+  'aceite-motor': Droplet,
+  'filtro-aceite': Filter,
+  'filtro-aire': Wind,
+  'filtro-cabina': AirVent,
+  refrigerante: Thermometer,
+  adblue: Droplets,
+  'pastillas-freno': CircleStop,
+  'discos-freno': Disc,
+  'liquido-frenos': Droplet,
+  neumaticos: CircleAlert,
+  bujias: Zap,
+  bateria: Battery,
+  'correa-distribucion': Link,
+  amortiguadores: ArrowUpDown,
+  dpf: Cloud,
 };
 
 function ComponentIcon({ slug, size = 22, color }) {
-  const cfg = ICON_MAP[slug] || ICON_MAP['default'];
-  if (cfg.lib === 'MaterialCommunityIcons')
-    return <MaterialCommunityIcons name={cfg.name} size={size} color={color} />;
-  if (cfg.lib === 'FontAwesome5')
-    return <FontAwesome5 name={cfg.name} size={size} color={color} />;
-  return <Ionicons name={cfg.name} size={size} color={color} />;
+  const Cmp = COMPONENT_ICON_MAP[slug] || Wrench;
+  return <Cmp size={size} color={color} strokeWidth={1.75} />;
 }
 
 // ─── Badge de nivel ────────────────────────────────────────────────────────────

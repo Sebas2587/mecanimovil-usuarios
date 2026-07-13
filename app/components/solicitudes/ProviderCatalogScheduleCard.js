@@ -190,10 +190,10 @@ export default function ProviderCatalogScheduleCard({ proveedor, servicio, tipoP
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.background?.paper || '#FFFFFF',
+    backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius?.lg ?? 12,
     borderWidth: 1,
-    borderColor: COLORS.border?.light || '#E5E7EB',
+    borderColor: COLORS.border.light,
     padding: 16,
     marginBottom: 16,
     ...SHADOWS.sm,
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
   },
   avatarPlaceholder: {
-    backgroundColor: COLORS.primary?.[50] || '#EFF6FF',
+    backgroundColor: COLORS.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   proveedorNombre: {
     fontSize: 17,
     fontWeight: '700',
-    color: COLORS.text?.primary || '#111827',
+    color: COLORS.text.primary,
   },
   metaRow: {
     flexDirection: 'row',
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   },
   meta: {
     fontSize: 13,
-    color: COLORS.text?.secondary || '#6B7280',
+    color: COLORS.text.secondary,
     flex: 1,
   },
   servicioBlock: {
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: COLORS.text?.primary || '#111827',
+    color: COLORS.text.primary,
   },
   badge: {
     flexDirection: 'row',
@@ -257,33 +257,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   badgeConRepuestos: {
-    backgroundColor: COLORS.primary?.[50] || '#EFF6FF',
+    backgroundColor: COLORS.primary[50],
   },
   badgeSinRepuestos: {
-    backgroundColor: COLORS.neutral?.gray?.[100] || '#F3F4F6',
+    backgroundColor: COLORS.neutral.gray[100],
   },
   badgeText: {
     fontSize: 11,
     fontWeight: '600',
   },
   badgeTextCon: {
-    color: COLORS.primary?.[800] || '#1E40AF',
+    color: COLORS.primary[800],
   },
   badgeTextSin: {
-    color: COLORS.neutral?.gray?.[700] || '#374151',
+    color: COLORS.neutral.gray[700],
   },
   descripcion: {
     fontSize: 13,
-    color: COLORS.text?.secondary || '#6B7280',
+    color: COLORS.text.secondary,
     marginTop: 6,
   },
   duracion: {
     fontSize: 12,
-    color: COLORS.text?.disabled || '#9CA3AF',
+    color: COLORS.text.disabled,
     marginTop: 4,
   },
   costContainer: {
-    backgroundColor: COLORS.neutral?.gray?.[50] || '#F9FAFB',
+    backgroundColor: COLORS.neutral.gray[50],
     borderRadius: BORDERS.radius?.md ?? 10,
     padding: 12,
   },
@@ -299,25 +299,25 @@ const styles = StyleSheet.create({
   },
   costLabel: {
     fontSize: 13,
-    color: COLORS.text?.secondary || '#6B7280',
+    color: COLORS.text.secondary,
     flex: 1,
     paddingRight: 8,
   },
   costLabelHighlight: {
-    color: COLORS.text?.primary || '#111827',
+    color: COLORS.text.primary,
     fontWeight: '500',
   },
   costValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.text?.primary || '#111827',
+    color: COLORS.text.primary,
   },
   costValueHighlight: {
-    color: COLORS.primary?.[700] || '#1D4ED8',
+    color: COLORS.primary[700],
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.border?.light || '#E5E7EB',
+    backgroundColor: COLORS.border.light,
     marginVertical: 8,
   },
   totalRow: {
@@ -328,22 +328,22 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.text?.primary || '#111827',
+    color: COLORS.text.primary,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text?.primary || '#111827',
+    color: COLORS.text.primary,
   },
   notaDomicilio: {
     fontSize: 11,
-    color: COLORS.text?.disabled || '#9CA3AF',
+    color: COLORS.text.disabled,
     marginBottom: 6,
     fontStyle: 'italic',
   },
   notaReconciliacion: {
     fontSize: 11,
-    color: COLORS.text?.disabled || '#9CA3AF',
+    color: COLORS.text.disabled,
     marginTop: 8,
   },
 });

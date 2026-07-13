@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Modal, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
   Image,
   FlatList,
   ScrollView,
@@ -12,8 +12,8 @@ import {
   Alert,
   Platform
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../utils/constants';
+import Icon from '../base/Icon/Icon';
+import { COLORS, withOpacity } from '../../design-system/tokens';
 import * as serviceService from '../../services/service';
 // ModalAgendamiento eliminado - flujo antiguo de agendamiento
 // import ModalAgendamiento from './agendamiento/ModalAgendamiento';
@@ -94,31 +94,31 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
     return (
       <View style={styles.starsContainer}>
         {[...Array(fullStars)].map((_, i) => (
-          <Ionicons 
+          <Icon 
             key={`full-${i}`} 
             name="star" 
             size={size} 
-            color="#FFD700" 
+            color={COLORS.warning.main} 
             style={styles.starIcon} 
           />
         ))}
         
         {halfStar && (
-          <Ionicons 
+          <Icon 
             key="half" 
             name="star-half" 
             size={size} 
-            color="#FFD700" 
+            color={COLORS.warning.main} 
             style={styles.starIcon} 
           />
         )}
         
         {[...Array(emptyStars)].map((_, i) => (
-          <Ionicons 
+          <Icon 
             key={`empty-${i}`} 
             name="star-outline" 
             size={size} 
-            color="#FFD700" 
+            color={COLORS.warning.main} 
             style={styles.starIcon} 
           />
         ))}
@@ -247,7 +247,7 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
           {/* Encabezado del modal */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={COLORS.textDark} />
+              <Icon name="close" size={24} color={COLORS.text.primary} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Detalle del Servicio</Text>
           </View>
@@ -266,7 +266,7 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
                 />
               ) : (
                 <View style={styles.servicePlaceholder}>
-                  <Ionicons name="construct" size={60} color={COLORS.primary} />
+                  <Icon name="construct" size={60} color={COLORS.primary[500]} />
                 </View>
               )}
             </View>
@@ -281,7 +281,7 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
             <View style={styles.providerCard}>
               <View style={styles.providerHeader}>
                 <View style={styles.providerIcon}>
-                  <Ionicons name={providerInfo.icon} size={24} color={COLORS.white} />
+                  <Icon name={providerInfo.icon} size={24} color={COLORS.text.inverse} />
                 </View>
                 <View style={styles.providerInfo}>
                   <Text style={styles.providerName}>{providerInfo.name}</Text>
@@ -307,7 +307,7 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
             <View style={styles.serviceDetailsContainer}>
               {/* Duración estimada */}
               <View style={styles.serviceDetail}>
-                <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+                <Icon name="time-outline" size={20} color={COLORS.primary[500]} />
                 <Text style={styles.serviceDetailText}>
                   {formatDuration()}
                 </Text>
@@ -316,7 +316,7 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
               {/* Ofertas disponibles */}
               {service.ofertas_disponibles && service.ofertas_disponibles.total > 0 && (
                 <View style={styles.serviceDetail}>
-                  <Ionicons name="pricetag-outline" size={20} color={COLORS.secondary} />
+                  <Icon name="pricetag-outline" size={20} color={COLORS.secondary[500]} />
                   <Text style={styles.serviceDetailText}>
                     {service.ofertas_disponibles.total} ofertas disponibles
                   </Text>
@@ -326,10 +326,10 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
               {/* Requiere repuestos */}
               {service.requiere_repuestos !== undefined && (
                 <View style={styles.serviceDetail}>
-                  <Ionicons 
+                  <Icon 
                     name={service.requiere_repuestos ? "build-outline" : "checkmark-circle-outline"} 
                     size={20} 
-                    color={service.requiere_repuestos ? COLORS.warning : COLORS.success} 
+                    color={service.requiere_repuestos ? COLORS.warning[500] : COLORS.success[500]} 
                   />
                   <Text style={styles.serviceDetailText}>
                     {service.requiere_repuestos ? 'Puede requerir repuestos' : 'No requiere repuestos'}
@@ -370,11 +370,11 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.5),
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.background.paper,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: '90%',
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.border.light,
   },
   closeButton: {
     position: 'absolute',
@@ -396,7 +396,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.textDark,
+    color: COLORS.text.primary,
   },
   modalBody: {
     flex: 1,
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: '100%',
     height: 200,
-    backgroundColor: COLORS.lightGray,
+    backgroundColor: COLORS.neutral.gray[200],
   },
   serviceImage: {
     width: '100%',
@@ -415,31 +415,31 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f2f2f2',
+    backgroundColor: COLORS.neutral.gray[100],
   },
   serviceHeader: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.border.light,
   },
   serviceName: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.textDark,
+    color: COLORS.text.primary,
     marginBottom: 8,
   },
   servicePrice: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.primary[500],
   },
   providerCard: {
     margin: 16,
     padding: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: COLORS.background.default,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
+    borderColor: COLORS.border.light,
   },
   providerHeader: {
     flexDirection: 'row',
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.textDark,
+    color: COLORS.text.primary,
     marginBottom: 4,
   },
   providerRating: {
@@ -478,34 +478,34 @@ const styles = StyleSheet.create({
   providerBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
     borderRadius: 12,
   },
   providerBadgeText: {
     fontSize: 12,
-    color: COLORS.white,
+    color: COLORS.text.inverse,
     fontWeight: 'bold',
   },
   sectionContainer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: COLORS.border.light,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.textDark,
+    color: COLORS.text.primary,
     marginBottom: 12,
   },
   serviceDescription: {
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text.primary,
     lineHeight: 24,
   },
   serviceDetailsContainer: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: COLORS.background.default,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    borderTopColor: COLORS.border.light,
   },
   serviceDetail: {
     flexDirection: 'row',
@@ -513,11 +513,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.border.light,
   },
   serviceDetailText: {
     fontSize: 16,
-    color: COLORS.textDark,
+    color: COLORS.text.primary,
     marginLeft: 10,
   },
   loadingContainer: {
@@ -527,23 +527,23 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 8,
-    color: COLORS.textLight,
+    color: COLORS.text.tertiary,
   },
 
   modalFooter: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    backgroundColor: 'white',
+    borderTopColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
   },
   requestButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
   },
   requestButtonText: {
-    color: 'white',
+    color: COLORS.text.inverse,
     fontSize: 16,
     fontWeight: 'bold',
   },

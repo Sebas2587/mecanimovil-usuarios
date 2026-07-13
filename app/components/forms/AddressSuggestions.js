@@ -1,14 +1,14 @@
 import React from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  StyleSheet,
   TouchableOpacity,
   FlatList,
   ActivityIndicator
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../utils/constants';
+import Icon from '../base/Icon/Icon';
+import { COLORS, withOpacity } from '../../design-system/tokens';
 
 /**
  * Componente para mostrar sugerencias de direcciones en tiempo real
@@ -31,7 +31,7 @@ const AddressSuggestions = ({ suggestions, onSelectSuggestion, loading }) => {
       onPress={() => onSelectSuggestion(item)}
     >
       <View style={styles.suggestionIcon}>
-        <Ionicons name="location" size={18} color={COLORS.primary} />
+        <Icon name="location" size={18} color={COLORS.primary[500]} />
       </View>
       <View style={styles.suggestionContent}>
         <Text style={styles.suggestionText} numberOfLines={1}>
@@ -50,7 +50,7 @@ const AddressSuggestions = ({ suggestions, onSelectSuggestion, loading }) => {
     <View style={styles.container}>
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
+          <ActivityIndicator size="small" color={COLORS.primary[500]} />
           <Text style={styles.loadingText}>Buscando direcciones...</Text>
         </View>
       ) : (
@@ -70,9 +70,9 @@ const AddressSuggestions = ({ suggestions, onSelectSuggestion, loading }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background.paper,
     borderRadius: 8,
-    shadowColor: '#000',
+    shadowColor: COLORS.base.inkBlack,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.05)',
+    borderBottomColor: withOpacity(COLORS.base.inkBlack, 0.05),
   },
   suggestionIcon: {
     marginRight: 12,
@@ -102,11 +102,11 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 14,
-    color: '#333',
+    color: COLORS.text.primary,
   },
   secondaryText: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   loadingContainer: {
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#666',
+    color: COLORS.text.secondary,
   },
 });
 

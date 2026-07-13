@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import Icon from '../base/Icon/Icon';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import CountdownTimer from '../common/CountdownTimer';
 import { isSolicitudSinVehiculoEnCuenta } from '../../utils/solicitudVehicle';
@@ -20,7 +20,7 @@ function MetaLine({ icon, text, numberOfLines = 2 }) {
   if (!text) return null;
   return (
     <View style={styles.metaLine}>
-      <Ionicons name={icon} size={14} color={COLORS.text.tertiary} />
+      <Icon name={icon} size={14} color={COLORS.text.tertiary} />
       <Text style={styles.metaText} numberOfLines={numberOfLines}>
         {text}
       </Text>
@@ -32,7 +32,7 @@ function MetaChip({ icon, label }) {
   if (!label) return null;
   return (
     <View style={styles.metaChip}>
-      {icon ? <Ionicons name={icon} size={12} color={COLORS.text.secondary} /> : null}
+      {icon ? <Icon name={icon} size={12} color={COLORS.text.secondary} /> : null}
       <Text style={styles.metaChipText} numberOfLines={1}>
         {label}
       </Text>
@@ -51,7 +51,7 @@ function ProveedorMetaRow({ proveedor }) {
         <Image source={{ uri: fotoUrl }} style={styles.proveedorAvatar} contentFit="cover" />
       ) : (
         <View style={styles.proveedorAvatarPlaceholder}>
-          <Ionicons name="business-outline" size={16} color={COLORS.primary[600]} />
+          <Icon name="business-outline" size={16} color={COLORS.primary[600]} />
         </View>
       )}
       <View style={styles.proveedorTextWrap}>
@@ -73,7 +73,7 @@ function VehiculoStripCompact({ solicitud, vehicleLabel }) {
   return (
     <View style={[styles.vehiculoStrip, sinVehiculo && styles.vehiculoStripMuted]}>
       <View style={styles.vehiculoIcon}>
-        <Ionicons
+        <Icon
           name={sinVehiculo ? 'shield-checkmark-outline' : 'car-sport-outline'}
           size={16}
           color={COLORS.primary[600]}
@@ -170,7 +170,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
           </View>
           {totalOfertas > 0 ? (
             <View style={styles.ofertasChip}>
-              <Ionicons name="pricetags-outline" size={12} color={COLORS.text.secondary} />
+              <Icon name="pricetags-outline" size={12} color={COLORS.text.secondary} />
               <Text style={styles.ofertasChipText}>
                 {totalOfertas} oferta{totalOfertas !== 1 ? 's' : ''}
               </Text>
@@ -178,7 +178,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
           ) : null}
           {ofertasNuevasCount > 0 ? (
             <View style={styles.ofertasNuevasBadge}>
-              <Ionicons name="notifications" size={11} color={COLORS.text.inverse} />
+              <Icon name="notifications" size={11} color={COLORS.text.inverse} />
               <Text style={styles.ofertasNuevasBadgeText}>{ofertasNuevasCount}</Text>
             </View>
           ) : null}

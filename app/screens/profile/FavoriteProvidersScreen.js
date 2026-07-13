@@ -1,50 +1,32 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
-import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, StatusBar, useWindowDimensions } from 'react-native';
+import { Heart } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFavorites } from '../../context/FavoritesContext';
-import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS, SPACING, SHADOWS } from '../../design-system/tokens';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import { formatProviderForCard } from '../../utils/providerUtils';
+import ProviderPreviewCard from '../../components/home/ProviderPreviewCard';
 
-const FavoriteProviderCard = ({ provider, onPress }) => {
-  const formatted = formatProviderForCard(provider);
-  const avatarUri =
-    formatted.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(formatted.name)}&background=random`;
-
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
-      <Image source={{ uri: avatarUri }} style={styles.avatar} contentFit="cover" />
-      <View style={styles.content}>
-        <Text style={styles.name} numberOfLines={1}>
-          {formatted.name}
-        </Text>
-        <Text style={styles.specialty} numberOfLines={2}>
-          {formatted.specialty}
-        </Text>
-        <View style={styles.ratingRow}>
-          {formatted.rating != null ? (
-            <>
-              <Ionicons name="star" size={12} color={COLORS.warning[500]} />
-              <Text style={styles.ratingText}>{formatted.rating}</Text>
-              {formatted.reviews > 0 && <Text style={styles.reviewsText}>({formatted.reviews})</Text>}
-            </>
-          ) : (
-            <Text style={styles.newProviderText}>Sin calificaciones</Text>
-          )}
-        </View>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={COLORS.text.tertiary} />
-    </TouchableOpacity>
-  );
-};
+const GUTTER = SPACING.md;
 
 const FavoriteProvidersScreen = () => {
   const navigation = useNavigation();
   const { favorites } = useFavorites();
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.min(windowWidth - SPACING.md * 2, 560);
+  const columns = 2;
+  const cardWidth = Math.floor((contentWidth - GUTTER * (columns - 1)) / columns);
+
+  const rows = useMemo(() => {
+    const list = favorites || [];
+    const out = [];
+    for (let i = 0; i < list.length; i += columns) {
+      out.push(list.slice(i, i + columns));
+    }
+    return out;
+  }, [favorites]);
 
   const handlePress = (item) => {
     navigation.navigate(ROUTES.PROVIDER_DETAIL, {
@@ -60,19 +42,34 @@ const FavoriteProvidersScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {favorites.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="heart-outline" size={48} color={COLORS.neutral.gray[300]} />
+            <Heart size={48} color={COLORS.neutral.gray[300]} />
             <Text style={styles.emptyMessage}>No hay proveedores favoritos</Text>
           </View>
         ) : (
-          <View style={styles.list}>
-            {favorites.map((item) => (
-              <FavoriteProviderCard
-                key={`${item.id}-${item.type}`}
-                provider={item}
-                onPress={() => handlePress(item)}
-              />
-            ))}
-          </View>
+          rows.map((row, rowIdx) => (
+            <View key={`fav-row-${rowIdx}`} style={styles.row}>
+              {row.map((item) => {
+                const formatted = formatProviderForCard({
+                  ...item,
+                  _panelKind: item.type === 'taller' ? 'taller' : 'mecanico',
+                });
+                const { id: _id, ...card } = formatted;
+                return (
+                  <View key={`${item.id}-${item.type}`} style={{ width: cardWidth }}>
+                    <ProviderPreviewCard
+                      {...card}
+                      provider={item}
+                      width={cardWidth}
+                      omitRightMargin
+                      cardFooterVariant="bookings"
+                      onPress={() => handlePress(item)}
+                    />
+                  </View>
+                );
+              })}
+              {row.length < columns ? <View style={{ width: cardWidth }} /> : null}
+            </View>
+          ))
         )}
       </ScrollView>
     </SafeAreaView>
@@ -88,74 +85,24 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     paddingBottom: 40,
   },
+  row: {
+    flexDirection: 'row',
+    gap: GUTTER,
+    marginBottom: GUTTER,
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    paddingHorizontal: 24,
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.md,
   },
   emptyMessage: {
-    fontSize: 16,
-    fontWeight: '500',
+    ...TYPOGRAPHY.styles.body,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.secondary,
-    marginTop: 16,
     textAlign: 'center',
-  },
-  list: {
-    gap: 12,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
-    padding: SPACING.md,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.neutral.gray[100],
-    marginRight: 14,
-  },
-  content: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    marginBottom: 4,
-  },
-  specialty: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    lineHeight: 18,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-  },
-  reviewsText: {
-    fontSize: 12,
-    color: COLORS.text.tertiary,
-    marginLeft: 2,
-  },
-  newProviderText: {
-    fontSize: 12,
-    color: COLORS.text.tertiary,
-    fontStyle: 'italic',
   },
 });
 

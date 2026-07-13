@@ -19,7 +19,16 @@ import {
   useDeleteNotification,
   useDeleteAllNotifications,
 } from '../../hooks/useNotifications';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Bell,
+  Wrench,
+  CreditCard,
+  FileText,
+  Star,
+  Trash2,
+  ListChecks,
+  BellOff,
+} from 'lucide-react-native';
 import { ROUTES, SPACING, FONT_SIZES, BORDERS } from '../../utils/constants';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -111,20 +120,20 @@ export default function NotificationCenterScreen({ navigation }) {
   const renderNotification = ({ item }) => {
     const isUnread = !item.leida;
 
-    let iconName = 'notifications';
+    let IconComponent = Bell;
     let iconColor = COLORS.primary[500];
 
     if (item.tipo === 'health_alert') {
-      iconName = 'construct';
+      IconComponent = Wrench;
       iconColor = item.data?.es_critico ? COLORS.error.main : COLORS.warning[500];
     } else if (item.tipo === 'payment_reminder') {
-      iconName = 'card';
+      IconComponent = CreditCard;
       iconColor = COLORS.primary[600];
     } else if (item.tipo === 'order_update') {
-      iconName = 'document-text';
+      IconComponent = FileText;
       iconColor = COLORS.success[600];
     } else if (item.tipo === 'review_reminder') {
-      iconName = 'star';
+      IconComponent = Star;
       iconColor = COLORS.warning[600];
     }
 
@@ -140,10 +149,10 @@ export default function NotificationCenterScreen({ navigation }) {
             { backgroundColor: isUnread ? `${iconColor}22` : COLORS.neutral.gray[100] },
           ]}
         >
-          <Ionicons
-            name={iconName}
+          <IconComponent
             size={22}
             color={isUnread ? iconColor : COLORS.text.tertiary}
+            strokeWidth={1.75}
           />
         </View>
         <View style={styles.textBlock}>
@@ -165,7 +174,7 @@ export default function NotificationCenterScreen({ navigation }) {
           onPress={() => handleDelete(item.id)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="trash-outline" size={20} color={COLORS.text.tertiary} />
+          <Trash2 size={20} color={COLORS.text.tertiary} strokeWidth={1.75} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -191,7 +200,7 @@ export default function NotificationCenterScreen({ navigation }) {
           disabled={markAllAsRead.isPending || notifications.length === 0}
           style={styles.toolbarChip}
         >
-          <Ionicons name="checkmark-done-outline" size={16} color={COLORS.success[600]} style={{ marginRight: 6 }} />
+          <ListChecks size={16} color={COLORS.success[600]} strokeWidth={1.75} style={{ marginRight: 6 }} />
           <Text style={styles.toolbarChipText}>Marcar leídas</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -199,7 +208,7 @@ export default function NotificationCenterScreen({ navigation }) {
           disabled={deleteAllNotifications.isPending || notifications.length === 0}
           style={[styles.toolbarChip, styles.toolbarChipDanger]}
         >
-          <Ionicons name="trash-outline" size={16} color={COLORS.error.main} style={{ marginRight: 6 }} />
+          <Trash2 size={16} color={COLORS.error.main} strokeWidth={1.75} style={{ marginRight: 6 }} />
           <Text style={styles.toolbarChipDangerText}>Limpiar todo</Text>
         </TouchableOpacity>
       </View>
@@ -221,7 +230,7 @@ export default function NotificationCenterScreen({ navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="notifications-off-outline" size={64} color={COLORS.neutral.gray[300]} />
+            <BellOff size={64} color={COLORS.neutral.gray[300]} strokeWidth={1.5} />
             <Text style={styles.emptyText}>No tienes notificaciones</Text>
           </View>
         }

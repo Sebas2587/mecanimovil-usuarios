@@ -8,9 +8,9 @@ import {
     Modal,
     SafeAreaView
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../base/Icon/Icon';
 import { useTheme } from '../../design-system/theme/useTheme';
-import { TOKENS } from '../../design-system/tokens';
+import { TOKENS, COLORS, withOpacity } from '../../design-system/tokens';
 
 const AcuerdoServicioModal = ({ visible, onClose, proveedorNombre }) => {
     const { colors, typography, spacing, borders } = useTheme();
@@ -28,11 +28,11 @@ const AcuerdoServicioModal = ({ visible, onClose, proveedorNombre }) => {
                         {/* Header */}
                         <View style={styles.header}>
                             <View style={styles.headerTitleContainer}>
-                                <Ionicons name="document-text" size={24} color={TOKENS.colors.primary[600]} />
+                                <Icon name="document-text" size={24} color={TOKENS.colors.primary[600]} />
                                 <Text style={styles.headerTitle}>Acuerdo de Servicio</Text>
                             </View>
                             <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                <Ionicons name="close" size={24} color={TOKENS.colors.text.secondary} />
+                                <Icon name="close" size={24} color={TOKENS.colors.text.secondary} />
                             </TouchableOpacity>
                         </View>
 
@@ -84,7 +84,7 @@ const AcuerdoServicioModal = ({ visible, onClose, proveedorNombre }) => {
 const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.6)', // Slate-900 with opacity
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.6),
         justifyContent: 'flex-end',
     },
     modalSafeArea: {

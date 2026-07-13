@@ -7,15 +7,15 @@ import {
   Alert,
   TouchableOpacity,
   ActivityIndicator,
-  StatusBar
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Car, Plus, Sparkles } from 'lucide-react-native';
-import { COLORS } from '../../design-system/tokens/colors';
+import { Car, Plus } from 'lucide-react-native';
+import { COLORS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
+import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
 import { ROUTES } from '../../utils/constants';
 import FormularioSolicitud from '../../components/solicitudes/FormularioSolicitud';
 import { CrearSolicitudScreenSkeleton } from '../../components/utils/SolicitudFlowSkeletons';
@@ -109,7 +109,7 @@ const CrearSolicitudScreen = () => {
 
   const [pasoResumeCalendario, setPasoResumeCalendario] = useState(null);
 
-  // Horario elegido en CalendarioProveedorScreen
+  // Horario elegido en CalendarioProveedorScreen (fallback si no finalizó en calendario)
   useEffect(() => {
     if (!slotSeleccionado?.fecha) return;
     setInitialData((prev) => ({
@@ -117,17 +117,29 @@ const CrearSolicitudScreen = () => {
       fecha_preferida: slotSeleccionado.fecha,
       hora_preferida: slotSeleccionado.hora || '',
       miembro_taller_preferido: slotSeleccionado.miembroTallerId ?? null,
+      // Preservar flags de flujo catálogo/perfil al volver
+      fromProviderDetail: prev?.fromProviderDetail || !!fromProviderDetail,
+      flujoCatalogoProveedor: prev?.flujoCatalogoProveedor || !!flujoCatalogoProveedor,
     }));
+    const esFlujoCatalogoPerfil = !!(flujoCatalogoProveedor || fromProviderDetail);
     const paso =
       typeof pasoDestinoTrasCalendario === 'number' && pasoDestinoTrasCalendario >= 1
         ? pasoDestinoTrasCalendario
-        : 5;
+        : (esFlujoCatalogoPerfil ? 6 : 5);
     setPasoResumeCalendario(paso);
     navigation.setParams({
       slotSeleccionado: undefined,
       pasoDestinoTrasCalendario: undefined,
     });
-  }, [slotSeleccionado?.fecha, slotSeleccionado?.hora, slotSeleccionado?.miembroTallerId, pasoDestinoTrasCalendario, navigation]);
+  }, [
+    slotSeleccionado?.fecha,
+    slotSeleccionado?.hora,
+    slotSeleccionado?.miembroTallerId,
+    pasoDestinoTrasCalendario,
+    navigation,
+    fromProviderDetail,
+    flujoCatalogoProveedor,
+  ]);
 
   // Clave estable para useFocusEffect: `route.params` suele ser un objeto nuevo en cada render del
   // navigator y recreaba el callback → doble foco / refetch y setInitialData en momentos raros.
@@ -589,20 +601,31 @@ const CrearSolicitudScreen = () => {
               flujoCatalogoProveedor: flujoCatalogoProveedor || false,
               descripcion_problema: descripcionPrellenada || '',
               urgencia: 'normal',
-              direccion_usuario: null,
-              direccion_servicio_texto: '',
-              detalles_ubicacion: '',
-              fecha_preferida: '',
-              hora_preferida: '',
-              ubicacion_servicio: null
             };
             if (tieneVehicleParam) {
               initialFromRoute.vehiculo = vehicle;
             }
             setInitialData((prev) => ({
               ...initialFromRoute,
-              fecha_preferida: prev?.fecha_preferida || initialFromRoute.fecha_preferida,
-              hora_preferida: prev?.hora_preferida || initialFromRoute.hora_preferida,
+              // Conservar datos ya capturados en el wizard (ubicación, horario, detalles)
+              descripcion_problema:
+                (prev?.descripcion_problema && String(prev.descripcion_problema).trim())
+                  ? prev.descripcion_problema
+                  : initialFromRoute.descripcion_problema,
+              urgencia: prev?.urgencia || initialFromRoute.urgencia,
+              ...(prev?.requiere_repuestos !== undefined
+                ? { requiere_repuestos: prev.requiere_repuestos }
+                : {}),
+              direccion_usuario: prev?.direccion_usuario ?? null,
+              direccion_servicio_texto: prev?.direccion_servicio_texto || '',
+              detalles_ubicacion: prev?.detalles_ubicacion || '',
+              fecha_preferida: prev?.fecha_preferida || '',
+              hora_preferida: prev?.hora_preferida || '',
+              miembro_taller_preferido: prev?.miembro_taller_preferido ?? null,
+              ubicacion_servicio: prev?.ubicacion_servicio ?? null,
+              fromProviderDetail: initialFromRoute.fromProviderDetail || !!prev?.fromProviderDetail,
+              flujoCatalogoProveedor:
+                initialFromRoute.flujoCatalogoProveedor || !!prev?.flujoCatalogoProveedor,
             }));
 
             preselectAppliedFingerprintRef.current = preselectFingerprint;
@@ -1249,12 +1272,12 @@ const CrearSolicitudScreen = () => {
     }
   };
 
-  // GlassShell está definido FUERA del componente — ver abajo de CrearSolicitudScreen.
+  // FlowShell está definido FUERA del componente — ver abajo de CrearSolicitudScreen.
   // Si se define aquí dentro, React crea un tipo de componente nuevo en cada render,
   // desmontando y remontando todo el árbol (FormularioSolicitud pierde estado, scroll, selecciones).
-  const glassShellProps = {
-    insetsTop: insets.top,
+  const flowShellProps = {
     onBack: () => navigation.goBack(),
+    onClose: () => navigation.goBack(),
   };
 
   if (
@@ -1263,40 +1286,40 @@ const CrearSolicitudScreen = () => {
     (needsPreloadServicios && !initialDataReady)
   ) {
     return (
-    <GlassShell {...glassShellProps}>
+    <FlowShell {...flowShellProps}>
         <CrearSolicitudScreenSkeleton contentPaddingBottom={insets.bottom} />
-      </GlassShell>
+      </FlowShell>
     );
   }
 
   // Solo tras al menos una respuesta de la query: evita mostrar “sin vehículos”/cambiar de árbol antes de tiempo
   if (!isPreCompra && vehiclesQueryFetched && vehiculos.length === 0) {
     return (
-    <GlassShell {...glassShellProps}>
+    <FlowShell {...flowShellProps}>
         <View style={styles.centeredState}>
           <View style={styles.emptyIconWrap}>
             <Car size={40} color={COLORS.text.tertiary} />
           </View>
-          <Text style={styles.emptyTitle}>Sin vehículos registrados</Text>
-          <Text style={styles.stateText}>Necesitas al menos un vehículo para crear una solicitud</Text>
+          <Text style={[TYPOGRAPHY.styles.h3, styles.emptyTitle]}>Sin vehículos registrados</Text>
+          <Text style={[TYPOGRAPHY.styles.body, styles.stateText]}>Necesitas al menos un vehículo para crear una solicitud</Text>
           <TouchableOpacity style={styles.addVehicleBtn} onPress={() => navigation.navigate(ROUTES.MIS_VEHICULOS)} activeOpacity={0.8}>
-            <Plus size={18} color={COLORS.text.onPrimary} />
-            <Text style={styles.addVehicleBtnText}>Agregar vehículo</Text>
+            <Plus size={18} color={COLORS.success[700]} />
+            <Text style={[TYPOGRAPHY.styles.button, styles.addVehicleBtnText]}>Agregar vehículo</Text>
           </TouchableOpacity>
         </View>
-      </GlassShell>
+      </FlowShell>
     );
   }
 
   const totalBottomPadding = insets.bottom;
 
   return (
-    <GlassShell {...glassShellProps}>
+    <FlowShell {...flowShellProps}>
       {creando && (
         <View style={styles.creatingOverlay}>
           <View style={styles.creatingCard}>
             <ActivityIndicator size="large" color={COLORS.primary[500]} />
-            <Text style={styles.creatingText}>Creando solicitud...</Text>
+            <Text style={[TYPOGRAPHY.styles.bodyBold, styles.creatingText]}>Creando solicitud...</Text>
           </View>
         </View>
       )}
@@ -1314,27 +1337,21 @@ const CrearSolicitudScreen = () => {
         pasoResumeCalendario={pasoResumeCalendario}
         onPasoResumeConsumido={() => setPasoResumeCalendario(null)}
       />
-    </GlassShell>
+    </FlowShell>
   );
 };
 
 /**
- * Shell de pantalla (canvas claro + header). Definido FUERA del componente para
+ * Shell wizard (canvas + FlowHeader). Definido FUERA del componente para
  * mantener identidad de tipo entre renders (FormularioSolicitud no se remonta).
  */
-const GlassShell = ({ children, insetsTop, onBack }) => (
+const FlowShell = ({ children, onBack, onClose }) => (
   <View style={styles.container}>
-    <StatusBar barStyle="dark-content" />
-    <View style={[styles.header, { paddingTop: (insetsTop || 0) + 8 }]}>
-      <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.7}>
-        <ArrowLeft size={22} color={COLORS.text.primary} />
-      </TouchableOpacity>
-      <View style={styles.headerCenter}>
-        <Sparkles size={16} color={COLORS.primary[500]} />
-        <Text style={styles.headerTitle}>Nueva Solicitud</Text>
-      </View>
-      <View style={{ width: 40 }} />
-    </View>
+    <SolicitudFlowHeader
+      title="Nueva solicitud"
+      onBack={onBack}
+      onClose={onClose}
+    />
     <View style={styles.shellBody}>{children}</View>
   </View>
 );
@@ -1349,50 +1366,15 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: BORDERS.width.thin,
-    borderBottomColor: COLORS.border.light,
-    backgroundColor: COLORS.background.paper,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...SHADOWS.sm,
-  },
-  headerCenter: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text.primary,
-    letterSpacing: 0.3,
-  },
   centeredState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: SPACING.xl,
   },
   stateText: {
-    marginTop: 16,
-    fontSize: 15,
+    marginTop: SPACING.md,
     color: COLORS.text.secondary,
-    fontWeight: '500',
     textAlign: 'center',
   },
   emptyIconWrap: {
@@ -1407,28 +1389,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
     color: COLORS.text.primary,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xs,
     textAlign: 'center',
   },
   addVehicleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
+    gap: SPACING.xs,
+    marginTop: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm + 2,
     borderRadius: BORDERS.radius.md,
     backgroundColor: COLORS.success.light,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.success[200],
   },
   addVehicleBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
     color: COLORS.success[700],
   },
   creatingOverlay: {
@@ -1450,9 +1428,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.modal,
   },
   creatingText: {
-    fontSize: 16,
     color: COLORS.text.primary,
-    fontWeight: '600',
     textAlign: 'center',
   },
 });

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
   Alert,
@@ -11,12 +10,25 @@ import {
   ActivityIndicator,
   Linking,
   Share,
-  Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  Check,
+  XCircle,
+  Building2,
+  User,
+  CreditCard,
+  ArrowLeftRight,
+  Download,
+  RefreshCw,
+  CircleCheck,
+} from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAgendamiento } from '../../context/AgendamientoContext';
-import { COLORS } from '../../utils/constants';
+import { ROUTES } from '../../utils/constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../design-system/tokens';
+import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
+import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
 import MercadoPagoService from '../../services/mercadopago';
 
 const METODOS_PAGO = {
@@ -27,6 +39,7 @@ const METODOS_PAGO = {
 const ConfirmacionScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { 
     metodoPago, 
     comprobanteEnviado,
@@ -226,7 +239,7 @@ const ConfirmacionScreen = () => {
                   index: 0,
                   routes: [{ 
                     name: 'TabNavigator', 
-                    params: { screen: 'MisCitas' } 
+                    params: { screen: ROUTES.ACTIVIDAD } 
                   }],
                 });
               }
@@ -322,7 +335,7 @@ const ConfirmacionScreen = () => {
                   index: 0,
                   routes: [{ 
                     name: 'TabNavigator', 
-                    params: { screen: 'MisCitas' } 
+                    params: { screen: ROUTES.ACTIVIDAD } 
                   }],
                 });
               }
@@ -352,489 +365,416 @@ const ConfirmacionScreen = () => {
 
   if (!resumen) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+      <SafeAreaView style={styles.focusRoot} edges={['top', 'bottom']}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Cargando...</Text>
+          <ActivityIndicator size="large" color={COLORS.primary[500]} />
+          <Text style={[TYPOGRAPHY.styles.body, styles.loadingText]}>Cargando...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
+  const pagoRechazado = !isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO;
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
-      
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="arrow-back" size={24} color="#333333" />
-          </TouchableOpacity>
-          
-          <Text style={styles.headerTitle}>Confirmar Agendamiento</Text>
-          <View style={styles.headerSpacer} />
+    <SafeAreaView style={styles.focusRoot} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
+
+      <SolicitudFlowHeader
+        title="Confirmar agendamiento"
+        subtitle="Revisa el resumen antes de finalizar"
+        onBack={() => navigation.goBack()}
+      />
+
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.iconContainer}>
+          <View style={[
+            styles.iconCircle,
+            pagoRechazado && styles.iconCircleError,
+          ]}>
+            {loadingPaymentInfo ? (
+              <ActivityIndicator size="large" color={COLORS.primary[500]} />
+            ) : pagoRechazado ? (
+              <XCircle size={72} color={COLORS.error.main} strokeWidth={1.75} />
+            ) : (
+              <Check size={72} color={COLORS.success.main} strokeWidth={2} />
+            )}
+          </View>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Ícono de éxito/error */}
-          <View style={styles.iconContainer}>
-            <View style={[
-              styles.iconCircle,
-              !isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO && styles.iconCircleError
-            ]}>
-              {loadingPaymentInfo ? (
-                <ActivityIndicator size="large" color={COLORS.primary} />
-              ) : (
-                <Ionicons 
-                  name={!isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO ? "close-circle" : "checkmark-circle"} 
-                  size={80} 
-                  color={!isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO ? "#E74C3C" : "#28A745"} 
-                />
-              )}
-            </View>
-          </View>
-
-          {/* Mensaje de confirmación */}
-          <View style={styles.mensajeContainer}>
-            <Text style={styles.titulo}>
-              {!isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO
-                ? 'Pago Rechazado' 
-                : isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO
-                ? '¡Pago Exitoso!' 
-                : '¡Todo Listo!'}
-            </Text>
-            <Text style={styles.subtitulo}>
-              {!isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO
-                ? paymentInfo?.status_detail || 'El pago no pudo ser procesado. Por favor, intenta con otro método.'
-                : isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO
+        <View style={styles.mensajeContainer}>
+          <Text style={[TYPOGRAPHY.styles.h2, styles.titulo]}>
+            {pagoRechazado
+              ? 'Pago rechazado'
+              : isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO
+                ? '¡Pago exitoso!'
+                : '¡Todo listo!'}
+          </Text>
+          <Text style={[TYPOGRAPHY.styles.body, styles.subtitulo]}>
+            {pagoRechazado
+              ? paymentInfo?.status_detail || 'El pago no pudo ser procesado. Por favor, intenta con otro método.'
+              : isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO
                 ? 'Tu pago fue procesado exitosamente con Mercado Pago'
                 : 'Estás a un paso de confirmar tu agendamiento'}
-            </Text>
-          </View>
+          </Text>
+        </View>
 
-          {/* Resumen de servicios */}
-          <View style={styles.seccion}>
-            <Text style={styles.seccionTitulo}>Servicios Agendados</Text>
-            {resumen.serviciosDetalle.map((servicio, index) => (
-              <View key={index} style={styles.servicioCard}>
-                <View style={styles.servicioIcon}>
-                  <Ionicons 
-                    name={servicio.tipoProveedor === 'Taller' ? 'business' : 'person'} 
-                    size={24} 
-                    color={COLORS.primary} 
-                  />
-                </View>
-                <View style={styles.servicioInfo}>
-                  <Text style={styles.servicioNombre}>{servicio.servicio}</Text>
-                  <Text style={styles.servicioProveedor}>
-                    {servicio.tipoProveedor} • {servicio.proveedor}
-                  </Text>
-                  <Text style={styles.servicioFecha}>
-                    {servicio.fecha} a las {servicio.hora}
-                  </Text>
-                </View>
-                <Ionicons name="checkmark-circle" size={20} color="#28A745" />
+        <View style={styles.seccion}>
+          <Text style={[TYPOGRAPHY.styles.h6, styles.seccionTitulo]}>Servicios agendados</Text>
+          {resumen.serviciosDetalle.map((servicio, index) => (
+            <View key={index} style={[styles.servicioCard, SHADOWS.sm]}>
+              <View style={styles.servicioIcon}>
+                {servicio.tipoProveedor === 'Taller' ? (
+                  <Building2 size={22} color={COLORS.primary[500]} strokeWidth={1.75} />
+                ) : (
+                  <User size={22} color={COLORS.primary[500]} strokeWidth={1.75} />
+                )}
               </View>
-            ))}
-          </View>
-
-          {/* Método de pago */}
-          <View style={styles.seccion}>
-            <Text style={styles.seccionTitulo}>Método de Pago</Text>
-            <View style={styles.pagoCard}>
-              <Ionicons 
-                name={
-                  metodoPago === METODOS_PAGO.MERCADOPAGO
-                    ? 'card' 
-                    : 'swap-horizontal'
-                } 
-                size={24} 
-                color={COLORS.primary} 
-              />
-              <Text style={styles.pagoTexto}>
-                {metodoPago === METODOS_PAGO.MERCADOPAGO
-                  ? 'Mercado Pago' 
-                  : 'Transferencia Bancaria'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Estado del pago (si hay información de pago de Mercado Pago) */}
-          {paymentInfo && metodoPago === METODOS_PAGO.MERCADOPAGO && (
-            <View style={styles.seccion}>
-              <View style={[
-                styles.alertaCard,
-                !isPaymentSuccessful && styles.alertaCardError,
-                isPaymentSuccessful && styles.alertaCardSuccess,
-              ]}>
-                <Ionicons 
-                  name={!isPaymentSuccessful ? "close-circle" : "checkmark-circle"} 
-                  size={24} 
-                  color={!isPaymentSuccessful ? "#E74C3C" : "#28A745"} 
-                />
-                <View style={styles.alertaContent}>
-                  <Text style={[
-                    styles.alertaTexto,
-                    !isPaymentSuccessful && styles.alertaTextoError,
-                  ]}>
-                    {paymentInfo.status === 'approved' 
-                      ? 'Pago aprobado' 
-                      : paymentInfo.status === 'rejected'
-                      ? 'Pago rechazado'
-                      : paymentInfo.status === 'pending'
-                      ? 'Pago pendiente'
-                      : paymentInfo.status === 'in_process'
-                      ? 'Pago en proceso'
-                      : `Estado: ${paymentInfo.status}`}
-                  </Text>
-                  {paymentInfo.status_detail && (
-                    <Text style={styles.alertaSubtexto}>
-                      {paymentInfo.status_detail}
-                    </Text>
-                  )}
-                  {paymentInfo.id && (
-                    <Text style={styles.alertaSubtexto}>
-                      ID de pago: {paymentInfo.id}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            </View>
-          )}
-
-          {/* Comprobante enviado (si aplica) */}
-          {comprobanteEnviado && (
-            <View style={styles.seccion}>
-              <View style={styles.alertaCard}>
-                <Ionicons name="checkmark-circle" size={24} color="#28A745" />
-                <Text style={styles.alertaTexto}>
-                  Comprobante enviado por WhatsApp
+              <View style={styles.servicioInfo}>
+                <Text style={[TYPOGRAPHY.styles.h5, styles.servicioNombre]}>{servicio.servicio}</Text>
+                <Text style={[TYPOGRAPHY.styles.caption, styles.servicioProveedor]}>
+                  {servicio.tipoProveedor} • {servicio.proveedor}
+                </Text>
+                <Text style={[TYPOGRAPHY.styles.small, styles.servicioFecha]}>
+                  {servicio.fecha} a las {servicio.hora}
                 </Text>
               </View>
+              <CircleCheck size={20} color={COLORS.success.main} strokeWidth={2} />
             </View>
-          )}
+          ))}
+        </View>
 
-          {/* Total */}
+        <View style={styles.seccion}>
+          <Text style={[TYPOGRAPHY.styles.h6, styles.seccionTitulo]}>Método de pago</Text>
+          <View style={[styles.pagoCard, SHADOWS.sm]}>
+            {metodoPago === METODOS_PAGO.MERCADOPAGO ? (
+              <CreditCard size={22} color={COLORS.primary[500]} strokeWidth={1.75} />
+            ) : (
+              <ArrowLeftRight size={22} color={COLORS.primary[500]} strokeWidth={1.75} />
+            )}
+            <Text style={[TYPOGRAPHY.styles.h5, styles.pagoTexto]}>
+              {metodoPago === METODOS_PAGO.MERCADOPAGO
+                ? 'Mercado Pago'
+                : 'Transferencia bancaria'}
+            </Text>
+          </View>
+        </View>
+
+        {paymentInfo && metodoPago === METODOS_PAGO.MERCADOPAGO && (
           <View style={styles.seccion}>
-            <View style={styles.totalCard}>
-              <Text style={styles.totalLabel}>Total a pagar</Text>
-              <Text style={styles.totalValue}>
-                ${Math.round(resumen.totalGeneral).toLocaleString('es-CL')}
+            <View style={[
+              styles.alertaCard,
+              pagoRechazado && styles.alertaCardError,
+              isPaymentSuccessful && styles.alertaCardSuccess,
+            ]}>
+              {pagoRechazado ? (
+                <XCircle size={22} color={COLORS.error.main} strokeWidth={1.75} />
+              ) : (
+                <CircleCheck size={22} color={COLORS.success.main} strokeWidth={2} />
+              )}
+              <View style={styles.alertaContent}>
+                <Text style={[
+                  TYPOGRAPHY.styles.captionBold,
+                  styles.alertaTexto,
+                  pagoRechazado && styles.alertaTextoError,
+                ]}>
+                  {paymentInfo.status === 'approved'
+                    ? 'Pago aprobado'
+                    : paymentInfo.status === 'rejected'
+                      ? 'Pago rechazado'
+                      : paymentInfo.status === 'pending'
+                        ? 'Pago pendiente'
+                        : paymentInfo.status === 'in_process'
+                          ? 'Pago en proceso'
+                          : `Estado: ${paymentInfo.status}`}
+                </Text>
+                {paymentInfo.status_detail ? (
+                  <Text style={[TYPOGRAPHY.styles.small, styles.alertaSubtexto]}>
+                    {paymentInfo.status_detail}
+                  </Text>
+                ) : null}
+                {paymentInfo.id ? (
+                  <Text style={[TYPOGRAPHY.styles.small, styles.alertaSubtexto]}>
+                    ID de pago: {paymentInfo.id}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {comprobanteEnviado ? (
+          <View style={styles.seccion}>
+            <View style={[styles.alertaCard, styles.alertaCardSuccess]}>
+              <CircleCheck size={22} color={COLORS.success.main} strokeWidth={2} />
+              <Text style={[TYPOGRAPHY.styles.captionBold, styles.alertaTexto]}>
+                Comprobante enviado por WhatsApp
               </Text>
             </View>
           </View>
-        </ScrollView>
+        ) : null}
 
-        {/* Footer con botones */}
-        <View style={styles.footer}>
-          {/* Botón de descargar comprobante (si hay pago exitoso de Mercado Pago) */}
-          {isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO && (paymentId || paymentInfo?.id) && (
-            <TouchableOpacity
-              style={styles.downloadButton}
-              onPress={handleDownloadReceipt}
-              disabled={downloadingReceipt}
-              activeOpacity={0.8}
-            >
-              {downloadingReceipt ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="download" size={20} color="#FFFFFF" />
-                  <Text style={styles.downloadButtonText}>Descargar Comprobante</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
+        <View style={styles.seccion}>
+          <View style={styles.totalCard}>
+            <Text style={[TYPOGRAPHY.styles.h5, styles.totalLabel]}>Total a pagar</Text>
+            <Text style={[TYPOGRAPHY.styles.numberDisplay, styles.totalValue]}>
+              ${Math.round(resumen.totalGeneral).toLocaleString('es-CL')}
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
 
-          {/* Botón de confirmación (solo si el pago fue exitoso o no hay pago de Mercado Pago) */}
-          {(!metodoPago || metodoPago !== METODOS_PAGO.MERCADOPAGO || isPaymentSuccessful) && (
+      <StickyFooterCTA>
+        {isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO && (paymentId || paymentInfo?.id) ? (
+          <TouchableOpacity
+            style={styles.downloadButton}
+            onPress={handleDownloadReceipt}
+            disabled={downloadingReceipt}
+            activeOpacity={0.8}
+          >
+            {downloadingReceipt ? (
+              <ActivityIndicator size="small" color={COLORS.text.inverse} />
+            ) : (
+              <>
+                <Download size={20} color={COLORS.text.inverse} strokeWidth={2} />
+                <Text style={[TYPOGRAPHY.styles.button, styles.downloadButtonText]}>Descargar comprobante</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        ) : null}
+
+        {(!metodoPago || metodoPago !== METODOS_PAGO.MERCADOPAGO || isPaymentSuccessful) ? (
           <TouchableOpacity
             style={[
               styles.confirmarButton,
-              confirmando && styles.confirmarButtonDisabled
+              confirmando && styles.confirmarButtonDisabled,
             ]}
             onPress={handleConfirmar}
             disabled={confirmando}
             activeOpacity={0.8}
           >
             {confirmando ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={COLORS.text.inverse} />
             ) : (
               <>
-                <Text style={styles.confirmarButtonText}>Confirmar Agendamiento</Text>
-                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                <Text style={[TYPOGRAPHY.styles.button, styles.confirmarButtonText]}>Confirmar agendamiento</Text>
+                <Check size={20} color={COLORS.text.inverse} strokeWidth={2.5} />
               </>
             )}
           </TouchableOpacity>
-          )}
+        ) : null}
 
-          {/* Botón para reintentar si el pago falló */}
-          {!isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO && (
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={() => navigation.navigate('OpcionesPago')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="refresh" size={20} color="#FFFFFF" />
-              <Text style={styles.retryButtonText}>Reintentar Pago</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+        {pagoRechazado ? (
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => navigation.navigate('OpcionesPago')}
+            activeOpacity={0.8}
+          >
+            <RefreshCw size={20} color={COLORS.text.inverse} strokeWidth={2} />
+            <Text style={[TYPOGRAPHY.styles.button, styles.retryButtonText]}>Reintentar pago</Text>
+          </TouchableOpacity>
+        ) : null}
+      </StickyFooterCTA>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
+  focusRoot: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.background.default,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: SPACING.xl,
   },
   loadingText: {
-    fontSize: 16,
-    color: '#666666',
-    marginTop: 15,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#333333',
-    flex: 1,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 40,
+    color: COLORS.text.secondary,
+    marginTop: SPACING.md,
   },
   content: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   iconContainer: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingTop: SPACING.lg,
+    paddingBottom: SPACING.md,
   },
   iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#E8F5E9',
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    backgroundColor: COLORS.success.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconCircleError: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: COLORS.error.light,
   },
   mensajeContainer: {
-    paddingHorizontal: 40,
+    paddingHorizontal: SPACING.container.horizontal,
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: SPACING.lg,
   },
   titulo: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333333',
+    color: COLORS.text.primary,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: SPACING.xs,
   },
   subtitulo: {
-    fontSize: 16,
-    color: '#666666',
+    color: COLORS.text.secondary,
     textAlign: 'center',
-    lineHeight: 24,
   },
   seccion: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingVertical: SPACING.sm,
   },
   seccionTitulo: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333333',
-    marginBottom: 12,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.sm,
   },
   servicioCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
+    backgroundColor: COLORS.background.paper,
+    padding: SPACING.md,
+    borderRadius: BORDERS.radius.card.md,
+    marginBottom: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   servicioIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F0F8FF',
+    backgroundColor: COLORS.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: SPACING.sm,
   },
   servicioInfo: {
     flex: 1,
   },
   servicioNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 4,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.xxs,
   },
   servicioProveedor: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 4,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.xxs,
   },
   servicioFecha: {
-    fontSize: 13,
-    color: '#999999',
+    color: COLORS.text.tertiary,
   },
   pagoCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
+    backgroundColor: COLORS.background.paper,
+    padding: SPACING.md,
+    borderRadius: BORDERS.radius.card.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   pagoTexto: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-    marginLeft: 12,
+    color: COLORS.text.primary,
+    marginLeft: SPACING.sm,
   },
   alertaCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    padding: 16,
-    borderRadius: 12,
+    backgroundColor: COLORS.success.light,
+    padding: SPACING.md,
+    borderRadius: BORDERS.radius.card.md,
+    gap: SPACING.sm,
   },
   alertaCardSuccess: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: COLORS.success.light,
   },
   alertaCardError: {
-    backgroundColor: '#FFEBEE',
+    backgroundColor: COLORS.error.light,
   },
   alertaContent: {
     flex: 1,
-    marginLeft: 12,
   },
   alertaTexto: {
-    fontSize: 14,
-    color: '#28A745',
-    fontWeight: '600',
+    color: COLORS.success.main,
   },
   alertaTextoError: {
-    color: '#E74C3C',
+    color: COLORS.error.main,
   },
   alertaSubtexto: {
-    fontSize: 12,
-    color: '#666666',
-    marginTop: 4,
+    color: COLORS.text.secondary,
+    marginTop: SPACING.xxs,
   },
   totalCard: {
-    backgroundColor: '#333333',
-    padding: 20,
-    borderRadius: 12,
+    backgroundColor: COLORS.text.primary,
+    padding: SPACING.lg,
+    borderRadius: BORDERS.radius.card.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   totalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    color: COLORS.text.inverse,
   },
   totalValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  footer: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    color: COLORS.text.inverse,
+    fontSize: TYPOGRAPHY.fontSize['2xl'],
+    lineHeight: 30,
   },
   confirmarButton: {
-    backgroundColor: '#007EA7',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    backgroundColor: COLORS.primary[500],
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDERS.radius.button.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    gap: SPACING.xs,
+    marginBottom: SPACING.xs,
   },
   confirmarButtonDisabled: {
-    backgroundColor: '#CCCCCC',
+    backgroundColor: COLORS.states.disabled.background,
   },
   confirmarButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginRight: 8,
+    color: COLORS.text.inverse,
   },
   downloadButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    backgroundColor: COLORS.primary[600],
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDERS.radius.button.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
-    marginBottom: 12,
+    gap: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   downloadButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    color: COLORS.text.inverse,
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    backgroundColor: COLORS.primary[500],
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: BORDERS.radius.button.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    gap: SPACING.xs,
   },
   retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    color: COLORS.text.inverse,
   },
 });
 

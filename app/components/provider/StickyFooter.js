@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { MessageCircle, ArrowRight } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 
@@ -11,14 +11,13 @@ const StickyFooter = ({ onChatPress, onQuotePress }) => {
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 16) }]}>
       <View style={styles.content}>
         <TouchableOpacity style={styles.chatButton} onPress={onChatPress} activeOpacity={0.85}>
-          <Ionicons name="chatbubble-outline" size={22} color={COLORS.primary[500]} />
+          <MessageCircle size={22} color={COLORS.primary[500]} />
           <Text style={styles.chatText}>Chat</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.quoteButton} onPress={onQuotePress} activeOpacity={0.85}>
           <Text style={styles.quoteText}>Cotizar Servicio</Text>
-          <Ionicons
-            name="arrow-forward"
+          <ArrowRight
             size={20}
             color={COLORS.text.inverse}
             style={{ marginLeft: 8 }}

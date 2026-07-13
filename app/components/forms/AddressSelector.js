@@ -16,7 +16,7 @@ import { MapPin, Plus, Star, Trash2, ChevronDown, Navigation, X } from 'lucide-r
 import * as locationService from '../../services/location';
 import AddressSelectionModal from '../location/AddressSelectionModal';
 import { showAlert, showConfirm } from '../../utils/platformAlert';
-import { COLORS } from '../../design-system/tokens/colors';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 
@@ -85,7 +85,7 @@ const AddressRow = React.memo(function AddressRow({
 
 /**
  * Selector de dirección alineado al design system (OpenSpec design-system-coinbase-usuarios):
- * canvas claro, hairlines, primario #0052FF, CTAs sólidos tipo píldora.
+ * canvas claro, hairlines, primario del design system, CTAs sólidos tipo píldora.
  * `glassStyle` se mantiene por compatibilidad con el formulario de solicitud (ubicación).
  */
 const AddressSelector = ({
@@ -236,8 +236,8 @@ const AddressSelector = ({
 
   const headerTopPad = useMemo(() => Math.max(insets.top, Platform.OS === 'ios' ? 12 : 8), [insets.top]);
 
-  const useInstitutional = glassStyle !== false;
-  const pickerVariant = useInstitutional ? 'default' : 'darkGlass';
+  const useInstitutional = true;
+  const pickerVariant = 'default';
 
   const renderAddressRow = useCallback(
     ({ item }) => {
@@ -278,7 +278,7 @@ const AddressSelector = ({
               {currentAddress ? currentAddress.direccion : 'Toca para elegir una dirección'}
             </Text>
           </View>
-          <ChevronDown size={18} color={useInstitutional ? COLORS.text.tertiary : 'rgba(255,255,255,0.4)'} />
+          <ChevronDown size={18} color={useInstitutional ? COLORS.text.tertiary : withOpacity(COLORS.base.white, 0.4)} />
         </View>
       </TouchableOpacity>
 
@@ -296,10 +296,10 @@ const AddressSelector = ({
               style={useInstitutional ? styles.modalCloseBtn : styles.modalCloseBtnLegacy}
               activeOpacity={0.7}
             >
-              <X size={22} color={useInstitutional ? COLORS.text.secondary : 'rgba(255,255,255,0.85)'} />
+              <X size={22} color={useInstitutional ? COLORS.text.secondary : withOpacity(COLORS.base.white, 0.85)} />
             </TouchableOpacity>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <MapPin size={18} color={useInstitutional ? COLORS.primary[500] : '#6EE7B7'} />
+              <MapPin size={18} color={useInstitutional ? COLORS.primary[500] : COLORS.success[300]} />
               <Text style={useInstitutional ? styles.modalTitle : styles.modalTitleLegacy}>Mis direcciones</Text>
             </View>
             <TouchableOpacity
@@ -307,20 +307,20 @@ const AddressSelector = ({
               style={useInstitutional ? styles.modalAddBtn : styles.modalAddBtnLegacy}
               activeOpacity={0.7}
             >
-              <Plus size={20} color={useInstitutional ? COLORS.primary[500] : '#93C5FD'} />
+              <Plus size={20} color={useInstitutional ? COLORS.primary[500] : COLORS.primary[200]} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.modalContent}>
             {loading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={useInstitutional ? COLORS.primary[500] : '#6EE7B7'} />
+                <ActivityIndicator size="large" color={useInstitutional ? COLORS.primary[500] : COLORS.success[300]} />
                 <Text style={useInstitutional ? styles.loadingText : styles.loadingTextLegacy}>Cargando direcciones...</Text>
               </View>
             ) : addresses.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <View style={useInstitutional ? styles.emptyIconWrap : styles.emptyIconWrapLegacy}>
-                  <MapPin size={40} color={useInstitutional ? COLORS.neutral.gray[300] : 'rgba(255,255,255,0.2)'} />
+                  <MapPin size={40} color={useInstitutional ? COLORS.neutral.gray[300] : withOpacity(COLORS.base.white, 0.2)} />
                 </View>
                 <Text style={useInstitutional ? styles.emptyTitle : styles.emptyTitleLegacy}>No tienes direcciones guardadas</Text>
                 <Text style={useInstitutional ? styles.emptySubtitle : styles.emptySubtitleLegacy}>
@@ -328,7 +328,7 @@ const AddressSelector = ({
                 </Text>
                 <TouchableOpacity onPress={handleAddNew} style={styles.emptyButton} activeOpacity={0.85}>
                   <View style={useInstitutional ? styles.emptyButtonSolid : styles.emptyButtonGradientLegacy}>
-                    <Plus size={18} color="#FFF" />
+                    <Plus size={18} color={COLORS.text.inverse} />
                     <Text style={styles.emptyButtonText}>Agregar dirección</Text>
                   </View>
                 </TouchableOpacity>
@@ -375,9 +375,9 @@ const AddressRowLegacy = React.memo(function AddressRowLegacy({
       <View style={styles.addressCardContent}>
         <View style={[styles.legacyIconWrap, isSelected && styles.legacyIconWrapSelected]}>
           {item.es_principal ? (
-            <Star size={18} color={isSelected ? '#6EE7B7' : '#FBBF24'} fill="#FBBF24" />
+            <Star size={18} color={isSelected ? COLORS.success[300] : COLORS.warning[400]} fill={COLORS.warning[400]} />
           ) : (
-            <MapPin size={18} color={isSelected ? '#6EE7B7' : 'rgba(255,255,255,0.5)'} />
+            <MapPin size={18} color={isSelected ? COLORS.success[300] : withOpacity(COLORS.base.white, 0.5)} />
           )}
         </View>
         <View style={styles.addressTextContainer}>
@@ -398,7 +398,7 @@ const AddressRowLegacy = React.memo(function AddressRowLegacy({
         <View style={styles.addressActions}>
           {!item.es_principal && (
             <TouchableOpacity onPress={() => onSetMain(item.id)} style={styles.legacyActionBtn} activeOpacity={0.7}>
-              <Star size={16} color="rgba(255,255,255,0.4)" />
+              <Star size={16} color={withOpacity(COLORS.base.white, 0.4)} />
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -406,7 +406,7 @@ const AddressRowLegacy = React.memo(function AddressRowLegacy({
             style={[styles.legacyActionBtn, styles.legacyDeleteBtn]}
             activeOpacity={0.7}
           >
-            <Trash2 size={14} color="#F87171" />
+            <Trash2 size={14} color={COLORS.error[400]} />
           </TouchableOpacity>
         </View>
       </View>
@@ -454,10 +454,10 @@ const styles = StyleSheet.create({
   },
 
   triggerLegacy: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    backgroundColor: Platform.OS === 'ios' ? withOpacity(COLORS.base.white, 0.06) : withOpacity(COLORS.base.white, 0.10),
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: withOpacity(COLORS.base.white, 0.12),
     overflow: 'hidden',
   },
   triggerContentLegacy: {
@@ -471,13 +471,13 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: 'rgba(16,185,129,0.12)',
+    backgroundColor: withOpacity(COLORS.success[500], 0.12),
     justifyContent: 'center',
     alignItems: 'center',
   },
   triggerLabelLegacy: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.4)',
+    color: withOpacity(COLORS.base.white, 0.4),
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   },
   triggerAddressLegacy: {
     fontSize: 14,
-    color: '#FFF',
+    color: COLORS.text.inverse,
     fontWeight: '600',
   },
 
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
 
   modalContainerLegacy: {
     flex: 1,
-    backgroundColor: '#030712',
+    backgroundColor: COLORS.neutral.gray[900],
   },
   modalHeaderLegacy: {
     flexDirection: 'row',
@@ -546,26 +546,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
+    borderBottomColor: withOpacity(COLORS.base.white, 0.06),
   },
   modalCloseBtnLegacy: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.06),
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalTitleLegacy: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text.inverse,
   },
   modalAddBtnLegacy: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: 'rgba(96,165,250,0.12)',
+    backgroundColor: withOpacity(COLORS.primary[300], 0.12),
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -664,67 +664,67 @@ const styles = StyleSheet.create({
   },
 
   legacyAddressCard: {
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
+    backgroundColor: Platform.OS === 'ios' ? withOpacity(COLORS.base.white, 0.06) : withOpacity(COLORS.base.white, 0.10),
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
+    borderColor: withOpacity(COLORS.base.white, 0.10),
     overflow: 'hidden',
   },
   legacyAddressCardSelected: {
-    borderColor: 'rgba(16,185,129,0.4)',
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.10)',
+    borderColor: withOpacity(COLORS.success[500], 0.4),
+    backgroundColor: Platform.OS === 'ios' ? withOpacity(COLORS.success[500], 0.06) : withOpacity(COLORS.success[500], 0.10),
   },
   legacyIconWrap: {
     width: 42,
     height: 42,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.06),
     justifyContent: 'center',
     alignItems: 'center',
   },
   legacyIconWrapSelected: {
-    backgroundColor: 'rgba(16,185,129,0.12)',
+    backgroundColor: withOpacity(COLORS.success[500], 0.12),
   },
   legacyAddressLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FFF',
+    color: COLORS.text.inverse,
     marginBottom: 2,
   },
   legacyAddressLabelSelected: {
-    color: '#6EE7B7',
+    color: COLORS.success[300],
   },
   legacyAddressText: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.45)',
+    color: withOpacity(COLORS.base.white, 0.45),
     lineHeight: 18,
   },
   legacyPrincipalBadge: {
-    backgroundColor: 'rgba(251,191,36,0.15)',
+    backgroundColor: withOpacity(COLORS.warning[400], 0.15),
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: 'rgba(251,191,36,0.3)',
+    borderColor: withOpacity(COLORS.warning[400], 0.3),
   },
   legacyPrincipalBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#FBBF24',
+    color: COLORS.warning[400],
   },
   legacyActionBtn: {
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.06),
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: withOpacity(COLORS.base.white, 0.08),
   },
   legacyDeleteBtn: {
-    backgroundColor: 'rgba(248,113,113,0.08)',
-    borderColor: 'rgba(248,113,113,0.2)',
+    backgroundColor: withOpacity(COLORS.error[400], 0.08),
+    borderColor: withOpacity(COLORS.error[400], 0.2),
   },
 
   loadingContainer: {
@@ -741,7 +741,7 @@ const styles = StyleSheet.create({
   },
   loadingTextLegacy: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.5)',
+    color: withOpacity(COLORS.base.white, 0.5),
     marginTop: 16,
     fontWeight: '500',
   },
@@ -766,7 +766,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.04),
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -781,7 +781,7 @@ const styles = StyleSheet.create({
   emptyTitleLegacy: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#FFF',
+    color: COLORS.text.inverse,
     marginBottom: 6,
     textAlign: 'center',
   },
@@ -794,7 +794,7 @@ const styles = StyleSheet.create({
   },
   emptySubtitleLegacy: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.45)',
+    color: withOpacity(COLORS.base.white, 0.45),
     textAlign: 'center',
     lineHeight: 20,
     marginBottom: 24,
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 14,
-    backgroundColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
   },
   emptyButtonText: {
     color: COLORS.text.onPrimary,

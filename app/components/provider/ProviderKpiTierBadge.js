@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { BORDERS, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
+import { View, StyleSheet } from 'react-native';
+import { SPACING } from '../../design-system/tokens';
 import { getKpiTierPresentation } from '../../utils/providerUtils';
+import Tag from '../base/Tag/Tag';
+import Icon from '../base/Icon/Icon';
 
 /**
- * Insignia KPI (Elite / Máster / Pro / …) alineada con ProviderPreviewCard del home.
+ * Etiqueta KPI (Elite / Máster / Pro / En progreso…) — Tag + tokens del design system.
  */
 export default function ProviderKpiTierBadge({
   kpiBadge = null,
@@ -14,149 +15,70 @@ export default function ProviderKpiTierBadge({
   trustBadgeFields = false,
   variant = 'floating',
   style,
-  iconSize = 11,
+  iconSize = 12,
 }) {
   const presentation = getKpiTierPresentation(kpiBadge, provider, { trustBadgeFields });
   if (!presentation) return null;
 
-  if (variant === 'profile') {
-    const a11yLabel = presentation.reason
-      ? `Nivel ${presentation.label}. ${presentation.reason}`
-      : `Nivel ${presentation.label}`;
+  const a11yLabel = presentation.reason
+    ? `Nivel ${presentation.label}. ${presentation.reason}`
+    : `Nivel ${presentation.label}`;
+
+  const size = variant === 'profile' ? 'md' : 'sm';
+  const icon = (
+    <Icon name="ribbon-outline" size={iconSize} color={presentation.text_color} />
+  );
+
+  const tag = (
+    <Tag
+      label={presentation.label}
+      variant={presentation.tagVariant || 'neutral'}
+      size={size}
+      icon={icon}
+      style={[
+        variant === 'inline' ? styles.inline : null,
+        variant === 'floating' ? styles.floating : null,
+        variant === 'profile' ? styles.profile : null,
+        style,
+      ]}
+    />
+  );
+
+  if (variant === 'floating') {
     return (
       <View
-        style={[
-          styles.profile,
-          {
-            backgroundColor: presentation.bg_color,
-            borderColor: presentation.border_color,
-          },
-          style,
-        ]}
+        style={styles.floatingWrap}
+        pointerEvents="none"
         accessibilityRole="text"
         accessibilityLabel={a11yLabel}
       >
-        <Ionicons name="ribbon-outline" size={15} color={presentation.text_color} />
-        <Text style={[styles.profileText, { color: presentation.text_color }]} numberOfLines={1}>
-          {presentation.label}
-        </Text>
+        {tag}
       </View>
     );
   }
 
-  if (variant === 'inline') {
-    return (
-      <View
-        style={[
-          styles.inline,
-          {
-            backgroundColor: presentation.bg_color,
-            borderColor: presentation.border_color,
-          },
-          style,
-        ]}
-        accessibilityRole="text"
-        accessibilityLabel={`Nivel ${presentation.label}`}
-      >
-        <Ionicons name="ribbon-outline" size={14} color={presentation.text_color} />
-        <Text style={[styles.inlineText, { color: presentation.text_color }]} numberOfLines={1}>
-          {presentation.label}
-        </Text>
-      </View>
-    );
-  }
-
-  const floatBg = withOpacity(presentation.bg_color, 0.95);
-  const floatA11y = presentation.reason
-    ? `Nivel ${presentation.label}. ${presentation.reason}`
-    : `Nivel ${presentation.label}`;
   return (
-    <View
-      style={[styles.floatingWrap, style]}
-      pointerEvents="none"
-      accessibilityRole="text"
-      accessibilityLabel={floatA11y}
-    >
-      <View
-        style={[
-          styles.floatingInner,
-          {
-            backgroundColor: floatBg,
-            borderColor: presentation.border_color,
-          },
-        ]}
-      >
-        <Ionicons
-          name="ribbon-outline"
-          size={iconSize}
-          color={presentation.text_color}
-          style={styles.floatingIcon}
-        />
-        <Text
-          style={[styles.floatingText, { color: presentation.text_color }]}
-          numberOfLines={1}
-        >
-          {presentation.label}
-        </Text>
-      </View>
+    <View style={styles.wrap} accessibilityRole="text" accessibilityLabel={a11yLabel}>
+      {tag}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  profile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: BORDERS.radius.full,
-    borderWidth: 1,
-    marginBottom: 8,
-  },
-  profileText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: 0.2,
-    flexShrink: 1,
+  wrap: {
+    flexShrink: 0,
   },
   floatingWrap: {
     alignSelf: 'flex-end',
     maxWidth: '100%',
   },
-  floatingInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: BORDERS.radius.full,
-    borderWidth: 1,
+  floating: {
     maxWidth: '100%',
   },
-  floatingIcon: {
-    marginRight: 4,
-  },
-  floatingText: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: 0.2,
-    flexShrink: 1,
-  },
   inline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: BORDERS.radius.full,
-    borderWidth: 1,
     flexShrink: 0,
-    maxWidth: '46%',
   },
-  inlineText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: 0.2,
+  profile: {
+    marginBottom: SPACING.xs,
   },
 });

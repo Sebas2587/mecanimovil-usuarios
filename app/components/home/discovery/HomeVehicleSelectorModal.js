@@ -24,6 +24,7 @@ const HomeVehicleSelectorModal = ({
   onClose,
   onSelectVehicle,
   onAddVehicle,
+  onManageVehicles,
 }) => (
   <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
     <View style={styles.modalOverlay}>
@@ -67,7 +68,7 @@ const HomeVehicleSelectorModal = ({
                     {item.year || ''} · {formatKm(item.kilometraje)} km · Salud {healthPct}%
                   </Text>
                 </View>
-                {isActive ? <Check size={18} color={COLORS.success.main} /> : null}
+                {isActive ? <Check size={18} color={COLORS.primary[500]} strokeWidth={2.5} /> : null}
               </TouchableOpacity>
             );
           }}
@@ -82,6 +83,16 @@ const HomeVehicleSelectorModal = ({
           <Plus size={18} color={COLORS.text.inverse} />
           <Text style={styles.selectorAddText}>Agregar Vehículo</Text>
         </TouchableOpacity>
+        {onManageVehicles ? (
+          <TouchableOpacity
+            style={styles.manageLink}
+            onPress={onManageVehicles}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
+            <Text style={styles.manageLinkText}>Ver patrimonio y fichas</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   </Modal>
@@ -90,7 +101,7 @@ const HomeVehicleSelectorModal = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(10,11,13,0.45)',
+    backgroundColor: COLORS.background.overlay,
     justifyContent: 'flex-end',
   },
   selectorModal: {
@@ -165,6 +176,17 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.inverse,
+  },
+  manageLink: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+  },
+  manageLinkText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[600],
   },
   listEmpty: {
     padding: 32,

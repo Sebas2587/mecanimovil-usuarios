@@ -14,7 +14,7 @@ import {
   BackHandler,
   useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../base/Icon/Icon';
 import { X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS as DS_COLORS, withOpacity } from '../../design-system/tokens/colors';
@@ -438,11 +438,11 @@ const ChecklistViewerModal = ({
       if (hasTextoMostrar && !esKm) {
         if (tipoPregunta === 'FLUID_LEVEL') {
           iconoTexto = (
-            <Ionicons name="water-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+            <Icon name="water-outline" size={16} color={C.accent} style={styles.inlineIcon} />
           );
         } else if (tipoPregunta === 'NUMBER') {
           iconoTexto = (
-            <Ionicons name="calculator-outline" size={16} color={C.accent} style={styles.inlineIcon} />
+            <Icon name="calculator-outline" size={16} color={C.accent} style={styles.inlineIcon} />
           );
         }
       }
@@ -452,7 +452,7 @@ const ChecklistViewerModal = ({
           <View style={styles.preguntaContainer}>
             <Text style={styles.preguntaTexto}>{pregunta}</Text>
             {respuesta.completado ? (
-              <Ionicons name="checkmark-circle" size={22} color={C.success} />
+              <Icon name="checkmark-circle" size={22} color={C.success} />
             ) : null}
           </View>
 
@@ -461,14 +461,14 @@ const ChecklistViewerModal = ({
               {hasSeleccion ? (
                 opcionesSel.length === 1 ? (
                   <View style={styles.valorRowSimple}>
-                    <Ionicons name="checkmark-circle" size={18} color={C.success} />
+                    <Icon name="checkmark-circle" size={18} color={C.success} />
                     <Text style={styles.valorDestacado}>{String(opcionesSel[0])}</Text>
                   </View>
                 ) : (
                   <View style={styles.chipsWrap}>
                     {opcionesSel.map((op, oi) => (
                       <View key={String(oi)} style={styles.seleccionChip}>
-                        <Ionicons name="checkmark-circle" size={14} color={C.success} />
+                        <Icon name="checkmark-circle" size={14} color={C.success} />
                         <Text style={styles.seleccionChipTexto}>{String(op)}</Text>
                       </View>
                     ))}
@@ -478,7 +478,7 @@ const ChecklistViewerModal = ({
 
               {detalleOpcionFaltante ? (
                 <View style={styles.valorRowSimple}>
-                  <Ionicons name="information-circle-outline" size={18} color={C.textSecondary} />
+                  <Icon name="information-circle-outline" size={18} color={C.textSecondary} />
                   <Text style={styles.avisoDetalleFaltante}>
                     El técnico completó este paso, pero la opción elegida no quedó guardada en el informe.
                   </Text>
@@ -497,14 +497,14 @@ const ChecklistViewerModal = ({
 
               {esKm && kmValor != null ? (
                 <View style={styles.valorRowSimple}>
-                  <Ionicons name="speedometer-outline" size={20} color={DS_COLORS.primary[600]} />
+                  <Icon name="speedometer-outline" size={20} color={DS_COLORS.primary[600]} />
                   <Text style={styles.kmValorPlano}>{formatKmDisplay(kmValor)} km</Text>
                 </View>
               ) : null}
 
               {firmaSoloMarcada ? (
                 <View style={styles.valorRowSimple}>
-                  <Ionicons name="checkmark-circle" size={18} color={C.success} />
+                  <Icon name="checkmark-circle" size={18} color={C.success} />
                   <Text style={styles.respuestaValor}>Firma registrada</Text>
                 </View>
               ) : null}
@@ -517,7 +517,7 @@ const ChecklistViewerModal = ({
 
               {hasBoolean ? (
                 <View style={styles.valorRowSimple}>
-                  <Ionicons
+                  <Icon
                     name={respuesta.respuesta_booleana ? 'checkmark-circle' : 'close-circle'}
                     size={18}
                     color={respuesta.respuesta_booleana ? C.success : C.error}
@@ -535,7 +535,7 @@ const ChecklistViewerModal = ({
 
               {hasFecha ? (
                 <View style={styles.valorRowSimple}>
-                  <Ionicons name="calendar-outline" size={18} color={C.accent} />
+                  <Icon name="calendar-outline" size={18} color={C.accent} />
                   <Text style={styles.respuestaValor}>
                     {(() => {
                       try {
@@ -591,7 +591,7 @@ const ChecklistViewerModal = ({
                 </View>
               ) : (
                 <View style={styles.fotosErrorWrap}>
-                  <Ionicons name="image-outline" size={18} color={C.textSecondary} />
+                  <Icon name="image-outline" size={18} color={C.textSecondary} />
                   <Text style={styles.fotosErrorText}>
                     Hay {fotos.length} foto(s) registradas, pero no se pudieron cargar. Intenta
                     abrir el informe de nuevo en unos momentos.
@@ -624,7 +624,7 @@ const ChecklistViewerModal = ({
       return (
         <View style={styles.contenidoContainer}>
           <View style={styles.contenidoEmpty}>
-            <Ionicons name="document-text-outline" size={40} color={C.textLight} />
+            <Icon name="document-text-outline" size={40} color={C.textLight} />
             <Text style={styles.instruccionTexto}>No hay respuestas en este informe.</Text>
           </View>
         </View>
@@ -642,7 +642,7 @@ const ChecklistViewerModal = ({
       return (
         <View style={styles.contenidoContainer}>
           <View style={styles.contenidoEmpty}>
-            <Ionicons name="folder-open-outline" size={40} color={C.textLight} />
+            <Icon name="folder-open-outline" size={40} color={C.textLight} />
             <Text style={styles.sinDatosTexto}>No hay elementos verificados en este informe.</Text>
           </View>
         </View>
@@ -697,8 +697,8 @@ const ChecklistViewerModal = ({
   };
 
   // ─── RECOMENDACIONES ML ──────────────────────────────────────────────────
-  const REC_COLORS = { URGENTE: '#cf202f', ATENCION: '#fd7e14', PROACTIVA: '#2563EB' };
-  const REC_BG = { URGENTE: '#fff5f5', ATENCION: '#fffaf0', PROACTIVA: '#eff6ff' };
+  const REC_COLORS = { URGENTE: DS_COLORS.error.main, ATENCION: DS_COLORS.warning.main, PROACTIVA: DS_COLORS.primary[500] };
+  const REC_BG = { URGENTE: DS_COLORS.error[50], ATENCION: DS_COLORS.warning[50], PROACTIVA: DS_COLORS.primary[50] };
 
   const renderRecomendaciones = () => {
     if (loadingRec) {
@@ -715,7 +715,7 @@ const ChecklistViewerModal = ({
     return (
       <View style={styles.recSection}>
         <View style={styles.recSectionHeader}>
-          <Ionicons name="bulb-outline" size={18} color={DS_COLORS.primary[500]} />
+          <Icon name="bulb-outline" size={18} color={DS_COLORS.primary[500]} />
           <Text style={styles.recSectionTitle}>
             Recomendaciones del Taller ({recomendaciones.length})
           </Text>
@@ -729,13 +729,13 @@ const ChecklistViewerModal = ({
             style={[
               styles.recCard,
               {
-                borderLeftColor: REC_COLORS[rec.prioridad] ?? '#888',
+                borderLeftColor: REC_COLORS[rec.prioridad] ?? DS_COLORS.neutral.gray[500],
                 backgroundColor: REC_BG[rec.prioridad] ?? DS_COLORS.background.paper,
               },
             ]}
           >
             <View style={styles.recCardHeader}>
-              <View style={[styles.recBadge, { backgroundColor: REC_COLORS[rec.prioridad] ?? '#888' }]}>
+              <View style={[styles.recBadge, { backgroundColor: REC_COLORS[rec.prioridad] ?? DS_COLORS.neutral.gray[500] }]}>
                 <Text style={styles.recBadgeText}>{rec.prioridad}</Text>
               </View>
               <Text style={styles.recComponenteNombre} numberOfLines={1}>
@@ -761,7 +761,7 @@ const ChecklistViewerModal = ({
                 }}
                 activeOpacity={0.8}
               >
-                <Ionicons name="calendar-outline" size={14} color={DS_COLORS.primary[500]} />
+                <Icon name="calendar-outline" size={14} color={DS_COLORS.primary[500]} />
                 <Text style={styles.recCTAText}>
                   Agendar: {rec.servicios_sugeridos[0].nombre}
                   {rec.servicios_sugeridos[0].precio_referencia
@@ -794,9 +794,9 @@ const ChecklistViewerModal = ({
           onPress={() => setMostrarFirmas(!mostrarFirmas)}
           activeOpacity={0.7}
         >
-          <Ionicons name="create-outline" size={18} color={C.primary} />
+          <Icon name="create-outline" size={18} color={C.primary} />
           <Text style={styles.firmasToggleText}>Firmas de conformidad</Text>
-          <Ionicons
+          <Icon
             name={mostrarFirmas ? 'chevron-up' : 'chevron-down'}
             size={18}
             color={C.textSecondary}
@@ -901,7 +901,7 @@ const ChecklistViewerModal = ({
         <View style={[styles.header, { paddingTop: insets.top + SPACING.xs }]}>
           <View style={styles.headerTopRow}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton} accessibilityRole="button">
-              <Ionicons name="arrow-back" size={22} color={DS_COLORS.text.primary} />
+              <Icon name="arrow-back" size={22} color={DS_COLORS.text.primary} />
             </TouchableOpacity>
             <View style={styles.headerCenter}>
               <Text style={styles.title}>Informe de servicio</Text>
@@ -934,7 +934,7 @@ const ChecklistViewerModal = ({
         ) : error ? (
           <View style={styles.errorContainer}>
             <View style={styles.panelCard}>
-              <Ionicons name="warning-outline" size={48} color={DS_COLORS.warning.main} />
+              <Icon name="warning-outline" size={48} color={DS_COLORS.warning.main} />
               <Text style={styles.errorText}>No se pudo cargar el informe</Text>
               <Text style={styles.errorSubtext}>{String(error)}</Text>
               <TouchableOpacity style={styles.retryButton} onPress={cargarChecklist} activeOpacity={0.85}>
@@ -950,7 +950,7 @@ const ChecklistViewerModal = ({
         ) : (
           <View style={styles.errorContainer}>
             <View style={styles.panelCard}>
-              <Ionicons name="document-text-outline" size={48} color={DS_COLORS.text.tertiary} />
+              <Icon name="document-text-outline" size={48} color={DS_COLORS.text.tertiary} />
               <Text style={styles.noDataText}>Sin datos de inspección</Text>
               <Text style={styles.loadingSub}>Este servicio no tiene un informe registrado.</Text>
             </View>
@@ -1545,7 +1545,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.pill,
   },
   recBadgeText: {
-    color: '#fff',
+    color: DS_COLORS.text.inverse,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     letterSpacing: 0.5,
@@ -1569,10 +1569,10 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.sm,
-    backgroundColor: DS_COLORS.primary[50] ?? '#eff6ff',
+    backgroundColor: DS_COLORS.primary[50],
     borderRadius: BORDERS.radius.md,
     borderWidth: BORDERS.width.thin,
-    borderColor: DS_COLORS.primary[200] ?? '#bfdbfe',
+    borderColor: DS_COLORS.primary[200],
     marginTop: 4,
   },
   recCTAText: {

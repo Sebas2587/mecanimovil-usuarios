@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 // Safe access to TYPOGRAPHY with fallback values - MUST be before any usage
 const getSafeTypography = () => {
@@ -88,7 +88,7 @@ const ConnectionStatusIndicator = ({ isConnected, lastConnection, showDetails = 
     <View style={styles.container}>
       <View style={styles.statusContainer}>
         <Animated.View style={{ opacity: pulseAnim }}>
-          <MaterialIcons
+          <Icon
             name={getStatusIcon()}
             size={12}
             color={getStatusColor()}

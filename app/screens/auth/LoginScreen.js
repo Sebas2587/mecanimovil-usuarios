@@ -14,8 +14,17 @@ import {
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import {
+  AlertCircle,
+  ArrowLeft,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  KeyRound,
+  Mail,
+  UserMinus,
+  X,
+} from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
@@ -27,7 +36,7 @@ import {
   getConnectedGoogleAccountsAsync,
   clearConnectedGoogleAccountsAsync,
 } from '../../hooks/useGoogleSignInFlow';
-import { COLORS, BORDERS, SPACING, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import logger from '../../utils/logger';
 import * as authService from '../../services/auth';
 import { useQueryClient } from '@tanstack/react-query';
@@ -53,6 +62,22 @@ import LegalFooterLinks from '../../components/support/LegalFooterLinks';
  */
 
 const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
+const ICON_STROKE = 1.75;
+
+const GoogleMark = ({ size = 20 }) => (
+  <Text
+    style={{
+      width: size,
+      fontSize: Math.round(size * 0.85),
+      fontFamily: TYPOGRAPHY.styles.button.fontFamily,
+      fontWeight: TYPOGRAPHY.styles.button.fontWeight,
+      color: COLORS.primary[500],
+      textAlign: 'center',
+    }}
+  >
+    G
+  </Text>
+);
 
 const LoginScreen = () => {
   const navigation = useNavigation();
@@ -314,7 +339,7 @@ const LoginScreen = () => {
               </View>
               {googleLoading
                 ? <ActivityIndicator size="small" color={COLORS.primary[500]} />
-                : <Ionicons name="chevron-forward" size={18} color={COLORS.text.tertiary} />}
+                : <ChevronRight size={18} color={COLORS.text.tertiary} strokeWidth={ICON_STROKE} />}
             </TouchableOpacity>
           );
         })}
@@ -325,14 +350,15 @@ const LoginScreen = () => {
           <View style={styles.dividerLine} />
         </View>
 
-        <TouchableOpacity
+        <Button
+          title="Usar otra cuenta"
           onPress={goMethods}
           disabled={googleLoading}
-          style={[styles.btnPrimary, googleLoading && styles.disabled]}
-          activeOpacity={0.75}
-        >
-          <Text style={styles.btnPrimaryText}>Usar otra cuenta</Text>
-        </TouchableOpacity>
+          type="secondary"
+          variant="outline"
+          size="md"
+          fullWidth
+        />
       </View>
 
       <LegalFooterLinks textStyle={styles.footer} linkStyle={styles.footerLink} />
@@ -343,7 +369,7 @@ const LoginScreen = () => {
         style={styles.clearBtn}
         activeOpacity={0.7}
       >
-        <Ionicons name="person-remove-outline" size={14} color={COLORS.text.secondary} style={{ marginRight: 6 }} />
+        <UserMinus size={14} color={COLORS.text.secondary} strokeWidth={ICON_STROKE} style={{ marginRight: 6 }} />
         <Text style={styles.clearBtnText}>Quitar las cuentas</Text>
       </TouchableOpacity>
     </>
@@ -353,7 +379,7 @@ const LoginScreen = () => {
     <>
       {connectedAccounts.length > 0 && (
         <TouchableOpacity onPress={goAccounts} style={styles.backRow} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={20} color={COLORS.text.primary} />
+          <ChevronLeft size={20} color={COLORS.text.primary} strokeWidth={ICON_STROKE} />
           <Text style={styles.backText}>Volver</Text>
         </TouchableOpacity>
       )}
@@ -375,7 +401,9 @@ const LoginScreen = () => {
           {googleLoading ? (
             <ActivityIndicator size="small" color={COLORS.text.primary} />
           ) : (
-            <Ionicons name="logo-google" size={20} color="#4285F4" style={styles.optionIcon} />
+            <View style={styles.optionIcon}>
+              <GoogleMark size={20} />
+            </View>
           )}
           <Text style={styles.optionText}>Usar Google</Text>
         </TouchableOpacity>
@@ -385,7 +413,7 @@ const LoginScreen = () => {
           style={styles.optionBtn}
           activeOpacity={0.75}
         >
-          <Ionicons name="mail-outline" size={20} color={COLORS.text.primary} style={styles.optionIcon} />
+          <Mail size={20} color={COLORS.text.primary} strokeWidth={ICON_STROKE} style={styles.optionIcon} />
           <Text style={styles.optionText}>Usar mi correo</Text>
         </TouchableOpacity>
       </View>
@@ -397,7 +425,7 @@ const LoginScreen = () => {
   const renderEmailView = () => (
     <>
       <TouchableOpacity onPress={goMethods} style={styles.backRow} activeOpacity={0.7}>
-        <Ionicons name="chevron-back" size={20} color={COLORS.text.primary} />
+        <ChevronLeft size={20} color={COLORS.text.primary} strokeWidth={ICON_STROKE} />
         <Text style={styles.backText}>Volver</Text>
       </TouchableOpacity>
 
@@ -418,7 +446,7 @@ const LoginScreen = () => {
       <View style={styles.card}>
         {formError ? (
           <View style={styles.formErrorBanner}>
-            <Ionicons name="alert-circle" size={18} color={COLORS.error[600]} />
+            <AlertCircle size={18} color={COLORS.error.main} strokeWidth={ICON_STROKE} />
             <Text style={styles.formErrorText}>{formError}</Text>
           </View>
         ) : null}
@@ -457,7 +485,7 @@ const LoginScreen = () => {
         <View style={styles.optionsRow}>
           <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe(!rememberMe)}>
             <View style={[styles.checkbox, rememberMe && styles.checkboxOn]}>
-              {rememberMe && <Ionicons name="checkmark" size={13} color={COLORS.text.inverse} />}
+              {rememberMe && <Check size={13} color={COLORS.text.inverse} strokeWidth={2.5} />}
             </View>
             <Text style={styles.rememberText}>Recordarme</Text>
           </TouchableOpacity>
@@ -472,7 +500,6 @@ const LoginScreen = () => {
           isLoading={loading}
           type="primary"
           variant="solid"
-          useGradient
           size="md"
           fullWidth
         />
@@ -524,15 +551,17 @@ const LoginScreen = () => {
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeForgotPasswordModal} />
           <View style={styles.modalCard}>
-            <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.88)' }]} />
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <View style={styles.modalIconWrap}>
-                  <Ionicons name={forgotPasswordStep === 1 ? 'mail-outline' : 'key-outline'} size={28} color="#67E8F9" />
+                  {forgotPasswordStep === 1 ? (
+                    <Mail size={26} color={COLORS.primary[500]} strokeWidth={ICON_STROKE} />
+                  ) : (
+                    <KeyRound size={26} color={COLORS.primary[500]} strokeWidth={ICON_STROKE} />
+                  )}
                 </View>
                 <TouchableOpacity onPress={closeForgotPasswordModal} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Ionicons name="close-circle" size={28} color="rgba(255,255,255,0.5)" />
+                  <X size={24} color={COLORS.text.tertiary} strokeWidth={ICON_STROKE} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.modalTitle}>{forgotPasswordStep === 1 ? 'Recuperar Contraseña' : 'Nueva Contraseña'}</Text>
@@ -542,9 +571,9 @@ const LoginScreen = () => {
                   <View style={styles.fieldWrap}>
                     <Input label="Correo Electrónico" placeholder="ejemplo@correo.com" value={forgotPasswordEmail}
                       onChangeText={(t) => { setForgotPasswordEmail(t); if (forgotPasswordErrors.email) setForgotPasswordErrors((p) => ({ ...p, email: undefined })); }}
-                      keyboardType="email-address" autoCapitalize="none" autoCorrect={false} error={forgotPasswordErrors.email} leftIcon="mail-outline" appearance="darkGlass" />
+                      keyboardType="email-address" autoCapitalize="none" autoCorrect={false} error={forgotPasswordErrors.email} leftIcon="mail-outline" appearance="light" />
                   </View>
-                  <Button title="Enviar Solicitud" onPress={handleForgotPassword} isLoading={forgotPasswordLoading} type="primary" variant="solid" useGradient size="md" fullWidth />
+                  <Button title="Enviar Solicitud" onPress={handleForgotPassword} isLoading={forgotPasswordLoading} type="primary" variant="solid" size="md" fullWidth />
                 </ScrollView>
               ) : (
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -552,22 +581,22 @@ const LoginScreen = () => {
                   <View style={styles.fieldWrap}>
                     <Input label="Token" placeholder="Ingresa el token" value={resetToken}
                       onChangeText={(t) => { setResetToken(t); if (forgotPasswordErrors.token) setForgotPasswordErrors((p) => ({ ...p, token: undefined })); }}
-                      autoCapitalize="none" autoCorrect={false} error={forgotPasswordErrors.token} leftIcon="key-outline" appearance="darkGlass" />
+                      autoCapitalize="none" autoCorrect={false} error={forgotPasswordErrors.token} leftIcon="key-outline" appearance="light" />
                   </View>
                   <View style={styles.fieldWrap}>
                     <Input label="Nueva Contraseña" placeholder="Mínimo 8 caracteres" value={newPassword}
                       onChangeText={(t) => { setNewPassword(t); if (forgotPasswordErrors.newPassword) setForgotPasswordErrors((p) => ({ ...p, newPassword: undefined })); }}
-                      secureTextEntry autoCorrect={false} error={forgotPasswordErrors.newPassword} leftIcon="lock-closed-outline" appearance="darkGlass" />
+                      secureTextEntry autoCorrect={false} error={forgotPasswordErrors.newPassword} leftIcon="lock-closed-outline" appearance="light" />
                   </View>
                   <View style={styles.fieldWrap}>
                     <Input label="Confirmar Contraseña" placeholder="Confirma tu contraseña" value={confirmNewPassword}
                       onChangeText={(t) => { setConfirmNewPassword(t); if (forgotPasswordErrors.confirmNewPassword) setForgotPasswordErrors((p) => ({ ...p, confirmNewPassword: undefined })); }}
-                      secureTextEntry autoCorrect={false} error={forgotPasswordErrors.confirmNewPassword} leftIcon="lock-closed-outline" appearance="darkGlass" />
+                      secureTextEntry autoCorrect={false} error={forgotPasswordErrors.confirmNewPassword} leftIcon="lock-closed-outline" appearance="light" />
                   </View>
-                  <Button title="Restablecer Contraseña" onPress={handleResetPassword} isLoading={forgotPasswordLoading} type="primary" variant="solid" useGradient size="md" fullWidth />
+                  <Button title="Restablecer Contraseña" onPress={handleResetPassword} isLoading={forgotPasswordLoading} type="primary" variant="solid" size="md" fullWidth />
                   <TouchableOpacity onPress={() => setForgotPasswordStep(1)} style={styles.backRow}>
-                    <Ionicons name="arrow-back" size={16} color="#67E8F9" style={{ marginRight: 6 }} />
-                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#67E8F9' }}>Volver a ingresar email</Text>
+                    <ArrowLeft size={16} color={COLORS.primary[500]} strokeWidth={ICON_STROKE} style={{ marginRight: 6 }} />
+                    <Text style={styles.modalBackLink}>Volver a ingresar email</Text>
                   </TouchableOpacity>
                 </ScrollView>
               )}
@@ -603,20 +632,17 @@ const styles = StyleSheet.create({
   /* Heading */
   heading: { marginBottom: 22 },
   h1: {
-    fontSize: TYPOGRAPHY.styles.h2.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.h2,
     color: COLORS.text.primary,
     marginBottom: 8,
-    lineHeight: 32,
   },
   h2: {
-    fontSize: TYPOGRAPHY.styles.body.fontSize,
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.secondary,
-    lineHeight: 22,
   },
   headingLink: {
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.primary[500],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     textDecorationLine: 'underline',
   },
 
@@ -629,8 +655,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   backText: {
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
     marginLeft: 2,
   },
@@ -668,18 +693,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarInitials: {
-    fontSize: 15,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[500],
   },
   accountInfo: { flex: 1, marginLeft: 14, minWidth: 0 },
   accountName: {
-    fontSize: TYPOGRAPHY.styles.body.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
   accountEmail: {
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
     marginTop: 2,
   },
@@ -693,28 +716,11 @@ const styles = StyleSheet.create({
   dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border.light },
   dividerText: {
     marginHorizontal: 14,
-    fontSize: TYPOGRAPHY.styles.small.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.small,
+    fontFamily: TYPOGRAPHY.styles.captionBold.fontFamily,
+    fontWeight: TYPOGRAPHY.styles.captionBold.fontWeight,
     color: COLORS.text.tertiary,
     letterSpacing: 0.5,
-  },
-
-  /* Primary button (text-only style for "Usar otra cuenta") */
-  btnPrimary: {
-    minHeight: 50,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: 1,
-    borderColor: COLORS.border.dark,
-    backgroundColor: COLORS.background.paper,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnPrimaryText: {
-    fontSize: TYPOGRAPHY.styles.body.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
   },
 
   /* Method options (Usar Google / Usar correo) */
@@ -733,8 +739,7 @@ const styles = StyleSheet.create({
   },
   optionIcon: { marginRight: 12 },
   optionText: {
-    fontSize: TYPOGRAPHY.styles.body.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.button,
     color: COLORS.text.primary,
   },
 
@@ -747,8 +752,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   clearBtnText: {
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     textDecorationLine: 'underline',
   },
@@ -768,9 +772,8 @@ const styles = StyleSheet.create({
   },
   formErrorText: {
     flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.error[700],
-    lineHeight: 20,
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.error.main,
   },
   optionsRow: {
     flexDirection: 'row',
@@ -787,12 +790,11 @@ const styles = StyleSheet.create({
   },
   checkboxOn: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
   rememberText: {
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
   },
   forgotText: {
-    fontSize: TYPOGRAPHY.styles.captionBold.fontSize,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[500],
   },
 
@@ -801,34 +803,57 @@ const styles = StyleSheet.create({
 
   /* Footer */
   footer: {
-    fontSize: TYPOGRAPHY.styles.small.fontSize,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
-    lineHeight: 18,
     marginBottom: 10,
   },
   footerLink: {
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[500],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     textDecorationLine: 'underline',
   },
 
   /* Modal */
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalCard: { width: '100%', maxWidth: 420, maxHeight: '85%', borderRadius: 24, overflow: 'hidden' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.background.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 420,
+    maxHeight: '85%',
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+    overflow: 'hidden',
+  },
   modalContent: { padding: 24 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  modalIconWrap: { width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(0,126,167,0.20)', alignItems: 'center', justifyContent: 'center' },
+  modalIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   modalTitle: {
-    fontSize: TYPOGRAPHY.styles.h3.fontSize,
-    fontWeight: TYPOGRAPHY.styles.h3.fontWeight,
-    color: '#F9FAFB',
+    ...TYPOGRAPHY.styles.h3,
+    color: COLORS.text.primary,
     marginBottom: 8,
   },
   modalDesc: {
-    fontSize: TYPOGRAPHY.styles.caption.fontSize,
-    color: withOpacity(COLORS.base.white, 0.55),
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
     marginBottom: 20,
-    lineHeight: 20,
+  },
+  modalBackLink: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[500],
   },
 });
 

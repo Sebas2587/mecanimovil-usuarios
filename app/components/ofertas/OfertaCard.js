@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDERS, ROUTES } from '../../utils/constants';
+import { SPACING, BORDERS, ROUTES } from '../../utils/constants';
+import { COLORS as DS_COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { getMediaURL } from '../../services/api';
 import RepuestosExpandible from './RepuestosExpandible';
 import EstadoSolicitudBadge from '../solicitudes/EstadoSolicitudBadge';
@@ -11,6 +11,7 @@ import { useTheme } from '../../design-system/theme/useTheme';
 import CountdownTimer from '../common/CountdownTimer';
 import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
 import { calcularMontosPagoOferta, formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
+import Icon from '../base/Icon/Icon';
 
 // Habilitar LayoutAnimation en Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -162,18 +163,18 @@ const OfertaCard = ({
 
     for (let i = 0; i < fullStars; i++) {
       stars.push(
-        <Ionicons key={i} name="star" size={12} color={COLORS.text} />
+        <Icon key={i} name="star" size={12} color={DS_COLORS.text.primary} />
       );
     }
     if (hasHalfStar) {
       stars.push(
-        <Ionicons key="half" name="star-half" size={12} color={COLORS.text} />
+        <Icon key="half" name="star-half" size={12} color={DS_COLORS.text.primary} />
       );
     }
     const emptyStars = 5 - Math.ceil(rating);
     for (let i = 0; i < emptyStars; i++) {
       stars.push(
-        <Ionicons key={`empty-${i}`} name="star-outline" size={12} color={COLORS.textLight} />
+        <Icon key={`empty-${i}`} name="star-outline" size={12} color={DS_COLORS.text.secondary} />
       );
     }
     return stars;
@@ -340,7 +341,7 @@ const OfertaCard = ({
       {/* Badge de Servicio Adicional */}
       {esOfertaSecundaria && (
         <View style={styles.servicioAdicionalBadge}>
-          <Ionicons name="add-circle" size={14} color="#FFFFFF" />
+          <Icon name="add-circle" size={14} color={DS_COLORS.text.onPrimary} />
           <Text style={styles.servicioAdicionalBadgeText}>SERVICIO ADICIONAL</Text>
         </View>
       )}
@@ -363,10 +364,10 @@ const OfertaCard = ({
             />
           ) : (
             <View style={styles.headerFotoPlaceholder}>
-              <Ionicons
+              <Icon
                 name={oferta.tipo_proveedor === 'taller' ? 'business' : 'person'}
                 size={16}
-                color={COLORS.textLight}
+                color={DS_COLORS.text.secondary}
               />
             </View>
           )}
@@ -391,7 +392,7 @@ const OfertaCard = ({
             ${formatearMontoCLP(oferta.precio_total_ofrecido || 0)}
           </Text>
           <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
-            <Ionicons name="chevron-up" size={20} color={COLORS.textLight} />
+            <Icon name="chevron-up" size={20} color={DS_COLORS.text.secondary} />
           </Animated.View>
         </View>
       </TouchableOpacity>
@@ -428,7 +429,7 @@ const OfertaCard = ({
           {/* Link a oferta original si es secundaria */}
           {esOfertaSecundaria && oferta.oferta_original_info && (
             <View style={styles.ofertaOriginalLink}>
-              <Ionicons name="link-outline" size={14} color={COLORS.textLight} />
+              <Icon name="link-outline" size={14} color={DS_COLORS.text.secondary} />
               <Text style={styles.ofertaOriginalLinkText}>
                 Relacionada con oferta original de ${formatearMontoCLP(oferta.oferta_original_info.precio_total_ofrecido || 0)}
               </Text>
@@ -469,10 +470,10 @@ const OfertaCard = ({
                 />
               ) : (
                 <View style={styles.proveedorFotoPlaceholder}>
-                  <Ionicons
+                  <Icon
                     name={oferta.tipo_proveedor === 'taller' ? 'business' : 'person'}
                     size={20}
-                    color={COLORS.textLight}
+                    color={DS_COLORS.text.secondary}
                   />
                 </View>
               )}
@@ -506,7 +507,7 @@ const OfertaCard = ({
                   style={styles.tipoBadgeLink}
                 >
                   <Text style={styles.tipoBadgeText}>Ver perfil</Text>
-                  <Ionicons name="chevron-forward" size={12} color={COLORS.primary} />
+                  <Icon name="chevron-forward" size={12} color={DS_COLORS.primary[500]} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -532,7 +533,7 @@ const OfertaCard = ({
                 return (
                   <View style={styles.infoRow}>
                     <View style={styles.infoLabelContainer}>
-                      <Ionicons name="calendar-outline" size={14} color={COLORS.textLight} />
+                      <Icon name="calendar-outline" size={14} color={DS_COLORS.text.secondary} />
                       <Text style={styles.infoLabel}>Fecha:</Text>
                     </View>
                     <View style={{ flex: 1 }}>
@@ -556,7 +557,7 @@ const OfertaCard = ({
               return (
                 <View style={styles.infoRow}>
                   <View style={styles.infoLabelContainer}>
-                    <Ionicons name="calendar-outline" size={14} color={COLORS.textLight} />
+                    <Icon name="calendar-outline" size={14} color={DS_COLORS.text.secondary} />
                     <Text style={styles.infoLabel}>Fecha:</Text>
                   </View>
                   <Text style={styles.infoText}>
@@ -570,7 +571,7 @@ const OfertaCard = ({
             {/* Tiempo estimado */}
             <View style={styles.infoRow}>
               <View style={styles.infoLabelContainer}>
-                <Ionicons name="time-outline" size={14} color={COLORS.textLight} />
+                <Icon name="time-outline" size={14} color={DS_COLORS.text.secondary} />
                 <Text style={styles.infoLabel}>Duración:</Text>
               </View>
               <Text style={styles.infoText}>
@@ -582,7 +583,7 @@ const OfertaCard = ({
             {oferta.garantia_ofrecida && (
               <View style={styles.infoRow}>
                 <View style={styles.infoLabelContainer}>
-                  <Ionicons name="shield-checkmark-outline" size={14} color={COLORS.textLight} />
+                  <Icon name="shield-checkmark-outline" size={14} color={DS_COLORS.text.secondary} />
                   <Text style={styles.infoLabel}>Garantía:</Text>
                 </View>
                 <Text style={styles.infoText}>{oferta.garantia_ofrecida}</Text>
@@ -592,7 +593,7 @@ const OfertaCard = ({
             {/* Incluye repuestos badge */}
             {oferta.incluye_repuestos && (
               <View style={styles.repuestosBadge}>
-                <Ionicons name="checkmark-circle" size={14} color={COLORS.text} />
+                <Icon name="checkmark-circle" size={14} color={DS_COLORS.text.primary} />
                 <Text style={styles.repuestosText}>Incluye repuestos</Text>
               </View>
             )}
@@ -610,7 +611,7 @@ const OfertaCard = ({
                     {desglose.costoManoObra > 0 && (
                       <View style={styles.desgloseProveedorRow}>
                         <View style={styles.desgloseProveedorLeft}>
-                          <Ionicons name="construct-outline" size={16} color={colors.primary?.[500] || COLORS.primary} />
+                          <Icon name="construct-outline" size={16} color={colors?.primary?.[500] ?? DS_COLORS.primary[500]} />
                           <Text style={styles.desgloseProveedorLabel}>🔧 Mano de obra (sin IVA)</Text>
                         </View>
                         <Text style={styles.desgloseProveedorValue}>
@@ -623,7 +624,7 @@ const OfertaCard = ({
                     {desglose.costoRepuestos > 0 && (
                       <View style={styles.desgloseProveedorRow}>
                         <View style={styles.desgloseProveedorLeft}>
-                          <Ionicons name="cog-outline" size={16} color={COLORS.textLight} />
+                          <Icon name="cog-outline" size={16} color={DS_COLORS.text.secondary} />
                           <Text style={styles.desgloseProveedorLabel}>📦 Repuestos (sin IVA)</Text>
                         </View>
                         <Text style={styles.desgloseProveedorValue}>
@@ -636,10 +637,10 @@ const OfertaCard = ({
                     {(oferta.incluye_repuestos || desglose.costoGestionCompra > 0) && (
                       <View style={styles.desgloseProveedorRow}>
                         <View style={styles.desgloseProveedorLeft}>
-                          <Ionicons name="car-outline" size={16} color="#FF9800" />
-                          <Text style={[styles.desgloseProveedorLabel, { color: '#FF9800' }]}>🚚 Gestión de compra (sin IVA)</Text>
+                          <Icon name="car-outline" size={16} color={DS_COLORS.warning.main} />
+                          <Text style={[styles.desgloseProveedorLabel, { color: DS_COLORS.warning.main }]}>🚚 Gestión de compra (sin IVA)</Text>
                         </View>
-                        <Text style={[styles.desgloseProveedorValue, { color: '#FF9800' }]}>
+                        <Text style={[styles.desgloseProveedorValue, { color: DS_COLORS.warning.main }]}>
                           ${formatearMontoCLP(desglose.costoGestionCompra)}
                         </Text>
                       </View>
@@ -672,10 +673,10 @@ const OfertaCard = ({
                         <View key={index} style={styles.servicioDesgloseItem}>
                           <View style={[styles.servicioDesgloseHeader, esServicioPrincipal && styles.servicioDesglosePrincipal]}>
                             <View style={styles.servicioDesgloseLeft}>
-                              <Ionicons
+                              <Icon
                                 name="construct-outline"
                                 size={16}
-                                color={esServicioPrincipal ? (colors.primary?.[500] || COLORS.primary) : COLORS.textLight}
+                                color={esServicioPrincipal ? (colors?.primary?.[500] ?? DS_COLORS.primary[500]) : DS_COLORS.text.secondary}
                               />
                               <Text style={[styles.servicioDesgloseNombre, esServicioPrincipal && styles.servicioDesgloseNombrePrincipal]} numberOfLines={2}>
                                 {servicio.nombre}
@@ -734,7 +735,7 @@ const OfertaCard = ({
               {/* Nota de repuestos incluidos */}
               {oferta.incluye_repuestos && (
                 <View style={styles.notaRepuestos}>
-                  <Ionicons name="checkmark-circle" size={14} color={colors.success?.[500] || '#10B981'} />
+                  <Icon name="checkmark-circle" size={14} color={colors.success?.[500] || DS_COLORS.success.main} />
                   <Text style={styles.notaRepuestosText}>Esta oferta incluye repuestos</Text>
                 </View>
               )}
@@ -754,7 +755,7 @@ const OfertaCard = ({
               return (
                 <View style={styles.pagoParcialContainer}>
                   <View style={styles.pagoParcialHeader}>
-                    <Ionicons name="information-circle" size={20} color={colors.warning?.[600] || '#F59E0B'} />
+                    <Icon name="information-circle" size={20} color={colors.warning?.[600] || DS_COLORS.warning[600]} />
                     <Text style={styles.pagoParcialTitulo}>Pago Parcial Realizado</Text>
                   </View>
 
@@ -808,7 +809,7 @@ const OfertaCard = ({
               activeOpacity={0.7}
             >
               <View style={styles.chatLinkBackground} />
-              <Ionicons name="chatbubble-outline" size={16} color={COLORS.primary} style={styles.chatIcon} />
+              <Icon name="chatbubble-outline" size={16} color={DS_COLORS.primary[500]} style={styles.chatIcon} />
               <Text style={styles.chatLinkText}>Abrir chat</Text>
               {oferta.mensajes_no_leidos > 0 && (
                 <View style={styles.mensajesBadge}>
@@ -865,7 +866,7 @@ const OfertaCard = ({
                 onPress={onPagarPress}
                 activeOpacity={0.8}
               >
-                <Ionicons name="card-outline" size={18} color="#FFFFFF" />
+                <Icon name="card-outline" size={18} color={DS_COLORS.text.onPrimary} />
                 <Text style={styles.pagarSaldoButtonText}>
                   Pagar Saldo Pendiente (${formatearMontoCLP(calcularMontosPagoOferta(oferta).servicio)})
                 </Text>
@@ -883,7 +884,7 @@ const OfertaCard = ({
                 onPress={onPagarPress}
                 activeOpacity={0.8}
               >
-                <Ionicons name="card-outline" size={18} color="#FFFFFF" />
+                <Icon name="card-outline" size={18} color={DS_COLORS.text.onPrimary} />
                 <Text style={styles.pagarButtonText}>
                   {oferta.estado === 'pendiente_pago' ? 'Reintentar Pago' : 'Pagar Servicio Adicional'}
                 </Text>
@@ -898,13 +899,13 @@ const OfertaCard = ({
 // Función para crear estilos dinámicos basados en el tema
 const createStyles = (colors, typography, spacing, borders) => StyleSheet.create({
   card: {
-    backgroundColor: colors.background?.paper || COLORS.white,
+    backgroundColor: colors.background?.paper || DS_COLORS.base.white,
     marginHorizontal: 0, // Se maneja con paddingLeft/paddingRight del ScrollView padre
     marginVertical: spacing.sm || SPACING.sm,
     marginBottom: spacing.md || SPACING.md,
     padding: spacing.md || SPACING.md,
     borderRadius: borders.radius?.card?.md || BORDERS.radius.md,
-    shadowColor: colors.base?.inkBlack || '#000',
+    shadowColor: colors.base?.inkBlack || DS_COLORS.base.inkBlack,
     shadowOffset: {
       width: 0,
       height: 2
@@ -913,7 +914,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     shadowRadius: 6,
     elevation: 3,
     borderWidth: borders.width?.thin || 1,
-    borderColor: colors.neutral?.gray?.[200] || '#E5E7EB'
+    borderColor: colors.neutral?.gray?.[200] || DS_COLORS.neutral.gray[200]
   },
   cardColapsada: {
     paddingBottom: spacing.sm || SPACING.sm
@@ -929,7 +930,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     paddingVertical: spacing.xs || SPACING.xs,
     marginBottom: spacing.sm || SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral?.gray?.[100] || '#F3F4F6',
+    borderBottomColor: colors.neutral?.gray?.[100] || DS_COLORS.neutral.gray[100],
     paddingBottom: spacing.sm || SPACING.sm
   },
   headerFotoContainer: {
@@ -939,15 +940,15 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.borderLight
+    backgroundColor: DS_COLORS.border.light
   },
   headerFotoPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.neutral?.gray?.[100] || COLORS.background,
+    backgroundColor: colors.neutral?.gray?.[100] || DS_COLORS.background.default,
     borderWidth: 1,
-    borderColor: colors.neutral?.gray?.[200] || COLORS.borderLight,
+    borderColor: colors.neutral?.gray?.[200] || DS_COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -963,12 +964,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   headerNombreProveedor: {
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.semibold || '600',
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     flex: 1
   },
   headerServicio: {
     fontSize: typography.fontSize?.sm || 12,
-    color: colors.text?.secondary || COLORS.textLight,
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     marginTop: 2
   },
   headerPrecioContainer: {
@@ -978,12 +979,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   headerPrecio: {
     fontSize: typography.fontSize?.lg || 16,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.primary?.[600] || COLORS.primary
+    color: colors.primary?.[600] || DS_COLORS.primary[500]
   },
   servicioAdicionalBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FF9800',
+    backgroundColor: DS_COLORS.warning.main,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
     borderRadius: BORDERS.radius.sm,
@@ -994,7 +995,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   servicioAdicionalBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: DS_COLORS.text.onPrimary,
     letterSpacing: 0.5
   },
   // Header para TODAS las ofertas (principales y secundarias)
@@ -1008,7 +1009,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   ofertaTitle: {
     fontSize: typography.fontSize?.xl || 20,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     flex: 1,
     lineHeight: typography.fontSize?.xl ? typography.fontSize.xl * 1.3 : 26,
   },
@@ -1023,27 +1024,27 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   ofertaSecundariaTitle: {
     fontSize: typography.fontSize?.xl || 20,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     flex: 1,
     lineHeight: typography.fontSize?.xl ? typography.fontSize.xl * 1.3 : 26,
   },
   motivoContainer: {
-    backgroundColor: COLORS.background,
+    backgroundColor: DS_COLORS.background.default,
     padding: SPACING.sm,
     borderRadius: BORDERS.radius.sm,
     marginBottom: SPACING.sm,
     borderLeftWidth: 2,
-    borderLeftColor: COLORS.borderLight
+    borderLeftColor: DS_COLORS.border.light
   },
   motivoLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.textLight,
+    color: DS_COLORS.text.secondary,
     marginBottom: 4
   },
   motivoText: {
     fontSize: 13,
-    color: COLORS.text,
+    color: DS_COLORS.text.primary,
     lineHeight: 18
   },
   ofertaOriginalLink: {
@@ -1055,7 +1056,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   ofertaOriginalLinkText: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: DS_COLORS.text.secondary,
     fontStyle: 'italic'
   },
   countdownContainer: {
@@ -1075,15 +1076,15 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: COLORS.borderLight
+    backgroundColor: DS_COLORS.border.light
   },
   proveedorFotoPlaceholder: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: COLORS.background,
+    backgroundColor: DS_COLORS.background.default,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: DS_COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center'
   },
@@ -1105,12 +1106,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   proveedorNombre: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text,
+    color: DS_COLORS.text.primary,
     marginBottom: 2
   },
   proveedorTipo: {
     fontSize: 12,
-    color: COLORS.textLight
+    color: DS_COLORS.text.secondary
   },
   ratingContainer: {
     flexDirection: 'row',
@@ -1125,7 +1126,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   ratingText: {
     fontSize: 13,
     fontWeight: '600',
-    color: COLORS.text
+    color: DS_COLORS.text.primary
   },
   badgeContainer: {
     alignItems: 'flex-end',
@@ -1141,7 +1142,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   tipoBadgeText: {
     fontSize: 12,
-    color: COLORS.primary,
+    color: DS_COLORS.primary[500],
     fontWeight: '500'
   },
   ofertaInfo: {
@@ -1163,12 +1164,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   infoLabel: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: DS_COLORS.text.secondary,
     fontWeight: '500'
   },
   infoText: {
     fontSize: 13,
-    color: COLORS.text,
+    color: DS_COLORS.text.primary,
     flex: 1,
     lineHeight: 18
   },
@@ -1181,19 +1182,19 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   repuestosText: {
     fontSize: 12,
-    color: COLORS.text,
+    color: DS_COLORS.text.primary,
     fontWeight: '500'
   },
   serviciosContainer: {
     marginTop: spacing.xs || SPACING.xs,
     paddingTop: spacing.xs || SPACING.xs,
     borderTopWidth: borders.width?.thin || 1,
-    borderTopColor: colors.neutral?.gray?.[200] || COLORS.borderLight
+    borderTopColor: colors.neutral?.gray?.[200] || DS_COLORS.border.light
   },
   serviciosTitle: {
     fontSize: typography.fontSize?.sm || 13,
     fontWeight: typography.fontWeight?.semibold || '600',
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     marginBottom: (spacing.xs || SPACING.xs) / 2
   },
   servicioItemContainer: {
@@ -1206,60 +1207,60 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     gap: spacing.xs || 6,
     paddingHorizontal: spacing.sm || SPACING.sm,
     paddingVertical: spacing.xs || SPACING.xs,
-    backgroundColor: colors.neutral?.gray?.[100] || COLORS.background,
+    backgroundColor: colors.neutral?.gray?.[100] || DS_COLORS.background.default,
     borderRadius: borders.radius?.badge?.md || BORDERS.radius.sm,
     borderWidth: borders.width?.thin || 1,
-    borderColor: colors.neutral?.gray?.[200] || COLORS.borderLight,
+    borderColor: colors.neutral?.gray?.[200] || DS_COLORS.border.light,
     marginBottom: (spacing.xs || SPACING.xs) / 2,
-    shadowColor: colors.base?.inkBlack || '#000',
+    shadowColor: colors.base?.inkBlack || DS_COLORS.base.inkBlack,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   servicioBadgePrincipal: {
-    backgroundColor: colors.primary?.[50] || '#E6F2F7',
-    borderColor: colors.primary?.[500] || COLORS.primary,
+    backgroundColor: colors.primary?.[50] || DS_COLORS.primary[50],
+    borderColor: colors.primary?.[500] || DS_COLORS.primary[500],
     borderWidth: borders.width?.medium || 1.5,
-    shadowColor: colors.primary?.[500] || COLORS.primary,
+    shadowColor: colors.primary?.[500] || DS_COLORS.primary[500],
     shadowOpacity: 0.1,
   },
   servicioBadgeText: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     fontWeight: typography.fontWeight?.medium || '500',
     flex: 1,
   },
   servicioBadgeTextPrincipal: {
-    color: colors.primary?.[700] || COLORS.primary,
+    color: colors.primary?.[700] || DS_COLORS.primary[500],
     fontWeight: typography.fontWeight?.bold || '700',
   },
   servicioPrecio: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || COLORS.textLight,
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     fontWeight: typography.fontWeight?.semibold || '600',
   },
   servicioPrecioPrincipal: {
-    color: colors.primary?.[700] || COLORS.primary,
+    color: colors.primary?.[700] || DS_COLORS.primary[500],
     fontWeight: typography.fontWeight?.bold || '700',
   },
   // Mantener compatibilidad
   servicioItem: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: DS_COLORS.text.secondary,
     marginBottom: 2
   },
   repuestosFallback: {
     marginTop: SPACING.xs / 2,
     padding: SPACING.xs / 2,
-    backgroundColor: '#FFF3CD',
+    backgroundColor: DS_COLORS.warning.light,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#FFC107'
+    borderColor: DS_COLORS.warning[400]
   },
   repuestosFallbackText: {
     fontSize: 11,
-    color: '#856404',
+    color: DS_COLORS.warning.dark,
     fontStyle: 'italic'
   },
   // ==================== ESTILOS DESGLOSE DETALLADO DE PRECIOS ====================
@@ -1267,8 +1268,8 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     marginTop: spacing.md || SPACING.md,
     paddingTop: spacing.md || SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral?.gray?.[200] || COLORS.borderLight,
-    backgroundColor: colors.neutral?.gray?.[50] || '#FAFBFC',
+    borderTopColor: colors.neutral?.gray?.[200] || DS_COLORS.border.light,
+    backgroundColor: colors.neutral?.gray?.[50] || DS_COLORS.neutral.gray[50],
     marginHorizontal: -(spacing.md || SPACING.md),
     paddingHorizontal: spacing.md || SPACING.md,
     paddingBottom: spacing.md || SPACING.md,
@@ -1278,7 +1279,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   desgloseTituloDetallado: {
     fontSize: typography.fontSize?.sm || 13,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     marginBottom: spacing.sm || SPACING.sm,
     textTransform: 'uppercase',
     letterSpacing: 0.5
@@ -1296,10 +1297,10 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     alignItems: 'center',
     paddingVertical: spacing.xs || SPACING.xs,
     paddingHorizontal: spacing.sm || SPACING.sm,
-    backgroundColor: colors.background?.paper || COLORS.white,
+    backgroundColor: colors.background?.paper || DS_COLORS.base.white,
     borderRadius: borders.radius?.sm || BORDERS.radius.sm,
     borderWidth: 1,
-    borderColor: colors.neutral?.gray?.[200] || COLORS.borderLight,
+    borderColor: colors.neutral?.gray?.[200] || DS_COLORS.border.light,
     marginBottom: spacing.xs || SPACING.xs
   },
   desgloseProveedorLeft: {
@@ -1310,7 +1311,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   desgloseProveedorLabel: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     fontWeight: typography.fontWeight?.medium || '500'
   },
   desgloseProveedorRight: {
@@ -1319,11 +1320,11 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   desgloseProveedorValue: {
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || COLORS.text
+    color: colors.text?.primary || DS_COLORS.text.primary
   },
   desgloseProveedorSubValue: {
     fontSize: typography.fontSize?.xs || 10,
-    color: colors.text?.tertiary || COLORS.textLight,
+    color: colors.text?.tertiary || DS_COLORS.text.secondary,
     marginTop: 2
   },
   repuestosSection: {
@@ -1338,15 +1339,15 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     alignItems: 'flex-start',
     paddingVertical: spacing.xs || SPACING.xs,
     paddingHorizontal: spacing.sm || SPACING.sm,
-    backgroundColor: colors.background?.paper || COLORS.white,
+    backgroundColor: colors.background?.paper || DS_COLORS.base.white,
     borderRadius: borders.radius?.sm || BORDERS.radius.sm,
     borderWidth: 1,
-    borderColor: colors.neutral?.gray?.[200] || COLORS.borderLight
+    borderColor: colors.neutral?.gray?.[200] || DS_COLORS.border.light
   },
   servicioDesglosePrincipal: {
-    borderColor: colors.primary?.[300] || COLORS.primary,
+    borderColor: colors.primary?.[300] || DS_COLORS.primary[500],
     borderWidth: 1.5,
-    backgroundColor: colors.primary?.[50] || '#E6F7FF'
+    backgroundColor: colors.primary?.[50] || DS_COLORS.primary[50]
   },
   servicioDesgloseLeft: {
     flexDirection: 'row',
@@ -1357,13 +1358,13 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   servicioDesgloseNombre: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     fontWeight: typography.fontWeight?.medium || '500',
     flex: 1,
     lineHeight: 18
   },
   servicioDesgloseNombrePrincipal: {
-    color: colors.primary?.[700] || COLORS.primary,
+    color: colors.primary?.[700] || DS_COLORS.primary[500],
     fontWeight: typography.fontWeight?.bold || '700'
   },
   servicioDesglosePrecioContainer: {
@@ -1372,14 +1373,14 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   servicioDesglosePrecio: {
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || COLORS.text
+    color: colors.text?.primary || DS_COLORS.text.primary
   },
   servicioDesglosePrecioPrincipal: {
-    color: colors.primary?.[700] || COLORS.primary
+    color: colors.primary?.[700] || DS_COLORS.primary[500]
   },
   servicioDesglosePrecioSinIva: {
     fontSize: typography.fontSize?.xs || 10,
-    color: colors.text?.tertiary || COLORS.textLight,
+    color: colors.text?.tertiary || DS_COLORS.text.secondary,
     marginTop: 2
   },
   desgloseAdicional: {
@@ -1398,21 +1399,21 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   desgloseAdicionalLabel: {
     fontSize: typography.fontSize?.sm || 12,
-    color: colors.text?.secondary || COLORS.textLight
+    color: colors.text?.secondary || DS_COLORS.text.secondary
   },
   desgloseAdicionalValue: {
     fontSize: typography.fontSize?.sm || 12,
     fontWeight: typography.fontWeight?.medium || '500',
-    color: colors.text?.primary || COLORS.text
+    color: colors.text?.primary || DS_COLORS.text.primary
   },
   desgloseDividerFull: {
     height: 1,
-    backgroundColor: colors.neutral?.gray?.[200] || COLORS.borderLight,
+    backgroundColor: colors.neutral?.gray?.[200] || DS_COLORS.border.light,
     marginVertical: spacing.sm || SPACING.sm
   },
   desgloseDivider: {
     height: 1,
-    backgroundColor: colors.neutral?.gray?.[300] || COLORS.borderLight,
+    backgroundColor: colors.neutral?.gray?.[300] || DS_COLORS.border.light,
     marginVertical: spacing.xs || SPACING.xs
   },
   resumenPreciosContainer: {
@@ -1426,11 +1427,11 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   resumenPreciosLabel: {
     fontSize: typography.fontSize?.sm || 12,
-    color: colors.text?.secondary || COLORS.textLight
+    color: colors.text?.secondary || DS_COLORS.text.secondary
   },
   resumenPreciosValue: {
     fontSize: typography.fontSize?.sm || 12,
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
     fontWeight: typography.fontWeight?.medium || '500'
   },
   resumenPreciosTotalRow: {
@@ -1438,7 +1439,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: spacing.xs || SPACING.xs,
-    backgroundColor: colors.primary?.[50] || '#E6F7FF',
+    backgroundColor: colors.primary?.[50] || DS_COLORS.primary[50],
     marginHorizontal: -(spacing.md || SPACING.md),
     paddingHorizontal: spacing.md || SPACING.md,
     marginTop: spacing.xs || SPACING.xs,
@@ -1447,12 +1448,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   resumenPreciosTotalLabel: {
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || COLORS.text
+    color: colors.text?.primary || DS_COLORS.text.primary
   },
   resumenPreciosTotalValue: {
     fontSize: typography.fontSize?.lg || 18,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.primary?.[600] || COLORS.primary
+    color: colors.primary?.[600] || DS_COLORS.primary[500]
   },
   notaRepuestos: {
     flexDirection: 'row',
@@ -1461,23 +1462,23 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     marginTop: spacing.sm || SPACING.sm,
     paddingVertical: spacing.xs || SPACING.xs,
     paddingHorizontal: spacing.sm || SPACING.sm,
-    backgroundColor: colors.success?.[50] || '#ECFDF5',
+    backgroundColor: colors.success?.[50] || DS_COLORS.success[50],
     borderRadius: borders.radius?.sm || BORDERS.radius.sm
   },
   notaRepuestosText: {
     fontSize: typography.fontSize?.xs || 11,
-    color: colors.success?.[700] || '#047857',
+    color: colors.success?.[700] || DS_COLORS.success.dark,
     fontWeight: typography.fontWeight?.medium || '500'
   },
   descripcionContainer: {
     marginTop: SPACING.xs,
     paddingTop: SPACING.xs,
     borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight
+    borderTopColor: DS_COLORS.border.light
   },
   descripcion: {
     fontSize: 13,
-    color: COLORS.text,
+    color: DS_COLORS.text.primary,
     lineHeight: 18
   },
   // Desglose de costos
@@ -1486,15 +1487,15 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.sm,
     paddingHorizontal: SPACING.sm,
-    backgroundColor: colors.neutral?.gray?.[50] || '#F9FAFB',
+    backgroundColor: colors.neutral?.gray?.[50] || DS_COLORS.neutral.gray[50],
     borderRadius: borders.radius?.md || BORDERS.radius.sm,
     borderWidth: borders.width?.thin || 1,
-    borderColor: colors.neutral?.gray?.[200] || COLORS.borderLight,
+    borderColor: colors.neutral?.gray?.[200] || DS_COLORS.border.light,
   },
   desgloseTitulo: {
     fontSize: typography.fontSize?.sm || 12,
     fontWeight: typography.fontWeight?.semibold || '600',
-    color: colors.text?.secondary || COLORS.textLight,
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     marginBottom: SPACING.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -1512,12 +1513,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   desgloseLabel: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || COLORS.textLight,
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
   },
   desgloseValue: {
     fontSize: typography.fontSize?.sm || 13,
     fontWeight: typography.fontWeight?.semibold || '600',
-    color: colors.text?.primary || COLORS.text,
+    color: colors.text?.primary || DS_COLORS.text.primary,
   },
   desgloseInfoRow: {
     flexDirection: 'row',
@@ -1527,7 +1528,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   desgloseInfoText: {
     fontSize: typography.fontSize?.xs || 12,
-    color: colors.text?.secondary || COLORS.textLight,
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     fontStyle: 'italic',
     flex: 1,
   },
@@ -1540,12 +1541,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   precioLabel: {
     fontSize: 13,
-    color: COLORS.textLight
+    color: DS_COLORS.text.secondary
   },
   precio: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.text
+    color: DS_COLORS.text.primary
   },
   chatLink: {
     flexDirection: 'row',
@@ -1554,7 +1555,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     paddingVertical: SPACING.md,
     marginTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
+    borderTopColor: DS_COLORS.border.light,
     gap: SPACING.sm,
     borderRadius: BORDERS.radius.sm,
     overflow: 'hidden',
@@ -1566,20 +1567,19 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#61CDFF',
-    opacity: 0.12
+    backgroundColor: withOpacity(DS_COLORS.primary[300], 0.12)
   },
   chatIcon: {
     zIndex: 1
   },
   chatLinkText: {
     fontSize: 14,
-    color: COLORS.primary,
+    color: DS_COLORS.primary[500],
     fontWeight: '600',
     zIndex: 1
   },
   mensajesBadge: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: DS_COLORS.primary[500],
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -1588,24 +1588,24 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     paddingHorizontal: 6
   },
   mensajesBadgeText: {
-    color: COLORS.white,
+    color: DS_COLORS.base.white,
     fontSize: 12,
     fontWeight: '700'
   },
   aceptarButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: DS_COLORS.primary[500],
     paddingVertical: SPACING.md,
     borderRadius: BORDERS.radius.md,
     alignItems: 'center',
     marginTop: SPACING.sm
   },
   aceptarButtonText: {
-    color: COLORS.white,
+    color: DS_COLORS.base.white,
     fontSize: 14,
     fontWeight: '600'
   },
   pagarButton: {
-    backgroundColor: '#FF9800',
+    backgroundColor: DS_COLORS.warning.main,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1615,7 +1615,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     gap: SPACING.xs
   },
   pagarButtonText: {
-    color: '#FFFFFF',
+    color: DS_COLORS.text.onPrimary,
     fontSize: 14,
     fontWeight: '600'
   },
@@ -1631,7 +1631,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   rechazarButton: {
     backgroundColor: 'transparent',
     borderWidth: 1.5,
-    borderColor: COLORS.danger,
+    borderColor: DS_COLORS.error.main,
     paddingVertical: SPACING.md,
     borderRadius: BORDERS.radius.md,
     alignItems: 'center',
@@ -1639,7 +1639,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     marginTop: 0
   },
   rechazarButtonText: {
-    color: colors.error?.[500] || COLORS.danger,
+    color: colors.error?.[500] || DS_COLORS.error.main,
     fontSize: typography.fontSize?.sm || 14,
     fontWeight: typography.fontWeight?.semibold || '600'
   },
@@ -1647,10 +1647,10 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   pagoParcialContainer: {
     marginTop: spacing.md || SPACING.md,
     padding: spacing.md || SPACING.md,
-    backgroundColor: colors.warning?.[50] || '#FFFBEB',
+    backgroundColor: colors.warning?.[50] || DS_COLORS.warning[50],
     borderRadius: borders.radius?.md || BORDERS.radius.md,
     borderWidth: 1,
-    borderColor: colors.warning?.[200] || '#FDE68A',
+    borderColor: colors.warning?.[200] || DS_COLORS.warning[200],
     marginHorizontal: -(spacing.md || SPACING.md),
     marginBottom: spacing.sm || SPACING.sm
   },
@@ -1663,7 +1663,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   pagoParcialTitulo: {
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.warning?.[700] || '#B45309'
+    color: colors.warning?.[700] || DS_COLORS.warning.dark
   },
   pagoParcialInfo: {
     marginBottom: spacing.sm || SPACING.sm,
@@ -1677,23 +1677,23 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   pagoParcialLabel: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || COLORS.textLight,
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     fontWeight: typography.fontWeight?.medium || '500'
   },
   pagoParcialValue: {
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.success?.[700] || '#047857'
+    color: colors.success?.[700] || DS_COLORS.success.dark
   },
   pagoParcialLabelPendiente: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || COLORS.textLight,
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     fontWeight: typography.fontWeight?.medium || '500'
   },
   pagoParcialValuePendiente: {
     fontSize: typography.fontSize?.base || 14,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.warning?.[700] || '#B45309'
+    color: colors.warning?.[700] || DS_COLORS.warning.dark
   },
   pagoParcialDetalle: {
     marginTop: spacing.xs || SPACING.xs / 2,
@@ -1701,11 +1701,11 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   pagoParcialDetalleText: {
     fontSize: typography.fontSize?.xs || 12,
-    color: colors.text?.secondary || COLORS.textLight,
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     marginBottom: 2
   },
   pagarSaldoButton: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: DS_COLORS.warning[600],
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1715,7 +1715,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     gap: SPACING.xs
   },
   pagarSaldoButtonText: {
-    color: '#FFFFFF',
+    color: DS_COLORS.text.onPrimary,
     fontSize: 14,
     fontWeight: '600'
   }

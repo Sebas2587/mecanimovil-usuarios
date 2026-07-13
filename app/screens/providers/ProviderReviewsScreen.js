@@ -1,11 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, StatusBar, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  StatusBar,
+  Platform,
+} from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { Star } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getProviderReviews } from '../../services/providers';
 import ReviewCard from '../../components/reviews/ReviewCard';
+import AppHeader from '../../components/navigation/AppHeader';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+
+const StarRating = ({ value, size = 14 }) => {
+  const rounded = Math.round(value);
+  return (
+    <View style={styles.starsRow}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const filled = star <= rounded;
+        return (
+          <Star
+            key={star}
+            size={size}
+            color={COLORS.warning.main}
+            fill={filled ? COLORS.warning.main : 'transparent'}
+            strokeWidth={2}
+          />
+        );
+      })}
+    </View>
+  );
+};
 
 const ProviderReviewsScreen = () => {
   const route = useRoute();
@@ -15,7 +44,6 @@ const ProviderReviewsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
 
-  // Hide default Stack header (it's light by default)
   React.useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
@@ -41,23 +69,16 @@ const ProviderReviewsScreen = () => {
 
     return (
       <View style={styles.summaryCard}>
-        {/* Left: Big Rating */}
         <View style={styles.ratingLeft}>
-          <Text style={styles.bigRating}>{data.rating_average}</Text>
-          <View style={styles.starsRow}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <Ionicons
-                key={star}
-                name={star <= Math.round(data.rating_average) ? 'star' : 'star-outline'}
-                size={14}
-                color={COLORS.warning.main}
-              />
-            ))}
-          </View>
-          <Text style={styles.totalReviewsText}>{data.total_reviews} opiniones</Text>
+          <Text style={[TYPOGRAPHY.styles.numberDisplay, styles.bigRating]}>
+            {data.rating_average}
+          </Text>
+          <StarRating value={data.rating_average} />
+          <Text style={[TYPOGRAPHY.styles.caption, styles.totalReviewsText]}>
+            {data.total_reviews} opiniones
+          </Text>
         </View>
 
-        {/* Right: Progress Bars */}
         <View style={styles.barsRight}>
           {[5, 4, 3, 2, 1].map((star) => {
             const count = data.rating_breakdown[star.toString()] || 0;
@@ -65,8 +86,8 @@ const ProviderReviewsScreen = () => {
 
             return (
               <View key={star} style={styles.barRow}>
-                <Text style={styles.starLabel}>{star}</Text>
-                <Ionicons name="star" size={10} color={COLORS.text.tertiary} style={{ marginRight: 6 }} />
+                <Text style={[TYPOGRAPHY.styles.captionBold, styles.starLabel]}>{star}</Text>
+                <Star size={10} color={COLORS.text.tertiary} fill={COLORS.text.tertiary} strokeWidth={2} />
                 <View style={styles.track}>
                   <View style={[styles.progress, { width: `${percentage}%` }]} />
                 </View>
@@ -88,34 +109,28 @@ const ProviderReviewsScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
-      <View style={styles.body}>
-        {/* Sticky Custom Header */}
-        <View style={styles.stickyHeader}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color={COLORS.text.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Opiniones</Text>
-        </View>
+      <AppHeader title="Opiniones" onBack={() => navigation.goBack()} />
 
-        <FlatList
-          style={styles.listScroll}
-          data={data?.reviews || []}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => <ReviewCard review={item} />}
-          ListHeaderComponent={renderHeader}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>Aún no hay reseñas para este proveedor.</Text>
-            </View>
-          }
-        />
-      </View>
+      <FlatList
+        style={styles.listScroll}
+        data={data?.reviews || []}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => <ReviewCard review={item} />}
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={[TYPOGRAPHY.styles.body, styles.emptyText]}>
+              Aún no hay reseñas para este proveedor.
+            </Text>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 };
@@ -125,10 +140,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     backgroundColor: COLORS.background.default,
-  },
-  body: {
-    flex: 1,
-    minHeight: 0,
   },
   listScroll: {
     flex: 1,
@@ -150,94 +161,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.background.default,
   },
-  // Sticky Header Styling
-  stickyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: SPACING.container.horizontal,
-    marginTop: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: COLORS.background.paper,
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
-    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-    overflow: 'hidden',
-    zIndex: 10,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.neutral.gray[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
-  },
-  headerTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: -0.25,
-    color: COLORS.text.primary,
-  },
   listContent: {
     paddingHorizontal: SPACING.container.horizontal,
-    paddingTop: 16,
-    paddingBottom: 40,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING['2xl'],
   },
-  // Summary Card Styling (Light Yellow)
   summaryCard: {
     flexDirection: 'row',
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-    padding: 24,
-    marginBottom: 24,
-    borderWidth: 1,
+    padding: SPACING.xl,
+    marginBottom: SPACING.xl,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
   },
   ratingLeft: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingRight: 24,
-    borderRightWidth: 1,
+    paddingRight: SPACING.xl,
+    borderRightWidth: BORDERS.width.thin,
     borderRightColor: COLORS.border.light,
   },
   bigRating: {
-    fontSize: 42,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    letterSpacing: -0.5,
     color: COLORS.text.primary,
     lineHeight: 48,
   },
   starsRow: {
     flexDirection: 'row',
-    marginVertical: 6,
+    marginVertical: SPACING.xs,
     gap: 2,
   },
   totalReviewsText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   barsRight: {
     flex: 1,
-    paddingLeft: 24,
+    paddingLeft: SPACING.xl,
     justifyContent: 'center',
-    gap: 6,
+    gap: SPACING.xs,
   },
   barRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.xs,
   },
   starLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.tertiary,
     width: 14,
     textAlign: 'left',
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   track: {
     flex: 1,
@@ -251,13 +224,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.warning.main,
     borderRadius: 3,
   },
+  separator: {
+    height: SPACING.md,
+  },
   emptyContainer: {
-    padding: 40,
+    padding: SPACING['2xl'],
     alignItems: 'center',
   },
   emptyText: {
     color: COLORS.text.secondary,
-    fontSize: TYPOGRAPHY.fontSize.base,
+    textAlign: 'center',
   },
 });
 

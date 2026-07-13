@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 /** Fila plana label/valor para detalle de solicitud (sin card anidada). */
 export default function SolicitudDetalleRow({
@@ -18,7 +18,7 @@ export default function SolicitudDetalleRow({
     <View style={[styles.row, isLast && styles.rowLast]}>
       <View style={styles.labelRow}>
         {icon ? (
-          <Ionicons name={icon} size={14} color={COLORS.text.tertiary} />
+          <Icon name={icon} size={14} color={COLORS.text.tertiary} />
         ) : null}
         <Text style={styles.label}>{label}</Text>
       </View>

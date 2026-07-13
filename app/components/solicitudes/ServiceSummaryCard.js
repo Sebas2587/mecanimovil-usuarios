@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Icon from '../base/Icon/Icon';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import {
     resolveServiciosSolicitud,
@@ -68,7 +68,7 @@ function VehiculoStrip({ vehiculo }) {
     return (
         <View style={styles.vehiculoStrip}>
             <View style={styles.vehiculoIcon}>
-                <Ionicons name="car-sport-outline" size={18} color={COLORS.primary[600]} />
+                <Icon name="car-sport-outline" size={18} color={COLORS.primary[600]} />
             </View>
             <View style={styles.vehiculoTextWrap}>
                 <Text style={styles.vehiculoTitulo} numberOfLines={1}>
@@ -246,7 +246,7 @@ const ServiceSummaryCard = ({
             <View style={styles.header}>
                 <View style={styles.headerBadges}>
                     <View style={[styles.chip, { backgroundColor: urgencyConfig.bg }]}>
-                        <MaterialCommunityIcons
+                        <Icon
                             name={urgencyConfig.icon}
                             size={13}
                             color={urgencyConfig.color}

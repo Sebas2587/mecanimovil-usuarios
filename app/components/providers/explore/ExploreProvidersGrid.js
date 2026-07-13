@@ -1,24 +1,28 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { MapPin, Navigation } from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import ProviderPreviewCard from '../../home/ProviderPreviewCard';
 import ExploreProvidersGridSkeleton from '../../utils/ExploreProvidersGridSkeleton';
 import { formatProviderForCard } from '../../../utils/providerUtils';
-import { CARD_GAP, GRID_CARD_W } from '../../home/shared/homeLayoutConstants';
 
-function chunkPairs(list) {
-  const pairs = [];
-  for (let i = 0; i < list.length; i += 2) {
-    pairs.push(list.slice(i, i + 2));
+/** Ancho mínimo aproximado de card para decidir cuántas columnas caben. */
+const MIN_CARD_WIDTH = 220;
+const GRID_GUTTER = SPACING.md;
+
+function chunkRows(list, size) {
+  const rows = [];
+  for (let i = 0; i < list.length; i += size) {
+    rows.push(list.slice(i, i + size));
   }
-  return pairs;
+  return rows;
 }
 
 const ExploreProvidersGrid = ({
@@ -28,40 +32,54 @@ const ExploreProvidersGrid = ({
   refreshing,
   onRefresh,
   onProviderPress,
+  userBrandName = null,
   emptyTitle = 'No hay proveedores',
   emptyMessage = 'Prueba otra dirección o amplía tu zona de búsqueda.',
 }) => {
+  const { width: windowWidth } = useWindowDimensions();
+  const [measuredWidth, setMeasuredWidth] = useState(null);
+
+  const onGridLayout = useCallback((e) => {
+    const w = Math.round(e.nativeEvent.layout.width);
+    if (w > 0) setMeasuredWidth((prev) => (prev === w ? prev : w));
+  }, []);
+
+  // 2 columnas base; en anchos grandes (web) caben más según MIN_CARD_WIDTH.
+  const availableWidth = measuredWidth ?? windowWidth;
+  const columns = Math.max(2, Math.floor(availableWidth / MIN_CARD_WIDTH));
+  const cardWidth = Math.floor(
+    (availableWidth - GRID_GUTTER * (columns - 1)) / columns,
+  );
+
   const renderCard = useCallback(
     (item) => {
       const { id: _pid, ...card } = formatProviderForCard(item);
-      const kindLabel = item._panelKind === 'taller' ? 'Taller' : 'A domicilio';
       return (
-        <View key={`${item._panelKind}-${item.id}`} style={styles.cell}>
+        <View key={`${item._panelKind}-${item.id}`} style={{ width: cardWidth }}>
           <ProviderPreviewCard
             {...card}
             provider={item}
-            typeLabel={kindLabel}
-            specialty={card.specialty || 'Servicios y diagnóstico'}
+            userBrandName={userBrandName}
+            specialty={card.specialty || null}
             serviceOffers={card.serviceOffers}
             cardFooterVariant="bookings"
             reviews={card.reviews}
             bookingsCount={card.bookingsCount}
             kpiBadge={item.kpi_badge || null}
-            appearance="light"
-            width={GRID_CARD_W}
+            width={cardWidth}
             omitRightMargin
             onPress={() => onProviderPress(item)}
           />
         </View>
       );
     },
-    [onProviderPress],
+    [onProviderPress, cardWidth, userBrandName],
   );
 
   const renderSection = useCallback(
     (title, hint, icon, items) => {
       if (!items.length) return null;
-      const pairs = chunkPairs(items);
+      const rows = chunkRows(items, columns);
       return (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -71,16 +89,20 @@ const ExploreProvidersGrid = ({
               {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
             </View>
           </View>
-          {pairs.map((pair, pageIdx) => (
-            <View key={`section-page-${pageIdx}`} style={styles.columnWrap}>
-              {pair.map(renderCard)}
-              {pair.length === 1 ? <View style={styles.cellPlaceholder} /> : null}
+          {rows.map((row, rowIdx) => (
+            <View key={`section-row-${rowIdx}`} style={styles.row}>
+              {row.map(renderCard)}
+              {row.length < columns
+                ? Array.from({ length: columns - row.length }).map((_, i) => (
+                    <View key={`row-ph-${i}`} style={{ width: cardWidth }} />
+                  ))
+                : null}
             </View>
           ))}
         </View>
       );
     },
-    [renderCard],
+    [renderCard, columns, cardWidth],
   );
 
   const isEmpty = inRadar.length === 0 && outOfRadar.length === 0;
@@ -108,6 +130,7 @@ const ExploreProvidersGrid = ({
   return (
     <ScrollView
       style={styles.scroll}
+      onLayout={onGridLayout}
       contentContainerStyle={[styles.listContent, isEmpty && !loading && styles.listContentEmpty]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
@@ -168,16 +191,10 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 2,
   },
-  columnWrap: {
+  row: {
     flexDirection: 'row',
-    gap: CARD_GAP,
-    marginBottom: CARD_GAP,
-  },
-  cell: {
-    width: GRID_CARD_W,
-  },
-  cellPlaceholder: {
-    width: GRID_CARD_W,
+    gap: GRID_GUTTER,
+    marginBottom: GRID_GUTTER,
   },
   empty: {
     alignItems: 'center',

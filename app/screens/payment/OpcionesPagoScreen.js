@@ -12,7 +12,26 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  ShoppingCart,
+  RefreshCw,
+  Building2,
+  User,
+  Calendar,
+  Clock,
+  MapPin,
+  FileText,
+  ChevronRight,
+  TriangleAlert,
+  ShieldCheck,
+  Receipt,
+  Files,
+  Info,
+  MessageCircle,
+  CreditCard,
+  CircleCheck,
+  Check,
+} from 'lucide-react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAgendamiento } from '../../context/AgendamientoContext';
@@ -33,6 +52,8 @@ import {
 } from '../../utils/calcularMontoPagoOferta';
 import { useTheme } from '../../design-system/theme/useTheme';
 import { TOKENS, withOpacity } from '../../design-system/tokens';
+import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
+import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
 import AcuerdoServicioModal from '../../components/modals/AcuerdoServicioModal';
 
 function PaymentScreenShell({ children, backgroundColor }) {
@@ -993,7 +1014,7 @@ const OpcionesPagoScreen = () => {
         <SafeAreaView style={styles.glassSafeArea} edges={['top', 'left', 'right', 'bottom']}>
           <StatusBar barStyle="dark-content" backgroundColor={canvasBg} />
         <View style={styles.errorContainer}>
-          <Ionicons name="cart-outline" size={64} color={icon.muted} />
+          <ShoppingCart size={64} color={icon.muted} strokeWidth={1.75} />
           <Text style={styles.errorTitle}>
             {(esSolicitudPublica || esOfertaSecundaria) ? 'No hay datos de pago disponibles' : 'No hay carrito disponible'}
           </Text>
@@ -1029,7 +1050,7 @@ const OpcionesPagoScreen = () => {
               }
             }}
           >
-            <Ionicons name="refresh" size={20} color={colors.text.inverse} />
+            <RefreshCw size={20} color={colors.text.inverse} strokeWidth={2} />
             <Text style={styles.retryButtonText}>Reintentar</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1067,34 +1088,11 @@ const OpcionesPagoScreen = () => {
     <PaymentScreenShell backgroundColor={canvasBg}>
       <StatusBar barStyle="dark-content" backgroundColor={canvasBg} />
 
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: Math.max(insets.top, 10),
-          },
-        ]}
-      >
-        <View style={[styles.headerContent, { paddingHorizontal: spacing.md || TOKENS.spacing.md }]}>
-          <View style={styles.headerLeftContainer}>
-            <TouchableOpacity
-              style={styles.backButtonGlass}
-              onPress={() => navigation.goBack()}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="arrow-back" size={22} color={colors.text.primary} />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitleGlass} numberOfLines={1}>
-              Método de pago
-            </Text>
-          </View>
-
-          <View style={styles.headerRightContainer} />
-        </View>
-      </View>
+      <SolicitudFlowHeader
+        title="Método de pago"
+        subtitle="Revisa el resumen y elige cómo pagar"
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView
         style={styles.content}
@@ -1115,27 +1113,27 @@ const OpcionesPagoScreen = () => {
                     </Text>
                   </View>
                   <View style={styles.proveedorResumenRow}>
-                    <Ionicons
-                      name={servicio.tipoProveedor === 'Taller' ? 'business' : 'person'}
-                      size={14}
-                      color={icon.muted}
-                    />
+                    {servicio.tipoProveedor === 'Taller' ? (
+                      <Building2 size={14} color={icon.muted} strokeWidth={1.75} />
+                    ) : (
+                      <User size={14} color={icon.muted} strokeWidth={1.75} />
+                    )}
                     <Text style={styles.proveedorResumenNombre}>{servicio.proveedor}</Text>
                   </View>
                   <View style={styles.fechaHoraRow}>
                     <View style={styles.fechaHoraItem}>
-                      <Ionicons name="calendar-outline" size={14} color={icon.muted} />
+                      <Calendar size={14} color={icon.muted} strokeWidth={1.75} />
                       <Text style={styles.fechaHoraTexto}>{servicio.fecha}</Text>
                     </View>
                     <View style={styles.fechaHoraItem}>
-                      <Ionicons name="time-outline" size={14} color={icon.muted} />
+                      <Clock size={14} color={icon.muted} strokeWidth={1.75} />
                       <Text style={styles.fechaHoraTexto}>{servicio.hora}</Text>
                     </View>
                   </View>
                   {servicio.ubicacion && (
                     <View style={styles.fechaHoraRow}>
                       <View style={styles.fechaHoraItem}>
-                        <Ionicons name="location-outline" size={14} color={icon.muted} />
+                        <MapPin size={14} color={icon.muted} strokeWidth={1.75} />
                         <Text style={styles.fechaHoraTexto} numberOfLines={1}>{servicio.ubicacion}</Text>
                       </View>
                     </View>
@@ -1306,9 +1304,9 @@ const OpcionesPagoScreen = () => {
                   Alert.alert('Cotización de Repuestos', 'Ver imagen de cotización de la casa de repuestos');
                 }}
               >
-                <Ionicons name="document-text-outline" size={20} color={icon.brandStrong} />
+                <FileText size={20} color={icon.brandStrong} strokeWidth={1.75} />
                 <Text style={styles.fotoCotizacionText}>Ver cotización de repuestos</Text>
-                <Ionicons name="chevron-forward" size={18} color={icon.brandStrong} />
+                <ChevronRight size={18} color={icon.brandStrong} strokeWidth={2} />
               </TouchableOpacity>
             )}
 
@@ -1484,7 +1482,7 @@ const OpcionesPagoScreen = () => {
             {/* Alerta si el proveedor no puede recibir pagos */}
             {!resumenGlobal.proveedorPuedeRecibirPagos && (
               <View style={styles.warningProveedorCard}>
-                <Ionicons name="warning" size={24} color={icon.warning} />
+                <TriangleAlert size={24} color={icon.warning} strokeWidth={1.75} />
                 <View style={styles.warningProveedorContent}>
                   <Text style={styles.warningProveedorTitulo}>Proveedor sin Mercado Pago</Text>
                   <Text style={styles.warningProveedorTexto}>
@@ -1497,7 +1495,7 @@ const OpcionesPagoScreen = () => {
 
             {/* Info de pago seguro */}
             <View style={styles.infoSeguroCard}>
-              <Ionicons name="shield-checkmark" size={20} color={icon.success} />
+              <ShieldCheck size={20} color={icon.success} strokeWidth={1.75} />
               <Text style={styles.infoSeguroTexto}>
                 El pago va directamente a la cuenta de Mercado Pago del proveedor. Mecanimovil no interviene en la transacción.
               </Text>
@@ -1519,7 +1517,7 @@ const OpcionesPagoScreen = () => {
             <View style={styles.desgloseCard}>
               <View style={[styles.desgloseRow, { marginBottom: 8 }]}>
                 <View style={styles.desgloseItem}>
-                  <Ionicons name="receipt-outline" size={20} color={icon.muted} />
+                  <Receipt size={20} color={icon.muted} strokeWidth={1.75} />
                   <Text style={styles.desgloseLabel}>Total Servicios</Text>
                 </View>
                 <Text style={styles.desgloseValue}>
@@ -1529,7 +1527,7 @@ const OpcionesPagoScreen = () => {
 
               <View style={styles.desgloseRow}>
                 <View style={styles.desgloseItem}>
-                  <Ionicons name="documents-outline" size={20} color={icon.muted} />
+                  <Files size={20} color={icon.muted} strokeWidth={1.75} />
                   <Text style={styles.desgloseLabel}>IVA (19%)</Text>
                 </View>
                 <Text style={styles.desgloseValue}>
@@ -1555,7 +1553,7 @@ const OpcionesPagoScreen = () => {
         {(esSolicitudPublica || esOfertaSecundaria) && resumenGlobal?.incluyeRepuestosSinDesglose && (
           <View style={styles.seccion}>
             <View style={styles.infoRepuestosSinDesgloseCard}>
-              <Ionicons name="information-circle" size={24} color={icon.brandStrong} />
+              <Info size={24} color={icon.brandStrong} strokeWidth={1.75} />
               <View style={styles.infoRepuestosSinDesgloseContent}>
                 <Text style={styles.infoRepuestosSinDesgloseTitulo}>Servicio con Repuestos</Text>
                 <Text style={styles.infoRepuestosSinDesgloseTexto}>
@@ -1583,7 +1581,7 @@ const OpcionesPagoScreen = () => {
             onPress={() => setMetodoPagoSeleccionado(METODOS_PAGO.MERCADOPAGO)}
             activeOpacity={0.7}
           >
-            <Ionicons name="card-outline" size={28} color={metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO ? icon.brand : icon.muted} />
+            <CreditCard size={28} color={metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO ? icon.brand : icon.muted} strokeWidth={1.75} />
             <View style={styles.metodoInfo}>
               <Text style={[
                 styles.metodoNombre,
@@ -1596,7 +1594,7 @@ const OpcionesPagoScreen = () => {
               </Text>
             </View>
             {metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO && (
-              <Ionicons name="checkmark-circle" size={24} color={icon.success} />
+              <CircleCheck size={24} color={icon.success} strokeWidth={1.75} />
             )}
           </TouchableOpacity>
 
@@ -1606,7 +1604,7 @@ const OpcionesPagoScreen = () => {
         <View style={styles.seccion}>
           <View style={styles.infoCard}>
             <View style={styles.infoHeader}>
-              <Ionicons name="information-circle" size={24} color={icon.brandStrong} />
+              <Info size={24} color={icon.brandStrong} strokeWidth={1.75} />
               <Text style={styles.infoTitulo}>Pago con Mercado Pago</Text>
             </View>
             <View style={styles.infoContent}>
@@ -1629,7 +1627,7 @@ const OpcionesPagoScreen = () => {
               aceptaTerminos && styles.checkboxChecked
             ]}>
               {aceptaTerminos && (
-                <Ionicons name="checkmark" size={18} color={colors.text.inverse} />
+                <Check size={18} color={colors.text.inverse} strokeWidth={2.5} />
               )}
             </View>
             <View style={styles.terminosTextoContainer}>
@@ -1650,7 +1648,7 @@ const OpcionesPagoScreen = () => {
         proveedorNombre={resumenGlobal?.serviciosDetalle?.[0]?.proveedor}
       />
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+      <StickyFooterCTA>
         {metodoPagoSeleccionado === METODOS_PAGO.MERCADOPAGO ? (
           <TouchableOpacity
             onPress={handlePagarConMercadoPago}
@@ -1672,10 +1670,10 @@ const OpcionesPagoScreen = () => {
               </>
             ) : (
               <>
-                <Ionicons
-                  name="card"
+                <CreditCard
                   size={20}
                   color={!aceptaTerminos ? colors.states.disabled.text : colors.text.inverse}
+                  strokeWidth={1.75}
                 />
                 <Text style={[styles.primaryButtonText, !aceptaTerminos && styles.primaryButtonTextDisabled]}>
                   {(() => {
@@ -1713,8 +1711,7 @@ const OpcionesPagoScreen = () => {
               !aceptaTerminos && styles.footerCtaDisabled,
             ]}
           >
-            <Ionicons
-              name="logo-whatsapp"
+            <MessageCircle
               size={20}
               color={!aceptaTerminos ? colors.states.disabled.text : colors.text.inverse}
             />
@@ -1723,7 +1720,7 @@ const OpcionesPagoScreen = () => {
             </Text>
           </TouchableOpacity>
         )}
-      </View>
+      </StickyFooterCTA>
     </PaymentScreenShell>
   );
 };

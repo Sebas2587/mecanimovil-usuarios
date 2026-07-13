@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../design-system/theme/useTheme';
-import { COLORS, SPACING, BORDERS } from '../../utils/constants';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { BORDERS } from '../../design-system/tokens/borders';
+import { SPACING } from '../../utils/constants';
+import Icon from '../base/Icon/Icon';
 
 /**
  * Componente de conteo regresivo para solicitudes y ofertas
@@ -82,49 +84,49 @@ const CountdownTimer = ({
     if (dark) {
       if (totalHours > 24) {
         return {
-          backgroundColor: 'rgba(16,185,129,0.12)',
-          borderColor: 'rgba(16,185,129,0.45)',
-          textColor: '#6EE7B7',
-          iconColor: '#34D399',
+          backgroundColor: withOpacity(COLORS.success.main, 0.12),
+          borderColor: withOpacity(COLORS.success.main, 0.45),
+          textColor: COLORS.success[300],
+          iconColor: COLORS.success[400],
         };
       }
       if (totalHours > 6) {
         return {
-          backgroundColor: 'rgba(245,158,11,0.12)',
-          borderColor: 'rgba(245,158,11,0.45)',
-          textColor: '#FCD34D',
-          iconColor: '#FBBF24',
+          backgroundColor: withOpacity(COLORS.warning.main, 0.12),
+          borderColor: withOpacity(COLORS.warning.main, 0.45),
+          textColor: COLORS.warning[300],
+          iconColor: COLORS.warning[400],
         };
       }
       return {
-        backgroundColor: 'rgba(239,68,68,0.12)',
-        borderColor: 'rgba(239,68,68,0.45)',
-        textColor: '#FCA5A5',
-        iconColor: '#F87171',
+        backgroundColor: withOpacity(COLORS.error.main, 0.12),
+        borderColor: withOpacity(COLORS.error.main, 0.45),
+        textColor: COLORS.error[300],
+        iconColor: COLORS.error[400],
       };
     }
 
     if (totalHours > 24) {
       return {
-        backgroundColor: colors.success?.[50] || '#ECFDF5',
-        borderColor: colors.success?.[300] || '#6EE7B7',
-        textColor: colors.success?.[700] || '#047857',
-        iconColor: colors.success?.[600] || '#10B981',
+        backgroundColor: colors.success?.[50] || COLORS.success[50],
+        borderColor: colors.success?.[300] || COLORS.success[300],
+        textColor: colors.success?.[700] || COLORS.success.dark,
+        iconColor: colors.success?.[600] || COLORS.success[600],
       };
     }
     if (totalHours > 6) {
       return {
-        backgroundColor: colors.warning?.[50] || '#FFFBEB',
-        borderColor: colors.warning?.[300] || '#FCD34D',
-        textColor: colors.warning?.[700] || '#B45309',
-        iconColor: colors.warning?.[600] || '#F59E0B',
+        backgroundColor: colors.warning?.[50] || COLORS.warning[50],
+        borderColor: colors.warning?.[300] || COLORS.warning[300],
+        textColor: colors.warning?.[700] || COLORS.warning.dark,
+        iconColor: colors.warning?.[600] || COLORS.warning[600],
       };
     }
     return {
-      backgroundColor: colors.error?.[50] || '#FEF2F2',
-      borderColor: colors.error?.[300] || '#FCA5A5',
-      textColor: colors.error?.[700] || '#B91C1C',
-      iconColor: colors.error?.[600] || '#EF4444',
+      backgroundColor: colors.error?.[50] || COLORS.error[50],
+      borderColor: colors.error?.[300] || COLORS.error[300],
+      textColor: colors.error?.[700] || COLORS.error.dark,
+      iconColor: colors.error?.[600] || COLORS.error[600],
     };
   };
 
@@ -186,7 +188,7 @@ const CountdownTimer = ({
   return (
     <View style={[styles.container, style]}>
       {showIcon && (
-        <Ionicons 
+        <Icon 
           name="time-outline" 
           size={sizeConfig.iconSize} 
           color={colorConfig.iconColor} 

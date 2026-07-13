@@ -9,13 +9,21 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
-  SafeAreaView,
-  Platform,
   StatusBar
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Car,
+  CalendarDays,
+  Clock,
+  Building2,
+  ChevronRight,
+  CircleX,
+  AlertTriangle,
+} from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, ROUTES } from '../../utils/constants';
+import { ROUTES } from '../../utils/constants';
+import { COLORS } from '../../design-system/tokens/colors';
+import { BORDERS, SHADOWS } from '../../design-system/tokens';
 import * as userService from '../../services/user';
 
 // Componentes
@@ -160,23 +168,23 @@ const ActiveAppointmentsScreen = () => {
   const getEstadoColor = (estado) => {
     switch (estado) {
       case 'pendiente':
-        return '#FF9500';
+        return COLORS.warning[500];
       case 'pago_validado':
-        return '#007EA7';
+        return COLORS.secondary[500];
       case 'confirmado':
-        return '#0056CC';
+        return COLORS.primary[600];
       case 'en_proceso':
-        return '#28A745';
+        return COLORS.success[500];
       case 'completado':
-        return '#6C757D';
+        return COLORS.neutral.gray[500];
       case 'cancelado':
-        return '#DC3545';
+        return COLORS.error[500];
       case 'cancelacion_solicitada':
-        return '#8E44AD';
+        return COLORS.warning[700];
       case 'devolucion_procesada':
-        return '#A0522D';
+        return COLORS.warning[800];
       default:
-        return '#6C757D';
+        return COLORS.neutral.gray[500];
     }
   };
 
@@ -235,7 +243,7 @@ const ActiveAppointmentsScreen = () => {
           {/* Información del vehículo */}
           {item.vehiculo_detail && (
             <View style={styles.vehiculoInfo}>
-              <Ionicons name="car" size={20} color={COLORS.primary} />
+              <Car size={20} color={COLORS.primary[500]} strokeWidth={1.75} />
               <Text style={styles.vehiculoTexto}>
                 {item.vehiculo_detail.marca_nombre} {item.vehiculo_detail.modelo_nombre} {item.vehiculo_detail.year}
               </Text>
@@ -248,13 +256,13 @@ const ActiveAppointmentsScreen = () => {
           {/* Fecha y hora */}
           <View style={styles.fechaHoraInfo}>
             <View style={styles.fechaHoraItem}>
-              <Ionicons name="calendar" size={16} color={COLORS.textLight} />
+              <CalendarDays size={16} color={COLORS.text.secondary} strokeWidth={1.75} />
               <Text style={styles.fechaHoraTexto}>
                 {formatearFecha(item.fecha_servicio)}
               </Text>
             </View>
             <View style={styles.fechaHoraItem}>
-              <Ionicons name="time" size={16} color={COLORS.textLight} />
+              <Clock size={16} color={COLORS.text.secondary} strokeWidth={1.75} />
               <Text style={styles.fechaHoraTexto}>
                 {item.hora_servicio}
               </Text>
@@ -264,7 +272,7 @@ const ActiveAppointmentsScreen = () => {
           {/* Información del taller */}
           {item.taller_detail && (
             <View style={styles.tallerInfo}>
-              <Ionicons name="business" size={16} color={COLORS.textLight} />
+              <Building2 size={16} color={COLORS.text.secondary} strokeWidth={1.75} />
               <Text style={styles.tallerTexto}>
                 {item.taller_detail.nombre}
               </Text>
@@ -305,7 +313,7 @@ const ActiveAppointmentsScreen = () => {
               }}
             >
               <Text style={styles.verDetalleButtonText}>Ver Detalle</Text>
-              <Ionicons name="chevron-forward" size={16} color={COLORS.primary} />
+              <ChevronRight size={16} color={COLORS.primary[500]} strokeWidth={2} />
             </TouchableOpacity>
 
             {['pendiente', 'pago_validado', 'confirmado'].includes(item.estado) && (
@@ -315,7 +323,7 @@ const ActiveAppointmentsScreen = () => {
                   handleCancelarAgendamiento(item.id, item);
                 }}
               >
-                <Ionicons name="close-circle" size={16} color={COLORS.error} />
+                <CircleX size={16} color={COLORS.text.onPrimary} strokeWidth={1.75} />
                 <Text style={styles.cancelarButtonText}>
                   {item.comprobante_validado ? 'Solicitar Cancelación' : 'Cancelar'}
                 </Text>
@@ -329,7 +337,7 @@ const ActiveAppointmentsScreen = () => {
       return (
         <Card style={styles.agendamientoCard}>
           <View style={styles.errorContainer}>
-            <Ionicons name="warning" size={24} color={COLORS.error} />
+            <AlertTriangle size={24} color={COLORS.error.main} strokeWidth={1.75} />
             <Text style={styles.errorText}>Error al mostrar agendamiento #{item.id}</Text>
           </View>
         </Card>
@@ -340,10 +348,10 @@ const ActiveAppointmentsScreen = () => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
         
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007EA7" />
+          <ActivityIndicator size="large" color={COLORS.primary[500]} />
           <Text style={styles.loadingText}>Cargando agendamientos...</Text>
         </View>
       </View>
@@ -352,7 +360,7 @@ const ActiveAppointmentsScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8F9FA" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       {agendamientos.length === 0 ? (
         <ScrollView 
@@ -361,12 +369,12 @@ const ActiveAppointmentsScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
+              colors={[COLORS.primary[500]]}
+              tintColor={COLORS.primary[500]}
             />
           }
         >
-          <Ionicons name="calendar-outline" size={80} color={COLORS.textLight} />
+          <CalendarDays size={80} color={COLORS.text.tertiary} strokeWidth={1.5} />
           <Text style={styles.emptyTitle}>No tienes agendamientos activos</Text>
           <Text style={styles.emptySubtitle}>
             Cuando agendardes servicios, aparecerán aquí para que puedas hacer seguimiento.
@@ -382,8 +390,8 @@ const ActiveAppointmentsScreen = () => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={[COLORS.primary]}
-              tintColor={COLORS.primary}
+              colors={[COLORS.primary[500]]}
+              tintColor={COLORS.primary[500]}
             />
           }
           showsVerticalScrollIndicator={false}
@@ -396,36 +404,36 @@ const ActiveAppointmentsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.background.default,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background.default,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: COLORS.text,
+    color: COLORS.text.primary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background.default,
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginTop: 20,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
     marginTop: 10,
     textAlign: 'center',
     lineHeight: 22,
@@ -437,19 +445,9 @@ const styles = StyleSheet.create({
   agendamientoCard: {
     marginBottom: 16,
     padding: 16,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    ...SHADOWS.sm,
   },
   agendamientoHeader: {
     marginBottom: 12,
@@ -462,7 +460,7 @@ const styles = StyleSheet.create({
   numeroOrdenTexto: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text.primary,
   },
   estadoBadge: {
     paddingHorizontal: 12,
@@ -470,7 +468,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   estadoTexto: {
-    color: COLORS.white,
+    color: COLORS.text.onPrimary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -481,14 +479,14 @@ const styles = StyleSheet.create({
   },
   vehiculoTexto: {
     fontSize: 14,
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginLeft: 8,
     flex: 1,
   },
   patenteTexto: {
     fontSize: 12,
-    color: COLORS.textLight,
-    backgroundColor: COLORS.background,
+    color: COLORS.text.secondary,
+    backgroundColor: COLORS.neutral.gray[100],
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -504,7 +502,7 @@ const styles = StyleSheet.create({
   },
   fechaHoraTexto: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
     marginLeft: 4,
   },
   tallerInfo: {
@@ -514,7 +512,7 @@ const styles = StyleSheet.create({
   },
   tallerTexto: {
     fontSize: 14,
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginLeft: 4,
   },
   serviciosInfo: {
@@ -523,7 +521,7 @@ const styles = StyleSheet.create({
   serviciosTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginBottom: 4,
   },
   servicioItem: {
@@ -534,12 +532,12 @@ const styles = StyleSheet.create({
   },
   servicioNombre: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
     flex: 1,
   },
   servicioPrecio: {
     fontSize: 12,
-    color: COLORS.primary,
+    color: COLORS.primary[500],
     fontWeight: '600',
   },
   totalContainer: {
@@ -548,18 +546,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: COLORS.border.light,
     marginBottom: 12,
   },
   totalLabel: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text.primary,
   },
   totalAmount: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: COLORS.primary[500],
   },
   accionesContainer: {
     flexDirection: 'row',
@@ -568,17 +566,17 @@ const styles = StyleSheet.create({
   verDetalleButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.neutral.gray[100],
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     flex: 1,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: COLORS.primary[500],
   },
   verDetalleButtonText: {
-    color: COLORS.primary,
+    color: COLORS.primary[500],
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
@@ -586,13 +584,13 @@ const styles = StyleSheet.create({
   cancelarButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.error,
+    backgroundColor: COLORS.error.main,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
   },
   cancelarButtonText: {
-    color: COLORS.white,
+    color: COLORS.text.onPrimary,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
@@ -604,7 +602,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   errorText: {
-    color: COLORS.error,
+    color: COLORS.error.main,
     fontSize: 14,
     marginLeft: 8,
   },

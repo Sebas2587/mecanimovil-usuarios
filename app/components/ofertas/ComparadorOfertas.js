@@ -1,39 +1,38 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { TOKENS } from '../../design-system/tokens';
+import { TOKENS, COLORS, withOpacity } from '../../design-system/tokens';
 import { getHealthColor } from '../../utils/healthFormat';
 import ofertasService from '../../services/ofertasService';
+import Icon from '../base/Icon/Icon';
 
 // Extraer tokens con valores por defecto
-const colors = TOKENS?.colors || {};
 const typography = TOKENS?.typography || {};
 const spacing = TOKENS?.spacing || {};
 const borders = TOKENS?.borders || {};
 
-// Colores seguros
-const primaryColor = colors?.primary?.['500'] || '#003459';
-const primaryLight = colors?.primary?.['100'] || '#CCE5EF';
-const primaryDark = colors?.primary?.['700'] || '#002035';
-const secondaryColor = colors?.secondary?.['500'] || '#007EA7';
-const accentColor = colors?.accent?.['500'] || '#00A8E8';
-const successColor = colors?.success?.['500'] || '#10B981';
-const successLight = colors?.success?.['100'] || '#D1FAE5';
-const errorColor = colors?.error?.['500'] || '#EF4444';
-const warningColor = colors?.warning?.['500'] || '#F59E0B';
-const warningLight = colors?.warning?.['100'] || '#FEF3C7';
-const infoColor = colors?.info?.['500'] || '#3B82F6';
-const infoLight = colors?.info?.['100'] || '#DBEAFE';
-const bgDefault = colors?.background?.default || '#F5F7F8';
-const bgPaper = colors?.background?.paper || '#FFFFFF';
-const textPrimary = colors?.text?.primary || '#00171F';
-const textSecondary = colors?.text?.secondary || '#4B5563';
-const textTertiary = colors?.text?.tertiary || '#6B7280';
-const borderLight = colors?.border?.light || '#E5E7EB';
-const neutralGray50 = colors?.neutral?.gray?.['50'] || '#F9FAFB';
-const neutralGray100 = colors?.neutral?.gray?.['100'] || '#F3F4F6';
-const neutralGray200 = colors?.neutral?.gray?.['200'] || '#E5E7EB';
+// Colores del design system
+const primaryColor = COLORS.primary[500];
+const primaryLight = COLORS.primary[100];
+const primaryDark = COLORS.primary[700];
+const accentColor = COLORS.accent[500];
+const successColor = COLORS.success[500];
+const successLight = COLORS.success[100];
+const errorColor = COLORS.error[500];
+const warningColor = COLORS.warning[500];
+const warningLight = COLORS.warning[100];
+const infoColor = COLORS.info[500];
+const bgPaper = COLORS.background.paper;
+const textPrimary = COLORS.text.primary;
+const textSecondary = COLORS.text.secondary;
+const textTertiary = COLORS.text.tertiary;
+const borderLight = COLORS.border.light;
+const neutralGray50 = COLORS.neutral.gray[50];
+const neutralGray100 = COLORS.neutral.gray[100];
+const neutralGray200 = COLORS.neutral.gray[200];
+const starColor = COLORS.warning[400];
+const textOnPrimary = COLORS.text.onPrimary;
+const shadowColor = COLORS.base.inkBlack;
 
 // Espaciado seguro
 const spacingXs = spacing?.xs || 4;
@@ -132,7 +131,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
   if (!ofertas || ofertas.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <MaterialIcons name="compare-arrows" size={48} color={textTertiary} />
+        <Icon name="compare-arrows" size={48} color={textTertiary} />
         <Text style={styles.emptyText}>No hay ofertas para comparar</Text>
       </View>
     );
@@ -424,11 +423,11 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
 
     for (let i = 0; i < 5; i++) {
       if (i < fullStars) {
-        stars.push(<Ionicons key={i} name="star" size={12} color="#FFD700" />);
+        stars.push(<Icon key={i} name="star" size={12} color={starColor} />);
       } else if (i === fullStars && hasHalf) {
-        stars.push(<Ionicons key={i} name="star-half" size={12} color="#FFD700" />);
+        stars.push(<Icon key={i} name="star-half" size={12} color={starColor} />);
       } else {
-        stars.push(<Ionicons key={i} name="star-outline" size={12} color="#FFD700" />);
+        stars.push(<Icon key={i} name="star-outline" size={12} color={starColor} />);
       }
     }
     return stars;
@@ -454,7 +453,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
       {/* Card Informativa - Cómo funciona */}
       <View style={styles.infoCard}>
         <View style={styles.infoHeader}>
-          <MaterialIcons name="lightbulb-outline" size={20} color={accentColor} />
+          <Icon name="lightbulb-outline" size={20} color={accentColor} />
           <Text style={styles.infoTitle}>Análisis Inteligente de Ofertas</Text>
         </View>
         <Text style={styles.infoText}>
@@ -465,13 +464,13 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
       {/* Card de Resumen de Precios */}
       <View style={styles.resumenCard}>
         <View style={styles.resumenHeader}>
-          <MaterialIcons name="analytics" size={20} color={primaryColor} />
+          <Icon name="analytics" size={20} color={primaryColor} />
           <Text style={styles.resumenTitle}>Resumen de Precios</Text>
         </View>
         <View style={styles.resumenGrid}>
           <View style={styles.resumenItem}>
             <View style={[styles.resumenIconBox, { backgroundColor: successLight }]}>
-              <Ionicons name="trending-down" size={18} color={successColor} />
+              <Icon name="trending-down" size={18} color={successColor} />
             </View>
             <Text style={styles.resumenLabel}>Más Bajo</Text>
             <Text style={[styles.resumenValue, { color: successColor }]}>
@@ -481,7 +480,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
           <View style={styles.resumenDivider} />
           <View style={styles.resumenItem}>
             <View style={[styles.resumenIconBox, { backgroundColor: primaryLight }]}>
-              <Ionicons name="remove" size={18} color={primaryColor} />
+              <Icon name="remove" size={18} color={primaryColor} />
             </View>
             <Text style={styles.resumenLabel}>Promedio</Text>
             <Text style={[styles.resumenValue, { color: primaryColor }]}>
@@ -491,7 +490,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
           <View style={styles.resumenDivider} />
           <View style={styles.resumenItem}>
             <View style={[styles.resumenIconBox, { backgroundColor: warningLight }]}>
-              <Ionicons name="trending-up" size={18} color={warningColor} />
+              <Icon name="trending-up" size={18} color={warningColor} />
             </View>
             <Text style={styles.resumenLabel}>Más Alto</Text>
             <Text style={[styles.resumenValue, { color: warningColor }]}>
@@ -526,7 +525,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
               {esMejor && (
                 <View style={styles.badgeRecomendadaContainer}>
                   <View style={styles.badgeRecomendada}>
-                    <Ionicons name="trophy" size={12} color="#FFF" />
+                    <Icon name="trophy" size={12} color={textOnPrimary} />
                     <Text style={styles.badgeRecomendadaText}>MEJOR OPCIÓN</Text>
                   </View>
                 </View>
@@ -554,12 +553,12 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                     />
                   ) : (
                     <View style={styles.avatarPlaceholder}>
-                      <Ionicons name="person" size={24} color={textTertiary} />
+                      <Icon name="person" size={24} color={textTertiary} />
                     </View>
                   )}
                   {(oferta.proveedor_verificado || oferta.documentos_verificados) && (
                     <View style={styles.verificadoBadge}>
-                      <Ionicons name="checkmark" size={10} color="#FFF" />
+                      <Icon name="checkmark" size={10} color={textOnPrimary} />
                     </View>
                   )}
                 </View>
@@ -593,7 +592,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                 {/* Reseñas Positivas */}
                 <View style={styles.criterioRow}>
                   <View style={styles.criterioLeft}>
-                    <Ionicons name="star" size={14} color={textSecondary} />
+                    <Icon name="star" size={14} color={textSecondary} />
                     <Text style={styles.criterioLabel}>Reseñas 4-5★</Text>
                   </View>
                   {renderScoreIndicator(puntuacionPorCriterio.RESENAS_POSITIVAS, 'resenas')}
@@ -602,7 +601,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                 {/* Experiencia */}
                 <View style={styles.criterioRow}>
                   <View style={styles.criterioLeft}>
-                    <Ionicons name="briefcase-outline" size={14} color={textSecondary} />
+                    <Icon name="briefcase-outline" size={14} color={textSecondary} />
                     <Text style={styles.criterioLabel}>Experiencia</Text>
                   </View>
                   {renderScoreIndicator(puntuacionPorCriterio.EXPERIENCIA, 'experiencia')}
@@ -611,7 +610,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                 {/* Cercanía */}
                 <View style={styles.criterioRow}>
                   <View style={styles.criterioLeft}>
-                    <Ionicons name="location-outline" size={14} color={textSecondary} />
+                    <Icon name="location-outline" size={14} color={textSecondary} />
                     <Text style={styles.criterioLabel}>Cercanía</Text>
                   </View>
                   {renderScoreIndicator(puntuacionPorCriterio.CERCANIA, 'cercania')}
@@ -620,7 +619,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                 {/* Disponibilidad */}
                 <View style={styles.criterioRow}>
                   <View style={styles.criterioLeft}>
-                    <Ionicons name="calendar-outline" size={14} color={textSecondary} />
+                    <Icon name="calendar-outline" size={14} color={textSecondary} />
                     <Text style={styles.criterioLabel}>Disponibilidad</Text>
                   </View>
                   {renderScoreIndicator(puntuacionPorCriterio.DISPONIBILIDAD, 'disponibilidad')}
@@ -629,7 +628,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                 {/* Tiempo */}
                 <View style={styles.criterioRow}>
                   <View style={styles.criterioLeft}>
-                    <Ionicons name="time-outline" size={14} color={textSecondary} />
+                    <Icon name="time-outline" size={14} color={textSecondary} />
                     <Text style={styles.criterioLabel}>Tiempo</Text>
                   </View>
                   {renderScoreIndicator(puntuacionPorCriterio.TIEMPO_EJECUCION, 'tiempo')}
@@ -638,7 +637,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                 {/* Garantía */}
                 <View style={styles.criterioRow}>
                   <View style={styles.criterioLeft}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color={textSecondary} />
+                    <Icon name="shield-checkmark-outline" size={14} color={textSecondary} />
                     <Text style={styles.criterioLabel}>Garantía</Text>
                   </View>
                   {renderScoreIndicator(puntuacionPorCriterio.GARANTIA, 'garantia')}
@@ -647,7 +646,7 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                 {/* Documentos */}
                 <View style={styles.criterioRow}>
                   <View style={styles.criterioLeft}>
-                    <Ionicons name="document-text-outline" size={14} color={textSecondary} />
+                    <Icon name="document-text-outline" size={14} color={textSecondary} />
                     <Text style={styles.criterioLabel}>Verificación</Text>
                   </View>
                   {renderScoreIndicator(puntuacionPorCriterio.DOCUMENTOS, 'documentos')}
@@ -732,14 +731,14 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                     onPress={() => onAceptarOferta(oferta)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="checkmark-circle" size={18} color="#FFF" />
+                    <Icon name="checkmark-circle" size={18} color={textOnPrimary} />
                     <Text style={styles.aceptarButtonText}>
                       {esMejor ? 'Aceptar Mejor Opción' : 'Aceptar Oferta'}
                     </Text>
                   </TouchableOpacity>
                 ) : esOfertaAceptada ? (
                   <View style={styles.aceptadaBadge}>
-                    <Ionicons name="checkmark-done" size={18} color={successColor} />
+                    <Icon name="checkmark-done" size={18} color={successColor} />
                     <Text style={styles.aceptadaText}>Oferta Aceptada</Text>
                   </View>
                 ) : (
@@ -795,12 +794,12 @@ const styles = StyleSheet.create({
   },
   // Info Card
   infoCard: {
-    backgroundColor: accentColor + '10',
+    backgroundColor: withOpacity(accentColor, 0.1),
     borderRadius: radiusLg,
     padding: spacingMd,
     marginBottom: spacingMd,
     borderWidth: 1,
-    borderColor: accentColor + '30',
+    borderColor: withOpacity(accentColor, 0.3),
   },
   infoHeader: {
     flexDirection: 'row',
@@ -826,7 +825,7 @@ const styles = StyleSheet.create({
     marginBottom: spacingMd,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: shadowColor,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
@@ -895,7 +894,7 @@ const styles = StyleSheet.create({
     borderColor: borderLight,
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: shadowColor,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.08,
         shadowRadius: 8,
@@ -908,7 +907,7 @@ const styles = StyleSheet.create({
   ofertaCardRecomendada: {
     borderColor: successColor,
     borderWidth: 2,
-    backgroundColor: successLight + '20',
+    backgroundColor: withOpacity(successLight, 0.2),
   },
   // Badge Recomendada - ARREGLADO
   badgeRecomendadaContainer: {
@@ -940,7 +939,7 @@ const styles = StyleSheet.create({
     }),
   },
   badgeRecomendadaText: {
-    color: '#FFF',
+    color: textOnPrimary,
     fontSize: fontSizeXs,
     fontWeight: fontWeightBold,
     letterSpacing: 0.5,
@@ -1159,7 +1158,7 @@ const styles = StyleSheet.create({
     backgroundColor: successColor,
   },
   aceptarButtonText: {
-    color: '#FFF',
+    color: textOnPrimary,
     fontSize: fontSizeBase,
     fontWeight: fontWeightSemibold,
   },

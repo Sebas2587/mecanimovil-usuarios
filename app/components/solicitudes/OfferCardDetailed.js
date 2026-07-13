@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import Icon from '../base/Icon/Icon';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { getMediaURL } from '../../services/api';
 import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
@@ -172,7 +172,7 @@ const OfferCardDetailed = ({
         <View style={[styles.card, embedded && styles.cardEmbedded]}>
             {!resumidoCatalogo && etiquetaServicios ? (
                 <View style={styles.servicioLabelRow}>
-                    <Ionicons name="construct-outline" size={14} color={COLORS.text.tertiary} />
+                    <Icon name="construct-outline" size={14} color={COLORS.text.tertiary} />
                     <Text style={styles.servicioLabelText}>{etiquetaServicios}</Text>
                 </View>
             ) : null}
@@ -197,32 +197,40 @@ const OfferCardDetailed = ({
                     onPress={() => onProfilePress && onProfilePress(oferta)}
                     activeOpacity={0.7}
                 >
-                    <Image
-                        source={{ uri: proveedorFotoUrl || 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=200&auto=format&fit=crop' }}
-                        style={styles.avatar}
-                        contentFit="cover"
-                        transition={300}
-                    />
+                    {proveedorFotoUrl ? (
+                        <Image
+                            source={{ uri: proveedorFotoUrl }}
+                            style={styles.avatar}
+                            contentFit="cover"
+                            transition={300}
+                        />
+                    ) : (
+                        <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                            <Text style={styles.avatarInitial}>
+                                {(oferta.nombre_proveedor || '?').trim().charAt(0).toUpperCase()}
+                            </Text>
+                        </View>
+                    )}
                     <View style={styles.providerInfo}>
                         <View style={styles.nameRow}>
                             <Text style={styles.providerName} numberOfLines={1}>
                                 {oferta.nombre_proveedor}
                             </Text>
                             {oferta.proveedor_verificado && (
-                                <Ionicons name="checkmark-circle" size={16} color={COLORS.primary[500]} />
+                                <Icon name="checkmark-circle" size={16} color={COLORS.primary[500]} />
                             )}
                         </View>
                         <View style={styles.viewProfileRow}>
                             <Text style={styles.providerType}>
                                 {etiquetaTipoProveedor}
                             </Text>
-                            <Ionicons name="chevron-forward" size={12} color={COLORS.text.tertiary} style={{ marginLeft: 4, marginTop: 1 }} />
+                            <Icon name="chevron-forward" size={12} color={COLORS.text.tertiary} style={{ marginLeft: 4, marginTop: 1 }} />
                         </View>
                     </View>
                 </TouchableOpacity>
 
                 <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={14} color={COLORS.warning[600]} />
+                    <Icon name="star" size={14} color={COLORS.warning[600]} />
                     <Text style={styles.ratingScore}>{rating.toFixed(1)}</Text>
                 </View>
             </View>
@@ -234,12 +242,12 @@ const OfferCardDetailed = ({
             {/* 2. Promesas de Valor (Tags) */}
             <View style={[styles.tagsRow, resumidoCatalogo && styles.tagsRowCompact]}>
                 <View style={styles.tag}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color={COLORS.text.tertiary} />
+                    <Icon name="shield-checkmark-outline" size={14} color={COLORS.text.tertiary} />
                     <Text style={styles.tagText}>Garantía {oferta.garantia_ofrecida || '3 meses'}</Text>
                 </View>
                 {duracionTagTexto ? (
                     <View style={styles.tag}>
-                        <Ionicons name="time-outline" size={14} color={COLORS.text.tertiary} />
+                        <Icon name="time-outline" size={14} color={COLORS.text.tertiary} />
                         <Text style={styles.tagText}>{duracionTagTexto} est.</Text>
                     </View>
                 ) : null}
@@ -453,7 +461,7 @@ const OfferCardDetailed = ({
                             : 'Abrir chat con el proveedor'
                     }
                 >
-                    <Ionicons name="chatbubble-ellipses-outline" size={20} color={COLORS.primary[600]} />
+                    <Icon name="chatbubble-ellipses-outline" size={20} color={COLORS.primary[600]} />
                     <Text style={styles.chatWideButtonText}>Chat con el proveedor</Text>
                     {chatUnreadCount > 0 ? (
                         <View style={styles.chatWideUnreadBadge}>
@@ -475,7 +483,7 @@ const OfferCardDetailed = ({
                                 : 'Abrir chat con el proveedor'
                         }
                     >
-                        <Ionicons name="chatbubble-ellipses-outline" size={22} color={COLORS.primary[600]} />
+                        <Icon name="chatbubble-ellipses-outline" size={22} color={COLORS.primary[600]} />
                     </TouchableOpacity>
                     {chatUnreadCount > 0 ? (
                         <View style={styles.chatUnreadBadge} accessibilityElementsHidden>
@@ -494,7 +502,7 @@ const OfferCardDetailed = ({
                             estadoOfertaDisplay.pending && styles.acceptedInfoBoxPending,
                         ]}
                     >
-                        <Ionicons
+                        <Icon
                             name={estadoOfertaDisplay.icon}
                             size={18}
                             color={estadoOfertaDisplay.color}
@@ -519,7 +527,7 @@ const OfferCardDetailed = ({
                         disabled={disabled}
                     >
                         <Text style={styles.acceptButtonText}>Aceptar Oferta</Text>
-                        <Ionicons name="arrow-forward" size={18} color={COLORS.text.onPrimary} />
+                        <Icon name="arrow-forward" size={18} color={COLORS.text.onPrimary} />
                     </TouchableOpacity>
                 )}
             </View>
@@ -609,6 +617,16 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.neutral.gray[100],
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
+    },
+    avatarPlaceholder: {
+        backgroundColor: COLORS.primary[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarInitial: {
+        fontSize: TYPOGRAPHY.fontSize.lg,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        color: COLORS.primary[600],
     },
     providerInfo: {
         flex: 1,

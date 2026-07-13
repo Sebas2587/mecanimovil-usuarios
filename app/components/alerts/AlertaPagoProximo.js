@@ -5,9 +5,9 @@
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, Dimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../design-system/tokens';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS, withOpacity } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -95,8 +95,8 @@ const AlertaPagoProximo = ({
     return null;
   }
 
-  const warningColor = COLORS?.warning?.[500] || COLORS?.warning?.main || '#FFB84D';
-  const textColor = '#FFFFFF';
+  const warningColor = COLORS.warning[500];
+  const textColor = COLORS.text.inverse;
 
   return (
     <Animated.View
@@ -117,17 +117,11 @@ const AlertaPagoProximo = ({
             borderRadius: BORDERS?.radius?.lg || 12,
             paddingHorizontal: SPACING?.md || 16,
             paddingVertical: SPACING?.md || 16,
-            ...(SHADOWS?.md || {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 5,
-            }),
+            ...(SHADOWS.md),
           },
         ]}
       >
-        <Ionicons
+        <Icon
           name="time-outline"
           size={24}
           color={textColor}
@@ -187,7 +181,7 @@ const AlertaPagoProximo = ({
           onPress={handleDismiss}
           activeOpacity={0.7}
         >
-          <Ionicons name="close" size={20} color={textColor} />
+          <Icon name="close" size={20} color={textColor} />
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -224,7 +218,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING?.xs || 4,
     marginRight: SPACING?.xs || 4,
     borderRadius: (BORDERS?.radius?.sm || 4) + 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.2),
   },
   actionText: {
     textTransform: 'uppercase',

@@ -1,56 +1,122 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { DollarSign, ChevronRight, Pencil } from 'lucide-react-native';
+import { Pencil, ChevronRight } from 'lucide-react-native';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
-import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import Button from '../base/Button/Button';
+import { getHealthColorToken } from '../../utils/healthFormat';
 
-const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEditPress }) => {
+const DEPRECIATION_RATE_PCT = 7;
+
+/**
+ * Valorización del vehículo (Airbnb-style) con enlace claro a salud.
+ */
+const VehicleValuationCard = ({
+    marketValue,
+    suggestedValue,
+    vehicleYear,
+    healthScore,
+    onSellPress,
+    onTransferPress,
+    onEditPress,
+    onHealthPress,
+}) => {
+    const onTransfer = onTransferPress || onSellPress;
     const formatCurrency = (value) =>
         new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(value || 0);
 
+    const yearNum = Number(vehicleYear);
+    const vehicleAge = Number.isFinite(yearNum) ? new Date().getFullYear() - yearNum : null;
+    const showDepreciation = Number(marketValue) > 0 && vehicleAge != null && vehicleAge >= 0;
+    const score = Math.round(Number(healthScore) || 0);
+    const healthColor = getHealthColorToken(COLORS, score);
+
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <View style={styles.iconContainer}>
-                    <DollarSign size={18} color={COLORS.primary[500]} />
+            <Text style={[TYPOGRAPHY.styles.h5, styles.title]}>Valorización</Text>
+
+            {onHealthPress ? (
+                <TouchableOpacity
+                    style={styles.healthLink}
+                    onPress={onHealthPress}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Salud del vehículo ${score} por ciento. Ver detalle`}
+                >
+                    <View style={styles.healthLinkLeft}>
+                        <View style={[styles.healthDot, { backgroundColor: healthColor }]} />
+                        <Text style={[TYPOGRAPHY.styles.captionBold, styles.healthLinkText]}>
+                            Salud {score}%
+                        </Text>
+                        <Text style={[TYPOGRAPHY.styles.caption, styles.healthLinkHint]}>
+                            influye en el valor sugerido
+                        </Text>
+                    </View>
+                    <ChevronRight size={18} color={COLORS.text.tertiary} strokeWidth={2} />
+                </TouchableOpacity>
+            ) : null}
+
+            <View style={styles.valueRow}>
+                <Text style={[TYPOGRAPHY.styles.body, styles.valueLabel]}>Valor de mercado</Text>
+                <View style={styles.valueRight}>
+                    <Text style={[TYPOGRAPHY.styles.bodyBold, styles.valueText]}>
+                        {formatCurrency(marketValue)}
+                    </Text>
+                    {(marketValue === 0 || marketValue === '0') && onEditPress ? (
+                        <TouchableOpacity
+                            onPress={onEditPress}
+                            style={styles.editLink}
+                            accessibilityRole="button"
+                            accessibilityLabel="Establecer valor de mercado"
+                        >
+                            <Pencil size={12} color={COLORS.primary[600]} />
+                            <Text style={[TYPOGRAPHY.styles.captionBold, styles.editLinkText]}>
+                                Establecer valor
+                            </Text>
+                        </TouchableOpacity>
+                    ) : null}
                 </View>
-                <Text style={styles.title}>Gestión de Activo</Text>
             </View>
 
-            <View style={styles.valuesContainer}>
-                <View style={styles.valueRow}>
-                    <Text style={styles.valueLabel}>Valor de Mercado</Text>
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.valueText}>{formatCurrency(marketValue)}</Text>
-                        {(marketValue === 0 || marketValue === '0') && onEditPress && (
-                            <TouchableOpacity onPress={onEditPress} style={styles.editLink}>
-                                <Pencil size={12} color={COLORS.primary[500]} />
-                                <Text style={styles.editLinkText}>Establecer Valor</Text>
-                            </TouchableOpacity>
-                        )}
+            <View style={styles.divider} />
+
+            <View style={styles.valueRow}>
+                <View style={styles.valueLeft}>
+                    <Text style={[TYPOGRAPHY.styles.body, styles.valueLabel]}>
+                        Valor sugerido certificado
+                    </Text>
+                    <View style={styles.badge}>
+                        <Text style={[TYPOGRAPHY.styles.captionBold, styles.badgeText]}>
+                            +5% por salud
+                        </Text>
                     </View>
                 </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.valueRow}>
-                    <View>
-                        <Text style={styles.valueLabel}>Valor Sugerido Certificado</Text>
-                        <View style={styles.badge}>
-                            <Text style={styles.badgeText}>+5% por Salud</Text>
-                        </View>
-                    </View>
-                    <Text style={[styles.valueText, styles.highlightValue]}>{formatCurrency(suggestedValue)}</Text>
-                </View>
+                <Text style={[TYPOGRAPHY.styles.bodyBold, styles.suggestedValue]}>
+                    {formatCurrency(suggestedValue)}
+                </Text>
             </View>
 
-            <TouchableOpacity onPress={onSellPress} activeOpacity={0.8} style={styles.actionButton}>
-                <Text style={styles.actionButtonText}>Gestionar Venta</Text>
-                <ChevronRight size={16} color={COLORS.text.inverse} />
-            </TouchableOpacity>
+            {showDepreciation ? (
+                <>
+                    <View style={styles.divider} />
+                    <View style={styles.valueRow}>
+                        <Text style={[TYPOGRAPHY.styles.caption, styles.depreciationLabel]}>
+                            Depreciación estimada
+                        </Text>
+                        <Text style={[TYPOGRAPHY.styles.caption, styles.depreciationLabel]}>
+                            ≈ {DEPRECIATION_RATE_PCT}%/año según antigüedad
+                        </Text>
+                    </View>
+                </>
+            ) : null}
+
+            <Text style={[TYPOGRAPHY.styles.caption, styles.footnote]}>
+                El valor sugerido se recalcula con cada servicio registrado.
+            </Text>
+
+            <Button title="Transferir vehículo" onPress={onTransfer} fullWidth />
         </View>
     );
 };
@@ -58,73 +124,86 @@ const VehicleValuationCard = ({ marketValue, suggestedValue, onSellPress, onEdit
 const styles = StyleSheet.create({
     container: {
         backgroundColor: COLORS.background.paper,
-        borderRadius: BORDERS.radius.card.lg,
+        borderRadius: BORDERS.radius.lg,
         padding: SPACING.md,
         marginHorizontal: SPACING.container.horizontal,
-        marginBottom: SPACING.lg,
+        marginBottom: SPACING.md,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
         overflow: 'hidden',
-        ...SHADOWS.sm,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: SPACING.md,
-    },
-    iconContainer: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: COLORS.primary[50],
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
     },
     title: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        color: COLORS.text.primary,
+        marginBottom: SPACING.xs,
+    },
+    healthLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: SPACING.xs,
+        marginBottom: SPACING.sm,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.base.soft,
+        paddingHorizontal: SPACING.sm,
+    },
+    healthLinkLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xs,
+        flex: 1,
+        flexWrap: 'wrap',
+    },
+    healthDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    healthLinkText: {
         color: COLORS.text.primary,
     },
-    valuesContainer: {
-        marginBottom: SPACING.md,
+    healthLinkHint: {
+        color: COLORS.text.secondary,
     },
     valueRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginVertical: SPACING.xxs,
+        gap: SPACING.sm,
+        paddingVertical: 2,
+    },
+    valueLeft: {
+        flexShrink: 1,
+    },
+    valueRight: {
+        alignItems: 'flex-end',
     },
     valueLabel: {
-        fontSize: 13,
         color: COLORS.text.secondary,
     },
     valueText: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.text.primary,
     },
-    highlightValue: {
+    suggestedValue: {
         color: COLORS.primary[600],
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
     },
     divider: {
-        height: 1,
-        backgroundColor: COLORS.neutral.gray[200],
-        marginVertical: 10,
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: COLORS.border.light,
+        marginVertical: SPACING.xs,
     },
     badge: {
-        backgroundColor: COLORS.success[50],
+        backgroundColor: COLORS.primary[50],
         alignSelf: 'flex-start',
         paddingHorizontal: SPACING.xs,
-        paddingVertical: 3,
-        borderRadius: BORDERS.radius.xs,
-        marginTop: SPACING.xxs,
+        paddingVertical: 2,
+        borderRadius: BORDERS.radius.pill,
+        marginTop: 2,
     },
     badgeText: {
-        fontSize: 10,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.success[700],
+        color: COLORS.primary[600],
+    },
+    depreciationLabel: {
+        color: COLORS.text.secondary,
     },
     editLink: {
         flexDirection: 'row',
@@ -134,22 +213,11 @@ const styles = StyleSheet.create({
     },
     editLinkText: {
         color: COLORS.primary[600],
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
-    actionButton: {
-        borderRadius: BORDERS.radius.button.md,
-        paddingVertical: 13,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: COLORS.primary[500],
-    },
-    actionButtonText: {
-        color: COLORS.text.inverse,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        fontSize: TYPOGRAPHY.fontSize.base,
-        marginRight: 6,
+    footnote: {
+        color: COLORS.text.tertiary,
+        marginTop: SPACING.xs,
+        marginBottom: SPACING.sm,
     },
 });
 

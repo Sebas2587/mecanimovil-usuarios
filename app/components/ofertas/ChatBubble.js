@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, BORDERS } from '../../utils/constants';
+import { SPACING, BORDERS } from '../../utils/constants';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 
 /**
  * Componente para mostrar un mensaje de chat en formato bubble
@@ -74,17 +75,17 @@ const styles = StyleSheet.create({
     maxWidth: '100%'
   },
   bubblePropio: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
     borderBottomRightRadius: 4
   },
   bubbleOtro: {
-    backgroundColor: '#F0F0F0',
+    backgroundColor: COLORS.neutral.gray[100],
     borderBottomLeftRadius: 4
   },
   nombreRemitente: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.primary,
+    color: COLORS.primary[500],
     marginBottom: SPACING.xs
   },
   mensajeTexto: {
@@ -92,10 +93,10 @@ const styles = StyleSheet.create({
     lineHeight: 20
   },
   mensajeTextoPropio: {
-    color: COLORS.white
+    color: COLORS.text.onPrimary
   },
   mensajeTextoOtro: {
-    color: COLORS.text
+    color: COLORS.text.primary
   },
   footer: {
     flexDirection: 'row',
@@ -108,14 +109,14 @@ const styles = StyleSheet.create({
     fontSize: 11
   },
   timestampPropio: {
-    color: 'rgba(255, 255, 255, 0.7)'
+    color: withOpacity(COLORS.base.white, 0.7)
   },
   timestampOtro: {
-    color: COLORS.textLight
+    color: COLORS.text.secondary
   },
   checkmarks: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.7)'
+    color: withOpacity(COLORS.base.white, 0.7)
   }
 });
 

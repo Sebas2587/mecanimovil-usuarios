@@ -1,63 +1,85 @@
 /**
- * Button Component - MecaniMóvil
- * Componente de botón reutilizable con nueva paleta de colores
+ * Button — design system (primary Tinder / Airbnb surfaces).
+ * Tokens only; tipografía Poppins button; iconos Lucide (nunca texto crudo).
  */
-
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import { TOKENS, withOpacity } from '../../../design-system/tokens';
+import { Plus } from 'lucide-react-native';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS } from '../../../design-system/tokens';
+import Icon from '../Icon/Icon';
 
-// Fallback values in case tokens are not ready
-const SAFE_COLORS = TOKENS?.colors || {
-  primary: { 500: '#0052FF', 700: '#003ECC' },
-  secondary: { 500: '#0052FF', 700: '#003ECC' },
-  accent: { 500: '#0052FF', 700: '#003ECC' },
-  error: { 500: '#CF202F', 600: '#A81824', 700: '#80111A' },
-  success: { 500: '#05B169', 600: '#049356', 700: '#037446' },
-  warning: { 500: '#F4B000', 600: '#C98F00', 700: '#9E6F00' },
-  info: { 500: '#EEF0F3', 600: '#DEE1E6', 700: '#A8ACB3' },
-  text: { onPrimary: '#FFFFFF', onSecondary: '#FFFFFF', onAccent: '#FFFFFF', onError: '#FFFFFF', onSuccess: '#FFFFFF', onWarning: '#FFFFFF', onInfo: '#FFFFFF' },
-  states: {
-    hover: { primary: '#003ECC', secondary: '#003ECC', accent: '#003ECC' },
-    pressed: { primary: '#003ECC', secondary: '#003ECC', accent: '#003ECC' },
-    disabled: { background: '#EEF0F3', text: '#A8B8CC', border: '#DEE1E6' }
+const TYPE_COLORS = {
+  primary: {
+    bg: COLORS.primary[500],
+    text: COLORS.text.onPrimary,
+    outline: COLORS.primary[500],
   },
-  gradients: {
-    primary: ['#0052FF', '#003ECC'],
-    secondary: ['#EEF0F3', '#FFFFFF'],
-    accent: ['#0052FF', '#003ECC'],
-    button: ['#0052FF', '#003ECC'],
+  secondary: {
+    bg: COLORS.background.paper,
+    text: COLORS.text.primary,
+    outline: COLORS.border.main,
   },
-  opacity: { 10: '#0000001A' }
+  danger: {
+    bg: COLORS.error.main,
+    text: COLORS.text.onError,
+    outline: COLORS.error.main,
+  },
+  success: {
+    bg: COLORS.success.main,
+    text: COLORS.text.inverse,
+    outline: COLORS.success.main,
+  },
+  warning: {
+    bg: COLORS.warning.main,
+    text: COLORS.text.primary,
+    outline: COLORS.warning.main,
+  },
+  info: {
+    bg: COLORS.info.main,
+    text: COLORS.text.onPrimary,
+    outline: COLORS.info.main,
+  },
+  accent: {
+    bg: COLORS.accent[500],
+    text: COLORS.text.onAccent,
+    outline: COLORS.accent[500],
+  },
 };
 
-const SAFE_TYPOGRAPHY = TOKENS?.typography || {
-  fontSize: { sm: 14, md: 16, lg: 18 },
-  fontWeight: { semibold: '600' },
-  styles: { button: { fontSize: 16, fontWeight: '600', lineHeight: 1.2, letterSpacing: 0 } },
+const SIZES = {
+  // Tipografía de botón se mantiene cerca del token `styles.button` (15);
+  // `sm` solo compacta padding — no usar fontSize.sm (11), que es caption.
+  sm: { minHeight: 40, px: 16, py: 10, fontSize: TYPOGRAPHY.styles.button.fontSize },
+  md: { minHeight: 48, px: 20, py: 12, fontSize: TYPOGRAPHY.styles.button.fontSize },
+  lg: { minHeight: 52, px: 24, py: 14, fontSize: TYPOGRAPHY.fontSize.lg },
 };
 
-const SAFE_SPACING = TOKENS?.spacing || {
-  xs: 4,
-  buttonPadding: { horizontal: 16, vertical: 12 }
+/** Nombres legacy → Lucide (vía Icon) o componente directo. */
+const LEGACY_ICON_MAP = {
+  add: Plus,
+  plus: Plus,
+  'add-outline': Plus,
+  'add-circle': 'add-circle',
+  'add-circle-outline': 'add-circle-outline',
 };
 
-const SAFE_BORDERS = TOKENS?.borders || {
-  radius: { button: { md: 8 } },
-  width: { none: 0, thin: 1, medium: 2 }
-};
+function resolveIconNode(icon, iconNode, color, size = 18) {
+  if (iconNode) return iconNode;
+  if (icon == null || icon === false) return null;
 
-const SAFE_SHADOWS = TOKENS?.shadows || {
-  button: {},
-  none: {}
-};
+  if (typeof icon === 'string') {
+    const mapped = LEGACY_ICON_MAP[icon] || icon;
+    if (typeof mapped !== 'string') {
+      const Cmp = mapped;
+      return <Cmp size={size} color={color} strokeWidth={1.75} fill="none" />;
+    }
+    return <Icon name={mapped} size={size} color={color} strokeWidth={1.75} />;
+  }
 
-/**
- * Button Component
- * ... (docs remain same)
- */
+  if (React.isValidElement(icon)) return icon;
+  return null;
+}
+
 const Button = ({
   title,
   onPress,
@@ -65,234 +87,42 @@ const Button = ({
   type = 'primary',
   style,
   disabled = false,
-  useGradient = false,
-  gradientColors = null,
   size = 'md',
   variant = 'solid',
   icon,
+  iconNode,
   iconPosition = 'left',
   fullWidth = false,
+  children,
   ...props
 }) => {
-  // Obtener colores según el tipo
-  const getTypeColors = () => {
-    switch (type) {
-      case 'secondary':
-        return {
-          background: SAFE_COLORS.secondary?.[500] || '#007EA7',
-          text: SAFE_COLORS.text?.onSecondary || '#FFF',
-          hover: SAFE_COLORS.states?.hover?.secondary || '#006586',
-          pressed: SAFE_COLORS.states?.pressed?.secondary || '#004C65',
-        };
-      case 'accent':
-        return {
-          background: SAFE_COLORS.accent?.[500] || '#10B981',
-          text: SAFE_COLORS.text?.onAccent || '#FFF',
-          hover: SAFE_COLORS.states?.hover?.accent || '#059669',
-          pressed: SAFE_COLORS.states?.pressed?.accent || '#047857',
-        };
-      case 'danger':
-        return {
-          background: SAFE_COLORS.error?.[500] || '#EF4444',
-          text: SAFE_COLORS.text?.onError || '#FFF',
-          hover: SAFE_COLORS.error?.[600] || '#DC2626',
-          pressed: SAFE_COLORS.error?.[700] || '#B91C1C',
-        };
-      case 'success':
-        return {
-          background: SAFE_COLORS.success?.[500] || '#10B981',
-          text: SAFE_COLORS.text?.onSuccess || '#FFF',
-          hover: SAFE_COLORS.success?.[600] || '#059669',
-          pressed: SAFE_COLORS.success?.[700] || '#047857',
-        };
-      case 'warning':
-        return {
-          background: SAFE_COLORS.warning?.[500] || '#F59E0B',
-          text: SAFE_COLORS.text?.onWarning || '#FFF',
-          hover: SAFE_COLORS.warning?.[600] || '#D97706',
-          pressed: SAFE_COLORS.warning?.[700] || '#B45309',
-        };
-      case 'info':
-        return {
-          background: SAFE_COLORS.info?.[500] || '#007EA7',
-          text: SAFE_COLORS.text?.onInfo || '#FFF',
-          hover: SAFE_COLORS.info?.[600] || '#006586',
-          pressed: SAFE_COLORS.info?.[700] || '#004C65',
-        };
-      default: // primary
-        return {
-          background: SAFE_COLORS.primary?.[500] || '#0052FF',
-          text: SAFE_COLORS.text?.onPrimary || '#FFF',
-          hover: SAFE_COLORS.states?.hover?.primary || '#006586',
-          pressed: SAFE_COLORS.states?.pressed?.primary || '#003ECC',
-        };
-    }
-  };
+  const palette = TYPE_COLORS[type] || TYPE_COLORS.primary;
+  const sizeSpec = SIZES[size] || SIZES.md;
+  const label = title ?? children;
 
-  // Obtener estilos según el tamaño
-  const getSizeStyles = () => {
-    switch (size) {
-      case 'sm':
-        return {
-          paddingHorizontal: (SAFE_SPACING.buttonPadding?.horizontal || 16) * 0.75,
-          paddingVertical: (SAFE_SPACING.buttonPadding?.vertical || 12) * 0.75,
-          fontSize: SAFE_TYPOGRAPHY.fontSize?.sm || 14,
-          minHeight: 40,
-        };
-      case 'lg':
-        return {
-          paddingHorizontal: (SAFE_SPACING.buttonPadding?.horizontal || 16) * 1.25,
-          paddingVertical: (SAFE_SPACING.buttonPadding?.vertical || 12) * 1.25,
-          fontSize: SAFE_TYPOGRAPHY.fontSize?.lg || 18,
-          minHeight: 52,
-        };
-      default: // md
-        return {
-          paddingHorizontal: SAFE_SPACING.buttonPadding?.horizontal || 16,
-          paddingVertical: SAFE_SPACING.buttonPadding?.vertical || 12,
-          fontSize: SAFE_TYPOGRAPHY.fontSize?.md || 16,
-          minHeight: 44,
-        };
-    }
-  };
+  let backgroundColor = palette.bg;
+  let textColor = palette.text;
+  let borderColor = 'transparent';
+  let borderWidth = 0;
 
-  // Colores del gradiente por defecto basados en la nueva paleta
-  const getDefaultGradientColors = () => {
-    switch (type) {
-      case 'primary':
-        return SAFE_COLORS.gradients?.button || SAFE_COLORS.gradients?.primary || ['#007EA7', '#00A8E8'];
-      case 'secondary':
-        return SAFE_COLORS.gradients?.secondary || ['#003459', '#007EA7'];
-      case 'accent':
-        return SAFE_COLORS.gradients?.accent || ['#00A8E8', '#00C9A7'];
-      default:
-        return SAFE_COLORS.gradients?.button || [SAFE_COLORS.secondary?.[500] || '#007EA7', SAFE_COLORS.accent?.[500] || '#00A8E8'];
-    }
-  };
-
-  const typeColors = getTypeColors();
-  const sizeStyles = getSizeStyles();
-  const defaultGradientColors = useGradient ? getDefaultGradientColors() : null;
-  const finalGradientColors = gradientColors || defaultGradientColors;
-  const buttonTextSpec = SAFE_TYPOGRAPHY.styles?.button || { lineHeight: 1.2, letterSpacing: 0 };
-  const computedLineHeight = Math.round(sizeStyles.fontSize * (buttonTextSpec.lineHeight || 1.2));
-
-  // Obtener estilos según la variante
-  const getVariantStyles = () => {
-    if (disabled) {
-      return {
-        backgroundColor: SAFE_COLORS.states?.disabled?.background || '#E5E7EB',
-        textColor: SAFE_COLORS.states?.disabled?.text || '#9CA3AF',
-        borderColor: SAFE_COLORS.states?.disabled?.border || '#D1D5DB',
-        borderWidth: SAFE_BORDERS.width?.thin || 1,
-      };
-    }
-
-    switch (variant) {
-      case 'outline':
-        return {
-          backgroundColor: 'transparent',
-          textColor: typeColors.background,
-          borderColor: typeColors.background,
-          borderWidth: SAFE_BORDERS.width?.medium || 2,
-        };
-      case 'ghost':
-        return {
-          backgroundColor: SAFE_COLORS.opacity?.[10] ? withOpacity(typeColors.background, 0.1) : typeColors.background + '1A',
-          textColor: typeColors.background,
-          borderColor: 'transparent',
-          borderWidth: SAFE_BORDERS.width?.none || 0,
-        };
-      case 'text':
-        return {
-          backgroundColor: 'transparent',
-          textColor: typeColors.background,
-          borderColor: 'transparent',
-          borderWidth: SAFE_BORDERS.width?.none || 0,
-        };
-      default: // 'solid'
-        return {
-          backgroundColor: typeColors.background,
-          textColor: typeColors.text,
-          borderColor: 'transparent',
-          borderWidth: SAFE_BORDERS.width?.none || 0,
-        };
-    }
-  };
-
-  const variantStyles = getVariantStyles();
-  const backgroundColor = variantStyles.backgroundColor;
-  const textColor = variantStyles.textColor;
-  const borderColor = variantStyles.borderColor;
-  const borderWidth = variantStyles.borderWidth;
-
-  // Si tiene gradiente, usar LinearGradient
-  if (useGradient && finalGradientColors && !disabled) {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        disabled={isLoading || disabled}
-        activeOpacity={0.8}
-        style={style}
-        {...props}
-      >
-        <LinearGradient
-          colors={finalGradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[
-            styles.button,
-            styles.buttonGradient,
-            {
-              paddingHorizontal: sizeStyles.paddingHorizontal,
-              paddingVertical: sizeStyles.paddingVertical,
-              minHeight: sizeStyles.minHeight,
-              borderRadius: SAFE_BORDERS.radius?.button?.md ?? 12,
-            },
-          ]}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color={textColor} />
-          ) : (
-            <View style={styles.buttonContent}>
-              {icon && iconPosition === 'left' && (
-                <Ionicons
-                  name={icon}
-                  size={sizeStyles.fontSize}
-                  color={textColor}
-                  style={styles.iconLeft}
-                />
-              )}
-              <Text
-                style={[
-                  styles.text,
-                  {
-                    color: textColor,
-                    fontSize: sizeStyles.fontSize,
-                    fontWeight: SAFE_TYPOGRAPHY.fontWeight?.semibold || '600',
-                    letterSpacing: buttonTextSpec.letterSpacing ?? 0,
-                    lineHeight: computedLineHeight,
-                  },
-                ]}
-              >
-                {title}
-              </Text>
-              {icon && iconPosition === 'right' && (
-                <Ionicons
-                  name={icon}
-                  size={sizeStyles.fontSize}
-                  color={textColor}
-                  style={styles.iconRight}
-                />
-              )}
-            </View>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
-    );
+  if (disabled) {
+    backgroundColor = COLORS.states.disabled.background;
+    textColor = COLORS.states.disabled.text;
+    borderColor = COLORS.states.disabled.border;
+    borderWidth = BORDERS.width.thin;
+  } else if (variant === 'outline') {
+    backgroundColor = COLORS.background.paper;
+    textColor = palette.outline;
+    borderColor = palette.outline;
+    borderWidth = BORDERS.width.thin;
+  } else if (variant === 'ghost' || variant === 'text') {
+    backgroundColor = 'transparent';
+    textColor = palette.outline;
   }
 
-  // Botón normal sin gradiente
+  const iconSize = size === 'sm' ? 16 : size === 'lg' ? 20 : 18;
+  const iconEl = resolveIconNode(icon, iconNode, textColor, iconSize);
+
   return (
     <TouchableOpacity
       style={[
@@ -301,55 +131,45 @@ const Button = ({
           backgroundColor,
           borderColor,
           borderWidth,
-          paddingHorizontal: sizeStyles.paddingHorizontal,
-          paddingVertical: sizeStyles.paddingVertical,
-          minHeight: sizeStyles.minHeight,
-          borderRadius: SAFE_BORDERS.radius?.button?.md ?? 12,
-          width: fullWidth ? '100%' : 'auto',
-          ...(variant === 'solid' && !disabled ? (SAFE_SHADOWS.button || {}) : (SAFE_SHADOWS.none || {})),
+          minHeight: sizeSpec.minHeight,
+          paddingHorizontal: sizeSpec.px,
+          paddingVertical: sizeSpec.py,
+          borderRadius: BORDERS.radius.button.md,
+          width: fullWidth ? '100%' : undefined,
         },
-        disabled && styles.buttonDisabled,
         style,
       ]}
       onPress={onPress}
       disabled={isLoading || disabled}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
+      accessibilityRole="button"
       {...props}
     >
       {isLoading ? (
         <ActivityIndicator size="small" color={textColor} />
       ) : (
-        <View style={styles.buttonContent}>
-          {icon && iconPosition === 'left' && (
-            <Ionicons
-              name={icon}
-              size={sizeStyles.fontSize}
-              color={textColor}
-              style={styles.iconLeft}
-            />
-          )}
-          <Text
-            style={[
-              styles.text,
-              {
-                color: textColor,
-                fontSize: sizeStyles.fontSize,
-                fontWeight: SAFE_TYPOGRAPHY.fontWeight?.semibold || '600',
-                letterSpacing: buttonTextSpec.letterSpacing ?? 0,
-                lineHeight: computedLineHeight,
-              },
-            ]}
-          >
-            {title}
-          </Text>
-          {icon && iconPosition === 'right' && (
-            <Ionicons
-              name={icon}
-              size={sizeStyles.fontSize}
-              color={textColor}
-              style={styles.iconRight}
-            />
-          )}
+        <View style={styles.row}>
+          {iconEl && iconPosition === 'left' ? (
+            <View style={styles.iconLeft}>{iconEl}</View>
+          ) : null}
+          {label ? (
+            <Text
+              style={[
+                TYPOGRAPHY.styles.button,
+                {
+                  color: textColor,
+                  fontSize: sizeSpec.fontSize,
+                  fontFamily: TYPOGRAPHY.styles.button.fontFamily,
+                  fontWeight: TYPOGRAPHY.styles.button.fontWeight,
+                },
+              ]}
+            >
+              {label}
+            </Text>
+          ) : null}
+          {iconEl && iconPosition === 'right' ? (
+            <View style={styles.iconRight}>{iconEl}</View>
+          ) : null}
         </View>
       )}
     </TouchableOpacity>
@@ -361,28 +181,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonGradient: {
-    borderWidth: 0,
-    backgroundColor: 'transparent',
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonContent: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconLeft: {
-    marginRight: SAFE_SPACING.xs || 4,
+    marginRight: SPACING.xs,
   },
   iconRight: {
-    marginLeft: SAFE_SPACING.xs || 4,
-  },
-  text: {
-    textAlign: 'center',
+    marginLeft: SPACING.xs,
   },
 });
 
 export default Button;
-

@@ -10,8 +10,8 @@ import {
   SafeAreaView,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
+import Icon from '../Icon/Icon';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING, withOpacity } from '../../../design-system/tokens';
 
 const COUNTRIES = [
   { code: '+56', name: 'Chile', flag: '🇨🇱', digits: 9 },
@@ -166,7 +166,7 @@ const PhoneInput = ({
           <Text style={styles.flag}>{selectedCountry.flag}</Text>
           <Text style={styles.dialCode}>{selectedCountry.code}</Text>
           {editable && (
-            <Ionicons name="chevron-down" size={14} color={COLORS.text.tertiary} style={{ marginLeft: 2 }} />
+            <Icon name="chevron-down" size={14} color={COLORS.text.tertiary} style={{ marginLeft: 2 }} />
           )}
         </TouchableOpacity>
 
@@ -189,7 +189,7 @@ const PhoneInput = ({
 
       {displayError ? (
         <View style={styles.errorRow}>
-          <Ionicons name="alert-circle-outline" size={13} color={COLORS.error?.[500] ?? '#EF4444'} />
+          <Icon name="alert-circle-outline" size={13} color={COLORS.error[500]} />
           <Text style={styles.errorText}>{displayError}</Text>
         </View>
       ) : null}
@@ -207,13 +207,13 @@ const PhoneInput = ({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Seleccionar país</Text>
               <TouchableOpacity onPress={() => { setModalVisible(false); setSearch(''); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Ionicons name="close" size={24} color={COLORS.text.primary} />
+                <Icon name="close" size={24} color={COLORS.text.primary} />
               </TouchableOpacity>
             </View>
 
             {/* Search */}
             <View style={styles.searchRow}>
-              <Ionicons name="search-outline" size={16} color={COLORS.text.tertiary} />
+              <Icon name="search-outline" size={16} color={COLORS.text.tertiary} />
               <TextInput
                 style={styles.searchInput}
                 value={search}
@@ -224,7 +224,7 @@ const PhoneInput = ({
               />
               {search ? (
                 <TouchableOpacity onPress={() => setSearch('')}>
-                  <Ionicons name="close-circle" size={16} color={COLORS.text.tertiary} />
+                  <Icon name="close-circle" size={16} color={COLORS.text.tertiary} />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   inputRowError: {
-    borderColor: COLORS.error?.[500] ?? '#EF4444',
+    borderColor: COLORS.error[500],
   },
   countrySelector: {
     flexDirection: 'row',
@@ -305,14 +305,14 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: COLORS.error?.[500] ?? '#EF4444',
+    color: COLORS.error[500],
     flex: 1,
   },
 
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.4),
     justifyContent: 'flex-end',
   },
   modalCard: {
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border.light,
   },
   countryItemSelected: {
-    backgroundColor: COLORS.primary?.[50] ?? '#EFF6FF',
+    backgroundColor: COLORS.primary[50],
   },
   countryFlag: {
     fontSize: 22,

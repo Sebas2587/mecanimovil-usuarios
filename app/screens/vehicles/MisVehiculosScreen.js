@@ -12,16 +12,16 @@ import {
   FlatList,
   Modal,
   KeyboardAvoidingView,
-  StatusBar
+  StatusBar,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { Car, X, Camera, Tag, Wrench, ChevronDown, ChevronLeft, Check, Navigation } from 'lucide-react-native';
+import { Car, X, Camera, ChevronDown, ChevronLeft, Check } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ROUTES } from '../../utils/constants';
-import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
@@ -48,9 +48,8 @@ import { useServicesHistory } from '../../hooks/useServices';
 import * as userService from '../../services/user';
 import * as vehicleService from '../../services/vehicle';
 import { getHealthColorToken, resolveVehicleHealthPct } from '../../utils/healthFormat';
-import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
-import HomePatrimonyHeroSection from '../../components/home/dashboard/HomePatrimonyHeroSection';
 import VehiclesListSkeleton from '../../components/utils/VehiclesListSkeleton';
+import VehicleListingCard from '../../components/cards/VehicleListingCard';
 
 const tiposMotor = [
   { id: 1, nombre: 'Gasolina' },
@@ -62,7 +61,21 @@ const MisVehiculosScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const stackHeaderHeight = useHeaderHeight();
+  const { height: windowHeight } = useWindowDimensions();
   const { user } = useAuth();
+
+  /** RN Web: sin altura acotada al viewport el VirtualizedList no hace scroll interno.
+   * Si hay CustomHeader del stack, restar su altura para no cortar el fondo. */
+  const webRootFrame =
+    Platform.OS === 'web'
+      ? {
+          height: Math.max(0, windowHeight - (stackHeaderHeight > 0 ? stackHeaderHeight : 0)),
+          maxHeight: Math.max(0, windowHeight - (stackHeaderHeight > 0 ? stackHeaderHeight : 0)),
+          minHeight: 0,
+          flex: 1,
+          overflow: 'hidden',
+        }
+      : null;
 
   /** Tab sin header de stack: respeta notch. Con stack (p. ej. Mis Vehículos desde menú): solo separación bajo CustomHeader. */
   const headerPaddingTop =
@@ -418,25 +431,6 @@ const MisVehiculosScreen = () => {
     navigation.navigate(ROUTES.VEHICLE_PROFILE, { vehicleId: vehicle.id, vehicle });
   };
 
-  const handlePressVehicleHealth = (vehicle) => {
-    navigation.navigate(ROUTES.VEHICLE_HEALTH, {
-      vehicleId: vehicle.id,
-      vehicle,
-    });
-  };
-
-  const resolveMotorTypeLabel = (vehicle) => {
-    const t = vehicle?.tipo_motor;
-    if (!t) return 'Motor';
-    if (typeof t === 'object' && t.nombre) return t.nombre;
-    const found = tiposMotor.find(
-      (m) =>
-        m.id.toString() === String(t)
-        || m.nombre.toLowerCase() === String(t).toLowerCase(),
-    );
-    return found?.nombre || String(t);
-  };
-
   const vehiclesHealthById = React.useMemo(() => {
     const m = new Map();
     const rows = vehiclesHealth?.data;
@@ -450,95 +444,39 @@ const MisVehiculosScreen = () => {
 
   const renderVehicleItem = useCallback(({ item }) => {
     const valuation = item.precio_sugerido_final || item.precio_mercado_promedio || 0;
-    const marketPrice = item.precio_mercado_promedio || 0;
-    const priceDelta = valuation && marketPrice ? valuation - marketPrice : 0;
     const healthRow = vehiclesHealthById.get(item.id);
     const healthSummary = healthRow?.health;
     const healthPct = resolveVehicleHealthPct(item, healthSummary);
     const healthScoreColor = getHealthColorToken(COLORS, healthPct);
     const stillLoadingHealth = healthRow?.isLoading === true;
-    const hasHealthField =
-      item.health_score != null ||
-      item.salud_general_porcentaje != null ||
-      healthSummary?.salud_general_porcentaje != null;
     const showCalculating =
       stillLoadingHealth &&
       item.health_score == null &&
       item.salud_general_porcentaje == null;
 
+    let statusBadge = null;
+    if (item.active_requests_count > 0) {
+      statusBadge = 'En servicio';
+    } else if (item.ofertas_activas_count > 0) {
+      statusBadge = `${item.ofertas_activas_count} ${item.ofertas_activas_count === 1 ? 'oferta' : 'ofertas'}`;
+    }
+
     return (
-      <TouchableOpacity
-        style={styles.cardContainer}
-        activeOpacity={0.9}
+      <VehicleListingCard
+        marca={item.marca_nombre}
+        modelo={item.modelo_nombre}
+        year={item.year}
+        imageUri={item.foto || null}
+        healthPct={healthPct}
+        healthColor={healthScoreColor}
+        healthLoading={showCalculating}
+        valuation={valuation}
+        km={item.kilometraje}
+        badgeLabel={statusBadge}
         onPress={() => handleVehiclePress(item)}
-      >
-        {/* Cover Image */}
-        <View style={styles.imageContainer}>
-          <Image
-            source={item.foto ? { uri: item.foto } : { uri: 'https://images.unsplash.com/photo-1550355291-bbee04a92027?q=80&w=800&auto=format&fit=crop' }}
-            style={styles.vehicleImage}
-            resizeMode="cover"
-          />
-          <HeroImageGradientScrim intensity="card" />
-          <View style={styles.imageOverlay}>
-            <View>
-              <Text style={styles.cardBrand}>{item.marca_nombre}</Text>
-              <Text style={styles.cardModel}>{item.modelo_nombre}</Text>
-            </View>
-          </View>
-
-          <View style={styles.yearBadge}>
-            <Text style={styles.yearText}>{item.year}</Text>
-          </View>
-
-          {/* Active Offers Indicator - Right Side */}
-          {item.ofertas_activas_count > 0 && (
-            <View style={styles.offersBadge}>
-              <Tag size={14} color={COLORS.text.inverse} />
-              <Text style={styles.offersBadgeText}>{item.ofertas_activas_count} {item.ofertas_activas_count === 1 ? 'oferta' : 'ofertas'}</Text>
-            </View>
-          )}
-
-          {/* Active Service Indicator */}
-          {item.active_requests_count > 0 && (
-            <View style={styles.serviceBadge}>
-              <Wrench size={14} color={COLORS.text.inverse} style={{ marginRight: 4 }} />
-              <Text style={styles.serviceBadgeText}>En Servicio</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.cardBody}>
-          <HomePatrimonyHeroSection
-            embedded
-            valuation={valuation}
-            priceDelta={priceDelta}
-            healthScore={healthPct}
-            healthScoreColor={healthScoreColor}
-            odometer={item.kilometraje || 0}
-            motorType={resolveMotorTypeLabel(item)}
-            onPressHealth={() => handlePressVehicleHealth(item)}
-            healthLoading={showCalculating}
-            healthAvailable={hasHealthField && !showCalculating}
-          />
-          <TouchableOpacity
-            style={styles.registrarViajeLink}
-            onPress={(e) => {
-              e?.stopPropagation?.();
-              navigation.navigate(ROUTES.REGISTRAR_VIAJE, {
-                vehicleId: item.id,
-                vehicle: item,
-              });
-            }}
-            activeOpacity={0.85}
-          >
-            <Navigation size={16} color={COLORS.primary[600]} />
-            <Text style={styles.registrarViajeText}>Registrar viaje con GPS</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+      />
     );
-  }, [vehiclesHealthById, handleVehiclePress, handlePressVehicleHealth, navigation]);
+  }, [vehiclesHealthById, handleVehiclePress]);
 
   const EmptyVehiclesList = () => (
     <View style={styles.emptyContainer}>
@@ -549,40 +487,50 @@ const MisVehiculosScreen = () => {
       <Text style={styles.emptyDescription}>
         Registra tu primer vehículo para acceder a servicios, valoraciones y gestión de mantenimiento.
       </Text>
-      <Button title="Agregar Vehículo" onPress={handleAddVehicle} icon="add" />
+      <Button
+        title="Agregar Vehículo"
+        onPress={handleAddVehicle}
+      />
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, webRootFrame]}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
+      <View style={styles.mainColumn}>
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
+          <Text style={styles.headerTitle}>Mis Vehículos</Text>
+          <Button
+            title="Agregar auto"
+            onPress={handleAddVehicle}
+            size="sm"
+          />
+        </View>
 
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
-        <Text style={styles.headerTitle}>Mis Vehículos</Text>
-        <Button
-          title="Agregar auto"
-          onPress={handleAddVehicle}
-          size="sm"
-          icon="add"
-        />
+        {loading && !refreshing ? (
+          <View style={styles.listHost}>
+            <VehiclesListSkeleton cards={3} />
+          </View>
+        ) : (
+          <View style={styles.listHost}>
+            <FlatList
+              data={vehicles}
+              renderItem={renderVehicleItem}
+              keyExtractor={item => item.id.toString()}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={EmptyVehiclesList}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              style={styles.list}
+              removeClippedSubviews={Platform.OS !== 'web'}
+              {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
+            />
+          </View>
+        )}
       </View>
-
-      {loading && !refreshing ? (
-        <VehiclesListSkeleton cards={3} />
-      ) : (
-        <FlatList
-          data={vehicles}
-          renderItem={renderVehicleItem}
-          keyExtractor={item => item.id.toString()}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={EmptyVehiclesList}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
-        />
-      )}
 
       {/* Modal - Creation/Editing Form */}
       <Modal
@@ -698,12 +646,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background.default,
   },
+  /** Columna header + lista: en web el FlatList necesita un padre flex con minHeight 0 para scroll interno. */
+  mainColumn: {
+    flex: 1,
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { display: 'flex', flexDirection: 'column' } : null),
+  },
+  listHost: {
+    flex: 1,
+    minHeight: 0,
+    ...(Platform.OS === 'web' ? { overflow: 'hidden' } : null),
+  },
+  list: {
+    ...(Platform.OS === 'web'
+      ? {
+          flexGrow: 1,
+          flexShrink: 1,
+          flexBasis: 0,
+          minHeight: 0,
+          overflow: 'scroll',
+          WebkitOverflowScrolling: 'touch',
+        }
+      : { flex: 1 }),
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.container.horizontal,
     paddingBottom: SPACING.md,
+    flexShrink: 0,
   },
   /** Misma jerarquía tipográfica que MarketplaceScreen (TYPOGRAPHY.styles.h2). */
   headerTitle: {
@@ -717,118 +689,7 @@ const styles = StyleSheet.create({
   listContent: {
     padding: SPACING.container.horizontal,
     paddingTop: 0,
-  },
-  // Card Styles
-  cardContainer: {
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.card.lg,
-    marginBottom: 24,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    overflow: 'hidden',
-    ...SHADOWS.sm,
-  },
-  imageContainer: {
-    height: 160,
-    width: '100%',
-    position: 'relative',
-  },
-  vehicleImage: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1,
-    minHeight: 72,
-    justifyContent: 'flex-end',
-    padding: SPACING.md,
-    paddingTop: SPACING.lg,
-  },
-  cardBrand: {
-    color: withOpacity(COLORS.text.inverse, 0.82),
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    textTransform: 'uppercase',
-    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
-    marginBottom: 2,
-  },
-  cardModel: {
-    color: COLORS.text.inverse,
-    fontSize: TYPOGRAPHY.fontSize['2xl'],
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  yearBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xxs,
-    borderRadius: BORDERS.radius.badge.md,
-    borderWidth: BORDERS.width.thin,
-    borderColor: withOpacity(COLORS.base.inkBlack, 0.15),
-  },
-  serviceBadge: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    backgroundColor: COLORS.success[600],
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xxs,
-    borderRadius: BORDERS.radius.badge.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  serviceBadgeText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.inverse,
-  },
-  offersBadge: {
-    position: 'absolute',
-    top: 50,
-    right: 16,
-    backgroundColor: COLORS.primary[600],
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xxs,
-    borderRadius: BORDERS.radius.badge.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  offersBadgeText: {
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.inverse,
-  },
-  yearText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.inverse,
-  },
-  cardBody: {
-    padding: SPACING.lg,
-  },
-  registrarViajeLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: SPACING.md,
-    paddingVertical: 10,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
-  },
-  registrarViajeText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[700],
+    ...(Platform.OS === 'web' ? { flexGrow: 1 } : null),
   },
   // Empty State
   emptyContainer: {

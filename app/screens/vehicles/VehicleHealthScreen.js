@@ -21,11 +21,8 @@ import {
   CheckCircle,
   X,
   Heart,
-  Wrench,
   ChevronRight,
-  ArrowLeft,
   Hourglass,
-  AlertTriangle,
   ShieldCheck,
   ShieldAlert,
   ClipboardEdit,
@@ -38,18 +35,18 @@ import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { getVehicleById } from '../../services/vehicle';
-import UnifiedComponentCard, { SectionHeader } from '../../components/vehicles/UnifiedComponentCard';
-import ComponentDiagnosticInsights from '../../components/vehicles/ComponentDiagnosticInsights';
-import { buildShortDiagnosticSummary } from '../../utils/componentDiagnosticCopy';
+import ComponentHealthDetailSheet, {
+  buildMetricServiceNavPayload,
+} from '../../components/vehicles/ComponentHealthDetailSheet';
 import Skeleton from '../../components/feedback/Skeleton/Skeleton';
 import WebSocketService from '../../services/websocketService';
 import NotificationService from '../../services/notificationService';
 import {
   getHealthColorToken,
   getHealthLabel,
+  getHealthStatus,
   normalizePct,
   resolveVehicleHealthPct,
-  formatHealthActionWindow,
 } from '../../utils/healthFormat';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
@@ -57,6 +54,93 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Button from '../../components/base/Button/Button';
+import HealthCard from '../../components/cards/HealthCard';
+import BackButton from '../../components/navigation/BackButton';
+
+const componentPct = (c) =>
+  normalizePct(c.salud_porcentaje ?? c.salud ?? c.percentage ?? c.salud_actual);
+
+/**
+ * Fila Airbnb: nombre + estado caption + % + chevron. Sin botones ni cards anidadas.
+ * `sectionRole` agrupa visualmente filas dentro de su bloque (Para atender / En buen estado).
+ */
+const ComponentRow = React.memo(({ item, onPress, isLast, sectionRole = 'middle', sectionTone = 'attention' }) => {
+  const name =
+    item.nombre || (typeof item.componente === 'string' ? item.componente : item.name) || 'Componente';
+  const pct = componentPct(item);
+  const color = getHealthColorToken(COLORS, pct);
+  const handlePress = useCallback(() => onPress?.(item), [onPress, item]);
+  const isOk = sectionTone === 'ok';
+
+  return (
+    <TouchableOpacity
+      style={[
+        rowStyles.row,
+        isOk ? rowStyles.rowInOk : rowStyles.rowInAttention,
+        sectionRole === 'first' || sectionRole === 'only' ? rowStyles.rowFirst : null,
+        sectionRole === 'last' || sectionRole === 'only' ? rowStyles.rowLast : null,
+        !(sectionRole === 'last' || sectionRole === 'only') && rowStyles.rowBorder,
+      ]}
+      onPress={handlePress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, ${getHealthLabel(pct)}, ${Math.round(pct)} por ciento`}
+    >
+      <View style={[rowStyles.dot, { backgroundColor: color }]} />
+      <View style={rowStyles.body}>
+        <Text style={[TYPOGRAPHY.styles.bodyBold, rowStyles.name]} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={[TYPOGRAPHY.styles.caption, rowStyles.statusText]} numberOfLines={1}>
+          {getHealthLabel(pct)} · {Math.round(pct)}%
+        </Text>
+      </View>
+      <Text style={[TYPOGRAPHY.styles.captionBold, { color }]}>{Math.round(pct)}%</Text>
+      <ChevronRight size={18} color={COLORS.text.tertiary} strokeWidth={2} fill="none" />
+    </TouchableOpacity>
+  );
+});
+
+const rowStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+  },
+  rowInAttention: {
+    backgroundColor: COLORS.background.paper,
+    borderLeftWidth: BORDERS.width.thin,
+    borderRightWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+  },
+  rowInOk: {
+    backgroundColor: COLORS.neutral.gray[50],
+    borderLeftWidth: BORDERS.width.thin,
+    borderRightWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+  },
+  rowFirst: {
+    borderTopWidth: BORDERS.width.thin,
+    borderTopLeftRadius: BORDERS.radius.lg,
+    borderTopRightRadius: BORDERS.radius.lg,
+  },
+  rowLast: {
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomLeftRadius: BORDERS.radius.lg,
+    borderBottomRightRadius: BORDERS.radius.lg,
+    marginBottom: SPACING.lg,
+  },
+  rowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border.light,
+  },
+  body: { flex: 1, minWidth: 0 },
+  name: { color: COLORS.text.primary },
+  statusText: { color: COLORS.text.secondary, flexShrink: 1, marginTop: 2 },
+  dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+});
 
 const VehicleHealthScreen = ({ route }) => {
   const navigation = useNavigation();
@@ -630,29 +714,35 @@ const VehicleHealthScreen = ({ route }) => {
 
   // --- RENDERERS ---
 
-  const getHealthColor = (score) => getHealthColorToken(COLORS, score);
-
   const renderHeader = () => {
-    // Fuente única: healthData.salud_general_porcentaje (endpoint /health/, snapshot del Engine)
-    // Fallback: vehicleData.health_score (ahora también usa el mismo snapshot vía serializer)
     const score = resolveVehicleHealthPct(vehicleData, healthData);
-    const scoreColor = getHealthColor(score);
+    const componentsCount = healthData?.componentes?.length ?? vehicleData?.health_report?.length ?? 0;
 
     return (
-      <View style={styles.headerContainer}>
-        <View style={styles.vehicleInfo}>
-          <Text style={styles.brand}>{vehicleData?.marca_nombre || 'Marca'} {vehicleData?.modelo_nombre}</Text>
-          <Text style={styles.plate}>{vehicleData?.patente} • {vehicleData?.year}</Text>
-          <View style={styles.kmBadge}>
-            <Gauge size={14} color={COLORS.primary[500]} />
-            <Text style={styles.kmText}>{vehicleData?.kilometraje?.toLocaleString()} km</Text>
+      <View style={styles.headerSection}>
+        <View style={styles.vehicleMetaRow}>
+          <View style={styles.vehicleInfo}>
+            <Text style={styles.brand}>
+              {vehicleData?.marca_nombre || 'Marca'} {vehicleData?.modelo_nombre}
+            </Text>
+            <Text style={styles.plate}>
+              {vehicleData?.patente} • {vehicleData?.year}
+            </Text>
+            <View style={styles.kmBadge}>
+              <Gauge size={14} color={COLORS.primary[500]} strokeWidth={2} fill="none" />
+              <Text style={styles.kmText}>
+                {vehicleData?.kilometraje?.toLocaleString()} km
+              </Text>
+            </View>
           </View>
         </View>
-
-        <View style={[styles.scoreCircle, { borderColor: scoreColor }]}>
-          <Text style={[styles.scoreText, { color: scoreColor }]}>{Math.round(score)}%</Text>
-          <Text style={styles.scoreLabel}>Salud</Text>
-        </View>
+        <HealthCard
+          score={score}
+          componentsCount={componentsCount || null}
+          label={getHealthLabel(score)}
+          needingCount={priorityCount}
+          onAgendar={() => handleNavToService()}
+        />
       </View>
     );
   };
@@ -759,21 +849,14 @@ const VehicleHealthScreen = ({ route }) => {
   };
 
   /**
-   * Fusión health + predicciones → array listo para FlatList con secciones.
-   * Cada item de componente lleva `_prediction` con los datos del predictor.
-   * Se añaden items `{ type: 'section', ... }` como cabeceras de sección.
+   * Fusión health + predicciones. Cada componente lleva `_prediction`.
    */
-  const flatListData = useMemo(() => {
+  const mergedComponents = useMemo(() => {
     const summaryList =
       healthData && Array.isArray(healthData.componentes) ? healthData.componentes : null;
-    // Si el summary trae [] (p. ej. 202 calculando) no pisar health_report del vehículo.
     const rawComponents =
       summaryList && summaryList.length > 0 ? summaryList : vehicleData?.health_report || [];
 
-    const pct = (c) =>
-      normalizePct(c.salud_porcentaje ?? c.salud ?? c.percentage ?? c.salud_actual);
-
-    // Mapa slug → predicción para O(1) lookup
     const predMap = new Map();
     if (predictionsData?.predicciones) {
       for (const p of predictionsData.predicciones) {
@@ -782,42 +865,82 @@ const VehicleHealthScreen = ({ route }) => {
       }
     }
 
-    // Fusionar y enriquecer
-    const merged = rawComponents.map((c) => {
+    return rawComponents.map((c) => {
       const slug = c.slug || c.componente_detail?.slug || c.icon_slug || '';
       const pred = predMap.get(slug) || null;
       return { ...c, _prediction: pred };
     });
+  }, [healthData, vehicleData, predictionsData]);
 
-    // Ordenar por urgencia (salud asc) dentro de cada sección
-    const urgentes = merged
-      .filter((c) => pct(c) < 70)
-      .sort((a, b) => pct(a) - pct(b));
+  /**
+   * Componentes a solucionar (< 70 %), ordenados de peor a mejor salud.
+   * Incluye críticos, urgentes y atención — no solo cercanos a 0 %.
+   */
+  const priorityComponents = useMemo(
+    () =>
+      mergedComponents
+        .filter((c) => {
+          const st = getHealthStatus(componentPct(c));
+          return st === 'CRITICO' || st === 'URGENTE' || st === 'ATENCION';
+        })
+        .sort((a, b) => componentPct(a) - componentPct(b)),
+    [mergedComponents],
+  );
 
-    const optimos = merged
-      .filter((c) => pct(c) >= 70)
-      .sort((a, b) => pct(a) - pct(b));
+  const priorityCount = priorityComponents.length;
+
+  const flatListData = useMemo(() => {
+    const optimos = mergedComponents
+      .filter((c) => componentPct(c) >= 70)
+      .sort((a, b) => componentPct(a) - componentPct(b));
+
+    const pushSection = (result, { title, subtitle, tone, key, items }) => {
+      if (!items.length) return;
+      result.push({
+        type: 'section',
+        title,
+        subtitle,
+        count: items.length,
+        tone,
+        key,
+      });
+      items.forEach((c, i) => {
+        const isFirst = i === 0;
+        const isLast = i === items.length - 1;
+        result.push({
+          ...c,
+          type: 'component',
+          _sectionTone: tone,
+          _sectionRole: isFirst && isLast ? 'only' : isFirst ? 'first' : isLast ? 'last' : 'middle',
+          _isLastInSection: isLast,
+        });
+      });
+    };
 
     const result = [];
-    if (urgentes.length > 0) {
-      result.push({ type: 'section', title: 'Requieren atención', count: urgentes.length, key: 'sec_urgent' });
-      result.push(...urgentes.map((c) => ({ ...c, type: 'component' })));
-    }
-    if (optimos.length > 0) {
-      result.push({ type: 'section', title: 'En buen estado', count: optimos.length, key: 'sec_ok' });
-      result.push(...optimos.map((c) => ({ ...c, type: 'component' })));
-    }
+    pushSection(result, {
+      title: 'Para atender',
+      subtitle: 'Críticos, urgentes y con atención — de peor a mejor salud',
+      tone: 'attention',
+      key: 'sec_priority',
+      items: priorityComponents,
+    });
+    pushSection(result, {
+      title: 'En buen estado',
+      subtitle: 'Óptimos · no requieren acción ahora',
+      tone: 'ok',
+      key: 'sec_ok',
+      items: optimos,
+    });
     return result;
-  }, [healthData, vehicleData, predictionsData]);
+  }, [mergedComponents, priorityComponents]);
 
   return (
     <View style={[styles.screen, webRootStyle]}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       <View style={[styles.screenHeader, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={22} color={COLORS.text.primary} />
-        </TouchableOpacity>
+        <BackButton onPress={() => navigation.goBack()} color={COLORS.text.primary} />
         <Text style={styles.screenTitle}>Salud del Vehículo</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -873,9 +996,9 @@ const VehicleHealthScreen = ({ route }) => {
                 accessibilityLabel="Sincronizar métricas de salud"
               >
                 {syncing ? (
-                  <Hourglass size={18} color={COLORS.text.tertiary} />
+                  <Hourglass size={18} color={COLORS.text.tertiary} strokeWidth={2} fill="none" />
                 ) : (
-                  <RefreshCw size={18} color={COLORS.primary[500]} />
+                  <RefreshCw size={18} color={COLORS.primary[500]} strokeWidth={2} fill="none" />
                 )}
                 <Text style={[styles.syncButtonText, syncing && styles.syncButtonTextDisabled]}>
                   {syncing ? 'Actualizando…' : 'Sincronizar'}
@@ -886,12 +1009,40 @@ const VehicleHealthScreen = ({ route }) => {
         }
         renderItem={({ item }) => {
           if (item.type === 'section') {
-            return <SectionHeader title={item.title} count={item.count} />;
+            const isOk = item.tone === 'ok';
+            return (
+              <View
+                style={[
+                  styles.listSectionHeader,
+                  isOk ? styles.listSectionHeaderOk : styles.listSectionHeaderAttention,
+                ]}
+              >
+                <View style={styles.listSectionTextCol}>
+                  <View style={styles.listSectionTitleRow}>
+                    <Text
+                      style={[
+                        styles.listSectionTitle,
+                        isOk && styles.listSectionTitleOk,
+                      ]}
+                    >
+                      {item.title}
+                    </Text>
+                    <Text style={styles.listSectionCount}>{item.count}</Text>
+                  </View>
+                  {!!item.subtitle && (
+                    <Text style={styles.listSectionSubtitle}>{item.subtitle}</Text>
+                  )}
+                </View>
+              </View>
+            );
           }
           return (
-            <UnifiedComponentCard
+            <ComponentRow
               item={item}
-              onPress={() => handleMetricPress(item)}
+              onPress={handleMetricPress}
+              isLast={!!item._isLastInSection}
+              sectionRole={item._sectionRole}
+              sectionTone={item._sectionTone}
             />
           );
         }}
@@ -1067,255 +1218,21 @@ const VehicleHealthScreen = ({ route }) => {
         </View>
       </Modal>
 
-      {/* Detail Modal: métricas + servicios sugeridos (saltan paso 2 en nueva solicitud) */}
-      <Modal
+      <ComponentHealthDetailSheet
         visible={!!selectedMetric}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedMetric(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity
-              style={StyleSheet.absoluteFill}
-              activeOpacity={1}
-              onPress={() => setSelectedMetric(null)}
-          />
-          <Animatable.View animation="zoomIn" duration={300} style={styles.modalCardLarge}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle} numberOfLines={2}>
-                {selectedMetric?.name}
-              </Text>
-              <TouchableOpacity onPress={() => setSelectedMetric(null)} hitSlop={12}>
-                <X size={24} color={COLORS.text.primary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              style={styles.modalScroll}
-              contentContainerStyle={styles.modalScrollContent}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              {/* ── 1. Estado de salud ──────────────────────────── */}
-              {(() => {
-                const raw =
-                  selectedMetric?.salud_porcentaje ??
-                  selectedMetric?.salud ??
-                  selectedMetric?.salud_actual;
-                if (raw == null) return null;
-                const pct = Math.round(normalizePct(raw));
-                const hc    = getHealthColor(pct);
-                const nivel = selectedMetric.nivel_alerta_display || selectedMetric.nivel_alerta || '';
-                return (
-                  <View style={styles.healthBlock}>
-                    <View style={styles.healthBlockRow}>
-                      <Text style={styles.healthBlockLabel}>Estado actual</Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        {selectedMetric.historial_conocido === false && (
-                          <Text style={styles.estimadoInline}>Estimado</Text>
-                        )}
-                        <Text style={[styles.healthBlockPct, { color: hc }]}>{pct}%</Text>
-                      </View>
-                    </View>
-                    <View style={styles.modalBarTrack}>
-                      <View style={[styles.modalBarFill, { width: `${pct}%`, backgroundColor: hc }]} />
-                    </View>
-                    {!!nivel && (
-                      <Text style={[styles.healthBlockNivel, { color: hc }]}>{nivel}</Text>
-                    )}
-                  </View>
-                );
-              })()}
-
-              {/* ── 2. Cuándo actuar ────────────────────────────── */}
-              {(() => {
-                const pred      = selectedMetric?._prediction;
-                const km        = pred?.km_hasta_servicio ?? null;
-                const dias      = pred?.dias_hasta_atencion ?? null;
-                const fallback  = selectedMetric?.vida_util;
-                const immediate = (km != null && km <= 0) || (dias != null && dias <= 0);
-                const clima     = pred?.factor_clima ?? 1.0;
-                const actionWindow = formatHealthActionWindow({ km, days: dias });
-
-                if (!actionWindow && !fallback && !immediate) return null;
-                return (
-                  <View style={styles.actionBlock}>
-                    <Text style={styles.actionBlockLabel}>Cuándo actuar</Text>
-                    {immediate ? (
-                      <Text style={[styles.actionBlockValue, { color: COLORS.error[600] }]}>
-                        Atención inmediata requerida
-                      </Text>
-                    ) : (
-                      <Text style={styles.actionBlockValue}>
-                        {actionWindow || fallback}
-                      </Text>
-                    )}
-                    {clima > 1.08 && (
-                      <Text style={styles.actionBlockClima}>
-                        El clima en tu zona acelera el desgaste un {Math.round((clima - 1) * 100)}%,
-                        considera adelantar la revisión.
-                      </Text>
-                    )}
-                  </View>
-                );
-              })()}
-
-              {/* ── 3. Riesgo (solo si es relevante ≥ 25 %) ──────── */}
-              {selectedMetric?._prediction?.probabilidad_falla_30 >= 25 && (() => {
-                const r  = Math.round(selectedMetric._prediction.probabilidad_falla_30);
-                const rc = r >= 50 ? COLORS.error[600] : COLORS.warning[700];
-                const rb = r >= 50 ? COLORS.error[50]  : COLORS.warning[50];
-                return (
-                  <View style={[styles.riskBlock, { backgroundColor: rb }]}>
-                    <AlertTriangle size={16} color={rc} />
-                    <Text style={[styles.riskBlockText, { color: rc }]}>
-                      {r >= 50
-                        ? `Alta probabilidad de falla en los próximos 30 días (${r}%)`
-                        : `Probabilidad de falla en 30 días: ${r}%`}
-                    </Text>
-                  </View>
-                );
-              })()}
-
-              {/* ── 4. Confianza del historial ──────────────────── */}
-              {(() => {
-                const confianza = selectedMetric?.confianza_historial
-                  || (selectedMetric?.historial_fuente === 'CHECKLIST' || selectedMetric?.historial_fuente === 'REGISTRO_INICIAL' ? 'alta'
-                    : selectedMetric?.historial_fuente === 'USUARIO_DECLARADO' ? 'media'
-                    : selectedMetric?.historial_conocido === false ? 'baja' : 'alta');
-                const fuenteDisplay = selectedMetric?.historial_fuente_display;
-                const showDeclareBtn = confianza === 'baja' || confianza === 'media';
-                const badgeColor = confianza === 'alta' ? COLORS.success[600]
-                  : confianza === 'media' ? COLORS.warning[600]
-                  : COLORS.neutral.gray[500];
-                const badgeBg = confianza === 'alta' ? COLORS.success[50]
-                  : confianza === 'media' ? COLORS.warning[50]
-                  : COLORS.neutral.gray[100];
-                const badgeLabel = confianza === 'alta' ? 'Verificado por taller'
-                  : confianza === 'media' ? (fuenteDisplay || 'Declarado por ti')
-                  : 'Estimado (sin historial)';
-                return (
-                  <View style={[styles.confianzaRow, { backgroundColor: badgeBg }]}>
-                    {confianza === 'alta'
-                      ? <ShieldCheck size={14} color={badgeColor} />
-                      : <ShieldAlert size={14} color={badgeColor} />
-                    }
-                    <Text style={[styles.confianzaText, { color: badgeColor }]}>{badgeLabel}</Text>
-                    {showDeclareBtn && (
-                      <TouchableOpacity
-                        style={styles.declararBtn}
-                        onPress={() => openDeclaration(selectedMetric)}
-                      >
-                        <ClipboardEdit size={13} color={COLORS.primary[600]} />
-                        <Text style={styles.declararBtnText}>
-                          {confianza === 'baja' ? 'Declarar km de servicio' : 'Actualizar km'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                );
-              })()}
-
-              {/* ── 4b. Detalle de inspección declarada por taller ──── */}
-              {selectedMetric?.historial_fuente === 'CHECKLIST' && selectedMetric?.salud_anclada_pct != null && (() => {
-                const fechaSrv = selectedMetric?.fecha_ultimo_servicio ? new Date(selectedMetric.fecha_ultimo_servicio) : null;
-                const fechaTxt = fechaSrv && !isNaN(fechaSrv)
-                  ? fechaSrv.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                  : null;
-                const declaradoTxt = `${Math.round(Number(selectedMetric.salud_anclada_pct))}%`;
-                return (
-                  <View style={styles.inspeccionBlock}>
-                    <ClipboardEdit size={14} color={COLORS.success[600]} />
-                    <Text style={styles.inspeccionText}>
-                      {fechaTxt
-                        ? `Inspeccionado el ${fechaTxt} — declarado en ${declaradoTxt}`
-                        : `Declarado por taller en ${declaradoTxt}`}
-                    </Text>
-                  </View>
-                );
-              })()}
-
-              {/* ── 5. Detalle segmentado (sin párrafo crudo del motor) ── */}
-              <ComponentDiagnosticInsights
-                component={selectedMetric}
-                prediction={selectedMetric?._prediction}
-              />
-
-              {serviciosDelComponente.length > 0 ? (
-                <>
-                  <Text style={styles.modalSectionTitle}>Servicios sugeridos</Text>
-                  <Text style={styles.modalSectionHint}>
-                    Elige uno para agendar y continuar sin elegir de nuevo el tipo de servicio.
-                  </Text>
-                  {serviciosDelComponente.map((srv) => (
-                    <TouchableOpacity
-                      key={srv.id}
-                      style={styles.serviceCard}
-                      activeOpacity={0.85}
-                      onPress={() => {
-                        const descripcion = buildShortDiagnosticSummary(
-                          selectedMetric,
-                          selectedMetric?._prediction,
-                        );
-                        const name = selectedMetric?.name || 'Componente';
-                        setSelectedMetric(null);
-                        // Objeto completo evita async getServicioDetalle y asegura salto paso 2
-                        const servicioPreseleccionado = {
-                          id: Number(srv.id) || srv.id,
-                          nombre: srv.nombre || 'Servicio',
-                          descripcion: srv.descripcion || '',
-                          precio_referencia:
-                            srv.precio_referencia != null
-                              ? Number(srv.precio_referencia)
-                              : undefined,
-                        };
-                        handleNavToService({
-                          servicioPreseleccionado,
-                          descripcionPrellenada: descripcion
-                            ? `[${name}] ${descripcion}`
-                            : `[${name}] Mantenimiento sugerido`,
-                        });
-                      }}
-                    >
-                      <View style={styles.serviceCardIcon}>
-                        <Wrench size={22} color={COLORS.primary[500]} />
-                      </View>
-                      <View style={styles.serviceCardBody}>
-                        <Text style={styles.serviceCardTitle} numberOfLines={2}>
-                          {srv.nombre}
-                        </Text>
-                        {srv.descripcion ? (
-                          <Text style={styles.serviceCardDesc} numberOfLines={2}>
-                            {srv.descripcion}
-                          </Text>
-                        ) : null}
-                        {srv.precio_referencia != null ? (
-                          <Text style={styles.serviceCardMeta}>
-                            Desde ${Number(srv.precio_referencia).toLocaleString()}
-                          </Text>
-                        ) : null}
-                      </View>
-                      <ChevronRight size={20} color={COLORS.text.tertiary} />
-                    </TouchableOpacity>
-                  ))}
-                </>
-              ) : null}
-            </ScrollView>
-
-            {serviciosDelComponente.length === 0 ? (
-              <TouchableOpacity
-                style={styles.modalButtonSecondary}
-                onPress={() => {
-                  setSelectedMetric(null);
-                  handleNavToService();
-                }}
-              >
-                <Text style={styles.modalButtonSecondaryText}>Cotizar / Nueva solicitud</Text>
-              </TouchableOpacity>
-            ) : null}
-          </Animatable.View>
-        </View>
-      </Modal>
+        metric={selectedMetric}
+        servicios={serviciosDelComponente}
+        onClose={() => setSelectedMetric(null)}
+        onDeclare={openDeclaration}
+        onSelectService={(srv, metric) => {
+          setSelectedMetric(null);
+          handleNavToService(buildMetricServiceNavPayload(metric, srv));
+        }}
+        onAgendarGeneric={(metric) => {
+          setSelectedMetric(null);
+          handleNavToService(buildMetricServiceNavPayload(metric, null));
+        }}
+      />
     </View>
   );
 };
@@ -1376,6 +1293,50 @@ const createStyles = (_insets) => StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.primary,
     lineHeight: 20,
+  },
+  headerSection: {
+    marginBottom: SPACING.sm,
+  },
+  vehicleMetaRow: {
+    marginBottom: SPACING.sm,
+  },
+  listSectionHeader: {
+    paddingBottom: SPACING.sm,
+  },
+  listSectionHeaderAttention: {
+    marginTop: SPACING.xs,
+  },
+  listSectionHeaderOk: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
+  },
+  listSectionTextCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  listSectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  listSectionTitle: {
+    ...TYPOGRAPHY.styles.h5,
+    color: COLORS.text.primary,
+  },
+  listSectionTitleOk: {
+    color: COLORS.text.secondary,
+  },
+  listSectionCount: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.secondary,
+  },
+  listSectionSubtitle: {
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.tertiary,
+    marginTop: 2,
   },
   headerContainer: {
     flexDirection: 'row',

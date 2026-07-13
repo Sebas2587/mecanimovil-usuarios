@@ -18,8 +18,21 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
  
-import { Ionicons } from '@expo/vector-icons'; // Lucide substitute
+import {
+  Check,
+  Info,
+  X,
+  Search,
+  CircleCheck,
+  Car,
+  ChevronUp,
+  ChevronDown,
+  Camera,
+  Pencil,
+  CircleAlert,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BackButton from '../../components/navigation/BackButton';
 
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
@@ -111,7 +124,7 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
                     >
                         <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
                             {isChecked && (
-                                <Ionicons name="checkmark" size={16} color={COLORS.text.inverse} />
+                                <Check size={16} color={COLORS.text.inverse} strokeWidth={2.5} />
                             )}
                         </View>
                         <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
@@ -133,7 +146,7 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
             >
                 <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
                     {isChecked && (
-                        <Ionicons name="checkmark" size={16} color={COLORS.text.inverse} />
+                        <Check size={16} color={COLORS.text.inverse} strokeWidth={2.5} />
                     )}
                 </View>
                 <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
@@ -647,10 +660,10 @@ const VehicleRegistrationScreen = () => {
         <>
             {showValorMercadoAlert && (
                 <View style={[styles.warningCard, styles.warningCardRow]}>
-                    <Ionicons
-                        name="information-circle-outline"
+                    <Info
                         size={22}
                         color={COLORS.warning[600]}
+                        strokeWidth={1.75}
                         style={styles.warningIcon}
                     />
                     <View style={styles.warningCardBody}>
@@ -664,7 +677,7 @@ const VehicleRegistrationScreen = () => {
                         style={styles.warningDismiss}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                        <Ionicons name="close" size={20} color={COLORS.warning[600]} />
+                        <X size={20} color={COLORS.warning[600]} strokeWidth={1.75} />
                     </TouchableOpacity>
                 </View>
             )}
@@ -702,9 +715,7 @@ const VehicleRegistrationScreen = () => {
             {/* Header */}
             <View style={[styles.headerSafeArea, { paddingTop: insets.top }]}>
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={handleBackPress} style={styles.closeButton}>
-                        <Ionicons name="chevron-back" size={22} color={COLORS.text.primary} />
-                    </TouchableOpacity>
+                    <BackButton onPress={handleBackPress} />
                     <Text style={styles.headerTitle}>Nuevo Vehículo</Text>
                     <View style={styles.headerSpacer} />
                 </View>
@@ -758,7 +769,7 @@ const VehicleRegistrationScreen = () => {
                                         {loading ? (
                                             <ActivityIndicator color={COLORS.text.inverse} />
                                         ) : (
-                                            <Ionicons name="search" size={24} color={COLORS.text.inverse} />
+                                            <Search size={24} color={COLORS.text.inverse} strokeWidth={1.75} />
                                         )}
                                     </TouchableOpacity>
                                 </View>
@@ -796,7 +807,7 @@ const VehicleRegistrationScreen = () => {
                                             {loading ? (
                                                 <ActivityIndicator color={COLORS.text.inverse} />
                                             ) : (
-                                                <Ionicons name="search" size={24} color={COLORS.text.inverse} />
+                                                <Search size={24} color={COLORS.text.inverse} strokeWidth={1.75} />
                                             )}
                                         </TouchableOpacity>
                                     </View>
@@ -816,7 +827,7 @@ const VehicleRegistrationScreen = () => {
                         >
                             <View style={styles.successHeader}>
                                 <View style={styles.successBadge}>
-                                    <Ionicons name="checkmark-circle" size={16} color={COLORS.success[600]} />
+                                    <CircleCheck size={16} color={COLORS.success[600]} strokeWidth={1.75} />
                                     <Text style={styles.successBadgeText}>Vehículo Identificado</Text>
                                 </View>
                             </View>
@@ -830,7 +841,7 @@ const VehicleRegistrationScreen = () => {
                                         <Text style={styles.yearText}>{vehicleData.year || vehicleData.anio || '----'}</Text>
                                     </View>
                                     <View style={styles.carIconContainer}>
-                                        <Ionicons name="car-sport" size={48} color={COLORS.primary[500]} />
+                                        <Car size={48} color={COLORS.primary[500]} strokeWidth={1.5} />
                                     </View>
                                 </View>
 
@@ -941,7 +952,11 @@ const VehicleRegistrationScreen = () => {
                                         <Text style={styles.sectionLabel}>Mantenimientos Recientes (Opcional)</Text>
                                         <Text style={styles.maintenanceSubtitle}>Indica los km que tenía el auto cuando cambiaste cada pieza.</Text>
                                     </View>
-                                    <Ionicons name={maintenanceExpanded ? 'chevron-up' : 'chevron-down'} size={24} color={COLORS.text.tertiary} />
+                                    {maintenanceExpanded ? (
+                                        <ChevronUp size={24} color={COLORS.text.tertiary} strokeWidth={1.75} />
+                                    ) : (
+                                        <ChevronDown size={24} color={COLORS.text.tertiary} strokeWidth={1.75} />
+                                    )}
                                 </TouchableOpacity>
                                 {maintenanceExpanded && checklistItems.length > 0 && (
                                     <View style={styles.maintenanceList}>
@@ -986,13 +1001,13 @@ const VehicleRegistrationScreen = () => {
                                         <Image source={{ uri: image }} style={styles.vehicleImage} />
                                     ) : (
                                         <View style={styles.photoPlaceholder}>
-                                            <Ionicons name="camera" size={32} color={COLORS.primary[500]} />
+                                            <Camera size={32} color={COLORS.primary[500]} strokeWidth={1.75} />
                                             <Text style={styles.photoText}>Subir una foto</Text>
                                         </View>
                                     )}
                                     {image && (
                                         <View style={styles.editPhotoBadge}>
-                                            <Ionicons name="pencil" size={16} color={COLORS.text.inverse} />
+                                            <Pencil size={16} color={COLORS.text.inverse} strokeWidth={1.75} />
                                         </View>
                                     )}
                                 </TouchableOpacity>
@@ -1000,7 +1015,7 @@ const VehicleRegistrationScreen = () => {
 
                             {/* Warning Message */}
                             <View style={styles.warningCard}>
-                                <Ionicons name="alert-circle-outline" size={22} color={COLORS.warning[600]} style={{ marginRight: SPACING.xs }} />
+                                <CircleAlert size={22} color={COLORS.warning[600]} strokeWidth={1.75} style={{ marginRight: SPACING.xs }} />
                                 <Text style={styles.warningText}>
                                     <Text style={styles.warningTextStrong}>Importante:</Text> Para garantizar la veracidad de la información, los datos del vehículo no podrán ser editados después del registro.
                                 </Text>
@@ -1057,19 +1072,9 @@ const styles = StyleSheet.create({
         fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.text.primary,
     },
-    closeButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: COLORS.neutral.gray[100],
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     headerSpacer: {
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
     },
     keyboardContainer: {
         flex: 1,
@@ -1126,7 +1131,7 @@ const styles = StyleSheet.create({
     patenteDecorator: {
         width: 24,
         height: 16,
-        backgroundColor: '#FFDD00',
+        backgroundColor: COLORS.warning.main,
         marginRight: 12,
         justifyContent: 'center',
         alignItems: 'center',

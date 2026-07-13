@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { subscribeWebPush, unsubscribeWebPush, getWebPushStatus } from './webPushService';
+import { COLORS as DS } from '../design-system/tokens/colors';
 
 // setNotificationHandler se llama en App.js (nivel de módulo) para garantizar
 // que esté activo antes de que cualquier componente se monte.
@@ -13,7 +14,7 @@ const ANDROID_CHANNELS = [
     name: 'General',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#2A4065',
+    lightColor: DS.primary[700],
     sound: 'default',
   },
   {
@@ -23,7 +24,7 @@ const ANDROID_CHANNELS = [
     // MAX: banner / heads-up y sonido cuando el usuario no ha silenciado el canal (Android 8+)
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#EF4444',
+    lightColor: DS.error[500],
     sound: 'default',
   },
   {
@@ -32,7 +33,7 @@ const ANDROID_CHANNELS = [
     description: 'Confirmaciones de viaje y kilometraje',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 200],
-    lightColor: '#10B981',
+    lightColor: DS.success[500],
     sound: 'default',
   },
   {
@@ -41,7 +42,7 @@ const ANDROID_CHANNELS = [
     description: 'Ofertas, estados de solicitudes y recordatorios de pago',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#3B82F6',
+    lightColor: DS.primary[500],
     sound: 'default',
   },
   {
@@ -50,16 +51,16 @@ const ANDROID_CHANNELS = [
     description: 'Mensajes de negociación y chat con talleres',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 200, 200, 200],
-    lightColor: '#6366F1',
+    lightColor: DS.secondary[500],
     sound: 'default',
   },
   {
     id: 'marketplace',
-    name: 'Marketplace',
-    description: 'Ofertas en tu vehículo publicado y alertas de mercado',
+    name: 'Transferencia de vehículo',
+    description: 'Alertas de transferencia e historial del vehículo',
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#F59E0B',
+    lightColor: DS.warning[500],
     sound: 'default',
   },
   {
@@ -68,7 +69,7 @@ const ANDROID_CHANNELS = [
     description: 'Análisis y alertas de condiciones climáticas para conducción',
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 200],
-    lightColor: '#06B6D4',
+    lightColor: DS.info[400],
     sound: 'default',
   },
 ];

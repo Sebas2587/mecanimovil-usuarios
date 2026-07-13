@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { InteractionManager, Platform } from 'react-native';
+import Icon from '../base/Icon/Icon';
 import {
   View,
   Text,
@@ -18,7 +19,6 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { showAlert, showAlertButtons } from '../../utils/platformAlert';
@@ -27,6 +27,7 @@ import { COLORS, getColorWithOpacity } from '../../design-system/tokens/colors';
 import { getHealthColorToken } from '../../utils/healthFormat';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import { SPACING } from '../../design-system/tokens/spacing';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { ROUTES } from '../../utils/constants';
 import VehicleSelector from '../vehicles/VehicleSelector';
@@ -80,6 +81,7 @@ import {
   Clock as ClockIcon,
   FileText as FileTextIcon,
   ChevronRight as ChevronRightIcon,
+  ChevronDown as ChevronDownIcon,
   Star,
   MapPin,
   Eye,
@@ -95,6 +97,7 @@ import {
   Wrench,
   Package,
   Sparkles,
+  X,
 } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -122,7 +125,6 @@ const glassCardBase = {
   borderColor: COLORS.border.light,
   overflow: 'hidden',
   padding: 16,
-  ...SHADOWS.sm,
 };
 
 /**
@@ -204,20 +206,42 @@ const FormularioSolicitud = ({
     fotos_necesidad: Array.isArray(initialData?.fotos_necesidad) ? initialData.fotos_necesidad : [],
   });
 
+  const navigation = useNavigation();
+  const route = useRoute();
 
-  // Detectar si hay servicio o proveedor preseleccionado (needed before queries)
-  const esAgendamientoInteligente = initialData?.agendamientoInteligente === true;
-  const flujoCatalogoProveedor = initialData?.flujoCatalogoProveedor === true;
-  const tieneServicioPreseleccionado = initialData?.servicios_seleccionados &&
-    initialData.servicios_seleccionados.length > 0;
-  const tieneProveedorPreseleccionado = !esAgendamientoInteligente &&
-    initialData?.fromProviderDetail &&
-    initialData?.proveedores_dirigidos &&
-    initialData.proveedores_dirigidos.length > 0 &&
-    initialData?.tipo_solicitud === 'dirigida';
+  // Flags de entrada: initialData + route.params (no formData de selección manual)
+  const esAgendamientoInteligente =
+    initialData?.agendamientoInteligente === true
+    || route.params?.agendamientoInteligente === true;
+  const flujoCatalogoProveedor =
+    initialData?.flujoCatalogoProveedor === true
+    || route.params?.flujoCatalogoProveedor === true;
+  const fromProviderDetail =
+    initialData?.fromProviderDetail === true
+    || route.params?.fromProviderDetail === true;
+  const tieneServicioPreseleccionado =
+    (initialData?.servicios_seleccionados?.length > 0)
+    || !!route.params?.servicioPreseleccionado?.id
+    || (Array.isArray(route.params?.serviciosPreSeleccionados)
+      && route.params.serviciosPreSeleccionados.length > 0);
+  const tieneProveedorEnFormulario =
+    (initialData?.proveedores_dirigidos?.length > 0)
+    || (fromProviderDetail && formData.proveedores_dirigidos?.length > 0)
+    || !!(route.params?.proveedorPreseleccionado && fromProviderDetail);
+  const tieneProveedorPreseleccionado = !esAgendamientoInteligente
+    && fromProviderDetail
+    && tieneProveedorEnFormulario
+    && (
+      initialData?.tipo_solicitud === 'dirigida'
+      || formData.tipo_solicitud === 'dirigida'
+      || !!route.params?.proveedorPreseleccionado
+    );
   const flujoCuatroPasos =
-    (tieneProveedorPreseleccionado && tieneServicioPreseleccionado && !formData.sin_vehiculo_registrado)
-    || (flujoCatalogoProveedor && tieneServicioPreseleccionado && !formData.sin_vehiculo_registrado);
+    !formData.sin_vehiculo_registrado
+    && (
+      (tieneProveedorPreseleccionado && tieneServicioPreseleccionado)
+      || (flujoCatalogoProveedor && tieneServicioPreseleccionado)
+    );
   const ocultarSelectorServicios = flujoCuatroPasos;
 
   // ── TanStack Query for services, categories, and health ──
@@ -256,11 +280,6 @@ const FormularioSolicitud = ({
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [mostrarSelectorHora, setMostrarSelectorHora] = useState(false);
   const [mesCalendario, setMesCalendario] = useState(new Date());
-
-  // (tieneServicioPreseleccionado, tieneProveedorPreseleccionado, flujoCuatroPasos defined above queries)
-
-  const navigation = useNavigation();
-  const route = useRoute();
 
   // Health components via TanStack Query (instant from cache when navigating back)
   const {
@@ -385,7 +404,7 @@ const FormularioSolicitud = ({
                 position: 'absolute',
                 top: -6,
                 right: -6,
-                backgroundColor: COLORS.neutral.gray[800],
+                backgroundColor: COLORS.error.main,
                 borderRadius: 12,
                 width: 24,
                 height: 24,
@@ -394,7 +413,7 @@ const FormularioSolicitud = ({
               }}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons name="close" size={16} color="#fff" />
+              <X size={16} color={COLORS.text.inverse} />
             </TouchableOpacity>
           </View>
         ))}
@@ -416,7 +435,7 @@ const FormularioSolicitud = ({
                 ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
               }}
             >
-              <Ionicons name="cloud-upload-outline" size={22} color={COLORS.primary[500]} />
+              <Icon name="cloud-upload-outline" size={22} color={COLORS.primary[500]} />
               <Text style={{ color: COLORS.primary[600], fontSize: 12, fontWeight: '600', marginTop: 4 }}>
                 Elegir archivo
               </Text>
@@ -436,7 +455,7 @@ const FormularioSolicitud = ({
                 backgroundColor: COLORS.neutral.gray[50],
               }}
             >
-              <Ionicons name="add" size={28} color={COLORS.primary[500]} />
+              <Icon name="add" size={28} color={COLORS.primary[500]} />
             </TouchableOpacity>
           )
         )}
@@ -979,7 +998,8 @@ const FormularioSolicitud = ({
     : wizardComparadorTresPasos
       ? 2
       : flujoCuatroPasos
-        ? 3
+        // Contexto (+ vehículo si falta) → calendario confirma (sin "Revisa tu pedido")
+        ? (necesitaSeleccionarVehiculoEnPaso3 ? 3 : 2)
         : 6;
   const totalPasos = (omitirPasoRepuestos && !wizardComparadorTresPasos && !flujoCuatroPasos)
     ? Math.max(3, totalPasosBase - 1)
@@ -1040,6 +1060,14 @@ const FormularioSolicitud = ({
     if (isPreCompra || !flujoCuatroPasos || pasoActual !== 1) return;
     setPasoActual(2);
   }, [flujoCuatroPasos, isPreCompra, pasoActual]);
+
+  // Catálogo/perfil: nunca mostrar pasos obsoletos (tipo solicitud / ubicación dedicada).
+  useEffect(() => {
+    if (!flujoCuatroPasos) return;
+    if (pasoActual === 4 || pasoActual === 5) {
+      setPasoActual(necesitaSeleccionarVehiculoEnPaso3 ? 3 : 2);
+    }
+  }, [flujoCuatroPasos, pasoActual, necesitaSeleccionarVehiculoEnPaso3]);
 
   // Paso 2: scroll al inicio para que ubicación quede visible arriba.
   useEffect(() => {
@@ -1144,6 +1172,7 @@ const FormularioSolicitud = ({
   const usaResumenTicketPaso6 = () => {
     if (iaAsistidoActivo || isPreCompra) return false;
     if (!formData.fecha_preferida?.trim()) return false;
+    // Catálogo/perfil confirma en calendario; resumen solo como fallback si vuelve al form.
     if (flujoCuatroPasos || flujoCatalogoProveedor) return true;
     if (formData.tipo_solicitud === 'dirigida' && (formData.proveedores_dirigidos?.length >= 1)) {
       return true;
@@ -1193,13 +1222,15 @@ const FormularioSolicitud = ({
       Alert.alert('Proveedor', 'Selecciona un proveedor para ver su agenda.');
       return false;
     }
+    const tipoProveedorAgenda =
+      prov.tipo
+      || prov.tipo_proveedor
+      || initialData?.tipo_proveedor_preseleccionado
+      || initialData?.tipoProveedorPreseleccionado
+      || route.params?.tipoProveedorPreseleccionado;
     const agenda = buildAgendaContext({
       proveedor: prov,
-      tipoProveedor:
-        prov.tipo
-        || prov.tipo_proveedor
-        || initialData?.tipo_proveedor_preseleccionado
-        || initialData?.tipoProveedorPreseleccionado,
+      tipoProveedor: tipoProveedorAgenda,
       servicios: formData.servicios_seleccionados,
       routeParams: {
         ...route.params,
@@ -1225,6 +1256,45 @@ const FormularioSolicitud = ({
       );
       return false;
     }
+
+    // Catálogo/perfil: confirmar en calendario (igual que comparador), sin "Revisa tu pedido".
+    const finalizarEnCalendario = flujoCatalogoProveedor || flujoCuatroPasos;
+    const coords = resolveCoordenadasServicio(formData);
+    const pendingConfirmOferta = finalizarEnCalendario && agenda.ofertaServicioId
+      ? {
+          oferta_servicio_id: agenda.ofertaServicioId,
+          oferta_servicio_ids: [agenda.ofertaServicioId],
+          tipo_proveedor: agenda.tipoProveedor,
+          ...(agenda.tipoProveedor === 'taller'
+            ? {
+                direccion_servicio_texto:
+                  prov.direccion
+                  || prov.direccion_completa
+                  || formData.direccion_servicio_texto
+                  || formData.direccion_usuario?.direccion
+                  || '',
+                lat: prov.lat ?? prov.latitude ?? coords?.lat ?? null,
+                lng: prov.lng ?? prov.longitude ?? coords?.lng ?? null,
+              }
+            : {}),
+        }
+      : null;
+
+    const formPayload = finalizarEnCalendario
+      ? {
+          ...formData,
+          tipo_solicitud: 'dirigida',
+          tipo_proveedor_preseleccionado: agenda.tipoProveedor,
+          tipoProveedorPreseleccionado: agenda.tipoProveedor,
+          flujoCatalogoProveedor: true,
+          fromProviderDetail: fromProviderDetail || true,
+        }
+      : null;
+
+    const pasoDestino = finalizarEnCalendario || ubicacionEnPasoContexto
+      ? (siguientePaso ?? 6)
+      : PASO_FORMULARIO_UBICACION;
+
     const ok = navigateCalendarioProveedor(navigation, {
       proveedor: prov,
       tipoProveedor: agenda.tipoProveedor,
@@ -1240,10 +1310,12 @@ const FormularioSolicitud = ({
         tipoProveedorPreseleccionado: agenda.tipoProveedor,
         tipo_proveedor_preseleccionado: agenda.tipoProveedor,
         oferta_servicio_id_preseleccionada: agenda.ofertaServicioId,
+        fromProviderDetail: fromProviderDetail || flujoCatalogoProveedor,
+        flujoCatalogoProveedor: flujoCatalogoProveedor || finalizarEnCalendario,
+        ...(formPayload ? { formPayload } : {}),
+        ...(pendingConfirmOferta ? { pendingConfirmOferta } : {}),
       },
-      pasoDestinoTrasCalendario: ubicacionEnPasoContexto
-        ? (siguientePaso ?? 6)
-        : PASO_FORMULARIO_UBICACION,
+      pasoDestinoTrasCalendario: pasoDestino,
       requireOferta: flujoCatalogoProveedor || flujoCuatroPasos,
     });
     if (!ok) {
@@ -1411,10 +1483,13 @@ const FormularioSolicitud = ({
       return omitirPasoRepuestos ? 2 : 3;
     };
 
-    // flujoCuatroPasos: skip step 4/5 going back
+    // flujoCuatroPasos: skip step 4/5 going back (ubicación y tipo ya no aplican)
     if (flujoCuatroPasos) {
-      if (pasoActual === 6) { setPasoActual(pasoAnteriorTrasRepuestos()); }
-      else { setPasoActual(pasoActual - 1); }
+      if (pasoActual === 6 || pasoActual === 5 || pasoActual === 4) {
+        setPasoActual(pasoAnteriorTrasRepuestos());
+      } else {
+        setPasoActual(pasoActual - 1);
+      }
       return;
     }
 
@@ -1873,7 +1948,7 @@ const FormularioSolicitud = ({
                 style={{ marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }}
                 onPress={() => handleVehiculoToggle(v)}
               >
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                   <CarIcon size={22} color={COLORS.primary[500]} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -1909,48 +1984,58 @@ const FormularioSolicitud = ({
           </View>
         ) : (
           <>
-            {/* Vehicle Tag */}
-            <GlassCard style={gs.vehiculoTagCard}>
-              <View style={gs.vehiculoTagIcon}>
-                <CarIcon size={18} color={COLORS.primary[600]} />
-              </View>
-              <View style={gs.vehiculoTagMeta}>
-                <Text style={gs.vehiculoTagTitle} numberOfLines={1}>
-                  {vehicle.marca_nombre} {vehicle.modelo_nombre}
-                </Text>
-                <Text style={gs.vehiculoTagSub} numberOfLines={1}>
-                  {vehicle.year} · {vehicle.patente} · {(vehicle.kilometraje || 0).toLocaleString()} km
-                </Text>
-              </View>
-              <View
-                style={[
-                  gs.vehiculoTagHealth,
-                  {
-                    backgroundColor: `${getScoreColor(vehicle.health_score ?? 0)}18`,
-                    borderColor: `${getScoreColor(vehicle.health_score ?? 0)}44`,
-                  },
-                ]}
-              >
-                <Text
-                  style={[gs.vehiculoTagHealthText, { color: getScoreColor(vehicle.health_score ?? 0) }]}
-                >
-                  {Math.round(vehicle.health_score ?? 0)}%
-                </Text>
-              </View>
-              {vehiculosDisponibles.length > 1 && !bloquearCambioVehiculo ? (
-                <TouchableOpacity
-                  onPress={handleDeseleccionarVehiculo}
-                  style={gs.vehiculoTagSwap}
-                  accessibilityLabel="Cambiar vehículo"
-                >
-                  <Ionicons name="swap-horizontal" size={16} color={COLORS.text.tertiary} />
-                </TouchableOpacity>
-              ) : null}
-            </GlassCard>
+            {/* Vehicle Tag — card compacta Airbnb: tocar la card cambia el vehículo */}
+            {(() => {
+              const puedeCambiar = vehiculosDisponibles.length > 1 && !bloquearCambioVehiculo;
+              const contenidoVehiculo = (
+                <>
+                  <View style={gs.vehiculoTagIcon}>
+                    <CarIcon size={18} color={COLORS.text.secondary} />
+                  </View>
+                  <View style={gs.vehiculoTagMeta}>
+                    <Text style={gs.vehiculoTagTitle} numberOfLines={1}>
+                      {vehicle.marca_nombre} {vehicle.modelo_nombre}
+                    </Text>
+                    <Text style={gs.vehiculoTagSub} numberOfLines={1}>
+                      {vehicle.patente} · {vehicle.year}
+                    </Text>
+                  </View>
+                  {vehicle.health_score != null ? (
+                    <View style={gs.vehiculoTagHealth}>
+                      <View
+                        style={[
+                          gs.vehiculoTagHealthDot,
+                          { backgroundColor: getScoreColor(vehicle.health_score) },
+                        ]}
+                      />
+                      <Text style={gs.vehiculoTagHealthText}>
+                        {Math.round(vehicle.health_score)}%
+                      </Text>
+                    </View>
+                  ) : null}
+                  {puedeCambiar ? (
+                    <ChevronDownIcon size={18} color={COLORS.text.tertiary} />
+                  ) : null}
+                </>
+              );
+              if (puedeCambiar) {
+                return (
+                  <TouchableOpacity
+                    onPress={handleDeseleccionarVehiculo}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cambiar vehículo"
+                  >
+                    <GlassCard style={gs.vehiculoTagCard}>{contenidoVehiculo}</GlassCard>
+                  </TouchableOpacity>
+                );
+              }
+              return <GlassCard style={gs.vehiculoTagCard}>{contenidoVehiculo}</GlassCard>;
+            })()}
 
             {alertaDuplicado?.bloqueado ? (
               <View style={[styles.infoBox, { marginBottom: 16, backgroundColor: COLORS.warning.light, borderColor: COLORS.warning[200] }]}>
-                <Ionicons name="alert-circle" size={22} color={COLORS.warning[700]} style={{ marginRight: 8 }} />
+                <Icon name="alert-circle" size={22} color={COLORS.warning[700]} style={{ marginRight: 8 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.infoBoxText, { fontWeight: '700', color: COLORS.warning[800] }]}>
                     Ya tienes este servicio en curso
@@ -2185,7 +2270,7 @@ const FormularioSolicitud = ({
                 {formData.vehiculo.marca_nombre} {formData.vehiculo.modelo_nombre} ({formData.vehiculo.year})
               </Text>
               <TouchableOpacity onPress={handleDeseleccionarVehiculo} style={styles.deseleccionarVehiculoButton} activeOpacity={0.7}>
-                <Ionicons name="close-circle" size={20} color={COLORS.error.main} />
+                <Icon name="close-circle" size={20} color={COLORS.error.main} />
               </TouchableOpacity>
             </View>
           </View>
@@ -2220,7 +2305,7 @@ const FormularioSolicitud = ({
     }
     return (
       <View style={[styles.infoBox, styles.paso2CatalogHeader]}>
-        <Ionicons name="construct-outline" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
+        <Icon name="construct-outline" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.infoBoxText} numberOfLines={2}>
             {servicio.nombre || 'Servicio seleccionado'}
@@ -2296,7 +2381,7 @@ const FormularioSolicitud = ({
 
           {formData.proveedores_dirigidos.length > 0 && (
             <View style={[styles.infoBox, { marginBottom: 14 }]}>
-              <Ionicons name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
+              <Icon name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor seleccionado'}</Text>
               </View>
@@ -2366,7 +2451,7 @@ const FormularioSolicitud = ({
           <>
             {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
               <View style={[styles.infoBox, { marginBottom: 14 }]}>
-                <Ionicons name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
+                <Icon name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.infoBoxText}>
                     Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor'}
@@ -2469,7 +2554,7 @@ const FormularioSolicitud = ({
                   formData.requiere_repuestos === true && { borderColor: COLORS.primary[400], backgroundColor: COLORS.primary[50] }]}
                 onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: true }))}
               >
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                   <Package size={20} color={COLORS.primary[500]} />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -2547,7 +2632,7 @@ const FormularioSolicitud = ({
             paddingHorizontal: 8, paddingVertical: 3,
             flexDirection: 'row', alignItems: 'center', gap: 4,
           }}>
-            <Text style={{ color: '#FFFFFF', fontSize: 10, fontWeight: '700', letterSpacing: 0.3 }}>
+            <Text style={{ color: COLORS.text.onPrimary, fontSize: 10, fontWeight: '700', letterSpacing: 0.3 }}>
               {tipo === 'taller' ? 'Taller' : 'A domicilio'}
             </Text>
           </View>
@@ -2632,7 +2717,7 @@ const FormularioSolicitud = ({
             formData.tipo_solicitud === 'global' && { borderColor: COLORS.primary[400], backgroundColor: COLORS.primary[50] }]}
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'global', proveedores_dirigidos: [] }))}
         >
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
             <Globe size={20} color={COLORS.primary[500]} />
           </View>
           <View style={{ flex: 1 }}>
@@ -2740,7 +2825,7 @@ const FormularioSolicitud = ({
 
       {tieneProveedorPreseleccionado && formData.proveedores_dirigidos.length > 0 && (
         <View style={[styles.infoBox, { marginBottom: 14 }]}>
-          <Ionicons name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
+          <Icon name="information-circle" size={20} color={COLORS.primary[500]} style={{ marginRight: 8 }} />
           <View style={{ flex: 1 }}>
             <Text style={styles.infoBoxText}>Solicitud dirigida a {formData.proveedores_dirigidos[0]?.nombre || 'proveedor'}</Text>
           </View>
@@ -2948,7 +3033,7 @@ const FormularioSolicitud = ({
 
         {/* Date picker button */}
         <GlassCard style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 }} onPress={() => setMostrarCalendario(true)}>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primary[100], alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
             <CalendarDays size={20} color={COLORS.primary[500]} />
           </View>
           <View style={{ flex: 1 }}>
@@ -3002,17 +3087,17 @@ const FormularioSolicitud = ({
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Seleccionar Fecha</Text>
                 <TouchableOpacity onPress={() => setMostrarCalendario(false)} style={{ padding: 4 }}>
-                  <Ionicons name="close" size={24} color={COLORS.text.secondary} />
+                  <Icon name="close" size={24} color={COLORS.text.secondary} />
                 </TouchableOpacity>
               </View>
 
               <View style={styles.calendarHeader}>
                 <TouchableOpacity onPress={() => cambiarMes(-1)} style={styles.calendarNavButton}>
-                  <Ionicons name="chevron-back" size={20} color={COLORS.primary[500]} />
+                  <Icon name="chevron-back" size={20} color={COLORS.primary[500]} />
                 </TouchableOpacity>
                 <Text style={styles.calendarTitle}>{mesesNombres[mesCalendario.getMonth()]} {mesCalendario.getFullYear()}</Text>
                 <TouchableOpacity onPress={() => cambiarMes(1)} style={styles.calendarNavButton}>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.primary[500]} />
+                  <Icon name="chevron-forward" size={20} color={COLORS.primary[500]} />
                 </TouchableOpacity>
               </View>
 
@@ -3052,7 +3137,7 @@ const FormularioSolicitud = ({
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <Text style={{ color: COLORS.text.primary, fontSize: 18, fontWeight: '700' }}>Seleccionar Hora</Text>
                 <TouchableOpacity onPress={() => setMostrarSelectorHora(false)} style={{ padding: 4 }}>
-                  <Ionicons name="close" size={24} color={COLORS.text.secondary} />
+                  <Icon name="close" size={24} color={COLORS.text.secondary} />
                 </TouchableOpacity>
               </View>
 
@@ -3109,12 +3194,12 @@ const FormularioSolicitud = ({
       return mapaPasos[pasoActual] || 1;
     }
 
-    // flujoCuatroPasos: 2→[3]→6
+    // flujoCuatroPasos: 2→[3]→calendario (6 solo fallback)
     if (flujoCuatroPasos) {
       const mapaPasos = necesitaSeleccionarVehiculoEnPaso3
-        ? { 2: 1, 3: 2, 6: 3 }
-        : { 2: 1, 6: 2 };
-      return mapaPasos[pasoActual] || pasoActual;
+        ? { 2: 1, 3: 2, 5: 3, 6: 3 }
+        : { 2: 1, 5: 2, 6: 2 };
+      return mapaPasos[pasoActual] || Math.min(pasoActual, totalPasos);
     }
 
     // Flujo estándar: 1→2→3→4→5→6
@@ -3152,7 +3237,7 @@ const FormularioSolicitud = ({
 
   return (
     <View style={styles.container}>
-      {/* Glass progress bar */}
+      {/* Progress bar */}
       <View style={styles.progressContainer}>
         <Text style={styles.progressText}>Paso {pasoVisual} de {totalPasos}</Text>
         <View style={styles.progressBar}>
@@ -3187,7 +3272,7 @@ const FormularioSolicitud = ({
         {renderPaso()}
       </ScrollView>
 
-      {/* Glass navigation bar */}
+      {/* Navigation bar */}
       <View
         style={[
           styles.navBar,
@@ -3400,46 +3485,49 @@ const gs = StyleSheet.create({
     marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDERS.radius.lg,
     backgroundColor: COLORS.background.paper,
     borderColor: COLORS.border.light,
   },
   vehiculoTagIcon: {
     width: 36,
     height: 36,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.neutral.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
   },
   vehiculoTagMeta: { flex: 1, minWidth: 0, gap: 2 },
   vehiculoTagTitle: {
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    lineHeight: 20,
   },
   vehiculoTagSub: {
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    lineHeight: 16,
   },
   vehiculoTagHealth: {
-    borderRadius: BORDERS.radius.full,
-    borderWidth: BORDERS.width.thin,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xxs + 2,
+    borderRadius: BORDERS.radius.pill,
+    backgroundColor: COLORS.neutral.gray[100],
+    paddingHorizontal: SPACING.xs + 2,
+    paddingVertical: SPACING.xxs,
+  },
+  vehiculoTagHealthDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   vehiculoTagHealthText: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.primary,
     fontVariant: ['tabular-nums'],
   },
-  vehiculoTagSwap: { padding: 4 },
   catTab: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -3471,11 +3559,12 @@ const gs = StyleSheet.create({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: COLORS.background.default,
   },
   scrollMain: {
     flex: 1,
     minHeight: 0,
+    backgroundColor: COLORS.background.default,
     ...Platform.select({
       web: {
         flexBasis: 0,

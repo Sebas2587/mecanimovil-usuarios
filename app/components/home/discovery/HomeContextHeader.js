@@ -7,7 +7,7 @@ import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tok
 import VehicleHealthCompactRing from '../../vehicles/VehicleHealthCompactRing';
 
 /**
- * Header compacto: vehículo + salud (anillo Coinbase) + dirección + notificaciones.
+ * Header compacto: dirección + notificaciones arriba, vehículo + salud debajo.
  */
 const HomeContextHeader = ({
   selectedVehicle,
@@ -28,52 +28,27 @@ const HomeContextHeader = ({
   const showHealthRing =
     selectedVehicle && (healthLoading || healthAvailable || healthScore != null);
 
+  const addressLabel = hasAddresses && selectedAddress
+    ? selectedAddress.direccion || selectedAddress.etiqueta || 'Dirección'
+    : 'Agrega una dirección para ver talleres cercanos';
+
   return (
     <View style={styles.wrap}>
-      <View style={styles.topRow}>
-        {selectedVehicle ? (
-          <TouchableOpacity
-            style={styles.vehiclePill}
-            onPress={onOpenVehicleSelector}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Cambiar vehículo"
-          >
-            {selectedVehicle.foto ? (
-              <Image source={{ uri: selectedVehicle.foto }} style={styles.vehicleThumb} contentFit="cover" />
-            ) : (
-              <View style={[styles.vehicleThumb, styles.vehicleThumbFallback]}>
-                <Car size={16} color={COLORS.primary[500]} />
-              </View>
-            )}
-            <View style={styles.vehicleTextCol}>
-              <Text style={styles.vehicleTitle} numberOfLines={1}>
-                {selectedVehicle.marca_nombre || selectedVehicle.marca || '—'}{' '}
-                {selectedVehicle.modelo_nombre || selectedVehicle.modelo || ''}
-              </Text>
-              <Text style={styles.vehicleSub} numberOfLines={1}>
-                {selectedVehicle.patente || selectedVehicle.year || 'Toca para cambiar'}
-              </Text>
-            </View>
-            {showHealthRing ? (
-              <VehicleHealthCompactRing
-                score={healthScore ?? 0}
-                color={healthScoreColor || COLORS.primary[500]}
-                loading={healthLoading}
-                available={healthAvailable && !healthLoading}
-                onPress={onPressHealth}
-              />
-            ) : null}
-            <ChevronDown size={18} color={COLORS.text.tertiary} />
-          </TouchableOpacity>
-        ) : vehiclesLoading ? (
-          <HomeContextHeaderSkeleton />
-        ) : (
-          <TouchableOpacity style={styles.addVehiclePill} onPress={onAddVehicle} activeOpacity={0.85}>
-            <Plus size={18} color={COLORS.primary[500]} />
-            <Text style={styles.addVehicleText}>Agregar vehículo</Text>
-          </TouchableOpacity>
-        )}
+      <View style={styles.addressTopRow}>
+        <TouchableOpacity
+          style={styles.addressBtn}
+          onPress={onPressSelectAddress}
+          activeOpacity={0.85}
+          disabled={!onPressSelectAddress}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar dirección de servicio"
+        >
+          <MapPin size={16} color={COLORS.primary[500]} />
+          <Text style={styles.addressText} numberOfLines={1}>
+            {addressLabel}
+          </Text>
+          <ChevronDown size={16} color={COLORS.text.tertiary} style={styles.addressChevron} />
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.iconBtn}
@@ -90,22 +65,49 @@ const HomeContextHeader = ({
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity
-        style={styles.addressRow}
-        onPress={onPressSelectAddress}
-        activeOpacity={0.85}
-        disabled={!onPressSelectAddress}
-        accessibilityRole="button"
-        accessibilityLabel="Cambiar dirección de servicio"
-      >
-        <MapPin size={16} color={COLORS.primary[500]} />
-        <Text style={styles.addressText} numberOfLines={1}>
-          {hasAddresses && selectedAddress
-            ? selectedAddress.direccion || selectedAddress.etiqueta || 'Dirección'
-            : 'Agrega una dirección para ver talleres cercanos'}
-        </Text>
-        <ChevronDown size={16} color={COLORS.text.tertiary} />
-      </TouchableOpacity>
+      {selectedVehicle ? (
+        <TouchableOpacity
+          style={styles.vehiclePill}
+          onPress={onOpenVehicleSelector}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Cambiar vehículo"
+        >
+          {selectedVehicle.foto ? (
+            <Image source={{ uri: selectedVehicle.foto }} style={styles.vehicleThumb} contentFit="cover" />
+          ) : (
+            <View style={[styles.vehicleThumb, styles.vehicleThumbFallback]}>
+              <Car size={16} color={COLORS.primary[500]} />
+            </View>
+          )}
+          <View style={styles.vehicleTextCol}>
+            <Text style={styles.vehicleTitle} numberOfLines={1}>
+              {selectedVehicle.marca_nombre || selectedVehicle.marca || '—'}{' '}
+              {selectedVehicle.modelo_nombre || selectedVehicle.modelo || ''}
+            </Text>
+            <Text style={styles.vehicleSub} numberOfLines={1}>
+              {selectedVehicle.patente || selectedVehicle.year || 'Toca para cambiar'}
+            </Text>
+          </View>
+          {showHealthRing ? (
+            <VehicleHealthCompactRing
+              score={healthScore ?? 0}
+              color={healthScoreColor || COLORS.primary[500]}
+              loading={healthLoading}
+              available={healthAvailable && !healthLoading}
+              onPress={onPressHealth}
+            />
+          ) : null}
+          <ChevronDown size={18} color={COLORS.text.tertiary} />
+        </TouchableOpacity>
+      ) : vehiclesLoading ? (
+        <HomeContextHeaderSkeleton />
+      ) : (
+        <TouchableOpacity style={styles.addVehiclePill} onPress={onAddVehicle} activeOpacity={0.85}>
+          <Plus size={18} color={COLORS.primary[500]} />
+          <Text style={styles.addVehicleText}>Agregar vehículo</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -113,15 +115,31 @@ const HomeContextHeader = ({
 const styles = StyleSheet.create({
   wrap: {
     marginBottom: 14,
+    gap: 10,
   },
-  topRow: {
+  addressTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+  },
+  addressBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 0,
+    paddingVertical: 4,
+  },
+  addressText: {
+    flexShrink: 1,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.primary,
+  },
+  addressChevron: {
+    flexShrink: 0,
   },
   vehiclePill: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -160,7 +178,6 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   addVehiclePill: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -185,6 +202,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
     ...SHADOWS.sm,
   },
   bellBadge: {
@@ -205,18 +223,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.inverse,
     fontSize: 9,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
-  addressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-  },
-  addressText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.primary,
   },
 });
 

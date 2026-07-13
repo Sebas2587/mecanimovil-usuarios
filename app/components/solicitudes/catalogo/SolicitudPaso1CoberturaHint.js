@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary[50],
   },
   badgeMm: {
-    backgroundColor: COLORS.warning?.light ?? '#FFF8E6',
+    backgroundColor: COLORS.warning.light,
   },
   badgeText: {
     fontSize: TYPOGRAPHY.fontSize.xs,

@@ -1,6 +1,10 @@
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import SignatureScreen from 'react-native-signature-canvas';
+import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+
+const DEFAULT_PEN_COLOR = COLORS.text.primary;
+const DEFAULT_BG_COLOR = withOpacity(COLORS.background.paper, 0);
 
 const SignaturePad = forwardRef(function SignaturePad(
   {
@@ -9,8 +13,8 @@ const SignaturePad = forwardRef(function SignaturePad(
     onBegin,
     style,
     height = 300,
-    penColor = '#000000',
-    backgroundColor = 'rgba(255,255,255,0)',
+    penColor = DEFAULT_PEN_COLOR,
+    backgroundColor = DEFAULT_BG_COLOR,
     webStyle,
   },
   ref,

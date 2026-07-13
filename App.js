@@ -6,7 +6,7 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import {
   rootNavigationRef,
   notifyRootNavigationStateChange,
@@ -19,11 +19,11 @@ import AuthNavigator from './app/navigation/AuthNavigator';
 import AuthenticatedAppShell from './app/navigation/AuthenticatedAppShell';
 import { AuthProvider, useAuth } from './app/context/AuthContext';
 import { AgendamientoProvider } from './app/context/AgendamientoContext';
-import { BookingCartProvider } from './app/context/BookingCartContext';
 import { SolicitudesProvider } from './app/context/SolicitudesContext';
 import { ChatsProvider } from './app/context/ChatsContext';
 import { FavoritesProvider } from './app/context/FavoritesContext';
 import { ThemeProvider } from './app/design-system/theme/ThemeProvider';
+import { useAppFonts } from './app/design-system/fonts/useAppFonts';
 import {
   COLORS,
   ROUTES,
@@ -39,6 +39,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queryClient, asyncStoragePersister, shouldPersistQuery } from './app/config/queryClient';
 import './app/services/tripTrackingService';
 import { discardStalePaymentSessionOnColdStart } from './app/utils/pagoPendienteStorage';
+import { installLucideWebFillFix } from './app/design-system/icons/installLucideWebFillFix';
+
+installLucideWebFillFix();
 
 // ─── Push notifications: handler de nivel de módulo (requerido por Expo docs) ───
 // Debe ejecutarse ANTES de que cualquier componente se monte, para que las
@@ -141,12 +144,11 @@ if (typeof global !== 'undefined' && global.ErrorUtils) {
 
 // Configuración de TanStack Query importada de app/config/queryClient.js
 
-/** Guarda URL de ficha pública en el mismo momento en que React Navigation lee getInitialURL (crítico en iOS: segunda lectura suele ser null). */
+/** Guarda URL de ficha pública de proveedor en el mismo momento en que React Navigation lee getInitialURL (crítico en iOS: segunda lectura suele ser null). */
 async function persistPendingPublicDeepLinkUrl(url) {
   if (!url || typeof url !== 'string') return;
-  const isVehicle = /marketplace\/vehicle\/\d+/i.test(url);
   const isProvider = /provider\/(taller|mecanico|proveedor)\/\d+/i.test(url);
-  if (!isVehicle && !isProvider) return;
+  if (!isProvider) return;
   try {
     const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
     await AsyncStorage.setItem(PENDING_PUBLIC_DEEP_LINK_KEY, url);
@@ -199,17 +201,7 @@ const linking = {
           name: (name) => name || undefined,
         },
       },
-      // Ficha pública marketplace (web Vercel + deep link app)
-      MarketplaceVehicleDetail: {
-        path: 'marketplace/vehicle/:vehicleId',
-        parse: {
-          vehicleId: (id) => {
-            if (id == null || id === '') return undefined;
-            const n = parseInt(id, 10);
-            return Number.isNaN(n) ? id : n;
-          },
-        },
-      },
+      // marketplace/vehicle deep links ignorados (MarketplaceVehicleDetail eliminado)
     },
   },
   // Función para parsear URLs de Mercado Pago que vienen con query params
@@ -543,14 +535,7 @@ const MainImpl = ({ lastNotificationResponse }) => {
       const p = route?.params || {};
 
       if (pending.kind === 'vehicle') {
-        const already =
-          currentName === ROUTES.MARKETPLACE_VEHICLE_DETAIL &&
-          Number(p?.vehicleId) === Number(pending.vehicleId);
-        if (already) {
-          pendingGuestPublicRef.current = null;
-          return;
-        }
-        navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId: pending.vehicleId });
+        // Marketplace vehicle deep links ignorados (pantalla eliminada)
         pendingGuestPublicRef.current = null;
         return;
       }
@@ -587,16 +572,16 @@ const MainImpl = ({ lastNotificationResponse }) => {
       if (!navigationRef.isReady()) return;
       const vehicleId = parseMarketplaceVehicleIdFromUrl(url);
       const provider = vehicleId ? null : parsePublicProviderFromUrl(url);
-      if (!vehicleId && !provider) {
+      if (vehicleId) {
+        await AsyncStorage.removeItem(PENDING_PUBLIC_DEEP_LINK_KEY);
+        return;
+      }
+      if (!provider) {
         await AsyncStorage.removeItem(PENDING_PUBLIC_DEEP_LINK_KEY);
         return;
       }
       await AsyncStorage.removeItem(PENDING_PUBLIC_DEEP_LINK_KEY);
-      if (vehicleId) {
-        navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId });
-      } else {
-        navigationRef.navigate(ROUTES.PROVIDER_DETAIL, { type: provider.type, id: provider.id });
-      }
+      navigationRef.navigate(ROUTES.PROVIDER_DETAIL, { type: provider.type, id: provider.id });
     } catch (e) {
       logger.warn('consumePendingPublicDeepLinkFromStorage:', e);
     }
@@ -755,12 +740,12 @@ const MainImpl = ({ lastNotificationResponse }) => {
           }
           break;
 
-        // Ofertas recibidas en un vehículo publicado en marketplace
+        // Ofertas recibidas en un vehículo publicado en marketplace (pantalla eliminada → perfil del vehículo)
         case 'marketplace_offer':
         case 'nueva_oferta_marketplace':
         case 'marketplace_new_offer':
           if (vehicle_id) {
-            navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId: vehicle_id });
+            navigationRef.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: vehicle_id });
           } else {
             navigationRef.navigate(ROUTES.NOTIFICATION_CENTER);
           }
@@ -1339,8 +1324,9 @@ const MainImpl = ({ lastNotificationResponse }) => {
       const vehicleId = parseMarketplaceVehicleIdFromUrl(url);
       const provider = vehicleId ? null : parsePublicProviderFromUrl(url);
       if (vehicleId) {
-        pendingGuestPublicRef.current = { kind: 'vehicle', vehicleId };
-      } else if (provider) {
+        return;
+      }
+      if (provider) {
         pendingGuestPublicRef.current = { kind: 'provider', type: provider.type, id: provider.id };
       } else {
         return;
@@ -1369,11 +1355,14 @@ const MainImpl = ({ lastNotificationResponse }) => {
   }
 
   const navigationTheme = {
-    ...DarkTheme,
+    dark: false,
     colors: {
-      ...DarkTheme.colors,
-      background: '#030712',
-      card: '#030712',
+      primary: COLORS.primary?.[500] || '#205ae9',
+      background: COLORS.background?.default || '#f2f6fe',
+      card: COLORS.background?.paper || '#ffffff',
+      text: COLORS.text?.primary || '#030a1d',
+      border: COLORS.border?.light || '#e3e8f2',
+      notification: COLORS.primary?.[500] || '#205ae9',
     },
   };
 
@@ -1381,7 +1370,7 @@ const MainImpl = ({ lastNotificationResponse }) => {
     <View
       style={{
         flex: 1,
-        backgroundColor: '#030712',
+        backgroundColor: COLORS.background?.default || '#f2f6fe',
         ...(Platform.OS === 'web' ? { minHeight: 0, height: '100%' } : {}),
       }}
     >
@@ -1420,6 +1409,12 @@ const Main = () => {
 };
 
 export default function App() {
+  const { fontsLoaded } = useAppFonts();
+
+  if (!fontsLoaded) {
+    return <SplashScreen />;
+  }
+
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
@@ -1438,13 +1433,11 @@ export default function App() {
               <FavoritesProvider>
                 <ChatsProvider>
                   <AgendamientoProvider>
-                    <BookingCartProvider>
-                      <SolicitudesProvider>
+                                          <SolicitudesProvider>
                         <Main />
                         <StatusBar style="auto" />
                       </SolicitudesProvider>
-                    </BookingCartProvider>
-                  </AgendamientoProvider>
+                                      </AgendamientoProvider>
                 </ChatsProvider>
               </FavoritesProvider>
             </AuthProvider>

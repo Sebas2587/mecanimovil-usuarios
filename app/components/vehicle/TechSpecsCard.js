@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../base/Icon/Icon';
 import {
     getRevisionTecnicaUiState,
     getRevisionTecnicaToneStyles,
@@ -10,7 +10,6 @@ import {
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
-import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 /**
@@ -36,7 +35,7 @@ export function RevisionTecnicaCard({ vehicle, revisionRenewalDueISO = null, onR
                 ) : (
                     <View style={styles.rtFallbackInner}>
                         <View style={styles.labelContainer}>
-                            <Ionicons name="checkmark-circle-outline" size={18} color={COLORS.text.tertiary} />
+                            <Icon name="checkmark-circle-outline" size={18} color={COLORS.text.tertiary} />
                             <Text style={styles.rtFallbackLabel}>Mes indicado</Text>
                         </View>
                         <Text style={styles.rtFallbackValue}>{mesRaw}</Text>
@@ -88,7 +87,7 @@ const RevisionTecnicaInner = ({ vehicle, mesRaw, renewalDueISO, onRenewalSaved }
         >
             <View style={styles.rtHeaderRow}>
                 <View style={styles.labelContainer}>
-                    <Ionicons name="checkmark-circle-outline" size={18} color={toneStyles.accent} />
+                    <Icon name="checkmark-circle-outline" size={18} color={toneStyles.accent} />
                     <Text style={[styles.rtInnerLabel, { color: COLORS.text.secondary }]}>Mes de revisión</Text>
                 </View>
                 <Text style={[styles.rtInnerValue, { color: toneStyles.accent }]} numberOfLines={2}>
@@ -102,7 +101,7 @@ const RevisionTecnicaInner = ({ vehicle, mesRaw, renewalDueISO, onRenewalSaved }
                     onPress={handleConfirm}
                     activeOpacity={0.85}
                 >
-                    <Ionicons name="checkmark-done-outline" size={18} color={toneStyles.accent} style={{ marginRight: 8 }} />
+                    <Icon name="checkmark-done-outline" size={18} color={toneStyles.accent} style={{ marginRight: 8 }} />
                     <Text style={[styles.rtButtonText, { color: toneStyles.accent }]}>
                         ¿Ya realicé la revisión técnica?
                     </Text>
@@ -116,7 +115,7 @@ const SpecGridCell = ({ label, value, icon }) => (
     <View style={styles.specCell}>
         <View style={styles.specCellContent}>
             <View style={styles.specCellIconWrap}>
-                <Ionicons name={icon} size={16} color={COLORS.primary[500]} />
+                <Icon name={icon} size={16} color={COLORS.primary[500]} />
             </View>
             <Text style={styles.specCellLabel} numberOfLines={2}>
                 {label}
@@ -170,13 +169,12 @@ const TechSpecsCard = ({ vehicle }) => {
 const styles = StyleSheet.create({
     container: {
         paddingHorizontal: SPACING.container.horizontal,
-        marginBottom: SPACING.lg,
+        marginBottom: SPACING.md,
     },
     headerTitle: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.text.primary,
-        marginBottom: SPACING.sm,
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.secondary,
+        marginBottom: SPACING.xs,
     },
     grid: {
         flexDirection: 'row',
@@ -185,14 +183,13 @@ const styles = StyleSheet.create({
     },
     specCell: {
         width: '48%',
-        minHeight: 108,
-        borderRadius: BORDERS.radius.card.md,
+        minHeight: 96,
+        borderRadius: BORDERS.radius.lg,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
         marginBottom: SPACING.sm,
         overflow: 'hidden',
         backgroundColor: COLORS.background.paper,
-        ...SHADOWS.sm,
     },
     specCellContent: {
         padding: SPACING.sm,
@@ -202,13 +199,13 @@ const styles = StyleSheet.create({
         width: 28,
         height: 28,
         borderRadius: BORDERS.radius.sm,
-        backgroundColor: COLORS.primary[50],
+        backgroundColor: 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: SPACING.xs,
     },
     specCellLabel: {
-        fontSize: 11,
+        ...TYPOGRAPHY.styles.small,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
         color: COLORS.text.tertiary,
         textTransform: 'uppercase',
@@ -216,28 +213,24 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.xxs,
     },
     specCellValue: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.text.primary,
-        lineHeight: 19,
     },
     rtSection: {
         paddingHorizontal: SPACING.container.horizontal,
-        marginBottom: 20,
+        marginBottom: SPACING.md,
     },
     rtSectionTitle: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.text.primary,
-        marginBottom: SPACING.sm,
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.secondary,
+        marginBottom: SPACING.xs,
     },
     rtOuterCard: {
-        borderRadius: BORDERS.radius.card.lg,
+        borderRadius: BORDERS.radius.lg,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
         overflow: 'hidden',
         backgroundColor: COLORS.background.paper,
-        ...SHADOWS.sm,
     },
     rtInner: {
         padding: 14,

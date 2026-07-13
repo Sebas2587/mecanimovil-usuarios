@@ -1,89 +1,88 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import QRCode from 'react-native-qrcode-svg';
-import { useTheme } from '../../design-system/theme/useTheme';
-import Container from '../../components/layout/Container/Container'; // Adjusted path based on structure
-import Button from '../../components/base/Button/Button'; // Adjusted path based on structure
+import { Clock, ScanLine, ShieldCheck } from 'lucide-react-native';
+import AppHeader from '../../components/navigation/AppHeader';
+import Button from '../../components/base/Button/Button';
 import TransferenciaService from '../../services/transferenciaService';
-import { getOfferById } from '../../services/vehicle';
-import { ROUTES } from '../../utils/constants'; // Assuming ROUTES exists
+import { ROUTES } from '../../utils/constants';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../design-system/tokens';
 
 const TransferenciaVendedorScreen = () => {
-    const theme = useTheme();
     const navigation = useNavigation();
     const route = useRoute();
-    const { offerId } = route.params || {};
+    const { vehicleId, offerId, vehicle } = route.params || {};
 
     const [loading, setLoading] = useState(true);
     const [tokenData, setTokenData] = useState(null);
     const [error, setError] = useState(null);
     const pollingInterval = useRef(null);
 
-    const colors = theme.colors;
-    const typography = theme.typography;
-    const spacing = theme.spacing;
+    const stopPolling = useCallback(() => {
+        if (pollingInterval.current) {
+            clearInterval(pollingInterval.current);
+            pollingInterval.current = null;
+        }
+    }, []);
 
-    // 1. Generar Token al montar
+    const startPolling = useCallback((transferId) => {
+        stopPolling();
+        if (!transferId) return;
+
+        pollingInterval.current = setInterval(async () => {
+            try {
+                const status = await TransferenciaService.getTransferStatus(transferId);
+                if (status.estado === 'COMPLETADO') {
+                    stopPolling();
+                    const vName = status.vehicle_name || [
+                        vehicle?.marca?.nombre || vehicle?.marca_nombre,
+                        vehicle?.modelo?.nombre || vehicle?.modelo_nombre,
+                    ].filter(Boolean).join(' ') || 'Vehículo';
+                    const vYear = status.vehicle_year || vehicle?.year || '';
+                    navigation.replace(ROUTES.TRANSFERENCIA_EXITO, {
+                        vehicleId: status.vehicle_id || vehicleId,
+                        vehicleName: vYear ? `${vName} ${vYear}` : vName,
+                        newOwner: status.new_owner || 'Nuevo dueño',
+                    });
+                }
+            } catch (err) {
+                console.log('Error polling transfer status:', err);
+            }
+        }, 5000);
+    }, [navigation, stopPolling, vehicle, vehicleId]);
+
     useEffect(() => {
+        let cancelled = false;
+
         const generateToken = async () => {
             try {
-                if (!offerId) {
-                    throw new Error('ID de oferta no proporcionado');
+                if (!vehicleId && !offerId) {
+                    throw new Error('ID de vehículo no proporcionado');
                 }
-                const data = await TransferenciaService.generateToken(offerId);
+                const data = await TransferenciaService.generateToken({ vehicleId, offerId });
+                if (cancelled) return;
                 setTokenData(data);
-                startPolling();
+                startPolling(data.transfer_id);
             } catch (err) {
                 console.error(err);
-                setError(err.message || 'Error generando el código de entrega');
-                Alert.alert('Error', 'No se pudo generar el código de transferencia. ' + (err.message || ''));
+                if (cancelled) return;
+                const message = err.message || 'Error generando el código de entrega';
+                setError(message);
+                Alert.alert('Error', 'No se pudo generar el código de transferencia. ' + message);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
         generateToken();
 
-        return () => stopPolling();
-    }, [offerId]);
-
-    // 2. Polling para verificar estado de la oferta
-    const startPolling = () => {
-        stopPolling();
-        pollingInterval.current = setInterval(async () => {
-            try {
-                const offer = await getOfferById(offerId);
-                if (offer.estado === 'completada' || offer.estado === 'vendido') {
-                    stopPolling();
-                    const vName = [
-                        offer.vehiculo_marca || offer.vehiculo?.marca?.nombre,
-                        offer.vehiculo_modelo || offer.vehiculo?.modelo?.nombre,
-                    ].filter(Boolean).join(' ') || 'Vehículo';
-                    const vYear = offer.vehiculo_year || offer.vehiculo?.year || '';
-                    const buyerName = [
-                        offer.comprador_nombre || offer.comprador?.first_name,
-                        offer.comprador_apellido || offer.comprador?.last_name,
-                    ].filter(Boolean).join(' ') || offer.comprador?.username || offer.comprador?.email || 'Comprador';
-
-                    navigation.replace(ROUTES.TRANSFERENCIA_EXITO || 'TransferenciaExito', {
-                        vehicleId: offer.vehiculo?.id || offer.vehiculo,
-                        vehicleName: vYear ? `${vName} ${vYear}` : vName,
-                        newOwner: buyerName,
-                    });
-                }
-            } catch (err) {
-                console.log('Error polling offer status:', err);
-            }
-        }, 6000); // Check every 6 seconds
-    };
-
-    const stopPolling = () => {
-        if (pollingInterval.current) {
-            clearInterval(pollingInterval.current);
-            pollingInterval.current = null;
-        }
-    };
+        return () => {
+            cancelled = true;
+            stopPolling();
+        };
+    }, [vehicleId, offerId, startPolling, stopPolling]);
 
     const handleCancel = () => {
         stopPolling();
@@ -92,158 +91,182 @@ const TransferenciaVendedorScreen = () => {
 
     if (loading) {
         return (
-            <Container style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={colors.primary[500]} />
-                <Text style={[styles.loadingText, { color: colors.text.secondary, marginTop: spacing.md }]}>
-                    Generando código seguro...
-                </Text>
-            </Container>
+            <SafeAreaView style={styles.focusRoot} edges={['top', 'bottom']}>
+                <View style={styles.centerContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary[500]} />
+                    <Text style={[TYPOGRAPHY.styles.body, styles.loadingText]}>
+                        Generando código seguro...
+                    </Text>
+                </View>
+            </SafeAreaView>
         );
     }
 
     if (error) {
         return (
-            <Container style={styles.centerContainer}>
-                <Text style={[styles.errorText, { color: colors.error.main }]}>{error}</Text>
-                <Button
-                    title="Volver"
-                    onPress={handleCancel}
-                    style={{ marginTop: spacing.lg }}
-                />
-            </Container>
+            <SafeAreaView style={styles.focusRoot} edges={['top', 'bottom']}>
+                <AppHeader title="Entrega Digital" onBack={handleCancel} />
+                <View style={styles.centerContainer}>
+                    <Text style={[TYPOGRAPHY.styles.body, styles.errorText]}>{error}</Text>
+                    <Button
+                        title="Volver"
+                        onPress={handleCancel}
+                        style={{ marginTop: SPACING.lg }}
+                    />
+                </View>
+            </SafeAreaView>
         );
     }
 
     return (
-        <Container safeArea>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                <View style={styles.header}>
-                    <Text style={[styles.title, { color: colors.text.primary, fontSize: typography.fontSize['2xl'] }]}>
-                        Entrega Digital
-                    </Text>
-                    <Text style={[styles.subtitle, { color: colors.text.secondary, fontSize: typography.fontSize.md }]}>
-                        Muestra este código al comprador para transferir el vehículo instantáneamente.
-                    </Text>
-                </View>
+        <SafeAreaView style={styles.focusRoot} edges={['top', 'bottom']}>
+            <AppHeader title="Entrega Digital" onBack={handleCancel} />
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                <Text style={[TYPOGRAPHY.styles.h2, styles.title]}>
+                    Código de entrega
+                </Text>
+                <Text style={[TYPOGRAPHY.styles.body, styles.subtitle]}>
+                    Muestra este código al comprador para transferir el vehículo e historial.
+                </Text>
 
-                <View style={[styles.card, {
-                    backgroundColor: colors.background.paper,
-                    borderRadius: theme.borders.radius.card.lg,
-                    padding: spacing.xl,
-                    shadowColor: colors.text.primary,
-                    shadowOpacity: 0.1,
-                    shadowRadius: 10,
-                    elevation: 5
-                }]}>
-                    {tokenData && (
+                <View style={[styles.qrCard, SHADOWS.sm]}>
+                    {tokenData ? (
                         <View style={styles.qrContainer}>
                             <QRCode
-                                value={tokenData.token} // En este caso el backend espera el token en complete_transfer
+                                value={tokenData.token}
                                 size={220}
-                                color={colors.primary[500]}
-                                backgroundColor="white"
+                                color={COLORS.primary[500]}
+                                backgroundColor={COLORS.background.paper}
                             />
                         </View>
-                    )}
+                    ) : null}
 
-                    <Text style={[styles.codeInstruction, { color: colors.text.secondary, marginTop: spacing.lg }]}>
-                        El código expira en 15 minutos
-                    </Text>
+                    <View style={styles.expiryRow}>
+                        <Clock size={16} color={COLORS.text.secondary} strokeWidth={2} />
+                        <Text style={[TYPOGRAPHY.styles.caption, styles.expiryText]}>
+                            El código expira en 15 minutos
+                        </Text>
+                    </View>
                 </View>
 
                 <View style={styles.instructions}>
                     <View style={styles.step}>
-                        <View style={[styles.stepBadge, { backgroundColor: colors.primary[100] }]}>
-                            <Text style={[styles.stepNumber, { color: colors.primary[700] }]}>1</Text>
+                        <View style={styles.stepIcon}>
+                            <ScanLine size={18} color={COLORS.primary[500]} strokeWidth={2} />
                         </View>
-                        <Text style={[styles.stepText, { color: colors.text.secondary }]}>
-                            El comprador debe escanear este código desde su App.
+                        <Text style={[TYPOGRAPHY.styles.body, styles.stepText]}>
+                            El comprador debe escanear este código desde su App (Transferir vehículo → Escanear QR).
                         </Text>
                     </View>
                     <View style={styles.step}>
-                        <View style={[styles.stepBadge, { backgroundColor: colors.primary[100] }]}>
-                            <Text style={[styles.stepNumber, { color: colors.primary[700] }]}>2</Text>
+                        <View style={styles.stepIcon}>
+                            <ShieldCheck size={18} color={COLORS.primary[500]} strokeWidth={2} />
                         </View>
-                        <Text style={[styles.stepText, { color: colors.text.secondary }]}>
+                        <Text style={[TYPOGRAPHY.styles.body, styles.stepText]}>
                             Confirma que has recibido el pago antes de mostrar este código.
                         </Text>
                     </View>
                 </View>
 
                 <Button
-                    title="Cancelar / Volver"
+                    title="Cancelar"
                     variant="ghost"
                     onPress={handleCancel}
-                    style={{ marginTop: spacing.xl }}
+                    style={styles.cancelBtn}
                 />
             </ScrollView>
-        </Container>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
+    focusRoot: {
+        flex: 1,
+        backgroundColor: COLORS.background.default,
+    },
     centerContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
+        padding: SPACING.lg,
     },
     scrollContent: {
-        padding: 20,
+        paddingHorizontal: SPACING.container.horizontal,
+        paddingBottom: SPACING.xl,
         alignItems: 'center',
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: 30,
     },
     title: {
-        fontWeight: 'bold',
-        marginBottom: 10,
+        color: COLORS.text.primary,
         textAlign: 'center',
+        marginTop: SPACING.md,
+        marginBottom: SPACING.xs,
     },
     subtitle: {
+        color: COLORS.text.secondary,
         textAlign: 'center',
-        paddingHorizontal: 20,
+        marginBottom: SPACING.lg,
+        paddingHorizontal: SPACING.sm,
     },
-    card: {
+    qrCard: {
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.card.lg,
+        padding: SPACING.lg,
         alignItems: 'center',
         width: '100%',
         maxWidth: 340,
     },
     qrContainer: {
-        padding: 10,
-        backgroundColor: 'white',
-        borderRadius: 10,
+        padding: SPACING.sm,
+        backgroundColor: COLORS.background.paper,
+        borderRadius: BORDERS.radius.md,
     },
-    codeInstruction: {
-        fontSize: 14,
-        fontWeight: '500',
+    expiryRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xs,
+        marginTop: SPACING.lg,
+    },
+    expiryText: {
+        color: COLORS.text.secondary,
     },
     instructions: {
         width: '100%',
-        marginTop: 30,
+        marginTop: SPACING.lg,
+        gap: SPACING.md,
     },
     step: {
         flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 15,
+        alignItems: 'flex-start',
+        gap: SPACING.sm,
     },
-    stepBadge: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+    stepIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.primary[50],
+        alignItems: 'center',
         justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 15,
-    },
-    stepNumber: {
-        fontWeight: 'bold',
-        fontSize: 14,
     },
     stepText: {
         flex: 1,
-        fontSize: 14,
-        lineHeight: 20,
+        color: COLORS.text.secondary,
+        lineHeight: 22,
+        paddingTop: SPACING.xxs,
+    },
+    cancelBtn: {
+        marginTop: SPACING.xl,
+        width: '100%',
+    },
+    loadingText: {
+        color: COLORS.text.secondary,
+        marginTop: SPACING.md,
+    },
+    errorText: {
+        color: COLORS.error.main,
+        textAlign: 'center',
     },
 });
 

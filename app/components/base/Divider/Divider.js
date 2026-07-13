@@ -5,11 +5,11 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { TOKENS } from '../../../design-system/tokens';
+import { COLORS, TOKENS } from '../../../design-system/tokens';
 
 /**
  * Divider Component
- * 
+ *
  * @param {string} orientation - Orientación: 'horizontal' o 'vertical'
  * @param {string} variant - Variante: 'light', 'main', 'dark'
  * @param {object} style - Estilos adicionales
@@ -20,17 +20,15 @@ const Divider = ({
   style,
   ...props
 }) => {
-  // Obtener color según la variante
   const getColor = () => {
-    // Fallback safe access
-    const colors = TOKENS?.colors?.border || { light: '#D7DFE3', main: '#C3CFD5', dark: '#9BAFB9' };
+    const colors = COLORS.border;
 
     switch (variant) {
       case 'main':
         return colors.main;
       case 'dark':
         return colors.dark;
-      default: // 'light'
+      default:
         return colors.light;
     }
   };
@@ -56,9 +54,7 @@ const Divider = ({
 };
 
 const styles = StyleSheet.create({
-  divider: {
-    // Estilos base definidos inline
-  },
+  divider: {},
   horizontal: {
     marginVertical: TOKENS?.spacing?.sm || 8,
   },
@@ -68,4 +64,3 @@ const styles = StyleSheet.create({
 });
 
 export default Divider;
-

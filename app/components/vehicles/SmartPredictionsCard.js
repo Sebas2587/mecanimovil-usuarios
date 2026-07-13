@@ -56,7 +56,7 @@ const PredictionItem = memo(({ prediction, onPress }) => {
               <Text style={styles.metricLabel}>Riesgo 30 días</Text>
               <Text style={[
                 styles.metricValue,
-                { color: prediction.probabilidad_falla_30 > 50 ? COLORS.feedback?.error?.main || '#D32F2F' : COLORS.text.primary },
+                { color: prediction.probabilidad_falla_30 > 50 ? COLORS.error.main : COLORS.text.primary },
               ]}>
                 {Math.round(prediction.probabilidad_falla_30)}%
               </Text>
@@ -74,7 +74,7 @@ const PredictionItem = memo(({ prediction, onPress }) => {
       <View style={styles.itemFooter}>
         {factorClima > 1.0 && (
           <View style={styles.climateChip}>
-            <Cloud size={10} color={COLORS.feedback?.warning?.main || '#FF9800'} />
+            <Cloud size={10} color={COLORS.warning.main} />
             <Text style={styles.climateText}>
               Clima +{Math.round((factorClima - 1) * 100)}%
             </Text>
@@ -146,17 +146,17 @@ const SmartPredictionsCard = ({
       {(criticos > 0 || proximos > 0) && (
         <View style={styles.summaryRow}>
           {criticos > 0 && (
-            <View style={[styles.summaryChip, { borderColor: '#D32F2F' }]}>
-              <AlertTriangle size={12} color="#D32F2F" />
-              <Text style={[styles.summaryChipText, { color: '#D32F2F' }]}>
+            <View style={[styles.summaryChip, { borderColor: COLORS.error.main }]}>
+              <AlertTriangle size={12} color={COLORS.error.main} />
+              <Text style={[styles.summaryChipText, { color: COLORS.error.main }]}>
                 {criticos} crítico{criticos > 1 ? 's' : ''}
               </Text>
             </View>
           )}
           {proximos > 0 && (
-            <View style={[styles.summaryChip, { borderColor: '#FF9800' }]}>
-              <Calendar size={12} color="#FF9800" />
-              <Text style={[styles.summaryChipText, { color: '#FF9800' }]}>
+            <View style={[styles.summaryChip, { borderColor: COLORS.warning.main }]}>
+              <Calendar size={12} color={COLORS.warning.main} />
+              <Text style={[styles.summaryChipText, { color: COLORS.warning.main }]}>
                 {proximos} en 30 días
               </Text>
             </View>
@@ -308,12 +308,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: withOpacity('#FF9800', 0.12),
+    backgroundColor: withOpacity(COLORS.warning.main, 0.12),
   },
   climateText: {
     fontSize: 9,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: '#FF9800',
+    color: COLORS.warning.main,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },

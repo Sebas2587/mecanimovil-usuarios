@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { ClipboardList, HeartPulse, CloudRain } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { ClipboardList, HeartPulse, ChevronRight } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
-import Button from '../../base/Button/Button';
 
-function pickBanner({ solicitud, healthScore, climateRiskPct, weatherAvailable }) {
+function pickBanner({ solicitud, healthScore }) {
   if (solicitud) {
     const titulo =
       solicitud.titulo ||
@@ -17,7 +16,6 @@ function pickBanner({ solicitud, healthScore, climateRiskPct, weatherAvailable }
       Icon: ClipboardList,
       title: 'Solicitud en curso',
       subtitle: titulo,
-      primaryCta: 'Ver estado',
     };
   }
   if (healthScore != null && healthScore < 60) {
@@ -27,17 +25,6 @@ function pickBanner({ solicitud, healthScore, climateRiskPct, weatherAvailable }
       Icon: HeartPulse,
       title: 'Tu auto necesita atención',
       subtitle: `Salud ${Math.round(healthScore)}% · Agenda un servicio recomendado`,
-      primaryCta: 'Agendar servicio',
-    };
-  }
-  if (weatherAvailable && climateRiskPct != null && climateRiskPct >= 65) {
-    return {
-      key: 'weather',
-      tone: 'warning',
-      Icon: CloudRain,
-      title: 'Riesgo climático elevado',
-      subtitle: `Desgaste ${climateRiskPct}% · Revisa frenos y neumáticos`,
-      primaryCta: 'Agendar revisión',
     };
   }
   if (healthScore != null && healthScore < 75) {
@@ -47,24 +34,23 @@ function pickBanner({ solicitud, healthScore, climateRiskPct, weatherAvailable }
       Icon: HeartPulse,
       title: 'Mantenimiento preventivo',
       subtitle: `Salud ${Math.round(healthScore)}% · Anticipa revisiones a tiempo`,
-      primaryCta: 'Agendar',
     };
   }
   return null;
 }
 
-/** Icono semántico; superficie canvas + borde neutro (Coinbase). */
+/** Círculo tonal por severidad — fondo transparente; el color va solo en el trazo. */
 const TONE_CONFIG = {
   info: {
-    iconBg: COLORS.neutral.gray[100],
+    iconBg: 'transparent',
     iconColor: COLORS.primary[600],
   },
   danger: {
-    iconBg: COLORS.neutral.gray[100],
+    iconBg: 'transparent',
     iconColor: COLORS.error.main,
   },
   warning: {
-    iconBg: COLORS.neutral.gray[100],
+    iconBg: 'transparent',
     iconColor: COLORS.warning.dark,
   },
 };
@@ -72,16 +58,13 @@ const TONE_CONFIG = {
 const HomeContextualBanner = ({
   solicitud,
   healthScore,
-  climateRiskPct,
-  weatherAvailable,
   onPressSolicitud,
   onPressHealth,
-  onPressClima,
   onPressAgendar,
 }) => {
   const banner = useMemo(
-    () => pickBanner({ solicitud, healthScore, climateRiskPct, weatherAvailable }),
-    [solicitud, healthScore, climateRiskPct, weatherAvailable],
+    () => pickBanner({ solicitud, healthScore }),
+    [solicitud, healthScore],
   );
 
   if (!banner) return null;
@@ -91,7 +74,6 @@ const HomeContextualBanner = ({
 
   const onPrimary = () => {
     if (banner.key === 'solicitud') onPressSolicitud?.();
-    else if (banner.key === 'weather') onPressAgendar?.() || onPressClima?.();
     else onPressAgendar?.();
   };
 
@@ -99,49 +81,41 @@ const HomeContextualBanner = ({
     banner.key.startsWith('health') && typeof onPressHealth === 'function';
 
   return (
-    <View style={styles.card} accessibilityRole="summary">
-      <View style={styles.body}>
-        <View style={styles.headerRow}>
-          <View style={[styles.iconBox, { backgroundColor: tone.iconBg }]}>
-            <Icon size={20} color={tone.iconColor} strokeWidth={2} />
-          </View>
-          <View style={styles.textCol}>
-            <Text style={styles.title} numberOfLines={2}>
-              {banner.title}
-            </Text>
-            <Text style={styles.subtitle} numberOfLines={2}>
-              {banner.subtitle}
-            </Text>
-          </View>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPrimary}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={banner.title}
+    >
+      <View style={styles.row}>
+        <View style={[styles.iconCircle, { backgroundColor: tone.iconBg }]}>
+          <Icon size={20} color={tone.iconColor} strokeWidth={2} fill="none" />
         </View>
 
-        <View style={styles.primaryBtnWrap}>
-          <Button
-            title={banner.primaryCta}
-            onPress={onPrimary}
-            type="primary"
-            variant="solid"
-            size="md"
-            fullWidth
-            accessibilityLabel={banner.primaryCta}
-          />
-        </View>
-
-        {showHealthLink ? (
-          <View style={styles.secondaryBtnWrap}>
-            <Button
-              title="Ver salud del vehículo"
+        <View style={styles.textCol}>
+          <Text style={styles.title} numberOfLines={2}>
+            {banner.title}
+          </Text>
+          <Text style={styles.subtitle} numberOfLines={2}>
+            {banner.subtitle}
+          </Text>
+          {showHealthLink ? (
+            <Text
+              style={styles.healthLink}
               onPress={onPressHealth}
-              type="primary"
-              variant="text"
-              size="md"
-              fullWidth
+              suppressHighlighting
+              accessibilityRole="link"
               accessibilityLabel="Ver salud del vehículo"
-            />
-          </View>
-        ) : null}
+            >
+              Ver salud del vehículo
+            </Text>
+          ) : null}
+        </View>
+
+        <ChevronRight size={20} color={COLORS.text.tertiary} strokeWidth={2} />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -149,53 +123,42 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: SPACING.md,
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.md,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
-    overflow: 'hidden',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
   },
-  body: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  headerRow: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
-  iconBox: {
+  iconCircle: {
     width: 40,
     height: 40,
-    borderRadius: BORDERS.radius.sm,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textCol: {
     flex: 1,
     minWidth: 0,
-    paddingTop: 2,
   },
   title: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
-    letterSpacing: TYPOGRAPHY.letterSpacing.tight,
-    lineHeight: Math.round(TYPOGRAPHY.fontSize.base * TYPOGRAPHY.lineHeight.tight),
-    marginBottom: 4,
   },
   subtitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.regular,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: Math.round(TYPOGRAPHY.fontSize.sm * TYPOGRAPHY.lineHeight.normal),
+    marginTop: 2,
   },
-  primaryBtnWrap: {
-    marginTop: SPACING.sm,
-    width: '100%',
-  },
-  secondaryBtnWrap: {
-    marginTop: SPACING.xxs,
-    width: '100%',
+  healthLink: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[600],
+    marginTop: SPACING.xs,
+    alignSelf: 'flex-start',
   },
 });
 

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { especialidadesTecnicoTexto } from '../../utils/solicitudTecnicoPreferido';
+import Icon from '../base/Icon/Icon';
 
 /**
  * Fila compacta de técnico preferido (avatar + nombre + especialidad).
@@ -21,7 +21,7 @@ export default function TecnicoPreferidoRow({ tecnico, variant = 'grid' }) {
           <Image source={{ uri: tecnico.foto_url }} style={styles.inlineAvatar} />
         ) : (
           <View style={styles.inlineAvatarPlaceholder}>
-            <Ionicons name="person" size={16} color={COLORS.primary[600]} />
+            <Icon name="person" size={16} color={COLORS.primary[600]} />
           </View>
         )}
         <View style={styles.inlineInfo}>
@@ -49,7 +49,7 @@ export default function TecnicoPreferidoRow({ tecnico, variant = 'grid' }) {
         <Image source={{ uri: tecnico.foto_url }} style={styles.gridAvatar} />
       ) : (
         <View style={styles.gridIconWrap}>
-          <Ionicons name="person-outline" size={18} color={COLORS.text.secondary} />
+          <Icon name="person-outline" size={18} color={COLORS.text.secondary} />
         </View>
       )}
       <View style={styles.gridInfo}>

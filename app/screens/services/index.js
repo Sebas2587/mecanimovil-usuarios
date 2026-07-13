@@ -1,1 +1,1 @@
-export { default as ServiceDetailScreen } from './ServiceDetailScreen';
+// Legacy services screens removed (ServicesScreen, CategoryServicesListScreen)

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Star, MapPin, CircleAlert } from 'lucide-react-native';
 import { getProvidersByVehiculo } from '../../services/providers';
 import ProvidersList from '../../components/providers/ProvidersList';
+import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -55,35 +56,15 @@ const VehicleProvidersScreen = ({ route, navigation }) => {
   };
 
   const renderTabs = () => (
-    <View style={styles.tabContainer}>
-      <TouchableOpacity
-        style={[styles.tabButton, activeTab === 'talleres' && styles.activeTabButton]}
-        onPress={() => setActiveTab('talleres')}
-      >
-        <MaterialIcons
-          name="build"
-          size={20}
-          color={activeTab === 'talleres' ? COLORS.primary[500] : COLORS.text.tertiary}
-        />
-        <Text style={[styles.tabText, activeTab === 'talleres' && styles.activeTabText]}>
-          Talleres ({providers.talleres.length})
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.tabButton, activeTab === 'mecanicos' && styles.activeTabButton]}
-        onPress={() => setActiveTab('mecanicos')}
-      >
-        <MaterialIcons
-          name="person"
-          size={20}
-          color={activeTab === 'mecanicos' ? COLORS.primary[500] : COLORS.text.tertiary}
-        />
-        <Text style={[styles.tabText, activeTab === 'mecanicos' && styles.activeTabText]}>
-          Mecánicos ({providers.mecanicos.length})
-        </Text>
-      </TouchableOpacity>
-    </View>
+    <SegmentedControl
+      segments={[
+        { id: 'talleres', label: 'Talleres', count: providers.talleres.length, Icon: Star },
+        { id: 'mecanicos', label: 'Mecánicos', count: providers.mecanicos.length, Icon: MapPin },
+      ]}
+      value={activeTab}
+      onChange={setActiveTab}
+      style={styles.tabContainer}
+    />
   );
 
   const renderContent = () => {
@@ -99,7 +80,7 @@ const VehicleProvidersScreen = ({ route, navigation }) => {
     if (error) {
       return (
         <View style={styles.centerContainer}>
-          <MaterialIcons name="error-outline" size={50} color={COLORS.error[500]} />
+          <CircleAlert size={50} color={COLORS.error[500]} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadProviders}>
             <Text style={styles.retryButtonText}>Reintentar</Text>
@@ -174,33 +155,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabContainer: {
-    flexDirection: 'row',
-    borderBottomWidth: BORDERS.width.thin,
-    borderBottomColor: COLORS.border.light,
-    backgroundColor: COLORS.background.default,
-  },
-  tabButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: SPACING.container.horizontal,
     paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.neutral.gray[100],
-    gap: SPACING.xxs,
-  },
-  activeTabButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: COLORS.primary[500],
-    backgroundColor: COLORS.background.paper,
-  },
-  tabText: {
-    marginLeft: SPACING.xxs,
-    color: COLORS.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
-  activeTabText: {
-    color: COLORS.primary[600],
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
 });
 

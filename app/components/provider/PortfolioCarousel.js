@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 const PortfolioCarousel = ({ portfolio }) => {
   if (!portfolio || portfolio.length === 0) return null;
@@ -12,7 +12,7 @@ const PortfolioCarousel = ({ portfolio }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons name="images" size={18} color={COLORS.primary[500]} />
+          <Icon name="images" size={18} color={COLORS.primary[500]} />
         </View>
         <Text style={styles.title}>Trabajos Realizados</Text>
       </View>

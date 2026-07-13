@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, StatusBar, RefreshControl, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ClipboardList, Store, MessageCircle, Navigation } from 'lucide-react-native';
+import { ClipboardList, MessageCircle } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
@@ -15,10 +15,6 @@ import { usePendingReviews } from '../../hooks/usePendingReviews';
 import { useConversationsList } from '../../hooks/useChats';
 import { useVehiclesHealth } from '../../hooks/useVehicles';
 import { useUserAddresses } from '../../hooks/useAddress';
-import { getWeatherPrediction } from '../../services/weatherService';
-import { getNearbyProvidersForPanel } from '../../services/providers';
-import { getActividadMercadoVehiculo } from '../../services/user';
-import { geocodeAddress } from '../../services/location';
 import AddressSelectionModal from '../../components/location/AddressSelectionModal';
 import {
   getHealthColorToken,
@@ -29,38 +25,19 @@ import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehi
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import {
   HomeContextHeader,
-  HomeSearchBar,
   HomeCategoryGrid,
   HomeContextualBanner,
   HomePendingReviewBanner,
   HomeHighlightedRow,
-  HomeNearbyRow,
-  HomeTrendingServicesRow,
-  HomeHealthServicesRow,
-  // HomeAgendamientoSheet, // Sheet IA deshabilitado temporalmente
   HomeVehicleSelectorModal,
   HomeQuickActions,
 } from '../../components/home/discovery';
 import { EXPLORE_MODE_CERCA, EXPLORE_MODE_PARA_TI } from '../../components/providers/explore';
-import { shortAddressLabel } from '../../components/home/shared/homeProviderListUtils';
-import {
-  navigateCrearSolicitudConServicio,
-  navigateCrearSolicitudDesdeDesgaste,
-  navigateCrearSolicitudDesdeTrending,
-  navigateCrearSolicitudDesdeHome,
-} from '../../components/home/shared/homeScheduleNavigation';
+import { navigateCrearSolicitudDesdeHome } from '../../components/home/shared/homeScheduleNavigation';
 import { useParaTiProviders } from '../../hooks/useParaTiProviders';
 import { useTripTracking } from '../../context/TripTrackingContext';
 import { TRIP_ACTIVE_BAR_HEIGHT, TRIP_ACTIVE_BAR_GAP } from '../../components/trip/TripActiveBar';
-import {
-  HomeVehicleDashboardCard,
-  HomeWeatherDetailModal,
-} from '../../components/home/dashboard';
 import { H_PAD, TAB_BAR_BASE_HEIGHT, SCROLL_BOTTOM_GAP } from '../../components/home/shared/homeLayoutConstants';
-import {
-  resolveVehicleMarcaId,
-  coordsFromSavedAddress,
-} from '../../components/home/shared/homeVehicleUtils';
 import { COLORS } from '../../design-system/tokens';
 
 const UserPanelScreen = () => {
@@ -78,44 +55,34 @@ const UserPanelScreen = () => {
     data: serviceConversations = [],
     refetch: refetchServiceConversations,
   } = useConversationsList('service');
-  const {
-    data: marketplaceConversations = [],
-    refetch: refetchMarketplaceConversations,
-  } = useConversationsList('marketplace');
 
-  const chatsUnreadTotal = useMemo(() => {
-    const sum = (list) =>
-      (Array.isArray(list) ? list : []).reduce(
+  const chatsUnreadTotal = useMemo(
+    () =>
+      (Array.isArray(serviceConversations) ? serviceConversations : []).reduce(
         (acc, c) => acc + (Number(c?.unread_count) || 0),
         0,
-      );
-    return sum(serviceConversations) + sum(marketplaceConversations);
-  }, [serviceConversations, marketplaceConversations]);
+      ),
+    [serviceConversations],
+  );
 
   useFocusEffect(
     useCallback(() => {
       cargarSolicitudesActivas();
-    }, [cargarSolicitudesActivas])
+    }, [cargarSolicitudesActivas]),
   );
 
   useFocusEffect(
     useCallback(() => {
       refetchServiceConversations();
-      refetchMarketplaceConversations();
       refetchPendingReviews();
-    }, [refetchServiceConversations, refetchMarketplaceConversations, refetchPendingReviews]),
+    }, [refetchServiceConversations, refetchPendingReviews]),
   );
 
-  // ── Vehicle selection ──
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
   const [selectorVisible, setSelectorVisible] = useState(false);
-
-  const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
-  const weatherForceRefreshRef = useRef(false);
 
-  // ── Data queries ──
   const {
     data: vehiclesRaw,
     isLoading: vehiclesLoading,
@@ -133,19 +100,11 @@ const UserPanelScreen = () => {
 
   const vehicles = useMemo(() => vehiclesRaw || [], [vehiclesRaw]);
   const vehiclesHealth = useVehiclesHealth(vehicles);
-
-  // No invalidar `vehicleHealth` al enfocar el panel: el refetch suele traer JSON viejo (caché
-  // HTTP/Redis) y borra el valor que VehicleHealthScreen ya escribió con setQueryData.
-  // La salud del círculo se alinea con la pantalla de salud vía esa caché + pull-to-refresh.
+  const showUserPanelSkeleton = vehiclesPending;
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      refetchVehicles();
-    }
+    if (Platform.OS === 'web') refetchVehicles();
   }, [refetchVehicles]);
-
-  // Solo skeleton en carga inicial; refetch en background no debe ocultar categorías ni el panel.
-  const showUserPanelSkeleton = vehiclesPending;
 
   useEffect(() => {
     if (vehicles.length > 0 && !selectedVehicleId) {
@@ -159,7 +118,7 @@ const UserPanelScreen = () => {
 
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId) || null,
-    [vehicles, selectedVehicleId]
+    [vehicles, selectedVehicleId],
   );
 
   const openNuevaSolicitud = useCallback(() => {
@@ -215,10 +174,7 @@ const UserPanelScreen = () => {
 
   const healthLoading = useMemo(() => {
     if (!selectedVehicle?.id) return false;
-    return (
-      selectedHealthRow?.isLoading === true
-      && !healthAvailable
-    );
+    return selectedHealthRow?.isLoading === true && !healthAvailable;
   }, [selectedVehicle?.id, selectedHealthRow?.isLoading, healthAvailable]);
 
   const healthScore = useMemo(() => {
@@ -259,25 +215,8 @@ const UserPanelScreen = () => {
     return solicitudesActivas.find((s) => solicitudVisibleParaVehiculoDashboard(s, vid)) ?? null;
   }, [solicitudesActivas, activeSolicitudesCount, selectedVehicle?.id]);
 
-  const openRegistrarViaje = useCallback(() => {
-    navigation.navigate(ROUTES.REGISTRAR_VIAJE, {
-      vehicleId: selectedVehicle?.id,
-      vehicle: selectedVehicle ?? undefined,
-    });
-  }, [navigation, selectedVehicle]);
-
   const quickActionItems = useMemo(
     () => [
-      {
-        key: 'registrar-viaje',
-        title: tripActive ? 'Viaje activo' : 'Registrar viaje',
-        sub: tripActive
-          ? 'Toca para ver el seguimiento GPS'
-          : 'Actualiza km con GPS al manejar',
-        iconBg: COLORS.primary[50],
-        icon: <Navigation size={22} color={COLORS.primary[600]} />,
-        onPress: openRegistrarViaje,
-      },
       {
         key: 'solicitudes',
         title: 'Solicitudes',
@@ -285,27 +224,8 @@ const UserPanelScreen = () => {
           activeSolicitudesCount > 0
             ? `${activeSolicitudesCount} activa${activeSolicitudesCount > 1 ? 's' : ''}`
             : 'Mis solicitudes',
-        iconBg: COLORS.success.light,
-        icon: <ClipboardList size={22} color={COLORS.success.main} />,
-        onPress: () =>
-          navigation.navigate(
-            ROUTES.MIS_SOLICITUDES,
-            selectedVehicle ? { vehicleId: selectedVehicle.id, vehicle: selectedVehicle } : {},
-          ),
-      },
-      {
-        key: 'venta',
-        title: 'Gestionar venta',
-        sub: 'Vende tu vehículo',
-        iconBg: COLORS.warning.light,
-        icon: <Store size={22} color={COLORS.warning.main} />,
-        onPress: () =>
-          selectedVehicle
-            ? navigation.navigate(ROUTES.SELL_VEHICLE, {
-                vehicle: selectedVehicle,
-                vehicleId: selectedVehicle.id,
-              })
-            : navigation.navigate(ROUTES.MARKETPLACE),
+        icon: <ClipboardList size={20} color={COLORS.text.primary} strokeWidth={1.75} />,
+        onPress: () => navigation.navigate(ROUTES.ACTIVIDAD),
       },
       {
         key: 'mensajes',
@@ -314,24 +234,19 @@ const UserPanelScreen = () => {
           chatsUnreadTotal > 0
             ? `${chatsUnreadTotal} mensaje${chatsUnreadTotal > 1 ? 's' : ''} sin leer`
             : 'Chats con proveedores',
-        iconBg: COLORS.neutral.gray[200],
-        icon: <MessageCircle size={22} color={COLORS.text.primary} />,
-        onPress: () => navigation.navigate(ROUTES.CHATS_LIST),
+        icon: <MessageCircle size={20} color={COLORS.text.primary} strokeWidth={1.75} />,
+        onPress: () => navigation.navigate(ROUTES.ACTIVIDAD),
         badgeCount: chatsUnreadTotal,
       },
     ],
-    [
-      navigation,
-      selectedVehicle,
-      activeSolicitudesCount,
-      chatsUnreadTotal,
-      tripActive,
-      openRegistrarViaje,
-    ],
+    [navigation, activeSolicitudesCount, chatsUnreadTotal],
   );
 
   const { data: userAddresses } = useUserAddresses();
-  const addressList = useMemo(() => (Array.isArray(userAddresses) ? userAddresses : []), [userAddresses]);
+  const addressList = useMemo(
+    () => (Array.isArray(userAddresses) ? userAddresses : []),
+    [userAddresses],
+  );
 
   useEffect(() => {
     if (addressList.length > 0 && !selectedAddressId) {
@@ -345,8 +260,6 @@ const UserPanelScreen = () => {
     [addressList, selectedAddressId],
   );
 
-  const marcaIdForPanel = resolveVehicleMarcaId(selectedVehicle);
-
   const {
     data: panelParaTiProviders = [],
     isLoading: panelParaTiLoading,
@@ -355,51 +268,6 @@ const UserPanelScreen = () => {
     vehicle: selectedVehicle,
     address: selectedAddress,
     enabled: !!selectedVehicle?.id,
-  });
-
-  const {
-    data: panelNearbyProviders = [],
-    isLoading: panelNearbyLoading,
-    refetch: refetchPanelNearby,
-  } = useQuery({
-    queryKey: ['userPanelNearbyProviders', selectedVehicle?.id, selectedAddressId, marcaIdForPanel],
-    enabled: !!selectedVehicle?.id && !!selectedAddress,
-    staleTime: 1000 * 60 * 3,
-    gcTime: 1000 * 60 * 15,
-    queryFn: async () => {
-      let coords = coordsFromSavedAddress(selectedAddress);
-      if (!coords && selectedAddress?.direccion) {
-        const g = await geocodeAddress(selectedAddress.direccion);
-        if (g?.latitude != null && g?.longitude != null) {
-          coords = { lat: g.latitude, lng: g.longitude };
-        }
-      }
-      if (!coords) {
-        if (__DEV__) {
-          console.warn('[Cerca panel] Dirección sin coordenadas; geocodificación falló o no hay ubicacion.');
-        }
-        return [];
-      }
-      return getNearbyProvidersForPanel(coords.lat, coords.lng, marcaIdForPanel, {
-        limit: 24,
-        marcaFallback: false,
-        keepUnknownDistance: true,
-        sortByDistanceOnly: true,
-        preferMarcaSpecialists: false,
-      });
-    },
-  });
-
-  const {
-    data: panelMarketActivity,
-    isLoading: panelActivityLoading,
-    refetch: refetchPanelActivity,
-  } = useQuery({
-    queryKey: ['userPanelMarketActivity', selectedVehicle?.id],
-    enabled: !!selectedVehicle?.id,
-    staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60 * 15,
-    queryFn: () => getActividadMercadoVehiculo(selectedVehicle.id, 20),
   });
 
   const openProviderFromPanel = useCallback(
@@ -414,7 +282,7 @@ const UserPanelScreen = () => {
         vehicle: selectedVehicle ?? undefined,
       });
     },
-    [navigation],
+    [navigation, selectedVehicle],
   );
 
   const openExplore = useCallback(
@@ -434,10 +302,6 @@ const UserPanelScreen = () => {
     openExplore({ mode: EXPLORE_MODE_PARA_TI });
   }, [openExplore]);
 
-  const handleSeeAllNearby = useCallback(() => {
-    openExplore({ mode: EXPLORE_MODE_CERCA });
-  }, [openExplore]);
-
   const handleCategorySelect = useCallback(
     (cat) => {
       if (!selectedVehicle || !cat?.id) return;
@@ -450,93 +314,22 @@ const UserPanelScreen = () => {
     [selectedVehicle, openExplore],
   );
 
-  const handleOpenSearch = useCallback(() => {
-    if (!selectedVehicle) return;
-    openExplore({
-      mode: EXPLORE_MODE_CERCA,
-      focusSearch: true,
-      initialTab: 'all',
-    });
-  }, [selectedVehicle, openExplore]);
-
-  const addressLabel = useMemo(() => shortAddressLabel(selectedAddress), [selectedAddress]);
-
-  // ── Weather ──
-  const {
-    data: weatherData,
-    isLoading: weatherLoading,
-    refetch: refetchWeather,
-  } = useQuery({
-    queryKey: ['weatherPrediction', selectedAddressId, selectedVehicle?.id],
-    queryFn: () => {
-      const shouldForce = weatherForceRefreshRef.current;
-      weatherForceRefreshRef.current = false;
-      return getWeatherPrediction({
-        addressId: selectedAddressId,
-        vehicleId: selectedVehicle?.id,
-        useGps: !selectedAddressId,
-        forceRefresh: shouldForce,
-      });
-    },
-    enabled: true,
-    staleTime: 1000 * 60 * 15,
-    gcTime: 1000 * 60 * 30,
-    refetchInterval: 1000 * 60 * 15,
-    refetchOnWindowFocus: false,
-  });
-
-  // ── Refresh ──
   const onRefresh = useCallback(async () => {
     const extras = [];
-    if (selectedVehicle?.id) {
-      extras.push(refetchPanelParaTi(), refetchPanelNearby(), refetchPanelActivity());
-    }
+    if (selectedVehicle?.id) extras.push(refetchPanelParaTi());
     await Promise.all([
       refetchVehicles(),
       queryClient.invalidateQueries({ queryKey: ['vehicleHealth'] }),
       cargarSolicitudesActivas(),
-      refetchWeather(),
       ...extras,
     ]);
   }, [
     refetchVehicles,
     queryClient,
     cargarSolicitudesActivas,
-    refetchWeather,
     selectedVehicle?.id,
     refetchPanelParaTi,
-    refetchPanelNearby,
-    refetchPanelActivity,
   ]);
-
-  const weatherDerived = useMemo(() => {
-    const weatherComponents = weatherData?.components || [];
-    const frenoComp = weatherComponents.find((c) => c.type === 'frenos');
-    const neumaComp = weatherComponents.find((c) => c.type === 'neumaticos');
-    const weatherReportAgeMin = weatherData?.weather?.report_age_min ?? null;
-    const weatherFetchedAt = weatherData?.fetched_at || '';
-    return {
-      weatherAvailable: weatherData?.available === true,
-      weatherComponents,
-      frenoWearPct: frenoComp?.driving_risk ?? frenoComp?.wear_increase ?? 0,
-      gomaWearPct: neumaComp?.driving_risk ?? neumaComp?.wear_increase ?? 0,
-      climateRiskPct: weatherData?.total_wear_risk ?? 0,
-      overallRiskLevel: weatherData?.risk_level || 'optimo',
-      overallRiskLabel: weatherData?.risk_label || '',
-      weatherCondition: weatherData?.weather?.condition || '',
-      weatherTemp: weatherData?.weather?.temperature,
-      weatherHumidity: weatherData?.weather?.humidity,
-      weatherCity: weatherData?.weather?.city || '',
-      weatherAgeLabel:
-        weatherReportAgeMin != null
-          ? weatherReportAgeMin < 60
-            ? `hace ${weatherReportAgeMin} min`
-            : `hace ${Math.round(weatherReportAgeMin / 60)}h`
-          : weatherFetchedAt || '',
-      aiInsight: weatherData?.ai_insight || '',
-      unavailableReason: weatherData?.reason,
-    };
-  }, [weatherData]);
 
   if (showUserPanelSkeleton) {
     return (
@@ -597,8 +390,6 @@ const UserPanelScreen = () => {
           }
         />
 
-        {/* <HomeSearchBar onPress={handleOpenSearch} disabled={!selectedVehicle} /> */}
-
         <HomeCategoryGrid
           vehicles={vehicles}
           disabled={!selectedVehicle}
@@ -610,67 +401,10 @@ const UserPanelScreen = () => {
         <HomeContextualBanner
           solicitud={firstVisibleSolicitud}
           healthScore={healthScore}
-          climateRiskPct={weatherDerived.climateRiskPct}
-          weatherAvailable={weatherDerived.weatherAvailable}
-          onPressSolicitud={() =>
-            navigation.navigate(
-              ROUTES.MIS_SOLICITUDES,
-              selectedVehicle ? { vehicleId: selectedVehicle.id, vehicle: selectedVehicle } : {},
-            )
-          }
-          onPressClima={() => setIsWeatherModalOpen(true)}
+          onPressSolicitud={() => navigation.navigate(ROUTES.ACTIVIDAD)}
           onPressAgendar={openNuevaSolicitud}
-          onPressHealth={() => {
-            if (!selectedVehicle) return;
-            navigation.navigate(ROUTES.VEHICLE_HEALTH, {
-              vehicleId: selectedVehicle.id,
-              vehicle: selectedVehicle,
-            });
-          }}
+          onPressHealth={openVehicleHealth}
         />
-
-        <HomeTrendingServicesRow
-          selectedVehicle={selectedVehicle}
-          activity={panelMarketActivity}
-          loading={panelActivityLoading}
-          onSelectService={(_nombre, row) =>
-            navigateCrearSolicitudDesdeTrending(navigation, {
-              vehicle: selectedVehicle,
-              row,
-            })
-          }
-        />
-
-        <HomeHealthServicesRow
-          selectedVehicle={selectedVehicle}
-          onAgendarServicio={(servicio, rec) => {
-            if (rec?.needsOpenRequest || !servicio?.id) {
-              navigateCrearSolicitudDesdeDesgaste(navigation, {
-                vehicle: selectedVehicle,
-                componentName: rec?.componentName,
-                descripcion: [rec?.actionLine, rec?.scheduleLine].filter(Boolean).join(' · ') || undefined,
-              });
-              return;
-            }
-            navigateCrearSolicitudConServicio(navigation, {
-              vehicle: selectedVehicle,
-              servicio,
-              descripcion: rec?.componentName
-                ? `Mantenimiento sugerido: ${rec.componentName}`
-                : '',
-            });
-          }}
-        />
-
-        {/* Fase futura: rail de ofertas del día (panel_servicios)
-        <HomeOffersRow
-          selectedVehicle={selectedVehicle}
-          providers={providersWithOffers}
-          loading={offersLoading}
-          onProviderPress={openProviderFromPanel}
-          onSeeAll={handleSeeAllOffers}
-        />
-        */}
 
         <HomeHighlightedRow
           selectedVehicle={selectedVehicle}
@@ -680,49 +414,7 @@ const UserPanelScreen = () => {
           onProviderPress={openProviderFromPanel}
           onSeeAll={handleSeeAllParaTi}
         />
-
-        <HomeNearbyRow
-          selectedVehicle={selectedVehicle}
-          title={`Cerca de ${addressLabel}`}
-          hasSelectedAddress={!!selectedAddress}
-          providers={panelNearbyProviders}
-          loading={panelNearbyLoading}
-          onProviderPress={openProviderFromPanel}
-          onSeeAll={handleSeeAllNearby}
-        />
-
-        <HomeVehicleDashboardCard
-          selectedVehicle={selectedVehicle}
-          weather={{
-            loading: weatherLoading,
-            available: weatherDerived.weatherAvailable,
-            unavailableReason: weatherDerived.unavailableReason,
-            overallRiskLevel: weatherDerived.overallRiskLevel,
-            overallRiskLabel: weatherDerived.overallRiskLabel,
-            climateRiskPct: weatherDerived.climateRiskPct,
-            weatherCity: weatherDerived.weatherCity,
-            weatherCondition: weatherDerived.weatherCondition,
-            weatherTemp: weatherDerived.weatherTemp,
-            weatherAgeLabel: weatherDerived.weatherAgeLabel,
-            frenoWearPct: weatherDerived.frenoWearPct,
-            gomaWearPct: weatherDerived.gomaWearPct,
-            onPressOpenDetail: () => setIsWeatherModalOpen(true),
-          }}
-        />
       </ScrollView>
-
-      <HomeWeatherDetailModal
-        visible={isWeatherModalOpen}
-        onClose={() => setIsWeatherModalOpen(false)}
-        available={weatherDerived.weatherAvailable}
-        weatherCity={weatherDerived.weatherCity}
-        weatherCondition={weatherDerived.weatherCondition}
-        weatherTemp={weatherDerived.weatherTemp}
-        weatherHumidity={weatherDerived.weatherHumidity}
-        weatherAgeLabel={weatherDerived.weatherAgeLabel}
-        weatherComponents={weatherDerived.weatherComponents}
-        aiInsight={weatherDerived.aiInsight}
-      />
 
       <HomeVehicleSelectorModal
         visible={selectorVisible}
@@ -738,32 +430,20 @@ const UserPanelScreen = () => {
           setSelectorVisible(false);
           navigation.navigate(ROUTES.CREAR_VEHICULO);
         }}
+        onManageVehicles={() => {
+          setSelectorVisible(false);
+          navigation.navigate(ROUTES.MY_VEHICLES);
+        }}
       />
-
-      {/* Sheet IA deshabilitado temporalmente
-      <HomeAgendamientoSheet
-        visible={agendamientoSheetOpen}
-        onClose={() => setAgendamientoSheetOpen(false)}
-        vehicle={selectedVehicle}
-        navigation={navigation}
-      />
-      */}
 
       <AddressSelectionModal
         visible={addAddressModalOpen}
         onClose={() => setAddAddressModalOpen(false)}
         variant="default"
-        heroSubtitle="Detecta tu ubicación para ver el clima y riesgo de desgaste."
+        heroSubtitle="Elige tu dirección para ver proveedores recomendados cerca."
         currentAddress={selectedAddress}
         onSelectAddress={(savedAddr) => {
-          if (savedAddr?.id) {
-            const isNewAddress = savedAddr.id !== selectedAddressId;
-            if (isNewAddress) {
-              weatherForceRefreshRef.current = true;
-              queryClient.removeQueries({ queryKey: ['weatherPrediction'] });
-            }
-            setSelectedAddressId(savedAddr.id);
-          }
+          if (savedAddr?.id) setSelectedAddressId(savedAddr.id);
           setAddAddressModalOpen(false);
         }}
       />

@@ -1,67 +1,23 @@
 /**
  * Header Component - MecaniMóvil
- * Componente de header global consistente con nueva paleta
+ * Alineado al patrón AppHeader con tokens y Lucide
  */
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { User, Bell } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../../context/AuthContext';
 import { ROUTES } from '../../../utils/constants';
 import { getMediaURL } from '../../../services/api';
-import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../../design-system/tokens';
-
-// Safe access to TYPOGRAPHY with fallback values - MUST be before any usage
-const getSafeTypography = () => {
-  try {
-    if (TYPOGRAPHY && TYPOGRAPHY?.fontSize && TYPOGRAPHY?.fontWeight &&
-      typeof TYPOGRAPHY?.fontSize?.xl !== 'undefined' &&
-      typeof TYPOGRAPHY?.fontWeight?.bold !== 'undefined') {
-      return TYPOGRAPHY;
-    }
-  } catch (e) {
-    console.warn('TYPOGRAPHY not ready:', e);
-  }
-  return {
-    fontSize: { xs: 10, sm: 12, base: 14, md: 16, lg: 18, xl: 20, '2xl': 24, '3xl': 28, '4xl': 32, '5xl': 36 },
-    fontWeight: { light: '300', regular: '400', medium: '500', semibold: '600', bold: '700' },
-  };
-};
-
-const SAFE_TYPOGRAPHY = getSafeTypography();
-
-// Safe access to BORDERS with fallback values - MUST be before StyleSheet.create()
-const getSafeBorders = () => {
-  try {
-    if (BORDERS && BORDERS.radius && typeof BORDERS.radius.full !== 'undefined') {
-      return {
-        radius: BORDERS.radius,
-        width: BORDERS.width || { none: 0, thin: 1, medium: 2, thick: 4 },
-      };
-    }
-  } catch (e) {
-    console.warn('BORDERS not ready:', e);
-  }
-  return {
-    radius: {
-      none: 0, sm: 4, md: 8, lg: 12, xl: 16, '2xl': 20, '3xl': 24, full: 9999,
-      avatar: { sm: 16, md: 24, lg: 32, full: 9999 },
-      badge: { sm: 4, md: 8, lg: 12, full: 9999 },
-    },
-    width: { none: 0, thin: 1, medium: 2, thick: 4 },
-  };
-};
-
-const SAFE_BORDERS = getSafeBorders();
-const safeRadius = SAFE_BORDERS.radius;
-const safeWidth = SAFE_BORDERS.width;
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS, withOpacity } from '../../../design-system/tokens';
+import BackButton from '../BackButton';
 
 /**
  * Header Component
- * 
+ *
  * @param {string} title - Título del header
  * @param {boolean} showBack - Mostrar botón de retroceso (default: true si hay navegación previa)
  * @param {function} onBackPress - Función personalizada para el botón back
@@ -69,7 +25,7 @@ const safeWidth = SAFE_BORDERS.width;
  * @param {number} notificationBadge - Número de notificaciones (0 = no mostrar badge)
  * @param {ReactNode} leftComponent - Componente personalizado izquierdo (reemplaza back button)
  * @param {ReactNode} rightComponent - Componente personalizado derecho (reemplaza profile)
- * @param {string} backgroundColor - Color de fondo del header (default: white)
+ * @param {string} backgroundColor - Color de fondo del header (default: paper)
  * @param {string} titleColor - Color del título (default: text.primary)
  * @param {object} style - Estilos adicionales
  */
@@ -83,32 +39,28 @@ const Header = ({
   rightComponent = null,
   backgroundColor = COLORS.background.paper,
   titleColor = COLORS.text.primary,
-  style = {}
+  style = {},
 }) => {
   const navigation = useNavigation();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [profileImageUrl, setProfileImageUrl] = useState(null);
 
-  // Determinar si debe mostrar el botón back
   const canGoBack = navigation.canGoBack();
   const shouldShowBack = showBack !== null ? showBack : canGoBack;
-  const isDarkGlass = backgroundColor === '#030712';
-  const iconColor = isDarkGlass ? '#F9FAFB' : COLORS.primary[500];
-  const rightIconColor = isDarkGlass ? '#F9FAFB' : COLORS.text.primary;
+  const isDarkGlass = backgroundColor === COLORS.base.inkBlack;
+  const iconColor = isDarkGlass ? COLORS.text.inverse : COLORS.text.primary;
+  const rightIconColor = isDarkGlass ? COLORS.text.inverse : COLORS.text.primary;
 
-  // Cargar URL de foto de perfil
   useEffect(() => {
     if (!showProfile || !user) {
       setProfileImageUrl(null);
       return;
     }
 
-    // El backend ahora devuelve foto_perfil_url con la URL completa de cPanel
     if (user?.foto_perfil_url) {
       setProfileImageUrl(user.foto_perfil_url);
     } else if (user?.foto_perfil) {
-      // Fallback: si no hay foto_perfil_url, construir URL con getMediaURL
       const loadProfileImage = async () => {
         try {
           const fullUrl = await getMediaURL(user.foto_perfil);
@@ -124,7 +76,6 @@ const Header = ({
     }
   }, [user?.foto_perfil_url, user?.foto_perfil, showProfile]);
 
-  // Handler para el botón back
   const handleBackPress = () => {
     if (onBackPress) {
       onBackPress();
@@ -133,27 +84,27 @@ const Header = ({
     }
   };
 
-  // Handler para navegar al perfil
   const handleProfilePress = () => {
     navigation.navigate(ROUTES.PROFILE);
   };
 
   return (
-    <View style={[
-      styles.container,
-      {
-        paddingTop: Math.max(insets.top, 10),
-        backgroundColor,
-        borderBottomColor: isDarkGlass ? 'rgba(255,255,255,0.08)' : COLORS.border.light,
-        ...(isDarkGlass ? {} : SHADOWS.sm),
-      },
-      style
-    ]}>
-      <View style={[styles.content, { paddingHorizontal: SPACING.md }]}>
-        {/* Componente izquierdo (custom, foto de perfil o back button) */}
-        <View style={styles.leftContainer}>
-          {leftComponent || (
-            showProfile ? (
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: Math.max(insets.top, SPACING.sm),
+          backgroundColor,
+          borderBottomColor: isDarkGlass ? withOpacity(COLORS.base.white, 0.08) : COLORS.border.light,
+          ...(isDarkGlass ? {} : SHADOWS.sm),
+        },
+        style,
+      ]}
+    >
+      <View style={styles.content}>
+        <View style={styles.side}>
+          {leftComponent
+            || (showProfile ? (
               <TouchableOpacity
                 onPress={handleProfilePress}
                 activeOpacity={0.7}
@@ -166,66 +117,44 @@ const Header = ({
                     contentFit="cover"
                     transition={200}
                     cachePolicy="memory-disk"
-                    onError={() => {
-                      console.log('❌ Error cargando foto de perfil en header:', profileImageUrl);
-                      setProfileImageUrl(null);
-                    }}
+                    onError={() => setProfileImageUrl(null)}
                   />
                 ) : (
                   <View style={styles.profilePlaceholder}>
-                    <Ionicons name="person" size={20} color={COLORS.text.secondary} />
+                    <User size={20} color={COLORS.text.secondary} strokeWidth={2} />
                   </View>
                 )}
               </TouchableOpacity>
             ) : shouldShowBack ? (
-              <TouchableOpacity
-                onPress={handleBackPress}
-                style={[styles.backButton, isDarkGlass && styles.backButtonDark]}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="arrow-back" size={22} color={iconColor} />
-              </TouchableOpacity>
-            ) : null
-          )}
+              <BackButton onPress={handleBackPress} color={iconColor} />
+            ) : null)}
         </View>
 
-        {/* Título */}
-        <View style={styles.titleContainer}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color: titleColor,
-                fontSize: SAFE_TYPOGRAPHY.fontSize.xl,
-                fontWeight: SAFE_TYPOGRAPHY.fontWeight.bold,
-              }
-            ]}
-            numberOfLines={1}
-          >
-            {title}
-          </Text>
-        </View>
+        <Text
+          style={[TYPOGRAPHY.styles.h5, styles.title, { color: titleColor }]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
 
-        {/* Componente derecho (custom o notificación) */}
-        <View style={styles.rightContainer}>
-          {rightComponent || (
-            // Si hay showProfile, asumimos que puede haber notificaciones
-            (showProfile || notificationBadge > 0) && (
+        <View style={styles.side}>
+          {rightComponent
+            || ((showProfile || notificationBadge > 0) && (
               <TouchableOpacity
                 onPress={() => navigation.navigate(ROUTES.NOTIFICATION_CENTER)}
                 style={[styles.notificationButton, isDarkGlass && styles.notificationButtonDark]}
+                hitSlop={8}
               >
-                <Ionicons name="notifications-outline" size={22} color={rightIconColor} />
-                {(notificationBadge > 0) && (
+                <Bell size={22} color={rightIconColor} strokeWidth={2} />
+                {notificationBadge > 0 ? (
                   <View style={styles.badge}>
-                    <Text style={styles.badgeText}>
+                    <Text style={[TYPOGRAPHY.styles.small, styles.badgeText]}>
                       {notificationBadge > 99 ? '99+' : notificationBadge}
                     </Text>
                   </View>
-                )}
+                ) : null}
               </TouchableOpacity>
-            )
-          )}
+            ))}
         </View>
       </View>
     </View>
@@ -234,49 +163,35 @@ const Header = ({
 
 const styles = StyleSheet.create({
   container: {
-    borderBottomWidth: safeWidth.thin,
-    ...Platform.select({
-      ios: {
-        // Sombras definidas inline
-      },
-      android: {
-        // Elevation definida inline
-      },
-    }),
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
+    minHeight: 44,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
-  leftContainer: {
-    width: 40,
+  side: {
+    width: 44,
     alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   backButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : null),
   },
   backButtonDark: {
-    borderRadius: safeRadius.full,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderWidth: safeWidth.thin,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  titleContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.sm,
+    backgroundColor: 'transparent',
   },
   title: {
-    // Estilos definidos inline
-  },
-  rightContainer: {
-    width: 40,
-    alignItems: 'flex-end',
+    flex: 1,
+    textAlign: 'center',
+    color: COLORS.text.primary,
   },
   profileButton: {
     width: 36,
@@ -286,13 +201,13 @@ const styles = StyleSheet.create({
   profileImage: {
     width: 36,
     height: 36,
-    borderRadius: safeRadius.avatar?.full ?? safeRadius.full,
+    borderRadius: BORDERS.radius.avatar?.full ?? BORDERS.radius.full,
     backgroundColor: COLORS.background.default,
   },
   profilePlaceholder: {
     width: 36,
     height: 36,
-    borderRadius: safeRadius.avatar?.full ?? safeRadius.full,
+    borderRadius: BORDERS.radius.avatar?.full ?? BORDERS.radius.full,
     backgroundColor: COLORS.background.default,
     justifyContent: 'center',
     alignItems: 'center',
@@ -302,7 +217,7 @@ const styles = StyleSheet.create({
     top: -4,
     right: -4,
     backgroundColor: COLORS.error[500],
-    borderRadius: safeRadius.badge?.full ?? safeRadius.full,
+    borderRadius: BORDERS.radius.badge?.full ?? BORDERS.radius.full,
     minWidth: 20,
     height: 20,
     justifyContent: 'center',
@@ -313,8 +228,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: COLORS.text.inverse,
-    fontSize: SAFE_TYPOGRAPHY.fontSize.xs,
-    fontWeight: SAFE_TYPOGRAPHY.fontWeight.bold,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   notificationButton: {
     width: 36,
@@ -324,12 +238,11 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   notificationButtonDark: {
-    borderRadius: safeRadius.full,
-    backgroundColor: Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-    borderWidth: safeWidth.thin,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: Platform.OS === 'ios' ? withOpacity(COLORS.base.white, 0.06) : withOpacity(COLORS.base.white, 0.10),
+    borderWidth: BORDERS.width.thin,
+    borderColor: withOpacity(COLORS.base.white, 0.12),
   },
 });
 
 export default Header;
-

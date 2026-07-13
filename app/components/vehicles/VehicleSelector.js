@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../utils/constants';
+import { COLORS as DESIGN_COLORS, withOpacity } from '../../design-system/tokens/colors';
+import { SHADOWS } from '../../design-system/tokens/shadows';
 import * as vehicleService from '../../services/vehicle';
 import * as personalizacionService from '../../services/personalizacion';
+import Icon from '../base/Icon/Icon';
 
 /**
  * Componente selector de vehículo activo
@@ -69,7 +70,7 @@ const VehicleSelector = ({ onVehicleChange, currentVehicle }) => {
       </View>
       
       {currentVehicle?.id === item.id && (
-        <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+        <Icon name="checkmark-circle" size={24} color={DESIGN_COLORS.primary[500]} />
       )}
     </TouchableOpacity>
   );
@@ -86,7 +87,7 @@ const VehicleSelector = ({ onVehicleChange, currentVehicle }) => {
         onPress={() => setModalVisible(true)}
       >
         <View style={styles.selectorContent}>
-          <Ionicons name="car-outline" size={20} color={COLORS.primary} />
+          <Icon name="car-outline" size={20} color={DESIGN_COLORS.primary[500]} />
           <View style={styles.selectorText}>
             <Text style={styles.selectorLabel}>Vehículo activo:</Text>
             <Text style={styles.selectorValue}>
@@ -96,7 +97,7 @@ const VehicleSelector = ({ onVehicleChange, currentVehicle }) => {
               }
             </Text>
           </View>
-          <Ionicons name="chevron-down" size={16} color={COLORS.textLight} />
+          <Icon name="chevron-down" size={16} color={DESIGN_COLORS.text.secondary} />
         </View>
       </TouchableOpacity>
 
@@ -114,7 +115,7 @@ const VehicleSelector = ({ onVehicleChange, currentVehicle }) => {
                 onPress={() => setModalVisible(false)}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={24} color={COLORS.textDark} />
+                <Icon name="close" size={24} color={DESIGN_COLORS.text.primary} />
               </TouchableOpacity>
             </View>
 
@@ -138,15 +139,11 @@ const VehicleSelector = ({ onVehicleChange, currentVehicle }) => {
 
 const styles = StyleSheet.create({
   selectorButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: withOpacity(DESIGN_COLORS.base.white, 0.9),
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...SHADOWS.sm,
   },
   selectorContent: {
     flexDirection: 'row',
@@ -158,21 +155,21 @@ const styles = StyleSheet.create({
   },
   selectorLabel: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: DESIGN_COLORS.text.secondary,
     marginBottom: 2,
   },
   selectorValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
+    color: DESIGN_COLORS.text.primary,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: withOpacity(DESIGN_COLORS.base.inkBlack, 0.5),
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: DESIGN_COLORS.background.paper,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
@@ -184,19 +181,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: DESIGN_COLORS.border.light,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: DESIGN_COLORS.text.primary,
   },
   closeButton: {
     padding: 4,
   },
   modalDescription: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: DESIGN_COLORS.text.secondary,
     paddingHorizontal: 20,
     paddingBottom: 16,
     lineHeight: 20,
@@ -210,12 +207,12 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: DESIGN_COLORS.neutral.gray[100],
   },
   selectedVehicleItem: {
-    backgroundColor: COLORS.glass.primary,
+    backgroundColor: DESIGN_COLORS.primary[50],
     borderWidth: 2,
-    borderColor: COLORS.primary,
+    borderColor: DESIGN_COLORS.primary[500],
   },
   vehicleInfo: {
     flex: 1,
@@ -223,12 +220,12 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
+    color: DESIGN_COLORS.text.primary,
     marginBottom: 4,
   },
   vehicleDetails: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: DESIGN_COLORS.text.secondary,
   },
 });
 

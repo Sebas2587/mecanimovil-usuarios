@@ -5,8 +5,8 @@
 
 import React from 'react';
 import { Modal as RNModal, View, Text, TouchableOpacity, StyleSheet, TouchableWithoutFeedback, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../../design-system/tokens';
+import Icon from '../../base/Icon/Icon';
 
 // Safe access to TYPOGRAPHY with fallback values - MUST be before any usage
 const getSafeTypography = () => {
@@ -129,7 +129,7 @@ const Modal = ({
                   style={styles.closeButton}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                  <Ionicons
+                  <Icon
                     name="close"
                     size={24}
                     color={COLORS.text.secondary}

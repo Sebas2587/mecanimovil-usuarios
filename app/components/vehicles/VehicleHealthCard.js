@@ -7,9 +7,11 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../base/Icon/Icon';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, ROUTES } from '../../utils/constants';
+import { ROUTES } from '../../utils/constants';
+import { COLORS, SHADOWS, withOpacity } from '../../design-system/tokens';
+import { getHealthColorToken } from '../../utils/healthFormat';
 import VehicleHealthService from '../../services/vehicleHealthService';
 import { getMediaURL } from '../../services/api';
 import * as userService from '../../services/user';
@@ -128,13 +130,7 @@ const VehicleHealthCard = ({ vehicle, navigation }) => {
     }
   };
 
-  const getHealthColor = (percentage) => {
-    if (!percentage) return '#9E9E9E';
-    if (percentage >= 70) return '#4CAF50';
-    if (percentage >= 40) return '#FF9800';
-    if (percentage >= 20) return '#F44336';
-    return '#D32F2F';
-  };
+  const getHealthColor = (percentage) => getHealthColorToken(COLORS, percentage);
 
   const hasUrgentAlerts = healthData?.tiene_alertas_activas || 
     (healthData?.componentes_urgentes > 0) || 
@@ -146,7 +142,7 @@ const VehicleHealthCard = ({ vehicle, navigation }) => {
   if (loading) {
     return (
       <View style={styles.card}>
-        <ActivityIndicator size="small" color={COLORS.primary} />
+        <ActivityIndicator size="small" color={COLORS.primary[500]} />
       </View>
     );
   }
@@ -168,13 +164,13 @@ const VehicleHealthCard = ({ vehicle, navigation }) => {
           />
         ) : (
           <View style={styles.vehicleImagePlaceholder}>
-            <Ionicons name="car-sport" size={56} color="#9E9E9E" />
+            <Icon name="car-sport" size={56} color={COLORS.neutral.gray[400]} />
           </View>
         )}
 
         {/* Gradiente oscuro en la parte inferior de la imagen para mejorar legibilidad del texto */}
         <LinearGradient
-          colors={['transparent', 'rgba(0, 0, 0, 0.3)', 'rgba(0, 0, 0, 0.6)']}
+          colors={['transparent', withOpacity(COLORS.base.inkBlack, 0.3), withOpacity(COLORS.base.inkBlack, 0.6)]}
           style={styles.imageGradient}
         />
 
@@ -188,14 +184,14 @@ const VehicleHealthCard = ({ vehicle, navigation }) => {
 
         {/* Gradiente oscuro en la parte superior para mejorar legibilidad del texto */}
         <LinearGradient
-          colors={['rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.2)', 'transparent']}
+          colors={[withOpacity(COLORS.base.inkBlack, 0.4), withOpacity(COLORS.base.inkBlack, 0.2), 'transparent']}
           style={styles.topGradient}
         />
 
         {/* Icono de alerta flotante - Superior derecha */}
         {hasUrgentAlerts && (
           <View style={styles.alertBadge}>
-            <Ionicons name="warning" size={20} color="#F44336" />
+            <Icon name="warning" size={20} color={COLORS.error.main} />
             {(healthData?.componentes_urgentes > 0 || healthData?.componentes_criticos > 0) && (
               <View style={styles.alertDot} />
             )}
@@ -207,19 +203,19 @@ const VehicleHealthCard = ({ vehicle, navigation }) => {
       <View style={styles.infoSection}>
         <View style={styles.detailsRow}>
           <View style={styles.detailItem}>
-            <Ionicons name="speedometer-outline" size={16} color="#9E9E9E" />
+            <Icon name="speedometer-outline" size={16} color={COLORS.neutral.gray[400]} />
             <Text style={styles.detailText}>
               {vehicle?.kilometraje?.toLocaleString() || 0} km
             </Text>
           </View>
           <View style={styles.detailItem}>
-            <Ionicons name="construct-outline" size={16} color="#9E9E9E" />
+            <Icon name="construct-outline" size={16} color={COLORS.neutral.gray[400]} />
             <Text style={styles.detailText}>
               {serviceCount} {serviceCount === 1 ? 'servicio' : 'servicios'}
             </Text>
           </View>
           <View style={styles.detailItem}>
-            <Ionicons name="heart" size={16} color={healthColor} />
+            <Icon name="heart" size={16} color={healthColor} />
             <Text style={[styles.detailText, { color: healthColor, fontWeight: '600' }]}>
               {Math.round(healthPercentage)}%
             </Text>
@@ -233,22 +229,18 @@ const VehicleHealthCard = ({ vehicle, navigation }) => {
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background.paper,
     borderRadius: 20,
     overflow: 'hidden',
     marginHorizontal: 0,
     marginBottom: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    ...SHADOWS.md,
     position: 'relative',
   },
   imageSection: {
     width: '100%',
     height: 200, // Reducido de 260px - aproximadamente 65% de 310px
-    backgroundColor: '#E5E5E5',
+    backgroundColor: COLORS.neutral.gray[200],
     position: 'relative',
   },
   vehicleImage: {
@@ -260,7 +252,7 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E5E5E5',
+    backgroundColor: COLORS.neutral.gray[200],
   },
   imageGradient: {
     position: 'absolute',
@@ -278,15 +270,15 @@ const styles = StyleSheet.create({
   vehicleNameOnImage: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1c2434',
-    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    color: COLORS.text.primary,
+    textShadowColor: withOpacity(COLORS.base.white, 0.8),
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
     marginBottom: 3,
   },
   vehicleYearOnImage: {
     fontSize: 13,
-    color: '#666666',
+    color: COLORS.text.secondary,
     fontWeight: '500',
   },
   topGradient: {
@@ -304,10 +296,10 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FFF',
+    backgroundColor: COLORS.base.white,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#F44336',
+    shadowColor: COLORS.error.main,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -321,12 +313,12 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#F44336',
+    backgroundColor: COLORS.error.main,
   },
   infoSection: {
     width: '100%',
     minHeight: 110, // Reducido de 140px - aproximadamente 35% de 310px
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background.paper,
     padding: 14,
   },
   detailsRow: {
@@ -342,7 +334,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: COLORS.text.tertiary,
     marginLeft: 5,
     fontWeight: '500',
   },

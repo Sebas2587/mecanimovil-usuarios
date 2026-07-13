@@ -6,9 +6,8 @@ import {
   compareProvidersByMarcaThenDistance,
   compareProvidersByMarcaThenKpi,
   tagProviderMarcaFlags,
-  filterProvidersEspecialistasMarca,
 } from '../utils/providerUtils';
-import { filterProvidersForDestacadosPanel } from '../components/home/shared/homeAddressUtils';
+import { buildDestacadosList } from '../utils/destacadosMatching';
 import { mapOfertaCatalogoRepuestosFields } from '../components/home/shared/providerCatalogSchedule';
 import {
   mergeProviderLists,
@@ -1138,11 +1137,16 @@ export const getExploreProvidersByServicios = async (vehiculoId, servicioIds, op
 };
 
 /**
- * Proveedores destacados: solo especialistas en la marca del vehículo, orden KPI.
+ * Destacados / Para ti — proveedores compatibles con el vehículo del usuario.
+ *
+ * Arquitectura (ver utils/destacadosMatching.js):
+ * 1. Fetch por vehiculo_id (especialistas + multimarca que atienden la marca).
+ *    NO usa solo_especialistas: el empty state anterior venía de ese flag.
+ * 2. Pipeline cliente: brandEligible → rank → localizeSoft (panel) → limit.
  *
  * @param {'panel'|'explore'} options.scope
- *   - panel: misma ciudad/comuna que la dirección + radar 5 km (home Destacados)
- *   - explore: todos los especialistas por KPI (Ver todos Destacados)
+ *   - panel: home Destacados (geo soft + cupo corto)
+ *   - explore: Ver todos (mismo matching de marca, sin localizar soft)
  */
 export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
   const limit = options.limit ?? 12;
@@ -1150,9 +1154,9 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
   if (!vehiculoId) return [];
 
   try {
+    // Compatibles con la marca del vehículo: especialistas + multimarca.
     const params = {
       vehiculo_id: vehiculoId,
-      solo_especialistas: 'true',
       ...PANEL_SERVICIOS_QUERY,
     };
     const [tRes, mRes] = await Promise.all([
@@ -1160,16 +1164,15 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
       get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params),
     ]);
 
-    const talleres = (tRes.talleres || []).map((p) => tagProviderMarcaFlags({ ...p, _panelKind: 'taller' }));
-    const mecanicos = (mRes.mecanicos || []).map((p) => tagProviderMarcaFlags({ ...p, _panelKind: 'mecanico' }));
-    let list = filterProvidersEspecialistasMarca([...talleres, ...mecanicos]).sort(
-      compareProvidersByKpiRelevance,
-    );
+    let raw = [
+      ...(tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' })),
+      ...(mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' })),
+    ].map(tagProviderMarcaFlags);
 
-    const { lat, lng, marcaId, cityContext } = options;
+    const { lat, lng, marcaId, marcaNombre, cityContext } = options;
     if (lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
       try {
-        list = await enrichProvidersWithNearbyDistance(list, lat, lng, marcaId, {
+        raw = await enrichProvidersWithNearbyDistance(raw, lat, lng, marcaId, {
           onlyEnrichExisting: true,
           nearbyFetchLimit: scope === 'explore' ? 120 : 80,
         });
@@ -1178,14 +1181,14 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
       }
     }
 
-    if (scope === 'panel') {
-      list = filterProvidersForDestacadosPanel(list, cityContext);
-      list = list.sort(compareProvidersByKpiRelevance).slice(0, limit);
-    } else {
-      list = list.sort(compareProvidersByKpiRelevance).slice(0, limit);
-    }
+    const { providers } = buildDestacadosList(raw, {
+      marcaId,
+      marcaNombre,
+      cityContext: scope === 'panel' ? cityContext : null,
+      limit: scope === 'explore' ? Math.max(limit, 40) : limit,
+    });
 
-    return list;
+    return providers;
   } catch (error) {
     console.error('Error obteniendo proveedores Para ti:', error);
     return [];

@@ -11,11 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { User, Car, Star, CircleCheck } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { get } from '../../services/api';
 import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS, SPACING, SHADOWS } from '../../design-system/tokens';
+import { BORDERS, SPACING } from '../../design-system/tokens';
 
 const PendingReviewsScreen = () => {
   const navigation = useNavigation();
@@ -64,7 +64,7 @@ const PendingReviewsScreen = () => {
             />
           ) : (
             <View style={styles.providerPhotoPlaceholder}>
-              <Ionicons name="person" size={24} color={COLORS.text.tertiary} />
+              <User size={24} color={COLORS.text.tertiary} strokeWidth={1.75} />
             </View>
           )}
           <View style={styles.providerDetails}>
@@ -73,7 +73,7 @@ const PendingReviewsScreen = () => {
           </View>
         </View>
         <View style={styles.vehicleInfo}>
-          <Ionicons name="car" size={16} color={COLORS.text.secondary} />
+          <Car size={16} color={COLORS.text.secondary} strokeWidth={1.75} />
           <Text style={styles.vehicleText}>{item.vehicle.full_name}</Text>
         </View>
       </View>
@@ -83,7 +83,7 @@ const PendingReviewsScreen = () => {
           Completado: {new Date(item.completion_date).toLocaleDateString()}
         </Text>
         <TouchableOpacity style={styles.reviewButton} onPress={() => handleCreateReview(item)}>
-          <Ionicons name="star-outline" size={16} color={COLORS.text.onPrimary} />
+          <Star size={16} color={COLORS.text.onPrimary} strokeWidth={1.75} />
           <Text style={styles.reviewButtonText}>Dejar Reseña</Text>
         </TouchableOpacity>
       </View>
@@ -92,7 +92,7 @@ const PendingReviewsScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="checkmark-circle-outline" size={80} color={COLORS.success[400]} />
+      <CircleCheck size={80} color={COLORS.success[400]} strokeWidth={1.5} />
       <Text style={styles.emptyTitle}>¡Excelente!</Text>
       <Text style={styles.emptyText}>Ya has dejado reseñas para todos tus servicios completados.</Text>
     </View>
@@ -156,7 +156,6 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
-    ...SHADOWS.sm,
   },
   serviceHeader: {
     marginBottom: 12,

@@ -13,11 +13,12 @@ import {
   getMainCategories,
   getMainCategoriesForUserVehicles,
 } from '../../../services/categories';
-import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import { resolveCategoryVisual } from '../shared/homeCategoryIcons';
 
-const VISIBLE_CATEGORIES = 12;
-const CELL_WIDTH = 88;
+const VISIBLE_CATEGORIES = 6;
+/** Airbnb Explore: celda con espacio para nombres largos en 2–3 líneas. */
+const CELL_WIDTH = 104;
 
 function vehiclesQueryKey(vehicles) {
   return (Array.isArray(vehicles) ? vehicles : [])
@@ -28,8 +29,7 @@ function vehiclesQueryKey(vehicles) {
 }
 
 /**
- * Categorías del home: prioriza las compatibles con los vehículos del usuario;
- * si no hay match, muestra el catálogo principal (getMainCategories).
+ * Categorías del home — patrón Airbnb Explore (icono outline + círculo neutro + caption).
  */
 const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
   const vehicleIdsKey = useMemo(() => vehiclesQueryKey(vehicles), [vehicles]);
@@ -97,11 +97,13 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
               onPress={() => onSelectCategory?.(cat)}
               activeOpacity={0.85}
               disabled={disabled}
+              accessibilityRole="button"
+              accessibilityLabel={cat.nombre || 'Categoría'}
             >
               <View style={[styles.iconCircle, { backgroundColor: visual.bg }]}>
-                <Icon size={22} color={visual.color} />
+                <Icon size={22} color={visual.color} strokeWidth={1.75} fill="none" />
               </View>
-              <Text style={styles.label} numberOfLines={2}>
+              <Text style={styles.label} numberOfLines={3}>
                 {cat.nombre || 'Categoría'}
               </Text>
             </TouchableOpacity>
@@ -114,10 +116,7 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
 
 const styles = StyleSheet.create({
   wrap: {
-    marginBottom: 18,
-  },
-  loader: {
-    marginVertical: 16,
+    marginBottom: SPACING.lg,
   },
   refetchIndicator: {
     position: 'absolute',
@@ -126,21 +125,19 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   emptyHint: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    marginBottom: 10,
-    lineHeight: 18,
+    marginBottom: SPACING.sm,
   },
   row: {
     flexDirection: 'row',
-    gap: 4,
-    paddingRight: 8,
+    gap: SPACING.xs,
+    paddingRight: SPACING.sm,
   },
   cell: {
     width: CELL_WIDTH,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: SPACING.xxs,
   },
   iconCircle: {
     width: 56,
@@ -148,14 +145,16 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.full,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: SPACING.xs,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   label: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+    ...TYPOGRAPHY.styles.small,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.primary,
     textAlign: 'center',
-    lineHeight: 15,
+    width: '100%',
   },
 });
 

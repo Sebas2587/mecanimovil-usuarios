@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
+import { COLORS, withOpacity } from '../../design-system/tokens';
 import RequestCard from './RequestCard';
 import { ROUTES } from '../../utils/constants';
 import { prefetchRequestDetail } from '../../hooks/useRequests';
+import Icon from '../base/Icon/Icon';
 
 const ActiveRequestsCarousel = ({ requests = [] }) => {
     const navigation = useNavigation();
@@ -56,12 +57,12 @@ const styles = StyleSheet.create({
     newRequestCard: {
         width: 140,
         height: 170, // Match RequestCard height
-        backgroundColor: '#007EA7',
+        backgroundColor: COLORS.primary[500],
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 16,
-        shadowColor: '#007EA7',
+        shadowColor: COLORS.primary[500],
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 8,
@@ -71,13 +72,13 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: withOpacity(COLORS.base.white, 0.2),
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 12,
     },
     newRequestText: {
-        color: '#FFFFFF',
+        color: COLORS.text.inverse,
         fontSize: 16,
         fontWeight: '700',
         textAlign: 'center',

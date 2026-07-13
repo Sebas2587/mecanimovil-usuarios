@@ -11,17 +11,66 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ArrowLeft, ClipboardList, Plus } from 'lucide-react-native';
+import { ClipboardList } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
 import * as vehicleService from '../../services/vehicle';
-import { VehicleServiceHistoryRow } from '../../components/vehicles/VehicleHistoryCard';
+import HistoryItemCard from '../../components/cards/HistoryItemCard';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
+import BackButton from '../../components/navigation/BackButton';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Button from '../../components/base/Button/Button';
+
+function parseHistoryCost(item, oferta) {
+  const candidates = [
+    item.cost,
+    item.total,
+    item.price,
+    item.monto,
+    oferta.precio_total,
+    oferta.precio_total_ofrecido,
+  ];
+  for (const c of candidates) {
+    const n = typeof c === 'number' ? c : parseFloat(String(c || '').replace(/\./g, ''));
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return NaN;
+}
+
+function resolveHistoryRow(item) {
+  const oferta = item.oferta_seleccionada_detail || item.oferta_seleccionada || {};
+  const lineas = item.lineas || item.lineas_detail || [];
+
+  let providerName = 'Proveedor';
+  if (item.nombre_proveedor) providerName = item.nombre_proveedor;
+  else if (oferta.nombre_proveedor) providerName = oferta.nombre_proveedor;
+  else if (item.taller_nombre) providerName = item.taller_nombre;
+  else if (item.mecanico_nombre) providerName = item.mecanico_nombre;
+
+  const serviceName =
+    item.servicio_nombre ||
+    item.service_name ||
+    (lineas[0]?.servicio_nombre) ||
+    (lineas[0]?.nombre) ||
+    'Servicio';
+
+  const dateObj = item.fecha_servicio ? new Date(item.fecha_servicio) : new Date();
+  const dateLabel = dateObj.toLocaleDateString('es-CL', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  const cost = parseHistoryCost(item, oferta);
+  const amountLabel = Number.isFinite(cost) && cost > 0
+    ? `$${Math.round(cost).toLocaleString('es-CL')}`
+    : null;
+
+  return { providerName, serviceName, dateLabel, amountLabel };
+}
 
 const VehicleHistoryScreen = () => {
   const navigation = useNavigation();
@@ -106,22 +155,48 @@ const VehicleHistoryScreen = () => {
     <View style={styles.listHeader}>
       <View style={styles.headerCard}>
         <Text style={styles.vehicleTitle}>
-          {vehicle?.marca_nombre || vehicle?.marca || ''} {vehicle?.modelo_nombre || vehicle?.modelo || ''} • {vehicle?.patente || ''}
+          {vehicle?.marca_nombre || vehicle?.marca || ''}{' '}
+          {vehicle?.modelo_nombre || vehicle?.modelo || ''} • {vehicle?.patente || ''}
         </Text>
         {historyItems.length > 0 && (
           <Text style={styles.sectionSubtitle}>
-            {historyItems.length} {historyItems.length === 1 ? 'servicio completado' : 'servicios completados'}
+            {historyItems.length}{' '}
+            {historyItems.length === 1 ? 'servicio completado' : 'servicios completados'}
           </Text>
         )}
       </View>
     </View>
   );
 
-  const renderHistoryItem = ({ item }) => (
-    <View style={styles.cardWrapper}>
-      <VehicleServiceHistoryRow item={item} onViewChecklist={handleViewChecklist} variant="light" />
-    </View>
-  );
+  const renderHistoryItem = ({ item, index }) => {
+    const { providerName, serviceName, dateLabel, amountLabel } = resolveHistoryRow(item);
+
+    return (
+      <View style={styles.timelineCard}>
+        <HistoryItemCard
+          title={serviceName}
+          dateLabel={dateLabel}
+          providerName={providerName}
+          amountLabel={amountLabel}
+          isLast={index === historyItems.length - 1}
+        />
+        <TouchableOpacity
+          style={styles.checklistButton}
+          onPress={() =>
+            handleViewChecklist(item, {
+              nombre: providerName,
+              fotoUrl: item.proveedor_foto || null,
+              tipo: item.tipo_proveedor || 'taller',
+            })
+          }
+          activeOpacity={0.75}
+        >
+          <ClipboardList size={16} color={COLORS.primary[600]} />
+          <Text style={styles.checklistButtonText}>Ver informe de servicio</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -129,9 +204,7 @@ const VehicleHistoryScreen = () => {
         <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
         <SafeAreaView style={{ flex: 1 }} edges={['top']}>
           <View style={styles.navHeader}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <ArrowLeft size={22} color={COLORS.text.primary} />
-            </TouchableOpacity>
+            <BackButton onPress={() => navigation.goBack()} />
             <Text style={styles.navTitle}>Historial</Text>
             <View style={{ width: 40 }} />
           </View>
@@ -150,9 +223,7 @@ const VehicleHistoryScreen = () => {
 
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <View style={styles.navHeader}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={22} color={COLORS.text.primary} />
-          </TouchableOpacity>
+          <BackButton onPress={() => navigation.goBack()} />
           <Text style={styles.navTitle}>Historial</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -197,19 +268,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.container.horizontal,
     paddingBottom: SPACING.sm,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   navTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
   },
   loadingContainer: {
@@ -219,7 +279,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.md,
-    fontSize: TYPOGRAPHY.fontSize.md,
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.secondary,
   },
   listContent: {
@@ -240,18 +300,40 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   vehicleTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
     marginBottom: SPACING.xxs,
   },
   sectionSubtitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
   },
-  cardWrapper: {
-    paddingHorizontal: SPACING.container.horizontal,
+  timelineCard: {
+    marginHorizontal: SPACING.container.horizontal,
     marginBottom: SPACING.md,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.card.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    padding: SPACING.md,
+    ...SHADOWS.sm,
+  },
+  checklistButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+    paddingVertical: 10,
+    paddingHorizontal: SPACING.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.primary[50],
+    gap: SPACING.xs,
+  },
+  checklistButtonText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[700],
   },
   emptyContainer: {
     alignItems: 'center',
@@ -271,18 +353,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
     textAlign: 'center',
     marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
   emptySubtitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.secondary,
     textAlign: 'center',
-    lineHeight: 21,
     marginBottom: SPACING.lg,
   },
 });

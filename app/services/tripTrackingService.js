@@ -4,6 +4,7 @@ import * as TaskManager from 'expo-task-manager';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { calculateDistance } from '../utils/geoUtils';
+import { COLORS as DS } from '../design-system/tokens/colors';
 
 const TRIP_TASK_NAME = 'mecanimovil-trip-tracking-task';
 const TRIP_STORAGE_KEY = '@trip_tracking_snapshot';
@@ -285,7 +286,7 @@ export const startTripTracking = async (vehicleId) => {
     foregroundService: {
       notificationTitle: 'Mecanimovil - Telemetria activa',
       notificationBody: 'Registrando kilometros del viaje en segundo plano.',
-      notificationColor: '#007EA7',
+      notificationColor: DS.primary[500],
     },
   });
 

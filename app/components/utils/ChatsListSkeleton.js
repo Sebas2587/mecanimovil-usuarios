@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Skeleton from '../feedback/Skeleton/Skeleton';
-import { SPACING } from '../../design-system/tokens/spacing';
+import { SPACING, COLORS, withOpacity } from '../../design-system/tokens';
 import { BORDERS } from '../../design-system/tokens/borders';
 
 const ChatsListSkeleton = () => (
@@ -32,16 +32,16 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     borderRadius: BORDERS.radius.lg,
     marginBottom: SPACING.md,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.06),
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: withOpacity(COLORS.base.white, 0.12),
   },
   mb6: { marginBottom: 6 },
   mb8: { marginBottom: 8 },
   mb4: { marginBottom: 4 },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.1),
     marginBottom: 10,
   },
   row: { flexDirection: 'row', alignItems: 'center' },

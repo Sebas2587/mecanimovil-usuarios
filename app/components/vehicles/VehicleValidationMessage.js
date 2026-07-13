@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, SPACING, FONT_SIZES } from '../../utils/constants';
+import { FONT_SIZES } from '../../utils/constants';
+import { COLORS, SPACING } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 /**
  * Componente para mostrar mensajes de validación de vehículos
@@ -27,7 +28,7 @@ const VehicleValidationMessage = ({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={64} color={COLORS.textLight} />
+        <Icon name={icon} size={64} color={COLORS.text.secondary} />
       </View>
       
       <Text style={styles.title}>{title}</Text>
@@ -39,7 +40,7 @@ const VehicleValidationMessage = ({
           onPress={handleActionPress}
         >
           <Text style={styles.actionButtonText}>{actionText}</Text>
-          <Ionicons name="arrow-forward" size={16} color={COLORS.white} />
+          <Icon name="arrow-forward" size={16} color={COLORS.base.white} />
         </TouchableOpacity>
       )}
     </View>
@@ -61,19 +62,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.h3,
     fontWeight: 'bold',
-    color: COLORS.text,
+    color: COLORS.text.primary,
     textAlign: 'center',
     marginBottom: SPACING.md,
   },
   message: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: SPACING.xl,
   },
   actionButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
     borderRadius: 8,
@@ -82,7 +83,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   actionButtonText: {
-    color: COLORS.white,
+    color: COLORS.base.white,
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
   },

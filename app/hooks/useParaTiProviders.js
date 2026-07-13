@@ -8,13 +8,15 @@ import {
 import { resolveUserCityContext } from '../components/home/shared/homeAddressUtils';
 
 /**
- * Destacados en home: solo especialistas en la marca del vehículo, orden KPI (ciudad + radar 5 km).
+ * Destacados en home — matching por marca del vehículo (ver utils/destacadosMatching.js).
+ * Especialistas de la marca primero; multimarca que cubren la marca después; geo soft.
  */
 export function useParaTiProviders({ vehicle, address, enabled = true, limit = 12 }) {
   const marcaId = resolveVehicleMarcaId(vehicle);
+  const marcaNombre = vehicle?.marca_nombre || vehicle?.marca || null;
 
   return useQuery({
-    queryKey: ['homeParaTiProviders', vehicle?.id, address?.id, marcaId, limit],
+    queryKey: ['homeParaTiProviders', vehicle?.id, address?.id, marcaId, marcaNombre, limit],
     enabled: enabled && !!vehicle?.id && !!address,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 20,
@@ -34,6 +36,7 @@ export function useParaTiProviders({ vehicle, address, enabled = true, limit = 1
         lat: coords?.lat,
         lng: coords?.lng,
         marcaId,
+        marcaNombre,
         cityContext,
       });
     },

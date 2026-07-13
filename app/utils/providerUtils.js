@@ -7,6 +7,7 @@
 import Constants from 'expo-constants';
 import serverConfig from '../config/serverConfig';
 import { getAxiosMediaBaseSync } from '../services/api';
+import { COLORS as DS } from '../design-system/tokens/colors';
 
 /**
  * Convierte rutas relativas del backend (/media/..., proveedores/...) en URL absoluta
@@ -84,15 +85,46 @@ const KPI_CODE_DISPLAY = {
 };
 
 /**
- * Paleta por código KPI (mismos umbrales y hex que `kpi_badge_utils.py` en backend).
+ * Paleta KPI = etiquetas suaves del design system (mismo lenguaje que Tag).
+ * No usar hex del API: suelen traer slate/Tailwind fuera de marca.
  */
 export const KPI_TIER_PALETTE = {
-  ELITE: { bg_color: '#7C3AED', text_color: '#FFFFFF', border_color: '#A78BFA' },
-  MASTER: { bg_color: '#2563EB', text_color: '#FFFFFF', border_color: '#93C5FD' },
-  PRO: { bg_color: '#059669', text_color: '#FFFFFF', border_color: '#6EE7B7' },
-  ASCENSO: { bg_color: '#F59E0B', text_color: '#111827', border_color: '#FCD34D' },
-  EN_PROGRESO: { bg_color: '#0F172A', text_color: '#E2E8F0', border_color: '#1F2937' },
-  SIN_ACTIVIDAD: { bg_color: '#334155', text_color: '#F8FAFC', border_color: '#475569' },
+  ELITE: {
+    bg_color: DS.accent[50],
+    text_color: DS.accent[700],
+    border_color: DS.accent[100],
+    tagVariant: 'accent',
+  },
+  MASTER: {
+    bg_color: DS.primary[50],
+    text_color: DS.primary[700],
+    border_color: DS.primary[100],
+    tagVariant: 'primary',
+  },
+  PRO: {
+    bg_color: DS.success.light,
+    text_color: DS.success.dark,
+    border_color: DS.success[100],
+    tagVariant: 'success',
+  },
+  ASCENSO: {
+    bg_color: DS.warning.light,
+    text_color: DS.warning.darker,
+    border_color: DS.warning[200],
+    tagVariant: 'warning',
+  },
+  EN_PROGRESO: {
+    bg_color: DS.neutral.gray[100],
+    text_color: DS.text.secondary,
+    border_color: DS.border.light,
+    tagVariant: 'neutral',
+  },
+  SIN_ACTIVIDAD: {
+    bg_color: DS.neutral.gray[100],
+    text_color: DS.text.tertiary,
+    border_color: DS.border.light,
+    tagVariant: 'neutral',
+  },
 };
 
 function parseKpiScore(value) {
@@ -131,7 +163,7 @@ export function tagProviderMarcaFlags(provider) {
   return { ...provider, _esMultimarca: mm, _esEspecialistaMarca: !mm };
 }
 
-/** Panel Destacados: excluye multimarca; solo especialistas en la marca del vehículo. */
+/** Legacy helper: solo especialistas (ya no se usa en Destacados; ver destacadosMatching). */
 export function filterProvidersEspecialistasMarca(providers) {
   return (providers || []).filter((p) => !isProviderMultimarca(p));
 }
@@ -180,10 +212,6 @@ export function kpiTierCodeFromScore(score) {
   if (score >= 75) return 'MASTER';
   if (score >= 55) return 'PRO';
   return 'ASCENSO';
-}
-
-function isValidHexColor(s) {
-  return typeof s === 'string' && /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(s.trim());
 }
 
 /**
@@ -290,15 +318,13 @@ export const getKpiTierPresentation = (kpiBadge, provider = null, options = {}) 
   }
 
   const palette = KPI_TIER_PALETTE[styleCode] || KPI_TIER_PALETTE.EN_PROGRESO;
-  const bg_color = isValidHexColor(kpiBadge.bg_color) ? kpiBadge.bg_color.trim() : palette.bg_color;
-  const text_color = isValidHexColor(kpiBadge.text_color) ? kpiBadge.text_color.trim() : palette.text_color;
-  const border_color = isValidHexColor(kpiBadge.border_color) ? kpiBadge.border_color.trim() : palette.border_color;
 
   return {
     label,
-    bg_color,
-    text_color,
-    border_color,
+    bg_color: palette.bg_color,
+    text_color: palette.text_color,
+    border_color: palette.border_color,
+    tagVariant: palette.tagVariant || 'neutral',
     styleCode,
     reason: kpiBadge.reason != null ? String(kpiBadge.reason).trim() : '',
   };

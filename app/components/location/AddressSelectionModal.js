@@ -13,10 +13,9 @@ import {
     KeyboardAvoidingView,
     Platform
 } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
+import Icon from '../base/Icon/Icon';
 import { useTheme } from '../../design-system/theme/useTheme';
+import { COLORS, withOpacity, SHADOWS } from '../../design-system/tokens';
 import { useUserAddresses, useSaveAddress, useDeleteAddress } from '../../hooks/useAddress';
 import { useManualAddressEntry } from '../../hooks/useManualAddressEntry';
 import { showAlert, showConfirm } from '../../utils/platformAlert';
@@ -39,10 +38,7 @@ const AddressSelectionModal = ({
     const typography = theme.typography;
     const spacing = theme.spacing;
     const borders = theme.borders;
-    const isDarkGlass = variant === 'darkGlass';
-    const styles = isDarkGlass
-        ? getDarkGlassStyles(typography, spacing, borders)
-        : getStyles(colors, typography, spacing, borders);
+    const styles = getStyles(colors, typography, spacing, borders);
 
     const [isLocating, setIsLocating] = useState(false);
     const [detectedAddress, setDetectedAddress] = useState(null);
@@ -292,23 +288,6 @@ const AddressSelectionModal = ({
                     keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
                 >
                     <View style={styles.modalContent}>
-                        {isDarkGlass && (
-                            <>
-                                <LinearGradient
-                                    colors={['#0a1628', '#030712']}
-                                    style={StyleSheet.absoluteFill}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                />
-                                {Platform.OS === 'ios' && (
-                                    <BlurView intensity={24} tint="dark" style={StyleSheet.absoluteFill} />
-                                )}
-                                <View
-                                    style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.03)' }]}
-                                    pointerEvents="none"
-                                />
-                            </>
-                        )}
                         {/* Handle Indicator */}
                         <View style={styles.handleIndicator} />
 
@@ -316,10 +295,10 @@ const AddressSelectionModal = ({
                         <View style={styles.header}>
                             <Text style={styles.title}>¿Dónde estás?</Text>
                             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <Ionicons
+                                <Icon
                                     name="close"
                                     size={22}
-                                    color={isDarkGlass ? 'rgba(255,255,255,0.7)' : colors.text.secondary}
+                                    color={colors.text.secondary}
                                 />
                             </TouchableOpacity>
                         </View>
@@ -340,12 +319,12 @@ const AddressSelectionModal = ({
                                     >
                                         <View style={styles.heroIconContainer}>
                                             {isLocating ? (
-                                                <ActivityIndicator color={isDarkGlass ? '#00A8E8' : colors.primary.main} />
+                                                <ActivityIndicator color={colors.primary.main} />
                                             ) : (
-                                                <Feather
+                                                <Icon
                                                     name="navigation"
                                                     size={24}
-                                                    color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                                    color={colors.primary.main}
                                                 />
                                             )}
                                         </View>
@@ -355,10 +334,10 @@ const AddressSelectionModal = ({
                                             </Text>
                                             <Text style={styles.heroSubtitle}>{heroSubtitle}</Text>
                                         </View>
-                                        <Ionicons
+                                        <Icon
                                             name="chevron-forward"
                                             size={20}
-                                            color={isDarkGlass ? 'rgba(255,255,255,0.35)' : colors.primary.light}
+                                            color={colors.primary.light}
                                         />
                                     </TouchableOpacity>
 
@@ -367,10 +346,10 @@ const AddressSelectionModal = ({
                                         onPress={handleStartManualEntry}
                                         activeOpacity={0.85}
                                     >
-                                        <Feather
+                                        <Icon
                                             name="edit-3"
                                             size={18}
-                                            color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                            color={colors.primary.main}
                                         />
                                         <Text style={styles.manualEntryLinkText}>Ingresar dirección manualmente</Text>
                                     </TouchableOpacity>
@@ -381,10 +360,10 @@ const AddressSelectionModal = ({
                             {!detectedAddress && entryMode === 'manual' && (
                                 <View style={styles.manualEntryBox}>
                                     <View style={styles.detectedHeader}>
-                                        <Feather
+                                        <Icon
                                             name="map-pin"
                                             size={18}
-                                            color={isDarkGlass ? '#67E8F9' : colors.primary.main}
+                                            color={colors.primary.main}
                                         />
                                         <Text style={[styles.detectedLabel, styles.manualEntryTitle]}>
                                             Escribe tu dirección en Chile
@@ -396,7 +375,7 @@ const AddressSelectionModal = ({
                                         value={manualQuery}
                                         onChangeText={onManualQueryChange}
                                         placeholder="Calle, número, comuna..."
-                                        placeholderTextColor={isDarkGlass ? 'rgba(255,255,255,0.35)' : colors.text.tertiary}
+                                        placeholderTextColor={colors.text.tertiary}
                                         autoFocus
                                         autoCorrect={false}
                                     />
@@ -406,7 +385,7 @@ const AddressSelectionModal = ({
                                             {manualLoadingSuggestions && manualSuggestions.length === 0 ? (
                                                 <ActivityIndicator
                                                     style={{ padding: 12 }}
-                                                    color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                                    color={colors.primary.main}
                                                 />
                                             ) : (
                                                 manualSuggestions.map((s, index) => (
@@ -415,10 +394,10 @@ const AddressSelectionModal = ({
                                                         style={styles.suggestionItem}
                                                         onPress={() => handleSelectManualSuggestion(s)}
                                                     >
-                                                        <Feather
+                                                        <Icon
                                                             name="map-pin"
                                                             size={14}
-                                                            color={isDarkGlass ? '#67E8F9' : colors.primary.main}
+                                                            color={colors.primary.main}
                                                         />
                                                         <View style={styles.suggestionTextWrap}>
                                                             <Text style={styles.suggestionMain} numberOfLines={2}>
@@ -440,7 +419,7 @@ const AddressSelectionModal = ({
                                         {manualResolving ? (
                                             <ActivityIndicator
                                                 size="small"
-                                                color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                                color={colors.primary.main}
                                             />
                                         ) : manualResolvedMeta?.district || manualResolvedMeta?.city ? (
                                             <Text style={styles.metaText}>
@@ -466,42 +445,20 @@ const AddressSelectionModal = ({
                                         <Text style={styles.metaError}>{manualResolvedMeta.error}</Text>
                                     ) : null}
 
-                                    {isDarkGlass ? (
-                                        <TouchableOpacity
-                                            style={styles.saveButtonWrap}
-                                            onPress={handleConfirmManualAddress}
-                                            disabled={confirmingManual}
-                                            activeOpacity={0.85}
-                                        >
-                                            <LinearGradient
-                                                colors={['#007EA7', '#00A8E8']}
-                                                start={{ x: 0, y: 0 }}
-                                                end={{ x: 1, y: 0 }}
-                                                style={styles.saveButtonGradient}
-                                            >
-                                                {confirmingManual ? (
-                                                    <ActivityIndicator color="#FFF" />
-                                                ) : (
-                                                    <Text style={styles.saveButtonText}>Continuar con esta dirección</Text>
-                                                )}
-                                            </LinearGradient>
-                                        </TouchableOpacity>
-                                    ) : (
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.saveButton,
-                                                (!manualResolvedMeta?.isValid || confirmingManual) && styles.saveButtonDisabled,
-                                            ]}
-                                            onPress={handleConfirmManualAddress}
-                                            disabled={confirmingManual}
-                                        >
-                                            {confirmingManual ? (
-                                                <ActivityIndicator color="#FFF" />
-                                            ) : (
-                                                <Text style={styles.saveButtonText}>Continuar con esta dirección</Text>
-                                            )}
-                                        </TouchableOpacity>
-                                    )}
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.saveButton,
+                                            (!manualResolvedMeta?.isValid || confirmingManual) && styles.saveButtonDisabled,
+                                        ]}
+                                        onPress={handleConfirmManualAddress}
+                                        disabled={confirmingManual}
+                                    >
+                                        {confirmingManual ? (
+                                            <ActivityIndicator color={COLORS.text.inverse} />
+                                        ) : (
+                                            <Text style={styles.saveButtonText}>Continuar con esta dirección</Text>
+                                        )}
+                                    </TouchableOpacity>
 
                                     <TouchableOpacity style={styles.retryButton} onPress={handleRetryCapture}>
                                         <Text style={styles.retryText}>Volver a opciones de ubicación</Text>
@@ -514,10 +471,10 @@ const AddressSelectionModal = ({
                                 <View style={styles.saveForm}>
                                     <View style={styles.detectedHeader}>
                                         <View style={styles.greenIconValues}>
-                                            <Ionicons
+                                            <Icon
                                                 name="checkmark-circle"
                                                 size={20}
-                                                color={isDarkGlass ? '#6EE7B7' : colors.success.main}
+                                                color={colors.success.main}
                                             />
                                         </View>
                                         <Text style={styles.detectedLabel}>{detectedHeaderLabel}</Text>
@@ -528,51 +485,29 @@ const AddressSelectionModal = ({
                                         value={detectedAddress.name}
                                         onChangeText={(text) => setDetectedAddress(prev => ({ ...prev, name: text }))}
                                         placeholder="Dirección y Número"
-                                        placeholderTextColor={isDarkGlass ? 'rgba(255,255,255,0.35)' : undefined}
+                                        placeholderTextColor={colors.text.tertiary}
                                     />
 
                                     <Text style={styles.inputLabel}>Nombre para guardar (ej: Casa, Oficina)</Text>
                                     <TextInput
                                         style={styles.input}
                                         placeholder="Ej: Casa, Oficina, Gimnasio"
-                                        placeholderTextColor={isDarkGlass ? 'rgba(255,255,255,0.35)' : undefined}
+                                        placeholderTextColor={colors.text.tertiary}
                                         value={addressLabel}
                                         onChangeText={setAddressLabel}
                                     />
 
-                                    {isDarkGlass ? (
-                                        <TouchableOpacity
-                                            style={styles.saveButtonWrap}
-                                            onPress={handleSaveAddress}
-                                            disabled={isSaving}
-                                            activeOpacity={0.85}
-                                        >
-                                            <LinearGradient
-                                                colors={['#007EA7', '#00A8E8']}
-                                                start={{ x: 0, y: 0 }}
-                                                end={{ x: 1, y: 0 }}
-                                                style={styles.saveButtonGradient}
-                                            >
-                                                {isSaving ? (
-                                                    <ActivityIndicator color="#FFF" />
-                                                ) : (
-                                                    <Text style={styles.saveButtonText}>Confirmar y Guardar</Text>
-                                                )}
-                                            </LinearGradient>
-                                        </TouchableOpacity>
-                                    ) : (
-                                        <TouchableOpacity
-                                            style={styles.saveButton}
-                                            onPress={handleSaveAddress}
-                                            disabled={isSaving}
-                                        >
-                                            {isSaving ? (
-                                                <ActivityIndicator color="#FFF" />
-                                            ) : (
-                                                <Text style={styles.saveButtonText}>Confirmar y Guardar</Text>
-                                            )}
-                                        </TouchableOpacity>
-                                    )}
+                                    <TouchableOpacity
+                                        style={styles.saveButton}
+                                        onPress={handleSaveAddress}
+                                        disabled={isSaving}
+                                    >
+                                        {isSaving ? (
+                                            <ActivityIndicator color={COLORS.text.inverse} />
+                                        ) : (
+                                            <Text style={styles.saveButtonText}>Confirmar y Guardar</Text>
+                                        )}
+                                    </TouchableOpacity>
 
                                     {(detectedAddress.district || detectedAddress.city) ? (
                                         <Text style={styles.metaText}>
@@ -597,7 +532,7 @@ const AddressSelectionModal = ({
                             {isLoadingAddresses ? (
                                 <ActivityIndicator
                                     style={{ marginTop: 20 }}
-                                    color={isDarkGlass ? '#00A8E8' : colors.primary.main}
+                                    color={colors.primary.main}
                                 />
                             ) : (
                                 <View style={styles.listContainer}>
@@ -605,8 +540,8 @@ const AddressSelectionModal = ({
                                         savedAddresses.map((addr) => {
                                             const isSelected = currentAddress?.id === addr.id;
                                             const iconColor = isSelected
-                                                ? (isDarkGlass ? '#00A8E8' : colors.primary.main)
-                                                : (isDarkGlass ? 'rgba(255,255,255,0.45)' : colors.neutral.gray[500]);
+                                                ? colors.primary.main
+                                                : colors.neutral.gray[500];
                                             return (
                                                 <View
                                                     key={addr.id}
@@ -621,26 +556,38 @@ const AddressSelectionModal = ({
                                                         activeOpacity={0.7}
                                                     >
                                                         <View style={[styles.itemIcon, isSelected && styles.itemIconSelected]}>
-                                                            <Feather
+                                                            <Icon
                                                                 name={getIconForLabel(addr.etiqueta)}
-                                                                size={18}
+                                                                size={20}
                                                                 color={iconColor}
                                                             />
                                                         </View>
                                                         <View style={styles.itemContent}>
-                                                            <Text style={[styles.itemLabel, isSelected && styles.itemLabelSelected]}>
-                                                                {addr.etiqueta}
-                                                            </Text>
-                                                            <Text style={styles.itemAddress} numberOfLines={1}>
-                                                                {addr.direccion}
+                                                            <View style={styles.itemLabelRow}>
+                                                                <Text
+                                                                    style={[styles.itemLabel, isSelected && styles.itemLabelSelected]}
+                                                                    numberOfLines={1}
+                                                                >
+                                                                    {addr.etiqueta || 'Dirección'}
+                                                                </Text>
+                                                                {addr.es_principal ? (
+                                                                    <View style={styles.principalBadge}>
+                                                                        <Text style={styles.principalBadgeText}>Principal</Text>
+                                                                    </View>
+                                                                ) : null}
+                                                            </View>
+                                                            <Text style={styles.itemAddress} numberOfLines={2}>
+                                                                {addr.direccion || 'Sin detalle de calle'}
                                                             </Text>
                                                         </View>
                                                         {isSelected ? (
-                                                            <Ionicons
-                                                                name="checkmark"
-                                                                size={20}
-                                                                color={isDarkGlass ? '#00A8E8' : colors.primary.main}
-                                                            />
+                                                            <View style={styles.selectedCheck}>
+                                                                <Icon
+                                                                    name="checkmark"
+                                                                    size={18}
+                                                                    color={colors.primary.main}
+                                                                />
+                                                            </View>
                                                         ) : null}
                                                     </TouchableOpacity>
                                                     {!isSelected ? (
@@ -650,14 +597,10 @@ const AddressSelectionModal = ({
                                                             accessibilityRole="button"
                                                             accessibilityLabel={`Eliminar dirección ${addr.etiqueta}`}
                                                         >
-                                                            <Ionicons
+                                                            <Icon
                                                                 name="trash-outline"
                                                                 size={18}
-                                                                color={
-                                                                    isDarkGlass
-                                                                        ? 'rgba(255,255,255,0.35)'
-                                                                        : colors.neutral.gray[400]
-                                                                }
+                                                                color={colors.neutral.gray[400]}
                                                             />
                                                         </TouchableOpacity>
                                                     ) : null}
@@ -666,11 +609,11 @@ const AddressSelectionModal = ({
                                         })
                                     ) : (
                                         <View style={styles.emptyState}>
-                                            <Ionicons
+                                            <Icon
                                                 name="map-outline"
                                                 size={64}
                                                 color={
-                                                    isDarkGlass ? 'rgba(255,255,255,0.2)' : colors.neutral.gray[300]
+colors.neutral.gray[300]
                                                 }
                                                 style={{ marginBottom: spacing.md }}
                                             />
@@ -691,7 +634,7 @@ const AddressSelectionModal = ({
 const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.5),
         justifyContent: 'flex-end',
     },
     dismissArea: {
@@ -705,7 +648,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         paddingTop: spacing.sm,
         maxHeight: SCREEN_HEIGHT * 0.85,
         minHeight: SCREEN_HEIGHT * 0.5,
-        shadowColor: "#000",
+        shadowColor: COLORS.base.inkBlack,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.1,
         shadowRadius: 10,
@@ -883,7 +826,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         fontWeight: typography.fontWeight.medium,
     },
     input: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.paper,
         borderWidth: 1,
         borderColor: colors.border.light,
         borderRadius: borders.radius.md,
@@ -895,7 +838,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     },
     inputDetected: {
         marginBottom: 12,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.background.paper,
     },
     saveButton: {
         backgroundColor: colors.success.main, // Using theme token
@@ -905,7 +848,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         marginBottom: spacing.sm,
     },
     saveButtonText: {
-        color: '#FFFFFF',
+        color: COLORS.text.inverse,
         fontWeight: typography.fontWeight.semibold,
         fontSize: typography.fontSize.base,
     },
@@ -931,54 +874,94 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
     },
     addressItem: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'stretch',
         borderRadius: borders.radius.lg,
-        backgroundColor: colors.background.default,
+        backgroundColor: colors.background.paper,
         borderWidth: 1,
-        borderColor: 'transparent',
+        borderColor: colors.border.light,
         overflow: 'hidden',
+        ...SHADOWS.sm,
     },
     addressItemMain: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        padding: spacing.md,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
+        gap: spacing.sm,
+        minWidth: 0,
     },
     addressItemSelected: {
         backgroundColor: colors.primary[50],
-        borderColor: colors.primary[100],
+        borderColor: colors.primary[200],
     },
     itemIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 40,
+        height: 40,
+        borderRadius: borders.radius.md,
         backgroundColor: colors.neutral.gray[100],
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: spacing.md,
+        flexShrink: 0,
     },
     itemIconSelected: {
         backgroundColor: colors.primary[100],
     },
     itemContent: {
         flex: 1,
-        marginRight: spacing.sm,
+        minWidth: 0,
+        justifyContent: 'center',
+        gap: 4,
+    },
+    itemLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        minWidth: 0,
     },
     itemLabel: {
+        flexShrink: 1,
         fontSize: typography.fontSize.base,
         fontWeight: typography.fontWeight.semibold,
         color: colors.text.primary,
-        marginBottom: 2,
     },
     itemLabelSelected: {
         color: colors.text.primary,
     },
+    principalBadge: {
+        flexShrink: 0,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: borders.radius.full,
+        backgroundColor: colors.neutral.gray[100],
+        borderWidth: 1,
+        borderColor: colors.border.light,
+    },
+    principalBadgeText: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.text.secondary,
+    },
     itemAddress: {
         fontSize: typography.fontSize.sm,
-        color: colors.text.tertiary,
+        color: colors.text.secondary,
+        lineHeight: 18,
+    },
+    selectedCheck: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: colors.primary[100],
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
     },
     deleteButton: {
-        padding: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: spacing.md,
+        borderLeftWidth: 1,
+        borderLeftColor: colors.border.light,
         ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
     },
     emptyState: {
@@ -997,315 +980,5 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         color: colors.text.tertiary,
     },
 });
-
-const getDarkGlassStyles = (typography, spacing, borders) =>
-    StyleSheet.create({
-        modalOverlay: {
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.55)',
-            justifyContent: 'flex-end',
-        },
-        dismissArea: {
-            flex: 1,
-        },
-        modalContent: {
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingHorizontal: spacing.md,
-            paddingTop: spacing.sm,
-            maxHeight: SCREEN_HEIGHT * 0.85,
-            minHeight: SCREEN_HEIGHT * 0.5,
-            overflow: 'hidden',
-            borderTopWidth: 1,
-            borderColor: 'rgba(255,255,255,0.1)',
-            backgroundColor: 'transparent',
-            elevation: 16,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 14,
-        },
-        keyboardView: {
-            width: '100%',
-        },
-        handleIndicator: {
-            width: 40,
-            height: 4,
-            backgroundColor: 'rgba(255,255,255,0.22)',
-            borderRadius: 2,
-            alignSelf: 'center',
-            marginTop: 8,
-            marginBottom: 20,
-        },
-        header: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: spacing.lg,
-        },
-        title: {
-            fontSize: typography.fontSize?.['xl'] || 20,
-            fontWeight: typography.fontWeight.bold,
-            color: '#FFFFFF',
-        },
-        closeButton: {
-            padding: 8,
-            borderRadius: 12,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-        },
-        heroButton: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor:
-                Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.10)',
-            borderWidth: 1,
-            borderColor: 'rgba(96,165,250,0.35)',
-            borderRadius: borders.radius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.lg,
-        },
-        heroIconContainer: {
-            width: 44,
-            height: 44,
-            borderRadius: 14,
-            backgroundColor: 'rgba(0,126,167,0.22)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginRight: spacing.md,
-        },
-        heroTextContainer: {
-            flex: 1,
-        },
-        heroTitle: {
-            fontSize: typography.fontSize.base,
-            fontWeight: typography.fontWeight.semibold,
-            color: '#FFFFFF',
-            marginBottom: 4,
-        },
-        heroSubtitle: {
-            fontSize: typography.fontSize.xs,
-            color: 'rgba(255,255,255,0.45)',
-            lineHeight: 18,
-        },
-        manualEntryLink: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            paddingVertical: spacing.sm,
-            marginBottom: spacing.lg,
-        },
-        manualEntryLinkText: {
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.semibold,
-            color: '#67E8F9',
-            textDecorationLine: 'underline',
-        },
-        manualEntryBox: {
-            backgroundColor: 'rgba(255,255,255,0.06)',
-            borderRadius: borders.radius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.lg,
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.12)',
-        },
-        manualEntryTitle: {
-            marginLeft: 8,
-            color: '#FFFFFF',
-        },
-        suggestionsList: {
-            borderRadius: borders.radius.md,
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.12)',
-            backgroundColor: 'rgba(0,0,0,0.2)',
-            marginBottom: spacing.sm,
-            overflow: 'hidden',
-        },
-        suggestionItem: {
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            gap: 10,
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.md,
-            borderBottomWidth: 1,
-            borderBottomColor: 'rgba(255,255,255,0.08)',
-        },
-        suggestionTextWrap: {
-            flex: 1,
-        },
-        suggestionMain: {
-            fontSize: typography.fontSize.sm,
-            color: '#FFFFFF',
-            fontWeight: typography.fontWeight.medium,
-        },
-        suggestionSecondary: {
-            fontSize: typography.fontSize.xs,
-            color: 'rgba(255,255,255,0.45)',
-            marginTop: 2,
-        },
-        metaRow: {
-            minHeight: 22,
-            marginBottom: spacing.xs,
-        },
-        metaText: {
-            fontSize: typography.fontSize.xs,
-            color: 'rgba(255,255,255,0.55)',
-            fontWeight: typography.fontWeight.medium,
-        },
-        metaHint: {
-            fontSize: typography.fontSize.xs,
-            color: 'rgba(255,255,255,0.4)',
-        },
-        metaError: {
-            fontSize: typography.fontSize.xs,
-            color: '#FCA5A5',
-            marginBottom: spacing.sm,
-        },
-        saveButtonDisabled: {
-            opacity: 0.55,
-        },
-        saveForm: {
-            backgroundColor: 'rgba(16,185,129,0.08)',
-            borderRadius: borders.radius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.lg,
-            borderWidth: 1,
-            borderColor: 'rgba(16,185,129,0.28)',
-        },
-        detectedHeader: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginBottom: spacing.md,
-        },
-        greenIconValues: {
-            marginRight: 8,
-        },
-        detectedLabel: {
-            fontSize: typography.fontSize.sm,
-            color: '#6EE7B7',
-            fontWeight: typography.fontWeight.medium,
-            flex: 1,
-            marginBottom: 0,
-        },
-        inputLabel: {
-            fontSize: typography.fontSize.xs,
-            color: 'rgba(255,255,255,0.55)',
-            marginBottom: 6,
-            fontWeight: typography.fontWeight.medium,
-        },
-        input: {
-            backgroundColor: 'rgba(255,255,255,0.06)',
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.12)',
-            borderRadius: borders.radius.md,
-            paddingHorizontal: spacing.md,
-            paddingVertical: spacing.sm,
-            fontSize: typography.fontSize.base,
-            color: '#FFFFFF',
-            marginBottom: spacing.md,
-        },
-        inputDetected: {
-            marginBottom: 12,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-        },
-        saveButton: {},
-        saveButtonWrap: {
-            borderRadius: 14,
-            overflow: 'hidden',
-            marginBottom: spacing.sm,
-        },
-        saveButtonGradient: {
-            paddingVertical: 14,
-            alignItems: 'center',
-            justifyContent: 'center',
-        },
-        saveButtonText: {
-            color: '#FFFFFF',
-            fontWeight: typography.fontWeight.semibold,
-            fontSize: typography.fontSize.base,
-        },
-        retryButton: {
-            alignItems: 'center',
-            paddingVertical: 4,
-        },
-        retryText: {
-            fontSize: typography.fontSize.xs,
-            color: 'rgba(255,255,255,0.45)',
-            textDecorationLine: 'underline',
-        },
-        sectionTitle: {
-            fontSize: typography.fontSize.md,
-            fontWeight: typography.fontWeight.bold,
-            color: '#FFFFFF',
-            marginBottom: spacing.md,
-            marginTop: 4,
-        },
-        listContainer: {
-            gap: spacing.sm,
-        },
-        addressItem: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            borderRadius: borders.radius.lg,
-            backgroundColor:
-                Platform.OS === 'ios' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.08)',
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.1)',
-            overflow: 'hidden',
-        },
-        addressItemMain: {
-            flex: 1,
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: spacing.md,
-        },
-        addressItemSelected: {
-            backgroundColor: 'rgba(0,168,232,0.12)',
-            borderColor: 'rgba(0,168,232,0.35)',
-        },
-        itemIcon: {
-            width: 36,
-            height: 36,
-            borderRadius: 12,
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            marginRight: spacing.md,
-        },
-        itemIconSelected: {
-            backgroundColor: 'rgba(0,126,167,0.28)',
-        },
-        itemContent: {
-            flex: 1,
-            marginRight: spacing.sm,
-        },
-        itemLabel: {
-            fontSize: typography.fontSize.base,
-            fontWeight: typography.fontWeight.semibold,
-            color: '#FFFFFF',
-            marginBottom: 2,
-        },
-        itemLabelSelected: {
-            color: '#67E8F9',
-        },
-        itemAddress: {
-            fontSize: typography.fontSize.sm,
-            color: 'rgba(255,255,255,0.45)',
-        },
-        deleteButton: {
-            padding: 8,
-            ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
-        },
-        emptyState: {
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingVertical: spacing.xl,
-        },
-        emptyText: {
-            fontSize: typography.fontSize.sm,
-            color: 'rgba(255,255,255,0.4)',
-            textAlign: 'center',
-        },
-    });
 
 export default AddressSelectionModal;

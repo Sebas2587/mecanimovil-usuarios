@@ -11,16 +11,15 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
+import { COLORS, TYPOGRAPHY, BORDERS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import Button from '../../components/base/Button/Button';
 
 const HAS_SEEN_ONBOARDING_KEY = 'has_seen_onboarding_v1';
 const ONBOARDING_BG_1 = require('../../../assets/images/onboarding-mechanic.png');
 const ONBOARDING_BG_2 = require('../../../assets/images/onboarding-health.png');
-const MECANIMOVIL_LOGO = require('../../../assets/images/logo-mecanimovil.png');
+const MECANIMOVIL_LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
 
 const CONTENT_MAX_WIDTH = 560;
 const WIDE_BREAKPOINT = 768;
@@ -156,61 +155,48 @@ const OnboardingSlide = React.memo(function OnboardingSlide({
       ]}
     >
       <View
-        style={[StyleSheet.absoluteFill, slideHeightStyle(slideHeight)]}
-        pointerEvents="none"
+        style={[
+          styles.slideInner,
+          {
+            paddingHorizontal: horizontalPadding,
+            paddingBottom: zones.textPaddingBottom,
+          },
+        ]}
       >
         <Animated.View
           style={[
-            StyleSheet.absoluteFill,
+            styles.imageFrame,
             {
               opacity: imageOpacity,
               transform: [{ translateX: imageTranslateX }, { scale: imageScale }],
             },
           ]}
         >
-          <Image
-            source={imageSource}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
+          <Image source={imageSource} style={styles.slideImage} resizeMode="cover" />
         </Animated.View>
 
-        <LinearGradient
-          colors={[
-            withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.35),
-            withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.55),
-            withOpacity(COLORS.base.inkBlack ?? '#0B1220', 0.9),
-          ]}
-          locations={[0, 0.55, 1]}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
-
-      <Animated.View
-        style={[
-          styles.textBlock,
-          {
-            paddingHorizontal: horizontalPadding,
-            paddingBottom: zones.textPaddingBottom,
-            opacity: textOpacity,
-            transform: [{ translateY: textTranslateY }],
-          },
-        ]}
-      >
-        <Text style={[styles.title, { fontSize: titleSize, lineHeight: Math.round(titleSize * 1.15) }]}>
-          {item.title[0]} <Text style={styles.titleAccent}>{item.title[1]}</Text> {item.title[2]}
-        </Text>
-        <Text
+        <Animated.View
           style={[
-            styles.description,
-            { fontSize: descriptionSize, lineHeight: Math.round(descriptionSize * 1.55) },
+            styles.textBlock,
+            {
+              opacity: textOpacity,
+              transform: [{ translateY: textTranslateY }],
+            },
           ]}
         >
-          {item.description}
-        </Text>
-      </Animated.View>
+          <Text style={[styles.title, { fontSize: titleSize, lineHeight: Math.round(titleSize * 1.15) }]}>
+            {item.title[0]} <Text style={styles.titleAccent}>{item.title[1]}</Text> {item.title[2]}
+          </Text>
+          <Text
+            style={[
+              styles.description,
+              { fontSize: descriptionSize, lineHeight: Math.round(descriptionSize * 1.55) },
+            ]}
+          >
+            {item.description}
+          </Text>
+        </Animated.View>
+      </View>
     </View>
   );
 });
@@ -244,7 +230,7 @@ const AnimatedDot = React.memo(function AnimatedDot({ index, scrollX, slideWidth
           {
             width: dotWidth,
             opacity,
-            backgroundColor: withOpacity(COLORS.base.white, 0.86),
+            backgroundColor: COLORS.primary[500],
           },
         ]}
       />
@@ -389,7 +375,7 @@ export default function OnboardingScreen({ navigation }) {
       <View style={[styles.logoWrap, { top: zones.logoTop }]}>
         <Image
           source={MECANIMOVIL_LOGO}
-          style={{ width: layout.logoWidth, height: layout.logoHeight, opacity: 0.95 }}
+          style={{ width: layout.logoWidth, height: layout.logoHeight }}
           resizeMode="contain"
         />
       </View>
@@ -478,7 +464,6 @@ export default function OnboardingScreen({ navigation }) {
               onPress={onNext}
               type="primary"
               variant="solid"
-              useGradient
               size="md"
               fullWidth={layout.isCompact}
             />
@@ -492,7 +477,7 @@ export default function OnboardingScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.base.inkBlack ?? '#0B1220',
+    backgroundColor: COLORS.background.default,
   },
   list: {
     flex: 1,
@@ -512,25 +497,42 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     zIndex: 30,
-    paddingHorizontal: 14,
+    paddingHorizontal: 8,
     paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: withOpacity(COLORS.base.white, 0.08),
-    borderWidth: 1,
-    borderColor: withOpacity(COLORS.base.white, 0.14),
   },
   skipTopPressed: {
     opacity: 0.72,
   },
   skipTopText: {
-    color: withOpacity(COLORS.base.white, 0.88),
-    fontSize: TYPOGRAPHY.fontSize?.sm ?? 14,
-    fontWeight: TYPOGRAPHY.fontWeight?.semibold ?? '600',
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.secondary,
+    textDecorationLine: 'underline',
   },
   slide: {
     overflow: 'hidden',
-    backgroundColor: COLORS.base.inkBlack ?? '#0B1220',
+    backgroundColor: COLORS.background.default,
     justifyContent: 'flex-end',
+  },
+  slideInner: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingTop: 96,
+  },
+  imageFrame: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    aspectRatio: 4 / 3,
+    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    overflow: 'hidden',
+    marginBottom: 28,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
+  },
+  slideImage: {
+    width: '100%',
+    height: '100%',
   },
   textBlock: {
     zIndex: 2,
@@ -539,18 +541,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   title: {
-    color: COLORS.base.white,
-    fontWeight: TYPOGRAPHY.styles.h1.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.h1.letterSpacing,
+    ...TYPOGRAPHY.styles.h1,
+    color: COLORS.text.primary,
   },
   titleAccent: {
-    color: COLORS.primary[400],
+    color: COLORS.primary[500],
   },
   description: {
+    ...TYPOGRAPHY.styles.body,
     marginTop: 14,
-    color: withOpacity(COLORS.base.white, 0.72),
-    fontWeight: TYPOGRAPHY.styles.body.fontWeight,
-    letterSpacing: TYPOGRAPHY.styles.body.letterSpacing,
+    color: COLORS.text.secondary,
   },
   bottomOverlay: {
     position: 'absolute',
@@ -606,9 +606,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   skipBottomText: {
-    color: withOpacity(COLORS.base.white, 0.72),
-    fontSize: TYPOGRAPHY.fontSize?.sm ?? 14,
-    fontWeight: TYPOGRAPHY.fontWeight?.medium ?? '500',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
     textDecorationLine: 'underline',
   },
   primaryCta: {

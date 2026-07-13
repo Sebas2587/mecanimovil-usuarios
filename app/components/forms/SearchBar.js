@@ -6,8 +6,9 @@ import {
   StyleSheet,
   Keyboard
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, FONT_SIZES } from '../../utils/constants';
+import Icon from '../base/Icon/Icon';
+import { COLORS } from '../../design-system/tokens';
+import { SPACING, FONT_SIZES } from '../../utils/constants';
 
 const SearchBar = ({ 
   placeholder = "Buscar...",
@@ -25,17 +26,17 @@ const SearchBar = ({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.iconContainer}>
-        <Ionicons 
+        <Icon 
           name="search" 
           size={20} 
-          color={COLORS.textLight || '#666'} 
+          color={COLORS.text.tertiary} 
         />
       </View>
       
       <TextInput
         style={styles.input}
         placeholder={placeholder}
-        placeholderTextColor={COLORS.textLight || '#666'}
+        placeholderTextColor={COLORS.text.tertiary}
         value={value}
         onChangeText={onChangeText}
         autoFocus={autoFocus}
@@ -49,7 +50,7 @@ const SearchBar = ({
           onPress={handleClear}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="close-circle" size={20} color={COLORS.textLight || '#666'} />
+          <Icon name="close-circle" size={20} color={COLORS.text.tertiary} />
         </TouchableOpacity>
       )}
     </View>
@@ -60,14 +61,14 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.white || '#FFFFFF',
+    backgroundColor: COLORS.background.paper,
     borderRadius: 12,
     paddingHorizontal: SPACING?.md || 16,
     paddingVertical: SPACING?.sm || 12,
     minHeight: 48,
     borderWidth: 1,
-    borderColor: COLORS.borderLight || '#E5E5E5',
-    shadowColor: '#000',
+    borderColor: COLORS.border.light,
+    shadowColor: COLORS.base.inkBlack,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -79,7 +80,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: FONT_SIZES?.body || 16,
-    color: COLORS.text || '#333333',
+    color: COLORS.text.primary,
     paddingVertical: 0,
   },
   clearButton: {

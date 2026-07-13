@@ -13,19 +13,19 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, ClipboardList } from 'lucide-react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ClipboardList, CirclePlus, CircleAlert } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
 import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesListSkeleton';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
+import BackButton from '../../components/navigation/BackButton';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { prefetchRequestDetail, refetchSolicitudesListQueries } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
 import { showAlert } from '../../utils/platformAlert';
 
-const SURFACE_SOFT = COLORS.neutral.gray[100];
 
 const parseRouteToTabs = (route) => {
   const p = route?.params?.initialFiltroEstado;
@@ -116,18 +116,26 @@ const MisSolicitudesScreen = () => {
 
   const solicitudesSegments = useMemo(
     () => [
-      { key: 'todos', label: 'Todas' },
-      { key: 'activas', label: 'Activas' },
-      { key: 'en_proceso', label: 'En proceso' },
+      { id: 'todos', label: 'Todas' },
+      { id: 'activas', label: 'Activas' },
+      { id: 'en_proceso', label: 'En proceso' },
     ],
     [],
   );
 
   const historialSegments = useMemo(
     () => [
-      { key: 'historial_todos', label: 'Todas' },
-      { key: 'completada', label: 'Completadas' },
-      { key: 'canceladas', label: 'Canceladas' },
+      { id: 'historial_todos', label: 'Todas' },
+      { id: 'completada', label: 'Completadas' },
+      { id: 'canceladas', label: 'Canceladas' },
+    ],
+    [],
+  );
+
+  const mainTabSegments = useMemo(
+    () => [
+      { id: 'solicitudes', label: 'Solicitudes' },
+      { id: 'historial', label: 'Historial' },
     ],
     [],
   );
@@ -236,7 +244,7 @@ const MisSolicitudesScreen = () => {
     return (
       <View style={styles.emptyContainer}>
         <View style={styles.emptyIconWrap}>
-          <ClipboardList size={40} color="rgba(255,255,255,0.25)" />
+          <ClipboardList size={40} color={COLORS.neutral.gray[300]} strokeWidth={1.75} />
         </View>
         <Text style={styles.emptyTitle}>{mensajeActual.titulo}</Text>
         <Text style={styles.emptySubtitle}>{mensajeActual.subtitulo}</Text>
@@ -251,7 +259,7 @@ const MisSolicitudesScreen = () => {
             }
             activeOpacity={0.85}
           >
-            <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+            <CirclePlus size={20} color={COLORS.text.inverse} strokeWidth={2} />
             <Text style={styles.createButtonText}>Crear Solicitud</Text>
           </TouchableOpacity>
         )}
@@ -277,47 +285,22 @@ const MisSolicitudesScreen = () => {
     return (
       <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
         <View style={styles.navRow}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={22} color={COLORS.text.primary} />
-          </TouchableOpacity>
+          <BackButton onPress={() => navigation.goBack()} />
           <View style={{ width: 40 }} />
         </View>
         <Text style={styles.headerTitle}>Mis solicitudes</Text>
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.mainTab, mainTab === 'solicitudes' && styles.activeMainTab]}
-            onPress={() => handleMainTabChange('solicitudes')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.mainTabText, mainTab === 'solicitudes' && styles.activeMainTabText]}>
-              Solicitudes
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.mainTab, mainTab === 'historial' && styles.activeMainTab]}
-            onPress={() => handleMainTabChange('historial')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.mainTabText, mainTab === 'historial' && styles.activeMainTabText]}>
-              Historial
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.segmentContainer}>
-          {segments.map((item) => {
-            const active = filtroSegment === item.key;
-            return (
-              <TouchableOpacity
-                key={item.key}
-                style={[styles.segmentButton, active && styles.activeSegmentButton]}
-                onPress={() => handleSegmentPress(item.key)}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.segmentText, active && styles.activeSegmentText]}>{item.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          segments={mainTabSegments}
+          value={mainTab}
+          onChange={handleMainTabChange}
+          style={styles.tabsContainer}
+        />
+        <SegmentedControl
+          segments={segments}
+          value={filtroSegment}
+          onChange={handleSegmentPress}
+          style={styles.segmentContainer}
+        />
       </View>
     );
   }, [
@@ -327,6 +310,7 @@ const MisSolicitudesScreen = () => {
     filtroSegment,
     solicitudesSegments,
     historialSegments,
+    mainTabSegments,
     handleMainTabChange,
     handleSegmentPress,
   ]);
@@ -392,7 +376,7 @@ const MisSolicitudesScreen = () => {
 
           {error && (
             <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle-outline" size={20} color={COLORS.error[500]} />
+              <CircleAlert size={20} color={COLORS.error[500]} strokeWidth={1.75} />
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
@@ -451,76 +435,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: SURFACE_SOFT,
-    borderRadius: 14,
     marginHorizontal: SPACING.container.horizontal,
     marginBottom: SPACING.sm,
-    padding: 4,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    overflow: 'hidden',
-  },
-  mainTab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  activeMainTab: {
-    backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  mainTabText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.tertiary,
-  },
-  activeMainTabText: {
-    color: COLORS.text.primary,
   },
   segmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: SURFACE_SOFT,
-    borderRadius: 14,
     marginHorizontal: SPACING.container.horizontal,
     marginBottom: SPACING.sm,
-    padding: 4,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-  },
-  activeSegmentButton: {
-    backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  segmentText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.tertiary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
-  activeSegmentText: {
-    color: COLORS.text.primary,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   listContent: {
     paddingTop: 8,

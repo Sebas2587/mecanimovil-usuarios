@@ -24,9 +24,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import Icon from '../base/Icon/Icon';
 import SignaturePad from '../signature/SignaturePad';
 import * as Location from 'expo-location';
-import { Ionicons } from '@expo/vector-icons';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -256,7 +256,7 @@ const CustomerSignatureModal = ({
             accessibilityRole="button"
             accessibilityLabel="Cerrar"
           >
-            <Ionicons name="close" size={26} color={COLORS.text.primary} />
+            <Icon name="close" size={26} color={COLORS.text.primary} />
           </TouchableOpacity>
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Firmar servicio</Text>
@@ -285,7 +285,7 @@ const CustomerSignatureModal = ({
         >
           <View style={styles.infoCard}>
             <View style={styles.infoIconWrap}>
-              <Ionicons
+              <Icon
                 name="shield-checkmark"
                 size={20}
                 color={COLORS.primary[500]}
@@ -324,7 +324,7 @@ const CustomerSignatureModal = ({
                 onPress={handleClear}
                 disabled={submitting}
               >
-                <Ionicons
+                <Icon
                   name="refresh"
                   size={18}
                   color={COLORS.text.secondary}
@@ -354,7 +354,7 @@ const CustomerSignatureModal = ({
               </View>
             ) : (
               <View style={styles.confirmRow}>
-                <Ionicons
+                <Icon
                   name="checkmark-circle"
                   size={20}
                   color={COLORS.text.inverse}

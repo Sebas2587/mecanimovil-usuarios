@@ -10,8 +10,8 @@ import {
   SafeAreaView,
   Alert
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../utils/constants';
+import Icon from '../base/Icon/Icon';
+import { COLORS } from '../../design-system/tokens';
 import * as vehicleService from '../../services/vehicle';
 
 const VehicleSelectionModal = ({ 
@@ -28,9 +28,9 @@ const VehicleSelectionModal = ({
 
   // Colores temáticos según el tipo de proveedor
   const themeColors = {
-    primary: type === 'taller' ? COLORS.primary : COLORS.secondary,
-    secondary: type === 'taller' ? COLORS.secondary : COLORS.primary,
-    light: type === 'taller' ? '#E3F2FD' : '#FFE5D1'
+    primary: type === 'taller' ? COLORS.primary[500] : COLORS.secondary[500],
+    secondary: type === 'taller' ? COLORS.secondary[500] : COLORS.primary[500],
+    light: type === 'taller' ? COLORS.primary[50] : COLORS.warning[100]
   };
 
   useEffect(() => {
@@ -213,10 +213,10 @@ const VehicleSelectionModal = ({
             styles.vehicleIcon,
             { backgroundColor: isSelected ? themeColors.primary : themeColors.light }
           ]}>
-            <Ionicons 
+            <Icon 
               name="car" 
               size={24} 
-              color={isSelected ? '#FFFFFF' : themeColors.primary} 
+              color={isSelected ? COLORS.text.inverse : themeColors.primary} 
             />
           </View>
           
@@ -237,7 +237,7 @@ const VehicleSelectionModal = ({
 
           {isSelected && (
             <View style={[styles.checkIcon, { backgroundColor: themeColors.primary }]}>
-              <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              <Icon name="checkmark" size={16} color={COLORS.text.inverse} />
             </View>
           )}
         </View>
@@ -257,7 +257,7 @@ const VehicleSelectionModal = ({
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#666666" />
+              <Icon name="close" size={24} color={COLORS.text.secondary} />
             </TouchableOpacity>
             
             <View style={styles.headerTitleContainer}>
@@ -275,7 +275,7 @@ const VehicleSelectionModal = ({
         <View style={[styles.serviceInfo, { backgroundColor: themeColors.light }]}>
           <View style={styles.serviceInfoContent}>
             <View style={[styles.serviceIcon, { backgroundColor: themeColors.primary }]}>
-              <Ionicons name="construct" size={20} color="#FFFFFF" />
+              <Icon name="construct" size={20} color={COLORS.text.inverse} />
             </View>
             <View style={styles.serviceDetails}>
               <Text style={styles.serviceName}>{servicio?.nombre || 'Servicio'}</Text>
@@ -295,7 +295,7 @@ const VehicleSelectionModal = ({
             </View>
           ) : userVehicles.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="car-outline" size={60} color="#666666" />
+              <Icon name="car-outline" size={60} color={COLORS.text.secondary} />
               <Text style={styles.emptyTitle}>No tienes vehículos registrados</Text>
               <Text style={styles.emptyText}>
                 Para agendar servicios, necesitas tener al menos un vehículo registrado en tu perfil.
@@ -307,7 +307,7 @@ const VehicleSelectionModal = ({
                   Alert.alert('Próximamente', 'La función de agregar vehículo estará disponible pronto');
                 }}
               >
-                <Ionicons name="add" size={20} color="#FFFFFF" />
+                <Icon name="add" size={20} color={COLORS.text.inverse} />
                 <Text style={styles.addVehicleText}>Agregar Vehículo</Text>
               </TouchableOpacity>
             </View>
@@ -319,7 +319,7 @@ const VehicleSelectionModal = ({
               
               {servicio?.modelos_compatibles && servicio.modelos_compatibles.length > 0 && (
                 <View style={styles.compatibilityInfo}>
-                  <Ionicons name="information-circle" size={16} color={themeColors.primary} />
+                  <Icon name="information-circle" size={16} color={themeColors.primary} />
                   <Text style={[styles.compatibilityText, { color: themeColors.primary }]}>
                     Solo se muestran vehículos compatibles con este servicio
                   </Text>
@@ -350,20 +350,20 @@ const VehicleSelectionModal = ({
               style={[
                 styles.continueButton,
                 { 
-                  backgroundColor: selectedVehicle ? themeColors.primary : '#E5E5E5'
+                  backgroundColor: selectedVehicle ? themeColors.primary : COLORS.neutral.gray[200]
                 }
               ]}
               onPress={handleContinue}
               disabled={!selectedVehicle}
             >
-              <Ionicons 
+              <Icon 
                 name="calendar" 
                 size={18} 
-                color={selectedVehicle ? "#FFFFFF" : "#999999"}
+                color={selectedVehicle ? COLORS.text.inverse : COLORS.text.tertiary}
               />
               <Text style={[
                 styles.continueButtonText,
-                { color: selectedVehicle ? "#FFFFFF" : "#999999" }
+                { color: selectedVehicle ? COLORS.text.inverse : COLORS.text.tertiary }
               ]}>
                 Continuar Agendamiento
               </Text>
@@ -378,12 +378,12 @@ const VehicleSelectionModal = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.background.default,
   },
   header: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.background.paper,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: COLORS.border.light,
   },
   headerContent: {
     flexDirection: 'row',
@@ -402,11 +402,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333333',
+    color: COLORS.text.primary,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#666666',
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   headerSpacer: {
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
   serviceInfo: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: COLORS.border.light,
   },
   serviceInfoContent: {
     flexDirection: 'row',
@@ -435,11 +435,11 @@ const styles = StyleSheet.create({
   serviceName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333333',
+    color: COLORS.text.primary,
   },
   providerInfo: {
     fontSize: 14,
-    color: '#666666',
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   content: {
@@ -449,20 +449,20 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333333',
+    color: COLORS.text.primary,
     marginBottom: 16,
   },
   vehiclesList: {
     flex: 1,
   },
   vehicleCard: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.background.paper,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 2,
-    borderColor: '#E5E5E5',
-    shadowColor: '#000',
+    borderColor: COLORS.border.light,
+    shadowColor: COLORS.base.inkBlack,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   },
   vehicleCardSelected: {
     borderWidth: 2,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.background.default,
   },
   vehicleCardContent: {
     flexDirection: 'row',
@@ -490,17 +490,17 @@ const styles = StyleSheet.create({
   vehicleName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333333',
+    color: COLORS.text.primary,
     marginBottom: 4,
   },
   vehicleDetails: {
     fontSize: 14,
-    color: '#666666',
+    color: COLORS.text.secondary,
     marginBottom: 2,
   },
   vehiclePlate: {
     fontSize: 12,
-    color: '#999999',
+    color: COLORS.text.tertiary,
   },
   checkIcon: {
     width: 24,
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666666',
+    color: COLORS.text.secondary,
     marginTop: 16,
   },
   emptyContainer: {
@@ -528,13 +528,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333333',
+    color: COLORS.text.primary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666666',
+    color: COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 24,
@@ -548,16 +548,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   addVehicleText: {
-    color: '#FFFFFF',
+    color: COLORS.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
     padding: 20,
-    backgroundColor: 'white',
+    backgroundColor: COLORS.background.paper,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    borderTopColor: COLORS.border.light,
     gap: 12,
   },
   cancelButton: {
@@ -565,14 +565,14 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: COLORS.border.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#666666',
+    color: COLORS.text.secondary,
   },
   continueButton: {
     flex: 2,
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   },
   compatibilityText: {
     fontSize: 14,
-    color: '#666666',
+    color: COLORS.text.secondary,
     marginLeft: 8,
   },
 });

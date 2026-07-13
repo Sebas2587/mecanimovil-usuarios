@@ -11,7 +11,15 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  MapPin,
+  AlertTriangle,
+  Home,
+  Briefcase,
+  Bookmark,
+  SquareCheck,
+  Square,
+} from 'lucide-react-native';
 import { debounce } from 'lodash';
 
 import { COLORS } from '../../design-system/tokens/colors';
@@ -19,6 +27,7 @@ import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import BackButton from '../../components/navigation/BackButton';
 import * as locationService from '../../services/location';
 
 import Input from '../../components/base/Input/Input';
@@ -152,9 +161,7 @@ const AddAddressScreen = () => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
       <View style={[styles.header, { paddingTop: insets.top }]}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
-        </TouchableOpacity>
+        <BackButton onPress={handleGoBack} />
         <Text style={styles.headerTitle}>Nueva Dirección</Text>
         <View style={styles.headerSpacer} />
       </View>
@@ -170,7 +177,7 @@ const AddAddressScreen = () => {
           >
             {loading ? <ActivityIndicator color={COLORS.primary[500]} /> : (
               <>
-                <Ionicons name="location" size={20} color={COLORS.primary[500]} />
+                <MapPin size={20} color={COLORS.primary[500]} strokeWidth={1.75} />
                 <Text style={styles.locationButtonText}>Usar mi ubicación actual</Text>
               </>
             )}
@@ -178,7 +185,7 @@ const AddAddressScreen = () => {
 
           {!isPreciseLocation && (
             <View style={styles.warningBox}>
-              <Ionicons name="warning" size={16} color={COLORS.warning[600]} />
+              <AlertTriangle size={16} color={COLORS.warning[600]} strokeWidth={1.75} />
               <Text style={styles.warningText}>Ubicación imprecisa. Revisa las coordenadas.</Text>
             </View>
           )}
@@ -200,7 +207,7 @@ const AddAddressScreen = () => {
               <View style={styles.suggestionsList}>
                 {suggestions.map((s, i) => (
                   <TouchableOpacity key={i} onPress={() => handleSelectSuggestion(s)} style={styles.suggestionItem}>
-                    <Ionicons name="location-outline" size={14} color={COLORS.text.secondary} />
+                    <MapPin size={14} color={COLORS.text.secondary} strokeWidth={1.75} />
                     <Text style={styles.suggestionText} numberOfLines={1}>{s.mainText}</Text>
                   </TouchableOpacity>
                 ))}
@@ -216,11 +223,13 @@ const AddAddressScreen = () => {
                 style={[styles.tag, etiqueta === opt && styles.tagActive]}
                 onPress={() => setEtiqueta(opt)}
               >
-                <Ionicons
-                  name={opt === 'Casa' ? 'home' : opt === 'Trabajo' ? 'briefcase' : 'bookmark'}
-                  size={14}
-                  color={etiqueta === opt ? COLORS.text.inverse : COLORS.text.secondary}
-                />
+                {opt === 'Casa' ? (
+                  <Home size={14} color={etiqueta === opt ? COLORS.text.inverse : COLORS.text.secondary} strokeWidth={1.75} />
+                ) : opt === 'Trabajo' ? (
+                  <Briefcase size={14} color={etiqueta === opt ? COLORS.text.inverse : COLORS.text.secondary} strokeWidth={1.75} />
+                ) : (
+                  <Bookmark size={14} color={etiqueta === opt ? COLORS.text.inverse : COLORS.text.secondary} strokeWidth={1.75} />
+                )}
                 <Text style={[styles.tagText, etiqueta === opt && styles.tagTextActive]}>{opt}</Text>
               </TouchableOpacity>
             ))}
@@ -236,11 +245,11 @@ const AddAddressScreen = () => {
           />
 
           <TouchableOpacity style={styles.checkboxRow} onPress={() => setEsPrincipal(!esPrincipal)}>
-            <Ionicons
-              name={esPrincipal ? "checkbox" : "square-outline"}
-              size={24}
-              color={COLORS.primary[500]}
-            />
+            {esPrincipal ? (
+              <SquareCheck size={24} color={COLORS.primary[500]} strokeWidth={1.75} />
+            ) : (
+              <Square size={24} color={COLORS.primary[500]} strokeWidth={1.75} />
+            )}
             <Text style={styles.checkboxText}>Marcar como dirección principal</Text>
           </TouchableOpacity>
 
@@ -271,12 +280,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: BORDERS.width.thin,
     borderBottomColor: COLORS.border.light,
     backgroundColor: COLORS.background.default,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'flex-start',
   },
   headerSpacer: {
     width: 40,

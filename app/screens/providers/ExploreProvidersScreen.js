@@ -10,8 +10,8 @@ import { useExploreProvidersParaTi } from '../../hooks/useExploreProvidersParaTi
 import { useExploreProvidersNearby } from '../../hooks/useExploreProvidersNearby';
 import {
   ExploreProvidersTabs,
-  ExploreProvidersGrid,
   ExploreSearchBar,
+  ExploreProvidersGrid,
   EXPLORE_TAB_ALL,
   EXPLORE_TAB_TALLER,
   EXPLORE_TAB_MECANICO,
@@ -23,10 +23,8 @@ import { filterProvidersBySearchQuery, splitProvidersByRadar } from '../../utils
 import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 
 /**
- * Explorar proveedores según modo (OpenSpec fase 3):
- * - para_ti: especialistas en la marca por KPI (Ver todos Destacados)
- * - cerca: especialistas + multimarca por distancia (Ver todos Cerca)
- * - con categoría: listado unificado filtrado por servicios
+ * Explorar proveedores — una sola arquitectura de cards (ProviderPreviewCard / listing Airbnb)
+ * vía ExploreProvidersGrid (2 columnas responsive).
  */
 const ExploreProvidersScreen = () => {
   const navigation = useNavigation();
@@ -37,6 +35,7 @@ const ExploreProvidersScreen = () => {
   const categoryId = route.params?.categoryId ?? null;
   const categoryName = route.params?.categoryName ?? null;
   const mode = route.params?.mode ?? null;
+  const userBrandName = vehicle?.marca_nombre || vehicle?.marca || null;
 
   const [activeTab, setActiveTab] = useState(route.params?.initialTab ?? EXPLORE_TAB_ALL);
   const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery ?? '');
@@ -127,10 +126,7 @@ const ExploreProvidersScreen = () => {
   }, [tabProviders, isCercaExplore]);
 
   const tabCounts = useMemo(() => {
-    const countForTab = (tabId) => {
-      const list = filterProvidersByExploreTab(rawProviders, tabId);
-      return list.length;
-    };
+    const countForTab = (tabId) => filterProvidersByExploreTab(rawProviders, tabId).length;
     return {
       all: countForTab(EXPLORE_TAB_ALL),
       taller: countForTab(EXPLORE_TAB_TALLER),
@@ -152,6 +148,19 @@ const ExploreProvidersScreen = () => {
     },
     [navigation, vehicle],
   );
+
+  const emptyTitle = searchQuery.trim() ? 'Sin resultados' : 'Sin proveedores';
+  const emptyMessage = searchQuery.trim()
+    ? 'Prueba otro término.'
+    : isParaTiExplore
+      ? 'Aún no hay talleres destacados para tu marca.'
+      : isCercaExplore
+        ? 'No hay talleres compatibles en tu radio. Prueba otra dirección.'
+        : categoryExploreEmpty
+          ? unifiedQuery.categoryHasNoServices
+            ? 'No hay servicios catalogados para esta categoría.'
+            : 'Ningún proveedor cercano ofrece servicios de esta categoría para tu vehículo.'
+          : 'Amplía la zona o cambia de pestaña.';
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -181,20 +190,9 @@ const ExploreProvidersScreen = () => {
               refreshing={isRefetching}
               onRefresh={refetch}
               onProviderPress={openProvider}
-              emptyTitle={searchQuery.trim() ? 'Sin resultados' : 'Sin proveedores'}
-              emptyMessage={
-                searchQuery.trim()
-                  ? 'Prueba otro término.'
-                  : isParaTiExplore
-                    ? 'No hay especialistas en la marca de tu vehículo.'
-                    : isCercaExplore
-                      ? 'No hay especialistas ni multimarca compatibles en tu radio.'
-                      : categoryExploreEmpty
-                        ? unifiedQuery.categoryHasNoServices
-                          ? 'No hay servicios catalogados para esta categoría.'
-                          : 'Ningún proveedor cercano ofrece servicios de esta categoría para tu vehículo.'
-                        : 'Amplía la zona o cambia de pestaña.'
-              }
+              userBrandName={userBrandName}
+              emptyTitle={emptyTitle}
+              emptyMessage={emptyMessage}
             />
           </>
         ) : null}
@@ -214,9 +212,9 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
   },
   hintWarn: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.warning.dark,
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
     lineHeight: 18,
   },
 });

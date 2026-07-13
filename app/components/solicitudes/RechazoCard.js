@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING } from '../../utils/constants';
+import { SPACING } from '../../utils/constants';
+import { COLORS } from '../../design-system/tokens/colors';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Icon from '../base/Icon/Icon';
 
 /**
  * Card minimalista para mostrar rechazos de proveedores
@@ -17,7 +18,7 @@ const RechazoCard = ({ rechazo }) => {
     <View style={styles.rechazoCard}>
       {/* Header */}
       <View style={styles.rechazoHeader}>
-        <Ionicons name="close-circle" size={24} color={COLORS.danger} />
+        <Icon name="close-circle" size={24} color={COLORS.error.main} />
         <Text style={styles.rechazoProveedorNombre} numberOfLines={1}>
           {rechazo.proveedor_nombre || 'Proveedor'}
         </Text>
@@ -50,12 +51,12 @@ const RechazoCard = ({ rechazo }) => {
 
 const styles = StyleSheet.create({
   rechazoCard: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: COLORS.neutral.gray[50],
     borderRadius: 12,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: COLORS.border.light,
   },
   rechazoHeader: {
     flexDirection: 'row',
@@ -67,31 +68,31 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.text,
+    color: COLORS.text.primary,
   },
   rechazoMotivo: {
     fontSize: 15,
-    color: COLORS.text,
+    color: COLORS.text.primary,
     marginBottom: SPACING.sm,
     lineHeight: 22,
   },
   rechazoDetalleContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background.paper,
     padding: SPACING.sm,
     borderRadius: 8,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.textLight,
+    borderLeftColor: COLORS.text.secondary,
     marginBottom: SPACING.sm,
   },
   rechazoDetalle: {
     fontSize: 14,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
     fontStyle: 'italic',
     lineHeight: 20,
   },
   rechazoFecha: {
     fontSize: 12,
-    color: COLORS.textLight,
+    color: COLORS.text.secondary,
   },
 });
 

@@ -8,11 +8,15 @@ import {
   StatusBar,
   useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FileText, ShieldCheck } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS, SPACING, SHADOWS } from '../../design-system/tokens';
+import { COLORS, BORDERS, SPACING, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
+
+const LEGAL_ICONS = {
+  'document-text-outline': FileText,
+  'shield-checkmark-outline': ShieldCheck,
+};
 
 /**
  * Vista reutilizable para documentos legales (Términos, Privacidad).
@@ -21,6 +25,7 @@ import { BORDERS, SPACING, SHADOWS } from '../../design-system/tokens';
 const LegalDocumentView = ({ meta, sections, footer }) => {
   const { height: windowHeight } = useWindowDimensions();
   const headerHeight = useHeaderHeight();
+  const IntroIcon = LEGAL_ICONS[meta.icon] || FileText;
 
   const webRootStyle =
     Platform.OS === 'web'
@@ -43,7 +48,7 @@ const LegalDocumentView = ({ meta, sections, footer }) => {
         nestedScrollEnabled
       >
         <View style={styles.introCard}>
-          <Ionicons name={meta.icon} size={48} color={COLORS.primary[500]} />
+          <IntroIcon size={48} color={COLORS.primary[500]} />
           <Text style={styles.introTitle}>{meta.title}</Text>
           {meta.subtitle ? <Text style={styles.introSubtitle}>{meta.subtitle}</Text> : null}
           <Text style={styles.introText}>Última actualización: {meta.lastUpdated}</Text>
@@ -114,43 +119,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
-    padding: 24,
-    marginBottom: 20,
+    padding: SPACING.lg,
+    marginBottom: SPACING.lg,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     ...SHADOWS.sm,
   },
   introTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.h3,
     color: COLORS.text.primary,
-    marginTop: 12,
+    marginTop: SPACING.sm,
     marginBottom: 4,
     textAlign: 'center',
   },
   introSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.secondary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
   },
   introText: {
-    fontSize: 13,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
     textAlign: 'center',
   },
   documentCard: {
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
-    padding: 20,
+    padding: SPACING.lg,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     ...SHADOWS.sm,
   },
   sectionContainer: {
-    marginBottom: 20,
-    paddingBottom: 16,
+    marginBottom: SPACING.lg,
+    paddingBottom: SPACING.md,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border.light,
   },
@@ -160,33 +163,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.h5,
     color: COLORS.text.primary,
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
     lineHeight: 22,
   },
   sectionContent: {
-    fontSize: 14,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     lineHeight: 22,
   },
   footerBox: {
     backgroundColor: COLORS.primary[50],
     borderRadius: BORDERS.radius.md,
-    padding: 16,
-    marginTop: 20,
+    padding: SPACING.md,
+    marginTop: SPACING.lg,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.primary[200],
   },
   footerTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.h5,
     color: COLORS.primary[700],
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
   },
   footerContent: {
-    fontSize: 14,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     lineHeight: 22,
   },

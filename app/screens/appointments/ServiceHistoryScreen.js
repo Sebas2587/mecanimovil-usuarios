@@ -11,8 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { Building2, Car, CheckCircle2, ChevronRight, CreditCard, Calendar } from 'lucide-react-native';
+import { Building2, Car, CheckCircle2, ChevronRight, CreditCard, Calendar, FileText, CirclePlus } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ROUTES } from '../../utils/constants';
 import * as userService from '../../services/user';
@@ -153,7 +152,7 @@ const ServiceHistoryScreen = () => {
     <View style={styles.resumenContainer}>
       <View style={styles.resumenHeader}>
         <View style={styles.resumenIconContainer}>
-          <Ionicons name="checkmark-circle" size={28} color={colors.success?.[500] || '#10B981'} />
+          <CheckCircle2 size={28} color={colors.success?.[500] || DS_COLORS.success[500]} strokeWidth={1.75} />
         </View>
         <View style={styles.resumenTextContainer}>
           <Text style={styles.resumenTitle}>Servicios Completados</Text>
@@ -189,7 +188,7 @@ const ServiceHistoryScreen = () => {
       >
         <View style={styles.serviceHeader}>
           <View style={styles.completedBadge}>
-            <CheckCircle2 size={14} color={DS_COLORS.text.onPrimary || '#FFFFFF'} />
+            <CheckCircle2 size={14} color={DS_COLORS.text.onPrimary} />
             <Text style={styles.completedBadgeText}>Completado</Text>
           </View>
           <Text style={styles.serviceDate}>
@@ -307,7 +306,7 @@ const ServiceHistoryScreen = () => {
     return (
       <SafeAreaView style={styles.container} edges={['bottom']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary?.[500] || '#003459'} />
+          <ActivityIndicator size="large" color={colors.primary?.[500] || DS_COLORS.primary[500]} />
           <Text style={styles.loadingText}>Cargando historial...</Text>
         </View>
       </SafeAreaView>
@@ -326,13 +325,13 @@ const ServiceHistoryScreen = () => {
             <RefreshControl 
               refreshing={refreshing} 
               onRefresh={onRefresh}
-              colors={[colors.primary?.[500] || '#003459']}
-              tintColor={colors.primary?.[500] || '#003459'}
+              colors={[colors.primary?.[500] || DS_COLORS.primary[500]]}
+              tintColor={colors.primary?.[500] || DS_COLORS.primary[500]}
             />
           }
         >
           <View style={styles.emptyIconContainer}>
-            <Ionicons name="document-text-outline" size={80} color={colors.text?.tertiary || '#9CA3AF'} />
+            <FileText size={80} color={colors.text?.tertiary || DS_COLORS.text.tertiary} strokeWidth={1.5} />
           </View>
           <Text style={styles.emptyTitle}>Sin servicios completados</Text>
           <Text style={styles.emptySubtitle}>
@@ -342,7 +341,7 @@ const ServiceHistoryScreen = () => {
             style={styles.emptyButton}
             onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)}
           >
-            <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
+            <CirclePlus size={20} color={DS_COLORS.text.onPrimary} strokeWidth={2} />
             <Text style={styles.emptyButtonText}>Solicitar un servicio</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -358,8 +357,8 @@ const ServiceHistoryScreen = () => {
             <RefreshControl 
               refreshing={refreshing} 
               onRefresh={onRefresh}
-              colors={[colors.primary?.[500] || '#003459']}
-              tintColor={colors.primary?.[500] || '#003459'}
+              colors={[colors.primary?.[500] || DS_COLORS.primary[500]]}
+              tintColor={colors.primary?.[500] || DS_COLORS.primary[500]}
             />
           }
         />
@@ -372,7 +371,7 @@ const ServiceHistoryScreen = () => {
 const createStyles = (colors, typography, spacing, borders) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background?.default || '#F8F9FA',
+    backgroundColor: colors.background?.default || DS_COLORS.background.default,
   },
   loadingContainer: {
     flex: 1,
@@ -382,20 +381,20 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   loadingText: {
     marginTop: spacing?.md || 16,
     fontSize: typography.fontSize?.md || 16,
-    color: colors.text?.secondary || '#5D6F75',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     textAlign: 'center',
   },
   
   // Resumen
   resumenContainer: {
-    backgroundColor: colors.background?.paper || '#FFFFFF',
+    backgroundColor: colors.background?.paper || DS_COLORS.background.paper,
     borderRadius: borders.radius?.card?.lg || 16,
     marginHorizontal: spacing?.md || 16,
     marginTop: spacing?.md || 16,
     marginBottom: spacing?.lg || 24,
     padding: spacing?.lg || 20,
     borderWidth: borders.width?.thin ?? 1,
-    borderColor: colors.border?.light || '#DEE1E6',
+    borderColor: colors.border?.light || DS_COLORS.border.light,
     ...DS_SHADOWS.sm,
   },
   resumenHeader: {
@@ -406,7 +405,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.success?.[50] || '#D1FAE5',
+    backgroundColor: colors.success?.[50] || DS_COLORS.success[50],
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing?.md || 16,
@@ -417,18 +416,18 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   resumenTitle: {
     fontSize: typography.fontSize?.xl || 20,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
+    color: colors.text?.primary || DS_COLORS.text.primary,
     marginBottom: spacing?.xs || 4,
   },
   resumenSubtitle: {
     fontSize: typography.fontSize?.sm || 14,
-    color: colors.text?.secondary || '#5D6F75',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
   },
   resumenFooter: {
     marginTop: spacing?.md || 16,
     paddingTop: spacing?.md || 16,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral?.gray?.[200] || '#E5E7EB',
+    borderTopColor: colors.neutral?.gray?.[200] || DS_COLORS.neutral.gray[200],
   },
   resumenStat: {
     flexDirection: 'row',
@@ -437,12 +436,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   resumenStatLabel: {
     fontSize: typography.fontSize?.sm || 14,
-    color: colors.text?.secondary || '#5D6F75',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
   },
   resumenStatValue: {
     fontSize: typography.fontSize?.xl || 20,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.primary?.[500] || '#003459',
+    color: colors.primary?.[500] || DS_COLORS.primary[500],
   },
   
   // Lista
@@ -464,11 +463,11 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   monthTitle: {
     fontSize: typography.fontSize?.lg || 18,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
+    color: colors.text?.primary || DS_COLORS.text.primary,
     textTransform: 'capitalize',
   },
   monthBadge: {
-    backgroundColor: colors.secondary?.[500] || '#007EA7',
+    backgroundColor: colors.primary?.[500] || DS_COLORS.primary[500],
     borderRadius: borders.radius?.badge?.full || 12,
     paddingHorizontal: spacing?.sm || 10,
     paddingVertical: spacing?.xs || 4,
@@ -478,17 +477,17 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   monthCount: {
     fontSize: typography.fontSize?.sm || 12,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: '#FFFFFF',
+    color: DS_COLORS.text.onPrimary,
   },
   
   // Card de servicio
   serviceCard: {
-    backgroundColor: colors.background?.paper || '#FFFFFF',
+    backgroundColor: colors.background?.paper || DS_COLORS.background.paper,
     borderRadius: borders.radius?.card?.lg || 16,
     padding: spacing?.md || 16,
     marginBottom: spacing?.sm || 12,
     borderWidth: borders.width?.thin ?? 1,
-    borderColor: colors.border?.light || '#DEE1E6',
+    borderColor: colors.border?.light || DS_COLORS.border.light,
     ...DS_SHADOWS.sm,
   },
   serviceHeader: {
@@ -501,7 +500,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.success?.[500] || '#05B169',
+    backgroundColor: colors.success?.main || DS_COLORS.success.main,
     borderRadius: borders.radius?.badge?.full || 9999,
     paddingHorizontal: spacing?.sm || 10,
     paddingVertical: spacing?.xs || 4,
@@ -509,23 +508,23 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   completedBadgeText: {
     fontSize: typography.fontSize?.xs || 11,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.onPrimary || '#FFFFFF',
+    color: colors.text?.onPrimary || DS_COLORS.text.onPrimary,
   },
   cardSection: {
     marginBottom: spacing?.md || 16,
   },
   cardSectionMuted: {
     marginBottom: spacing?.md || 16,
-    backgroundColor: colors.neutral?.gray?.[100] || '#F7F7F7',
+    backgroundColor: colors.neutral?.gray?.[100] || DS_COLORS.neutral.gray[100],
     borderRadius: borders.radius?.card?.md || 12,
     padding: spacing?.sm || 12,
     borderWidth: borders.width?.thin ?? 1,
-    borderColor: colors.border?.light || '#DEE1E6',
+    borderColor: colors.border?.light || DS_COLORS.border.light,
   },
   sectionLabel: {
     fontSize: 10,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.tertiary || '#7C828A',
+    color: colors.text?.tertiary || DS_COLORS.text.tertiary,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     marginBottom: spacing?.xs || 8,
@@ -542,7 +541,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   providerName: {
     fontSize: typography.fontSize?.md || 16,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#0A0B0D',
+    color: colors.text?.primary || DS_COLORS.text.primary,
     marginBottom: 4,
   },
   tipoPill: {
@@ -553,18 +552,18 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     paddingHorizontal: spacing?.sm || 8,
     paddingVertical: 2,
     borderRadius: borders.radius?.badge?.full || 9999,
-    backgroundColor: colors.primary?.[50] || '#E6F2F7',
+    backgroundColor: colors.primary?.[50] || DS_COLORS.primary[50],
     borderWidth: borders.width?.thin ?? 1,
-    borderColor: colors.primary?.[100] || '#CCEBF3',
+    borderColor: colors.primary?.[100] || DS_COLORS.primary[100],
   },
   tipoPillText: {
     fontSize: 11,
     fontWeight: typography.fontWeight?.semibold || '600',
-    color: colors.primary?.[700] || '#004C65',
+    color: colors.primary?.[700] || DS_COLORS.primary[700],
   },
   serviceDate: {
     fontSize: typography.fontSize?.sm || 12,
-    color: colors.text?.secondary || '#5D6F75',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     fontWeight: typography.fontWeight?.medium || '500',
   },
   
@@ -577,7 +576,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.primary?.[50] || '#E6F2F7',
+    backgroundColor: colors.primary?.[50] || DS_COLORS.primary[50],
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -587,12 +586,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   vehicleName: {
     fontSize: typography.fontSize?.md || 16,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
+    color: colors.text?.primary || DS_COLORS.text.primary,
     marginBottom: 2,
   },
   vehicleDetails: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5D6F75',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
   },
   
   infoRow: {
@@ -603,7 +602,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   infoText: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5B616E',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     flex: 1,
     lineHeight: 20,
   },
@@ -617,12 +616,12 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   serviceName: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5B616E',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     flex: 1,
   },
   moreServices: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.primary?.[600] || '#006586',
+    color: colors.primary?.[600] || DS_COLORS.primary[600],
     fontWeight: typography.fontWeight?.semibold || '600',
     marginTop: spacing?.xs || 4,
     marginLeft: 22,
@@ -635,7 +634,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
     alignItems: 'center',
     paddingTop: spacing?.sm || 12,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral?.gray?.[100] || '#F3F4F6',
+    borderTopColor: colors.neutral?.gray?.[100] || DS_COLORS.neutral.gray[100],
   },
   paymentInfo: {
     flexDirection: 'row',
@@ -644,20 +643,20 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   paymentMethod: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.text?.secondary || '#5B616E',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
   },
   totalPill: {
-    backgroundColor: colors.primary?.[50] || '#E6F2F7',
+    backgroundColor: colors.primary?.[50] || DS_COLORS.primary[50],
     paddingHorizontal: spacing?.md || 14,
     paddingVertical: spacing?.xs || 6,
     borderRadius: borders.radius?.card?.md || 12,
     borderWidth: borders.width?.thin ?? 1,
-    borderColor: colors.primary?.[100] || '#CCEBF3',
+    borderColor: colors.primary?.[100] || DS_COLORS.primary[100],
   },
   totalAmount: {
     fontSize: typography.fontSize?.lg || 18,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.primary?.[700] || '#004C65',
+    color: colors.primary?.[700] || DS_COLORS.primary[700],
   },
   
   // Ver más
@@ -670,7 +669,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   },
   viewMoreText: {
     fontSize: typography.fontSize?.sm || 13,
-    color: colors.primary?.[500] || '#003459',
+    color: colors.primary?.[500] || DS_COLORS.primary[500],
     fontWeight: typography.fontWeight?.semibold || '600',
     marginRight: spacing?.xs || 4,
   },
@@ -690,13 +689,13 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   emptyTitle: {
     fontSize: typography.fontSize?.xl || 20,
     fontWeight: typography.fontWeight?.bold || '700',
-    color: colors.text?.primary || '#00171F',
+    color: colors.text?.primary || DS_COLORS.text.primary,
     textAlign: 'center',
     marginBottom: spacing?.sm || 12,
   },
   emptySubtitle: {
     fontSize: typography.fontSize?.md || 15,
-    color: colors.text?.secondary || '#5D6F75',
+    color: colors.text?.secondary || DS_COLORS.text.secondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: spacing?.lg || 24,
@@ -704,7 +703,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.secondary?.[500] || '#007EA7',
+    backgroundColor: colors.primary?.[500] || DS_COLORS.primary[500],
     borderRadius: borders.radius?.button?.md || 12,
     paddingHorizontal: spacing?.lg || 20,
     paddingVertical: spacing?.sm || 12,
@@ -713,7 +712,7 @@ const createStyles = (colors, typography, spacing, borders) => StyleSheet.create
   emptyButtonText: {
     fontSize: typography.fontSize?.md || 15,
     fontWeight: typography.fontWeight?.semibold || '600',
-    color: '#FFFFFF',
+    color: DS_COLORS.text.onPrimary,
   },
 });
 

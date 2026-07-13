@@ -1,24 +1,24 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import { Star, Wrench, Check } from 'lucide-react-native';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import {
   getProviderImageCandidatesResolved,
   getPanelServicios,
-  getProviderCompletedServicesCount,
   getProviderDistance,
   resolveProviderKpiBadge,
 } from '../../utils/providerUtils';
-import ProviderKpiTierBadge from '../provider/ProviderKpiTierBadge';
-import ProviderServiceChipsRow from './ProviderServiceChipsRow';
-import ProviderCardRatingBadge from './ProviderCardRatingBadge';
+import { getProviderModalidad, modalidadLabel } from '../../utils/providerModalidad';
+import { getProviderBrandCoverage } from '../../utils/providerBrandCoverage';
 import { getAxiosMediaBaseSync } from '../../services/api';
 
 /**
- * Card compacta de proveedor (lista horizontal / grid).
- * Coinbase-light: paper + hairline + ink. La prop `appearance` se mantiene por
- * compatibilidad pero ya no produce variantes oscuras (todo es claro).
+ * Listing card estilo Airbnb Explore:
+ * - Imagen dominante con radius (sin “caja” con borde/sombra alrededor del texto)
+ * - Badge blanco sobre la imagen (equivalente a “Guest favorite”)
+ * - Debajo: título + ★ rating en una fila; meta gris en la siguiente
+ * - Sin chips de servicios ni filas de Tag densas (eso rompe el patrón Airbnb)
  */
 const ProviderPreviewCard = ({
   provider: providerRaw,
@@ -34,17 +34,21 @@ const ProviderPreviewCard = ({
   kpiBadge = null,
   /* eslint-disable-next-line no-unused-vars */
   appearance = 'light',
+  /* eslint-disable-next-line no-unused-vars */
   typeLabel = null,
+  userBrandName = null,
   omitRightMargin = false,
   serviceOffers = null,
-  /** 'offers' = chips de servicios; 'bookings' = contrataciones (Destacados / Cerca en home). */
+  /* eslint-disable-next-line no-unused-vars */
   cardFooterVariant = 'offers',
   reviews = 0,
+  /* eslint-disable-next-line no-unused-vars */
   bookingsCount = null,
 }) => {
-  const imageHeight = Math.max(96, Math.round(width * 0.54));
-  const containerRadius = BORDERS.radius.card?.lg ?? BORDERS.radius.lg;
-  const styles = getStyles(width, omitRightMargin, imageHeight, containerRadius);
+  // Airbnb listing ~ cuadrado / levemente vertical
+  const imageHeight = Math.max(140, Math.round(width * 0.95));
+  const imageRadius = BORDERS.radius.lg;
+  const styles = getStyles(width, omitRightMargin, imageHeight, imageRadius);
 
   const mediaBaseHint = getAxiosMediaBaseSync() || '';
 
@@ -77,32 +81,56 @@ const ProviderPreviewCard = ({
     });
   }, [uris.length]);
 
-  const ratingLabel = rating != null && rating !== '' ? String(rating) : '—';
   const distanceFromProp =
     distance != null && distance !== '' && String(distance) !== '—' ? String(distance) : null;
-  const distanceLabel = distanceFromProp ?? (providerRaw ? getProviderDistance(providerRaw) : null) ?? '—';
-  const useSocialMetrics = cardFooterVariant === 'bookings';
-  const reviewsCount = Number(reviews) || 0;
-  const resolvedBookings =
-    bookingsCount != null
-      ? Math.max(0, Math.floor(Number(bookingsCount) || 0))
-      : providerRaw
-        ? getProviderCompletedServicesCount(providerRaw)
-        : 0;
+  const distanceLabel = distanceFromProp ?? (providerRaw ? getProviderDistance(providerRaw) : null);
+
+  const modalidadTagLabel = modalidadLabel(getProviderModalidad(providerRaw));
+  const { isMultimarca, brandNames } = getProviderBrandCoverage(providerRaw);
+  const specialistBrand = userBrandName || brandNames[0] || null;
+  const coverageBadgeLabel = isMultimarca
+    ? 'Multimarca'
+    : specialistBrand
+      ? `Especialista ${specialistBrand}`
+      : null;
 
   const panelOffers =
     serviceOffers != null ? serviceOffers : providerRaw ? getPanelServicios(providerRaw) : [];
-  const showOfferChips = !useSocialMetrics && panelOffers.length > 0;
-  const showBookingsBadge = useSocialMetrics && resolvedBookings > 0;
-  const showSpecialtyFallback = !showOfferChips && !showBookingsBadge;
-  const compactMetrics = width < 180;
+  const specialtyLine =
+    specialty ||
+    (panelOffers.length > 0
+      ? panelOffers
+          .slice(0, 2)
+          .map((o) => o?.nombre || o?.name || o)
+          .filter(Boolean)
+          .join(' · ')
+      : null);
 
-  const resolvedKpiBadge = kpiBadge ?? resolveProviderKpiBadge(providerRaw);
-  const verifiedColor = COLORS.primary[500];
+  // Meta Airbnb: una sola línea gris (distancia · modalidad · specialty corta)
+  const metaParts = [distanceLabel, modalidadTagLabel].filter(
+    (p) => p && String(p).trim() && String(p) !== '—',
+  );
+  const metaLine = metaParts.join(' · ') || specialtyLine || null;
+
+  const ratingNum = rating != null && rating !== '' ? Number(rating) : NaN;
+  const hasRating = Number.isFinite(ratingNum) && ratingNum > 0;
+  const ratingText = hasRating
+    ? ratingNum.toFixed(ratingNum % 1 === 0 ? 1 : 2)
+    : null;
+  const reviewsCount = Number(reviews) || 0;
+
+  const resolvedKpi = kpiBadge ?? resolveProviderKpiBadge(providerRaw);
+  const showGuestBadge = !!coverageBadgeLabel || !!resolvedKpi?.label;
 
   return (
-    <TouchableOpacity style={styles.container} activeOpacity={0.8} onPress={onPress}>
-      <View style={styles.imageContainer}>
+    <TouchableOpacity
+      style={styles.container}
+      activeOpacity={0.92}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={name}
+    >
+      <View style={styles.imageWrap}>
         {activeUri ? (
           <Image
             source={{ uri: activeUri }}
@@ -112,108 +140,80 @@ const ProviderPreviewCard = ({
             transition={150}
             onError={onImageError}
           />
-        ) : null}
-        {!activeUri ? (
-          <View style={styles.placeholderImage}>
-            <Ionicons name="person" size={32} color={COLORS.text.tertiary} />
+        ) : (
+          <View style={styles.placeholder}>
+            <Wrench size={28} color={COLORS.text.tertiary} strokeWidth={1.75} />
           </View>
-        ) : null}
+        )}
 
-        {typeLabel ? (
-          <View style={styles.typeChip}>
-            <Text style={styles.typeChipText} numberOfLines={1}>
-              {typeLabel}
+        {showGuestBadge ? (
+          <View style={styles.badge} accessibilityRole="text">
+            <Text style={styles.badgeText} numberOfLines={1}>
+              {coverageBadgeLabel || resolvedKpi.label}
             </Text>
           </View>
         ) : null}
-
-        {/* Badge multimarca sobre la imagen */}
-        {(providerRaw?._esMultimarca || providerRaw?.tipo_cobertura_marca === 'multimarca') ? (
-          <View style={styles.multimarcaChip}>
-            <Text style={styles.multimarcaChipText}>🌐 Multimarca</Text>
-          </View>
-        ) : null}
-
-        <ProviderKpiTierBadge
-          kpiBadge={resolvedKpiBadge}
-          provider={providerRaw}
-          trustBadgeFields
-          variant="floating"
-          style={styles.kpiFloating}
-        />
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.nameRow}>
-          <Text style={styles.nameText} numberOfLines={1}>
-            {name}
-          </Text>
-          {verified ? (
-            <View
-              style={styles.verifiedInline}
-              accessibilityRole="text"
-              accessibilityLabel="Cuenta verificada en la plataforma"
-            >
-              <Ionicons name="shield-checkmark" size={15} color={verifiedColor} />
+      <View style={styles.body}>
+        <View style={styles.titleRow}>
+          <View style={styles.titleBlock}>
+            <Text style={styles.title} numberOfLines={1}>
+              {name}
+            </Text>
+            {verified ? (
+              <View
+                style={styles.verifiedBadge}
+                accessibilityRole="image"
+                accessibilityLabel="Proveedor verificado"
+              >
+                <Check size={10} color={COLORS.text.onPrimary} strokeWidth={3} />
+              </View>
+            ) : null}
+          </View>
+          {ratingText ? (
+            <View style={styles.rating}>
+              <Star
+                size={12}
+                color={COLORS.text.primary}
+                fill={COLORS.text.primary}
+                strokeWidth={0}
+              />
+              <Text style={styles.ratingText}>
+                {ratingText}
+                {reviewsCount > 0 ? ` (${reviewsCount})` : ''}
+              </Text>
             </View>
           ) : null}
         </View>
-        {showOfferChips ? (
-          <ProviderServiceChipsRow offers={panelOffers} compact={compactMetrics} />
-        ) : null}
-        {showBookingsBadge ? (
-          <ProviderServiceChipsRow
-            variant="bookings"
-            bookingsCount={resolvedBookings}
-            compact={compactMetrics}
-          />
-        ) : null}
-        {showSpecialtyFallback ? (
-          <Text style={styles.specialtyText} numberOfLines={2}>
-            {specialty}
+
+        {metaLine ? (
+          <Text style={styles.meta} numberOfLines={1}>
+            {metaLine}
           </Text>
         ) : null}
 
-        <View style={styles.ratingDistanceRow}>
-          {useSocialMetrics ? (
-            <ProviderCardRatingBadge
-              rating={rating}
-              reviewsCount={reviewsCount}
-              compact={compactMetrics}
-            />
-          ) : (
-            <View style={styles.ratingPill}>
-              <Ionicons name="star" size={11} color={COLORS.warning.main} />
-              <Text style={styles.ratingPillText}>{ratingLabel}</Text>
-            </View>
-          )}
-          <View style={styles.distanceContainer}>
-            <Ionicons name="location-outline" size={12} color={COLORS.text.tertiary} />
-            <Text style={styles.distanceText} numberOfLines={1}>
-              {distanceLabel}
-            </Text>
-          </View>
-        </View>
+        {specialtyLine && metaLine !== specialtyLine ? (
+          <Text style={styles.meta} numberOfLines={1}>
+            {specialtyLine}
+          </Text>
+        ) : null}
       </View>
     </TouchableOpacity>
   );
 };
 
-const getStyles = (width, omitRightMargin, imageHeight, containerRadius) =>
+const getStyles = (width, omitRightMargin, imageHeight, imageRadius) =>
   StyleSheet.create({
     container: {
-      width: width,
-      backgroundColor: COLORS.background.paper,
-      borderRadius: containerRadius,
+      width,
       marginRight: omitRightMargin ? 0 : SPACING.md,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-      ...SHADOWS.sm,
     },
-    imageContainer: {
-      height: imageHeight,
+    imageWrap: {
       width: '100%',
+      height: imageHeight,
+      borderRadius: imageRadius,
+      overflow: 'hidden',
       backgroundColor: COLORS.neutral.gray[100],
       position: 'relative',
     },
@@ -221,117 +221,73 @@ const getStyles = (width, omitRightMargin, imageHeight, containerRadius) =>
       width: '100%',
       height: '100%',
     },
-    placeholderImage: {
+    placeholder: {
       ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
       justifyContent: 'center',
-      alignItems: 'center',
+      backgroundColor: COLORS.neutral.gray[100],
     },
-    typeChip: {
+    badge: {
       position: 'absolute',
-      top: 8,
-      left: 8,
-      backgroundColor: 'rgba(255,255,255,0.95)',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: BORDERS.radius.full,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
+      top: 12,
+      left: 12,
       maxWidth: '72%',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: BORDERS.radius.pill,
+      backgroundColor: COLORS.background.paper,
     },
-    typeChipText: {
-      fontSize: TYPOGRAPHY.fontSize.xs,
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    badgeText: {
+      ...TYPOGRAPHY.styles.captionBold,
       color: COLORS.text.primary,
     },
-    multimarcaChip: {
-      position: 'absolute',
-      bottom: 8,
-      left: 8,
-      backgroundColor: 'rgba(0,82,255,0.90)',
-      paddingHorizontal: 7,
-      paddingVertical: 3,
-      borderRadius: BORDERS.radius.full,
-      maxWidth: '80%',
+    body: {
+      paddingTop: 10,
+      paddingHorizontal: 2,
     },
-    multimarcaChipText: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: '#FFFFFF',
-    },
-    kpiFloating: {
-      position: 'absolute',
-      top: 8,
-      right: 8,
-      zIndex: 4,
-    },
-    content: {
-      paddingHorizontal: 12,
-      paddingTop: 12,
-      paddingBottom: 12,
-    },
-    nameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 4,
-    },
-    nameText: {
-      flex: 1,
-      minWidth: 0,
-      fontSize: TYPOGRAPHY.fontSize.base,
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
-      color: COLORS.text.primary,
-    },
-    verifiedInline: {
-      flexShrink: 0,
-      paddingLeft: 2,
-    },
-    specialtyText: {
-      fontSize: TYPOGRAPHY.fontSize.sm,
-      lineHeight: 16,
-      color: COLORS.text.secondary,
-      marginBottom: 6,
-    },
-    ratingDistanceRow: {
+    titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 8,
-      marginTop: 2,
-      marginBottom: 0,
     },
-    ratingPill: {
+    titleBlock: {
+      flex: 1,
+      minWidth: 0,
       flexDirection: 'row',
       alignItems: 'center',
-      flexShrink: 0,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: BORDERS.radius.full,
-      borderWidth: 1,
-      borderColor: COLORS.border.light,
-      backgroundColor: COLORS.neutral.gray[100],
+      gap: 6,
     },
-    ratingPillText: {
-      marginLeft: 4,
-      fontSize: TYPOGRAPHY.fontSize.sm,
-      fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    title: {
+      flexShrink: 1,
+      ...TYPOGRAPHY.styles.bodyBold,
       color: COLORS.text.primary,
     },
-    distanceContainer: {
+    verifiedBadge: {
+      width: 16,
+      height: 16,
+      borderRadius: BORDERS.radius.full,
+      backgroundColor: COLORS.primary[500],
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    rating: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'flex-end',
-      flexShrink: 1,
-      flexGrow: 1,
-      minWidth: 0,
+      gap: 3,
+      flexShrink: 0,
     },
-    distanceText: {
-      flexShrink: 1,
-      fontSize: TYPOGRAPHY.fontSize.sm,
-      color: COLORS.text.tertiary,
-      marginLeft: 4,
-      textAlign: 'right',
+    ratingText: {
+      ...TYPOGRAPHY.styles.caption,
+      color: COLORS.text.primary,
+      fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    meta: {
+      ...TYPOGRAPHY.styles.caption,
+      color: COLORS.text.secondary,
+      marginTop: 2,
     },
   });
 
-export default ProviderPreviewCard;
+export default React.memo(ProviderPreviewCard);

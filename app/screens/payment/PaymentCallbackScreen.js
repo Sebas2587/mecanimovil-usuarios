@@ -13,14 +13,15 @@ import {
   Alert,
   Linking,
   Platform,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
+import { CircleCheck, CircleX } from 'lucide-react-native';
+import { COLORS } from '../../design-system/tokens';
 import MercadoPagoService from '../../services/mercadopago';
-import { COLORS, ROUTES, MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
+import { ROUTES, MP_CHECKOUT_WEBVIEW_ACTIVE_KEY } from '../../utils/constants';
+import Button from '../../components/base/Button/Button';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { invalidateSolicitudesListQueries } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
@@ -1231,11 +1232,11 @@ const PaymentCallbackScreen = () => {
   const getIcon = () => {
     switch (status) {
       case 'success':
-        return <Ionicons name="checkmark-circle" size={80} color="#28A745" />;
+        return <CircleCheck size={80} color={COLORS.success.main} />;
       case 'error':
-        return <Ionicons name="close-circle" size={80} color="#DC3545" />;
+        return <CircleX size={80} color={COLORS.error.main} />;
       default:
-        return <ActivityIndicator size="large" color={COLORS.primary} />;
+        return <ActivityIndicator size="large" color={COLORS.primary[500]} />;
     }
   };
 
@@ -1258,14 +1259,11 @@ const PaymentCallbackScreen = () => {
                 Serás redirigido a tus solicitudes en unos segundos
               </Text>
             )}
-            <TouchableOpacity
-              style={styles.continueButton}
+            <Button
+              title="Ver mis solicitudes"
               onPress={navigateToMisSolicitudes}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-            >
-              <Text style={styles.continueButtonText}>Ver mis solicitudes</Text>
-            </TouchableOpacity>
+              fullWidth
+            />
           </>
         )}
       </View>
@@ -1276,7 +1274,7 @@ const PaymentCallbackScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background.default,
   },
   content: {
     flex: 1,
@@ -1290,29 +1288,15 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#333333',
+    color: COLORS.text.primary,
     textAlign: 'center',
     marginBottom: 10,
   },
   subMessage: {
     fontSize: 14,
-    color: '#666666',
+    color: COLORS.text.secondary,
     textAlign: 'center',
     marginBottom: 16,
-  },
-  continueButton: {
-    marginTop: 24,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 28,
-    paddingVertical: 14,
-    borderRadius: 10,
-    minWidth: 220,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
 

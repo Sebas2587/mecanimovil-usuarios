@@ -11,8 +11,8 @@ import {
   Dimensions,
   TextInput
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS } from '../../utils/constants';
+import Icon from '../base/Icon/Icon';
+import { COLORS, withOpacity } from '../../design-system/tokens';
 import * as vehicleService from '../../services/vehicle';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -227,7 +227,7 @@ const FiltersModal = ({
       presentationStyle="pageSheet"
     >
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.paper} />
         
         <View style={styles.modalContainer}>
           {/* Header del modal */}
@@ -236,7 +236,7 @@ const FiltersModal = ({
               style={styles.closeButton}
               onPress={handleClose}
             >
-              <Ionicons name="arrow-back" size={24} color="#333333" />
+              <Icon name="arrow-back" size={24} color={COLORS.text.primary} />
             </TouchableOpacity>
             
             <Text style={styles.modalTitle}>Filtros</Text>
@@ -270,10 +270,10 @@ const FiltersModal = ({
                     ]}
                     onPress={() => handleSortOptionPress(option.id)}
                   >
-                    <Ionicons 
+                    <Icon 
                       name={option.icon} 
                       size={16} 
-                      color={localSortBy === option.id ? COLORS.white : COLORS.text} 
+                      color={localSortBy === option.id ? COLORS.text.inverse : COLORS.text.primary} 
                     />
                     <Text style={[
                       styles.optionText,
@@ -299,7 +299,7 @@ const FiltersModal = ({
                 ]}>
                   {localSelectedComuna || 'Seleccionar comuna'}
                 </Text>
-                <Ionicons name="chevron-down" size={20} color={COLORS.textLight} />
+                <Icon name="chevron-down" size={20} color={COLORS.text.tertiary} />
               </TouchableOpacity>
               
               {localSelectedComuna && (
@@ -308,7 +308,7 @@ const FiltersModal = ({
                   onPress={() => setLocalSelectedComuna(null)}
                 >
                   <Text style={styles.selectedCommuneChipText}>{localSelectedComuna}</Text>
-                  <Ionicons name="close" size={16} color={COLORS.white} />
+                  <Icon name="close" size={16} color={COLORS.text.inverse} />
                 </TouchableOpacity>
               )}
             </View>
@@ -370,12 +370,12 @@ const FiltersModal = ({
                     onPress={() => setShowCommuneSelector(false)}
                     style={styles.communeModalCloseButton}
                   >
-                    <Ionicons name="close" size={24} color={COLORS.text} />
+                    <Icon name="close" size={24} color={COLORS.text.primary} />
                   </TouchableOpacity>
                 </View>
                 
                 <View style={styles.communeSearchContainer}>
-                  <Ionicons name="search-outline" size={20} color={COLORS.textLight} />
+                    <Icon name="search-outline" size={20} color={COLORS.text.tertiary} />
                   <TextInput
                     style={styles.communeSearchInput}
                     placeholder="Buscar comuna..."
@@ -393,7 +393,7 @@ const FiltersModal = ({
                     >
                       <Text style={styles.communeItemText}>{commune}</Text>
                       {localSelectedComuna === commune && (
-                        <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                        <Icon name="checkmark" size={20} color={COLORS.primary[500]} />
                       )}
                     </TouchableOpacity>
                   ))}
@@ -410,7 +410,7 @@ const FiltersModal = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.background.paper,
   },
   modalContainer: {
     flex: 1,
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: COLORS.border.light,
   },
   closeButton: {
     padding: 5,
@@ -430,24 +430,24 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333333',
+    color: COLORS.text.primary,
   },
   clearButton: {
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
   },
   clearButtonDisabled: {
-    backgroundColor: '#E5E5E5',
+    backgroundColor: COLORS.neutral.gray[200],
   },
   clearButtonText: {
-    color: COLORS.white,
+    color: COLORS.text.inverse,
     fontSize: 14,
     fontWeight: '500',
   },
   clearButtonTextDisabled: {
-    color: '#999999',
+    color: COLORS.text.tertiary,
   },
   modalScrollView: {
     flex: 1,
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333333',
+    color: COLORS.text.primary,
     marginBottom: 15,
   },
   optionsContainer: {
@@ -475,21 +475,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.neutral.gray[100],
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: COLORS.border.light,
   },
   optionButtonSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
+    borderColor: COLORS.primary[500],
   },
   optionText: {
     marginLeft: 8,
     fontSize: 14,
-    color: '#333333',
+    color: COLORS.text.primary,
   },
   optionTextSelected: {
-    color: COLORS.white,
+    color: COLORS.text.inverse,
   },
   communeSelector: {
     flexDirection: 'row',
@@ -498,25 +498,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.neutral.gray[100],
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: COLORS.border.light,
   },
   communeSelectorText: {
     fontSize: 16,
-    color: '#333333',
+    color: COLORS.text.primary,
   },
   communeSelectorTextPlaceholder: {
-    color: '#999999',
+    color: COLORS.text.tertiary,
   },
   communeSelectorTextSelected: {
-    color: COLORS.primary,
+    color: COLORS.primary[500],
     fontWeight: '500',
   },
   selectedCommuneChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 15,
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   selectedCommuneChipText: {
-    color: COLORS.white,
+    color: COLORS.text.inverse,
     fontSize: 14,
     marginRight: 8,
   },
@@ -535,47 +535,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: COLORS.neutral.gray[100],
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: COLORS.border.light,
   },
   vehicleModelButtonSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
+    borderColor: COLORS.primary[500],
   },
   vehicleModelText: {
     fontSize: 14,
-    color: '#333333',
+    color: COLORS.text.primary,
   },
   vehicleModelTextSelected: {
-    color: COLORS.white,
+    color: COLORS.text.inverse,
   },
   bottomContainer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    borderTopColor: COLORS.border.light,
   },
   applyButton: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary[500],
     paddingVertical: 15,
     borderRadius: 8,
     alignItems: 'center',
   },
   applyButtonText: {
-    color: COLORS.white,
+    color: COLORS.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
   communeModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.5),
     justifyContent: 'center',
     alignItems: 'center',
   },
   communeModalContainer: {
     width: '90%',
     maxHeight: '80%',
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.background.paper,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -586,12 +586,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: COLORS.border.light,
   },
   communeModalTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333333',
+    color: COLORS.text.primary,
   },
   communeModalCloseButton: {
     padding: 5,
@@ -602,13 +602,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: COLORS.border.light,
   },
   communeSearchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
-    color: '#333333',
+    color: COLORS.text.primary,
   },
   communeListContainer: {
     maxHeight: 300,
@@ -620,11 +620,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
+    borderBottomColor: COLORS.neutral.gray[100],
   },
   communeItemText: {
     fontSize: 16,
-    color: '#333333',
+    color: COLORS.text.primary,
   },
 });
 

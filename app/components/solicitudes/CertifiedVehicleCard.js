@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 const CertifiedVehicleCard = ({ vehiculo }) => {
     if (!vehiculo) return null;
@@ -10,7 +10,7 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
         <View style={styles.card}>
             <View style={styles.content}>
                 <View style={styles.iconWrapper}>
-                    <Ionicons name="car-sport" size={24} color={COLORS.primary[500]} />
+                    <Icon name="car-sport" size={24} color={COLORS.primary[500]} />
                 </View>
 
                 <View style={styles.infoContainer}>
@@ -26,7 +26,7 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
 
                     <View style={styles.detailsRow}>
                         <View style={styles.detailItem}>
-                            <Ionicons name="calendar-outline" size={14} color={COLORS.text.secondary} />
+                            <Icon name="calendar-outline" size={14} color={COLORS.text.secondary} />
                             <Text style={styles.detailText}>
                                 {vehiculo.year || vehiculo.anio || vehiculo.año || '----'}
                             </Text>
@@ -36,7 +36,7 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
                             <>
                                 <View style={styles.detailDivider} />
                                 <View style={styles.detailItem}>
-                                    <Ionicons name="hardware-chip-outline" size={14} color={COLORS.text.secondary} />
+                                    <Icon name="hardware-chip-outline" size={14} color={COLORS.text.secondary} />
                                     <Text style={styles.detailText}>{vehiculo.cilindraje}L</Text>
                                 </View>
                             </>
@@ -45,7 +45,7 @@ const CertifiedVehicleCard = ({ vehiculo }) => {
                         <View style={styles.detailDivider} />
 
                         <View style={styles.detailItem}>
-                            <Ionicons name="car-outline" size={14} color={COLORS.text.secondary} />
+                            <Icon name="car-outline" size={14} color={COLORS.text.secondary} />
                             <Text style={styles.detailText}>{vehiculo.patente || 'Sin Patente'}</Text>
                         </View>
                     </View>

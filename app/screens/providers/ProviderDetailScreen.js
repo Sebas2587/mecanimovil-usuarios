@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useCallback } from 'react';
+import React, { useLayoutEffect, useMemo, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,14 +10,28 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  FlatList,
+  Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
-import { ChevronRight, MessageCircle, MapPin } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  Share2,
+  Heart,
+  MessageCircle,
+  MapPin,
+  Globe,
+  Star,
+  Camera,
+  Building2,
+  Wrench,
+} from 'lucide-react-native';
 
 import { useQuery } from '@tanstack/react-query';
 import { ROUTES } from '../../utils/constants';
+import BackButton from '../../components/navigation/BackButton';
 import { getUserVehicles } from '../../services/vehicle';
 import { navigateCrearSolicitudConProveedorYServicio } from '../../components/home/shared/homeScheduleNavigation';
 import {
@@ -54,10 +68,180 @@ import ServicioTarifasPorMarca from '../../components/provider/ServicioTarifasPo
 import { isProviderMultimarca, mergeProviderKpiBadge } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
 import { useFavorites } from '../../context/FavoritesContext';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
 import { providerServiceCardStyles as svcCard } from '../../components/provider/providerServiceCardStyles';
+import SectionHeader from '../../components/base/SectionHeader/SectionHeader';
+import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
+import Button from '../../components/base/Button/Button';
+import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
+
+const SCREEN_W = Dimensions.get('window').width;
+const HERO_HEIGHT = 220;
 
 const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
+
+/** Divisor hairline entre secciones — patrón Airbnb. */
+const Divider = () => <View style={styles.divider} />;
+
+const ProviderHeroGallery = ({
+  images,
+  onBack,
+  onShare,
+  onToggleFavorite,
+  isFavorite,
+}) => {
+  const insets = useSafeAreaInsets();
+  const carouselRef = useRef(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+
+  const handleCarouselScroll = useCallback((event) => {
+    const index = Math.round(event.nativeEvent.contentOffset.x / SCREEN_W);
+    setCarouselIndex(index);
+  }, []);
+
+  return (
+    <View style={heroStyles.wrap}>
+      <FlatList
+        ref={carouselRef}
+        data={images}
+        keyExtractor={(uri, i) => `${uri}-${i}`}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleCarouselScroll}
+        getItemLayout={(_, index) => ({ length: SCREEN_W, offset: SCREEN_W * index, index })}
+        renderItem={({ item: uri }) => (
+          <Image
+            source={{ uri }}
+            style={{ width: SCREEN_W, height: HERO_HEIGHT }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
+        )}
+      />
+
+      <HeroImageGradientScrim intensity="default" />
+
+      {images.length > 1 ? (
+        <View style={heroStyles.dots}>
+          {images.map((_, i) => (
+            <View
+              key={i}
+              style={[heroStyles.dot, i === carouselIndex && heroStyles.dotActive]}
+            />
+          ))}
+        </View>
+      ) : null}
+
+      {images.length > 1 ? (
+        <View style={heroStyles.photoPill}>
+          <Camera size={12} color={COLORS.text.inverse} strokeWidth={2} />
+          <Text style={heroStyles.photoPillText}>
+            {carouselIndex + 1}/{images.length}
+          </Text>
+        </View>
+      ) : null}
+
+      <View style={[heroStyles.topBar, { paddingTop: insets.top + SPACING.xs }]}>
+        <BackButton onPress={onBack} />
+
+        <View style={heroStyles.rightActions}>
+          {onShare ? (
+            <TouchableOpacity style={heroStyles.iconButton} onPress={onShare} activeOpacity={0.85}>
+              <Share2 size={20} color={COLORS.text.primary} strokeWidth={2} />
+            </TouchableOpacity>
+          ) : null}
+          {onToggleFavorite ? (
+            <TouchableOpacity
+              style={heroStyles.iconButton}
+              onPress={onToggleFavorite}
+              activeOpacity={0.85}
+            >
+              <Heart
+                size={20}
+                color={isFavorite ? COLORS.error.main : COLORS.text.primary}
+                fill={isFavorite ? COLORS.error.main : 'transparent'}
+                strokeWidth={2}
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const heroStyles = StyleSheet.create({
+  wrap: {
+    height: HERO_HEIGHT,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: COLORS.neutral.gray[200],
+  },
+  topBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingBottom: SPACING.xs,
+    zIndex: 10,
+  },
+  rightActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : null),
+  },
+  dots: {
+    position: 'absolute',
+    bottom: SPACING.md,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    zIndex: 5,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: withOpacity(COLORS.text.inverse, 0.45),
+  },
+  dotActive: {
+    backgroundColor: COLORS.text.inverse,
+    width: 18,
+  },
+  photoPill: {
+    position: 'absolute',
+    bottom: SPACING.md,
+    right: SPACING.container.horizontal,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.55),
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: BORDERS.radius.full,
+    zIndex: 5,
+  },
+  photoPillText: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.inverse,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+});
 
 const ProviderDetailScreen = () => {
   const route = useRoute();
@@ -74,6 +258,8 @@ const ProviderDetailScreen = () => {
   }, [vehiclesQuery]);
 
   const navigation = useNavigation();
+  const scrollRef = useRef(null);
+  const servicesSectionY = useRef(0);
   const params = route.params || {};
   const {
     provider: initialProvider,
@@ -192,6 +378,40 @@ const ProviderDetailScreen = () => {
     });
   }, [provider, provider?.servicios, vehicleForSchedule, userVehiclesActivos]);
 
+  const heroImages = useMemo(() => {
+    const urls = [];
+    const push = (uri) => {
+      if (uri && typeof uri === 'string' && !urls.includes(uri)) urls.push(uri);
+    };
+    push(provider?.foto_portada);
+    (provider?.portafolio || []).forEach((item) => {
+      push(item?.image || item?.url || item?.foto);
+    });
+    (provider?.servicios || []).forEach((svc) => {
+      push(svc?.foto || svc?.imagen || svc?.foto_servicio);
+    });
+    // Sin fotos reales del proveedor no se muestra hero (nada de imágenes stock).
+    return urls;
+  }, [provider]);
+
+  const servicesHint = useMemo(() => {
+    if (userVehiclesActivos.length === 0) {
+      return 'Registra un vehículo para ver precios de tu marca y agendar con este proveedor.';
+    }
+    if (userVehiclesActivos.length > 1) {
+      return 'Precios según tus vehículos. Al agendar se usa el vehículo seleccionado en el inicio.';
+    }
+    const marca =
+      userVehiclesActivos[0].marca_nombre || userVehiclesActivos[0].marca?.nombre || 'vehículo';
+    return `Precio para tu ${marca}. Toca un servicio para agendar.`;
+  }, [userVehiclesActivos]);
+
+  const showStickyCta = serviciosVisibles.length > 0;
+
+  const handleStickyCta = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: servicesSectionY.current, animated: true });
+  }, []);
+
   const handleScheduleService = useCallback(
     (servicio) => {
       if (!vehicleForSchedule?.id) {
@@ -279,9 +499,13 @@ const ProviderDetailScreen = () => {
         <Text style={styles.errorText}>
           No pudimos cargar este perfil. El enlace puede estar incompleto o caducado.
         </Text>
-        <TouchableOpacity onPress={() => navigation.navigate(ROUTES.HOME)} style={styles.linkBtn}>
-          <Text style={styles.linkBtnText}>Ir al inicio</Text>
-        </TouchableOpacity>
+        <Button
+          title="Ir al inicio"
+          type="primary"
+          variant="text"
+          onPress={() => navigation.navigate(ROUTES.HOME)}
+          style={styles.linkBtn}
+        />
       </View>
     );
   }
@@ -300,20 +524,48 @@ const ProviderDetailScreen = () => {
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scrollArea}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          showStickyCta && styles.scrollContentWithFooter,
+        ]}
         showsVerticalScrollIndicator={Platform.OS !== 'web'}
       >
-        <ProviderHeader
-          provider={provider}
-          providerType={providerType}
-          useWeeklyAvailabilityBadge
-          weeklyHorarios={schedule}
-          onShare={handleShare}
-          onToggleFavorite={handleToggleFavorite}
-          isFavorite={favorite}
-          onBack={handleBack}
-        />
+        {/* Hero solo con fotos reales del proveedor; si no hay, la pantalla
+            abre directo con el bloque de título y los controles van arriba. */}
+        {heroImages.length > 0 ? (
+          <>
+            <ProviderHeroGallery
+              images={heroImages}
+              onBack={handleBack}
+              onShare={handleShare}
+              onToggleFavorite={handleToggleFavorite}
+              isFavorite={favorite}
+            />
+            <ProviderHeader
+              provider={provider}
+              providerType={providerType}
+              useWeeklyAvailabilityBadge
+              weeklyHorarios={schedule}
+              showBackButton={false}
+            />
+          </>
+        ) : (
+          <ProviderHeader
+            provider={provider}
+            providerType={providerType}
+            useWeeklyAvailabilityBadge
+            weeklyHorarios={schedule}
+            showBackButton
+            onBack={handleBack}
+            onShare={handleShare}
+            onToggleFavorite={handleToggleFavorite}
+            isFavorite={favorite}
+          />
+        )}
+
+        <Divider />
 
         {/* Cobertura / Dirección */}
         {(() => {
@@ -338,19 +590,24 @@ const ProviderDetailScreen = () => {
 
             return (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Comunas de Cobertura</Text>
+                <SectionHeader
+                  title="Comunas de Cobertura"
+                  icon={<MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />}
+                />
                 {comunas.length > 0 ? (
                   <View style={styles.tagsRow}>
                     {comunas.map((c, i) => (
                       <View key={`${c}-${i}`} style={styles.tagBadge}>
-                        <MapPin size={12} color={COLORS.text.secondary} style={{ marginRight: 4 }} />
+                        <MapPin size={12} color={COLORS.text.secondary} strokeWidth={2} />
                         <Text style={styles.tagText}>{String(c)}</Text>
                       </View>
                     ))}
                   </View>
                 ) : (
-                  <Card style={{ marginTop: 10 }}>
-                    <Text style={styles.bodyMutedText}>Cobertura no disponible.</Text>
+                  <Card variant="outlined">
+                    <Text style={[TYPOGRAPHY.styles.body, styles.bodyMutedText]}>
+                      Cobertura no disponible.
+                    </Text>
                   </Card>
                 )}
               </View>
@@ -369,16 +626,21 @@ const ProviderDetailScreen = () => {
 
           return (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Dirección del Taller</Text>
-              <Card style={{ marginTop: 10 }}>
+              <SectionHeader
+                title="Dirección del Taller"
+                icon={<Building2 size={18} color={COLORS.primary[500]} strokeWidth={2} />}
+              />
+              <Card variant="outlined">
                 <View style={styles.iconRow}>
-                  <MapPin size={18} color={COLORS.primary[500]} />
-                  <Text style={styles.bodyText}>{display}</Text>
+                  <MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />
+                  <Text style={[TYPOGRAPHY.styles.body, styles.bodyText]}>{display}</Text>
                 </View>
               </Card>
             </View>
           );
         })()}
+
+        <Divider />
 
         {/* Cobertura de marcas */}
         {(() => {
@@ -387,22 +649,33 @@ const ProviderDetailScreen = () => {
             || (!tipoCobertura && !(provider.marcas_atendidas_nombres?.length > 0));
           return (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
-              </Text>
+              <SectionHeader
+                title={esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
+                icon={<Wrench size={18} color={COLORS.primary[500]} strokeWidth={2} />}
+              />
               {esMultimarca ? (
                 <View style={styles.multimarcaBadge}>
-                  <Text style={styles.multimarcaBadgeIcon}>🌐</Text>
+                  <Globe size={28} color={COLORS.primary[500]} strokeWidth={1.75} />
                   <View>
-                    <Text style={styles.multimarcaBadgeTitle}>Proveedor Multimarca</Text>
-                    <Text style={styles.multimarcaBadgeSub}>Atiende vehículos de cualquier marca</Text>
+                    <Text style={[TYPOGRAPHY.styles.h5, styles.multimarcaBadgeTitle]}>
+                      Proveedor Multimarca
+                    </Text>
+                    <Text style={[TYPOGRAPHY.styles.caption, styles.multimarcaBadgeSub]}>
+                      Atiende vehículos de cualquier marca
+                    </Text>
                   </View>
                 </View>
               ) : (
                 <View style={styles.tagsRow}>
                   {(provider.marcas_atendidas_nombres || []).map((brand, i) => (
                     <View key={i} style={[styles.tagBadge, styles.tagBadgeEspecialista]}>
-                      <Text style={styles.tagText}>⭐ {brand}</Text>
+                      <Star
+                        size={12}
+                        color={COLORS.secondary[600]}
+                        fill={COLORS.secondary[500]}
+                        strokeWidth={2}
+                      />
+                      <Text style={[styles.tagText, styles.tagTextEspecialista]}>{brand}</Text>
                     </View>
                   ))}
                 </View>
@@ -411,33 +684,33 @@ const ProviderDetailScreen = () => {
           );
         })()}
 
+        <Divider />
+
         {tieneEquipoPublico ? (
           <ProviderTeamSection miembros={equipoPublico} />
         ) : (
           <ProviderScheduleSection horarios={schedule || []} />
         )}
 
+        <Divider />
+
         {/* Reviews */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Opiniones</Text>
-            {reviewsData?.reviews?.length > 0 && (
-              <TouchableOpacity onPress={handleSeeAllReviews} style={styles.seeAllRow}>
-                <Text style={styles.seeAllText}>Ver todas</Text>
-                <ChevronRight size={14} color={COLORS.primary[500]} />
-              </TouchableOpacity>
-            )}
-          </View>
+          <SectionHeader
+            title="Opiniones"
+            actionLabel={reviewsData?.reviews?.length > 0 ? 'Ver todas' : undefined}
+            onAction={reviewsData?.reviews?.length > 0 ? handleSeeAllReviews : undefined}
+          />
 
           {reviewsData?.reviews?.length > 0 ? (
             <TouchableOpacity onPress={handleSeeAllReviews} activeOpacity={0.9}>
               <ReviewCard review={reviewsData.reviews[0]} />
             </TouchableOpacity>
           ) : (
-            <Card>
+            <Card variant="outlined">
               <View style={styles.iconRow}>
-                <MessageCircle size={18} color={COLORS.text.tertiary} />
-                <Text style={styles.bodyMutedText}>
+                <MessageCircle size={18} color={COLORS.text.tertiary} strokeWidth={2} />
+                <Text style={[TYPOGRAPHY.styles.body, styles.bodyMutedText]}>
                   Este proveedor aún no ha recibido opiniones.
                 </Text>
               </View>
@@ -445,30 +718,32 @@ const ProviderDetailScreen = () => {
           )}
         </View>
 
+        <Divider />
+
         <TrustSection documents={documents || []} />
+
+        <Divider />
 
         {/* SECCIÓN DE SERVICIOS */}
         {(provider.servicios?.length > 0 || serviciosVisibles.length > 0) && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
-            <Text style={styles.sectionHint}>
-              {userVehiclesActivos.length > 0
-                ? userVehiclesActivos.length > 1
-                  ? 'Precios según tus vehículos. Al agendar se usa el vehículo seleccionado en el inicio.'
-                  : `Precio para tu ${userVehiclesActivos[0].marca_nombre || userVehiclesActivos[0].marca?.nombre || 'vehículo'}. Toca un servicio para agendar.`
-                : 'Registra un vehículo para ver precios de tu marca y agendar con este proveedor.'}
-            </Text>
+          <View
+            style={[styles.section, styles.sectionLast]}
+            onLayout={(e) => {
+              servicesSectionY.current = e.nativeEvent.layout.y;
+            }}
+          >
+            <SectionHeader title="Servicios Profesionales" hint={servicesHint} />
             {userVehiclesActivos.length === 0 ? (
-              <Text style={styles.noVehicleHint}>
+              <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
                 Agrega un vehículo en tu perfil para ver precios y agendar.
               </Text>
             ) : !vehicleForSchedule?.id ? (
-              <Text style={styles.noVehicleHint}>
+              <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
                 Selecciona un vehículo activo en el inicio para agendar.
               </Text>
             ) : null}
             {serviciosVisibles.length === 0 ? (
-              <Text style={styles.noVehicleHint}>
+              <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
                 {userVehiclesActivos.length > 0
                   ? 'Este proveedor no tiene precio para ninguno de tus vehículos registrados en estos servicios.'
                   : 'Registra un vehículo para ver los servicios disponibles con precios para tu marca.'}
@@ -525,9 +800,19 @@ const ProviderDetailScreen = () => {
 
         <ProviderCompletedJobsSection jobs={completedJobs} />
         <PortfolioCarousel portfolio={provider.portafolio || []} />
-
-        <View style={{ height: 40 }} />
       </ScrollView>
+
+      {showStickyCta ? (
+        <StickyFooterCTA style={styles.footerBar}>
+          <Button
+            title="Solicitar servicio"
+            type="primary"
+            size="lg"
+            onPress={handleStickyCta}
+            fullWidth
+          />
+        </StickyFooterCTA>
+      ) : null}
     </View>
   );
 };
@@ -558,11 +843,25 @@ const styles = StyleSheet.create({
     }),
   },
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: SPACING.xl,
+  },
+  scrollContentWithFooter: {
+    paddingBottom: 120,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: COLORS.border.light,
+    marginHorizontal: SPACING.container.horizontal,
+    marginVertical: SPACING.lg,
+  },
+  footerBar: {
+    backgroundColor: COLORS.background.paper,
   },
   section: {
     paddingHorizontal: SPACING.container.horizontal,
-    marginBottom: 20,
+  },
+  sectionLast: {
+    marginBottom: SPACING.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -608,22 +907,17 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   bodyText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.text.primary,
     flex: 1,
-    lineHeight: 22,
-    marginLeft: 10,
+    color: COLORS.text.primary,
   },
   bodyMutedText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    marginLeft: 10,
-    lineHeight: 20,
     flex: 1,
+    color: COLORS.text.secondary,
   },
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.sm,
   },
   sectionTitleRow: {
     flexDirection: 'row',
@@ -647,49 +941,45 @@ const styles = StyleSheet.create({
   multimarcaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.md,
     backgroundColor: COLORS.primary[50],
     borderRadius: BORDERS.radius.lg,
-    padding: 14,
-    marginTop: 10,
-    borderWidth: 1,
+    padding: SPACING.md,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.primary[100],
   },
-  multimarcaBadgeIcon: {
-    fontSize: 28,
-  },
   multimarcaBadgeTitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.primary[600],
     marginBottom: 2,
   },
   multimarcaBadgeSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.primary[500],
   },
   tagBadgeEspecialista: {
-    backgroundColor: COLORS.success?.light || '#EAF9EF',
-    borderColor: COLORS.success?.main || '#05b169',
+    backgroundColor: COLORS.secondary[50],
+    borderColor: COLORS.secondary[200],
+  },
+  tagTextEspecialista: {
+    color: COLORS.secondary[700],
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
+    gap: SPACING.xs,
   },
   tagBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     backgroundColor: COLORS.neutral.gray[100],
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.md,
     paddingVertical: 6,
     borderRadius: BORDERS.radius.full,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
   },
   tagText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.primary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
@@ -700,19 +990,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   errorText: {
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.primary,
     textAlign: 'center',
-    marginBottom: 16,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    lineHeight: 22,
+    marginBottom: SPACING.md,
   },
   linkBtn: {
-    paddingVertical: 12,
-  },
-  linkBtnText: {
-    color: COLORS.primary[500],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
+    marginTop: SPACING.sm,
   },
 });
 

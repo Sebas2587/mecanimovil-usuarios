@@ -30,31 +30,32 @@ export default function ComponentDiagnosticInsights({ component, prediction = nu
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.md,
+    borderRadius: BORDERS.radius.lg,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     gap: 10,
   },
   title: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.tertiary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   row: {
     gap: 2,
+    paddingTop: SPACING.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
   },
   rowTitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
   },
   rowText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    lineHeight: 19,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
   },
 });

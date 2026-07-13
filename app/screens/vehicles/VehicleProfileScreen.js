@@ -14,15 +14,13 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { Ionicons } from '@expo/vector-icons';
-import { Camera, Trash2, Info, ArrowLeft } from 'lucide-react-native';
+import { Camera, Trash2, Info, Car } from 'lucide-react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ROUTES } from '../../utils/constants';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
-import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Button from '../../components/base/Button/Button';
 
@@ -42,6 +40,7 @@ import VehicleValuationCard from '../../components/vehicle/VehicleValuationCard'
 import QuickActionGrid from '../../components/vehicle/QuickActionGrid';
 import TechSpecsCard, { RevisionTecnicaCard } from '../../components/vehicle/TechSpecsCard';
 import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
+import BackButton from '../../components/navigation/BackButton';
 
 const VehicleProfileScreen = () => {
     const navigation = useNavigation();
@@ -348,48 +347,51 @@ const VehicleProfileScreen = () => {
                         <Image source={{ uri: imageUrl }} style={styles.headerImage} contentFit="cover" />
                     ) : (
                         <View style={styles.placeholderHeader}>
-                            <Ionicons name="car-sport" size={80} color={COLORS.neutral.gray[300]} />
+                            <View style={styles.placeholderIconWrap}>
+                                <Car size={40} color={COLORS.primary[500]} strokeWidth={1.5} fill="none" />
+                            </View>
                         </View>
                     )}
 
                     <HeroImageGradientScrim intensity="default" />
 
                     <View style={[styles.scrollableHeaderControls, { top: insets.top }]}>
-                        <View style={{ flexDirection: 'row', gap: SPACING.xs }}>
-                            <TouchableOpacity style={styles.iconButton} onPress={() => navigation.goBack()}>
-                                <ArrowLeft size={22} color={COLORS.text.inverse} />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.iconButton} onPress={handleChangePhoto}>
-                                <Camera size={22} color={COLORS.text.inverse} />
+                        <View style={styles.headerLeftActions}>
+                            <BackButton
+                              onPress={() => navigation.goBack()}
+                              color={COLORS.text.inverse}
+                              style={styles.iconButton}
+                            />
+                            <TouchableOpacity
+                              style={styles.iconButton}
+                              onPress={handleChangePhoto}
+                              accessibilityRole="button"
+                              accessibilityLabel="Cambiar foto"
+                            >
+                                <Camera size={20} color={COLORS.text.inverse} strokeWidth={2} fill="none" />
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.rightButtons}>
-                            <TouchableOpacity
-                                style={[styles.iconButton, Platform.OS === 'web' && styles.iconButtonWeb]}
-                                onPress={handleDelete}
-                                accessibilityRole="button"
-                                accessibilityLabel="Eliminar vehículo"
-                            >
-                                <Trash2 size={22} color={COLORS.text.inverse} />
-                            </TouchableOpacity>
-                        </View>
+                        <TouchableOpacity
+                            style={[styles.iconButton, Platform.OS === 'web' && styles.iconButtonWeb]}
+                            onPress={handleDelete}
+                            accessibilityRole="button"
+                            accessibilityLabel="Eliminar vehículo"
+                        >
+                            <Trash2 size={20} color={COLORS.text.inverse} strokeWidth={2} fill="none" />
+                        </TouchableOpacity>
                     </View>
 
                     <View style={styles.headerInfoBlock}>
-                        <View style={styles.headerInfo}>
-                            <Text style={styles.headerSubtitle}>{vehicle.year} • {vehicle.patente}</Text>
-                            <Text style={styles.headerTitle}>
-                                {vehicle.marca_nombre || vehicle.marca} {vehicle.modelo_nombre || vehicle.modelo}
-                            </Text>
-                        </View>
+                        <Text style={styles.headerSubtitle}>{vehicle.year} · {vehicle.patente}</Text>
+                        <Text style={styles.headerTitle} numberOfLines={2}>
+                            {vehicle.marca_nombre || vehicle.marca} {vehicle.modelo_nombre || vehicle.modelo}
+                        </Text>
                     </View>
                 </View>
 
-                {/* Scrollable Content overlapping Header */}
                 <View style={styles.contentBody}>
 
-                    {/* 1. Active Request (Priority) */}
                     {activeRequest && (
                         <ActiveRequestCard
                             request={activeRequest}
@@ -397,47 +399,58 @@ const VehicleProfileScreen = () => {
                         />
                     )}
 
-                    {/* 2. Quick Actions */}
+                    <Text style={styles.sectionLabel}>Accesos</Text>
                     <QuickActionGrid
                         healthScore={profileHealthScorePct}
                         serviceCount={servicesCount}
                         onHealthPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: vehicle.id, vehicle })}
                         onHistoryPress={() => navigation.navigate(ROUTES.VEHICLE_HISTORY, { vehicleId: vehicle.id, vehicle })}
+                        onTripPress={() =>
+                            navigation.navigate(ROUTES.REGISTRAR_VIAJE, {
+                                vehicleId: vehicle.id,
+                                vehicle,
+                            })
+                        }
                     />
 
-                    {/* 3. Valuation Card */}
                     <VehicleValuationCard
                         marketValue={vehicle.precio_mercado_promedio || 0}
                         suggestedValue={vehicle.precio_sugerido_final || 0}
-                        onSellPress={() => navigation.navigate(ROUTES.SELL_VEHICLE, { vehicle })}
+                        vehicleYear={vehicle.year}
+                        healthScore={profileHealthScorePct}
+                        onHealthPress={() => navigation.navigate(ROUTES.VEHICLE_HEALTH, { vehicleId: vehicle.id, vehicle })}
+                        onTransferPress={() =>
+                            navigation.navigate(ROUTES.TRANSFERENCIA_RESUMEN, {
+                                vehicle,
+                                vehicleId: vehicle.id,
+                            })
+                        }
                         onEditPress={() => {
                             setManualValuation('');
                             setValuationModalVisible(true);
                         }}
                     />
 
-                    {/* 4. Revisión técnica (sección aparte) */}
                     <RevisionTecnicaCard
                         vehicle={vehicle}
                         revisionRenewalDueISO={revisionRenewalDueISO}
                         onRevisionRenewalConfirmed={setRevisionRenewalDueISO}
                     />
 
-                    {/* 5. Ficha técnica — grid 2 columnas */}
                     <TechSpecsCard vehicle={vehicle} />
 
-                    {/* 6. Valuation Explanation */}
                     <View style={styles.infoCard}>
                         <View style={styles.infoHeader}>
-                            <Info size={20} color={COLORS.primary[500]} />
-                            <Text style={styles.infoTitle}>¿Cómo calculamos tu valor?</Text>
+                            <Info size={16} color={COLORS.primary[500]} strokeWidth={1.75} fill="none" />
+                            <Text style={styles.infoTitle}>Cómo calculamos el valor</Text>
                         </View>
                         <Text style={styles.infoText}>
-                            Usamos el <Text style={styles.infoEmphasis}>Precio de Mercado</Text> real como base y sumamos valor adicional por tu <Text style={styles.infoEmphasis}>Salud Certificada</Text> y <Text style={styles.infoEmphasis}>Kilometraje</Text>. ¡Sin castigos injustos!
+                            Partimos del <Text style={styles.infoEmphasis}>precio de mercado</Text> y sumamos
+                            aporte por <Text style={styles.infoEmphasis}>salud certificada</Text> y kilometraje.
                         </Text>
                     </View>
 
-                    <View style={{ height: 40 }} />
+                    <View style={{ height: SPACING.lg }} />
                 </View>
             </ScrollView>
 
@@ -507,10 +520,10 @@ const getStyles = (insets) => StyleSheet.create({
         paddingBottom: insets.bottom,
     },
     headerImageContainer: {
-        height: 340,
+        height: 260,
         width: '100%',
         position: 'relative',
-        backgroundColor: COLORS.neutral.gray[100],
+        backgroundColor: COLORS.base.soft,
     },
     headerImage: {
         width: '100%',
@@ -521,7 +534,17 @@ const getStyles = (insets) => StyleSheet.create({
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: COLORS.neutral.gray[100],
+        backgroundColor: COLORS.base.soft,
+    },
+    placeholderIconWrap: {
+        width: 72,
+        height: 72,
+        borderRadius: BORDERS.radius.full,
+        backgroundColor: COLORS.background.paper,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.border.light,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     headerInfoBlock: {
         position: 'absolute',
@@ -529,30 +552,30 @@ const getStyles = (insets) => StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 2,
-        padding: SPACING.md,
-        paddingBottom: SPACING['2xl'],
-        justifyContent: 'flex-end',
-    },
-    headerInfo: {
-        marginBottom: 8,
+        paddingHorizontal: SPACING.container.horizontal,
+        paddingBottom: SPACING.xl,
     },
     headerTitle: {
-        fontSize: TYPOGRAPHY.fontSize['3xl'],
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.h3,
         color: COLORS.text.inverse,
     },
     headerSubtitle: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        color: withOpacity(COLORS.text.inverse, 0.85),
-        marginBottom: SPACING.xxs,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
+        ...TYPOGRAPHY.styles.caption,
+        color: withOpacity(COLORS.text.inverse, 0.88),
+        marginBottom: 2,
     },
     contentBody: {
-        marginTop: -SPACING.xl,
+        marginTop: -SPACING.md,
         borderTopLeftRadius: BORDERS.radius.modal.lg,
         borderTopRightRadius: BORDERS.radius.modal.lg,
         backgroundColor: COLORS.background.default,
-        paddingTop: SPACING.lg,
+        paddingTop: SPACING.md,
+    },
+    sectionLabel: {
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.secondary,
+        paddingHorizontal: SPACING.container.horizontal,
+        marginBottom: SPACING.xs,
     },
     scrollableHeaderControls: {
         position: 'absolute',
@@ -562,32 +585,24 @@ const getStyles = (insets) => StyleSheet.create({
         zIndex: 10,
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingHorizontal: SPACING.container.horizontal,
-        paddingTop: SPACING.md,
-    },
-    backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
-        borderWidth: BORDERS.width.thin,
-        borderColor: withOpacity(COLORS.base.white, 0.2),
-        justifyContent: 'center',
         alignItems: 'center',
+        paddingHorizontal: SPACING.container.horizontal,
+        paddingTop: SPACING.sm,
     },
-    rightButtons: {
+    headerLeftActions: {
         flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xs,
     },
     iconButton: {
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.45),
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.4),
         borderWidth: BORDERS.width.thin,
-        borderColor: withOpacity(COLORS.base.white, 0.2),
+        borderColor: withOpacity(COLORS.base.white, 0.18),
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: SPACING.xs,
     },
     iconButtonWeb: {
         cursor: 'pointer',
@@ -608,16 +623,14 @@ const getStyles = (insets) => StyleSheet.create({
         width: '100%',
         alignItems: 'center',
         overflow: 'hidden',
-        ...SHADOWS.lg,
     },
     modalTitle: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h4,
         marginBottom: SPACING.xs,
         color: COLORS.text.primary,
     },
     modalSubtitle: {
-        fontSize: TYPOGRAPHY.fontSize.base,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         textAlign: 'center',
         marginBottom: SPACING.lg,
@@ -663,33 +676,30 @@ const getStyles = (insets) => StyleSheet.create({
     infoCard: {
         backgroundColor: COLORS.background.paper,
         marginHorizontal: SPACING.container.horizontal,
-        marginTop: SPACING.md,
+        marginTop: SPACING.xs,
+        marginBottom: SPACING.sm,
         padding: SPACING.md,
-        borderRadius: BORDERS.radius.card.lg,
+        borderRadius: BORDERS.radius.lg,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
-        overflow: 'hidden',
-        ...SHADOWS.sm,
     },
     infoHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: SPACING.xs,
+        marginBottom: SPACING.xxs,
         gap: SPACING.xs,
     },
     infoTitle: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.text.primary,
     },
     infoText: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
-        lineHeight: 20,
     },
     infoEmphasis: {
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
         color: COLORS.text.primary,
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
 });
 

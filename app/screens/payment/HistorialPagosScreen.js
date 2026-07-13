@@ -9,10 +9,9 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Building2, Tag, FileText, Calendar, CheckCircle2, Receipt, AlertCircle } from 'lucide-react-native';
 import pagosService from '../../services/pagosService';
-import { COLORS } from '../../design-system/tokens/colors';
-import { SPACING, BORDERS, SHADOWS } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 
 /**
  * Pantalla que muestra el historial de pagos del usuario
@@ -114,7 +113,7 @@ const HistorialPagosScreen = () => {
 
         {item.proveedor_info && (
           <View style={styles.infoRow}>
-            <Ionicons name="business-outline" size={16} color={COLORS.text.secondary} />
+            <Building2 size={16} color={COLORS.text.secondary} />
             <Text style={styles.infoText}>
               {item.proveedor_info.nombre}
               {item.proveedor_info.tipo && ` (${item.proveedor_info.tipo === 'taller' ? 'Taller' : 'Mecánico'})`}
@@ -124,14 +123,14 @@ const HistorialPagosScreen = () => {
 
         {item.oferta_info && (
           <View style={styles.infoRow}>
-            <Ionicons name="pricetag-outline" size={16} color={COLORS.text.secondary} />
+            <Tag size={16} color={COLORS.text.secondary} />
             <Text style={styles.infoText}>Oferta: {formatAmount(item.oferta_info.precio_total)}</Text>
           </View>
         )}
 
         {item.solicitud_info && (
           <View style={styles.infoRow}>
-            <Ionicons name="document-text-outline" size={16} color={COLORS.text.secondary} />
+            <FileText size={16} color={COLORS.text.secondary} />
             <Text style={styles.infoText} numberOfLines={2}>
               {item.solicitud_info.descripcion || 'Solicitud de servicio'}
             </Text>
@@ -139,13 +138,13 @@ const HistorialPagosScreen = () => {
         )}
 
         <View style={styles.infoRow}>
-          <Ionicons name="calendar-outline" size={16} color={COLORS.text.secondary} />
+          <Calendar size={16} color={COLORS.text.secondary} />
           <Text style={styles.infoText}>{formatDate(item.date_approved_mp || item.fecha_creacion)}</Text>
         </View>
 
         <View style={styles.estadoContainer}>
           <View style={styles.estadoBadge}>
-            <Ionicons name="checkmark-circle" size={14} color={COLORS.success[600]} />
+            <CheckCircle2 size={14} color={COLORS.success[600]} />
             <Text style={styles.estadoText}>Aprobado</Text>
           </View>
         </View>
@@ -155,7 +154,7 @@ const HistorialPagosScreen = () => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Ionicons name="receipt-outline" size={80} color={COLORS.neutral.gray[300]} />
+      <Receipt size={80} color={COLORS.neutral.gray[300]} />
       <Text style={styles.emptyTitle}>No hay pagos registrados</Text>
       <Text style={styles.emptySubtitle}>Tus pagos aprobados aparecerán aquí</Text>
     </View>
@@ -192,7 +191,7 @@ const HistorialPagosScreen = () => {
 
       {error && (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={20} color={COLORS.error.main} />
+          <AlertCircle size={20} color={COLORS.error.main} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
@@ -234,12 +233,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
   },
   tipoPagoText: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.small,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   monto: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
   },
   infoRow: {
@@ -249,7 +247,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
   },
   infoText: {
-    fontSize: 13,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     flex: 1,
   },
@@ -272,8 +270,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.success[200],
   },
   estadoText: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.small,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.success[700],
   },
   separator: {
@@ -286,14 +284,13 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
     marginTop: SPACING.md,
     marginBottom: SPACING.xs,
   },
   emptySubtitle: {
-    fontSize: 13,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     textAlign: 'center',
   },
@@ -304,7 +301,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: SPACING.md,
-    fontSize: 13,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
   },
   errorContainer: {
@@ -320,7 +317,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    fontSize: 13,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.error.dark,
   },
 });

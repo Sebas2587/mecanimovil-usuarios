@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS, SPACING } from '../../design-system/tokens';
+import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS, SPACING, withOpacity } from '../../design-system/tokens';
 
 /**
  * Cards de catálogo en “Servicios Profesionales” (ficha proveedor).
@@ -42,7 +42,7 @@ export const providerServiceCardStyles = StyleSheet.create({
     paddingHorizontal: SPACING.xs,
     paddingVertical: 4,
     borderRadius: BORDERS.radius.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.94),
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     zIndex: 2,

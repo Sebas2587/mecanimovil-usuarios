@@ -6,8 +6,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, TYPOGRAPHY, BORDERS } from '../../../design-system/tokens';
+import Icon from '../Icon/Icon';
 
 // Safe access to TOKENS with fallback values
 const SAFE_COLORS = COLORS || {};
@@ -43,7 +43,7 @@ const safeBordersAvatar = SAFE_BORDERS_DATA.avatar;
  * @param {string} name - Nombre para generar iniciales (opcional)
  * @param {string} size - Tamaño: 'sm' (32), 'md' (48), 'lg' (64), 'xl' (80)
  * @param {string} variant - Variante: 'circular' (redondo), 'rounded' (redondeado)
- * @param {string} icon - Nombre del icono de Ionicons (opcional, si no hay imagen ni nombre)
+ * @param {string} icon - Nombre del icono legacy/Lucide (opcional, si no hay imagen ni nombre)
  * @param {boolean} showBadge - Mostrar badge de estado
  * @param {string} badgeColor - Color del badge (success, error, warning, etc.)
  * @param {string} status - Estado: 'online', 'busy', 'away'
@@ -57,7 +57,7 @@ const Avatar = ({
   variant = 'circular',
   icon = 'person',
   showBadge = false,
-  badgeColor = SAFE_COLORS.success?.[500] || '#10B981',
+  badgeColor = SAFE_COLORS.success[500],
   status,
   onPress,
   style,
@@ -107,9 +107,9 @@ const Avatar = ({
     if (badgeColor && showBadge && !status) return badgeColor;
 
     switch (status) {
-      case 'online': return '#10B981'; // Success
-      case 'busy': return '#EF4444'; // Error
-      case 'away': return '#F59E0B'; // Warning
+      case 'online': return SAFE_COLORS.success[500];
+      case 'busy': return SAFE_COLORS.error[500];
+      case 'away': return SAFE_COLORS.warning[500];
       default: return badgeColor;
     }
   };
@@ -135,7 +135,7 @@ const Avatar = ({
             width: dimension,
             height: dimension,
             borderRadius,
-            backgroundColor: source ? 'transparent' : (SAFE_COLORS.primary?.[500] || '#007EA7'),
+            backgroundColor: source ? 'transparent' : SAFE_COLORS.primary[500],
           },
         ]}
       >
@@ -157,7 +157,7 @@ const Avatar = ({
               styles.initials,
               {
                 fontSize,
-                color: SAFE_COLORS.text?.onPrimary || '#FFF',
+                color: SAFE_COLORS.text.onPrimary,
                 fontWeight: SAFE_TYPOGRAPHY.fontWeight?.semibold || '600',
               },
             ]}
@@ -177,7 +177,7 @@ const Avatar = ({
               height: dimension * 0.25,
               borderRadius: SAFE_BORDERS.radius?.full || 9999,
               borderWidth: 2,
-              borderColor: SAFE_COLORS.background?.paper || '#FFF',
+              borderColor: SAFE_COLORS.background.paper,
               bottom: 0,
               right: 0,
             },

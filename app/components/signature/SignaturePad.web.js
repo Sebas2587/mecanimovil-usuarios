@@ -1,5 +1,9 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { COLORS } from '../../design-system/tokens/colors';
+
+const DEFAULT_PEN_COLOR = COLORS.text.primary;
+const DEFAULT_BG_COLOR = COLORS.background.paper;
 
 const SignaturePad = forwardRef(function SignaturePad(
   {
@@ -8,8 +12,8 @@ const SignaturePad = forwardRef(function SignaturePad(
     onBegin,
     style,
     height = 300,
-    penColor = '#000000',
-    backgroundColor = '#ffffff',
+    penColor = DEFAULT_PEN_COLOR,
+    backgroundColor = DEFAULT_BG_COLOR,
   },
   ref,
 ) {

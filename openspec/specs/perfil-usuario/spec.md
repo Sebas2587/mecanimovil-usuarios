@@ -1,10 +1,17 @@
 # perfil-usuario Specification
 
 ## Purpose
-Pantalla de perfil del usuario final. Permite ver y editar datos personales,
-foto de perfil y acceder a configuraciones de la cuenta.
+Tab **Cuenta** del rediseño Airbnb: perfil, pagos, favoritos, reseñas, soporte y legal. Canvas `#f2f6fe`, tipografía Poppins, Lucide.
 
 ## Requirements
+
+### Requirement: Tab Cuenta
+El tab Profile/Cuenta **SHALL** ser uno de los 4 tabs principales (Inicio, Agendar, Actividad, Cuenta).
+
+#### Scenario: Abrir cuenta
+- GIVEN usuario autenticado
+- WHEN toca tab Cuenta
+- THEN ve MemberCard y menú de gestión/soporte sin botón atrás
 
 ### Requirement: Ver y editar perfil
 El usuario puede ver y modificar su información personal.
@@ -36,3 +43,6 @@ El usuario puede cerrar sesión de forma segura.
 - CUANDO toca "Cerrar sesión"
 - THEN los tokens se eliminan
 - AND se redirige a la pantalla de login
+
+### Requirement: Sin marketplace en cuenta
+El menú de Cuenta **SHALL NOT** incluir acceso a marketplace público de compra/venta de vehículos. Transferencia de vehículo vive en la ficha del vehículo.

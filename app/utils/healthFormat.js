@@ -10,45 +10,37 @@
  * Importar desde aquí para garantizar consistencia entre todas las pantallas.
  */
 
-// Tokens del design system (usado como fallback hex cuando COLORS no está disponible
-// en contextos donde no se puede importar el módulo de tokens)
-const _SUCCESS  = '#049356';  // COLORS.success[600]
-const _WARNING  = '#C98F00';  // COLORS.warning.dark
-const _ORANGE   = '#F97316';  // naranja intermedio
-const _ERROR    = '#D9332A';  // COLORS.error.dark
-const _MUTED    = '#9E9E9E';  // sin datos
+import { COLORS as DS } from '../design-system/tokens/colors';
+
+const _SUCCESS = DS.success.main;
+const _WARNING = DS.warning.main;
+const _URGENT = DS.error.main;
+const _ERROR = DS.error.main;
+const _MUTED = DS.neutral.gray[400];
 
 /**
  * Retorna el color hex correspondiente al porcentaje de salud.
- * Compatible con pantallas que no pueden importar COLORS directamente.
- *
- * @param {number|null|undefined} score  Porcentaje 0-100
- * @returns {string}  Color hex
+ * Tokens semánticos `.main` (paleta limpia; evita warning.dark marrón).
  */
 export function getHealthColor(score) {
   const s = normalizePct(score);
   if (s == null || !Number.isFinite(s)) return _MUTED;
   if (s >= 70) return _SUCCESS;
   if (s >= 40) return _WARNING;
-  if (s >= 10) return _ORANGE;
+  if (s >= 10) return _URGENT;
   return _ERROR;
 }
 
 /**
  * Retorna el token de color del design system (COLORS.*) para el porcentaje de salud.
- * Usar cuando el componente ya importa COLORS.
- *
- * @param {object} COLORS  Objeto COLORS del design system
- * @param {number|null|undefined} score
- * @returns {string}  Color del design system
  */
 export function getHealthColorToken(COLORS, score) {
   const s = normalizePct(score);
   if (s == null || !Number.isFinite(s)) return COLORS?.neutral?.gray?.[400] || _MUTED;
-  if (s >= 70) return COLORS?.success?.[600]  || _SUCCESS;
-  if (s >= 40) return COLORS?.warning?.dark   || _WARNING;
-  if (s >= 10) return COLORS?.warning?.main   || _ORANGE;
-  return COLORS?.error?.dark || _ERROR;
+  if (s >= 70) return COLORS?.success?.main || _SUCCESS;
+  if (s >= 40) return COLORS?.warning?.main || _WARNING;
+  if (s >= 10) return COLORS?.error?.main || _URGENT;
+  return COLORS?.error?.main || _ERROR;
 }
 
 /**

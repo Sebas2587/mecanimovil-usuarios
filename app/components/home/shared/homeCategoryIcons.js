@@ -1,3 +1,8 @@
+/**
+ * Visuales de categoría del home — patrón Airbnb Explore (Homes / Experiences / Services):
+ * icono outline monocromo + círculo suave neutro. Sin arcoíris semántico (warning/error/success)
+ * por categoría: eso rompe la paleta arquitectónica (primary / secondary / accent / ink / canvas).
+ */
 import {
   Droplets,
   CircleAlert,
@@ -10,20 +15,28 @@ import {
   Car,
   Settings,
   Grid2x2,
+  Sparkles,
 } from 'lucide-react-native';
 import { COLORS } from '../../../design-system/tokens';
 
 const DEFAULT_ICON = Wrench;
 
+/** Fondo / trazo únicos del sistema (Airbnb Explore: círculo neutro + icono ink). */
+const CATEGORY_SURFACE = {
+  bg: COLORS.neutral.gray[100],
+  color: COLORS.text.primary,
+};
+
 const RULES = [
-  { test: /aceite|lubric|mantenimiento/i, Icon: Droplets, bg: COLORS.primary[50], color: COLORS.primary[600] },
-  { test: /freno/i, Icon: CircleAlert, bg: COLORS.error.light, color: COLORS.error.main },
-  { test: /electr/i, Icon: Zap, bg: COLORS.warning.light, color: COLORS.warning.dark },
-  { test: /diagn|scanner|escan/i, Icon: ScanLine, bg: COLORS.neutral.gray[100], color: COLORS.text.primary },
-  { test: /suspensi|amortigu/i, Icon: Waves, bg: COLORS.primary[50], color: COLORS.primary[700] },
-  { test: /carroc|pintura|chapa/i, Icon: Hammer, bg: COLORS.neutral.gray[200], color: COLORS.text.primary },
-  { test: /neum|goma|llanta/i, Icon: Car, bg: COLORS.neutral.gray[100], color: COLORS.text.secondary },
-  { test: /motor|mecan/i, Icon: Settings, bg: COLORS.primary[50], color: COLORS.primary[500] },
+  { test: /aceite|lubric|manten|prevent/i, Icon: Droplets },
+  { test: /freno|segur/i, Icon: CircleAlert },
+  { test: /electr|luces/i, Icon: Zap },
+  { test: /diagn|inspec|scanner|escan/i, Icon: ScanLine },
+  { test: /suspensi|amortigu/i, Icon: Waves },
+  { test: /carroc|pintura|chapa|est[eé]tica|limpie/i, Icon: Sparkles },
+  { test: /neum|goma|llanta/i, Icon: Car },
+  { test: /motor|mecan/i, Icon: Settings },
+  { test: /hammer|golpe/i, Icon: Hammer },
 ];
 
 export const HEALTH_CATEGORY = {
@@ -31,8 +44,8 @@ export const HEALTH_CATEGORY = {
   nombre: 'Salud',
   isHealth: true,
   Icon: HeartPulse,
-  bg: COLORS.success.light,
-  color: COLORS.success.dark,
+  bg: COLORS.primary[50],
+  color: COLORS.primary[600],
 };
 
 export function resolveCategoryVisual(category) {
@@ -46,13 +59,12 @@ export function resolveCategoryVisual(category) {
   const name = category?.nombre || '';
   for (const rule of RULES) {
     if (rule.test.test(name)) {
-      return { Icon: rule.Icon, bg: rule.bg, color: rule.color };
+      return { Icon: rule.Icon, ...CATEGORY_SURFACE };
     }
   }
   return {
     Icon: DEFAULT_ICON,
-    bg: COLORS.neutral.gray[100],
-    color: COLORS.primary[500],
+    ...CATEGORY_SURFACE,
   };
 }
 
@@ -60,6 +72,6 @@ export const MORE_CATEGORY = {
   id: '__more__',
   nombre: 'Más',
   Icon: Grid2x2,
-  bg: COLORS.neutral.gray[100],
+  bg: CATEGORY_SURFACE.bg,
   color: COLORS.text.secondary,
 };

@@ -5,8 +5,8 @@
 
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, TouchableWithoutFeedback } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../../design-system/tokens';
+import Icon from '../../base/Icon/Icon';
 
 // Safe access to TYPOGRAPHY with fallback values - MUST be before any usage
 const getSafeTypography = () => {
@@ -180,7 +180,7 @@ const Menu = ({
                       activeOpacity={0.7}
                     >
                       {item.icon && (
-                        <Ionicons
+                        <Icon
                           name={item.icon}
                           size={20}
                           color={itemColors.text}

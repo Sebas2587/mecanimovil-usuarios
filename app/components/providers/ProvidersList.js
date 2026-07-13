@@ -1,120 +1,78 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import { Image } from 'expo-image';
-import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  useWindowDimensions,
+} from 'react-native';
 import ProviderModal from '../modals/ProviderModal';
-import { formatCurrency } from '../../utils/format';
-import { modalidadBadges } from '../../utils/providerModalidad';
+import ProviderPreviewCard from '../home/ProviderPreviewCard';
+import { formatProviderForCard } from '../../utils/providerUtils';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
+
+const GUTTER = SPACING.md;
+const MIN_CARD = 160;
 
 /**
- * Componente para mostrar la lista de proveedores (talleres o mecánicos)
+ * Lista de proveedores (talleres / mecánicos) — mismo listing Airbnb que Destacados/Explore.
  */
 const ProvidersList = ({
   providers = [],
-  type = 'taller', // 'taller' o 'mecanico'
+  type = 'taller',
   title = 'Proveedores disponibles',
   onProviderSelect = null,
-  showAsModal = true
+  showAsModal = true,
+  userBrandName = null,
 }) => {
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.min(windowWidth - SPACING.container.horizontal * 2, 560);
+  const columns = Math.max(2, Math.floor(contentWidth / MIN_CARD));
+  const cardWidth = Math.floor((contentWidth - GUTTER * (columns - 1)) / columns);
 
-  const handleProviderPress = (provider) => {
-    setSelectedProvider(provider);
+  const handleProviderPress = useCallback(
+    (provider) => {
+      setSelectedProvider(provider);
+      if (showAsModal) {
+        setModalVisible(true);
+      } else if (onProviderSelect) {
+        onProviderSelect(provider);
+      }
+    },
+    [showAsModal, onProviderSelect],
+  );
 
-    if (showAsModal) {
-      setModalVisible(true);
-    } else if (onProviderSelect) {
-      onProviderSelect(provider);
-    }
-  };
-
-  const renderProviderItem = ({ item }) => (
-    <TouchableOpacity
-      style={styles.providerItem}
-      onPress={() => handleProviderPress(item)}
-    >
-      {item.foto ? (
-        <Image
-          source={{ uri: item.foto }}
-          style={styles.providerImage}
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory-disk"
-        />
-      ) : (
-        <View style={[styles.providerImage, styles.defaultImageContainer]}>
-          <MaterialIcons
-            name={type === 'taller' ? 'build' : 'person'}
-            size={30}
-            color="#4C669F"
+  const renderItem = useCallback(
+    ({ item }) => {
+      const { id: _pid, ...card } = formatProviderForCard({
+        ...item,
+        _panelKind: type === 'taller' ? 'taller' : 'mecanico',
+      });
+      return (
+        <View style={{ width: cardWidth, marginBottom: GUTTER }}>
+          <ProviderPreviewCard
+            {...card}
+            provider={{ ...item, _panelKind: type === 'taller' ? 'taller' : 'mecanico' }}
+            userBrandName={userBrandName}
+            width={cardWidth}
+            omitRightMargin
+            cardFooterVariant="bookings"
+            onPress={() => handleProviderPress(item)}
           />
         </View>
-      )}
-
-      <View style={styles.providerInfo}>
-        <Text style={styles.providerName}>{item.nombre}</Text>
-
-        {modalidadBadges(item).length > 0 && (
-          <View style={styles.modalidadRow}>
-            {modalidadBadges(item).map((b) => (
-              <View key={b.key} style={styles.modalidadBadge}>
-                <MaterialIcons name={b.icon} size={12} color="#4C669F" />
-                <Text style={styles.modalidadBadgeText}>{b.label}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Información específica según el tipo de proveedor */}
-        {type === 'taller' && (item.direccion_fisica?.direccion_completa || item.direccion) && (
-          <View style={styles.infoRow}>
-            <MaterialIcons name="location-on" size={16} color="#777" />
-            <Text style={styles.infoText} numberOfLines={1}>{item.direccion_fisica?.direccion_completa || item.direccion}</Text>
-          </View>
-        )}
-
-        {item.telefono && (
-          <View style={styles.infoRow}>
-            <MaterialIcons name="phone" size={16} color="#777" />
-            <Text style={styles.infoText}>{item.telefono}</Text>
-          </View>
-        )}
-
-        {/* Servicio y precio si están disponibles */}
-        {item.servicio_nombre && (
-          <View style={styles.serviceInfo}>
-            <Text style={styles.serviceTitle}>{item.servicio_nombre}</Text>
-            <Text style={styles.servicePrice}>
-              {formatCurrency(item.precio_sin_repuestos)}
-            </Text>
-          </View>
-        )}
-
-        {/* Calificación */}
-        <View style={styles.ratingContainer}>
-          <FontAwesome name="star" size={14} color="#FFD700" />
-          <Text style={styles.ratingText}>
-            {item.calificacion_promedio ? item.calificacion_promedio.toFixed(1) : '0.0'}
-          </Text>
-        </View>
-      </View>
-
-      <MaterialIcons name="chevron-right" size={24} color="#aaa" />
-    </TouchableOpacity>
+      );
+    },
+    [cardWidth, handleProviderPress, type, userBrandName],
   );
 
   return (
     <View style={styles.container}>
-      {title && <Text style={styles.title}>{title}</Text>}
+      {title ? <Text style={styles.title}>{title}</Text> : null}
 
       {providers.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <MaterialIcons
-            name={type === 'taller' ? 'build' : 'person'}
-            size={50}
-            color="#ddd"
-          />
+        <View style={styles.empty}>
           <Text style={styles.emptyText}>
             {`No se encontraron ${type === 'taller' ? 'talleres' : 'mecánicos'} disponibles`}
           </Text>
@@ -122,26 +80,25 @@ const ProvidersList = ({
       ) : (
         <FlatList
           data={providers}
-          renderItem={renderProviderItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => `${type}-${item.id ?? index}`}
+          renderItem={renderItem}
+          numColumns={columns}
+          key={`providers-cols-${columns}`}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
         />
       )}
 
-      {/* Modal para mostrar detalles del proveedor seleccionado */}
-      {showAsModal && (
+      {showAsModal ? (
         <ProviderModal
           visible={modalVisible}
-          onClose={() => setModalVisible(false)}
           provider={selectedProvider}
           type={type}
-          servicio={selectedProvider && {
-            nombre: selectedProvider.servicio_nombre,
-            id: selectedProvider.servicio_id
-          }}
+          onClose={() => setModalVisible(false)}
+          onSelect={onProviderSelect}
         />
-      )}
+      ) : null}
     </View>
   );
 };
@@ -149,123 +106,27 @@ const ProvidersList = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
-    backgroundColor: '#fff',
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
+    ...TYPOGRAPHY.styles.h3,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.md,
   },
-  listContent: {
-    paddingBottom: 20,
+  list: {
+    paddingBottom: SPACING.lg,
   },
-  providerItem: {
-    flexDirection: 'row',
-    padding: 15,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    marginBottom: 10,
+  row: {
+    gap: GUTTER,
+  },
+  empty: {
+    paddingVertical: SPACING['2xl'],
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  providerImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginRight: 15,
-  },
-  defaultImageContainer: {
-    backgroundColor: '#F2F6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  providerInfo: {
-    flex: 1,
-  },
-  providerName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  modalidadRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 5,
-  },
-  modalidadBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EEF2FB',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  modalidadBadgeText: {
-    fontSize: 11,
-    color: '#4C669F',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#555',
-    marginLeft: 5,
-    flex: 1,
-  },
-  serviceInfo: {
-    marginTop: 5,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  serviceTitle: {
-    fontSize: 14,
-    color: '#3498db',
-    flex: 1,
-  },
-  servicePrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#27ae60',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  ratingText: {
-    fontSize: 14,
-    color: '#777',
-    marginLeft: 5,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
   },
   emptyText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#999',
+    ...TYPOGRAPHY.styles.body,
+    color: COLORS.text.secondary,
     textAlign: 'center',
   },
 });
 
-export default ProvidersList; 
+export default React.memo(ProvidersList);

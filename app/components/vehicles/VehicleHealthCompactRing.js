@@ -2,18 +2,19 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { COLORS, TYPOGRAPHY } from '../../design-system/tokens';
-import { getHealthLabel } from '../../utils/healthFormat';
+import { getHealthColor, getHealthLabel } from '../../utils/healthFormat';
 import Skeleton from '../feedback/Skeleton/Skeleton';
 
 const DEFAULT_SIZE = 44;
 
 /**
  * Anillo compacto de salud (Coinbase-light): track hairline + arco semántico + % tabular.
- * Alineado con HomePatrimonyHeroSection y MatchPercentRing.
+ * El stroke usa siempre getHealthColor (tokens .main), no overrides legacy (warning.dark).
  */
 const VehicleHealthCompactRing = ({
   score = 0,
-  color = COLORS.primary[500],
+  // `color` se ignora: el stroke siempre sale de getHealthColor (tokens .main).
+  color: _color,
   loading = false,
   available = true,
   size = DEFAULT_SIZE,
@@ -21,9 +22,9 @@ const VehicleHealthCompactRing = ({
   accessibilityLabel,
 }) => {
   const pct = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
-  const strokeColor = available ? color : COLORS.neutral.gray[400];
+  const strokeColor = available ? getHealthColor(pct) : COLORS.neutral.gray[400];
+  const bgFill = 'transparent';
   const trackColor = COLORS.border.light;
-  const bgFill = COLORS.neutral.gray[100];
 
   const { radius, circumference, strokeDashoffset, strokeWidth } = useMemo(() => {
     const sw = Math.max(3, Math.round(size * 0.07));

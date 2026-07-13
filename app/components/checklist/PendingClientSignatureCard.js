@@ -13,7 +13,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../base/Icon/Icon';
 import {
   COLORS,
   SPACING,
@@ -79,7 +79,7 @@ const PendingClientSignatureCard = ({
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.iconWrap}>
-          <Ionicons
+          <Icon
             name="create-outline"
             size={22}
             color={COLORS.warning.dark}
@@ -101,7 +101,7 @@ const PendingClientSignatureCard = ({
         onPress={() => setShowModal(true)}
         activeOpacity={0.85}
       >
-        <Ionicons
+        <Icon
           name="checkmark-circle"
           size={20}
           color={COLORS.text.inverse}

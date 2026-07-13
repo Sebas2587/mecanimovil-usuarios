@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { Car, MessageSquare } from 'lucide-react-native';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -26,12 +26,12 @@ import { useConversationsList, CONVERSATIONS_KEYS } from '../../hooks/useChats';
 import ChatsListSkeleton from '../../components/utils/ChatsListSkeleton';
 import chatService from '../../services/chatService';
 import ChatSwipeableRow from '../../components/chats/ChatSwipeableRow';
+import BackButton from '../../components/navigation/BackButton';
 
 const ChatsListScreen = () => {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const { height: windowHeight } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState('service');
   const [deletingId, setDeletingId] = useState(null);
 
   /** RN Web: sin altura acotada al viewport el VirtualizedList no hace scroll interno. */
@@ -50,7 +50,7 @@ const ChatsListScreen = () => {
     data: conversations = [],
     isPending,
     refetch,
-  } = useConversationsList(activeTab);
+  } = useConversationsList('service');
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
 
@@ -78,10 +78,6 @@ const ChatsListScreen = () => {
         setPullRefreshing(false);
       });
   }, [refetch]);
-
-  const handleTabChange = useCallback((tab) => {
-    setActiveTab((prev) => (prev !== tab ? tab : prev));
-  }, []);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -121,7 +117,7 @@ const ChatsListScreen = () => {
             {serviceTitle}
           </Text>
           <View style={styles.vehicleBadge}>
-            <Ionicons name="car-sport-outline" size={14} color={COLORS.primary[500]} />
+            <Car size={14} color={COLORS.primary[500]} strokeWidth={1.75} />
             <Text style={styles.vehicleText} numberOfLines={1}>
               {vehicleInfo}
             </Text>
@@ -165,7 +161,7 @@ const ChatsListScreen = () => {
   const listEmpty = useMemo(
     () => (
       <View style={styles.emptyState}>
-        <MaterialCommunityIcons name="message-text-outline" size={64} color={COLORS.neutral.gray[300]} />
+        <MessageSquare size={64} color={COLORS.neutral.gray[300]} strokeWidth={1.5} />
         <Text style={styles.emptyText}>No tienes mensajes en esta sección</Text>
       </View>
     ),
@@ -182,36 +178,9 @@ const ChatsListScreen = () => {
       <View style={styles.mainColumn}>
         <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
           <View style={styles.topBar}>
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={handleBack}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="Volver"
-            >
-              <Ionicons name="chevron-back" size={26} color={COLORS.text.primary} />
-            </TouchableOpacity>
+            <BackButton onPress={handleBack} />
             <Text style={styles.screenTitle}>Mensajes</Text>
             <View style={styles.backBtnPlaceholder} />
-          </View>
-
-          <View style={styles.segmentContainer}>
-            <TouchableOpacity
-              style={[styles.segmentButton, activeTab === 'service' && styles.segmentActive]}
-              onPress={() => handleTabChange('service')}
-            >
-              <Text style={[styles.segmentText, activeTab === 'service' && styles.segmentTextActive]}>
-                Servicios
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.segmentButton, activeTab === 'marketplace' && styles.segmentActive]}
-              onPress={() => handleTabChange('marketplace')}
-            >
-              <Text style={[styles.segmentText, activeTab === 'marketplace' && styles.segmentTextActive]}>
-                Negocios
-              </Text>
-            </TouchableOpacity>
           </View>
         </SafeAreaView>
 
@@ -291,55 +260,13 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
   },
-  backBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
   backBtnPlaceholder: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
   },
   screenTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: COLORS.text.primary,
-  },
-  segmentContainer: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.neutral.gray[100],
-    borderRadius: 14,
-    padding: 4,
-    marginHorizontal: SPACING.lg,
-    marginBottom: SPACING.md,
-    marginTop: SPACING.sm,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-  },
-  segmentButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  segmentActive: {
-    backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
-  },
-  segmentText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text.tertiary,
-  },
-  segmentTextActive: {
     color: COLORS.text.primary,
   },
   listContent: {

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 const ReviewCard = ({ review }) => {
   const {
@@ -54,7 +54,7 @@ const ReviewCard = ({ review }) => {
             <Text style={styles.userName}>{cliente_nombre}</Text>
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((star) => (
-                <Ionicons
+                <Icon
                   key={star}
                   name="star"
                   size={10}
@@ -71,7 +71,7 @@ const ReviewCard = ({ review }) => {
 
       {service_context && (
         <View style={styles.contextBadge}>
-          <Ionicons
+          <Icon
             name="construct"
             size={12}
             color={COLORS.text.secondary}

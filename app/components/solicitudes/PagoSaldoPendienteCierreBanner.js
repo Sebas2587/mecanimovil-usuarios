@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Icon from '../base/Icon/Icon';
 import {
   COLORS,
   SPACING,
@@ -21,7 +21,7 @@ export default function PagoSaldoPendienteCierreBanner({ montoSaldo, onPagar }) 
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.iconWrap}>
-          <Ionicons name="card-outline" size={22} color={COLORS.warning.dark} />
+          <Icon name="card-outline" size={22} color={COLORS.warning.dark} />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.title}>Pago pendiente para cerrar el servicio</Text>
@@ -33,7 +33,7 @@ export default function PagoSaldoPendienteCierreBanner({ montoSaldo, onPagar }) 
       </View>
 
       <TouchableOpacity style={styles.cta} onPress={onPagar} activeOpacity={0.85}>
-        <Ionicons name="wallet-outline" size={20} color={COLORS.text.inverse} />
+        <Icon name="wallet-outline" size={20} color={COLORS.text.inverse} />
         <Text style={styles.ctaText}>Pagar mano de obra</Text>
       </TouchableOpacity>
     </View>

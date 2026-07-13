@@ -10,15 +10,30 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
-  SafeAreaView
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  AlertTriangle,
+  Wrench,
+  Car,
+  Building2,
+  Calendar,
+  Clock,
+  Phone,
+  MapPin,
+  CreditCard,
+  CheckCircle2,
+  FileText,
+  Info,
+  CircleX,
+  MessageCircle,
+} from 'lucide-react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { COLORS } from '../../utils/constants';
+import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import * as userService from '../../services/user';
 
 // Componentes
-import GlassmorphicContainer from '../../components/utils/GlassmorphicContainer';
 import Card from '../../components/base/Card/Card';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import PendingClientSignatureCard from '../../components/checklist/PendingClientSignatureCard';
@@ -141,23 +156,23 @@ const AppointmentDetailScreen = () => {
   const getEstadoColor = (estado) => {
     switch (estado) {
       case 'pendiente':
-        return '#FF9500';
+        return COLORS.warning.main;
       case 'pago_validado':
-        return '#007EA7';
+        return COLORS.info.main;
       case 'confirmado':
-        return '#0056CC';
+        return COLORS.primary[600];
       case 'en_proceso':
-        return '#28A745';
+        return COLORS.success.main;
       case 'completado':
-        return '#6C757D';
+        return COLORS.neutral.gray[600];
       case 'cancelado':
-        return '#DC3545';
+        return COLORS.error.main;
       case 'cancelacion_solicitada':
-        return '#8E44AD';
+        return COLORS.accent[600];
       case 'devolucion_procesada':
-        return '#A0522D';
+        return COLORS.warning.dark;
       default:
-        return '#6C757D';
+        return COLORS.neutral.gray[600];
     }
   };
 
@@ -281,6 +296,7 @@ const AppointmentDetailScreen = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
       {/* Contenido principal sin header personalizado */}
       <ScrollView 
         style={styles.content}
@@ -289,14 +305,14 @@ const AppointmentDetailScreen = () => {
       >
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007EA7" />
+            <ActivityIndicator size="large" color={COLORS.primary[500]} />
             <Text style={styles.loadingText}>Cargando detalles...</Text>
           </View>
         ) : agendamientoActual ? (
           renderContent()
         ) : (
           <View style={styles.errorContainer}>
-            <Ionicons name="warning-outline" size={48} color="#FF6B35" />
+            <AlertTriangle size={48} color={COLORS.warning.main} />
             <Text style={styles.errorText}>No se pudieron cargar los detalles</Text>
           </View>
         )}
@@ -354,7 +370,7 @@ const AppointmentDetailScreen = () => {
             if (!lineas || lineas.length === 0) return null;
             return (
               <View style={styles.servicioResumenRow}>
-                <Ionicons name="construct" size={18} color="#007EA7" />
+                <Wrench size={18} color={COLORS.primary[500]} />
                 <Text style={styles.servicioResumenLabel}>Servicio:</Text>
                 <Text style={styles.servicioResumenText} numberOfLines={1}>
                   {lineas[0].servicio_nombre || lineas[0].nombre || 'Servicio'}
@@ -373,7 +389,7 @@ const AppointmentDetailScreen = () => {
         {agendamientoActual.vehiculo_detail && (
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="car" size={24} color="#007EA7" />
+              <Car size={24} color={COLORS.primary[500]} />
               <Text style={styles.sectionTitle}>Vehículo</Text>
             </View>
             <View style={styles.vehicleInfo}>
@@ -397,7 +413,7 @@ const AppointmentDetailScreen = () => {
         {agendamientoActual.taller_detail && (
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="business" size={24} color="#007EA7" />
+              <Building2 size={24} color={COLORS.primary[500]} />
               <Text style={styles.sectionTitle}>Taller</Text>
             </View>
             <View style={styles.tallerInfo}>
@@ -412,13 +428,13 @@ const AppointmentDetailScreen = () => {
               <View style={styles.serviceDateTimeContainer}>
                 <Text style={styles.serviceDateTimeLabel}>Fecha y hora del servicio:</Text>
                 <View style={styles.serviceDateTimeRow}>
-                  <Ionicons name="calendar" size={16} color="#007EA7" />
+                  <Calendar size={16} color={COLORS.primary[500]} />
                   <Text style={styles.serviceDateTimeText}>
                     {formatearFecha(agendamientoActual.fecha_servicio)}
                   </Text>
                 </View>
                 <View style={styles.serviceDateTimeRow}>
-                  <Ionicons name="time" size={16} color="#007EA7" />
+                  <Clock size={16} color={COLORS.primary[500]} />
                   <Text style={styles.serviceDateTimeText}>
                     {agendamientoActual.hora_servicio}
                   </Text>
@@ -431,14 +447,14 @@ const AppointmentDetailScreen = () => {
                   style={styles.actionButton}
                   onPress={handleLlamarTaller}
                 >
-                  <Ionicons name="call" size={16} color="#007EA7" />
+                  <Phone size={16} color={COLORS.primary[500]} />
                   <Text style={styles.actionButtonText}>Llamar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={handleVerUbicacion}
                 >
-                  <Ionicons name="location" size={16} color="#007EA7" />
+                  <MapPin size={16} color={COLORS.primary[500]} />
                   <Text style={styles.actionButtonText}>Ver Ubicación</Text>
                 </TouchableOpacity>
               </View>
@@ -451,7 +467,7 @@ const AppointmentDetailScreen = () => {
           || (Array.isArray(agendamientoActual.lineas_detail) && agendamientoActual.lineas_detail.length > 0)) && (
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="construct" size={24} color="#007EA7" />
+              <Wrench size={24} color={COLORS.primary[500]} />
               <Text style={styles.sectionTitle}>Servicios</Text>
             </View>
             <View style={styles.serviciosContainer}>
@@ -533,7 +549,7 @@ const AppointmentDetailScreen = () => {
                       <View style={styles.sinRepuestosSection}>
                         <View style={styles.advertenciaContainer}>
                           <View style={styles.advertenciaHeader}>
-                            <Ionicons name="warning-outline" size={16} color="#FF6B35" />
+                            <AlertTriangle size={16} color={COLORS.warning.main} />
                             <Text style={styles.advertenciaTitulo}>Servicio sin repuestos</Text>
                           </View>
                           <Text style={styles.advertenciaTexto}>
@@ -565,7 +581,7 @@ const AppointmentDetailScreen = () => {
         {/* Información de Pago */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="card" size={24} color="#007EA7" />
+            <CreditCard size={24} color={COLORS.primary[500]} />
             <Text style={styles.sectionTitle}>Información de Pago</Text>
           </View>
           <View style={styles.paymentInfo}>
@@ -583,14 +599,14 @@ const AppointmentDetailScreen = () => {
               <View style={styles.paymentRow}>
                 <Text style={styles.paymentLabel}>Estado del comprobante:</Text>
                 <View style={styles.validationContainer}>
-                  <Ionicons 
-                    name={agendamientoActual.comprobante_validado ? "checkmark-circle" : "time-outline"} 
-                    size={16} 
-                    color={agendamientoActual.comprobante_validado ? "#28A745" : "#FF9500"} 
-                  />
+                  {agendamientoActual.comprobante_validado ? (
+                    <CheckCircle2 size={16} color={COLORS.success.main} />
+                  ) : (
+                    <Clock size={16} color={COLORS.warning.main} />
+                  )}
                   <Text style={[
                     styles.validationText,
-                    { color: agendamientoActual.comprobante_validado ? "#28A745" : "#FF9500" }
+                    { color: agendamientoActual.comprobante_validado ? COLORS.success.main : COLORS.warning.main }
                   ]}>
                     {agendamientoActual.comprobante_validado ? 'Validado' : 'Pendiente de validación'}
                   </Text>
@@ -644,7 +660,7 @@ const AppointmentDetailScreen = () => {
             <View style={styles.checklistSection}>
               {verificandoChecklist ? (
                 <View style={styles.checklistVerificando}>
-                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <ActivityIndicator size="small" color={COLORS.primary[500]} />
                   <Text style={styles.checklistVerificandoText}>
                     Verificando inspección...
                   </Text>
@@ -654,12 +670,12 @@ const AppointmentDetailScreen = () => {
                   style={[styles.actionButtonLarge, styles.checklistButton]}
                   onPress={handleVerChecklist}
                 >
-                  <Ionicons name="document-text" size={20} color="white" />
+                  <FileText size={20} color={COLORS.text.inverse} />
                   <Text style={styles.actionButtonLargeText}>Ver Inspección Realizada</Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.checklistNoDisponible}>
-                  <Ionicons name="information-circle" size={16} color={COLORS.textLight} />
+                  <Info size={16} color={COLORS.text.tertiary} />
                   <Text style={styles.checklistNoDisponibleText}>
                     Este servicio no incluye inspección detallada
                   </Text>
@@ -678,7 +694,7 @@ const AppointmentDetailScreen = () => {
                 <ActivityIndicator size="small" color="white" />
               ) : (
                 <>
-                  <Ionicons name="close-circle" size={20} color="white" />
+                  <CircleX size={20} color={COLORS.text.inverse} />
                   <Text style={styles.actionButtonLargeText}>Cancelar Agendamiento</Text>
                 </>
               )}
@@ -691,7 +707,7 @@ const AppointmentDetailScreen = () => {
               Alert.alert('Información', 'Funcionalidad de soporte próximamente disponible');
             }}
           >
-            <Ionicons name="chatbubble" size={20} color="white" />
+            <MessageCircle size={20} color={COLORS.text.inverse} />
             <Text style={styles.actionButtonLargeText}>Contactar Soporte</Text>
           </TouchableOpacity>
         </View>
@@ -703,24 +719,22 @@ const AppointmentDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: COLORS.background.default,
   },
   content: {
     flex: 1,
   },
   scrollContainer: {
-    padding: 20,
+    padding: SPACING.md,
   },
   headerCard: {
-    backgroundColor: 'white',
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.background.paper,
+    marginBottom: SPACING.md,
+    borderRadius: BORDERS.radius.card.lg,
+    padding: SPACING.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -728,93 +742,85 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   orderNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333333',
+    ...TYPOGRAPHY.styles.h3,
+    color: COLORS.text.primary,
     marginBottom: 4,
   },
   orderDate: {
-    fontSize: 14,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
   },
   estadoBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDERS.radius.badge.md,
   },
   estadoTexto: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
+    color: COLORS.text.inverse,
+    ...TYPOGRAPHY.styles.captionBold,
   },
   sectionCard: {
-    backgroundColor: 'white',
-    marginBottom: 16,
-    borderRadius: 12,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: COLORS.background.paper,
+    marginBottom: SPACING.md,
+    borderRadius: BORDERS.radius.card.lg,
+    padding: SPACING.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginLeft: 12,
+    ...TYPOGRAPHY.styles.h4,
+    color: COLORS.text.primary,
+    marginLeft: SPACING.sm,
   },
   vehicleInfo: {
     paddingLeft: 36,
   },
   vehicleText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 8,
+    ...TYPOGRAPHY.styles.h4,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.xs,
   },
   vehicleSubtext: {
-    fontSize: 14,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
     marginBottom: 4,
   },
   tallerInfo: {
     paddingLeft: 36,
   },
   tallerName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 8,
+    ...TYPOGRAPHY.styles.h4,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.xs,
   },
   tallerAddress: {
-    fontSize: 14,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
     marginBottom: 4,
   },
   tallerActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: SPACING.sm,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0F8FF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007EA7',
+    backgroundColor: COLORS.primary[50],
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
   },
   actionButtonText: {
-    fontSize: 14,
-    color: '#007EA7',
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[700],
     marginLeft: 6,
   },
   serviciosContainer: {
@@ -824,36 +830,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: BORDERS.width.thin,
+    borderBottomColor: COLORS.border.light,
   },
   servicioInfo: {
     flex: 1,
-    marginRight: 16,
+    marginRight: SPACING.md,
   },
   servicioNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
+    ...TYPOGRAPHY.styles.h5,
+    color: COLORS.text.primary,
     marginBottom: 4,
   },
   servicioDescripcion: {
-    fontSize: 14,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
   },
   servicioPrecios: {
     alignItems: 'flex-end',
   },
   servicioPrecio: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007EA7',
+    ...TYPOGRAPHY.styles.h5,
+    color: COLORS.primary[600],
     marginBottom: 2,
   },
   servicioTipo: {
-    fontSize: 12,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.secondary,
   },
   paymentInfo: {
     paddingLeft: 36,
@@ -862,72 +866,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
   paymentLabel: {
-    fontSize: 14,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
   },
   paymentValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.primary,
   },
   totalContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    paddingTop: SPACING.sm,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: COLORS.border.light,
   },
   totalLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
+    ...TYPOGRAPHY.styles.h4,
+    color: COLORS.text.primary,
   },
   totalAmount: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#007EA7',
+    ...TYPOGRAPHY.styles.h3,
+    color: COLORS.primary[600],
   },
   actionsContainer: {
-    marginTop: 8,
-    marginBottom: 20,
-    gap: 12,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.lg,
+    gap: SPACING.sm,
   },
   actionButtonLarge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: SPACING.md,
+    borderRadius: BORDERS.radius.button.md,
+    gap: SPACING.xs,
   },
   cancelButton: {
-    backgroundColor: '#DC3545',
+    backgroundColor: COLORS.error.main,
   },
   contactButton: {
-    backgroundColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
   },
   actionButtonLargeText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
+    ...TYPOGRAPHY.styles.button,
+    color: COLORS.text.inverse,
   },
   serviceDateTimeContainer: {
-    backgroundColor: '#F0F8FF',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007EA7',
-    marginBottom: 16,
+    backgroundColor: COLORS.primary[50],
+    padding: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
+    marginBottom: SPACING.md,
   },
   serviceDateTimeLabel: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 8,
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.xs,
   },
   serviceDateTimeRow: {
     flexDirection: 'row',
@@ -935,103 +934,98 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   serviceDateTimeText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-    marginLeft: 8,
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.text.primary,
+    marginLeft: SPACING.xs,
   },
   validationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.xs,
   },
   validationText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.captionBold,
   },
   repuestosSection: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#F0F8FF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007EA7',
+    marginTop: SPACING.sm,
+    padding: SPACING.sm,
+    backgroundColor: COLORS.primary[50],
+    borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[200],
   },
   repuestosTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#007EA7',
-    marginBottom: 8,
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[700],
+    marginBottom: SPACING.xs,
   },
   repuestosList: {
-    paddingLeft: 8,
+    paddingLeft: SPACING.xs,
   },
   repuestoItem: {
     marginBottom: 6,
     paddingVertical: 4,
   },
   repuestoNombre: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#333333',
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.primary,
     marginBottom: 2,
   },
   repuestoCantidad: {
-    fontSize: 12,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.secondary,
     marginBottom: 2,
   },
   repuestoDescripcion: {
-    fontSize: 11,
-    color: '#888888',
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.tertiary,
     fontStyle: 'italic',
   },
   repuestosGeneral: {
-    fontSize: 13,
-    color: '#007EA7',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.primary[700],
     fontStyle: 'italic',
   },
   sinRepuestosSection: {
-    marginTop: 12,
+    marginTop: SPACING.sm,
   },
   advertenciaContainer: {
-    padding: 12,
-    backgroundColor: '#FFF5F5',
-    borderRadius: 8,
+    padding: SPACING.sm,
+    backgroundColor: COLORS.warning[50],
+    borderRadius: BORDERS.radius.md,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF6B35',
+    borderLeftColor: COLORS.warning.main,
   },
   advertenciaHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
   },
   advertenciaTitulo: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FF6B35',
-    marginLeft: 8,
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.warning.dark,
+    marginLeft: SPACING.xs,
   },
   advertenciaTexto: {
-    fontSize: 13,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
     lineHeight: 18,
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
   },
   advertenciaGarantia: {
-    fontSize: 12,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.secondary,
     lineHeight: 16,
-    fontWeight: '600',
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   repuestoMarca: {
-    fontSize: 12,
-    color: '#666666',
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.secondary,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   repuestoNotas: {
-    fontSize: 11,
-    color: '#666666',
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.secondary,
     fontStyle: 'italic',
   },
   loadingContainer: {
@@ -1041,10 +1035,9 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   loadingText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007EA7',
-    marginTop: 16,
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.primary[600],
+    marginTop: SPACING.md,
   },
   errorContainer: {
     flex: 1,
@@ -1053,67 +1046,64 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   errorText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF6B35',
-    marginTop: 16,
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.warning.main,
+    marginTop: SPACING.md,
   },
   checklistSection: {
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
   checklistVerificando: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: SPACING.md,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.card.lg,
+    gap: SPACING.xs,
   },
   checklistVerificandoText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[600],
   },
   checklistButton: {
-    backgroundColor: '#007EA7',
+    backgroundColor: COLORS.primary[500],
   },
   checklistNoDisponible: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    gap: 8,
+    paddingVertical: SPACING.sm,
+    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.card.lg,
+    gap: SPACING.xs,
   },
   checklistNoDisponibleText: {
-    fontSize: 14,
-    color: COLORS.textLight,
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
     textAlign: 'center',
   },
   servicioResumenRow: {
-    marginTop: 12,
+    marginTop: SPACING.sm,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.xs,
   },
   servicioResumenLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333333',
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.primary,
     marginLeft: 6,
   },
   servicioResumenText: {
     flex: 1,
-    fontSize: 14,
-    color: '#333333',
-    fontWeight: '500',
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.primary,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   servicioResumenMas: {
-    fontSize: 12,
-    color: '#666666',
-    marginLeft: 8,
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.secondary,
+    marginLeft: SPACING.xs,
   },
 });
 

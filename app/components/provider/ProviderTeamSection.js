@@ -1,12 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
+import { ChevronRight, ChevronUp } from 'lucide-react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import {
   buildWeeklyScheduleDisplayGroups,
   weeklyHorariosHasAnyActiveSlot,
 } from '../../utils/providerUtils';
 import { modalidadLabel } from '../../utils/providerModalidad';
+import SectionHeader from '../base/SectionHeader/SectionHeader';
+
+const MAX_VISIBLE_TAGS = 2;
 
 function MiembroHorarioCompacto({ horarios }) {
   const grouped = useMemo(() => buildWeeklyScheduleDisplayGroups(horarios), [horarios]);
@@ -32,43 +36,59 @@ function MiembroCard({ miembro }) {
   const [expanded, setExpanded] = useState(false);
   const modalidad = miembro.modalidad_display || modalidadLabel(miembro.modalidad_tecnico);
   const serviciosCount = Number(miembro.servicios_asignados) || 0;
+  const subtitle = [
+    modalidad,
+    serviciosCount > 0 ? `${serviciosCount} servicio${serviciosCount === 1 ? '' : 's'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const inicial = (miembro.nombre || '?').trim().charAt(0).toUpperCase();
+  const especialidades = Array.isArray(miembro.especialidades) ? miembro.especialidades : [];
+  const visibles = especialidades.slice(0, MAX_VISIBLE_TAGS);
+  const restantes = especialidades.length - visibles.length;
 
   return (
     <View style={styles.memberCard}>
       <View style={styles.memberHeader}>
         {miembro.foto_url ? (
-          <Image source={{ uri: miembro.foto_url }} style={styles.avatar} />
+          <Image
+            source={{ uri: miembro.foto_url }}
+            style={styles.avatar}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
         ) : (
           <View style={styles.avatarPlaceholder}>
-            <Ionicons name="person" size={22} color={COLORS.primary[500]} />
+            <Text style={styles.avatarInitial}>{inicial}</Text>
           </View>
         )}
         <View style={styles.memberInfo}>
           <Text style={styles.memberName} numberOfLines={1}>
             {miembro.nombre}
           </Text>
-          {modalidad ? (
-            <View style={styles.modalidadChip}>
-              <Text style={styles.modalidadChipText}>{modalidad}</Text>
-            </View>
-          ) : null}
-          {serviciosCount > 0 ? (
-            <Text style={styles.serviciosBadge}>
-              {serviciosCount} servicio{serviciosCount === 1 ? '' : 's'}
+          {subtitle ? (
+            <Text style={styles.memberSubtitle} numberOfLines={1}>
+              {subtitle}
             </Text>
           ) : null}
         </View>
       </View>
 
-      {Array.isArray(miembro.especialidades) && miembro.especialidades.length > 0 ? (
+      {visibles.length > 0 ? (
         <View style={styles.chipsRow}>
-          {miembro.especialidades.map((esp) => (
+          {visibles.map((esp) => (
             <View key={esp.id} style={styles.chip}>
               <Text style={styles.chipText} numberOfLines={1}>
                 {esp.nombre}
               </Text>
             </View>
           ))}
+          {restantes > 0 ? (
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>+{restantes}</Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -76,15 +96,16 @@ function MiembroCard({ miembro }) {
         style={styles.horarioToggle}
         onPress={() => setExpanded((v) => !v)}
         activeOpacity={0.75}
+        accessibilityRole="button"
       >
         <Text style={styles.horarioToggleText}>
           {expanded ? 'Ocultar horario' : 'Ver horario semanal'}
         </Text>
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={16}
-          color={COLORS.primary[600]}
-        />
+        {expanded ? (
+          <ChevronUp size={16} color={COLORS.primary[600]} strokeWidth={2} />
+        ) : (
+          <ChevronRight size={16} color={COLORS.primary[600]} strokeWidth={2} />
+        )}
       </TouchableOpacity>
 
       {expanded ? (
@@ -99,10 +120,10 @@ export default function ProviderTeamSection({ miembros = [] }) {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Nuestro equipo</Text>
-      <Text style={styles.sectionHint}>
-        Cada técnico tiene su agenda. Al agendar podrás elegir especialista y horario.
-      </Text>
+      <SectionHeader
+        title="Equipo"
+        hint="Cada técnico tiene su agenda. Al agendar podrás elegir especialista y horario."
+      />
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -119,111 +140,89 @@ export default function ProviderTeamSection({ miembros = [] }) {
 const styles = StyleSheet.create({
   section: {
     paddingHorizontal: SPACING.container.horizontal,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-    marginBottom: 6,
-  },
-  sectionHint: {
-    fontSize: 13,
-    color: COLORS.text.secondary,
-    marginBottom: 12,
-    lineHeight: 18,
   },
   carousel: {
     paddingRight: SPACING.container.horizontal,
-    gap: 12,
+    gap: SPACING.sm,
   },
   memberCard: {
     width: 280,
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
-    borderWidth: 1,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
-    padding: 14,
+    padding: SPACING.md,
   },
   memberHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.primary[50],
+    width: 56,
+    height: 56,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   avatarPlaceholder: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.primary[50],
+    width: 56,
+    height: 56,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  memberInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  memberName: {
-    fontSize: 15,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  avatarInitial: {
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
   },
-  modalidadChip: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[50],
+  memberInfo: {
+    flex: 1,
+    marginLeft: SPACING.sm,
   },
-  modalidadChipText: {
-    fontSize: 11,
-    color: COLORS.primary[700],
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  memberName: {
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.text.primary,
   },
-  serviciosBadge: {
-    marginTop: 4,
-    fontSize: 12,
-    color: COLORS.text.tertiary,
+  memberSubtitle: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
+    marginTop: 2,
   },
   chipsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 10,
-    gap: 6,
+    marginTop: SPACING.sm,
+    gap: SPACING.xxs,
   },
   chip: {
-    paddingHorizontal: 10,
+    paddingHorizontal: SPACING.xs,
     paddingVertical: 4,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral?.[100] ?? '#F3F4F6',
+    backgroundColor: COLORS.neutral.gray[100],
     maxWidth: '100%',
   },
   chipText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.secondary,
   },
   horarioToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
-    paddingTop: 10,
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.border.light,
   },
   horarioToggleText: {
-    fontSize: 13,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[600],
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   horarioList: {
-    marginTop: 8,
-    gap: 6,
+    marginTop: SPACING.xs,
+    gap: SPACING.xxs,
   },
   horarioRow: {
     flexDirection: 'row',
@@ -231,18 +230,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   horarioDay: {
-    fontSize: 12,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     flex: 1,
   },
   horarioHours: {
-    fontSize: 12,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   horarioEmpty: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: SPACING.xs,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
     fontStyle: 'italic',
   },

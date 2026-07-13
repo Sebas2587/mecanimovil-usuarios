@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS, SHADOWS } from '../../design-system/tokens';
+import { BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 
 const ProfileMenuSection = ({ title, children, style }) => {
   return (
@@ -14,11 +14,10 @@ const ProfileMenuSection = ({ title, children, style }) => {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 22,
+    marginBottom: SPACING.lg,
   },
   title: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
@@ -31,7 +30,6 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
-    ...SHADOWS.sm,
   },
 });
 

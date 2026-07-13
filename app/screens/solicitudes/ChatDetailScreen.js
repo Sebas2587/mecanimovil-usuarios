@@ -8,9 +8,17 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Image } from 'expo-image';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS } from '../../design-system/tokens/borders';
+import {
+    Car,
+    FileText,
+    CircleX,
+    Paperclip,
+    Send,
+    X,
+    ChevronRight,
+} from 'lucide-react-native';
+import { COLORS, TYPOGRAPHY, BORDERS, withOpacity } from '../../design-system/tokens';
+import BackButton from '../../components/navigation/BackButton';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -476,9 +484,7 @@ const ChatDetailScreen = () => {
         return (
             <View style={[styles.header, { paddingTop: insets.top }]}>
                 <View style={styles.headerTop}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={COLORS.text.primary} />
-                    </TouchableOpacity>
+                    <BackButton onPress={() => navigation.goBack()} style={styles.backButton} />
 
                     <Image
                         source={conversation?.other_participant?.foto_perfil || 'https://via.placeholder.com/40'}
@@ -510,8 +516,7 @@ const ChatDetailScreen = () => {
                         if (lowerType === 'solicitudservicio' || lowerType === 'solicitud' || lowerType.includes('solicitud')) {
                             navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: id });
                         } else if (lowerType === 'vehiculo' || lowerType === 'vehicle' || lowerType.includes('vehiculo')) {
-                            // If it's a marketplace vehicle
-                            navigation.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId: id });
+                            navigation.navigate(ROUTES.VEHICLE_PROFILE, { vehiculoId: id });
                         } else {
                             // Fallback for debugging
                             if (__DEV__) {
@@ -521,10 +526,10 @@ const ChatDetailScreen = () => {
                     }}
                 >
                     <View style={styles.contextIcon}>
-                        <Ionicons name="car" size={16} color={COLORS.primary[500]} />
+                        <Car size={16} color={COLORS.primary[500]} />
                     </View>
                     <Text style={styles.contextText}>{contextText}</Text>
-                    <Feather name="chevron-right" size={16} color={COLORS.text.tertiary} />
+                    <ChevronRight size={16} color={COLORS.text.tertiary} />
                 </TouchableOpacity>
             </View>
         );
@@ -568,7 +573,7 @@ const ChatDetailScreen = () => {
                                 </TouchableOpacity>
                             ) : (
                                 <View style={styles.documentAttachment}>
-                                    <Ionicons name="document-text" size={24} color={isMe ? COLORS.text.onPrimary : COLORS.primary[600]} />
+                                    <FileText size={24} color={isMe ? COLORS.text.onPrimary : COLORS.primary[600]} />
                                     <Text style={[styles.documentText, isMe ? { color: COLORS.text.onPrimary } : { color: COLORS.text.primary }]} numberOfLines={1}>
                                         {typeof attachmentUri === 'string' ? attachmentUri.split('?')[0].split('/').pop() : 'Documento'}
                                     </Text>
@@ -606,14 +611,14 @@ const ChatDetailScreen = () => {
                     <View style={styles.previewWrapper}>
                         {attachment.type === 'document' ? (
                             <View style={styles.docPreview}>
-                                <Ionicons name="document-text" size={24} color={COLORS.text.secondary} />
+                                <FileText size={24} color={COLORS.text.secondary} />
                                 <Text style={styles.previewName} numberOfLines={1}>{attachment.name}</Text>
                             </View>
                         ) : (
                             <Image source={{ uri: attachment.uri }} style={styles.imagePreview} contentFit="cover" />
                         )}
                         <TouchableOpacity style={styles.removePreviewButton} onPress={() => setAttachment(null)}>
-                            <Ionicons name="close-circle" size={24} color={COLORS.error.main} />
+                            <CircleX size={24} color={COLORS.error.main} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -621,7 +626,7 @@ const ChatDetailScreen = () => {
 
             <View style={[styles.inputContainer, { paddingBottom: composerBottomPad }]}>
                 <TouchableOpacity style={styles.iconButton} onPress={handlePickAttachment}>
-                    <Feather name="paperclip" size={24} color={COLORS.primary[500]} />
+                    <Paperclip size={24} color={COLORS.primary[500]} />
                 </TouchableOpacity>
 
                 <View style={styles.inputWrapper}>
@@ -649,8 +654,7 @@ const ChatDetailScreen = () => {
                     onPress={sendMessage}
                     disabled={!inputText.trim() && !attachment}
                 >
-                    <Ionicons
-                        name="send"
+                    <Send
                         size={20}
                         color={(!inputText.trim() && !attachment) ? COLORS.text.disabled : COLORS.text.onPrimary}
                     />
@@ -714,7 +718,7 @@ const ChatDetailScreen = () => {
                         style={[styles.modalCloseButton, { top: insets.top + 20 }]}
                         onPress={() => setSelectedImage(null)}
                     >
-                        <Ionicons name="close" size={30} color={COLORS.text.inverse} />
+                        <X size={30} color={COLORS.text.inverse} />
                     </TouchableOpacity>
 
                     {selectedImage && (
@@ -776,14 +780,6 @@ const getStyles = () => StyleSheet.create({
     },
     backButton: {
         marginRight: 8,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: COLORS.neutral.gray[100],
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
     },
     headerAvatar: {
         width: 40,
@@ -879,7 +875,7 @@ const getStyles = () => StyleSheet.create({
         alignSelf: 'flex-end',
     },
     timeRight: {
-        color: 'rgba(255,255,255,0.85)',
+        color: withOpacity(COLORS.base.white, 0.85),
     },
     timeLeft: {
         color: COLORS.text.tertiary,
@@ -995,7 +991,7 @@ const getStyles = () => StyleSheet.create({
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.95)',
+        backgroundColor: withOpacity(COLORS.base.inkBlack, 0.95),
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -1004,10 +1000,10 @@ const getStyles = () => StyleSheet.create({
         right: 20,
         zIndex: 20,
         padding: 10,
-        backgroundColor: 'rgba(255,255,255,0.15)',
+        backgroundColor: withOpacity(COLORS.base.white, 0.15),
         borderRadius: 25,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
+        borderColor: withOpacity(COLORS.base.white, 0.2),
     },
     fullImage: {
         width: '100%',

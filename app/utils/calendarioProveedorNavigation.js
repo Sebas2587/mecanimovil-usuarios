@@ -165,12 +165,34 @@ export function navigateCalendarioProveedor(navigation, {
   return true;
 }
 
-/** Comparador catálogo: confirmar solicitud en calendario, sin volver al comparador. */
+/**
+ * Confirmar solicitud al elegir horario en calendario (sin volver a resumen).
+ * - Comparador catálogo (modoCatalogo)
+ * - Perfil proveedor → CREAR_SOLICITUD con flujoCatalogoProveedor
+ */
 export function shouldFinalizarSolicitudEnCalendario({ returnRoute, returnParams }) {
-  return (
+  const tienePayloadConfirmacion =
+    !!returnParams?.formPayload?.vehiculo?.id
+    && !!returnParams?.pendingConfirmOferta?.oferta_servicio_id;
+
+  if (!tienePayloadConfirmacion) return false;
+
+  if (
     returnRoute === ROUTES.COMPARADOR_OFERTAS
     && returnParams?.modoCatalogo === true
-    && returnParams?.formPayload?.vehiculo?.id
-    && returnParams?.pendingConfirmOferta?.oferta_servicio_id
-  );
+  ) {
+    return true;
+  }
+
+  if (
+    returnRoute === ROUTES.CREAR_SOLICITUD
+    && (
+      returnParams?.flujoCatalogoProveedor === true
+      || returnParams?.fromProviderDetail === true
+    )
+  ) {
+    return true;
+  }
+
+  return false;
 }

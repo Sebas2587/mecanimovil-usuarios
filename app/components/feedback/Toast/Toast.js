@@ -5,8 +5,8 @@
 
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../../design-system/tokens';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS, withOpacity } from '../../../design-system/tokens';
+import Icon from '../../base/Icon/Icon';
 
 // Safe access to TYPOGRAPHY with fallback values - MUST be before any usage
 const getSafeTypography = () => {
@@ -177,7 +177,7 @@ const Toast = ({
       {...props}
     >
       <View style={styles.content}>
-        <Ionicons
+        <Icon
           name={variantColors.icon}
           size={24}
           color={variantColors.text}
@@ -230,7 +230,7 @@ const Toast = ({
         )}
         {onClose && (
           <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-            <Ionicons name="close" size={20} color={variantColors.text} />
+            <Icon name="close" size={20} color={variantColors.text} />
           </TouchableOpacity>
         )}
       </View>
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDERS.radius.sm,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: withOpacity(COLORS.base.white, 0.2),
   },
   actionText: {
     // Estilos definidos inline

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import Icon from '../base/Icon/Icon';
 
 const ServicesList = ({ services, onServicePress }) => {
   if (!services || services.length === 0) return null;
@@ -15,7 +15,7 @@ const ServicesList = ({ services, onServicePress }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons name="construct" size={18} color={COLORS.primary[500]} />
+          <Icon name="construct" size={18} color={COLORS.primary[500]} />
         </View>
         <Text style={styles.title}>Servicios Principales</Text>
       </View>
@@ -28,7 +28,7 @@ const ServicesList = ({ services, onServicePress }) => {
             <View key={service.id || index} style={styles.serviceCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.iconBox}>
-                  <Ionicons name="construct-outline" size={20} color={COLORS.primary[500]} />
+                  <Icon name="construct-outline" size={20} color={COLORS.primary[500]} />
                 </View>
                 <View style={styles.headerTextContainer}>
                   <Text style={styles.serviceName}>{service.nombre || service.name}</Text>
@@ -47,7 +47,7 @@ const ServicesList = ({ services, onServicePress }) => {
                   onPress={() => onServicePress?.(service)}
                   activeOpacity={0.85}
                 >
-                  <Ionicons
+                  <Icon
                     name="calendar-outline"
                     size={16}
                     color={COLORS.text.inverse}

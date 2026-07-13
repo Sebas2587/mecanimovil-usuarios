@@ -93,14 +93,17 @@ export const HomeWeatherCardSkeleton = ({ compact = false }) => (
   </View>
 );
 
-/** Acciones rápidas del home (4 tiles) */
+/** Accesos rápidos del home — grilla 2 columnas. */
 export const HomeQuickActionsSkeleton = () => (
-  <View style={sharedStyles.quickActionsRow} accessibilityElementsHidden>
-    {[0, 1, 2, 3].map((i) => (
-      <View key={i} style={sharedStyles.quickActionCell}>
-        <Skeleton width={44} height={44} borderRadius={22} />
-        <Skeleton width={72} height={12} borderRadius={4} style={{ marginTop: 8 }} />
-        <Skeleton width={56} height={10} borderRadius={4} style={{ marginTop: 4 }} />
+  <View style={sharedStyles.quickActionsGrid} accessibilityElementsHidden>
+    {[0, 1].map((i) => (
+      <View key={i} style={sharedStyles.quickActionTile}>
+        <View style={sharedStyles.quickActionTileTop}>
+          <Skeleton width={40} height={40} borderRadius={20} />
+          <Skeleton width={16} height={16} borderRadius={8} />
+        </View>
+        <Skeleton width="55%" height={14} borderRadius={4} />
+        <Skeleton width="80%" height={12} borderRadius={4} style={{ marginTop: 6 }} />
       </View>
     ))}
   </View>
@@ -125,15 +128,14 @@ const headerStyles = StyleSheet.create({
 const sharedStyles = StyleSheet.create({
   categoryRow: {
     flexDirection: 'row',
-    gap: 4,
+    gap: 8,
     paddingRight: 8,
     marginBottom: 18,
   },
   categoryCell: {
-    width: 88,
+    width: 104,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   chipRow: {
     flexDirection: 'row',
@@ -181,20 +183,26 @@ const sharedStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
-  quickActionsRow: {
+  quickActionsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 18,
+    gap: 8,
+    marginBottom: 16,
   },
-  quickActionCell: {
-    width: GRID_CARD_W,
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+  quickActionTile: {
+    flex: 1,
+    minWidth: 0,
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
     borderWidth: 1,
     borderColor: COLORS.border.light,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    minHeight: 108,
+  },
+  quickActionTileTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
 });
