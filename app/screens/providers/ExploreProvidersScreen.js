@@ -19,7 +19,7 @@ import {
   EXPLORE_MODE_CERCA,
   EXPLORE_MODE_PARA_TI,
 } from '../../components/providers/explore';
-import { filterProvidersBySearchQuery, splitProvidersByRadar } from '../../utils/exploreProviderUtils';
+import { filterProvidersBySearchQuery, splitProvidersByRadar, normalizeDistanceKm } from '../../utils/exploreProviderUtils';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 
 /**
@@ -118,9 +118,11 @@ const ExploreProvidersScreen = () => {
     [rawProviders, activeTab],
   );
 
-  const { inRadar, outOfRadar } = useMemo(() => {
+  const { inRadar, outOfRadar, noLocation } = useMemo(() => {
     if (isCercaExplore) {
-      return { inRadar: tabProviders, outOfRadar: [] };
+      // En modo cerca: solo quienes tienen distancia real
+      const withKm = tabProviders.filter((p) => normalizeDistanceKm(p) != null);
+      return { inRadar: withKm, outOfRadar: [], noLocation: [] };
     }
     return splitProvidersByRadar(tabProviders);
   }, [tabProviders, isCercaExplore]);
@@ -186,6 +188,7 @@ const ExploreProvidersScreen = () => {
             <ExploreProvidersGrid
               inRadar={inRadar}
               outOfRadar={outOfRadar}
+              noLocation={noLocation}
               loading={isLoading}
               refreshing={isRefetching}
               onRefresh={refetch}

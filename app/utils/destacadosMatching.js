@@ -94,8 +94,8 @@ export function buildDestacadosList(providers, options = {}) {
     const cap = Number(maxKm);
     eligible = eligible.filter((p) => {
       const km = normalizeDistanceKm(p);
-      // Sin distancia conocida: se mantiene (geo pendiente). Con distancia > cap: fuera del rail home.
-      return km == null || km <= cap;
+      // Home Destacados: solo con geo real y dentro del tope (sin pin default / sin km).
+      return km != null && km <= cap;
     });
   }
 

@@ -107,7 +107,10 @@ const ProviderPreviewCard = ({
       : null);
 
   // Meta Airbnb: una sola línea gris (distancia · modalidad · specialty corta)
-  const metaParts = [distanceLabel, modalidadTagLabel].filter(
+  const metaDistance =
+    distanceLabel ||
+    (providerRaw ? 'Sin ubicación' : null);
+  const metaParts = [metaDistance, modalidadTagLabel].filter(
     (p) => p && String(p).trim() && String(p) !== '—',
   );
   const metaLine = metaParts.join(' · ') || specialtyLine || null;

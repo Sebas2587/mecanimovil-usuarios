@@ -91,26 +91,26 @@ export function filterProvidersWithinRecommendationRadius(providers) {
 }
 
 /**
- * Separa proveedores en zona (recomendados) y fuera del radar.
- * En zona: distancia primero, KPI en empate. Fuera: KPI y distancia si existe.
+ * Separa proveedores en zona (recomendados), fuera del radar y sin geo usable.
+ * Sin distancia (pin default / ubicacion null) → noLocation (no inventar km).
  */
 export function splitProvidersByRadar(providers) {
   const inRadar = [];
   const outOfRadar = [];
+  const noLocation = [];
   for (const p of providers || []) {
-    if (isProviderWithinRadar(p)) inRadar.push(p);
+    const km = providerDistanceKm(p);
+    if (km == null) {
+      noLocation.push(p);
+      continue;
+    }
+    if (km <= PROVIDER_RECOMMENDATION_MAX_KM) inRadar.push(p);
     else outOfRadar.push(p);
   }
   inRadar.sort(compareProvidersByDistanceThenKpi);
-  outOfRadar.sort((a, b) => {
-    const aOut = isProviderOutsideRadar(a);
-    const bOut = isProviderOutsideRadar(b);
-    if (aOut && bOut) return compareProvidersByDistanceThenKpi(a, b);
-    if (aOut && !bOut) return -1;
-    if (!aOut && bOut) return 1;
-    return compareProvidersByKpiThenDistance(a, b);
-  });
-  return { inRadar, outOfRadar };
+  outOfRadar.sort(compareProvidersByDistanceThenKpi);
+  noLocation.sort(compareProvidersByKpiRelevance);
+  return { inRadar, outOfRadar, noLocation };
 }
 
 /** Más cercano primero; a igual distancia, mejor KPI. */

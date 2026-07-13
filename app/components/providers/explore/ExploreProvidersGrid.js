@@ -28,6 +28,7 @@ function chunkRows(list, size) {
 const ExploreProvidersGrid = ({
   inRadar = [],
   outOfRadar = [],
+  noLocation = [],
   loading,
   refreshing,
   onRefresh,
@@ -105,7 +106,7 @@ const ExploreProvidersGrid = ({
     [renderCard, columns, cardWidth],
   );
 
-  const isEmpty = inRadar.length === 0 && outOfRadar.length === 0;
+  const isEmpty = inRadar.length === 0 && outOfRadar.length === 0 && noLocation.length === 0;
 
   const content = useMemo(() => {
     if (isEmpty) return null;
@@ -119,13 +120,19 @@ const ExploreProvidersGrid = ({
         )}
         {renderSection(
           'Fuera de tu zona',
-          'Técnicos compatibles con tu vehículo, más allá del radio desde tu dirección.',
+          'Compatibles con tu vehículo, más lejos del radio desde tu dirección.',
           <MapPin size={16} color={COLORS.text.tertiary} />,
           outOfRadar,
         )}
+        {renderSection(
+          'Sin ubicación',
+          'Aún no configuraron una dirección real en el mapa; no podemos calcular distancia.',
+          <MapPin size={16} color={COLORS.text.tertiary} />,
+          noLocation,
+        )}
       </>
     );
-  }, [inRadar, outOfRadar, isEmpty, renderSection]);
+  }, [inRadar, outOfRadar, noLocation, isEmpty, renderSection]);
 
   return (
     <ScrollView
