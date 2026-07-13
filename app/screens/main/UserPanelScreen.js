@@ -381,7 +381,7 @@ const UserPanelScreen = () => {
           onSelectCategory={handleCategorySelect}
         />
 
-        <VehicleValueTeaserCard vehicle={selectedVehicle} healthScore={healthScore} />
+        <VehicleValueTeaserCard vehicle={selectedVehicle} />
 
         <HomeContextualBanner
           solicitud={firstVisibleSolicitud}

@@ -1,8 +1,47 @@
 export const HISTOGRAM_BUCKETS = 40;
 
 /**
+ * Garantiza min <= max y que el valor del auto quede dentro (o cerca) del rango.
+ * Evita el caso GetAPI donde la banda queda por encima del valor ajustado.
+ */
+export function normalizePriceRange(rangoMin, rangoMax, valorReal = 0) {
+  const valor = Number(valorReal) || 0;
+  let lo = Number(rangoMin) || 0;
+  let hi = Number(rangoMax) || 0;
+
+  if (lo > 0 && hi > 0 && lo > hi) {
+    const tmp = lo;
+    lo = hi;
+    hi = tmp;
+  }
+
+  if (valor > 0) {
+    if (lo <= 0 && hi <= 0) {
+      lo = Math.round(valor * 0.92);
+      hi = Math.round(valor * 1.08);
+    } else if (lo <= 0) {
+      lo = Math.min(hi, Math.round(valor * 0.92));
+    } else if (hi <= 0) {
+      hi = Math.max(lo, Math.round(valor * 1.08));
+    }
+    // Si la banda quedó completamente fuera del valor (ej. min > valor),
+    // recentrar el rango alrededor del valor real.
+    if (valor < lo || valor > hi) {
+      const half = Math.max(Math.round(valor * 0.06), Math.round((hi - lo) / 2) || 1);
+      lo = Math.max(0, valor - half);
+      hi = valor + half;
+    }
+  }
+
+  if (hi <= lo) {
+    hi = lo + Math.max(1, Math.round((valor || lo) * 0.05));
+  }
+
+  return { min: Math.round(lo), max: Math.round(hi) };
+}
+
+/**
  * Distribución estilo Airbnb (colina) centrada en el valor del auto.
- * Si hay histograma real del backend, se usa; si no, se sintetiza desde el rango GetAPI.
  */
 export function resolvePriceHistogram({
   histogram = [],
@@ -11,12 +50,25 @@ export function resolvePriceHistogram({
   rangoMax = 0,
   buckets = HISTOGRAM_BUCKETS,
 }) {
+  const { min, max } = normalizePriceRange(rangoMin, rangoMax, valorReal);
+
   if (Array.isArray(histogram) && histogram.length > 0) {
-    return { buckets: histogram, origen: 'mercado' };
+    const sorted = [...histogram].sort(
+      (a, b) => (a.bucket_start || 0) - (b.bucket_start || 0),
+    );
+    const first = sorted[0]?.bucket_start ?? min;
+    const last = sorted[sorted.length - 1]?.bucket_end ?? max;
+    // Si el histograma viene invertido o vacío de span, regenerar sintético.
+    if (last > first) {
+      return { buckets: sorted, origen: 'mercado', min, max };
+    }
   }
+
   return {
-    buckets: buildMountainHistogram(valorReal, rangoMin, rangoMax, buckets),
+    buckets: buildMountainHistogram(valorReal, min, max, buckets),
     origen: 'estimado',
+    min,
+    max,
   };
 }
 
@@ -24,11 +76,8 @@ export function buildMountainHistogram(valorReal, rangoMin, rangoMax, buckets = 
   const valor = Number(valorReal) || 0;
   if (valor <= 0) return [];
 
-  const lo = Number(rangoMin) > 0 ? Number(rangoMin) : Math.round(valor * 0.82);
-  const hi = Number(rangoMax) > 0 ? Number(rangoMax) : Math.round(valor * 1.18);
-  // Ampliar un poco fuera del rango probable para que las barras grises
-  // fuera del selection se vean como en Airbnb.
-  const pad = Math.round((hi - lo) * 0.35);
+  const { min: lo, max: hi } = normalizePriceRange(rangoMin, rangoMax, valor);
+  const pad = Math.max(Math.round((hi - lo) * 0.35), Math.round(valor * 0.04));
   const axisLo = Math.max(0, lo - pad);
   const axisHi = hi + pad;
   const span = Math.max(axisHi - axisLo, 1);
@@ -42,7 +91,6 @@ export function buildMountainHistogram(valorReal, rangoMin, rangoMax, buckets = 
     const edgeHi = i === buckets - 1 ? axisHi : edgeLo + step;
     const mid = (edgeLo + edgeHi) / 2;
     const gaussian = Math.exp(-0.5 * ((mid - center) / sigma) ** 2);
-    // Ruido leve para que no se vea una campana perfecta (más “Airbnb”)
     const jitter = 0.85 + ((i * 17) % 7) * 0.03;
     raw.push({ edgeLo, edgeHi, gaussian: gaussian * jitter });
   }

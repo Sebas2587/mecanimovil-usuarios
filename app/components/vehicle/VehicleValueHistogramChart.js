@@ -5,9 +5,7 @@ import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens
 import {
   resolvePriceHistogram,
   formatCLP,
-  formatCompactMillions,
-  buildPricePathInsight,
-  buildHorizonChips,
+  normalizePriceRange,
 } from '../../utils/vehicleValueChart';
 
 const THUMB = 28;
@@ -19,25 +17,35 @@ const INACTIVE = COLORS.neutral.gray[200];
 const TRACK_INACTIVE = COLORS.neutral.gray[200];
 
 /**
- * Histograma Airbnb + insight de cuándo vender según el rango elegido.
+ * Histograma Airbnb minimalista: colina + dual thumb + Mínimo/Máximo.
  */
 const VehicleValueHistogramChart = ({
   histogram = [],
   valorReal = 0,
   rangoMin = 0,
   rangoMax = 0,
-  tasaAnualPct = 7,
-  demanda = null,
   height = BAR_H,
 }) => {
   const [width, setWidth] = useState(0);
-  const { buckets } = useMemo(
-    () => resolvePriceHistogram({ histogram, valorReal, rangoMin, rangoMax }),
-    [histogram, valorReal, rangoMin, rangoMax],
+
+  const normalized = useMemo(
+    () => normalizePriceRange(rangoMin, rangoMax, valorReal),
+    [rangoMin, rangoMax, valorReal],
   );
 
-  const axisLo = buckets[0]?.bucket_start ?? 0;
-  const axisHi = buckets[buckets.length - 1]?.bucket_end ?? 1;
+  const { buckets } = useMemo(
+    () =>
+      resolvePriceHistogram({
+        histogram,
+        valorReal,
+        rangoMin: normalized.min,
+        rangoMax: normalized.max,
+      }),
+    [histogram, valorReal, normalized.min, normalized.max],
+  );
+
+  const axisLo = buckets[0]?.bucket_start ?? normalized.min;
+  const axisHi = buckets[buckets.length - 1]?.bucket_end ?? normalized.max;
   const axisSpan = Math.max(1, axisHi - axisLo);
 
   const priceToRatio = useCallback(
@@ -50,20 +58,22 @@ const VehicleValueHistogramChart = ({
     [axisLo, axisSpan],
   );
 
-  const defaultLeft = priceToRatio(rangoMin > 0 ? rangoMin : axisLo);
-  const defaultRight = priceToRatio(rangoMax > 0 ? rangoMax : axisHi);
+  const defaultLeft = priceToRatio(normalized.min);
+  const defaultRight = priceToRatio(normalized.max);
 
-  const [leftRatio, setLeftRatio] = useState(defaultLeft);
-  const [rightRatio, setRightRatio] = useState(defaultRight);
-  const leftRef = useRef(defaultLeft);
-  const rightRef = useRef(defaultRight);
+  const [leftRatio, setLeftRatio] = useState(Math.min(defaultLeft, defaultRight - MIN_GAP));
+  const [rightRatio, setRightRatio] = useState(Math.max(defaultRight, defaultLeft + MIN_GAP));
+  const leftRef = useRef(leftRatio);
+  const rightRef = useRef(rightRatio);
   const startRef = useRef(0);
 
   useEffect(() => {
-    leftRef.current = defaultLeft;
-    rightRef.current = defaultRight;
-    setLeftRatio(defaultLeft);
-    setRightRatio(defaultRight);
+    const left = Math.min(defaultLeft, defaultRight - MIN_GAP);
+    const right = Math.max(defaultRight, defaultLeft + MIN_GAP);
+    leftRef.current = left;
+    rightRef.current = right;
+    setLeftRatio(left);
+    setRightRatio(right);
   }, [defaultLeft, defaultRight]);
 
   const drawable = Math.max(0, width - THUMB);
@@ -97,31 +107,15 @@ const VehicleValueHistogramChart = ({
   const leftPan = useMemo(() => makeResponder('left'), [makeResponder]);
   const rightPan = useMemo(() => makeResponder('right'), [makeResponder]);
 
-  const minPrice = ratioToPrice(leftRatio);
-  const maxPrice = ratioToPrice(rightRatio);
-
-  const timing = useMemo(
-    () =>
-      buildPricePathInsight({
-        valorHoy: valorReal,
-        tasaAnualPct,
-        minPrice,
-        maxPrice,
-      }),
-    [valorReal, tasaAnualPct, minPrice, maxPrice],
-  );
-
-  const horizons = useMemo(
-    () => buildHorizonChips(valorReal, tasaAnualPct),
-    [valorReal, tasaAnualPct],
-  );
-
   if (!buckets.length) return null;
+
+  // Siempre min <= max (leftRatio se mantiene <= rightRatio en el gesto)
+  const minPrice = ratioToPrice(leftRatio);
+  const maxPrice = Math.max(minPrice + 1, ratioToPrice(rightRatio));
 
   const barH = height;
   const trackY = barH + 2;
   const svgH = trackY + THUMB_R + 2;
-  const boxH = svgH;
 
   const chart = (() => {
     if (width <= 0) return null;
@@ -172,26 +166,14 @@ const VehicleValueHistogramChart = ({
     );
   })();
 
-  const timingTone =
-    timing.kind === 'in_range'
-      ? COLORS.primary[600]
-      : timing.kind === 'path'
-        ? COLORS.text.primary
-        : COLORS.text.secondary;
-
-  const demandaTone =
-    demanda?.recomendacion === 'vender_ahora'
-      ? COLORS.success.main
-      : demanda?.recomendacion === 'esperar'
-        ? COLORS.warning.main
-        : COLORS.text.secondary;
-
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>Rango de venta</Text>
-      <Text style={styles.subtitle}>Precio objetivo vs. cuándo tu valor lo cruzaría</Text>
 
-      <View style={[styles.box, { height: boxH }]} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <View
+        style={[styles.box, { height: svgH }]}
+        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      >
         {chart}
         <View
           style={[styles.thumb, { left: leftRatio * drawable, top: trackY - THUMB_R }]}
@@ -223,47 +205,6 @@ const VehicleValueHistogramChart = ({
           </View>
         </View>
       </View>
-
-      {timing.kind !== 'none' ? (
-        <View style={styles.timingCard}>
-          <Text style={styles.sectionEyebrow}>Trayectoria de precio</Text>
-          <Text style={[styles.timingTitle, { color: timingTone }]}>{timing.title}</Text>
-          <Text style={styles.timingDetail}>{timing.detail}</Text>
-        </View>
-      ) : null}
-
-      <View style={styles.timingCard}>
-        <Text style={styles.sectionEyebrow}>Demanda del mercado</Text>
-        <Text style={[styles.timingTitle, { color: demandaTone }]}>
-          {demanda?.titulo || 'Aún midiendo la demanda'}
-        </Text>
-        <Text style={styles.timingDetail}>
-          {demanda?.detalle ||
-            'Para saber si el próximo mes es mejor que hoy hace falta ver rotación y oferta de avisos similares en el tiempo.'}
-        </Text>
-        {(demanda?.razones || []).slice(0, 2).map((r, i) => (
-          <Text key={i} style={styles.reason}>
-            · {r}
-          </Text>
-        ))}
-      </View>
-
-      <View style={styles.horizonRow}>
-        {horizons.map((h) => {
-          const active =
-            timing.months != null &&
-            ((h.months === 0 && timing.months === 0) ||
-              (h.months > 0 && Math.abs(h.months - timing.months) <= (h.months === 6 ? 3 : 6)));
-          return (
-            <View key={h.key} style={[styles.horizonChip, active && styles.horizonChipActive]}>
-              <Text style={[styles.horizonLabel, active && styles.horizonLabelActive]}>{h.label}</Text>
-              <Text style={[styles.horizonValue, active && styles.horizonValueActive]} numberOfLines={1}>
-                {formatCompactMillions(h.valor)}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
     </View>
   );
 };
@@ -271,12 +212,8 @@ const VehicleValueHistogramChart = ({
 const styles = StyleSheet.create({
   wrap: { width: '100%' },
   title: {
-    ...TYPOGRAPHY.styles.captionBold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
-  },
-  subtitle: {
-    ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.tertiary,
     marginBottom: SPACING.sm,
   },
   box: {
@@ -335,62 +272,6 @@ const styles = StyleSheet.create({
   inputValue: {
     ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
-  },
-  timingCard: {
-    marginTop: SPACING.sm,
-    padding: SPACING.sm,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.base.soft,
-  },
-  sectionEyebrow: {
-    ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.tertiary,
-    marginBottom: 2,
-  },
-  timingTitle: {
-    ...TYPOGRAPHY.styles.captionBold,
-  },
-  timingDetail: {
-    ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
-  reason: {
-    ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
-  horizonRow: {
-    flexDirection: 'row',
-    gap: SPACING.xs,
-    marginTop: SPACING.sm,
-  },
-  horizonChip: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: SPACING.xs,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-  },
-  horizonChipActive: {
-    borderColor: COLORS.primary[500],
-    backgroundColor: COLORS.primary[50],
-  },
-  horizonLabel: {
-    ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.tertiary,
-  },
-  horizonLabelActive: {
-    color: COLORS.primary[600],
-  },
-  horizonValue: {
-    ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.text.primary,
-    marginTop: 2,
-  },
-  horizonValueActive: {
-    color: COLORS.primary[600],
   },
 });
 
