@@ -57,6 +57,7 @@ import SolicitudPaso2Contexto from './SolicitudPaso2Contexto';
 import SolicitudRepuestosToggle from './SolicitudRepuestosToggle';
 import SolicitudUrgenciaToggle from './SolicitudUrgenciaToggle';
 import SolicitudPaso1ServiceCard from './SolicitudPaso1ServiceCard';
+import SegmentedControl from '../base/SegmentedControl/SegmentedControl';
 import { getProviderSpecialty, getProviderRating, getProviderReviews, buildProviderAvatarUri } from '../../utils/providerUtils';
 import {
   buildAgendaContext,
@@ -2080,25 +2081,28 @@ const FormularioSolicitud = ({
             <View style={{ marginBottom: 16 }}>
               <Text style={gs.sectionTitle}>Servicios disponibles</Text>
 
-              {/* Category Tabs */}
+              {/* Category Tabs — SegmentedControl Airbnb */}
               {categoriasConServicios.length > 0 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 14 }} bounces={false}>
-                  <TouchableOpacity
-                    style={[gs.catTab, !categoriaSeleccionada && gs.catTabActive]}
-                    onPress={() => setCategoriaSeleccionada(null)}
-                  >
-                    <Text style={[gs.catTabText, !categoriaSeleccionada && gs.catTabTextActive]}>Todos</Text>
-                  </TouchableOpacity>
-                  {categoriasConServicios.map((cat) => (
-                    <TouchableOpacity
-                      key={cat.id}
-                      style={[gs.catTab, categoriaSeleccionada?.id === cat.id && gs.catTabActive]}
-                      onPress={() => setCategoriaSeleccionada(cat)}
-                    >
-                      <Text style={[gs.catTabText, categoriaSeleccionada?.id === cat.id && gs.catTabTextActive]}>{cat.nombre}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                <SegmentedControl
+                  scrollable
+                  style={gs.catTabsControl}
+                  value={categoriaSeleccionada ? String(categoriaSeleccionada.id) : 'all'}
+                  onChange={(id) => {
+                    if (id === 'all') {
+                      setCategoriaSeleccionada(null);
+                      return;
+                    }
+                    const cat = categoriasConServicios.find((c) => String(c.id) === String(id));
+                    setCategoriaSeleccionada(cat || null);
+                  }}
+                  segments={[
+                    { id: 'all', label: 'Todos' },
+                    ...categoriasConServicios.map((cat) => ({
+                      id: String(cat.id),
+                      label: cat.nombre || 'Categoría',
+                    })),
+                  ]}
+                />
               )}
 
               {/* Service Cards */}
@@ -3528,26 +3532,29 @@ const gs = StyleSheet.create({
     color: COLORS.text.primary,
     fontVariant: ['tabular-nums'],
   },
+  catTabsControl: {
+    marginBottom: SPACING.md,
+  },
   catTab: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.neutral.gray[100],
   },
   catTabActive: {
     backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
   },
   catTabText: {
+    ...TYPOGRAPHY.styles.caption,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.secondary,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   catTabTextActive: {
+    ...TYPOGRAPHY.styles.captionBold,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   selectedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

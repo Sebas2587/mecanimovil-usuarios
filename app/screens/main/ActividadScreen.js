@@ -176,7 +176,7 @@ const ActividadScreen = () => {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
-      <Text style={[TYPOGRAPHY.styles.h2, styles.pageTitle]}>Actividad</Text>
+      <Text style={styles.pageTitle}>Actividad</Text>
 
       <SegmentedControl
         segments={segmentItems}
@@ -210,12 +210,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background.default,
   },
-  pageTitle: {
-    color: COLORS.text.primary,
+  segments: {
     paddingHorizontal: SPACING.container.horizontal,
     marginBottom: SPACING.md,
   },
-  segments: {
+  pageTitle: {
+    ...TYPOGRAPHY.styles.h2,
+    color: COLORS.text.primary,
     paddingHorizontal: SPACING.container.horizontal,
     marginBottom: SPACING.md,
   },

@@ -1,13 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS } from '../../../design-system/tokens';
 
 /**
- * Segmento/pills único de la app (patrón Airbnb: pill activa oscura, inactivas grises).
- * Reemplaza cualquier implementación local de tabs/segmentos internos.
+ * Segmento/pills único de la app (patrón Airbnb Explore filters):
+ * - Inactivo: surface soft + tipografía caption medium (Poppins 500)
+ * - Activo: primary fill + tipografía captionBold (Poppins 600) en inverso
  *
  * @param {Array<{id: string, label: string, count?: number, Icon?: React.ComponentType}>} segments
- * @param {string} value id del segmento activo
+ * @param {string|null} value id del segmento activo
  * @param {(id: string) => void} onChange
  * @param {boolean} scrollable si hay muchos segmentos, permite scroll horizontal
  */
@@ -34,10 +35,7 @@ const SegmentedControl = ({ segments = [], value, onChange, scrollable = false, 
             strokeWidth={2}
           />
         ) : null}
-        <Text
-          style={[styles.label, active && styles.labelActive]}
-          numberOfLines={1}
-        >
+        <Text style={[styles.label, active && styles.labelActive]} numberOfLines={1}>
           {label}
         </Text>
       </TouchableOpacity>
@@ -78,7 +76,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: SPACING.md,
-    borderRadius: 999,
+    borderRadius: BORDERS.radius.full,
     backgroundColor: COLORS.neutral.gray[100],
     minHeight: 36,
   },
@@ -86,13 +84,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary[500],
   },
   label: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.secondary,
   },
   labelActive: {
-    color: COLORS.text.inverse,
+    ...TYPOGRAPHY.styles.captionBold,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.inverse,
   },
 });
 
