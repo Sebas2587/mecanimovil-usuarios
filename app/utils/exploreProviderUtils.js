@@ -49,10 +49,11 @@ export function normalizeDistanceKm(provider) {
     if (raw.m != null && Number.isFinite(Number(raw.m))) return Number(raw.m) / 1000;
   }
   let n = typeof raw === 'number' ? raw : parseFloat(String(raw).replace(',', '.'));
-  if (!Number.isFinite(n)) return null;
-  // Valores grandes suelen venir en metros desde algún endpoint legacy
-  if (n > 50 && n < 50000) n /= 1000;
-  return n >= 0 ? n : null;
+  if (!Number.isFinite(n) || n < 0) return null;
+  // Solo metros inequívocos (p.ej. 189670). Nunca dividir 50–500: el API ya envía km
+  // (bug: 189.67 km → “190m”).
+  if (n >= 1000) n /= 1000;
+  return n;
 }
 
 export function providerDistanceKm(provider) {

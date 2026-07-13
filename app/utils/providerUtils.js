@@ -591,8 +591,10 @@ export const getProviderDistance = (provider) => {
     typeof raw === 'number'
       ? raw
       : parseFloat(String(raw).replace(',', '.'));
-  if (!Number.isFinite(d)) return null;
-  if (d > 50 && d < 50000) d /= 1000;
+  if (!Number.isFinite(d) || d < 0) return null;
+  // API / Haversine usan km. Solo convertir metros inequívocos (>= 1000).
+  // Antes: d>50 ÷1000 convertía 189.67 km → “190m” (Mauricio en Coquimbo).
+  if (d >= 1000) d /= 1000;
   if (d < 0.1) return '< 100m';
   if (d < 1) return `${Math.round(d * 1000)}m`;
   if (d < 10) return `${d.toFixed(1)} km`;

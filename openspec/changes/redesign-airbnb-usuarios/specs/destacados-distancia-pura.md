@@ -11,9 +11,11 @@ Todos los proveedores son **talleres** (`modalidad_atencion`: `en_taller` | `a_d
 |-------|---------|
 | Dirección física | Obligatoria para todos (geo real en `ubicacion` + texto). Sin pin Santiago inventado. |
 | Elegibilidad | Compatibles con **marca** (y modelo cuando la oferta lo restringe) del vehículo del usuario; incluye servicios de diagnóstico. |
-| Exclusión por distancia | **No**. Se listan todos los elegibles. |
+| Exclusión por distancia | **Home Destacados:** tope blando 50 km (evita otra región con km mal parseados). **Explore / Ver todos:** sin tope. |
 | Orden | **Distancia pura** (ascendente). Sin “especialista primero”. Sin empate por KPI como criterio primario. |
 | Cupo home Destacados | Máx. 12 cards; “Ver todos” → Explore (~40). |
+| Distancia en UI | El API envía **km**. No interpretar 50–500 como metros (bug: 189 km → “190m”). |
+| Dirección en UI | Formato corto: `Calle [nº], Comuna`. Sin `s/n`, sin “Provincia/Región…”. |
 
 ## Cambios técnicos
 

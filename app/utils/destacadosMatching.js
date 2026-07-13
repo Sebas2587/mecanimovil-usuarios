@@ -83,12 +83,22 @@ export function takeLimit(providers, limit = 12) {
 /**
  * Pipeline completo Destacados.
  * @param {object[]} providers — respuesta cruda ya con _panelKind y distance cuando exista
- * @param {{ marcaId?: number|string, marcaNombre?: string, cityContext?: object, limit?: number }} options
+ * @param {{ marcaId?: number|string, marcaNombre?: string, cityContext?: object, limit?: number, maxKm?: number|null }} options
  */
 export function buildDestacadosList(providers, options = {}) {
-  const { marcaId, marcaNombre, limit = 12 } = options;
+  const { marcaId, marcaNombre, limit = 12, maxKm = null } = options;
 
-  const eligible = filterBrandEligible(providers, { marcaId, marcaNombre });
+  let eligible = filterBrandEligible(providers, { marcaId, marcaNombre });
+
+  if (maxKm != null && Number.isFinite(Number(maxKm))) {
+    const cap = Number(maxKm);
+    eligible = eligible.filter((p) => {
+      const km = normalizeDistanceKm(p);
+      // Sin distancia conocida: se mantiene (geo pendiente). Con distancia > cap: fuera del rail home.
+      return km == null || km <= cap;
+    });
+  }
+
   const ranked = rankByDistance(eligible);
 
   return {

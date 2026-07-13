@@ -73,6 +73,7 @@ import { providerServiceCardStyles as svcCard } from '../../components/provider/
 import SectionHeader from '../../components/base/SectionHeader/SectionHeader';
 import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
 import Button from '../../components/base/Button/Button';
+import { formatProviderStreetAddress } from '../../utils/formatProviderStreetAddress';
 import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
 
 const SCREEN_W = Dimensions.get('window').width;
@@ -614,29 +615,9 @@ const ProviderDetailScreen = () => {
             );
           }
 
-          const df = provider.direccion_fisica;
-          const calleNumero = [df?.calle, df?.numero].filter(Boolean).join(' ').trim();
-          const rawDireccion =
-            (typeof provider.direccion === 'string' && provider.direccion.trim()) ||
-            (typeof provider.usuario?.direccion === 'string' && provider.usuario.direccion.trim()) ||
-            null;
-          const addr =
-            (df?.direccion_completa && String(df.direccion_completa).trim()) ||
-            (df?.direccion && String(df.direccion).trim()) ||
-            calleNumero ||
-            (provider.direccion_taller && String(provider.direccion_taller).trim()) ||
-            rawDireccion ||
-            null;
-          const comuna = df?.comuna || provider.comuna || '';
-          // Si la dirección ya trae comuna/ciudad, no duplicar
-          const addrAlreadyHasComuna =
-            comuna &&
-            addr &&
-            String(addr).toLowerCase().includes(String(comuna).toLowerCase());
-          const display = addrAlreadyHasComuna
-            ? addr
-            : [addr, comuna].filter(Boolean).join(', ') ||
-              'Este taller aún no ha publicado su dirección.';
+          const display =
+            formatProviderStreetAddress(provider) ||
+            'Este taller aún no ha publicado su dirección.';
 
           return (
             <View style={styles.section}>

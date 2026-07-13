@@ -1200,6 +1200,9 @@ export const getParaTiProvidersForPanel = async (vehiculoId, options = {}) => {
       marcaNombre,
       cityContext: scope === 'panel' ? cityContext : null,
       limit: cupo,
+      // Home: no meter en el rail a alguien a cientos de km (otra región).
+      // Explore “Ver todos” sigue sin tope duro de radio.
+      maxKm: scope === 'panel' ? 50 : null,
     });
 
     if (__DEV__ && meta) {
