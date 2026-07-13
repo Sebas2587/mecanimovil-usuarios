@@ -4,8 +4,8 @@ import { ChevronRight } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 
 /**
- * Accesos rápidos del home — grilla 2 columnas (Airbnb summary tiles).
- * Solo 2 ítems: ambos visibles, sin scroll horizontal ni lista apilada.
+ * Accesos rápidos del home — grilla (Airbnb summary tiles).
+ * Iconos en primary (marca) sobre círculo primary[50].
  */
 const HomeQuickActions = ({ items = [] }) => {
   if (!items.length) return null;
@@ -14,6 +14,7 @@ const HomeQuickActions = ({ items = [] }) => {
     <View style={styles.grid} accessibilityRole="list">
       {items.map((it) => {
         const badgeCount = it.badgeCount ?? 0;
+        const iconBg = it.iconBg || COLORS.primary[50];
         return (
           <TouchableOpacity
             key={it.key}
@@ -25,7 +26,9 @@ const HomeQuickActions = ({ items = [] }) => {
             accessibilityLabel={it.sub ? `${it.title}. ${it.sub}` : it.title}
           >
             <View style={styles.tileTop}>
-              <View style={styles.iconCircle}>{it.icon}</View>
+              <View style={[styles.iconCircle, { backgroundColor: iconBg }]}>
+                {it.icon}
+              </View>
               {badgeCount > 0 ? (
                 <View style={styles.badge} accessibilityElementsHidden>
                   <Text style={styles.badgeText}>
@@ -75,15 +78,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   iconCircle: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    ...TYPOGRAPHY.styles.bodyBold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
   },
   subtitle: {

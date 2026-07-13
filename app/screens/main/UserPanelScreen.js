@@ -226,7 +226,8 @@ const UserPanelScreen = () => {
           activeSolicitudesCount > 0
             ? `${activeSolicitudesCount} activa${activeSolicitudesCount > 1 ? 's' : ''}`
             : 'Mis solicitudes',
-        icon: <ClipboardList size={20} color={COLORS.text.primary} strokeWidth={1.75} />,
+        icon: <ClipboardList size={18} color={COLORS.primary[600]} strokeWidth={2} />,
+        iconBg: COLORS.primary[50],
         onPress: () => navigation.navigate(ROUTES.ACTIVIDAD),
       },
       {
@@ -236,7 +237,8 @@ const UserPanelScreen = () => {
           chatsUnreadTotal > 0
             ? `${chatsUnreadTotal} mensaje${chatsUnreadTotal > 1 ? 's' : ''} sin leer`
             : 'Chats con proveedores',
-        icon: <MessageCircle size={20} color={COLORS.text.primary} strokeWidth={1.75} />,
+        icon: <MessageCircle size={18} color={COLORS.primary[600]} strokeWidth={2} />,
+        iconBg: COLORS.primary[50],
         onPress: () => navigation.navigate(ROUTES.ACTIVIDAD),
         badgeCount: chatsUnreadTotal,
       },

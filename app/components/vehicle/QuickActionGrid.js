@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Gauge, History, Navigation, ChevronRight } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING, withOpacity } from '../../design-system/tokens';
 import { getHealthColorToken, getHealthLabel } from '../../utils/healthFormat';
 
 /**
- * Accesos del perfil — grilla 3 columnas (Airbnb listing shortcuts).
+ * Accesos del perfil — grilla (Airbnb listing shortcuts).
+ * Círculo + icono alineados al color semántico de cada acción.
  */
 const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPress, onTripPress }) => {
   const score = Math.round(Number(healthScore) || 0);
@@ -18,14 +19,16 @@ const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPr
       key: 'health',
       title: 'Salud',
       subtitle: `${score}% · ${healthLabel}`,
-      icon: <Gauge size={20} color={healthColor} strokeWidth={1.75} fill="none" />,
+      icon: <Gauge size={18} color={healthColor} strokeWidth={2} />,
+      circleBg: withOpacity(healthColor, 0.12),
       onPress: onHealthPress,
     },
     {
       key: 'history',
       title: 'Historial',
       subtitle: `${count} ${count === 1 ? 'servicio' : 'servicios'}`,
-      icon: <History size={20} color={COLORS.text.primary} strokeWidth={1.75} fill="none" />,
+      icon: <History size={18} color={COLORS.text.primary} strokeWidth={2} />,
+      circleBg: COLORS.neutral.gray[100],
       onPress: onHistoryPress,
     },
   ];
@@ -35,7 +38,8 @@ const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPr
       key: 'trip',
       title: 'Viaje GPS',
       subtitle: 'Actualizar km',
-      icon: <Navigation size={20} color={COLORS.text.primary} strokeWidth={1.75} fill="none" />,
+      icon: <Navigation size={18} color={COLORS.primary[600]} strokeWidth={2} />,
+      circleBg: COLORS.primary[50],
       onPress: onTripPress,
     });
   }
@@ -53,7 +57,9 @@ const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPr
           accessibilityLabel={`${tile.title}. ${tile.subtitle}`}
         >
           <View style={styles.tileTop}>
-            <View style={styles.iconCircle}>{tile.icon}</View>
+            <View style={[styles.iconCircle, { backgroundColor: tile.circleBg }]}>
+              {tile.icon}
+            </View>
             <ChevronRight size={14} color={COLORS.text.tertiary} strokeWidth={2} />
           </View>
           <Text style={styles.title} numberOfLines={1}>
@@ -96,7 +102,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -106,6 +111,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...TYPOGRAPHY.styles.small,
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontWeight: TYPOGRAPHY.fontWeight.regular,
     color: COLORS.text.secondary,
     marginTop: 2,
   },

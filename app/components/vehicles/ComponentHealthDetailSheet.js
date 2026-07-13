@@ -288,7 +288,7 @@ export default function ComponentHealthDetailSheet({
                   onPress={() => onSelectService?.(srv, metric)}
                 >
                   <View style={styles.serviceIcon}>
-                    <Wrench size={20} color={COLORS.primary[500]} strokeWidth={2} fill="none" />
+                    <Wrench size={18} color={COLORS.primary[600]} strokeWidth={2} />
                   </View>
                   <View style={styles.serviceBody}>
                     <Text style={styles.serviceTitle} numberOfLines={2}>
@@ -555,10 +555,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
   },
   serviceIcon: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
+    backgroundColor: COLORS.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.sm,
@@ -568,8 +568,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   serviceTitle: {
-    ...TYPOGRAPHY.styles.captionBold,
+    ...TYPOGRAPHY.styles.h5,
     color: COLORS.text.primary,
+    letterSpacing: -0.15,
   },
   serviceDesc: {
     ...TYPOGRAPHY.styles.small,

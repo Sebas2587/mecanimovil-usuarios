@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { CheckCircle2 } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 
 /**
- * Card compacta de servicio (grilla 2 columnas, paso 1 solicitud — estilo Coinbase).
+ * Card de servicio (paso 1 solicitud) — listing Airbnb:
+ * paper + hairline, tipografía Poppins, selección con primary suave.
  */
 export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress, width }) {
   return (
@@ -15,7 +16,7 @@ export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress,
         selected && styles.cardSelected,
       ]}
       onPress={onPress}
-      activeOpacity={0.85}
+      activeOpacity={0.9}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={servicio.nombre}
@@ -25,9 +26,11 @@ export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress,
           {servicio.nombre}
         </Text>
         {selected ? (
-          <CheckCircle2 size={16} color={COLORS.primary[600]} style={styles.checkIcon} />
+          <View style={styles.checkCircle}>
+            <Check size={14} color={COLORS.text.inverse} strokeWidth={2.5} />
+          </View>
         ) : (
-          <View style={styles.checkPlaceholder} />
+          <View style={styles.checkIdle} />
         )}
       </View>
     </TouchableOpacity>
@@ -37,41 +40,52 @@ export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress,
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    minHeight: 56,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm + 2,
+    minHeight: 64,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: BORDERS.width.thin,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
     justifyContent: 'center',
   },
   cardSelected: {
-    borderColor: COLORS.primary[400],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[500],
     backgroundColor: COLORS.primary[50],
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
-  checkIcon: {
+  checkCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
-    marginTop: 1,
   },
-  checkPlaceholder: {
-    width: 16,
-    height: 16,
+  checkIdle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
     flexShrink: 0,
   },
   nombre: {
     flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.h5,
     color: COLORS.text.primary,
-    lineHeight: 18,
+    letterSpacing: -0.15,
   },
   nombreSelected: {
-    color: COLORS.primary[800],
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
 });
