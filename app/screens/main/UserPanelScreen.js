@@ -23,18 +23,20 @@ import {
 } from '../../utils/healthFormat';
 import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehicle';
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
+import { useParaTiProviders } from '../../hooks/useParaTiProviders';
+import { useMarketActivityForVehicle } from '../../hooks/useMarketActivityForVehicle';
+import { navigateCrearSolicitudDesdeHome, navigateCrearSolicitudDesdeTrending } from '../../components/home/shared/homeScheduleNavigation';
 import {
   HomeContextHeader,
   HomeCategoryGrid,
   HomeContextualBanner,
   HomePendingReviewBanner,
   HomeHighlightedRow,
+  HomeMarketActivitySection,
   HomeVehicleSelectorModal,
   HomeQuickActions,
 } from '../../components/home/discovery';
-import { EXPLORE_MODE_CERCA, EXPLORE_MODE_PARA_TI } from '../../components/providers/explore';
-import { navigateCrearSolicitudDesdeHome } from '../../components/home/shared/homeScheduleNavigation';
-import { useParaTiProviders } from '../../hooks/useParaTiProviders';
+import { EXPLORE_MODE_PARA_TI } from '../../components/providers/explore';
 import { useTripTracking } from '../../context/TripTrackingContext';
 import { TRIP_ACTIVE_BAR_HEIGHT, TRIP_ACTIVE_BAR_GAP } from '../../components/trip/TripActiveBar';
 import { H_PAD, TAB_BAR_BASE_HEIGHT, SCROLL_BOTTOM_GAP } from '../../components/home/shared/homeLayoutConstants';
@@ -270,6 +272,15 @@ const UserPanelScreen = () => {
     enabled: !!selectedVehicle?.id,
   });
 
+  const {
+    data: marketActivity,
+    isLoading: marketActivityLoading,
+    refetch: refetchMarketActivity,
+  } = useMarketActivityForVehicle(selectedVehicle, {
+    limit: 12,
+    enabled: !!selectedVehicle?.id,
+  });
+
   const openProviderFromPanel = useCallback(
     (item) => {
       if (!item?.id) return;
@@ -302,6 +313,17 @@ const UserPanelScreen = () => {
     openExplore({ mode: EXPLORE_MODE_PARA_TI });
   }, [openExplore]);
 
+  const handleMarketServicePress = useCallback(
+    (row) => {
+      if (!selectedVehicle?.id || !row) return;
+      navigateCrearSolicitudDesdeTrending(navigation, {
+        vehicle: selectedVehicle,
+        row,
+      });
+    },
+    [navigation, selectedVehicle],
+  );
+
   const handleCategorySelect = useCallback(
     (cat) => {
       if (!selectedVehicle || !cat?.id) return;
@@ -316,7 +338,10 @@ const UserPanelScreen = () => {
 
   const onRefresh = useCallback(async () => {
     const extras = [];
-    if (selectedVehicle?.id) extras.push(refetchPanelParaTi());
+    if (selectedVehicle?.id) {
+      extras.push(refetchPanelParaTi());
+      extras.push(refetchMarketActivity());
+    }
     await Promise.all([
       refetchVehicles(),
       queryClient.invalidateQueries({ queryKey: ['vehicleHealth'] }),
@@ -329,6 +354,7 @@ const UserPanelScreen = () => {
     cargarSolicitudesActivas,
     selectedVehicle?.id,
     refetchPanelParaTi,
+    refetchMarketActivity,
   ]);
 
   if (showUserPanelSkeleton) {
@@ -413,6 +439,13 @@ const UserPanelScreen = () => {
           loading={panelParaTiLoading}
           onProviderPress={openProviderFromPanel}
           onSeeAll={handleSeeAllParaTi}
+        />
+
+        <HomeMarketActivitySection
+          selectedVehicle={selectedVehicle}
+          activity={marketActivity}
+          loading={marketActivityLoading}
+          onSelectService={handleMarketServicePress}
         />
       </ScrollView>
 

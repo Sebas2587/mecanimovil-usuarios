@@ -1,118 +1,142 @@
-import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import React, { useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
 import { Users } from 'lucide-react-native';
-import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
-import { HomePanelCard } from '../shared/HomePanelCard';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
+import { HomeTrendingChipsSkeleton } from '../../utils/HomePanelSkeletons';
 
 /**
- * Sección «Qué piden otros con tu mismo auto» (demanda agregada por servicio).
+ * Rail «Qué eligen dueños de tu mismo auto» — patrón Airbnb (1 job / sección).
+ * Datos: servicios agregados de otros usuarios con misma marca + modelo.
  */
-const HomeMarketActivitySection = ({ selectedVehicle, activity, loading }) => {
+const HomeMarketActivitySection = ({
+  selectedVehicle,
+  activity,
+  loading,
+  onSelectService,
+}) => {
   if (!selectedVehicle) return null;
 
   const items = activity?.items ?? [];
-  const marcaLabel = selectedVehicle.marca_nombre || '—';
-  const modeloLabel = selectedVehicle.modelo_nombre || '';
+  const marca =
+    activity?.marca || selectedVehicle.marca_nombre || selectedVehicle.marca || '';
+  const modelo =
+    activity?.modelo || selectedVehicle.modelo_nombre || selectedVehicle.modelo || '';
+  const vehicleLabel = [marca, modelo].filter(Boolean).join(' ').trim() || 'tu auto';
+
+  const handlePress = useCallback(
+    (row) => {
+      onSelectService?.(row);
+    },
+    [onSelectService],
+  );
+
+  if (!loading && items.length === 0) {
+    return (
+      <View style={styles.section}>
+        <HomeSectionHeader
+          icon={<Users size={16} color={COLORS.primary[500]} strokeWidth={2} />}
+          title="Servicios en tu modelo"
+          hint={`Dueños de ${vehicleLabel} aún no han agendado servicios suficientes para mostrar tendencias.`}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.section}>
       <HomeSectionHeader
-        icon={<Users size={16} color={COLORS.primary[500]} />}
-        title="Qué piden otros con tu mismo auto"
-        hint={`Misma marca y modelo (${marcaLabel} ${modeloLabel}).`.trim()}
+        icon={<Users size={16} color={COLORS.primary[500]} strokeWidth={2} />}
+        title="Servicios en tu modelo"
+        hint={`Lo que más agendan dueños de ${vehicleLabel}.`}
       />
 
       {loading ? (
-        <HomePanelCard style={styles.loadingCard}>
-          <ActivityIndicator color={COLORS.primary[500]} />
-        </HomePanelCard>
-      ) : items.length === 0 ? (
-        <HomePanelCard style={styles.emptyCard}>
-          <Text style={styles.emptyText}>
-            Aún no hay datos para esta marca y modelo. Cuando otros usuarios soliciten servicios con
-            un auto como el tuyo, aparecerán aquí.
-          </Text>
-        </HomePanelCard>
+        <HomeTrendingChipsSkeleton />
       ) : (
-        <HomePanelCard innerStyle={styles.listInner}>
-          {items.map((row, idx) => (
-            <View
-              key={`svc-${row.servicio_id ?? idx}`}
-              style={[styles.row, idx < items.length - 1 && styles.rowBorder]}
-            >
-              <Text style={styles.serviceName} numberOfLines={2}>
-                {row.servicio_nombre || 'Servicio'}
-              </Text>
-              <View style={styles.personasCol}>
-                <Text style={styles.personasNum}>{Number(row.personas ?? 0)}</Text>
-                <Text style={styles.personasLbl}>personas</Text>
-              </View>
-            </View>
-          ))}
-        </HomePanelCard>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.rail}
+          keyboardShouldPersistTaps="handled"
+        >
+          {items.map((row, idx) => {
+            const nombre = row.servicio_nombre || 'Servicio';
+            const count = Number(row.personas ?? 0);
+            const rank = idx + 1;
+            return (
+              <TouchableOpacity
+                key={`market-${row.servicio_id ?? idx}`}
+                style={styles.tile}
+                onPress={() => handlePress(row)}
+                accessibilityRole="button"
+                accessibilityLabel={`${nombre}, ${count} ${count === 1 ? 'persona' : 'personas'}. Agendar.`}
+                activeOpacity={0.9}
+              >
+                <Text style={styles.rank}>{rank}</Text>
+                <Text style={styles.tileTitle} numberOfLines={2}>
+                  {nombre}
+                </Text>
+                <Text style={styles.tileMeta}>
+                  {count === 1 ? '1 persona' : `${count} personas`}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       )}
     </View>
   );
 };
 
+const TILE_W = 156;
+
 const styles = StyleSheet.create({
   section: {
-    marginBottom: 18,
+    marginBottom: SPACING.lg,
   },
-  loadingCard: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  emptyCard: {
-    paddingVertical: 16,
-  },
-  emptyText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    textAlign: 'center',
-    lineHeight: 19,
-  },
-  listInner: {
-    paddingVertical: 6,
-    paddingHorizontal: 0,
-  },
-  row: {
+  rail: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: SPACING.sm,
+    paddingRight: SPACING.sm,
+  },
+  tile: {
+    width: TILE_W,
+    minHeight: 112,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
   },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border.light,
-  },
-  serviceName: {
-    flex: 1,
-    marginRight: 12,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.primary,
-    lineHeight: 20,
-  },
-  personasCol: {
-    alignItems: 'flex-end',
-    flexShrink: 0,
-    minWidth: 56,
-  },
-  personasNum: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.primary[500],
-  },
-  personasLbl: {
-    marginTop: 2,
-    fontSize: TYPOGRAPHY.fontSize.sm,
+  rank: {
+    fontSize: TYPOGRAPHY.fontSize.xs,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
+    marginBottom: SPACING.xs,
+  },
+  tileTitle: {
+    flexGrow: 1,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
+    lineHeight: 20,
+    letterSpacing: -0.1,
+  },
+  tileMeta: {
+    marginTop: SPACING.sm,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.primary[500],
   },
 });
 
