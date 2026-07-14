@@ -182,8 +182,8 @@ const VehicleProfileScreen = () => {
         if (!vehicle?.id) return;
 
         showConfirm(
-            'Eliminar Vehículo',
-            '⚠️ ADVERTENCIA: Esta acción eliminará el vehículo y TODOS sus datos asociados (servicios, historial, etc). Esta acción es irreversible.',
+            'Eliminar vehículo',
+            'Esta acción eliminará el vehículo y todos sus datos asociados (servicios, historial, etc.). No se puede deshacer.',
             {
                 confirmText: 'Eliminar',
                 destructive: true,

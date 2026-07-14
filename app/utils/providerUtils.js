@@ -645,6 +645,27 @@ export const formatProviderReviewsBadgeLabel = (count, { emptyLabel = null } = {
   return `${n} reseñas`;
 };
 
+/**
+ * Conexión realtime del proveedor (app abierta / heartbeat).
+ * Prioriza `status` de ConnectionStatus; no confía en defaults ambiguos.
+ */
+export const isProviderRealtimeOnline = (provider) => {
+  if (!provider || typeof provider !== 'object') return false;
+  const nested = provider.connection_status;
+  const status = String(
+    provider.status ?? nested?.status ?? '',
+  ).toLowerCase();
+  if (status === 'online' || status === 'busy') return true;
+  if (status === 'offline') return false;
+
+  const flag =
+    provider.esta_conectado ??
+    provider.is_online ??
+    nested?.esta_conectado ??
+    nested?.is_online;
+  return flag === true;
+};
+
 export const formatProviderForCard = (provider) => {
   const candidates = getProviderImageCandidatesResolved(provider);
   return {

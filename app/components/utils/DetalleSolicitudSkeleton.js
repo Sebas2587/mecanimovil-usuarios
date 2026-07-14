@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView, Platform, StatusBar } from 'react-native';
 import Skeleton from '../feedback/Skeleton/Skeleton';
-import { COLORS, SPACING, BORDERS, SHADOWS } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS } from '../../design-system/tokens';
 
 const HEADER_CONTENT_HEIGHT = 60;
 
@@ -129,9 +129,8 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 100,
     backgroundColor: COLORS.background.paper,
-    borderBottomWidth: BORDERS.width.thin,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border.light,
-    ...SHADOWS.sm,
   },
   headerContent: {
     flexDirection: 'row',
@@ -148,11 +147,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
-    borderWidth: BORDERS.width.thin,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
     padding: SPACING.md,
     marginBottom: SPACING.md,
-    ...SHADOWS.sm,
   },
   vehicleRow: {
     flexDirection: 'row',
@@ -182,11 +180,10 @@ const styles = StyleSheet.create({
   offerCard: {
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
-    borderWidth: BORDERS.width.thin,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
     padding: SPACING.md,
     marginBottom: SPACING.md,
-    ...SHADOWS.sm,
   },
   offerTop: {
     flexDirection: 'row',

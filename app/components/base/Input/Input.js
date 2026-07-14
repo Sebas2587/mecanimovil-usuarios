@@ -4,7 +4,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
-import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../../design-system/tokens';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS } from '../../../design-system/tokens';
 import Icon from '../Icon/Icon';
 
 const SIZES = {
@@ -41,12 +41,12 @@ const Input = ({
     const borderColor = error
       ? COLORS.border.error
       : isFocused
-        ? COLORS.border.focus
+        ? COLORS.neutral.gray[700]
         : COLORS.border.light;
 
     let backgroundColor = COLORS.background.paper;
     if (variant === 'filled') {
-      backgroundColor = error ? COLORS.background.error : COLORS.neutral.gray[100];
+      backgroundColor = error ? COLORS.background.error : COLORS.neutral.gray[50];
     } else if (error) {
       backgroundColor = COLORS.background.error;
     }
@@ -58,7 +58,6 @@ const Input = ({
       borderColor,
       borderWidth: BORDERS.width.thin,
       backgroundColor,
-      ...(isFocused && !error ? SHADOWS.inputFocus : SHADOWS.none),
     };
   }, [error, isFocused, sizeSpec, variant]);
 
@@ -117,6 +116,7 @@ const Input = ({
             onPress={onRightIconPress}
             disabled={!onRightIconPress}
             style={styles.iconBtn}
+            hitSlop={8}
           >
             {typeof rightIcon === 'string' ? (
               <Icon name={rightIcon} size={20} color={iconColor} />
@@ -145,6 +145,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingVertical: 0,
+    outlineStyle: 'none',
   },
   iconBtn: { paddingHorizontal: 4 },
   error: { color: COLORS.error.main, marginTop: SPACING.xxs },

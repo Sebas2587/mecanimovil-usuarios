@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS, withOpacity } from '../design-system/tokens/colors';
+import { COLORS } from '../design-system/tokens/colors';
 
 const STORAGE_PREFIX = '@mecanimovil/rt_renewal_due_';
 
@@ -145,44 +145,56 @@ export async function saveRtRenewalAfterConfirm(vehicleId, mesRaw) {
   return nextDueISO;
 }
 
-/** Glass dark: borde / acento / fondo suave por tono */
+/** Tones Tinder + Airbnb: superficie blanca, acento brand; semántica solo en overdue/renewed. */
 export function getRevisionTecnicaToneStyles(tone) {
   const map = {
     calm: {
-      border: COLORS.primary[200],
-      accent: COLORS.primary[600],
-      subtext: COLORS.text.secondary,
-      bg: COLORS.primary[50],
+      border: COLORS.border.light,
+      accent: COLORS.primary[500],
+      subtext: COLORS.text.tertiary,
+      bg: COLORS.background.paper,
+      chipBg: COLORS.primary[50],
+      chipText: COLORS.primary[600],
     },
     soon: {
-      border: COLORS.warning[200],
-      accent: COLORS.warning[700],
-      subtext: COLORS.text.secondary,
-      bg: COLORS.warning[50],
+      border: COLORS.border.light,
+      accent: COLORS.primary[500],
+      subtext: COLORS.text.tertiary,
+      bg: COLORS.background.paper,
+      chipBg: COLORS.primary[50],
+      chipText: COLORS.primary[600],
     },
     urgent: {
-      border: withOpacity(COLORS.warning[500], 0.35),
-      accent: COLORS.warning[800],
+      border: COLORS.border.light,
+      accent: COLORS.primary[600],
       subtext: COLORS.text.secondary,
-      bg: COLORS.warning[50],
+      bg: COLORS.background.paper,
+      chipBg: COLORS.primary[100],
+      chipText: COLORS.primary[700],
     },
     expiry_month: {
-      border: COLORS.warning[300],
-      accent: COLORS.warning[800],
+      border: COLORS.border.light,
+      accent: COLORS.primary[600],
       subtext: COLORS.text.secondary,
-      bg: COLORS.warning[50],
+      bg: COLORS.background.paper,
+      chipBg: COLORS.primary[100],
+      chipText: COLORS.primary[700],
     },
     renewed: {
-      border: COLORS.success[200],
-      accent: COLORS.success[700],
-      subtext: COLORS.text.secondary,
-      bg: COLORS.success[50],
+      border: COLORS.border.light,
+      accent: COLORS.success[600],
+      subtext: COLORS.text.tertiary,
+      bg: COLORS.background.paper,
+      chipBg: COLORS.success[50],
+      chipText: COLORS.success[700],
     },
     overdue: {
-      border: COLORS.error[200],
+      border: COLORS.border.light,
       accent: COLORS.error[600],
       subtext: COLORS.text.secondary,
-      bg: COLORS.error[50],
+      bg: COLORS.background.paper,
+      chipBg: COLORS.error[50],
+      chipText: COLORS.error[600],
     },
   };
   return map[tone] || map.calm;
@@ -233,22 +245,22 @@ export function getRevisionTecnicaUiState(mesRaw, renewalDueISO, opts = {}) {
 
   if (overdue) {
     tone = 'overdue';
-    hint = `El plazo del mes de revisión técnica (${monthName}) ya pasó. Agenda en una planta de revisión y confirma aquí cuando la realices.`;
+    hint = `Plazo vencido · ${monthName}`;
   } else if (hasRenewedAhead) {
     tone = 'renewed';
-    hint = `Registraste la revisión para este ciclo. Próximo vencimiento referencial: ${formatHintDate(storedEnd)} (${monthName}).`;
+    hint = `Próximo vencimiento ${formatHintDate(storedEnd)}`;
   } else if (showConfirmButton) {
     tone = 'expiry_month';
-    hint = `Estás en el mes de revisión técnica (${monthName}). Si ya la realizaste en planta, confírmalo abajo.`;
+    hint = `Este mes toca revisar`;
   } else if (monthsLeft <= 1) {
     tone = 'urgent';
-    hint = `Queda poco tiempo: en aproximadamente ${monthsLeft === 0 ? 'este' : '1'} mes llega tu mes de revisión técnica (${monthName}).`;
+    hint = `En ~1 mes`;
   } else if (monthsLeft <= 3) {
     tone = 'soon';
-    hint = `Faltan aproximadamente ${monthsLeft} meses para el mes de revisión técnica (${monthName}).`;
+    hint = `En ~${monthsLeft} meses`;
   } else {
     tone = 'calm';
-    hint = `Faltan aproximadamente ${monthsLeft} meses para el mes de revisión técnica (${monthName}).`;
+    hint = `En ~${monthsLeft} meses`;
   }
 
   return {

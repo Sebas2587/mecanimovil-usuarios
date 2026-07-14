@@ -244,7 +244,7 @@ const AppNavigator = () => (
   <Stack.Navigator screenOptions={{ headerShown: false, detachInactiveScreens: false }}>
     <Stack.Screen name="TabNavigator" component={TabNavigator} />
 
-    <Stack.Screen name={ROUTES.REGISTRAR_VIAJE} component={RegistrarViajeScreen} />
+    <Stack.Screen name={ROUTES.REGISTRAR_VIAJE} component={RegistrarViajeScreen} options={getHeaderOptions('Registrar viaje')} />
     <Stack.Screen name={ROUTES.CREAR_SOLICITUD} component={CrearSolicitudScreen} />
     <Stack.Screen name={ROUTES.PROVIDER_DETAIL} component={ProviderDetailScreen} />
     <Stack.Screen name={ROUTES.PROVIDER_REVIEWS} component={ProviderReviewsScreen} options={getHeaderOptions('Reseñas')} />
@@ -256,7 +256,7 @@ const AppNavigator = () => (
     <Stack.Screen name={ROUTES.CHATS_LIST} component={ChatsListScreen} options={getHeaderOptions('Mensajes')} />
     <Stack.Screen name={ROUTES.CHAT_DETAIL} component={ChatDetailScreen} />
     <Stack.Screen name={ROUTES.VEHICLE_PROFILE} component={VehicleProfileScreen} />
-    <Stack.Screen name={ROUTES.VEHICLE_HEALTH} component={VehicleHealthScreen} />
+    <Stack.Screen name={ROUTES.VEHICLE_HEALTH} component={VehicleHealthScreen} options={getHeaderOptions('Salud del vehículo')} />
     <Stack.Screen name={ROUTES.VEHICLE_HISTORY} component={VehicleHistoryScreen} />
     <Stack.Screen name={ROUTES.MY_VEHICLES} component={MisVehiculosScreen} options={getHeaderOptions('Mis vehículos')} />
     <Stack.Screen name="VehicleRegistration" component={VehicleRegistrationScreen} />

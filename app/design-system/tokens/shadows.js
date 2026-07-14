@@ -41,9 +41,9 @@ export const SHADOWS = {
     elevation: 4,
   },
   inputFocus: {
-    shadowColor: '#fe3c72',
+    shadowColor: SHADOW_INK,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 0,
   },

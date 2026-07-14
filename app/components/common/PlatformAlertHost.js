@@ -3,16 +3,19 @@ import {
   Modal,
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   Pressable,
   Platform,
 } from 'react-native';
+import { AlertTriangle } from 'lucide-react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import { lucideSafeProps } from '../../design-system/icons/lucideDefaults';
 import { registerPlatformAlertHost } from '../../utils/platformAlert';
+import Button from '../base/Button/Button';
 
 /**
  * Diálogos in-app en web (Alert.alert / window.confirm no son fiables en RN Web).
+ * Superficies Airbnb + CTAs Tinder (tokens); tipografía Poppins.
  */
 const PlatformAlertHost = () => {
   const [confirmState, setConfirmState] = useState(null);
@@ -66,6 +69,19 @@ const PlatformAlertHost = () => {
 
   if (Platform.OS !== 'web') return null;
 
+  const renderDialogChrome = ({ title, message, destructive, children }) => (
+    <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation?.()}>
+      {destructive ? (
+        <View style={styles.iconWrap}>
+          <AlertTriangle size={24} color={COLORS.error[600]} {...lucideSafeProps()} />
+        </View>
+      ) : null}
+      {title ? <Text style={styles.title}>{title}</Text> : null}
+      {message ? <Text style={styles.message}>{message}</Text> : null}
+      {children}
+    </Pressable>
+  );
+
   return (
     <>
       <Modal
@@ -75,25 +91,21 @@ const PlatformAlertHost = () => {
         onRequestClose={resolveSimple}
       >
         <Pressable style={styles.overlay} onPress={resolveSimple}>
-          <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation?.()}>
-            {simpleState?.title ? (
-              <Text style={styles.title}>{simpleState.title}</Text>
-            ) : null}
-            {simpleState?.message ? (
-              <Text style={styles.message}>{simpleState.message}</Text>
-            ) : null}
-            <View style={[styles.actionsRow, styles.actionsRowSingle]}>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonPrimary, styles.buttonFull]}
-                onPress={resolveSimple}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.buttonPrimaryText}>
-                  {simpleState?.buttonText || 'Entendido'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
+          {renderDialogChrome({
+            title: simpleState?.title,
+            message: simpleState?.message,
+            children: (
+              <View style={styles.actionsCol}>
+                <Button
+                  title={simpleState?.buttonText || 'Entendido'}
+                  type="primary"
+                  size="md"
+                  fullWidth
+                  onPress={resolveSimple}
+                />
+              </View>
+            ),
+          })}
         </Pressable>
       </Modal>
 
@@ -104,41 +116,30 @@ const PlatformAlertHost = () => {
         onRequestClose={() => resolveConfirm(false)}
       >
         <Pressable style={styles.overlay} onPress={() => resolveConfirm(false)}>
-          <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation?.()}>
-            {confirmState?.title ? (
-              <Text style={styles.title}>{confirmState.title}</Text>
-            ) : null}
-            {confirmState?.message ? (
-              <Text style={styles.message}>{confirmState.message}</Text>
-            ) : null}
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonSecondary]}
-                onPress={() => resolveConfirm(false)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.buttonSecondaryText}>{confirmState?.cancelText || 'Cancelar'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.button,
-                  confirmState?.destructive ? styles.buttonDestructive : styles.buttonPrimary,
-                ]}
-                onPress={() => resolveConfirm(true)}
-                activeOpacity={0.85}
-              >
-                <Text
-                  style={
-                    confirmState?.destructive
-                      ? styles.buttonDestructiveText
-                      : styles.buttonPrimaryText
-                  }
-                >
-                  {confirmState?.confirmText || 'Aceptar'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Pressable>
+          {renderDialogChrome({
+            title: confirmState?.title,
+            message: confirmState?.message,
+            destructive: !!confirmState?.destructive,
+            children: (
+              <View style={styles.actionsRow}>
+                <Button
+                  title={confirmState?.cancelText || 'Cancelar'}
+                  type="secondary"
+                  variant="outline"
+                  size="md"
+                  style={styles.actionFlex}
+                  onPress={() => resolveConfirm(false)}
+                />
+                <Button
+                  title={confirmState?.confirmText || 'Aceptar'}
+                  type={confirmState?.destructive ? 'danger' : 'primary'}
+                  size="md"
+                  style={styles.actionFlex}
+                  onPress={() => resolveConfirm(true)}
+                />
+              </View>
+            ),
+          })}
         </Pressable>
       </Modal>
 
@@ -149,38 +150,29 @@ const PlatformAlertHost = () => {
         onRequestClose={() => resolveAction(null)}
       >
         <Pressable style={styles.overlay} onPress={() => resolveAction(null)}>
-          <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation?.()}>
-            {actionState?.title ? (
-              <Text style={styles.title}>{actionState.title}</Text>
-            ) : null}
-            {actionState?.message ? (
-              <Text style={styles.message}>{actionState.message}</Text>
-            ) : null}
-            <View style={styles.actionList}>
-              {(actionState?.buttons || []).map((btn) => (
-                <TouchableOpacity
-                  key={btn.text}
-                  style={[
-                    styles.actionItem,
-                    btn.style === 'cancel' && styles.actionItemCancel,
-                    btn.style === 'destructive' && styles.actionItemDestructive,
-                  ]}
-                  onPress={() => resolveAction(btn)}
-                  activeOpacity={0.85}
-                >
-                  <Text
-                    style={[
-                      styles.actionItemText,
-                      btn.style === 'cancel' && styles.actionItemTextCancel,
-                      btn.style === 'destructive' && styles.actionItemTextDestructive,
-                    ]}
-                  >
-                    {btn.text}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Pressable>
+          {renderDialogChrome({
+            title: actionState?.title,
+            message: actionState?.message,
+            children: (
+              <View style={styles.actionsCol}>
+                {(actionState?.buttons || []).map((btn) => {
+                  const isCancel = btn.style === 'cancel';
+                  const isDestructive = btn.style === 'destructive';
+                  return (
+                    <Button
+                      key={btn.text}
+                      title={btn.text}
+                      type={isDestructive ? 'danger' : isCancel ? 'secondary' : 'primary'}
+                      variant={isCancel ? 'outline' : 'solid'}
+                      size="md"
+                      fullWidth
+                      onPress={() => resolveAction(btn)}
+                    />
+                  );
+                })}
+              </View>
+            ),
+          })}
         </Pressable>
       </Modal>
     </>
@@ -199,98 +191,45 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.modal.md,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     padding: SPACING.lg,
-    ...SHADOWS.lg,
+    alignItems: 'stretch',
+    ...SHADOWS.md,
+  },
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.error[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: SPACING.md,
   },
   title: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
+    textAlign: 'center',
     marginBottom: SPACING.xs,
   },
   message: {
-    fontSize: TYPOGRAPHY.fontSize.base,
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.secondary,
-    lineHeight: 22,
-    marginBottom: SPACING.md,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
   },
   actionsRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'stretch',
     gap: SPACING.sm,
   },
-  actionsRowSingle: {
-    justifyContent: 'stretch',
+  actionsCol: {
+    gap: SPACING.sm,
   },
-  button: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDERS.radius.md,
-    minWidth: 96,
-    alignItems: 'center',
-  },
-  buttonFull: {
+  actionFlex: {
     flex: 1,
-    minWidth: 0,
-  },
-  buttonSecondary: {
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-  },
-  buttonSecondaryText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.secondary,
-  },
-  buttonPrimary: {
-    backgroundColor: COLORS.primary[500],
-  },
-  buttonPrimaryText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.onPrimary,
-  },
-  buttonDestructive: {
-    backgroundColor: COLORS.error[500],
-  },
-  buttonDestructiveText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.inverse,
-  },
-  actionList: {
-    gap: SPACING.xs,
-  },
-  actionItem: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.neutral.gray[50],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    alignItems: 'center',
-  },
-  actionItemCancel: {
-    backgroundColor: COLORS.background.paper,
-  },
-  actionItemDestructive: {
-    backgroundColor: COLORS.error[50],
-    borderColor: COLORS.error[200],
-  },
-  actionItemText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.primary,
-  },
-  actionItemTextCancel: {
-    color: COLORS.text.secondary,
-  },
-  actionItemTextDestructive: {
-    color: COLORS.error[700],
   },
 });
 

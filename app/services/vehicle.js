@@ -408,7 +408,7 @@ export const getVehicleAppraisal = async (vehicleId) => {
 };
 
 /**
- * Valor real, liquidez y proyección del vehículo.
+ * Valor real estimado, liquidez y proyección del vehículo.
  * @param {number} vehicleId
  * @param {{ refresh?: boolean }} [options]
  */

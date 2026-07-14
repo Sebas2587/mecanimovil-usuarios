@@ -29,11 +29,19 @@ import {
   ListChecks,
   BellOff,
 } from 'lucide-react-native';
-import { ROUTES, SPACING, FONT_SIZES, BORDERS } from '../../utils/constants';
-import { COLORS } from '../../design-system/tokens/colors';
-import { SHADOWS } from '../../design-system/tokens/shadows';
+import { ROUTES } from '../../utils/constants';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+/** Quita emoji / símbolos decorativos del inicio (Airbnb: tipografía limpia). */
+function cleanNotificationCopy(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}⛔🔴🟡🟢⚠️✅❌•\s]+/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 /** `data` puede venir como objeto o JSON string desde la API. */
 function resolveNotificationData(data) {
@@ -48,7 +56,6 @@ function resolveNotificationData(data) {
   return data;
 }
 
-/** IDs de solicitud son UUID — nunca usar parseInt (corrompe el id). */
 function resolveSolicitudIdFromNotification(notification) {
   const payload = resolveNotificationData(notification?.data);
   const raw = payload.solicitud_id ?? payload.solicitudId;
@@ -56,10 +63,30 @@ function resolveSolicitudIdFromNotification(notification) {
   return String(raw).trim();
 }
 
+function resolveIcon(tipo, payload) {
+  if (tipo === 'health_alert') {
+    return {
+      Icon: Wrench,
+      color: payload?.es_critico ? COLORS.error.main : COLORS.primary[500],
+      soft: payload?.es_critico ? COLORS.error[50] : COLORS.primary[50],
+    };
+  }
+  if (tipo === 'payment_reminder') {
+    return { Icon: CreditCard, color: COLORS.primary[500], soft: COLORS.primary[50] };
+  }
+  if (tipo === 'order_update') {
+    return { Icon: FileText, color: COLORS.primary[600], soft: COLORS.primary[50] };
+  }
+  if (tipo === 'review_reminder') {
+    return { Icon: Star, color: COLORS.primary[500], soft: COLORS.primary[50] };
+  }
+  return { Icon: Bell, color: COLORS.primary[500], soft: COLORS.primary[50] };
+}
+
 export default function NotificationCenterScreen({ navigation }) {
   const headerHeight = useHeaderHeight();
   const { height: windowHeight } = useWindowDimensions();
-  const { data, isLoading, isFetching, refetch } = useNotifications();
+  const { data, isFetching, refetch } = useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const deleteNotification = useDeleteNotification();
@@ -67,13 +94,13 @@ export default function NotificationCenterScreen({ navigation }) {
 
   const notifications = useMemo(
     () => data?.results || (Array.isArray(data) ? data : []) || [],
-    [data]
+    [data],
   );
 
   useFocusEffect(
     useCallback(() => {
       refetch();
-    }, [refetch])
+    }, [refetch]),
   );
 
   const handleRefresh = () => {
@@ -113,68 +140,52 @@ export default function NotificationCenterScreen({ navigation }) {
     }
   };
 
-  const handleDelete = (notificationId) => {
-    deleteNotification.mutate(notificationId);
-  };
-
   const renderNotification = ({ item }) => {
     const isUnread = !item.leida;
-
-    let IconComponent = Bell;
-    let iconColor = COLORS.primary[500];
-
-    if (item.tipo === 'health_alert') {
-      IconComponent = Wrench;
-      iconColor = item.data?.es_critico ? COLORS.error.main : COLORS.warning[500];
-    } else if (item.tipo === 'payment_reminder') {
-      IconComponent = CreditCard;
-      iconColor = COLORS.primary[600];
-    } else if (item.tipo === 'order_update') {
-      IconComponent = FileText;
-      iconColor = COLORS.success[600];
-    } else if (item.tipo === 'review_reminder') {
-      IconComponent = Star;
-      iconColor = COLORS.warning[600];
-    }
+    const payload = resolveNotificationData(item.data);
+    const { Icon, color, soft } = resolveIcon(item.tipo, payload);
+    const title = cleanNotificationCopy(item.titulo);
+    const message = cleanNotificationCopy(item.mensaje);
 
     return (
       <TouchableOpacity
         style={[styles.notificationItem, isUnread && styles.unreadItem]}
         onPress={() => handleNotificationPress(item)}
-        activeOpacity={0.75}
+        activeOpacity={0.85}
+        accessibilityRole="button"
       >
-        <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: isUnread ? `${iconColor}22` : COLORS.neutral.gray[100] },
-          ]}
-        >
-          <IconComponent
-            size={22}
-            color={isUnread ? iconColor : COLORS.text.tertiary}
-            strokeWidth={1.75}
+        <View style={[styles.iconContainer, { backgroundColor: isUnread ? soft : COLORS.neutral.gray[100] }]}>
+          <Icon
+            size={18}
+            color={isUnread ? color : COLORS.text.tertiary}
+            strokeWidth={2}
           />
         </View>
         <View style={styles.textBlock}>
           <View style={styles.headerRow}>
-            <Text style={[styles.title, isUnread && styles.unreadText]} numberOfLines={1}>
-              {item.titulo}
+            <Text style={[styles.title, isUnread && styles.unreadText]} numberOfLines={2}>
+              {title}
             </Text>
             {isUnread ? <View style={styles.dot} /> : null}
           </View>
-          <Text style={styles.message} numberOfLines={2}>
-            {item.mensaje}
-          </Text>
+          {message ? (
+            <Text style={styles.message} numberOfLines={2}>
+              {message}
+            </Text>
+          ) : null}
           <Text style={styles.time}>
-            {item.fecha_creacion ? format(new Date(item.fecha_creacion), 'd MMM, HH:mm', { locale: es }) : ''}
+            {item.fecha_creacion
+              ? format(new Date(item.fecha_creacion), 'd MMM, HH:mm', { locale: es })
+              : ''}
           </Text>
         </View>
         <TouchableOpacity
           style={styles.deleteButton}
-          onPress={() => handleDelete(item.id)}
+          onPress={() => deleteNotification.mutate(item.id)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Eliminar notificación"
         >
-          <Trash2 size={20} color={COLORS.text.tertiary} strokeWidth={1.75} />
+          <Trash2 size={16} color={COLORS.text.tertiary} strokeWidth={2} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -190,26 +201,32 @@ export default function NotificationCenterScreen({ navigation }) {
         }
       : null;
 
+  const empty = notifications.length === 0;
+
   return (
     <View style={[styles.container, webRootStyle]}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       <View style={styles.toolbar}>
         <TouchableOpacity
           onPress={() => markAllAsRead.mutate()}
-          disabled={markAllAsRead.isPending || notifications.length === 0}
-          style={styles.toolbarChip}
+          disabled={markAllAsRead.isPending || empty}
+          style={styles.toolbarAction}
+          accessibilityRole="button"
+          accessibilityLabel="Marcar todas como leídas"
         >
-          <ListChecks size={16} color={COLORS.success[600]} strokeWidth={1.75} style={{ marginRight: 6 }} />
-          <Text style={styles.toolbarChipText}>Marcar leídas</Text>
+          <ListChecks size={16} color={COLORS.primary[500]} strokeWidth={2} />
+          <Text style={styles.toolbarActionText}>Marcar leídas</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleDeleteAll}
-          disabled={deleteAllNotifications.isPending || notifications.length === 0}
-          style={[styles.toolbarChip, styles.toolbarChipDanger]}
+          disabled={deleteAllNotifications.isPending || empty}
+          style={styles.toolbarAction}
+          accessibilityRole="button"
+          accessibilityLabel="Limpiar todas las notificaciones"
         >
-          <Trash2 size={16} color={COLORS.error.main} strokeWidth={1.75} style={{ marginRight: 6 }} />
-          <Text style={styles.toolbarChipDangerText}>Limpiar todo</Text>
+          <Trash2 size={16} color={COLORS.text.secondary} strokeWidth={2} />
+          <Text style={styles.toolbarActionMuted}>Limpiar todo</Text>
         </TouchableOpacity>
       </View>
 
@@ -218,7 +235,7 @@ export default function NotificationCenterScreen({ navigation }) {
         removeClippedSubviews={Platform.OS !== 'web'}
         data={notifications}
         renderItem={renderNotification}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => String(item.id)}
         refreshControl={
           <RefreshControl
             refreshing={
@@ -230,14 +247,16 @@ export default function NotificationCenterScreen({ navigation }) {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <BellOff size={64} color={COLORS.neutral.gray[300]} strokeWidth={1.5} />
-            <Text style={styles.emptyText}>No tienes notificaciones</Text>
+            <View style={styles.emptyIcon}>
+              <BellOff size={28} color={COLORS.text.tertiary} strokeWidth={1.75} />
+            </View>
+            <Text style={styles.emptyTitle}>Sin notificaciones</Text>
+            <Text style={styles.emptyText}>Aquí verás alertas de salud, pagos y solicitudes.</Text>
           </View>
         }
-        contentContainerStyle={
-          notifications.length === 0 ? styles.centerContent : styles.listContent
-        }
+        contentContainerStyle={empty ? styles.centerContent : styles.listContent}
         showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
     </View>
   );
@@ -258,40 +277,31 @@ const styles = StyleSheet.create({
   toolbar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 10,
-    paddingHorizontal: SPACING.md,
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.container.horizontal,
     paddingVertical: SPACING.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
   },
-  toolbarChip: {
+  toolbarAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
+    gap: 6,
+    paddingVertical: 4,
   },
-  toolbarChipText: {
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.success[700],
-    fontWeight: '600',
+  toolbarActionText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[600],
   },
-  toolbarChipDanger: {
-    borderColor: COLORS.error[200],
-    backgroundColor: COLORS.error.light,
-  },
-  toolbarChipDangerText: {
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.error.dark,
-    fontWeight: '600',
+  toolbarActionMuted: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.secondary,
   },
   listContent: {
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: SPACING.container.horizontal,
     paddingBottom: SPACING.xl,
     paddingTop: SPACING.sm,
   },
@@ -299,30 +309,32 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 80,
+    paddingHorizontal: SPACING.lg,
+  },
+  separator: {
+    height: SPACING.sm,
   },
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: SPACING.sm,
     padding: SPACING.md,
-    marginBottom: 16,
-    borderRadius: BORDERS.radius.lg || 16,
+    borderRadius: BORDERS.radius.lg,
     backgroundColor: COLORS.background.paper,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
   },
   unreadItem: {
     borderColor: COLORS.primary[200],
     backgroundColor: COLORS.primary[50],
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDERS.radius.full,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.md,
+    flexShrink: 0,
   },
   textBlock: {
     flex: 1,
@@ -330,47 +342,65 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
+    alignItems: 'flex-start',
+    gap: SPACING.xs,
+    marginBottom: 2,
   },
   title: {
-    fontSize: FONT_SIZES.body,
-    fontWeight: '500',
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.secondary,
     flex: 1,
   },
   unreadText: {
-    fontWeight: '700',
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
   message: {
-    fontSize: FONT_SIZES.body,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    marginBottom: 6,
+    marginTop: 2,
   },
   time: {
-    fontSize: FONT_SIZES.caption,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
+    marginTop: SPACING.xs,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.primary[500],
-    marginLeft: 8,
+    marginTop: 6,
+    flexShrink: 0,
   },
   emptyContainer: {
     alignItems: 'center',
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.neutral.gray[100],
+    alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: SPACING.md,
+  },
+  emptyTitle: {
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.text.primary,
   },
   emptyText: {
-    marginTop: SPACING.md,
-    fontSize: FONT_SIZES.body,
-    color: COLORS.text.secondary,
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    marginTop: SPACING.xs,
+    textAlign: 'center',
   },
   deleteButton: {
-    padding: 8,
-    marginLeft: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
 });

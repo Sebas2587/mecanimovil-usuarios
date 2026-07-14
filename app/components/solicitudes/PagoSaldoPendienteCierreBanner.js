@@ -5,7 +5,6 @@ import {
   COLORS,
   SPACING,
   BORDERS,
-  SHADOWS,
   TYPOGRAPHY,
 } from '../../design-system/tokens';
 import { formatearMontoCLP } from '../../utils/calcularMontoPagoOferta';
@@ -21,7 +20,7 @@ export default function PagoSaldoPendienteCierreBanner({ montoSaldo, onPagar }) 
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.iconWrap}>
-          <Icon name="card-outline" size={22} color={COLORS.warning.dark} />
+          <Icon name="card-outline" size={22} color={COLORS.primary[500]} />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.title}>Pago pendiente para cerrar el servicio</Text>
@@ -42,13 +41,12 @@ export default function PagoSaldoPendienteCierreBanner({ montoSaldo, onPagar }) 
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.background.warning,
+    backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
     padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.warning[200],
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
     marginBottom: SPACING.md,
-    ...SHADOWS.sm,
   },
   headerRow: {
     flexDirection: 'row',
@@ -60,7 +58,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.warning[100],
+    backgroundColor: COLORS.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -68,13 +66,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
     marginBottom: SPACING.xs,
   },
   subtitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     lineHeight: 20,
   },
@@ -82,7 +79,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary[500],
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
-    borderRadius: BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -90,7 +87,6 @@ const styles = StyleSheet.create({
   },
   ctaText: {
     color: COLORS.text.inverse,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
   },
 });

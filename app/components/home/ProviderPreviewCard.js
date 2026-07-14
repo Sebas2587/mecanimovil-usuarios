@@ -8,6 +8,7 @@ import {
   getPanelServicios,
   getProviderDistance,
   resolveProviderKpiBadge,
+  isProviderRealtimeOnline,
 } from '../../utils/providerUtils';
 import { getProviderModalidad, modalidadLabel } from '../../utils/providerModalidad';
 import { getProviderBrandCoverage } from '../../utils/providerBrandCoverage';
@@ -124,6 +125,7 @@ const ProviderPreviewCard = ({
 
   const resolvedKpi = kpiBadge ?? resolveProviderKpiBadge(providerRaw);
   const showGuestBadge = !!coverageBadgeLabel || !!resolvedKpi?.label;
+  const isOnline = isProviderRealtimeOnline(providerRaw);
 
   return (
     <TouchableOpacity
@@ -131,7 +133,7 @@ const ProviderPreviewCard = ({
       activeOpacity={0.92}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={name}
+      accessibilityLabel={isOnline ? `${name}, conectado` : name}
     >
       <View style={styles.imageWrap}>
         {activeUri ? (
@@ -154,6 +156,17 @@ const ProviderPreviewCard = ({
             <Text style={styles.badgeText} numberOfLines={1}>
               {coverageBadgeLabel || resolvedKpi.label}
             </Text>
+          </View>
+        ) : null}
+
+        {isOnline ? (
+          <View
+            style={styles.onlineBadge}
+            accessibilityRole="text"
+            accessibilityLabel="Conectado"
+          >
+            <View style={styles.onlineDot} />
+            <Text style={styles.onlineText}>Conectado</Text>
           </View>
         ) : null}
       </View>
@@ -241,6 +254,29 @@ const getStyles = (width, omitRightMargin, imageHeight, imageRadius) =>
       backgroundColor: COLORS.background.paper,
     },
     badgeText: {
+      ...TYPOGRAPHY.styles.captionBold,
+      color: COLORS.text.primary,
+    },
+    onlineBadge: {
+      position: 'absolute',
+      bottom: 12,
+      left: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      maxWidth: '80%',
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: BORDERS.radius.pill,
+      backgroundColor: COLORS.background.paper,
+    },
+    onlineDot: {
+      width: 8,
+      height: 8,
+      borderRadius: BORDERS.radius.full,
+      backgroundColor: COLORS.success.main,
+    },
+    onlineText: {
       ...TYPOGRAPHY.styles.captionBold,
       color: COLORS.text.primary,
     },

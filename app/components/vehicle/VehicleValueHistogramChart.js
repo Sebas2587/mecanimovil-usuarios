@@ -17,13 +17,16 @@ const INACTIVE = COLORS.neutral.gray[200];
 const TRACK_INACTIVE = COLORS.neutral.gray[200];
 
 /**
- * Histograma Airbnb minimalista: colina + dual thumb + Mínimo/Máximo.
+ * Histograma estilo Airbnb Filters: colina de barras + dual thumb + Mínimo/Máximo.
+ * Barras activas (rosa) dentro del rango; grises fuera. Sin marcador vertical
+ * extra — Airbnb no lo usa; el valor del auto vive en el título de la card.
  */
 const VehicleValueHistogramChart = ({
   histogram = [],
   valorReal = 0,
   rangoMin = 0,
   rangoMax = 0,
+  histogramaOrigen = null,
   height = BAR_H,
 }) => {
   const [width, setWidth] = useState(0);
@@ -33,15 +36,16 @@ const VehicleValueHistogramChart = ({
     [rangoMin, rangoMax, valorReal],
   );
 
-  const { buckets } = useMemo(
+  const { buckets, origen } = useMemo(
     () =>
       resolvePriceHistogram({
         histogram,
         valorReal,
         rangoMin: normalized.min,
         rangoMax: normalized.max,
+        histogramaOrigen,
       }),
-    [histogram, valorReal, normalized.min, normalized.max],
+    [histogram, valorReal, normalized.min, normalized.max, histogramaOrigen],
   );
 
   const axisLo = buckets[0]?.bucket_start ?? normalized.min;
@@ -107,9 +111,8 @@ const VehicleValueHistogramChart = ({
   const leftPan = useMemo(() => makeResponder('left'), [makeResponder]);
   const rightPan = useMemo(() => makeResponder('right'), [makeResponder]);
 
-  if (!buckets.length) return null;
+  if (!valorReal || !buckets.length) return null;
 
-  // Siempre min <= max (leftRatio se mantiene <= rightRatio en el gesto)
   const minPrice = ratioToPrice(leftRatio);
   const maxPrice = Math.max(minPrice + 1, ratioToPrice(rightRatio));
 
@@ -117,8 +120,7 @@ const VehicleValueHistogramChart = ({
   const trackY = barH + 2;
   const svgH = trackY + THUMB_R + 2;
 
-  const chart = (() => {
-    if (width <= 0) return null;
+  const chart = width <= 0 ? null : (() => {
     const gap = 1.25;
     const n = buckets.length;
     const barW = Math.max(2.5, (drawable - n * gap) / n);
@@ -169,6 +171,11 @@ const VehicleValueHistogramChart = ({
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>Rango de venta</Text>
+      <Text style={styles.subtitle}>
+        {origen === 'mercado'
+          ? 'Altura = cantidad de avisos en ese precio'
+          : 'Altura = densidad estimada del rango de venta (no son avisos reales)'}
+      </Text>
 
       <View
         style={[styles.box, { height: svgH }]}
@@ -212,8 +219,13 @@ const VehicleValueHistogramChart = ({
 const styles = StyleSheet.create({
   wrap: { width: '100%' },
   title: {
-    ...TYPOGRAPHY.styles.bodyBold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
+  },
+  subtitle: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    marginTop: 2,
     marginBottom: SPACING.sm,
   },
   box: {
@@ -252,21 +264,21 @@ const styles = StyleSheet.create({
   inputs: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: SPACING.md,
+    marginTop: SPACING.sm,
     gap: SPACING.sm,
   },
   inputCol: { flex: 1 },
   inputLabel: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   inputBox: {
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     borderRadius: BORDERS.radius.lg,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs,
     backgroundColor: COLORS.background.paper,
   },
   inputValue: {

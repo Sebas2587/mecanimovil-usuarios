@@ -17,7 +17,7 @@ const SegmentedControl = ({ segments = [], value, onChange, scrollable = false, 
     const active = value === seg.id;
     const { Icon } = seg;
     const label =
-      seg.count != null && seg.count > 0 ? `${seg.label} (${seg.count})` : seg.label;
+      seg.count != null ? `${seg.label} (${seg.count})` : seg.label;
     return (
       <TouchableOpacity
         key={seg.id}
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
+    backgroundColor: COLORS.primary[50],
     minHeight: 36,
   },
   pillActive: {

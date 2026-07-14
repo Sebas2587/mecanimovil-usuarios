@@ -1,6 +1,4 @@
 import React from 'react';
-import { Navigation } from 'lucide-react-native';
-import { COLORS } from '../../../design-system/tokens';
 import HomeProvidersCarouselSection from './HomeProvidersCarouselSection';
 
 /**
@@ -16,14 +14,9 @@ const HomeNearbySection = ({
 }) => {
   if (!selectedVehicle) return null;
 
-  const marcaLabel = selectedVehicle.marca_nombre || 'marca';
-  const modeloLabel = selectedVehicle.modelo_nombre || '';
-
   return (
     <HomeProvidersCarouselSection
-      icon={<Navigation size={16} color={COLORS.primary[500]} />}
       title="Cerca de ti"
-      hint={`Ordenados por cercanía desde tu dirección · ${marcaLabel} ${modeloLabel}.`.trim()}
       providers={providers}
       loading={loading}
       emptyRequiresAddress

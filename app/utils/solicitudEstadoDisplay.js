@@ -101,9 +101,9 @@ const ESTADO_SOLICITUD_SURFACE = {
     texto: 'Esperando proveedor',
   },
   adjudicada: {
-    color: COLORS.success[800],
-    bg: COLORS.success.light,
-    border: COLORS.success[200],
+    color: COLORS.primary[700],
+    bg: COLORS.primary[50],
+    border: COLORS.primary[200],
     texto: 'Adjudicada',
   },
   pendiente_pago: {
@@ -113,9 +113,9 @@ const ESTADO_SOLICITUD_SURFACE = {
     texto: 'Pendiente de pago',
   },
   pagada: {
-    color: COLORS.success[800],
-    bg: COLORS.success.light,
-    border: COLORS.success[200],
+    color: COLORS.primary[700],
+    bg: COLORS.primary[50],
+    border: COLORS.primary[200],
     texto: 'Pagada',
   },
   pagada_parcialmente: {
@@ -143,9 +143,9 @@ const ESTADO_SOLICITUD_SURFACE = {
     texto: 'Pendiente de tu firma',
   },
   completada: {
-    color: COLORS.success[800],
-    bg: COLORS.success.light,
-    border: COLORS.success[200],
+    color: COLORS.primary[700],
+    bg: COLORS.primary[50],
+    border: COLORS.primary[200],
     texto: 'Completada',
   },
   expirada: {
@@ -220,7 +220,7 @@ export function getEstadoOfertaDisplay(oferta, options = {}) {
   if (!oferta?.estado) {
     return {
       texto: 'Oferta aceptada',
-      color: COLORS.success[700],
+      color: COLORS.primary[700],
       icon: 'checkmark-circle-outline',
       pending: false,
     };
@@ -274,7 +274,7 @@ export function getEstadoOfertaDisplay(oferta, options = {}) {
 
   return {
     texto,
-    color: pending ? COLORS.warning[700] : COLORS.success[700],
+    color: pending ? COLORS.warning[700] : COLORS.primary[700],
     icon: OFERTA_ESTADO_ICON[oferta.estado] || 'checkmark-circle-outline',
     pending,
   };

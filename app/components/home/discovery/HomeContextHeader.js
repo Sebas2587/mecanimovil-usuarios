@@ -3,11 +3,11 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { HomeContextHeaderSkeleton } from '../../utils/HomePanelSkeletons';
 import { Image } from 'expo-image';
 import { Bell, Car, ChevronDown, MapPin, Plus } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
 import VehicleHealthCompactRing from '../../vehicles/VehicleHealthCompactRing';
 
 /**
- * Header compacto: dirección + notificaciones arriba, vehículo + salud debajo.
+ * Header home: dirección + notificaciones, luego selector de vehículo (Airbnb + Tinder).
  */
 const HomeContextHeader = ({
   selectedVehicle,
@@ -43,11 +43,11 @@ const HomeContextHeader = ({
           accessibilityRole="button"
           accessibilityLabel="Cambiar dirección de servicio"
         >
-          <MapPin size={16} color={COLORS.primary[500]} />
+          <MapPin size={15} color={COLORS.primary[500]} strokeWidth={2.25} />
           <Text style={styles.addressText} numberOfLines={1}>
             {addressLabel}
           </Text>
-          <ChevronDown size={16} color={COLORS.text.tertiary} style={styles.addressChevron} />
+          <ChevronDown size={15} color={COLORS.text.tertiary} strokeWidth={2} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -56,7 +56,7 @@ const HomeContextHeader = ({
           activeOpacity={0.85}
           accessibilityLabel="Notificaciones"
         >
-          <Bell size={20} color={COLORS.text.primary} />
+          <Bell size={18} color={COLORS.text.primary} strokeWidth={2} />
           {unreadCount > 0 ? (
             <View style={styles.bellBadge}>
               <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
@@ -77,7 +77,7 @@ const HomeContextHeader = ({
             <Image source={{ uri: selectedVehicle.foto }} style={styles.vehicleThumb} contentFit="cover" />
           ) : (
             <View style={[styles.vehicleThumb, styles.vehicleThumbFallback]}>
-              <Car size={16} color={COLORS.primary[500]} />
+              <Car size={15} color={COLORS.primary[500]} strokeWidth={2} />
             </View>
           )}
           <View style={styles.vehicleTextCol}>
@@ -96,15 +96,17 @@ const HomeContextHeader = ({
               loading={healthLoading}
               available={healthAvailable && !healthLoading}
               onPress={onPressHealth}
+              size={36}
+              compact
             />
           ) : null}
-          <ChevronDown size={18} color={COLORS.text.tertiary} />
+          <ChevronDown size={16} color={COLORS.text.tertiary} strokeWidth={2} />
         </TouchableOpacity>
       ) : vehiclesLoading ? (
         <HomeContextHeaderSkeleton />
       ) : (
         <TouchableOpacity style={styles.addVehiclePill} onPress={onAddVehicle} activeOpacity={0.85}>
-          <Plus size={18} color={COLORS.primary[500]} />
+          <Plus size={16} color={COLORS.primary[500]} strokeWidth={2.25} />
           <Text style={styles.addVehicleText}>Agregar vehículo</Text>
         </TouchableOpacity>
       )}
@@ -114,13 +116,13 @@ const HomeContextHeader = ({
 
 const styles = StyleSheet.create({
   wrap: {
-    marginBottom: 14,
-    gap: 10,
+    marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
   addressTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.xs,
   },
   addressBtn: {
     flex: 1,
@@ -128,33 +130,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     minWidth: 0,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   addressText: {
+    ...TYPOGRAPHY.styles.captionBold,
     flexShrink: 1,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.primary,
-  },
-  addressChevron: {
-    flexShrink: 0,
   },
   vehiclePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     minWidth: 0,
-    ...SHADOWS.sm,
   },
   vehicleThumb: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: BORDERS.radius.md,
     backgroundColor: COLORS.neutral.gray[100],
   },
@@ -168,59 +165,57 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   vehicleTitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
   },
   vehicleSub: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
-    marginTop: 1,
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    marginTop: 2,
+    fontSize: 12,
   },
   addVehiclePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
     backgroundColor: COLORS.primary[50],
     borderRadius: BORDERS.radius.lg,
-    borderWidth: 1,
-    borderColor: COLORS.primary[200],
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.primary[100],
   },
   addVehicleText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[600],
   },
   iconBtn: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: BORDERS.radius.full,
     backgroundColor: COLORS.background.paper,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
-    ...SHADOWS.sm,
   },
   bellBadge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    backgroundColor: COLORS.error.main,
+    top: -3,
+    right: -3,
+    backgroundColor: COLORS.primary[500],
     borderRadius: BORDERS.radius.full,
-    minWidth: 18,
-    height: 18,
+    minWidth: 16,
+    height: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     borderWidth: 2,
     borderColor: COLORS.background.paper,
   },
   bellBadgeText: {
-    color: COLORS.text.inverse,
+    color: COLORS.base.white,
     fontSize: 9,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
   },

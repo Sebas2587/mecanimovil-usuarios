@@ -3,6 +3,8 @@ export const HISTOGRAM_BUCKETS = 40;
 /**
  * Garantiza min <= max y que el valor del auto quede dentro (o cerca) del rango.
  * Evita el caso GetAPI donde la banda queda por encima del valor ajustado.
+ * En modo estimado redondea a miles para que Mínimo/Máximo no se vean como
+ * cifras “ruido” (ej. $2.489.274).
  */
 export function normalizePriceRange(rangoMin, rangoMax, valorReal = 0) {
   const valor = Number(valorReal) || 0;
@@ -37,30 +39,47 @@ export function normalizePriceRange(rangoMin, rangoMax, valorReal = 0) {
     hi = lo + Math.max(1, Math.round((valor || lo) * 0.05));
   }
 
-  return { min: Math.round(lo), max: Math.round(hi) };
+  const roundTo = (n) => {
+    if (n <= 0) return 0;
+    if (n >= 1_000_000) return Math.round(n / 1000) * 1000;
+    if (n >= 100_000) return Math.round(n / 1000) * 1000;
+    return Math.round(n);
+  };
+
+  return { min: roundTo(lo), max: roundTo(hi) };
 }
 
 /**
- * Distribución estilo Airbnb (colina) centrada en el valor del auto.
+ * Histograma estilo Airbnb (colina + rango seleccionable).
+ *
+ * - Con comparables reales: usa la distribución del backend.
+ * - Sin mercado: construye una colina visual centrada en el valor estimado
+ *   (mismo patrón visual de Airbnb Filters). No afirma conteos de avisos;
+ *   `origen: 'estimado'` deja eso explícito en la UI.
  */
 export function resolvePriceHistogram({
   histogram = [],
   valorReal = 0,
   rangoMin = 0,
   rangoMax = 0,
+  histogramaOrigen = null,
   buckets = HISTOGRAM_BUCKETS,
 }) {
   const { min, max } = normalizePriceRange(rangoMin, rangoMax, valorReal);
 
   if (Array.isArray(histogram) && histogram.length > 0) {
-    const sorted = [...histogram].sort(
-      (a, b) => (a.bucket_start || 0) - (b.bucket_start || 0),
-    );
-    const first = sorted[0]?.bucket_start ?? min;
-    const last = sorted[sorted.length - 1]?.bucket_end ?? max;
-    // Si el histograma viene invertido o vacío de span, regenerar sintético.
-    if (last > first) {
-      return { buckets: sorted, origen: 'mercado', min, max };
+    const isSynthetic =
+      histogramaOrigen === 'estimado' ||
+      histogram.some((b) => b?.sintetico === true);
+    if (!isSynthetic) {
+      const sorted = [...histogram].sort(
+        (a, b) => (a.bucket_start || 0) - (b.bucket_start || 0),
+      );
+      const first = sorted[0]?.bucket_start ?? min;
+      const last = sorted[sorted.length - 1]?.bucket_end ?? max;
+      if (last > first) {
+        return { buckets: sorted, origen: 'mercado', min, max };
+      }
     }
   }
 
@@ -72,35 +91,53 @@ export function resolvePriceHistogram({
   };
 }
 
+/**
+ * Colina visual estilo Airbnb cuando no hay avisos reales.
+ *
+ * NO es aleatoria ni cuenta avisos. Es una densidad estimada del rango de
+ * venta probable:
+ *   - eje X = precio (bajo → alto)
+ *   - altura = qué tan “probable / denso” se considera ese precio en el rango
+ *   - pico cerca del valor estimado del auto
+ *   - cola más baja a precios altos (menos densidad)
+ *
+ * Los thumbs Mínimo/Máximo arrancan en valor_real_rango_min/max del backend
+ * (GetAPI ± saneamiento), no en el extremo del eje visual.
+ */
 export function buildMountainHistogram(valorReal, rangoMin, rangoMax, buckets = HISTOGRAM_BUCKETS) {
   const valor = Number(valorReal) || 0;
   if (valor <= 0) return [];
 
   const { min: lo, max: hi } = normalizePriceRange(rangoMin, rangoMax, valor);
-  const pad = Math.max(Math.round((hi - lo) * 0.35), Math.round(valor * 0.04));
+  // Padding lateral como Airbnb: barras grises fuera del rango seleccionado.
+  const pad = Math.max(Math.round((hi - lo) * 0.28), Math.round(valor * 0.03));
   const axisLo = Math.max(0, lo - pad);
   const axisHi = hi + pad;
   const span = Math.max(axisHi - axisLo, 1);
   const step = Math.max(1, Math.floor(span / buckets));
-  const center = valor;
-  const sigma = Math.max(span / 5.5, step * 2.2);
+  // Pico un poco a la izquierda del valor (más densidad en el tercio bajo-medio).
+  const center = valor - (hi - lo) * 0.08;
+  const sigma = Math.max(span / 5.2, step * 2);
 
   const raw = [];
   for (let i = 0; i < buckets; i += 1) {
     const edgeLo = axisLo + i * step;
     const edgeHi = i === buckets - 1 ? axisHi : edgeLo + step;
     const mid = (edgeLo + edgeHi) / 2;
-    const gaussian = Math.exp(-0.5 * ((mid - center) / sigma) ** 2);
-    const jitter = 0.85 + ((i * 17) % 7) * 0.03;
-    raw.push({ edgeLo, edgeHi, gaussian: gaussian * jitter });
+    const z = (mid - center) / sigma;
+    // Campana suave y monótona a cada lado del pico (sin grano/jitter).
+    let density = Math.exp(-0.5 * z * z);
+    // Tope mínimo visual en los extremos para que no “desaparezcan”.
+    density = Math.max(density, 0.06);
+    raw.push({ edgeLo, edgeHi, density });
   }
 
-  const maxG = Math.max(...raw.map((b) => b.gaussian), 0.01);
+  const maxD = Math.max(...raw.map((b) => b.density), 0.01);
   return raw.map((b) => ({
     bucket_start: b.edgeLo,
     bucket_end: b.edgeHi,
-    count: Math.round(b.gaussian * 100),
-    normalized: Number((b.gaussian / maxG).toFixed(3)),
+    count: Math.round(b.density * 100),
+    normalized: Number((b.density / maxD).toFixed(3)),
     is_user_bucket: b.edgeLo <= valor && valor < b.edgeHi,
   }));
 }

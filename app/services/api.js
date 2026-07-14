@@ -265,6 +265,17 @@ function setupInterceptors(apiInstance) {
   apiInstance.interceptors.request.use(
     async (config) => {
       try {
+        // FormData: quitar Content-Type JSON por defecto para que el boundary se genere solo
+        if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+          if (config.headers) {
+            delete config.headers['Content-Type'];
+            delete config.headers['content-type'];
+            if (typeof config.headers.set === 'function') {
+              config.headers.set('Content-Type', false);
+            }
+          }
+        }
+
         // Agregar header de ngrok si es necesario (para evitar warning de ngrok-free.app)
         if (config.baseURL && (config.baseURL.includes('ngrok-free.app') || config.baseURL.includes('ngrok.io'))) {
           config.headers['ngrok-skip-browser-warning'] = 'true';
@@ -716,12 +727,13 @@ export const post = async (url, data = {}, options = {}) => {
       requiresAuth: options.requiresAuth
     };
 
-    // Si es FormData, NO establecer Content-Type - axios lo hace automáticamente con boundary
+    // Si es FormData, NO fijar Content-Type: el runtime añade boundary.
+    // Un "multipart/form-data" sin boundary hace que Django rechace el archivo.
     if (options.isFormData || data instanceof FormData) {
       config.headers = {
-        'Content-Type': 'multipart/form-data',
+        ...(options.headers || {}),
+        'Content-Type': undefined,
       };
-      // En React Native, axios necesita que transformRequest sea undefined para FormData
       config.transformRequest = (formData) => formData;
       // Timeout extendido para subida de archivos (60 segundos)
       config.timeout = options.timeout || 60000;
@@ -787,12 +799,12 @@ export const patch = async (url, data = {}, options = {}) => {
       requiresAuth: options.requiresAuth
     };
 
-    // Si es FormData, configurar correctamente para archivos
+    // Si es FormData, NO fijar Content-Type: el runtime añade boundary.
     if (options.isFormData || data instanceof FormData) {
       config.headers = {
-        'Content-Type': 'multipart/form-data',
+        ...(options.headers || {}),
+        'Content-Type': undefined,
       };
-      // En React Native, axios necesita que transformRequest sea undefined para FormData
       config.transformRequest = (formData) => formData;
       // Timeout extendido para subida de archivos (60 segundos)
       config.timeout = options.timeout || 60000;

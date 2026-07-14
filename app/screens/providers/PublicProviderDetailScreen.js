@@ -7,13 +7,12 @@ import {
   StatusBar,
   Platform,
   Linking,
-  Share,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MapPin, Globe, Star, Smartphone, Apple, Play } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
-import { buildPublicProviderUrl, buildDeepLinkProviderUrl, getAppStoreUrl, getPlayStoreUrl } from '../../config/publicListing';
+import { getAppStoreUrl, getPlayStoreUrl } from '../../config/publicListing';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
@@ -23,6 +22,7 @@ import ProviderCatalogServiceCard from '../../components/provider/ProviderCatalo
 import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
 import ProviderTeamSection from '../../components/provider/ProviderTeamSection';
 import Button from '../../components/base/Button/Button';
+import SectionHeader from '../../components/base/SectionHeader/SectionHeader';
 
 import { fetchPublicProviderFicha, getProviderReviews } from '../../services/providers';
 import {
@@ -31,7 +31,7 @@ import {
   parsePublicProviderFromUrl,
 } from '../../utils/publicListingRoute';
 
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { providerServiceCardStyles as svcCard } from '../../components/provider/providerServiceCardStyles';
 import {
   formatPrecioCatalogoServicio,
@@ -42,6 +42,8 @@ import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
 import { isProviderMultimarca } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
 import { useProviderTeam } from '../../hooks/useProviders';
+import { shareProviderProfile } from '../../utils/shareProviderProfile';
+import { formatProviderStreetAddress } from '../../utils/formatProviderStreetAddress';
 
 const Card = ({ children, style }) => <View style={[styles.card, style]}>{children}</View>;
 
@@ -152,47 +154,7 @@ const PublicProviderDetailScreen = () => {
 
   const handleShare = useCallback(async () => {
     if (providerId == null || providerId === '' || !providerType || !details) return;
-    try {
-      const webUrl = buildPublicProviderUrl(providerType, providerId);
-      const deepUrl = buildDeepLinkProviderUrl(providerType, providerId);
-      const isTaller = providerType === 'taller';
-      const titleSpec = isTaller ? 'Taller especializado' : 'Mecánico a domicilio';
-      const zonasComunas = details?.zonas_servicio
-        ? details.zonas_servicio.flatMap((z) => z.comunas || [])
-        : [];
-      const comunasRaw =
-        zonasComunas.length > 0
-          ? zonasComunas
-          : details.comunas_cobertura_nombres ||
-            details.comunas_cobertura?.map((c) => c?.nombre || c) ||
-            [];
-      const comunasArr = Array.isArray(comunasRaw) ? comunasRaw.filter(Boolean) : [];
-      let comunasText = '';
-      if (comunasArr.length > 0) {
-        comunasText =
-          comunasArr.length > 3
-            ? `Atiende en ${comunasArr.slice(0, 3).join(', ')} y más comunas.`
-            : `Atiende en ${comunasArr.join(', ')}.`;
-      } else {
-        comunasText = isTaller
-          ? details.comuna
-            ? `Atiende en ${details.comuna}.`
-            : ''
-          : 'Atiende a domicilio.';
-      }
-      const marcasArr = details.marcas_atendidas_nombres || ['Multimarca'];
-      const marcasText =
-        marcasArr.length > 6 ? `${marcasArr.slice(0, 6).join(', ')}...` : marcasArr.join(', ');
-      const name = details.nombre || 'Especialista';
-      const messageTexto = `Conoce a ${name}, ${titleSpec}.\n${comunasText}\nEspecialista en: ${marcasText}\n\nVer en la web:\n${webUrl}\n\nAbrir en la app:\n${deepUrl}`;
-      if (Platform.OS === 'web') {
-        await Share.share({ message: messageTexto, title: 'MecaniMóvil', url: webUrl });
-      } else {
-        await Share.share({ message: messageTexto, url: webUrl });
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    await shareProviderProfile(details, providerType, providerId);
   }, [providerId, providerType, details]);
 
   const completedJobs = [];
@@ -244,7 +206,7 @@ const PublicProviderDetailScreen = () => {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <StatusBar barStyle="dark-content" />
-        <Text style={styles.bodyText}>Cargando información del especialista...</Text>
+        <Text style={styles.bodyTextCenter}>Cargando información del especialista...</Text>
       </View>
     );
   }
@@ -336,18 +298,21 @@ const PublicProviderDetailScreen = () => {
 
           return (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Comunas de Cobertura</Text>
+              <SectionHeader
+                title="Comunas de cobertura"
+                icon={<MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />}
+              />
               {comunas.length > 0 ? (
                 <View style={styles.tagsRow}>
                   {comunas.map((c, i) => (
                     <View key={`${c}-${i}`} style={styles.tagBadge}>
-                      <MapPin size={12} color={COLORS.text.secondary} style={{ marginRight: 4 }} />
+                      <MapPin size={12} color={COLORS.text.secondary} strokeWidth={2} />
                       <Text style={styles.tagText}>{String(c)}</Text>
                     </View>
                   ))}
                 </View>
               ) : (
-                <Card style={{ marginTop: 10 }}>
+                <Card>
                   <Text style={styles.bodyMutedText}>Cobertura no disponible.</Text>
                 </Card>
               )}
@@ -355,19 +320,19 @@ const PublicProviderDetailScreen = () => {
           );
         }
 
-        const addr =
-          provider.direccion_fisica?.direccion_completa ||
-          provider.direccion_taller ||
-          null;
-        const comuna = provider.direccion_fisica?.comuna || provider.comuna || '';
-        const display = [addr, comuna].filter(Boolean).join(', ') || 'Dirección no disponible.';
+        const display =
+          formatProviderStreetAddress(provider) ||
+          'Este taller aún no ha publicado su dirección.';
 
         return (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Dirección del Taller</Text>
-            <Card style={{ marginTop: 10 }}>
+            <SectionHeader
+              title="Dirección del taller"
+              icon={<MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />}
+            />
+            <Card>
               <View style={styles.iconRow}>
-                <MapPin size={18} color={COLORS.primary[500]} />
+                <MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />
                 <Text style={styles.bodyText}>{display}</Text>
               </View>
             </Card>
@@ -385,17 +350,18 @@ const PublicProviderDetailScreen = () => {
 
         return (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
-            </Text>
+            <SectionHeader
+              title={esMultimarca ? 'Cobertura de marcas' : 'Especialidad en marcas'}
+              icon={<Globe size={18} color={COLORS.primary[500]} strokeWidth={2} />}
+            />
 
             {esMultimarca ? (
               <View style={styles.multimarcaBadge}>
                 <View style={styles.multimarcaBadgeIconWrap}>
-                  <Globe size={24} color={COLORS.primary[600]} />
+                  <Globe size={22} color={COLORS.primary[500]} strokeWidth={2} />
                 </View>
-                <View>
-                  <Text style={styles.multimarcaBadgeTitle}>Proveedor Multimarca</Text>
+                <View style={styles.multimarcaBadgeText}>
+                  <Text style={styles.multimarcaBadgeTitle}>Proveedor multimarca</Text>
                   <Text style={styles.multimarcaBadgeSub}>Atiende vehículos de cualquier marca</Text>
                 </View>
               </View>
@@ -405,9 +371,9 @@ const PublicProviderDetailScreen = () => {
                   <View key={i} style={[styles.tagBadge, styles.tagBadgeSpecialista]}>
                     <Star
                       size={12}
-                      color={COLORS.secondary[600]}
-                      fill={COLORS.secondary[500]}
-                      style={{ marginRight: 4 }}
+                      color={COLORS.primary[600]}
+                      fill={COLORS.primary[500]}
+                      strokeWidth={2}
                     />
                     <Text style={[styles.tagText, styles.tagTextEspecialista]}>{brand}</Text>
                   </View>
@@ -432,17 +398,16 @@ const PublicProviderDetailScreen = () => {
 
       <Divider />
 
-      {/* SECCIÓN DE SERVICIOS PÚBLICA */}
       {serviciosVisibles.length > 0 ? (
         <View style={[styles.section, styles.sectionLast]}>
-          <Text style={styles.sectionTitle}>Servicios Profesionales</Text>
+          <SectionHeader title="Servicios" />
           {esMultimarcaProveedor ? (
             <Text style={styles.sectionHint}>
-              Precios orientativos; al agendar verás el valor según la marca de tu vehículo. Inicia sesión para solicitar.
+              Precios orientativos. Inicia sesión para agendar según tu vehículo.
             </Text>
           ) : (
             <Text style={styles.sectionHint}>
-              Servicios activos de este especialista. Inicia sesión para solicitar presupuesto.
+              Servicios activos. Inicia sesión para solicitar presupuesto.
             </Text>
           )}
           <View style={svcCard.servicesGrid}>
@@ -468,16 +433,14 @@ const PublicProviderDetailScreen = () => {
       <ProviderCompletedJobsSection jobs={completedJobs} />
       <PortfolioCarousel portfolio={provider.portafolio || []} />
 
-      {/* CTA Login */}
       <View style={[styles.section, styles.ctaSection]}>
         <Card style={styles.ctaCard}>
           <Text style={styles.ctaTitle}>¿Necesitas un servicio?</Text>
           <Text style={styles.ctaText}>
-            Inicia sesión para solicitar presupuestos, chatear con este especialista y agendar tu
-            atención.
+            Inicia sesión para pedir presupuestos, chatear y agendar con este especialista.
           </Text>
           <Button
-            title="Iniciar Sesión"
+            title="Iniciar sesión"
             type="primary"
             size="lg"
             fullWidth
@@ -521,45 +484,43 @@ const styles = StyleSheet.create({
   centerContent: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: SPACING.lg,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: SPACING.xl,
   },
   bannerWrap: {
     paddingHorizontal: SPACING.container.horizontal,
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
   },
   downloadBanner: {
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDERS.radius.lg,
     backgroundColor: COLORS.background.paper,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
   },
   downloadBannerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    gap: SPACING.sm,
+    marginBottom: SPACING.xs,
   },
   downloadBannerTitle: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
   downloadBannerSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: 18,
-    marginBottom: 14,
+    marginBottom: SPACING.md,
   },
   downloadBannerActions: {
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: SPACING.sm,
   },
   downloadBannerBtn: {
     flex: 1,
@@ -567,7 +528,7 @@ const styles = StyleSheet.create({
     maxWidth: Platform.OS === 'web' ? 220 : 200,
   },
   divider: {
-    height: 1,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: COLORS.border.light,
     marginHorizontal: SPACING.container.horizontal,
     marginVertical: SPACING.lg,
@@ -580,151 +541,112 @@ const styles = StyleSheet.create({
   },
   ctaSection: {
     marginTop: SPACING.lg,
-    marginBottom: SPACING.xl + SPACING.xs,
-  },
-  iconTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: -0.25,
-    color: COLORS.text.primary,
-    marginBottom: 0,
+    marginBottom: SPACING.xl,
   },
   sectionHint: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: 20,
-    marginTop: 8,
-    marginBottom: 12,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   card: {
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.lg,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
-    padding: 16,
-    ...SHADOWS.sm,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
   },
   bodyText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.primary,
     flex: 1,
-    lineHeight: 22,
-    marginLeft: 10,
+    marginLeft: SPACING.sm,
   },
   bodyMutedText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: 20,
-    marginLeft: 10,
-    flex: 1,
   },
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  providerTypeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BORDERS.radius.full,
-  },
-  providerTypeBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: COLORS.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
   multimarcaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.sm,
     backgroundColor: COLORS.primary[50],
     borderRadius: BORDERS.radius.lg,
-    padding: 14,
-    marginTop: 10,
-    borderWidth: 1,
+    padding: SPACING.md,
+    marginTop: SPACING.sm,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.primary[100],
   },
   multimarcaBadgeIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: BORDERS.radius.full,
+    borderRadius: 20,
     backgroundColor: COLORS.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
+  multimarcaBadgeText: {
+    flex: 1,
+    minWidth: 0,
+  },
   multimarcaBadgeTitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[600],
-    marginBottom: 2,
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.primary[700],
   },
   multimarcaBadgeSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.primary[500],
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.primary[600],
+    marginTop: 2,
   },
   tagBadgeSpecialista: {
-    backgroundColor: COLORS.secondary[50],
-    borderColor: COLORS.secondary[200],
+    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.primary[100],
   },
   tagTextEspecialista: {
-    color: COLORS.secondary[700],
+    color: COLORS.primary[700],
   },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
+    gap: SPACING.sm,
+    marginTop: SPACING.sm,
   },
   tagBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     backgroundColor: COLORS.neutral.gray[100],
-    paddingHorizontal: 14,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 6,
     borderRadius: BORDERS.radius.full,
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
-    overflow: 'hidden',
   },
   tagText: {
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
-  // CTA Styles
   ctaCard: {
-    padding: 24,
+    padding: SPACING.lg,
     alignItems: 'center',
   },
   ctaTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    letterSpacing: -0.25,
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
-    marginBottom: 8,
+    marginBottom: SPACING.xs,
     textAlign: 'center',
   },
   ctaText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 20,
+    marginBottom: SPACING.md,
   },
   fallbackPrimaryButton: {
     marginTop: SPACING.lg,
@@ -735,11 +657,15 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   errorText: {
+    ...TYPOGRAPHY.styles.body,
     color: COLORS.text.primary,
     textAlign: 'center',
-    marginBottom: 16,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    lineHeight: 22,
+    marginBottom: SPACING.md,
+  },
+  bodyTextCenter: {
+    ...TYPOGRAPHY.styles.body,
+    color: COLORS.text.secondary,
+    textAlign: 'center',
   },
 });
 

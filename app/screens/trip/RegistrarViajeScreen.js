@@ -14,10 +14,11 @@ import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens
 import { ROUTES } from '../../utils/constants';
 import { useTripTracking } from '../../context/TripTrackingContext';
 import HomeTelemetrySection from '../../components/home/dashboard/HomeTelemetrySection';
-import { HomePanelCard } from '../../components/home/shared/HomePanelCard';
 import { formatKm } from '../../components/home/shared/homeFormatters';
-import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
 
+/**
+ * Registrar viaje GPS — Airbnb layout + tipografía / colores Tinder.
+ */
 const RegistrarViajeScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -54,21 +55,18 @@ const RegistrarViajeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <SolicitudFlowHeader
-        title="Registrar viaje"
-        subtitle="GPS · actualiza tu kilometraje"
-        onBack={() => navigation.goBack()}
-      />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
 
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingBottom: insets.bottom + (tripActive ? 88 : 24) },
+          { paddingBottom: insets.bottom + (tripActive ? 88 : SPACING.lg) },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <Text style={styles.lead}>GPS · actualiza tu kilometraje</Text>
+
         {vehicles.length > 1 ? (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Vehículo</Text>
@@ -87,8 +85,9 @@ const RegistrarViajeScreen = () => {
                     activeOpacity={0.85}
                   >
                     <Car
-                      size={16}
-                      color={active ? COLORS.primary[600] : COLORS.text.tertiary}
+                      size={15}
+                      color={active ? COLORS.primary[500] : COLORS.text.tertiary}
+                      strokeWidth={2}
                     />
                     <Text
                       style={[styles.vehicleChipText, active && styles.vehicleChipTextActive]}
@@ -102,46 +101,44 @@ const RegistrarViajeScreen = () => {
             </ScrollView>
           </View>
         ) : (
-          <HomePanelCard style={styles.vehicleCard}>
-            <View style={styles.vehicleSummary}>
-              <View style={styles.vehicleIconWrap}>
-                <Car size={20} color={COLORS.primary[600]} />
-              </View>
-              <View style={styles.vehicleSummaryText}>
-                <Text style={styles.vehicleName} numberOfLines={1}>
-                  {vehicleLabel}
-                </Text>
-                <Text style={styles.vehicleSub}>
-                  Odómetro actual · {formatKm(odometer)} km
-                </Text>
-              </View>
-              {!selectedVehicle ? (
-                <TouchableOpacity
-                  onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
-                  activeOpacity={0.85}
-                >
-                  <ChevronRight size={20} color={COLORS.primary[500]} />
-                </TouchableOpacity>
-              ) : null}
+          <View style={styles.vehicleCard}>
+            <View style={styles.vehicleIconWrap}>
+              <Car size={18} color={COLORS.primary[500]} strokeWidth={2} />
             </View>
-          </HomePanelCard>
+            <View style={styles.vehicleSummaryText}>
+              <Text style={styles.vehicleName} numberOfLines={1}>
+                {vehicleLabel}
+              </Text>
+              <Text style={styles.vehicleSub}>
+                Odómetro · {formatKm(odometer)} km
+              </Text>
+            </View>
+            {!selectedVehicle ? (
+              <TouchableOpacity
+                onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
+                activeOpacity={0.85}
+                hitSlop={8}
+              >
+                <ChevronRight size={18} color={COLORS.text.tertiary} strokeWidth={2} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         )}
 
         {!selectedVehicle ? (
-          <HomePanelCard style={styles.hintCard}>
+          <View style={styles.hintCard}>
             <Text style={styles.hintTitle}>Sin vehículo</Text>
             <Text style={styles.hintBody}>
-              Registra un vehículo para poder iniciar el seguimiento GPS y actualizar el
-              kilometraje al terminar el viaje.
+              Agrega un auto para iniciar el seguimiento GPS y actualizar el kilometraje.
             </Text>
             <TouchableOpacity
               style={styles.hintBtn}
               onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
-              activeOpacity={0.85}
+              activeOpacity={0.9}
             >
               <Text style={styles.hintBtnText}>Agregar vehículo</Text>
             </TouchableOpacity>
-          </HomePanelCard>
+          </View>
         ) : (
           <HomeTelemetrySection
             tripActive={tripActive}
@@ -155,8 +152,7 @@ const RegistrarViajeScreen = () => {
 
         {tripActive ? (
           <Text style={styles.footerHint}>
-            Puedes usar otras secciones de la app; la barra inferior seguirá mostrando el viaje
-            activo hasta que pulses Detener.
+            Puedes seguir usando la app; la barra inferior mantiene el viaje hasta que lo detengas.
           </Text>
         ) : null}
       </ScrollView>
@@ -173,53 +169,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.container.horizontal,
     paddingTop: SPACING.md,
   },
+  lead: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    marginBottom: SPACING.md,
+  },
   section: {
     marginBottom: SPACING.md,
   },
   sectionLabel: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
-    marginBottom: 8,
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.sm,
   },
   vehicleRow: {
-    gap: 8,
-    paddingRight: 8,
+    gap: SPACING.sm,
+    paddingRight: SPACING.sm,
   },
   vehicleChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: BORDERS.radius.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDERS.radius.lg,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
-    maxWidth: 200,
+    maxWidth: 220,
   },
   vehicleChipActive: {
-    borderColor: COLORS.primary[400],
+    borderColor: COLORS.primary[500],
+    borderWidth: 2,
     backgroundColor: COLORS.primary[50],
+    paddingHorizontal: SPACING.sm - 1,
+    paddingVertical: SPACING.sm - 1,
   },
   vehicleChipText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    maxWidth: 160,
   },
   vehicleChipTextActive: {
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[700],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   vehicleCard: {
-    marginBottom: SPACING.md,
-  },
-  vehicleSummary: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.sm,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   vehicleIconWrap: {
     width: 40,
@@ -234,47 +238,46 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   vehicleName: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
   vehicleSub: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
     marginTop: 2,
   },
   hintCard: {
-    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
   },
   hintTitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
-    marginBottom: 6,
+    marginBottom: SPACING.xs,
   },
   hintBody: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: SPACING.md,
   },
   hintBtn: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: BORDERS.radius.button.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDERS.radius.lg,
     backgroundColor: COLORS.primary[500],
   },
   hintBtnText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.onPrimary,
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.base.white,
   },
   footerHint: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
-    lineHeight: 20,
-    marginTop: SPACING.sm,
+    marginTop: SPACING.md,
     textAlign: 'center',
   },
 });

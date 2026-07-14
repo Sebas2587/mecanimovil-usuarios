@@ -28,7 +28,7 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BackButton from '../../components/navigation/BackButton';
-import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
 
 // Services & Context
 import chatService from '../../services/chatService';
@@ -1224,15 +1224,17 @@ const styles = StyleSheet.create({
   compareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.gray[100],
+    backgroundColor: COLORS.primary[50],
     paddingHorizontal: SPACING.md,
     paddingVertical: 8,
     borderRadius: BORDERS.radius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.primary[100],
     gap: 6,
   },
   compareButtonText: {
     ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.text.primary,
+    color: COLORS.primary[500],
   },
   offersSubtitle: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -1246,12 +1248,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginBottom: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderRadius: BORDERS.radius.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.primary[300],
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
   },
   referenciaSolicitudText: {
     fontSize: 13,
@@ -1261,22 +1263,20 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderRadius: BORDERS.radius.xl,
-    borderWidth: BORDERS.width.thin,
+    paddingVertical: 48,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
-    borderStyle: 'dashed',
   },
   emptyStateText: {
     marginTop: 16,
-    fontSize: 16,
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
   emptyStateSubtext: {
     marginTop: 8,
-    fontSize: 14,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     textAlign: 'center',
     paddingHorizontal: 32,
@@ -1416,13 +1416,11 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
-    borderWidth: BORDERS.width.thin,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
-    ...SHADOWS.sm,
   },
   fotosNecesidadTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
     marginBottom: SPACING.sm,
   },
@@ -1433,7 +1431,7 @@ const styles = StyleSheet.create({
   fotosNecesidadThumbWrap: {
     borderRadius: BORDERS.radius.md,
     overflow: 'hidden',
-    borderWidth: BORDERS.width.thin,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
   },
   fotosNecesidadThumb: {
@@ -1450,14 +1448,13 @@ const styles = StyleSheet.create({
   unifiedSolicitudCard: {
     marginBottom: SPACING.md,
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.card.lg,
-    borderWidth: BORDERS.width.thin,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
-    ...SHADOWS.sm,
   },
   unifiedSectionDivider: {
-    height: BORDERS.width.thin,
+    height: StyleSheet.hairlineWidth,
     backgroundColor: COLORS.border.light,
     marginHorizontal: SPACING.md,
   },
@@ -1467,14 +1464,11 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xs,
   },
   unifiedOfferTitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
   },
   unifiedOfferHint: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     marginTop: 4,
     lineHeight: 16,
@@ -1492,10 +1486,10 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     marginBottom: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: COLORS.neutral.gray[50],
+    backgroundColor: COLORS.primary[50],
     borderRadius: BORDERS.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border.light,
+    borderColor: COLORS.primary[100],
   },
   catalogoBannerTextWrap: {
     flex: 1,
@@ -1513,10 +1507,10 @@ const styles = StyleSheet.create({
   fechaAlternativaCard: {
     marginBottom: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: COLORS.warning[50],
+    backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.warning[200],
+    borderColor: COLORS.border.light,
   },
   fechaAlternativaTitle: {
     ...TYPOGRAPHY.styles.bodyBold,
@@ -1552,29 +1546,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tecnicoPropuestoNombre: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: '600',
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
   },
   tecnicoPropuestoHint: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     marginTop: 2,
   },
   fechaAlternativaMotivo: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     marginBottom: 12,
   },
   fechaAlternativaBtn: {
-    backgroundColor: COLORS.primary[600],
+    backgroundColor: COLORS.primary[500],
     paddingVertical: 12,
     borderRadius: BORDERS.radius.pill,
     alignItems: 'center',
   },
   fechaAlternativaBtnText: {
     color: COLORS.text.onPrimary,
-    fontWeight: '600',
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     fontSize: TYPOGRAPHY.fontSize.sm,
   },
   fotoLightboxImage: {

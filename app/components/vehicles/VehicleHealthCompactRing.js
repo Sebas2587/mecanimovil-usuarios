@@ -5,30 +5,28 @@ import { COLORS, TYPOGRAPHY } from '../../design-system/tokens';
 import { getHealthColor, getHealthLabel } from '../../utils/healthFormat';
 import Skeleton from '../feedback/Skeleton/Skeleton';
 
-const DEFAULT_SIZE = 44;
+const DEFAULT_SIZE = 40;
 
 /**
- * Anillo compacto de salud (Coinbase-light): track hairline + arco semántico + % tabular.
- * El stroke usa siempre getHealthColor (tokens .main), no overrides legacy (warning.dark).
+ * Anillo compacto de salud — Airbnb (solo %) + stroke semántico Tinder/tokens.
  */
 const VehicleHealthCompactRing = ({
   score = 0,
-  // `color` se ignora: el stroke siempre sale de getHealthColor (tokens .main).
   color: _color,
   loading = false,
   available = true,
   size = DEFAULT_SIZE,
+  compact = false,
   onPress,
   accessibilityLabel,
 }) => {
   const pct = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
-  const strokeColor = available ? getHealthColor(pct) : COLORS.neutral.gray[400];
-  const bgFill = 'transparent';
-  const trackColor = COLORS.border.light;
+  const strokeColor = available ? getHealthColor(pct) : COLORS.neutral.gray[300];
+  const trackColor = COLORS.neutral.gray[100];
 
   const { radius, circumference, strokeDashoffset, strokeWidth } = useMemo(() => {
-    const sw = Math.max(3, Math.round(size * 0.07));
-    const r = (size - sw) / 2 - 1;
+    const sw = compact ? 2.5 : Math.max(2.5, Math.round(size * 0.065));
+    const r = (size - sw) / 2 - 0.5;
     const c = 2 * Math.PI * r;
     const offset = c - (pct / 100) * c;
     return {
@@ -37,10 +35,12 @@ const VehicleHealthCompactRing = ({
       strokeDashoffset: offset,
       strokeWidth: sw,
     };
-  }, [size, pct]);
+  }, [size, pct, compact]);
 
   const center = size / 2;
-  const pctFontSize = Math.max(11, Math.round(size * 0.3));
+  const pctFontSize = compact
+    ? Math.max(10, Math.round(size * 0.28))
+    : Math.max(11, Math.round(size * 0.3));
   const label = available ? getHealthLabel(pct) : 'Sin datos';
 
   const a11y =
@@ -54,7 +54,7 @@ const VehicleHealthCompactRing = ({
   const inner = loading ? (
     <View style={[styles.wrap, { width: size, height: size }]}>
       <View style={[styles.skeletonRing, { width: size, height: size, borderRadius: size / 2 }]}>
-        <Skeleton width={size * 0.42} height={10} borderRadius={4} />
+        <Skeleton width={size * 0.4} height={8} borderRadius={4} />
       </View>
     </View>
   ) : (
@@ -66,7 +66,7 @@ const VehicleHealthCompactRing = ({
           r={radius}
           stroke={trackColor}
           strokeWidth={strokeWidth}
-          fill={bgFill}
+          fill={COLORS.base.white}
         />
         {available ? (
           <Circle
@@ -89,16 +89,13 @@ const VehicleHealthCompactRing = ({
           style={[
             styles.pct,
             {
-              color: available ? strokeColor : COLORS.text.tertiary,
+              color: available ? COLORS.text.primary : COLORS.text.tertiary,
               fontSize: pctFontSize,
-              lineHeight: pctFontSize + 2,
+              lineHeight: pctFontSize + 1,
             },
           ]}
         >
           {available ? `${pct}%` : '—'}
-        </Text>
-        <Text style={styles.saludLabel} numberOfLines={1}>
-          Salud
         </Text>
       </View>
     </View>
@@ -133,7 +130,7 @@ const styles = StyleSheet.create({
   },
   skeletonRing: {
     backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
     alignItems: 'center',
     justifyContent: 'center',
@@ -142,19 +139,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
   },
   pct: {
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    fontVariant: ['tabular-nums'],
-  },
-  saludLabel: {
-    fontSize: 8,
+    fontFamily: TYPOGRAPHY.styles.captionBold.fontFamily,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.35,
-    marginTop: 0,
+    fontVariant: ['tabular-nums'],
   },
 });
 

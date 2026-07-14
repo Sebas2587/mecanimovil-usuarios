@@ -2,9 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import Button from '../../base/Button/Button';
-import { HomePanelCard } from '../shared/HomePanelCard';
 import { formatDuration } from '../shared/homeFormatters';
 
+/**
+ * Bloque de telemetría del viaje — tipografía Airbnb + acento Tinder.
+ */
 const HomeTelemetrySection = ({
   tripActive,
   tripKm,
@@ -13,100 +15,102 @@ const HomeTelemetrySection = ({
   onStartTrip,
   onStopTrip,
 }) => (
-  <HomePanelCard style={styles.card}>
-    <View style={styles.stack}>
-      <Text style={styles.consoleLabel}>Viaje y telemetría</Text>
+  <View style={styles.card}>
+    <Text style={styles.title}>Viaje</Text>
+    <Text style={styles.subtitle}>Telemetría en tiempo real</Text>
 
-      <View style={styles.kmRow}>
-        <Text style={[styles.kmHuge, tripActive && styles.kmHugeLive]}>{tripKm.toFixed(1)}</Text>
-        <Text style={styles.kmUnit}>km</Text>
-      </View>
-
-      {tripActive ? (
-        <View style={styles.liveMetrics}>
-          <View style={styles.liveMetric}>
-            <Text style={styles.liveMetricLabel}>Tiempo</Text>
-            <Text style={styles.liveMetricValue}>{formatDuration(tripElapsed)}</Text>
-          </View>
-          <View style={styles.liveDivider} />
-          <View style={styles.liveMetric}>
-            <Text style={styles.liveMetricLabel}>Velocidad</Text>
-            <Text style={styles.liveMetricValue}>{Math.round(currentSpeed)} km/h</Text>
-          </View>
-        </View>
-      ) : (
-        <Text style={styles.hint}>
-          Registra un viaje con GPS y actualiza los kilómetros recorridos en tiempo real.
-        </Text>
-      )}
-
-      <View style={styles.ctaWrap}>
-        {tripActive ? (
-          <Button
-            title="Detener viaje"
-            onPress={onStopTrip}
-            type="danger"
-            variant="solid"
-            size="md"
-            fullWidth
-          />
-        ) : (
-          <Button
-            title="Iniciar viaje"
-            onPress={onStartTrip}
-            type="primary"
-            variant="solid"
-            size="md"
-            fullWidth
-          />
-        )}
-      </View>
+    <View style={styles.kmRow}>
+      <Text style={[styles.kmHuge, tripActive && styles.kmHugeLive]}>
+        {Number(tripKm || 0).toFixed(1)}
+      </Text>
+      <Text style={styles.kmUnit}>km</Text>
     </View>
-  </HomePanelCard>
+
+    {tripActive ? (
+      <View style={styles.liveMetrics}>
+        <View style={styles.liveMetric}>
+          <Text style={styles.liveMetricLabel}>Tiempo</Text>
+          <Text style={styles.liveMetricValue}>{formatDuration(tripElapsed)}</Text>
+        </View>
+        <View style={styles.liveDivider} />
+        <View style={styles.liveMetric}>
+          <Text style={styles.liveMetricLabel}>Velocidad</Text>
+          <Text style={styles.liveMetricValue}>{Math.round(currentSpeed || 0)} km/h</Text>
+        </View>
+      </View>
+    ) : (
+      <Text style={styles.hint}>
+        Registra un viaje con GPS y actualiza los kilómetros en tiempo real.
+      </Text>
+    )}
+
+    <View style={styles.ctaWrap}>
+      {tripActive ? (
+        <Button
+          title="Detener viaje"
+          onPress={onStopTrip}
+          type="danger"
+          variant="solid"
+          size="md"
+          fullWidth
+        />
+      ) : (
+        <Button
+          title="Iniciar viaje"
+          onPress={onStartTrip}
+          type="primary"
+          variant="solid"
+          size="md"
+          fullWidth
+        />
+      )}
+    </View>
+  </View>
 );
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: 12,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
   },
-  stack: {
-    gap: SPACING.sm,
+  title: {
+    ...TYPOGRAPHY.styles.h4,
+    color: COLORS.text.primary,
   },
-  consoleLabel: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
+  subtitle: {
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    marginTop: 2,
+    marginBottom: SPACING.md,
   },
   kmRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    flexWrap: 'wrap',
     gap: SPACING.xs,
+    marginBottom: SPACING.sm,
   },
   kmHuge: {
     ...TYPOGRAPHY.styles.numberDisplay,
-    fontSize: TYPOGRAPHY.fontSize['3xl'],
-    lineHeight: 34,
     color: COLORS.text.primary,
     ...(Platform.OS === 'web' ? { fontFeatureSettings: '"tnum"' } : {}),
   },
   kmHugeLive: {
-    fontSize: TYPOGRAPHY.styles.numberDisplay.fontSize,
-    lineHeight: TYPOGRAPHY.styles.numberDisplay.lineHeight,
+    color: COLORS.primary[600],
   },
   kmUnit: {
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontFamily: TYPOGRAPHY.fontFamily.mono,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.tertiary,
   },
   liveMetrics: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    paddingTop: SPACING.sm,
-    borderTopWidth: BORDERS.width.thin,
+    paddingTop: SPACING.md,
+    marginTop: SPACING.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.border.light,
     gap: SPACING.md,
   },
@@ -114,30 +118,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   liveDivider: {
-    width: 1,
+    width: StyleSheet.hairlineWidth,
     backgroundColor: COLORS.border.light,
     marginVertical: 2,
   },
   liveMetricLabel: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
-    textTransform: 'uppercase',
     marginBottom: 4,
   },
   liveMetricValue: {
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontFamily: TYPOGRAPHY.fontFamily.mono,
+    ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
   },
   hint: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    lineHeight: 21,
+    marginBottom: SPACING.sm,
   },
   ctaWrap: {
-    marginTop: SPACING.xs,
+    marginTop: SPACING.sm,
   },
 });
 

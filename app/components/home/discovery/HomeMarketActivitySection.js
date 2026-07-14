@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { Users } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import { HomeTrendingChipsSkeleton } from '../../utils/HomePanelSkeletons';
@@ -37,28 +36,16 @@ const HomeMarketActivitySection = ({
     [onSelectService],
   );
 
-  if (!loading && items.length === 0) {
-    return (
-      <View style={styles.section}>
-        <HomeSectionHeader
-          icon={<Users size={16} color={COLORS.primary[500]} strokeWidth={2} />}
-          title="Servicios en tu modelo"
-          hint={`Dueños de ${vehicleLabel} aún no han agendado servicios suficientes para mostrar tendencias.`}
-        />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.section}>
-      <HomeSectionHeader
-        icon={<Users size={16} color={COLORS.primary[500]} strokeWidth={2} />}
-        title="Servicios en tu modelo"
-        hint={`Lo que más agendan dueños de ${vehicleLabel}.`}
-      />
+      <HomeSectionHeader title="Servicios en tu modelo" />
 
       {loading ? (
         <HomeTrendingChipsSkeleton />
+      ) : items.length === 0 ? (
+        <Text style={styles.emptyText}>
+          {`Aún no hay suficientes agendamientos de dueños de ${vehicleLabel}.`}
+        </Text>
       ) : (
         <ScrollView
           horizontal
@@ -100,6 +87,11 @@ const TILE_W = 156;
 const styles = StyleSheet.create({
   section: {
     marginBottom: SPACING.lg,
+  },
+  emptyText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    lineHeight: 20,
   },
   rail: {
     flexDirection: 'row',

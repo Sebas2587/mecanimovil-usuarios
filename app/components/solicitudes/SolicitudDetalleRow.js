@@ -55,12 +55,10 @@ const styles = StyleSheet.create({
     gap: SPACING.xxs,
   },
   label: {
-    ...TYPOGRAPHY.styles.small,
+    ...TYPOGRAPHY.styles.caption,
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    color: COLORS.text.secondary,
     flexShrink: 1,
   },
   valueBlock: {

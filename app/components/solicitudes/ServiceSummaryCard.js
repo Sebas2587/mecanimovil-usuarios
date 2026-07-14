@@ -417,12 +417,10 @@ const styles = StyleSheet.create({
         minWidth: 0,
     },
     vehiculoEyebrow: {
-        ...TYPOGRAPHY.styles.small,
+        ...TYPOGRAPHY.styles.caption,
         fontFamily: TYPOGRAPHY.fontFamily.medium,
         fontWeight: TYPOGRAPHY.fontWeight.medium,
-        color: COLORS.text.tertiary,
-        textTransform: 'uppercase',
-        letterSpacing: 0.6,
+        color: COLORS.text.secondary,
         marginBottom: 2,
     },
     vehiculoTitulo: {
@@ -499,14 +497,12 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         paddingHorizontal: SPACING.sm,
         paddingVertical: 5,
-        borderRadius: BORDERS.radius.sm,
-        borderWidth: 1,
+        borderRadius: BORDERS.radius.pill,
+        borderWidth: StyleSheet.hairlineWidth,
         maxWidth: '100%',
     },
     estadoBadgeText: {
-        ...TYPOGRAPHY.styles.small,
-        fontFamily: TYPOGRAPHY.fontFamily.semibold,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         lineHeight: 16,
     },
     preciosInline: {
@@ -545,7 +541,7 @@ const styles = StyleSheet.create({
         ...TYPOGRAPHY.styles.h5,
         fontFamily: TYPOGRAPHY.fontFamily.semibold,
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.primary[600],
+        color: COLORS.primary[500],
     },
     detailsSection: {
         marginTop: SPACING.xxs,

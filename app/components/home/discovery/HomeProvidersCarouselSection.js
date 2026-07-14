@@ -19,9 +19,7 @@ import { CARD_GAP, H_PAD } from '../shared/homeLayoutConstants';
  * Carrusel horizontal 2×N de proveedores con encabezado y estados vacío/carga.
  */
 const HomeProvidersCarouselSection = ({
-  icon,
   title,
-  hint,
   providers = [],
   loading,
   emptyRequiresAddress = false,
@@ -61,7 +59,7 @@ const HomeProvidersCarouselSection = ({
 
   const showContent = !emptyRequiresAddress || hasSelectedAddress;
 
-  const showHeader = !!(icon || title || hint || showSeeAll);
+  const showHeader = !!(title || showSeeAll);
 
   return (
     <View
@@ -73,9 +71,7 @@ const HomeProvidersCarouselSection = ({
     >
       {showHeader ? (
         <HomeSectionHeader
-          icon={icon}
           title={title}
-          hint={hint}
           onSeeAll={showSeeAll ? onSeeAll : undefined}
           seeAllDisabled={!showSeeAll}
         />

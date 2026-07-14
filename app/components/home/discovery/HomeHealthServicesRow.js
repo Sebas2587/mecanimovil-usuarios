@@ -143,14 +143,9 @@ const HomeHealthServicesRow = ({ selectedVehicle, onAgendarServicio }) => {
   if (!selectedVehicle) return null;
   if (!loading && recommendations.length === 0) return null;
 
-  const marca = selectedVehicle.marca_nombre || 'tu auto';
-
   return (
     <View style={styles.section}>
-      <HomeSectionHeader
-        title="Mantenimiento sugerido"
-        hint={`Por desgaste en tu ${marca}`}
-      />
+      <HomeSectionHeader title="Mantenimiento sugerido" />
 
       {loading ? (
         <HomeHealthCardsSkeleton />

@@ -7,7 +7,6 @@ import {
   RefreshControl,
   useWindowDimensions,
 } from 'react-native';
-import { MapPin, Navigation } from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import ProviderPreviewCard from '../../home/ProviderPreviewCard';
 import ExploreProvidersGridSkeleton from '../../utils/ExploreProvidersGridSkeleton';
@@ -78,18 +77,12 @@ const ExploreProvidersGrid = ({
   );
 
   const renderSection = useCallback(
-    (title, hint, icon, items) => {
+    (title, items) => {
       if (!items.length) return null;
       const rows = chunkRows(items, columns);
       return (
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            {icon}
-            <View style={styles.sectionHeaderText}>
-              <Text style={styles.sectionTitle}>{title}</Text>
-              {hint ? <Text style={styles.sectionHint}>{hint}</Text> : null}
-            </View>
-          </View>
+          <Text style={styles.sectionTitle}>{title}</Text>
           {rows.map((row, rowIdx) => (
             <View key={`section-row-${rowIdx}`} style={styles.row}>
               {row.map(renderCard)}
@@ -112,24 +105,9 @@ const ExploreProvidersGrid = ({
     if (isEmpty) return null;
     return (
       <>
-        {renderSection(
-          'Cerca de ti',
-          'Recomendados por distancia y desempeño en tu zona.',
-          <Navigation size={16} color={COLORS.primary[500]} />,
-          inRadar,
-        )}
-        {renderSection(
-          'Fuera de tu zona',
-          'Compatibles con tu vehículo, más lejos del radio desde tu dirección.',
-          <MapPin size={16} color={COLORS.text.tertiary} />,
-          outOfRadar,
-        )}
-        {renderSection(
-          'Sin ubicación',
-          'Aún no configuraron una dirección real en el mapa; no podemos calcular distancia.',
-          <MapPin size={16} color={COLORS.text.tertiary} />,
-          noLocation,
-        )}
+        {renderSection('Cerca de ti', inRadar)}
+        {renderSection('Fuera de tu zona', outOfRadar)}
+        {renderSection('Sin ubicación', noLocation)}
       </>
     );
   }, [inRadar, outOfRadar, noLocation, isEmpty, renderSection]);
@@ -176,27 +154,12 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: SPACING.lg,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginBottom: 12,
-  },
-  sectionHeaderText: {
-    flex: 1,
-    minWidth: 0,
-  },
   sectionTitle: {
     fontSize: TYPOGRAPHY.fontSize.lg,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     letterSpacing: -0.25,
-  },
-  sectionHint: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    lineHeight: 17,
-    marginTop: 2,
+    marginBottom: 12,
   },
   row: {
     flexDirection: 'row',

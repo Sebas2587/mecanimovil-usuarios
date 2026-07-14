@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { HomeTrendingChipsSkeleton } from '../../utils/HomePanelSkeletons';
-import { TrendingUp } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 
@@ -12,18 +11,12 @@ const HomeTrendingServicesRow = ({ selectedVehicle, activity, loading, onSelectS
   if (!selectedVehicle) return null;
 
   const items = activity?.items ?? [];
-  const marcaLabel = selectedVehicle.marca_nombre || '—';
-  const modeloLabel = selectedVehicle.modelo_nombre || '';
 
   if (!loading && items.length === 0) return null;
 
   return (
     <View style={styles.section}>
-      <HomeSectionHeader
-        icon={<TrendingUp size={16} color={COLORS.primary[500]} />}
-        title="Más elegidos para tu modelo"
-        hint={`${marcaLabel} ${modeloLabel}`.trim()}
-      />
+      <HomeSectionHeader title="Más elegidos para tu modelo" />
 
       {loading ? (
         <HomeTrendingChipsSkeleton />

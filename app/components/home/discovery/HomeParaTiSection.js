@@ -1,6 +1,4 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react-native';
-import { COLORS } from '../../../design-system/tokens';
 import HomeProvidersCarouselSection from './HomeProvidersCarouselSection';
 
 /**
@@ -15,15 +13,10 @@ const HomeParaTiSection = ({
 }) => {
   if (!selectedVehicle) return null;
 
-  const marcaLabel = selectedVehicle.marca_nombre || 'marca';
-  const modeloLabel = selectedVehicle.modelo_nombre || '';
-
   return (
     <HomeProvidersCarouselSection
-      icon={<Sparkles size={16} color={COLORS.primary[500]} />}
       title="Para ti"
       userBrandName={selectedVehicle.marca_nombre || null}
-      hint={`Destacados para tu ${marcaLabel} ${modeloLabel} según desempeño en MecaniMóvil.`.trim()}
       providers={providers}
       loading={loading}
       emptyRequiresAddress={false}

@@ -13,7 +13,6 @@ import {
   RefreshControl,
 } from 'react-native';
 import { showAlert } from '../../utils/platformAlert';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Gauge,
   HelpCircle,
@@ -31,6 +30,7 @@ import { TextInput, KeyboardAvoidingView } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import { ROUTES } from '../../utils/constants';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import { useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import VehicleHealthService from '../../services/vehicleHealthService';
@@ -54,8 +54,15 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Button from '../../components/base/Button/Button';
+import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
 import HealthCard from '../../components/cards/HealthCard';
-import BackButton from '../../components/navigation/BackButton';
+
+const HEALTH_LEVEL_LABELS = {
+  OPTIMO: 'Óptimos',
+  ATENCION: 'Atención',
+  URGENTE: 'Urgentes',
+  CRITICO: 'Críticos',
+};
 
 const componentPct = (c) =>
   normalizePct(c.salud_porcentaje ?? c.salud ?? c.percentage ?? c.salud_actual);
@@ -145,6 +152,7 @@ const rowStyles = StyleSheet.create({
 const VehicleHealthScreen = ({ route }) => {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
+  const headerHeight = useHeaderHeight();
   const { vehicleId, vehicle } = route.params;
 
   /** Misma clave que `useVehiclesHealth` en UserPanelScreen — mantiene el % global al día al declarar km. */
@@ -160,17 +168,16 @@ const VehicleHealthScreen = ({ route }) => {
     [vehicleId, queryClient],
   );
 
-  const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const styles = createStyles(insets);
+  const styles = createStyles();
 
-  /** Web: sin header del stack; altura explícita al viewport para que FlatList tenga scroll (como MarketplaceVehicleDetail). */
+  /** Web: altura del viewport menos el AppHeader para que FlatList no corte filas al fondo. */
   const webRootStyle =
     Platform.OS === 'web'
       ? {
           minHeight: 0,
-          height: windowHeight,
-          maxHeight: windowHeight,
+          height: Math.max(windowHeight - headerHeight, 0),
+          maxHeight: Math.max(windowHeight - headerHeight, 0),
           overflow: 'hidden',
         }
       : null;
@@ -254,6 +261,8 @@ const VehicleHealthScreen = ({ route }) => {
   const [optimisticHydrated, setOptimisticHydrated] = useState(false);
   /** Incrementa con cada actualización de datos para forzar re-render en web. */
   const [listRenderVersion, setListRenderVersion] = useState(0);
+  /** Filtro de componentes: all | OPTIMO | ATENCION | URGENTE | CRITICO */
+  const [levelFilter, setLevelFilter] = useState('all');
 
   const optimisticStorageKey = `health_optimistic_decl_v1_${vehicleId}`;
 
@@ -472,7 +481,10 @@ const VehicleHealthScreen = ({ route }) => {
         : '';
     if (Platform.OS === 'web') {
       setHealthBanner({
-        message: `Métricas de ${vehiculoInfo || 'tu vehículo'} actualizadas${countPart}.`,
+        type: 'success',
+        message: vehiculoInfo
+          ? `${vehiculoInfo}${countPart}`
+          : `Métricas actualizadas${countPart}`,
       });
       return;
     }
@@ -757,6 +769,17 @@ const VehicleHealthScreen = ({ route }) => {
       integridad_datos,
     } = healthData;
 
+    const totalComponents =
+      componentes_optimos + componentes_atencion + componentes_urgentes + componentes_criticos;
+
+    const healthFilterSegments = [
+      { id: 'all', label: 'Todos', count: totalComponents },
+      { id: 'OPTIMO', label: 'Óptimos', count: componentes_optimos },
+      { id: 'ATENCION', label: 'Atención', count: componentes_atencion },
+      { id: 'URGENTE', label: 'Urgentes', count: componentes_urgentes },
+      { id: 'CRITICO', label: 'Críticos', count: componentes_criticos },
+    ];
+
     const pctVerif = integridad_datos?.porcentaje_verificado ?? null;
     const integridadColor =
       pctVerif == null ? COLORS.neutral.gray[400]
@@ -766,27 +789,20 @@ const VehicleHealthScreen = ({ route }) => {
 
     return (
       <View>
-        <View style={styles.summaryContainer}>
-          <View style={styles.legendRow}>
-            <View style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: COLORS.success[600] }]} />
-              <Text style={styles.legendText}>{componentes_optimos} Óptimos</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: COLORS.warning[600] }]} />
-              <Text style={styles.legendText}>{componentes_atencion} Atención</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: COLORS.error[500] }]} />
-              <Text style={styles.legendText}>{componentes_urgentes} Urgentes</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.dot, { backgroundColor: COLORS.error[800] }]} />
-              <Text style={styles.legendText}>{componentes_criticos} Críticos</Text>
-            </View>
-          </View>
-          <TouchableOpacity style={styles.helpLink} onPress={() => setShowHelpModal(true)}>
-            <HelpCircle size={18} color={COLORS.primary[500]} />
+        <View style={styles.filterBlock}>
+          <SegmentedControl
+            scrollable
+            segments={healthFilterSegments}
+            value={levelFilter}
+            onChange={setLevelFilter}
+          />
+          <TouchableOpacity
+            style={styles.helpLink}
+            onPress={() => setShowHelpModal(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Ayuda sobre niveles de salud"
+          >
+            <HelpCircle size={16} color={COLORS.primary[500]} strokeWidth={2} />
             <Text style={styles.helpLinkText}>Ayuda</Text>
           </TouchableOpacity>
         </View>
@@ -890,16 +906,11 @@ const VehicleHealthScreen = ({ route }) => {
   const priorityCount = priorityComponents.length;
 
   const flatListData = useMemo(() => {
-    const optimos = mergedComponents
-      .filter((c) => componentPct(c) >= 70)
-      .sort((a, b) => componentPct(a) - componentPct(b));
-
-    const pushSection = (result, { title, subtitle, tone, key, items }) => {
+    const pushSection = (result, { title, tone, key, items }) => {
       if (!items.length) return;
       result.push({
         type: 'section',
         title,
-        subtitle,
         count: items.length,
         tone,
         key,
@@ -917,33 +928,44 @@ const VehicleHealthScreen = ({ route }) => {
       });
     };
 
+    const byPctAsc = (a, b) => componentPct(a) - componentPct(b);
     const result = [];
+
+    if (levelFilter !== 'all') {
+      const filtered = mergedComponents
+        .filter((c) => getHealthStatus(componentPct(c)) === levelFilter)
+        .sort(byPctAsc);
+      pushSection(result, {
+        title: HEALTH_LEVEL_LABELS[levelFilter] || 'Componentes',
+        tone: levelFilter === 'OPTIMO' ? 'ok' : 'attention',
+        key: `sec_${levelFilter}`,
+        items: filtered,
+      });
+      return result;
+    }
+
+    const optimos = mergedComponents
+      .filter((c) => componentPct(c) >= 70)
+      .sort(byPctAsc);
+
     pushSection(result, {
       title: 'Para atender',
-      subtitle: 'Críticos, urgentes y con atención — de peor a mejor salud',
       tone: 'attention',
       key: 'sec_priority',
       items: priorityComponents,
     });
     pushSection(result, {
       title: 'En buen estado',
-      subtitle: 'Óptimos · no requieren acción ahora',
       tone: 'ok',
       key: 'sec_ok',
       items: optimos,
     });
     return result;
-  }, [mergedComponents, priorityComponents]);
+  }, [mergedComponents, priorityComponents, levelFilter]);
 
   return (
     <View style={[styles.screen, webRootStyle]}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
-
-      <View style={[styles.screenHeader, { paddingTop: insets.top + SPACING.xs }]}>
-        <BackButton onPress={() => navigation.goBack()} color={COLORS.text.primary} />
-        <Text style={styles.screenTitle}>Salud del Vehículo</Text>
-        <View style={{ width: 40 }} />
-      </View>
 
       <FlatList
         style={styles.mainList}
@@ -973,14 +995,22 @@ const VehicleHealthScreen = ({ route }) => {
           <>
             {healthBanner?.message ? (
               <View style={styles.healthBanner} accessibilityRole="alert">
-                <CheckCircle size={20} color={COLORS.success[600]} style={{ flexShrink: 0 }} />
-                <Text style={styles.healthBannerText}>{healthBanner.message}</Text>
+                <View style={styles.healthBannerIcon}>
+                  <CheckCircle size={18} color={COLORS.primary[500]} strokeWidth={2} />
+                </View>
+                <View style={styles.healthBannerTextCol}>
+                  <Text style={styles.healthBannerTitle}>Actualizado</Text>
+                  <Text style={styles.healthBannerText} numberOfLines={2}>
+                    {healthBanner.message}
+                  </Text>
+                </View>
                 <TouchableOpacity
                   onPress={() => setHealthBanner(null)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   accessibilityLabel="Cerrar aviso"
+                  style={styles.healthBannerClose}
                 >
-                  <X size={18} color={COLORS.text.tertiary} />
+                  <X size={16} color={COLORS.text.tertiary} strokeWidth={2} />
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -1029,9 +1059,6 @@ const VehicleHealthScreen = ({ route }) => {
                     </Text>
                     <Text style={styles.listSectionCount}>{item.count}</Text>
                   </View>
-                  {!!item.subtitle && (
-                    <Text style={styles.listSectionSubtitle}>{item.subtitle}</Text>
-                  )}
                 </View>
               </View>
             );
@@ -1056,8 +1083,16 @@ const VehicleHealthScreen = ({ route }) => {
           ) : (
             <View style={styles.emptyState}>
               <CheckCircle size={64} color={COLORS.neutral.gray[300]} />
-              <Text style={styles.emptyText}>Sin datos de componentes.</Text>
-              <Text style={styles.emptySubText}>Tu vehículo parece estar nuevo en el sistema o no tiene reglas asignadas.</Text>
+              <Text style={styles.emptyText}>
+                {levelFilter === 'all'
+                  ? 'Sin datos de componentes.'
+                  : `No hay componentes en ${HEALTH_LEVEL_LABELS[levelFilter] || 'este nivel'}.`}
+              </Text>
+              <Text style={styles.emptySubText}>
+                {levelFilter === 'all'
+                  ? 'Tu vehículo parece estar nuevo en el sistema o no tiene reglas asignadas.'
+                  : 'Prueba otro filtro o vuelve a Todos.'}
+              </Text>
             </View>
           )
         }
@@ -1237,7 +1272,7 @@ const VehicleHealthScreen = ({ route }) => {
   );
 };
 
-const createStyles = (_insets) => StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: COLORS.background.default,
@@ -1247,52 +1282,52 @@ const createStyles = (_insets) => StyleSheet.create({
     flex: 1,
     ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
   },
-  screenHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.container.horizontal,
-    paddingBottom: SPACING.sm,
-    zIndex: 10,
-    backgroundColor: COLORS.background.default,
-  },
-  screenTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   listContent: {
     padding: SPACING.container.horizontal,
-    paddingBottom: 40,
+    paddingBottom: 80,
   },
   healthBanner: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.success[50],
+    backgroundColor: COLORS.background.paper,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.success[200],
-    borderRadius: BORDERS.radius.md,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDERS.radius.lg,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.md,
   },
-  healthBannerText: {
+  healthBannerIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  healthBannerTextCol: {
     flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    minWidth: 0,
+  },
+  healthBannerTitle: {
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
-    lineHeight: 20,
+  },
+  healthBannerText: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
+  healthBannerClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.neutral.gray[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   headerSection: {
     marginBottom: SPACING.sm,
@@ -1410,6 +1445,15 @@ const createStyles = (_insets) => StyleSheet.create({
     flexWrap: 'wrap',
     gap: SPACING.sm,
   },
+  filterBlock: {
+    marginBottom: SPACING.lg,
+    gap: SPACING.sm,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   syncButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1435,34 +1479,15 @@ const createStyles = (_insets) => StyleSheet.create({
   syncButtonTextDisabled: {
     color: COLORS.text.tertiary,
   },
-  legendRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    flexWrap: 'wrap',
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-  },
   helpLink: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     gap: SPACING.xxs,
   },
   helpLinkText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.primary[600],
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.primary[500],
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   helpScrollView: {

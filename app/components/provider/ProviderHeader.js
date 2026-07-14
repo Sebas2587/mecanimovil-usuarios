@@ -18,6 +18,7 @@ import {
   isProviderMultimarca,
   isProviderOpenAccordingToWeeklyHorarios,
   weeklyHorariosHasAnyActiveSlot,
+  isProviderRealtimeOnline,
 } from '../../utils/providerUtils';
 import ProviderKpiTierBadge from './ProviderKpiTierBadge';
 import { getProviderModalidad, modalidadLabel, modalidadBadges } from '../../utils/providerModalidad';
@@ -76,14 +77,16 @@ const ProviderHeader = ({
     }
     const hasAny = weeklyHorariosHasAnyActiveSlot(weeklyHorarios);
     if (!hasAny) {
-      return { phase: 'unavailable', label: 'No disponible' };
+      return { phase: 'unavailable', label: 'Sin horario' };
     }
     const open = isProviderOpenAccordingToWeeklyHorarios(weeklyHorarios, new Date(scheduleTick));
     return {
       phase: open ? 'open' : 'closed',
-      label: open ? 'Disponible' : 'No disponible',
+      label: open ? 'Abierto ahora' : 'Cerrado',
     };
   }, [useWeeklyAvailabilityBadge, weeklyHorarios, scheduleTick]);
+
+  const isOnline = isProviderRealtimeOnline(provider);
 
   const name = provider?.nombre || 'Proveedor Profesional';
   const resolvedType = providerType || (provider?.tipo === 'taller' ? 'taller' : 'mecanico');
@@ -122,27 +125,35 @@ const ProviderHeader = ({
           {showBackButton ? (
             <BackButton
               onPress={onBack || (() => navigation.goBack())}
-              style={Platform.OS === 'web' ? styles.iconButtonWeb : undefined}
+              style={styles.headerIconBtn}
             />
           ) : (
             <View style={styles.iconButtonSpacer} accessibilityElementsHidden />
           )}
           <View style={styles.rightActions}>
             {onShare ? (
-              <TouchableOpacity style={styles.iconButton} onPress={onShare} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.headerIconBtn}
+                onPress={onShare}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Compartir perfil"
+              >
                 <Share2 size={18} color={COLORS.text.primary} strokeWidth={2} />
               </TouchableOpacity>
             ) : null}
             {onToggleFavorite ? (
               <TouchableOpacity
-                style={styles.iconButton}
+                style={styles.headerIconBtn}
                 onPress={onToggleFavorite}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}
               >
                 <Heart
                   size={18}
-                  color={isFavorite ? COLORS.error.main : COLORS.text.primary}
-                  fill={isFavorite ? COLORS.error.main : 'transparent'}
+                  color={isFavorite ? COLORS.primary[500] : COLORS.text.primary}
+                  fill={isFavorite ? COLORS.primary[500] : 'transparent'}
                   strokeWidth={2}
                 />
               </TouchableOpacity>
@@ -155,7 +166,16 @@ const ProviderHeader = ({
         <View style={styles.titleRow}>
           <View style={styles.titleTextCol}>
             <Text style={styles.name}>{name}</Text>
-            {availability.phase === 'hidden' ? null : availability.phase === 'loading' ? (
+            {isOnline ? (
+              <View
+                style={styles.presenceRow}
+                accessibilityRole="text"
+                accessibilityLabel="Conectado"
+              >
+                <View style={[styles.presenceDot, styles.presenceDotOnline]} />
+                <Text style={[styles.presenceText, styles.presenceTextOnline]}>Conectado</Text>
+              </View>
+            ) : availability.phase === 'hidden' ? null : availability.phase === 'loading' ? (
               <View style={styles.presenceRow} accessibilityRole="text" accessibilityLabel="Consultando horario">
                 <ActivityIndicator size="small" color={COLORS.text.tertiary} />
                 <Text style={styles.presenceTextMuted}>Horario…</Text>
@@ -164,23 +184,25 @@ const ProviderHeader = ({
               <View
                 style={styles.presenceRow}
                 accessibilityRole="text"
-                accessibilityLabel={
-                  availability.phase === 'open' ? 'Conectado, disponible' : 'Desconectado, no disponible'
-                }
+                accessibilityLabel={availability.label}
               >
                 <View
                   style={[
                     styles.presenceDot,
-                    availability.phase === 'open' ? styles.presenceDotOnline : styles.presenceDotOffline,
+                    availability.phase === 'open'
+                      ? styles.presenceDotScheduleOpen
+                      : styles.presenceDotOffline,
                   ]}
                 />
                 <Text
                   style={[
                     styles.presenceText,
-                    availability.phase === 'open' ? styles.presenceTextOnline : styles.presenceTextOffline,
+                    availability.phase === 'open'
+                      ? styles.presenceTextScheduleOpen
+                      : styles.presenceTextOffline,
                   ]}
                 >
-                  {availability.phase === 'open' ? 'Conectado' : 'Desconectado'}
+                  {availability.label}
                 </Text>
               </View>
             )}
@@ -272,37 +294,41 @@ const ProviderHeader = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: COLORS.background.default,
+    backgroundColor: COLORS.background.paper,
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SPACING.container.horizontal,
-    paddingBottom: SPACING.xs,
+    paddingBottom: SPACING.sm,
+    backgroundColor: COLORS.background.paper,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border.light,
   },
   rightActions: {
     flexDirection: 'row',
-    gap: SPACING.sm,
+    alignItems: 'center',
+    gap: SPACING.xs,
   },
-  iconButton: {
-    width: 40,
-    height: 40,
+  headerIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  iconButtonWeb: {
-    zIndex: 20,
-    cursor: 'pointer',
+    backgroundColor: COLORS.neutral.gray[100],
+    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : null),
   },
   iconButtonSpacer: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
   },
   titleBlock: {
     paddingHorizontal: SPACING.container.horizontal,
     paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+    backgroundColor: COLORS.background.default,
   },
   titleRow: {
     flexDirection: 'row',
@@ -339,6 +365,9 @@ const styles = StyleSheet.create({
   presenceDotOnline: {
     backgroundColor: COLORS.success.main,
   },
+  presenceDotScheduleOpen: {
+    backgroundColor: COLORS.primary[500],
+  },
   presenceDotOffline: {
     backgroundColor: COLORS.text.tertiary,
   },
@@ -348,6 +377,9 @@ const styles = StyleSheet.create({
   },
   presenceTextOnline: {
     color: COLORS.success.dark,
+  },
+  presenceTextScheduleOpen: {
+    color: COLORS.primary[600],
   },
   presenceTextOffline: {
     color: COLORS.text.tertiary,

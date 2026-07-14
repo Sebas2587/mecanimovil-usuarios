@@ -47,6 +47,7 @@ import { useQueryClient } from '@tanstack/react-query'; // For invalidation
 import { ROUTES } from '../../utils/constants';
 import { showAlert, showConfirm } from '../../utils/platformAlert';
 import { formatApiErrorMessage } from '../../utils/formatApiError';
+import { appendImageToFormData } from '../../utils/imagePickerWeb';
 import {
     necesitaValorMercadoManual,
     tieneValorMercadoDesdeApi,
@@ -66,7 +67,12 @@ const formatPatente = (text) => {
     return text.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
 };
 
-const ENGINE_OPTIONS = ['GASOLINA', 'DIESEL', 'HIBRIDO', 'ELECTRICO'];
+const ENGINE_OPTIONS = [
+    { id: 'GASOLINA', label: 'Gasolina' },
+    { id: 'DIESEL', label: 'Diésel' },
+    { id: 'HIBRIDO', label: 'Híbrido' },
+    { id: 'ELECTRICO', label: 'Eléctrico' },
+];
 
 const PaperCard = ({ children, style }) => (
     <View style={[styles.paperCard, style]}>{children}</View>
@@ -104,7 +110,7 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
                     onChangeText={onKmChange}
                     placeholder="Ej: 125000"
                     keyboardType="numeric"
-                    placeholderTextColor={COLORS.text.tertiary}
+                    placeholderTextColor={COLORS.text.hint}
                 />
                 <Text style={styles.maintenanceKmSuffix}>km</Text>
             </View>
@@ -175,11 +181,15 @@ const VehicleRegistrationScreen = () => {
 
     // States
     const [patente, setPatente] = useState('');
+    const [patenteFocused, setPatenteFocused] = useState(false);
+    const [kmFocused, setKmFocused] = useState(false);
+    const [valorMercadoFocused, setValorMercadoFocused] = useState(false);
     const [step, setStep] = useState('search'); // 'search' | 'success' | 'manual'
     const [loading, setLoading] = useState(false);
     const [vehicleData, setVehicleData] = useState(null);
     const [kilometraje, setKilometraje] = useState('');
-    const [image, setImage] = useState(null); // New state for image
+    const [image, setImage] = useState(null); // URI preview
+    const [imageAsset, setImageAsset] = useState(null); // expo-image-picker asset (web File upload)
     const [saving, setSaving] = useState(false);
     const [selectedEngineType, setSelectedEngineType] = useState(null);
     const [maintenanceSelections, setMaintenanceSelections] = useState({});
@@ -331,7 +341,9 @@ const VehicleRegistrationScreen = () => {
         });
 
         if (!result.canceled) {
-            setImage(result.assets[0].uri);
+            const asset = result.assets[0];
+            setImage(asset.uri);
+            setImageAsset(asset);
         }
     };
 
@@ -518,12 +530,9 @@ const VehicleRegistrationScreen = () => {
                 console.log('📤 [DEBUG] componentes_historial enviado:', historialEntries);
             }
 
-            // Append Image if exists
+            // Append Image if exists (web necesita File/Blob, no { uri })
             if (image) {
-                const filename = image.split('/').pop();
-                const match = /\.(\w+)$/.exec(filename);
-                const type = match ? `image/${match[1]}` : `image`;
-                formData.append('foto', { uri: image, name: filename, type });
+                await appendImageToFormData(formData, 'foto', image, imageAsset);
             }
 
             console.log("📤 [DEBUG] FormData contents:");
@@ -533,6 +542,7 @@ const VehicleRegistrationScreen = () => {
             console.log("   - Motor (Serial):", vehicleData.numero_motor);
             console.log("   - Transmision:", vehicleData.transmision);
             console.log("   - Version:", vehicleData.version);
+            console.log("   - Foto:", image ? 'sí' : 'no');
 
             await vehicleService.createVehicle(formData);
 
@@ -609,6 +619,7 @@ const VehicleRegistrationScreen = () => {
         setShowValorMercadoAlert(false);
         setKmValidationHint(null);
         setImage(null);
+        setImageAsset(null);
         setMaintenanceSelections({});
     };
 
@@ -661,15 +672,15 @@ const VehicleRegistrationScreen = () => {
             {showValorMercadoAlert && (
                 <View style={[styles.warningCard, styles.warningCardRow]}>
                     <Info
-                        size={22}
-                        color={COLORS.warning[600]}
+                        size={20}
+                        color={COLORS.text.secondary}
                         strokeWidth={1.75}
                         style={styles.warningIcon}
                     />
                     <View style={styles.warningCardBody}>
                         <Text style={styles.warningText}>
-                            <Text style={styles.warningTextStrong}>Aviso:</Text> No hay valor de mercado
-                            registrado para este vehículo. Ingresa un valor referencial aproximado.
+                            <Text style={styles.warningTextStrong}>Aviso: </Text>
+                            No hay valor de mercado registrado para este vehículo. Ingresa un valor referencial aproximado.
                         </Text>
                     </View>
                     <TouchableOpacity
@@ -677,21 +688,28 @@ const VehicleRegistrationScreen = () => {
                         style={styles.warningDismiss}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                        <X size={20} color={COLORS.warning[600]} strokeWidth={1.75} />
+                        <X size={18} color={COLORS.text.tertiary} strokeWidth={1.75} />
                     </TouchableOpacity>
                 </View>
             )}
             <PaperCard style={styles.formSectionCard}>
                 <Text style={styles.sectionLabel}>Valor de Mercado Referencial</Text>
-                <View style={styles.kmInputWrapper}>
-                    <Text style={[styles.kmSuffix, styles.currencyPrefix]}>$</Text>
+                <View
+                    style={[
+                        styles.fieldInputWrapper,
+                        valorMercadoFocused && styles.fieldInputWrapperFocused,
+                    ]}
+                >
+                    <Text style={[styles.fieldSuffix, styles.currencyPrefix]}>$</Text>
                     <TextInput
-                        style={styles.kmInput}
+                        style={styles.fieldInput}
                         value={valorMercado}
                         onChangeText={(text) => setValorMercado(text.replace(/[^0-9]/g, ''))}
                         placeholder="0"
                         keyboardType="numeric"
-                        placeholderTextColor={COLORS.text.tertiary}
+                        placeholderTextColor={COLORS.text.hint}
+                        onFocus={() => setValorMercadoFocused(true)}
+                        onBlur={() => setValorMercadoFocused(false)}
                     />
                 </View>
             </PaperCard>
@@ -734,15 +752,21 @@ const VehicleRegistrationScreen = () => {
                 >
 
                     {/* SEARCH STATE */}
-                    {step === 'search' && (
-                        // NOTE: On web, TouchableWithoutFeedback can swallow click/focus events for TextInput.
-                        // Keep dismiss-on-background-tap only on native.
-                        (Platform.OS === 'web' ? (
+                    {step === 'search' && (() => {
+                        // NOTE: On web, TouchableWithoutFeedback can swallow click/focus for TextInput.
+                        const searchField = (
                             <View style={styles.centerWrapper}>
-                                <Text style={styles.instructionText}>Ingresa la patente de tu vehículo para buscar sus datos automáticamente.</Text>
+                                <Text style={styles.instructionText}>
+                                    Ingresa la patente de tu vehículo para buscar sus datos automáticamente.
+                                </Text>
 
                                 <View style={styles.searchCardShell}>
-                                    <View style={styles.patenteInputContainer}>
+                                    <View
+                                        style={[
+                                            styles.patenteInputContainer,
+                                            patenteFocused && styles.patenteInputContainerFocused,
+                                        ]}
+                                    >
                                         <View style={styles.patenteDecorator}>
                                             <Text style={styles.patenteFlag}>🇨🇱</Text>
                                         </View>
@@ -750,14 +774,17 @@ const VehicleRegistrationScreen = () => {
                                             ref={patenteInputRef}
                                             style={styles.patenteInput}
                                             placeholder="AB-CD-12"
-                                            placeholderTextColor={COLORS.text.tertiary}
+                                            placeholderTextColor={COLORS.text.hint}
                                             value={patente}
-                                            onChangeText={t => setPatente(formatPatente(t))}
+                                            onChangeText={(t) => setPatente(formatPatente(t))}
                                             maxLength={6}
                                             autoCapitalize="characters"
                                             autoCorrect={false}
                                             returnKeyType="search"
                                             onSubmitEditing={handleSearch}
+                                            onFocus={() => setPatenteFocused(true)}
+                                            onBlur={() => setPatenteFocused(false)}
+                                            accessibilityLabel="Patente del vehículo"
                                         />
                                     </View>
 
@@ -765,56 +792,27 @@ const VehicleRegistrationScreen = () => {
                                         style={[styles.searchButton, loading && styles.disabledButton]}
                                         onPress={handleSearch}
                                         disabled={loading}
+                                        accessibilityRole="button"
+                                        accessibilityLabel="Buscar patente"
                                     >
                                         {loading ? (
-                                            <ActivityIndicator color={COLORS.text.inverse} />
+                                            <ActivityIndicator color={COLORS.text.onPrimary} />
                                         ) : (
-                                            <Search size={24} color={COLORS.text.inverse} strokeWidth={1.75} />
+                                            <Search size={22} color={COLORS.text.onPrimary} strokeWidth={1.75} />
                                         )}
                                     </TouchableOpacity>
                                 </View>
                             </View>
+                        );
+
+                        return Platform.OS === 'web' ? (
+                            searchField
                         ) : (
                             <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                                <View style={styles.centerWrapper}>
-                                    <Text style={styles.instructionText}>Ingresa la patente de tu vehículo para buscar sus datos automáticamente.</Text>
-
-                                    <View style={styles.searchCardShell}>
-                                        <View style={styles.patenteInputContainer}>
-                                            <View style={styles.patenteDecorator}>
-                                                <Text style={styles.patenteFlag}>🇨🇱</Text>
-                                            </View>
-                                            <TextInput
-                                                ref={patenteInputRef}
-                                                style={styles.patenteInput}
-                                                placeholder="AB-CD-12"
-                                                placeholderTextColor={COLORS.text.tertiary}
-                                                value={patente}
-                                                onChangeText={t => setPatente(formatPatente(t))}
-                                                maxLength={6}
-                                                autoCapitalize="characters"
-                                                autoCorrect={false}
-                                                returnKeyType="search"
-                                                onSubmitEditing={handleSearch}
-                                            />
-                                        </View>
-
-                                        <TouchableOpacity
-                                            style={[styles.searchButton, loading && styles.disabledButton]}
-                                            onPress={handleSearch}
-                                            disabled={loading}
-                                        >
-                                            {loading ? (
-                                                <ActivityIndicator color={COLORS.text.inverse} />
-                                            ) : (
-                                                <Search size={24} color={COLORS.text.inverse} strokeWidth={1.75} />
-                                            )}
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
+                                {searchField}
                             </TouchableWithoutFeedback>
-                        ))
-                    )}
+                        );
+                    })()}
 
                     {/* SUCCESS STATE */}
                     {step === 'success' && vehicleData && (
@@ -845,41 +843,72 @@ const VehicleRegistrationScreen = () => {
                                     </View>
                                 </View>
 
-                                <View style={styles.grid}>
-                                    <View style={styles.gridItem}>
-                                        <Text style={styles.gridLabel}>Motor</Text>
-                                        <Text style={styles.gridValue}>{vehicleData.motor || 'N/A'}</Text>
+                                <View style={styles.specsList}>
+                                    <View style={styles.specRow}>
+                                        <Text style={styles.specLabel}>Motor</Text>
+                                        <Text style={styles.specValue}>{vehicleData.motor || 'N/A'}</Text>
                                     </View>
-                                    <View style={styles.gridItem}>
-                                        <Text style={styles.gridLabel}>Combustible</Text>
-                                        <View style={styles.fuelChips}>
-                                            {ENGINE_OPTIONS.map((type) => (
-                                                <TouchableOpacity
-                                                    key={type}
-                                                    onPress={() => setSelectedEngineType(type)}
-                                                    style={[styles.fuelChip, selectedEngineType === type && styles.fuelChipActive]}
-                                                >
-                                                    <Text style={[styles.fuelChipText, selectedEngineType === type && styles.fuelChipTextActive]}>{type}</Text>
-                                                </TouchableOpacity>
-                                            ))}
-                                        </View>
+                                    <View style={styles.specRow}>
+                                        <Text style={styles.specLabel}>Color</Text>
+                                        <Text style={styles.specValue}>{vehicleData.color || 'N/A'}</Text>
                                     </View>
-                                    <View style={styles.gridItem}>
-                                        <Text style={styles.gridLabel}>Color</Text>
-                                        <Text style={styles.gridValue}>{vehicleData.color || 'N/A'}</Text>
+                                    <View style={[styles.specRow, !(hayMileageSii && mileageSiiRegistro != null) && styles.specRowLast]}>
+                                        <Text style={styles.specLabel}>VIN</Text>
+                                        <Text
+                                            style={[styles.specValue, styles.specValueVin]}
+                                            numberOfLines={1}
+                                            ellipsizeMode="middle"
+                                        >
+                                            {vehicleData.vin || 'N/A'}
+                                        </Text>
                                     </View>
-                                    <View style={styles.gridItem}>
-                                        <Text style={styles.gridLabel}>VIN</Text>
-                                        <Text style={[styles.gridValue, styles.monospace]}>{vehicleData.vin || 'N/A'}</Text>
-                                    </View>
-                                    {hayMileageSii && mileageSiiRegistro != null && (
-                                        <View style={[styles.gridItem, styles.gridItemFull]}>
-                                            <Text style={styles.gridLabel}>Kilometraje según registro (SII)</Text>
-                                            <Text style={styles.gridValueSii}>
+                                    {hayMileageSii && mileageSiiRegistro != null ? (
+                                        <View style={[styles.specRow, styles.specRowLast]}>
+                                            <Text style={styles.specLabel}>Km registro (SII)</Text>
+                                            <Text style={styles.specValueSii}>
                                                 {mileageSiiRegistro.toLocaleString('es-CL')} km
                                             </Text>
                                         </View>
-                                    )}
+                                    ) : null}
+                                </View>
+
+                                <View style={styles.engineSelectBlock}>
+                                    <Text style={styles.engineSelectTitle}>Tipo de motor</Text>
+                                    <Text style={styles.engineSelectHint}>
+                                        Elige el combustible o propulsión de tu auto. Esto ajusta el checklist de mantenimientos.
+                                    </Text>
+                                    <View
+                                        style={styles.engineToggleGrid}
+                                        accessibilityRole="radiogroup"
+                                        accessibilityLabel="Tipo de motor del vehículo"
+                                    >
+                                        {ENGINE_OPTIONS.map((opt) => {
+                                            const active = selectedEngineType === opt.id;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={opt.id}
+                                                    style={[
+                                                        styles.engineToggle,
+                                                        active && styles.engineToggleActive,
+                                                    ]}
+                                                    onPress={() => setSelectedEngineType(opt.id)}
+                                                    activeOpacity={0.85}
+                                                    accessibilityRole="radio"
+                                                    accessibilityState={{ checked: active }}
+                                                    accessibilityLabel={opt.label}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.engineToggleText,
+                                                            active && styles.engineToggleTextActive,
+                                                        ]}
+                                                    >
+                                                        {opt.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
                                 </View>
                             </PaperCard>
 
@@ -898,10 +927,16 @@ const VehicleRegistrationScreen = () => {
                                         No hay kilometraje de referencia del SII para este vehículo. Ingresa el valor actual del odómetro.
                                     </Text>
                                 )}
-                                <View style={styles.kmInputWrapper}>
+                                <View
+                                    style={[
+                                        styles.fieldInputWrapper,
+                                        kmFocused && styles.fieldInputWrapperFocused,
+                                        kmValidationHint?.tipo === 'error' && styles.fieldInputWrapperError,
+                                    ]}
+                                >
                                     <TextInput
                                         style={[
-                                            styles.kmInput,
+                                            styles.fieldInput,
                                             kmValidationHint?.tipo === 'error' && styles.kmInputError,
                                         ]}
                                         value={kilometraje}
@@ -912,9 +947,11 @@ const VehicleRegistrationScreen = () => {
                                                 : '0'
                                         }
                                         keyboardType="numeric"
-                                        placeholderTextColor={COLORS.text.tertiary}
+                                        placeholderTextColor={COLORS.text.hint}
+                                        onFocus={() => setKmFocused(true)}
+                                        onBlur={() => setKmFocused(false)}
                                     />
-                                    <Text style={styles.kmSuffix}>km</Text>
+                                    <Text style={styles.fieldSuffix}>km</Text>
                                 </View>
                                 {kmValidationHint?.mensaje ? (
                                     <View style={styles.kmHintBlock}>
@@ -1015,9 +1052,10 @@ const VehicleRegistrationScreen = () => {
 
                             {/* Warning Message */}
                             <View style={styles.warningCard}>
-                                <CircleAlert size={22} color={COLORS.warning[600]} strokeWidth={1.75} style={{ marginRight: SPACING.xs }} />
+                                <CircleAlert size={20} color={COLORS.text.secondary} strokeWidth={1.75} />
                                 <Text style={styles.warningText}>
-                                    <Text style={styles.warningTextStrong}>Importante:</Text> Para garantizar la veracidad de la información, los datos del vehículo no podrán ser editados después del registro.
+                                    <Text style={styles.warningTextStrong}>Importante: </Text>
+                                    Para garantizar la veracidad de la información, los datos del vehículo no podrán ser editados después del registro.
                                 </Text>
                             </View>
 
@@ -1053,7 +1091,7 @@ const styles = StyleSheet.create({
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
         backgroundColor: COLORS.background.paper,
-        padding: SPACING.md,
+        padding: SPACING.lg,
         ...SHADOWS.sm,
     },
     header: {
@@ -1068,8 +1106,7 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.background.default,
     },
     headerTitle: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h5,
         color: COLORS.text.primary,
     },
     headerSpacer: {
@@ -1100,62 +1137,59 @@ const styles = StyleSheet.create({
         marginTop: -10,
     },
     instructionText: {
-        fontSize: TYPOGRAPHY.fontSize.md,
+        ...TYPOGRAPHY.styles.body,
         color: COLORS.text.secondary,
         textAlign: 'center',
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.lg,
         maxWidth: '90%',
     },
     searchCardShell: {
         flexDirection: 'row',
-        backgroundColor: COLORS.background.paper,
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
-        ...SHADOWS.md,
-        width: '100%',
         alignItems: 'center',
-        padding: SPACING.xs,
-        borderRadius: BORDERS.radius.xl,
+        width: '100%',
+        maxWidth: 420,
+        gap: SPACING.sm,
     },
     patenteInputContainer: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingLeft: SPACING.sm,
-        backgroundColor: COLORS.neutral.gray[100],
+        height: 52,
+        paddingHorizontal: SPACING.md,
+        backgroundColor: COLORS.background.paper,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
-        borderRadius: BORDERS.radius.lg,
-        height: 56,
+        borderRadius: BORDERS.radius.input.md,
+        ...SHADOWS.none,
+    },
+    patenteInputContainerFocused: {
+        borderColor: COLORS.neutral.gray[700],
     },
     patenteDecorator: {
-        width: 24,
-        height: 16,
-        backgroundColor: COLORS.warning.main,
-        marginRight: 12,
+        marginRight: SPACING.sm,
         justifyContent: 'center',
         alignItems: 'center',
-        borderRadius: 2,
     },
     patenteFlag: {
-        fontSize: 10,
+        fontSize: TYPOGRAPHY.fontSize.xl,
+        lineHeight: TYPOGRAPHY.fontSize['2xl'],
     },
     patenteInput: {
-        fontSize: 22,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h4,
         color: COLORS.text.primary,
-        letterSpacing: 3,
+        letterSpacing: 2,
         flex: 1,
+        paddingVertical: 0,
         textTransform: 'uppercase',
+        ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null),
     },
     searchButton: {
         backgroundColor: COLORS.primary[500],
-        width: 56,
-        height: 56,
-        borderRadius: BORDERS.radius.lg,
+        width: 52,
+        height: 52,
+        borderRadius: BORDERS.radius.button.md,
         justifyContent: 'center',
         alignItems: 'center',
-        marginLeft: SPACING.xs,
     },
     disabledButton: {
         opacity: 0.7,
@@ -1173,111 +1207,122 @@ const styles = StyleSheet.create({
             : {}),
     },
     valorMercadoRegistrado: {
-        fontSize: TYPOGRAPHY.fontSize.xl,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h3,
         color: COLORS.text.primary,
         marginTop: SPACING.xs,
     },
     successHeader: {
-        alignItems: 'center',
-        marginBottom: SPACING.lg,
-        marginTop: SPACING.sm,
+        alignItems: 'flex-start',
+        marginBottom: SPACING.md,
+        marginTop: SPACING.xs,
     },
     successBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.success[50],
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.xs,
-        borderRadius: BORDERS.radius.badge.md,
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: SPACING.xxs + 2,
+        borderRadius: BORDERS.radius.pill,
         gap: SPACING.xs,
-        borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.success[200],
     },
     successBadgeText: {
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.success[700],
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        fontSize: TYPOGRAPHY.fontSize.base,
     },
     vehicleCard: {
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.md,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         borderBottomWidth: BORDERS.width.thin,
-        borderBottomColor: COLORS.neutral.gray[200],
-        paddingBottom: SPACING.lg,
-        marginBottom: SPACING.lg,
+        borderBottomColor: COLORS.border.light,
+        paddingBottom: SPACING.md,
+        marginBottom: SPACING.md,
     },
     brandText: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        textTransform: 'uppercase',
+        ...TYPOGRAPHY.styles.h6,
         color: COLORS.text.tertiary,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        letterSpacing: 1,
+        textTransform: 'uppercase',
     },
     modelText: {
-        fontSize: TYPOGRAPHY.fontSize['3xl'],
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h2,
         color: COLORS.text.primary,
         marginTop: SPACING.xxs,
     },
     yearText: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
+        ...TYPOGRAPHY.styles.body,
         color: COLORS.text.secondary,
         marginTop: SPACING.xxs,
     },
-    grid: {
+    specsList: {
+        gap: 0,
+    },
+    specRow: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 20,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: SPACING.md,
+        paddingVertical: SPACING.sm,
+        borderBottomWidth: BORDERS.width.thin,
+        borderBottomColor: COLORS.border.light,
+        minHeight: 44,
+    },
+    specRowLast: {
+        borderBottomWidth: 0,
+        paddingBottom: 0,
+    },
+    specLabel: {
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.text.tertiary,
+        flexShrink: 0,
+    },
+    specValue: {
+        ...TYPOGRAPHY.styles.bodyBold,
+        color: COLORS.text.primary,
+        textAlign: 'right',
+        flex: 1,
+    },
+    specValueVin: {
+        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+        fontSize: TYPOGRAPHY.fontSize.base,
+        fontWeight: TYPOGRAPHY.fontWeight.medium,
+    },
+    specValueSii: {
+        ...TYPOGRAPHY.styles.bodyBold,
+        color: COLORS.primary[700],
+        textAlign: 'right',
+        flex: 1,
     },
     carIconContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: BORDERS.radius.lg,
+        width: 52,
+        height: 52,
+        borderRadius: BORDERS.radius.md,
         backgroundColor: COLORS.primary[50],
         alignItems: 'center',
         justifyContent: 'center',
     },
-    gridItem: {
-        width: '45%',
-    },
-    gridItemFull: {
-        width: '100%',
-    },
-    gridValueSii: {
-        fontSize: TYPOGRAPHY.fontSize.lg,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.primary[700],
-    },
     kmReferenciaSii: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         marginBottom: SPACING.sm,
-        lineHeight: 20,
     },
     kmReferenciaSiiMuted: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.tertiary,
         marginBottom: SPACING.sm,
-        lineHeight: 20,
     },
     kmInputError: {
         color: COLORS.error[600],
     },
     kmHintError: {
-        marginTop: SPACING.sm,
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.error[600],
-        lineHeight: 18,
     },
     kmHintAviso: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.warning[700],
-        lineHeight: 18,
     },
     kmHintBlock: {
         marginTop: SPACING.sm,
@@ -1287,56 +1332,60 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         paddingVertical: SPACING.xxs,
         paddingHorizontal: SPACING.sm,
-        borderRadius: BORDERS.radius.md,
+        borderRadius: BORDERS.radius.pill,
         backgroundColor: COLORS.primary[50],
     },
     kmSugeridoButtonText: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.primary[700],
     },
-    gridLabel: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.tertiary,
+    engineSelectBlock: {
+        marginTop: SPACING.lg,
+        paddingTop: SPACING.md,
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.border.light,
+    },
+    engineSelectTitle: {
+        ...TYPOGRAPHY.styles.h4,
+        color: COLORS.text.primary,
         marginBottom: SPACING.xxs,
     },
-    gridValue: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.text.primary,
+    engineSelectHint: {
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.text.secondary,
+        marginBottom: SPACING.md,
     },
-    fuelChips: {
+    engineToggleGrid: {
         flexDirection: 'row',
-        gap: 6,
         flexWrap: 'wrap',
-        marginTop: SPACING.xxs,
+        gap: SPACING.sm,
     },
-    fuelChip: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: BORDERS.radius.sm,
-        backgroundColor: COLORS.neutral.gray[100],
+    engineToggle: {
+        flexGrow: 1,
+        flexBasis: '46%',
+        minHeight: 48,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
+        borderRadius: BORDERS.radius.button.md,
         borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
+        borderColor: COLORS.border.main,
+        backgroundColor: COLORS.background.paper,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    fuelChipActive: {
+    engineToggleActive: {
         backgroundColor: COLORS.primary[500],
         borderColor: COLORS.primary[500],
     },
-    fuelChipText: {
-        color: COLORS.text.secondary,
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        fontSize: 10,
+    engineToggleText: {
+        ...TYPOGRAPHY.styles.button,
+        color: COLORS.text.primary,
     },
-    fuelChipTextActive: {
-        color: COLORS.text.inverse,
-    },
-    monospace: {
-        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-        fontSize: 14,
+    engineToggleTextActive: {
+        color: COLORS.text.onPrimary,
     },
     formSectionCard: {
-        marginBottom: SPACING.lg,
+        marginBottom: SPACING.md,
     },
     currencyPrefix: {
         marginRight: SPACING.xs,
@@ -1353,7 +1402,7 @@ const styles = StyleSheet.create({
         padding: SPACING.xxs,
     },
     maintenanceSection: {
-        marginBottom: SPACING.lg,
+        marginBottom: SPACING.md,
     },
     maintenanceHeader: {
         flexDirection: 'row',
@@ -1362,10 +1411,9 @@ const styles = StyleSheet.create({
         gap: SPACING.sm,
     },
     maintenanceSubtitle: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         marginTop: SPACING.xxs,
-        lineHeight: 20,
         maxWidth: 520,
     },
     maintenanceList: {
@@ -1375,15 +1423,13 @@ const styles = StyleSheet.create({
         borderTopColor: COLORS.border.light,
     },
     maintenanceQuestion: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.bodyBold,
         color: COLORS.text.primary,
         marginBottom: SPACING.xxs,
     },
     maintenanceHint: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
-        lineHeight: 20,
         marginBottom: SPACING.md,
     },
     maintenanceItems: {
@@ -1416,7 +1462,7 @@ const styles = StyleSheet.create({
         height: 22,
         borderRadius: BORDERS.radius.xs,
         borderWidth: BORDERS.width.medium,
-        borderColor: COLORS.border.light,
+        borderColor: COLORS.border.main,
         marginRight: SPACING.sm,
         justifyContent: 'center',
         alignItems: 'center',
@@ -1428,9 +1474,8 @@ const styles = StyleSheet.create({
     },
     maintenanceLabel: {
         flex: 1,
-        fontSize: TYPOGRAPHY.fontSize.base,
+        ...TYPOGRAPHY.styles.body,
         color: COLORS.text.primary,
-        lineHeight: 22,
     },
     maintenanceKmBlock: {
         marginTop: SPACING.sm,
@@ -1443,18 +1488,18 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     maintenanceKmLabel: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         marginBottom: SPACING.xxs,
     },
     maintenanceKmInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.neutral.gray[100],
+        backgroundColor: COLORS.background.paper,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
-        borderRadius: BORDERS.radius.input?.md ?? BORDERS.radius.md,
-        paddingHorizontal: SPACING.sm,
+        borderRadius: BORDERS.radius.input.md,
+        paddingHorizontal: SPACING.md,
         minHeight: 48,
     },
     maintenanceKmInputWrapperWide: {
@@ -1463,16 +1508,14 @@ const styles = StyleSheet.create({
     },
     maintenanceKmInput: {
         flex: 1,
-        fontSize: TYPOGRAPHY.fontSize.base,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
+        ...TYPOGRAPHY.styles.body,
         color: COLORS.text.primary,
         paddingVertical: Platform.OS === 'web' ? SPACING.xs : SPACING.sm,
         ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
     },
     maintenanceKmSuffix: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
+        ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.tertiary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
         marginLeft: SPACING.xxs,
     },
     skipLink: {
@@ -1480,37 +1523,41 @@ const styles = StyleSheet.create({
         paddingVertical: SPACING.xs,
     },
     skipLinkText: {
-        fontSize: TYPOGRAPHY.fontSize.base,
+        ...TYPOGRAPHY.styles.bodyBold,
         color: COLORS.primary[600],
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     sectionLabel: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.h4,
         color: COLORS.text.primary,
         marginBottom: SPACING.sm,
     },
-    kmInputWrapper: {
+    fieldInputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.neutral.gray[100],
+        backgroundColor: COLORS.background.paper,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.light,
-        borderRadius: BORDERS.radius.lg,
-        paddingHorizontal: SPACING.lg,
-        paddingVertical: SPACING.xxs,
-        height: 64,
+        borderRadius: BORDERS.radius.input.md,
+        paddingHorizontal: SPACING.md,
+        height: 52,
     },
-    kmInput: {
+    fieldInputWrapperFocused: {
+        borderColor: COLORS.neutral.gray[700],
+    },
+    fieldInputWrapperError: {
+        borderColor: COLORS.border.error,
+        backgroundColor: COLORS.background.error,
+    },
+    fieldInput: {
         flex: 1,
-        fontSize: TYPOGRAPHY.fontSize['2xl'],
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
+        ...TYPOGRAPHY.styles.h4,
         color: COLORS.text.primary,
+        paddingVertical: 0,
+        ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null),
     },
-    kmSuffix: {
-        fontSize: TYPOGRAPHY.fontSize.md,
+    fieldSuffix: {
+        ...TYPOGRAPHY.styles.body,
         color: COLORS.text.tertiary,
-        fontWeight: TYPOGRAPHY.fontWeight.medium,
     },
     saveButton: {
         marginBottom: SPACING.md,
@@ -1520,19 +1567,19 @@ const styles = StyleSheet.create({
         padding: SPACING.sm,
     },
     retryText: {
+        ...TYPOGRAPHY.styles.bodyBold,
         color: COLORS.text.secondary,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     photoSection: {
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.md,
     },
     photoUpload: {
         width: '100%',
         height: 200,
-        backgroundColor: COLORS.neutral.gray[100],
-        borderRadius: BORDERS.radius.xl,
+        backgroundColor: COLORS.neutral.gray[50],
+        borderRadius: BORDERS.radius.card.lg,
         borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.border.light,
+        borderColor: COLORS.border.main,
         borderStyle: 'dashed',
         overflow: 'hidden',
         justifyContent: 'center',
@@ -1546,12 +1593,11 @@ const styles = StyleSheet.create({
     },
     photoPlaceholder: {
         alignItems: 'center',
-        gap: 12,
+        gap: SPACING.sm,
     },
     photoText: {
+        ...TYPOGRAPHY.styles.bodyBold,
         color: COLORS.primary[600],
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        fontSize: TYPOGRAPHY.fontSize.md,
     },
     editPhotoBadge: {
         position: 'absolute',
@@ -1560,34 +1606,33 @@ const styles = StyleSheet.create({
         backgroundColor: withOpacity(COLORS.base.inkBlack, 0.65),
         width: 36,
         height: 36,
-        borderRadius: 18,
+        borderRadius: BORDERS.radius.full,
         justifyContent: 'center',
         alignItems: 'center',
         ...SHADOWS.sm,
     },
     warningCard: {
         flexDirection: 'row',
-        backgroundColor: COLORS.warning[50],
-        padding: SPACING.sm,
-        borderRadius: BORDERS.radius.input.md,
+        alignItems: 'flex-start',
+        backgroundColor: COLORS.neutral.gray[50],
+        padding: SPACING.md,
+        borderRadius: BORDERS.radius.md,
         marginBottom: SPACING.lg,
-        borderLeftWidth: 4,
-        borderLeftColor: COLORS.warning[500],
         borderWidth: BORDERS.width.thin,
-        borderColor: COLORS.warning[100],
+        borderColor: COLORS.border.light,
+        gap: SPACING.sm,
     },
     warningCardRow: {
         alignItems: 'flex-start',
     },
     warningText: {
         flex: 1,
-        color: COLORS.text.primary,
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        lineHeight: 18,
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.text.secondary,
     },
     warningTextStrong: {
-        fontWeight: TYPOGRAPHY.fontWeight.bold,
-        color: COLORS.warning[700],
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.primary,
     },
 });
 

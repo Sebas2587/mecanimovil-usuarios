@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   StatusBar,
-  Share,
   Platform,
   ActivityIndicator,
   TouchableOpacity,
@@ -39,7 +38,6 @@ import {
   labelTipoServicioCatalogo,
   resolveServicioId,
 } from '../../components/home/shared/providerCatalogSchedule';
-import { buildPublicProviderUrl, buildDeepLinkProviderUrl } from '../../config/publicListing';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
 import TrustSection from '../../components/provider/TrustSection';
@@ -75,6 +73,7 @@ import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterC
 import Button from '../../components/base/Button/Button';
 import { formatProviderStreetAddress } from '../../utils/formatProviderStreetAddress';
 import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
+import { shareProviderProfile } from '../../utils/shareProviderProfile';
 
 const SCREEN_W = Dimensions.get('window').width;
 const HERO_HEIGHT = 220;
@@ -145,12 +144,18 @@ const ProviderHeroGallery = ({
       ) : null}
 
       <View style={[heroStyles.topBar, { paddingTop: insets.top + SPACING.xs }]}>
-        <BackButton onPress={onBack} />
+        <BackButton onPress={onBack} color={COLORS.text.inverse} style={heroStyles.iconButton} />
 
         <View style={heroStyles.rightActions}>
           {onShare ? (
-            <TouchableOpacity style={heroStyles.iconButton} onPress={onShare} activeOpacity={0.85}>
-              <Share2 size={20} color={COLORS.text.primary} strokeWidth={2} />
+            <TouchableOpacity
+              style={heroStyles.iconButton}
+              onPress={onShare}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Compartir perfil"
+            >
+              <Share2 size={18} color={COLORS.text.inverse} strokeWidth={2} />
             </TouchableOpacity>
           ) : null}
           {onToggleFavorite ? (
@@ -158,11 +163,13 @@ const ProviderHeroGallery = ({
               style={heroStyles.iconButton}
               onPress={onToggleFavorite}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={isFavorite ? 'Quitar de favoritos' : 'Guardar en favoritos'}
             >
               <Heart
-                size={20}
-                color={isFavorite ? COLORS.error.main : COLORS.text.primary}
-                fill={isFavorite ? COLORS.error.main : 'transparent'}
+                size={18}
+                color={isFavorite ? COLORS.primary[400] : COLORS.text.inverse}
+                fill={isFavorite ? COLORS.primary[400] : 'transparent'}
                 strokeWidth={2}
               />
             </TouchableOpacity>
@@ -197,11 +204,12 @@ const heroStyles = StyleSheet.create({
     gap: SPACING.sm,
   },
   iconButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: withOpacity(COLORS.base.inkBlack, 0.35),
     ...(Platform.OS === 'web' ? { cursor: 'pointer' } : null),
   },
   dots: {
@@ -438,51 +446,7 @@ const ProviderDetailScreen = () => {
 
   const handleShare = async () => {
     if (!idToLoad) return;
-    try {
-      const webUrl = buildPublicProviderUrl(providerType, idToLoad);
-      const deepUrl = buildDeepLinkProviderUrl(providerType, idToLoad);
-
-      const isTaller = providerType === 'taller';
-      const titleSpec = isTaller ? 'Taller especializado' : 'Mecánico a domicilio';
-
-      const zonasComunas = provider?.zonas_servicio
-        ? provider.zonas_servicio.flatMap((z) => z.comunas || [])
-        : [];
-      const comunasRaw =
-        zonasComunas.length > 0
-          ? zonasComunas
-          : provider.comunas_cobertura_nombres ||
-            provider.comunas_cobertura?.map((c) => c?.nombre || c) ||
-            [];
-      const comunasArr = Array.isArray(comunasRaw) ? comunasRaw.filter(Boolean) : [];
-      let comunasText = '';
-      if (comunasArr.length > 0) {
-        comunasText =
-          comunasArr.length > 3
-            ? `Atiende en ${comunasArr.slice(0, 3).join(', ')} y más comunas.`
-            : `Atiende en ${comunasArr.join(', ')}.`;
-      } else {
-        comunasText = isTaller
-          ? provider.comuna
-            ? `Atiende en ${provider.comuna}.`
-            : ''
-          : 'Atiende a domicilio.';
-      }
-
-      const marcasArr = provider.marcas_atendidas_nombres || ['Multimarca'];
-      const marcasText =
-        marcasArr.length > 6 ? `${marcasArr.slice(0, 6).join(', ')}...` : marcasArr.join(', ');
-
-      const messageTexto = `Conoce a ${provider.nombre}, ${titleSpec}.\n${comunasText}\nEspecialista en: ${marcasText}\n\nVer en la web:\n${webUrl}\n\nAbrir en la app:\n${deepUrl}`;
-
-      if (Platform.OS === 'web') {
-        await Share.share({ message: messageTexto, title: 'MecaniMóvil', url: webUrl });
-      } else {
-        await Share.share({ message: messageTexto, url: webUrl });
-      }
-    } catch (error) {
-      console.error(error);
-    }
+    await shareProviderProfile(provider, providerType, idToLoad);
   };
 
   const handleSeeAllReviews = () => {

@@ -34,14 +34,8 @@ export function RevisionTecnicaCard({ vehicle, revisionRenewalDueISO = null, onR
                     />
                 ) : (
                     <View style={styles.rtFallbackInner}>
-                        <View style={styles.labelContainer}>
-                            <Icon name="checkmark-circle-outline" size={18} color={COLORS.text.tertiary} />
-                            <Text style={styles.rtFallbackLabel}>Mes indicado</Text>
-                        </View>
-                        <Text style={styles.rtFallbackValue}>{mesRaw}</Text>
-                        <Text style={styles.rtFallbackHint}>
-                            No pudimos calcular alertas automáticas para este texto. Verifica el mes en tu padrón.
-                        </Text>
+                        <Text style={styles.rtInnerLabel}>Mes indicado</Text>
+                        <Text style={styles.rtInnerValue}>{mesRaw}</Text>
                     </View>
                 )}
             </View>
@@ -75,36 +69,29 @@ const RevisionTecnicaInner = ({ vehicle, mesRaw, renewalDueISO, onRenewalSaved }
     };
 
     return (
-        <View
-            style={[
-                styles.rtInner,
-                {
-                    borderLeftWidth: 3,
-                    borderLeftColor: toneStyles.accent,
-                    backgroundColor: toneStyles.bg,
-                },
-            ]}
-        >
+        <View style={styles.rtInner}>
             <View style={styles.rtHeaderRow}>
-                <View style={styles.labelContainer}>
-                    <Icon name="checkmark-circle-outline" size={18} color={toneStyles.accent} />
-                    <Text style={[styles.rtInnerLabel, { color: COLORS.text.secondary }]}>Mes de revisión</Text>
+                <View style={styles.rtTextCol}>
+                    <Text style={styles.rtInnerLabel}>Mes de revisión</Text>
+                    <Text style={styles.rtInnerValue} numberOfLines={1}>
+                        {mesRaw}
+                    </Text>
                 </View>
-                <Text style={[styles.rtInnerValue, { color: toneStyles.accent }]} numberOfLines={2}>
-                    {mesRaw}
-                </Text>
+                {ui?.hint ? (
+                    <View style={[styles.rtChip, { backgroundColor: toneStyles.chipBg }]}>
+                        <Text style={[styles.rtChipText, { color: toneStyles.chipText }]} numberOfLines={1}>
+                            {ui.hint}
+                        </Text>
+                    </View>
+                ) : null}
             </View>
-            {ui?.hint ? <Text style={[styles.rtHint, { color: toneStyles.subtext }]}>{ui.hint}</Text> : null}
             {ui?.showConfirmButton ? (
                 <TouchableOpacity
-                    style={[styles.rtButton, { borderColor: toneStyles.border }]}
+                    style={styles.rtButton}
                     onPress={handleConfirm}
                     activeOpacity={0.85}
                 >
-                    <Icon name="checkmark-done-outline" size={18} color={toneStyles.accent} style={{ marginRight: 8 }} />
-                    <Text style={[styles.rtButtonText, { color: toneStyles.accent }]}>
-                        ¿Ya realicé la revisión técnica?
-                    </Text>
+                    <Text style={styles.rtButtonText}>Confirmar revisión</Text>
                 </TouchableOpacity>
             ) : null}
         </View>
@@ -233,72 +220,51 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.background.paper,
     },
     rtInner: {
-        padding: 14,
-        paddingLeft: 12,
+        padding: SPACING.md,
     },
     rtFallbackInner: {
-        padding: 14,
+        padding: SPACING.md,
     },
-    rtFallbackLabel: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        color: COLORS.text.secondary,
-        marginLeft: 10,
-    },
-    rtFallbackValue: {
-        fontSize: TYPOGRAPHY.fontSize.md,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        color: COLORS.text.primary,
-        marginTop: SPACING.xs,
-        marginLeft: 28,
-    },
-    rtFallbackHint: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        color: COLORS.text.tertiary,
-        marginTop: 10,
-        marginLeft: 28,
-        lineHeight: 17,
+    rtTextCol: {
+        flex: 1,
+        paddingRight: SPACING.sm,
     },
     rtInnerLabel: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        marginLeft: 10,
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.text.tertiary,
     },
     rtInnerValue: {
-        fontSize: TYPOGRAPHY.fontSize.base,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
-        maxWidth: '52%',
-        textAlign: 'right',
-    },
-    labelContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flexShrink: 0,
+        ...TYPOGRAPHY.styles.bodyBold,
+        color: COLORS.text.primary,
+        marginTop: 2,
     },
     rtHeaderRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'center',
     },
-    rtHint: {
-        fontSize: TYPOGRAPHY.fontSize.sm,
-        lineHeight: 17,
-        marginTop: 10,
-        marginLeft: 28,
+    rtChip: {
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: 6,
+        borderRadius: BORDERS.radius.pill,
+        maxWidth: '48%',
+    },
+    rtChipText: {
+        ...TYPOGRAPHY.styles.captionBold,
+        fontSize: 12,
     },
     rtButton: {
-        marginTop: 12,
-        marginLeft: 28,
-        flexDirection: 'row',
+        marginTop: SPACING.sm,
         alignItems: 'center',
-        alignSelf: 'flex-start',
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        borderRadius: BORDERS.radius.input.md,
-        borderWidth: BORDERS.width.thin,
-        backgroundColor: COLORS.background.paper,
+        justifyContent: 'center',
+        paddingVertical: SPACING.sm,
+        paddingHorizontal: SPACING.md,
+        borderRadius: BORDERS.radius.lg,
+        backgroundColor: COLORS.primary[500],
     },
     rtButtonText: {
-        fontSize: 13,
-        fontWeight: TYPOGRAPHY.fontWeight.semibold,
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.base.white,
     },
 });
 
