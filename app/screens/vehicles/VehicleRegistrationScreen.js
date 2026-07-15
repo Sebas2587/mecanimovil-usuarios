@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useMemo, memo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, memo, useEffect } from 'react';
 import {
     View,
     Text,
@@ -16,7 +16,7 @@ import {
     Platform,
     useWindowDimensions,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
  
 import {
   Check,
@@ -164,6 +164,7 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
 
 const VehicleRegistrationScreen = () => {
     const navigation = useNavigation();
+    const route = useRoute();
     const insets = useSafeAreaInsets();
     const { height: windowHeight, width: windowWidth } = useWindowDimensions();
     const isWideLayout = windowWidth >= MAINTENANCE_WIDE_BREAKPOINT;
@@ -198,6 +199,35 @@ const VehicleRegistrationScreen = () => {
     const [showValorMercadoAlert, setShowValorMercadoAlert] = useState(false);
     const [kmValidationHint, setKmValidationHint] = useState(null);
     const queryClient = useQueryClient();
+
+    useEffect(() => {
+        const prefillPatente = route.params?.prefillPatente;
+        const prefillVehicleData = route.params?.prefillVehicleData;
+        if (!prefillPatente && !prefillVehicleData) return;
+
+        if (prefillPatente) {
+            setPatente(String(prefillPatente).toUpperCase().slice(0, 6));
+        }
+        if (!prefillVehicleData) return;
+
+        setVehicleData(prefillVehicleData);
+        setStep('success');
+
+        let type = prefillVehicleData.tipo_motor || 'GASOLINA';
+        const upper = String(type).toUpperCase();
+        if (upper.includes('BENCINA') || upper.includes('GASOLINA')) type = 'GASOLINA';
+        else if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) type = 'DIESEL';
+        else if (upper.includes('HIBRIDO') || upper.includes('HÍBRIDO')) type = 'HIBRIDO';
+        else if (upper.includes('ELECTRICO') || upper.includes('ELÉCTRICO')) type = 'ELECTRICO';
+        else type = null;
+        setSelectedEngineType(type);
+
+        const requiereValorManual = necesitaValorMercadoManual(prefillVehicleData);
+        setShowValorMercadoAlert(requiereValorManual);
+        if (tieneValorMercadoDesdeApi(prefillVehicleData) && prefillVehicleData.precio_mercado_promedio != null) {
+            setValorMercado(String(prefillVehicleData.precio_mercado_promedio));
+        }
+    }, [route.params?.prefillPatente, route.params?.prefillVehicleData]);
 
     // Fetch checklist for maintenance section
     const engineForChecklist = selectedEngineType || 'GASOLINA';

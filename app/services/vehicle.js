@@ -230,7 +230,7 @@ export const verificarPatenteRegistrada = async (patente) => {
 };
 
 /**
- * Consulta información de un vehículo por su patente
+ * Consulta información de un vehículo por su patente (autenticado).
  * @param {string} patente - Patente del vehículo
  * @returns {Promise<Object>} Datos del vehículo encontrado o null
  */
@@ -286,6 +286,20 @@ export const getVehicleByPatente = async (patente) => {
     console.error('Error consultando patente:', error);
     throw error;
   }
+};
+
+/**
+ * Consulta pública de patente para flujo invitado (sin autenticación).
+ * @param {string} patente
+ * @returns {Promise<Object>}
+ */
+export const consultarPatentePublica = async (patente) => {
+  const data = await get(
+    '/vehiculos/consultar-patente-publica/',
+    { patente: patente.toUpperCase().trim() },
+    { requiresAuth: false },
+  );
+  return data;
 };
 
 /**

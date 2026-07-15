@@ -5,6 +5,9 @@
 
 import { BORDERS } from './borders';
 
+export { GRADIENTS } from './gradients';
+export { default as GRADIENTS_DEFAULT } from './gradients';
+
 export { COLORS, withOpacity, getColorWithOpacity } from './colors';
 export { default as COLORS_DEFAULT } from './colors';
 

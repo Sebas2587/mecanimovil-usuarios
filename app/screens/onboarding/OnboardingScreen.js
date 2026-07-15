@@ -273,7 +273,7 @@ export default function OnboardingScreen({ navigation }) {
     } catch {
       // no-op
     }
-    navigation.replace(ROUTES.LOGIN);
+    navigation.replace(ROUTES.GUEST_LANDING);
   }, [navigation]);
 
   const scrollToSlide = useCallback(

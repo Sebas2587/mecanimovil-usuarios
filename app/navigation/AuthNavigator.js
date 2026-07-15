@@ -3,6 +3,8 @@ import { Platform } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
+import GuestLandingScreen from '../screens/guest/GuestLandingScreen';
+import GuestVehicleResultsScreen from '../screens/guest/GuestVehicleResultsScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
@@ -77,7 +79,7 @@ const AuthNavigator = ({ registerSuccess }) => {
     if (publicProviderData) return ROUTES.PROVIDER_DETAIL;
     if (registerSuccess) return ROUTES.REGISTER;
     if (hasSeenOnboarding === false) return ROUTES.ONBOARDING;
-    return ROUTES.LOGIN;
+    return ROUTES.GUEST_LANDING;
   }, [publicProviderData, registerSuccess, hasSeenOnboarding]);
 
   if (hasSeenOnboarding == null && !publicProviderData && !registerSuccess) {
@@ -109,6 +111,42 @@ const AuthNavigator = ({ registerSuccess }) => {
                   minHeight: '100vh',
                   maxHeight: '100vh',
                   overflow: 'hidden',
+                },
+              }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.GUEST_LANDING}
+        component={GuestLandingScreen}
+        options={
+          Platform.OS === 'web'
+            ? {
+                cardStyle: {
+                  backgroundColor: COLORS.background.default,
+                  flex: 1,
+                  maxHeight: '100vh',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  WebkitOverflowScrolling: 'touch',
+                },
+              }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.GUEST_VEHICLE_RESULTS}
+        component={GuestVehicleResultsScreen}
+        options={
+          Platform.OS === 'web'
+            ? {
+                cardStyle: {
+                  backgroundColor: COLORS.background.default,
+                  flex: 1,
+                  maxHeight: '100vh',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  WebkitOverflowScrolling: 'touch',
                 },
               }
             : undefined

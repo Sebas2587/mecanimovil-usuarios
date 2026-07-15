@@ -39,6 +39,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queryClient, asyncStoragePersister, shouldPersistQuery } from './app/config/queryClient';
 import './app/services/tripTrackingService';
 import { discardStalePaymentSessionOnColdStart } from './app/utils/pagoPendienteStorage';
+import { consumePendingGuestIntent } from './app/utils/guestIntent';
 import { installLucideWebFillFix } from './app/design-system/icons/installLucideWebFillFix';
 
 installLucideWebFillFix();
@@ -426,6 +427,20 @@ const MainImpl = ({ lastNotificationResponse }) => {
   const pendingGuestPublicRef = useRef(null);
   const prevAuthRef = useRef(false);
 
+  const flushPendingGuestIntent = useCallback(async () => {
+    if (!isAuthenticated || loading || !navigationRef.isReady()) return;
+    try {
+      const intent = await consumePendingGuestIntent();
+      if (!intent?.patente) return;
+      navigationRef.navigate(ROUTES.CREAR_VEHICULO, {
+        prefillPatente: intent.patente,
+        prefillVehicleData: intent.vehicleData,
+      });
+    } catch (e) {
+      logger.warn('No se pudo procesar intent invitado:', e);
+    }
+  }, [isAuthenticated, loading, navigationRef]);
+
   // Login -> asegurar refetch inicial de queries críticas del dashboard (evita depender de pull-to-refresh/scroll)
   useEffect(() => {
     if (isAuthenticated && !prevAuthRef.current) {
@@ -437,9 +452,10 @@ const MainImpl = ({ lastNotificationResponse }) => {
       } catch (_e) {
         // no-op: fallback a refetch natural de screens
       }
+      flushPendingGuestIntent();
     }
     prevAuthRef.current = isAuthenticated;
-  }, [isAuthenticated]);
+  }, [isAuthenticated, flushPendingGuestIntent]);
 
   // EAS Update: al volver de segundo plano, comprobar OTA (no en los primeros segundos de vida del proceso).
   // En el primer arranque Android suele pasar active↔inactive; un reload aquí parece “la app se cerró sola”.
@@ -1200,6 +1216,10 @@ const MainImpl = ({ lastNotificationResponse }) => {
   const onNavigationReady = useCallback(async () => {
     logger.debug('✅ NavigationContainer está listo');
 
+    if (isAuthenticated && !loading) {
+      flushPendingGuestIntent();
+    }
+
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/d21e2f6b-6baf-4202-b5db-1d07b32331cc', {
       method: 'POST',
@@ -1307,6 +1327,7 @@ const MainImpl = ({ lastNotificationResponse }) => {
     navigateToPaymentCallback,
     flushPendingGuestPublicDeepLink,
     consumePendingPublicDeepLinkFromStorage,
+    flushPendingGuestIntent,
   ]);
 
   useEffect(() => {

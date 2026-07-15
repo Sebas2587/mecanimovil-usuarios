@@ -1331,6 +1331,41 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
 };
 
 /**
+ * Proveedores para flujo invitado: por marca, con geo opcional.
+ * @param {{ marcaId: number, lat?: number, lng?: number, dist?: number, limit?: number }} opts
+ */
+export const getGuestProvidersByMarca = async ({ marcaId, lat, lng, dist = 25, limit = 24 }) => {
+  if (marcaId == null || marcaId === '') return [];
+
+  const opt = { requiresAuth: false, forceRefresh: true };
+  const la = lat != null ? Number(lat) : NaN;
+  const lo = lng != null ? Number(lng) : NaN;
+  const hasCoords = Number.isFinite(la) && Number.isFinite(lo);
+
+  try {
+    if (hasCoords) {
+      const merged = await fetchCercaProvidersMerged(la, lo, dist, marcaId);
+      return merged.slice(0, limit);
+    }
+
+    const params = { marca_id: marcaId, ...PANEL_SERVICIOS_QUERY };
+    const [tRes, mRes] = await Promise.all([
+      get('/usuarios/talleres/proveedores_filtrados/', params, opt),
+      get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params, opt),
+    ]);
+
+    const raw = [
+      ...(tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' })),
+      ...(mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' })),
+    ];
+    return raw.slice(0, limit);
+  } catch (error) {
+    console.error('Error obteniendo proveedores invitado:', error);
+    return [];
+  }
+};
+
+/**
  * Obtiene talleres por modelo de vehículo
  * @param {number} modeloId - ID del modelo
  * @returns {Promise<Array>} Lista de talleres compatibles
