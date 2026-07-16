@@ -3,6 +3,7 @@ import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { SPACING } from '../../design-system/tokens';
 import ProviderPreviewCard from '../home/ProviderPreviewCard';
 import { formatProviderForCard } from '../../utils/providerUtils';
+import { getSpecialtyForBrandContext } from '../../utils/providerBrandCoverage';
 
 const MIN_CARD_WIDTH = 220;
 const GRID_GUTTER = SPACING.md;
@@ -34,11 +35,16 @@ const GuestProvidersGrid = ({ providers = [], userBrandName, onProviderPress }) 
   const renderCard = useCallback(
     (item) => {
       const { id: _pid, ...card } = formatProviderForCard(item);
+      /** En sección de marca: badge = cobertura; specialty = servicios (no marcas). */
+      const specialty = userBrandName
+        ? getSpecialtyForBrandContext(item, card.serviceOffers)
+        : card.specialty || null;
       return (
         <View key={`${item._panelKind}-${item.id}`} style={{ width: cardWidth }}>
           <ProviderPreviewCard
             {...card}
             provider={item}
+            specialty={specialty}
             userBrandName={userBrandName}
             cardFooterVariant="bookings"
             omitRightMargin

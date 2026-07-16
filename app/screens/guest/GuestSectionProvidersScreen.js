@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,22 @@ import { ChevronLeft } from 'lucide-react-native';
 import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import GuestProvidersGrid from '../../components/guest/GuestProvidersGrid';
+import ExploreSearchBar from '../../components/providers/explore/ExploreSearchBar';
+import { buildBrandSeeAllMeta } from '../../utils/providerSectionAllocation';
+
+function normalizeSearch(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
 
 /**
  * Lista completa de talleres de una sección del guest landing (Airbnb “See all”).
+ *
+ * - Secciones de marca: catálogo completo (solapes permitidos entre marcas).
+ * - Buscador simple por nombre de taller (filtro local).
  */
 const GuestSectionProvidersScreen = () => {
   const navigation = useNavigation();
@@ -23,9 +36,34 @@ const GuestSectionProvidersScreen = () => {
   const insets = useSafeAreaInsets();
 
   const title = route.params?.title || 'Talleres';
-  const meta = route.params?.meta || null;
   const providers = route.params?.providers || [];
-  const userBrandName = route.params?.userBrandName || null;
+  const brandName = route.params?.brandName || route.params?.userBrandName || null;
+  const userBrandName = route.params?.userBrandName || brandName || null;
+
+  const [query, setQuery] = useState('');
+
+  const filteredProviders = useMemo(() => {
+    const q = normalizeSearch(query);
+    if (!q) return providers;
+    return providers.filter((p) => {
+      const name = normalizeSearch(p?.nombre || p?.name || '');
+      return name.includes(q);
+    });
+  }, [providers, query]);
+
+  const meta = useMemo(() => {
+    const count = filteredProviders.length;
+    const total = providers.length;
+    const showingFiltered = Boolean(normalizeSearch(query)) && count !== total;
+
+    if (brandName) {
+      const base = buildBrandSeeAllMeta(brandName, showingFiltered ? count : total);
+      return showingFiltered ? `${count} de ${total} · ${brandName}` : base;
+    }
+    if (showingFiltered) return `${count} de ${total} talleres`;
+    if (route.params?.meta) return route.params.meta;
+    return `${total} taller${total === 1 ? '' : 'es'}`;
+  }, [route.params?.meta, brandName, providers.length, filteredProviders.length, query]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -56,26 +94,35 @@ const GuestSectionProvidersScreen = () => {
           <Text style={styles.title} numberOfLines={1}>
             {title}
           </Text>
-          {meta ? (
-            <Text style={styles.meta} numberOfLines={1}>
-              {meta}
-            </Text>
-          ) : (
-            <Text style={styles.meta}>{providers.length} talleres</Text>
-          )}
+          <Text style={styles.meta} numberOfLines={1}>
+            {meta}
+          </Text>
         </View>
         <View style={styles.backBtn} />
+      </View>
+
+      <View style={styles.searchWrap}>
+        <ExploreSearchBar
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Buscar por nombre del taller"
+        />
       </View>
 
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + SPACING.xl }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {providers.length === 0 ? (
           <Text style={styles.empty}>No hay talleres en esta sección.</Text>
+        ) : filteredProviders.length === 0 ? (
+          <Text style={styles.empty}>
+            No encontramos talleres con “{query.trim()}”.
+          </Text>
         ) : (
           <GuestProvidersGrid
-            providers={providers}
+            providers={filteredProviders}
             userBrandName={userBrandName}
             onProviderPress={handleProviderPress}
           />
@@ -122,9 +169,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
   },
+  searchWrap: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    maxWidth: 960,
+    width: '100%',
+    alignSelf: 'center',
+  },
   scroll: {
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.lg,
+    paddingTop: SPACING.sm,
+    maxWidth: 960,
+    width: '100%',
+    alignSelf: 'center',
   },
   empty: {
     ...TYPOGRAPHY.styles.body,

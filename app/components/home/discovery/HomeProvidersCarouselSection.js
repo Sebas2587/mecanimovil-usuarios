@@ -13,6 +13,7 @@ import { HomePanelCard } from '../shared/HomePanelCard';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
 import ProviderPreviewCard from '../ProviderPreviewCard';
 import { formatProviderForCard } from '../../../utils/providerUtils';
+import { getSpecialtyForBrandContext } from '../../../utils/providerBrandCoverage';
 import { CARD_GAP, H_PAD } from '../shared/homeLayoutConstants';
 
 /**
@@ -105,12 +106,15 @@ const HomeProvidersCarouselSection = ({
             >
               {pair.map((p) => {
                 const { id: _pid, ...card } = formatProviderForCard(p);
+                const specialty = userBrandName
+                  ? getSpecialtyForBrandContext(p, card.serviceOffers)
+                  : card.specialty || null;
                 return (
                   <ProviderPreviewCard
                     key={`${p._panelKind}-${p.id}`}
                     {...card}
                     provider={p}
-                    specialty={card.specialty || null}
+                    specialty={specialty}
                     serviceOffers={card.serviceOffers}
                     cardFooterVariant={cardFooterVariant}
                     reviews={card.reviews}

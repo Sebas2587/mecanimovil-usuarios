@@ -110,6 +110,31 @@ export function getCoverageBadgeLabel(provider, userBrandName = null) {
 }
 
 /**
+ * Specialty bajo contexto de sección de marca (Airbnb Explore).
+ * El badge ya comunica «Especialista {Marca}»; aquí preferimos servicios
+ * del panel (no listar marcas otra vez ni el prefijo “También …”).
+ *
+ * @param {object} provider
+ * @param {object[]|null} [serviceOffers] — ofertas de panel ya resueltas
+ * @returns {string|null}
+ */
+export function getSpecialtyForBrandContext(provider, serviceOffers = null) {
+  const offers = Array.isArray(serviceOffers)
+    ? serviceOffers
+    : Array.isArray(provider?._panel_servicios_cache)
+      ? provider._panel_servicios_cache
+      : Array.isArray(provider?.panel_servicios)
+        ? provider.panel_servicios
+        : [];
+  const names = offers
+    .slice(0, 2)
+    .map((o) => o?.nombre || o?.name || (typeof o === 'string' ? o : null))
+    .filter(Boolean);
+  if (names.length > 0) return names.join(' · ');
+  return null;
+}
+
+/**
  * Particiona proveedores elegibles en especialistas de la marca vs multimarca.
  * Los especialistas de otra marca se excluyen (no se relabelizan como multimarca).
  *

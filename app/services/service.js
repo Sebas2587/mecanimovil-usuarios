@@ -158,6 +158,90 @@ export const getServicioPorIdNested = async (servicioId) => {
   }
 };
 
+/** Detalle público de servicio (flujo invitado / AllowAny). */
+export const getServicioDetallePublico = async (servicioId) => {
+  if (servicioId == null || servicioId === '') return null;
+  try {
+    return await get(
+      `/servicios/servicios/${servicioId}/`,
+      {},
+      { requiresAuth: false },
+    );
+  } catch (error) {
+    console.error('Error obteniendo servicio público:', error);
+    return null;
+  }
+};
+
+/**
+ * Ofertas públicas de un servicio → shape de “grupo” para GuestServiceOfferScreen.
+ * Preferir mas_solicitados cuando exista; este fallback arma el catálogo por servicio.
+ */
+export const getServicioOfertasPublicasGroup = async (servicioId) => {
+  if (servicioId == null || servicioId === '') return null;
+  try {
+    const [detalle, ofertasRaw] = await Promise.all([
+      getServicioDetallePublico(servicioId),
+      get(`/servicios/servicios/${servicioId}/ofertas/`, {}, { requiresAuth: false }),
+    ]);
+    const ofertasList = Array.isArray(ofertasRaw)
+      ? ofertasRaw
+      : Array.isArray(ofertasRaw?.results)
+        ? ofertasRaw.results
+        : [];
+
+    const ofertas = [];
+    const precios = [];
+    for (const oferta of ofertasList) {
+      if (!oferta?.disponible && oferta?.disponible !== undefined) continue;
+      const provider = oferta.taller || oferta.mecanico || oferta.taller_info || oferta.mecanico_info;
+      if (!provider?.id) continue;
+      const providerType = oferta.taller || oferta.taller_info ? 'taller' : 'mecanico';
+      const precio = Number(
+        oferta.precio_publicado_cliente
+        || oferta.precio_sin_repuestos
+        || oferta.precio
+        || 0,
+      );
+      if (precio > 0) precios.push(precio);
+      ofertas.push({
+        oferta_id: oferta.id,
+        servicio_id: servicioId,
+        nombre: detalle?.nombre || oferta.servicio_nombre || 'Servicio',
+        precio,
+        precio_publicado_cliente: Number(oferta.precio_publicado_cliente || 0),
+        tipo_servicio: oferta.tipo_servicio || 'sin_repuestos',
+        provider: {
+          id: provider.id,
+          nombre: provider.nombre,
+          foto_perfil: provider.foto_perfil || provider.foto_perfil_url,
+          foto_perfil_url: provider.foto_perfil_url || provider.foto_perfil,
+          calificacion_promedio: provider.calificacion_promedio,
+          direccion: provider.direccion,
+          verificado: provider.verificado,
+        },
+        provider_type: providerType,
+      });
+    }
+
+    if (ofertas.length === 0) return null;
+
+    return {
+      servicio_id: Number(servicioId),
+      nombre: detalle?.nombre || 'Servicio',
+      foto: detalle?.foto || null,
+      fotos_servicio: detalle?.foto ? [{ imagen_url: detalle.foto }] : [],
+      precio_desde: precios.length ? Math.min(...precios) : null,
+      precio_hasta: precios.length ? Math.max(...precios) : null,
+      total_proveedores: ofertas.length,
+      ofertas,
+    };
+  } catch (error) {
+    console.error('Error obteniendo ofertas públicas del servicio:', error);
+    return null;
+  }
+};
+
 /**
  * Busca servicios por término
  * @param {string} termino - Término de búsqueda

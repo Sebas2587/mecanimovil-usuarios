@@ -53,12 +53,14 @@ const GuestSearchSuggestions = ({
             <View style={styles.group}>
               <Text style={styles.groupTitle}>Servicios</Text>
               {serviceOffers.slice(0, 5).map((offer) => {
-                const name =
-                  offer.servicio?.nombre || offer.servicio?.servicio_nombre || 'Servicio';
-                const provider = offer.provider?.nombre;
+                const total = offer.total_proveedores || offer.ofertas?.length || 0;
+                const desde = Number(offer.precio_desde) || 0;
+                const subtitleParts = [];
+                if (total > 0) subtitleParts.push(`${total} taller${total === 1 ? '' : 'es'}`);
+                if (desde > 0) subtitleParts.push(`Desde $${Math.round(desde).toLocaleString('es-CL')}`);
                 return (
                   <TouchableOpacity
-                    key={`sug-svc-${offer.servicio_id}-${offer.oferta_id}`}
+                    key={`sug-svc-${offer.servicio_id}`}
                     style={styles.row}
                     onPress={() => onSelectService?.(offer)}
                     activeOpacity={0.85}
@@ -68,10 +70,10 @@ const GuestSearchSuggestions = ({
                     </View>
                     <View style={styles.textCol}>
                       <Text style={styles.rowTitle} numberOfLines={1}>
-                        {name}
+                        {offer.nombre}
                       </Text>
                       <Text style={styles.rowSub} numberOfLines={1}>
-                        {provider ? `Con ${provider}` : 'Servicio automotriz'}
+                        {subtitleParts.length ? subtitleParts.join(' · ') : 'Servicio automotriz'}
                       </Text>
                     </View>
                   </TouchableOpacity>

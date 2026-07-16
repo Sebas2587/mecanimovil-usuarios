@@ -47,7 +47,14 @@ import { buscarServiciosPublico, getServiciosMasSolicitados } from '../../servic
 import { savePendingGuestIntent, savePendingGuestScheduleIntent } from '../../utils/guestIntent';
 import { formatGuestValorLabel, mapPublicDataToPrefill } from '../../utils/guestExploreUtils';
 import { showAlert } from '../../utils/platformAlert';
-import { allocateProvidersToSections, previewSectionProviders, SECTION_PREVIEW_LIMIT } from '../../utils/providerSectionAllocation';
+import {
+  allocateProvidersToSections,
+  previewSectionProviders,
+  resolveProvidersForSeeAll,
+  buildBrandSeeAllMeta,
+  sectionShouldShowSeeAll,
+  SECTION_PREVIEW_LIMIT,
+} from '../../utils/providerSectionAllocation';
 import { filterProvidersBySearchQuery, providerStableKey } from '../../utils/exploreProviderUtils';
 
 const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
@@ -78,23 +85,23 @@ function mergeProviderPool(lists) {
   return Array.from(map.values());
 }
 
+/**
+ * Resultados de búsqueda → grupos por servicio (todas sus ofertas/talleres), igual
+ * forma que "servicios más solicitados". Nunca representa el servicio con un único
+ * taller "adivinado": el detalle (GuestServiceOfferScreen) muestra todos los talleres.
+ */
 function mapSearchServiciosToOffers(servicios) {
-  const offers = [];
-  for (const servicio of servicios || []) {
-    const taller = servicio.taller_principal;
-    const mecanico = servicio.mecanico_principal;
-    const provider = taller || mecanico;
-    if (!provider) continue;
-    const providerType = taller ? 'taller' : 'mecanico';
-    offers.push({
-      servicio_id: servicio.id,
-      oferta_id: servicio.oferta_id ?? servicio.oferta_servicio_id ?? null,
-      provider: { ...provider, _panelKind: providerType },
-      providerType,
-      servicio,
-    });
-  }
-  return offers;
+  return (servicios || [])
+    .filter((item) => Array.isArray(item?.ofertas) && item.ofertas.length > 0)
+    .map((item) => ({
+      servicio_id: item.servicio_id,
+      nombre: item.nombre,
+      fotos_servicio: item.foto ? [{ imagen_url: item.foto }] : [],
+      precio_desde: item.precio_desde,
+      precio_hasta: item.precio_hasta,
+      total_proveedores: item.total_proveedores,
+      ofertas: item.ofertas || [],
+    }));
 }
 
 const GuestLandingScreen = () => {
@@ -374,16 +381,26 @@ const GuestLandingScreen = () => {
     setMarcaProviders([]);
   }, []);
 
+  /**
+   * Airbnb “See all”:
+   * - Feed: lista exclusiva (sin duplicar talleres entre secciones).
+   * - Ver todos (marca): catálogo completo de especialistas que atienden esa marca.
+   */
   const navigateToSection = useCallback(
     (section) => {
+      const brandName = section.brandName || null;
+      const seeAllProviders = resolveProvidersForSeeAll(section, textFilteredProviders);
       navigation.navigate(ROUTES.GUEST_SECTION_PROVIDERS, {
         title: section.title,
-        meta: section.meta,
-        providers: section.providers,
-        userBrandName: section.brandName || (hasVehicleResults ? marcaNombre : null),
+        meta: brandName
+          ? buildBrandSeeAllMeta(brandName, seeAllProviders.length)
+          : section.meta || `${seeAllProviders.length} talleres`,
+        providers: seeAllProviders,
+        userBrandName: brandName || (hasVehicleResults ? marcaNombre : null),
+        brandName,
       });
     },
-    [navigation, hasVehicleResults, marcaNombre],
+    [navigation, hasVehicleResults, marcaNombre, textFilteredProviders],
   );
 
   const handleRegister = useCallback(async () => {
@@ -686,7 +703,7 @@ const GuestLandingScreen = () => {
               loading={false}
               onProviderPress={handleProviderPress}
               onSeeAll={() => navigateToSection(section)}
-              seeAllWhen={section.providers.length > SECTION_PREVIEW_LIMIT}
+              seeAllWhen={sectionShouldShowSeeAll(section, SECTION_PREVIEW_LIMIT)}
               spacingTop={idx > 0}
               userBrandName={section.brandName || (hasVehicleResults ? marcaNombre : null)}
             />

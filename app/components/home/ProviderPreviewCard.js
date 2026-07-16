@@ -7,7 +7,7 @@ import VerifiedSeal from '../base/VerifiedSeal/VerifiedSeal';
 import {
   getProviderImageCandidatesResolved,
   getPanelServicios,
-  getProviderDistance,
+  getProviderDistanceOrLocation,
   resolveProviderKpiBadge,
   isProviderRealtimeOnline,
 } from '../../utils/providerUtils';
@@ -85,7 +85,10 @@ const ProviderPreviewCard = ({
 
   const distanceFromProp =
     distance != null && distance !== '' && String(distance) !== '—' ? String(distance) : null;
-  const distanceLabel = distanceFromProp ?? (providerRaw ? getProviderDistance(providerRaw) : null);
+  /** Con geo del usuario: km. Sin geo (guest): comuna / dirección corta. Nunca “Sin ubicación” si hay dato. */
+  const locationLabel =
+    distanceFromProp
+    || (providerRaw ? getProviderDistanceOrLocation(providerRaw) : null);
 
   const modalidadTagLabel = modalidadLabel(getProviderModalidad(providerRaw));
   const coverageBadgeLabel = getCoverageBadgeLabel(providerRaw, userBrandName);
@@ -102,11 +105,8 @@ const ProviderPreviewCard = ({
           .join(' · ')
       : null);
 
-  // Meta Airbnb: una sola línea gris (distancia · modalidad · specialty corta)
-  const metaDistance =
-    distanceLabel ||
-    (providerRaw ? 'Sin ubicación' : null);
-  const metaParts = [metaDistance, modalidadTagLabel].filter(
+  // Meta Airbnb: ubicación (km o comuna) · modalidad
+  const metaParts = [locationLabel, modalidadTagLabel].filter(
     (p) => p && String(p).trim() && String(p) !== '—',
   );
   const metaLine = metaParts.join(' · ') || specialtyLine || null;

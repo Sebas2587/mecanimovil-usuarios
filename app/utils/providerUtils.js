@@ -611,6 +611,59 @@ export const getProviderDistance = (provider) => {
 };
 
 /**
+ * Ubicación legible cuando no hay distancia (guest sin dirección / sin geo).
+ * Airbnb meta: comuna o dirección corta — nunca inventar km.
+ *
+ * @returns {string|null}
+ */
+export const getProviderLocationLabel = (provider) => {
+  if (!provider) return null;
+
+  const fromComunas = Array.isArray(provider.comunas_atendidas)
+    ? provider.comunas_atendidas.map((c) => (c == null ? '' : String(c).trim())).filter(Boolean)
+    : [];
+  if (fromComunas.length === 1) return fromComunas[0];
+  if (fromComunas.length > 1) return fromComunas[0];
+
+  const df = provider.direccion_fisica;
+  const comunaDf = df?.comuna != null ? String(df.comuna).trim() : '';
+  if (comunaDf) return comunaDf;
+
+  const comunaFlat = provider.comuna != null ? String(provider.comuna).trim() : '';
+  if (comunaFlat) return comunaFlat;
+
+  const rawDir =
+    provider.direccion
+    || df?.direccion_completa
+    || provider.usuario?.direccion
+    || '';
+  let text = String(rawDir).trim();
+  if (!text) return null;
+
+  // Mecánicos: "Servicio en Providencia, Las Condes" → primera comuna
+  const servicioEn = text.match(/^servicio en\s+(.+)$/i);
+  if (servicioEn) {
+    const first = servicioEn[1].split(',')[0].trim();
+    if (first) return first;
+  }
+
+  // "Calle 123, Providencia, Región…" → Preferir comuna (2º segmento) si es corta
+  const segs = text.split(',').map((s) => s.trim()).filter(Boolean);
+  if (segs.length >= 2) {
+    const candidate = segs[1];
+    if (candidate.length > 1 && candidate.length <= 40) return candidate;
+  }
+  if (segs[0] && segs[0].length <= 48) return segs[0];
+  return text.length > 48 ? `${text.slice(0, 45)}…` : text;
+};
+
+/**
+ * Meta de ubicación para cards: km si hay geo del usuario; si no, comuna/dirección.
+ */
+export const getProviderDistanceOrLocation = (provider) =>
+  getProviderDistance(provider) || getProviderLocationLabel(provider);
+
+/**
  * Formatea un proveedor al shape que espera ProviderPreviewCard.
  * Usar esta función en UserPanelScreen, TalleresScreen, MecanicosScreen
  * y cualquier otra pantalla que muestre ProviderPreviewCard.
@@ -731,7 +784,7 @@ export const formatProviderForCard = (provider) => {
     rating: getProviderRating(provider),
     reviews: getProviderReviews(provider),
     bookingsCount: getProviderCompletedServicesCount(provider),
-    distance: getProviderDistance(provider),
+    distance: getProviderDistanceOrLocation(provider),
     verified: provider?.verificado ?? false,
     image: candidates[0] || null,
     imageCandidates: candidates,

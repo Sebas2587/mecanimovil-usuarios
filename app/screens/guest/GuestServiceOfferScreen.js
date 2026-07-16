@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,23 +7,36 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Star, MapPin, Building2, ChevronLeft, ChevronRight, Wrench } from 'lucide-react-native';
+import { Star, MapPin, Building2, ChevronLeft, ChevronRight, Wrench, Car } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import GuestScheduleGateModal from '../../components/guest/GuestScheduleGateModal';
+import GuestAirbnbServiceCard from '../../components/guest/GuestAirbnbServiceCard';
+import HomeSectionHeader from '../../components/home/shared/HomeSectionHeader';
 import VerifiedSeal from '../../components/base/VerifiedSeal/VerifiedSeal';
 import {
   labelTipoServicioCatalogo,
   formatPrecioCatalogoServicio,
 } from '../../components/home/shared/providerCatalogSchedule';
 import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
-import { resolveToAbsoluteMediaUrl, buildProviderAvatarUri } from '../../utils/providerUtils';
+import {
+  resolveToAbsoluteMediaUrl,
+  buildProviderAvatarUri,
+  getProviderLocationLabel,
+} from '../../utils/providerUtils';
 import { savePendingGuestScheduleIntent } from '../../utils/guestIntent';
+import {
+  getServicioDetallePublico,
+  getServicioOfertasPublicasGroup,
+  getServiciosMasSolicitados,
+} from '../../services/service';
+import { H_PAD } from '../../components/home/shared/homeLayoutConstants';
 
 const formatCLP = (n) => {
   const num = Number(n);
@@ -31,44 +44,86 @@ const formatCLP = (n) => {
   return `$${Math.round(num).toLocaleString('es-CL')}`;
 };
 
-/** Normaliza una oferta de grupo (mas_solicitados) o legacy (single offer) a una fila uniforme. */
+/** Etiqueta de cobertura de vehículo por oferta: marca específica, multimarca o especialista. */
+function resolveCoberturaLabel(cobertura) {
+  if (!cobertura) return null;
+  if (cobertura.alcance === 'marca' && cobertura.marca_nombre) {
+    return `Solo ${cobertura.marca_nombre}`;
+  }
+  if (cobertura.alcance === 'multimarca') {
+    return 'Todas las marcas';
+  }
+  if (cobertura.alcance === 'especialista') {
+    const marcas = Array.isArray(cobertura.marcas_nombres) ? cobertura.marcas_nombres : [];
+    if (marcas.length > 0) {
+      return `Especialista en ${marcas.join(', ')}`;
+    }
+  }
+  return null;
+}
+
+function resolveProviderPhoto(provider) {
+  if (!provider) return null;
+  return (
+    buildProviderAvatarUri({
+      ...provider,
+      foto_perfil: provider.foto_perfil,
+      foto_perfil_url: provider.foto_perfil_url || provider.foto_perfil,
+    })
+    || resolveToAbsoluteMediaUrl(provider.foto_perfil || provider.foto_perfil_url)
+  );
+}
+
+/** Normaliza ofertas (grupo mas_solicitados o legacy) a filas de listing Airbnb. */
 function buildProviderRows(group, legacyOffer) {
   if (group) {
     return (group.ofertas || [])
       .filter((oferta) => oferta?.provider?.id)
-      .map((oferta) => ({
-        key: `oferta-${oferta.oferta_id}`,
-        providerId: oferta.provider.id,
-        providerType: oferta.provider_type === 'mecanico' ? 'mecanico' : 'taller',
-        nombre: oferta.provider.nombre || 'Taller',
-        avatarUri: resolveToAbsoluteMediaUrl(oferta.provider.foto_perfil),
-        rating: Number(oferta.provider.calificacion_promedio) || 0,
-        verificado: Boolean(oferta.provider.verificado),
-        direccion: oferta.provider.direccion,
-        precioLabel: formatCLP(oferta.precio),
-        tipoServicioLabel:
-          oferta.tipo_servicio === 'sin_repuestos' ? 'Sin repuestos' : 'Con repuestos',
-        servicioNombre: oferta.nombre || group.nombre,
-        ofertaServicioId: oferta.oferta_id,
-        raw: oferta,
-      }));
+      .map((oferta) => {
+        const provider = oferta.provider;
+        return {
+          key: `oferta-${oferta.oferta_id}`,
+          providerId: provider.id,
+          providerType: oferta.provider_type === 'mecanico' ? 'mecanico' : 'taller',
+          nombre: provider.nombre || 'Taller',
+          avatarUri: resolveProviderPhoto(provider),
+          rating: Number(provider.calificacion_promedio) || 0,
+          verificado: Boolean(provider.verificado),
+          locationLabel:
+            getProviderLocationLabel(provider)
+            || (provider.direccion ? String(provider.direccion).split(',')[0]?.trim() : null),
+          precioLabel: formatCLP(oferta.precio),
+          tipoServicioLabel:
+            oferta.tipo_servicio === 'sin_repuestos' ? 'Sin repuestos' : 'Con repuestos',
+          coberturaLabel: resolveCoberturaLabel(oferta.cobertura_vehiculo),
+          servicioNombre: oferta.nombre || group.nombre,
+          ofertaServicioId: oferta.oferta_id,
+          raw: oferta,
+        };
+      });
   }
 
   if (legacyOffer?.provider) {
+    const provider = legacyOffer.provider;
     const precioInfo = labelPrecioServicioResuelto(legacyOffer.servicio, { vehicle: null });
     return [
       {
         key: 'legacy-offer',
-        providerId: legacyOffer.provider.id,
+        providerId: provider.id,
         providerType: legacyOffer.providerType === 'mecanico' ? 'mecanico' : 'taller',
-        nombre: legacyOffer.provider.nombre || 'Taller',
-        avatarUri: buildProviderAvatarUri(legacyOffer.provider),
-        rating: Number(legacyOffer.provider.calificacion_promedio) || 0,
-        verificado: legacyOffer.provider.verificado !== false,
-        direccion: legacyOffer.provider.direccion || legacyOffer.provider.comuna,
+        nombre: provider.nombre || 'Taller',
+        avatarUri: resolveProviderPhoto(provider),
+        rating: Number(provider.calificacion_promedio) || 0,
+        verificado: provider.verificado !== false,
+        locationLabel:
+          getProviderLocationLabel(provider)
+          || provider.direccion
+          || provider.comuna
+          || null,
         precioLabel:
           precioInfo.principal ?? formatPrecioCatalogoServicio(legacyOffer.servicio),
         tipoServicioLabel: labelTipoServicioCatalogo(legacyOffer.servicio),
+        coberturaLabel: null,
         servicioNombre:
           legacyOffer.servicio?.nombre || legacyOffer.servicio?.servicio_nombre || 'Servicio',
         ofertaServicioId: legacyOffer.oferta_id,
@@ -81,14 +136,14 @@ function buildProviderRows(group, legacyOffer) {
 }
 
 /**
- * Pantalla invitado: servicio + lista de talleres que lo ofrecen (cada uno con su propio
- * precio) + gate de registro para agendar. Arquitectura Airbnb (rail editorial + lista de
- * proveedores tipo "listing") con paleta Tinder.
+ * Pantalla invitado — detalle de servicio estilo Airbnb Experience:
+ * hero + precio, listings de talleres (foto real → perfil), rail de relacionados, CTA agendar.
  */
 const GuestServiceOfferScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
 
   const group = route.params?.group || null;
   const legacyOffer = route.params?.offer || null;
@@ -97,6 +152,7 @@ const GuestServiceOfferScreen = () => {
 
   const [gateVisible, setGateVisible] = useState(false);
   const [selectedRowKey, setSelectedRowKey] = useState(null);
+  const [relatedServices, setRelatedServices] = useState([]);
 
   const providerRows = useMemo(() => buildProviderRows(group, legacyOffer), [group, legacyOffer]);
   const selectedRow = useMemo(
@@ -104,10 +160,14 @@ const GuestServiceOfferScreen = () => {
     [providerRows, selectedRowKey],
   );
 
+  const servicioId = group?.servicio_id ?? legacyOffer?.servicio_id ?? legacyOffer?.servicio?.id;
   const serviceName = group?.nombre
     || legacyOffer?.servicio?.nombre
     || legacyOffer?.servicio?.servicio_nombre
     || 'Servicio';
+
+  const layoutW = Platform.OS === 'web' ? Math.min(windowWidth, 640) : windowWidth;
+  const relatedCardW = Math.max(148, Math.min(196, Math.floor((layoutW - H_PAD * 2) * 0.42)));
 
   const coverUri = useMemo(() => {
     const fotos = Array.isArray(group?.fotos_servicio)
@@ -131,7 +191,7 @@ const GuestServiceOfferScreen = () => {
       return {
         label: tieneVarios ? `Desde ${formatCLP(desde)}` : formatCLP(desde),
         hint: tieneVarios
-          ? 'El precio varía según el taller o mecánico que elijas.'
+          ? 'El precio varía según el taller que elijas.'
           : null,
       };
     }
@@ -141,7 +201,39 @@ const GuestServiceOfferScreen = () => {
     return null;
   }, [group, providerRows]);
 
+  const tipoBadge = useMemo(() => {
+    if (providerRows.length > 1) {
+      return `${providerRows.length} talleres`;
+    }
+    return providerRows[0]?.tipoServicioLabel || null;
+  }, [providerRows]);
+
   const isMultiProvider = providerRows.length > 1;
+
+  useEffect(() => {
+    let mounted = true;
+    if (servicioId == null) {
+      setRelatedServices([]);
+      return undefined;
+    }
+    (async () => {
+      const detalle = await getServicioDetallePublico(servicioId);
+      if (!mounted) return;
+      const related = Array.isArray(detalle?.servicios_relacionados_info)
+        ? detalle.servicios_relacionados_info
+        : Array.isArray(detalle?.servicios_relacionados)
+          ? detalle.servicios_relacionados
+          : [];
+      setRelatedServices(
+        related
+          .filter((s) => s?.id != null && Number(s.id) !== Number(servicioId))
+          .slice(0, 8),
+      );
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [servicioId]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -154,10 +246,14 @@ const GuestServiceOfferScreen = () => {
       await savePendingGuestScheduleIntent({
         patente: patente || undefined,
         vehicleData: vehicleData || undefined,
-        provider: { id: selectedRow.providerId, nombre: selectedRow.nombre, _panelKind: selectedRow.providerType },
+        provider: {
+          id: selectedRow.providerId,
+          nombre: selectedRow.nombre,
+          _panelKind: selectedRow.providerType,
+        },
         providerType: selectedRow.providerType,
         servicio: {
-          id: group?.servicio_id ?? legacyOffer?.servicio_id,
+          id: servicioId,
           nombre: selectedRow.servicioNombre,
           oferta_id: selectedRow.ofertaServicioId,
         },
@@ -166,7 +262,7 @@ const GuestServiceOfferScreen = () => {
       setGateVisible(false);
       navigation.navigate(targetRoute);
     },
-    [navigation, selectedRow, patente, vehicleData, group, legacyOffer],
+    [navigation, selectedRow, patente, vehicleData, servicioId],
   );
 
   const openProviderProfile = useCallback(
@@ -180,10 +276,44 @@ const GuestServiceOfferScreen = () => {
     [navigation],
   );
 
-  const handleSelectProvider = useCallback((row) => {
+  const openScheduleGate = useCallback((row) => {
     setSelectedRowKey(row.key);
     setGateVisible(true);
   }, []);
+
+  const handleRelatedPress = useCallback(
+    async (related) => {
+      const id = related?.id;
+      if (id == null) return;
+
+      const popular = await getServiciosMasSolicitados(24);
+      const match = (popular || []).find((item) => Number(item.servicio_id) === Number(id));
+      let nextGroup = null;
+      if (match) {
+        nextGroup = {
+          servicio_id: match.servicio_id,
+          nombre: match.nombre,
+          fotos_servicio: match.foto ? [{ imagen_url: match.foto }] : [],
+          precio_desde: match.precio_desde,
+          precio_hasta: match.precio_hasta,
+          total_proveedores: match.total_proveedores,
+          ofertas: match.ofertas || [],
+        };
+      } else {
+        nextGroup = await getServicioOfertasPublicasGroup(id);
+      }
+
+      if (!nextGroup?.ofertas?.length) return;
+
+      navigation.push(ROUTES.GUEST_SERVICE_OFFER, {
+        group: nextGroup,
+        offer: null,
+        patente,
+        vehicleData,
+      });
+    },
+    [navigation, patente, vehicleData],
+  );
 
   if (providerRows.length === 0) {
     return (
@@ -215,11 +345,12 @@ const GuestServiceOfferScreen = () => {
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingBottom: insets.bottom + (isMultiProvider ? SPACING.xl : 120) },
+          { paddingBottom: insets.bottom + 120 },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Hero Airbnb: media dominante */}
         <View style={styles.heroMedia}>
           {coverUri ? (
             <Image source={{ uri: coverUri }} style={styles.heroImage} contentFit="cover" />
@@ -228,25 +359,29 @@ const GuestServiceOfferScreen = () => {
               <Wrench size={40} color={COLORS.neutral.gray[400]} />
             </View>
           )}
-          {isMultiProvider ? (
+          {tipoBadge ? (
             <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>
-                {providerRows.length} talleres disponibles
-              </Text>
-            </View>
-          ) : providerRows[0]?.tipoServicioLabel ? (
-            <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>{providerRows[0].tipoServicioLabel}</Text>
+              <Text style={styles.heroBadgeText}>{tipoBadge}</Text>
             </View>
           ) : null}
         </View>
 
         <Text style={styles.serviceTitle}>{serviceName}</Text>
         {priceSummary?.label ? <Text style={styles.price}>{priceSummary.label}</Text> : null}
-        {priceSummary?.hint ? <Text style={styles.priceHint}>{priceSummary.hint}</Text> : null}
+        {priceSummary?.hint ? (
+          <Text style={styles.priceHint}>{priceSummary.hint}</Text>
+        ) : (
+          <View style={styles.priceHintSpacer} />
+        )}
 
+        {/* Listings de talleres — tap → perfil */}
         <Text style={styles.sectionLabel}>
-          {isMultiProvider ? 'Elige con quién agendar' : 'Taller'}
+          {isMultiProvider ? 'Talleres disponibles' : 'Taller'}
+        </Text>
+        <Text style={styles.sectionHint}>
+          {isMultiProvider
+            ? 'Compara precios y revisa el perfil de cada taller.'
+            : 'Toca la card para ver el perfil del taller.'}
         </Text>
 
         <View style={styles.providerList}>
@@ -254,28 +389,34 @@ const GuestServiceOfferScreen = () => {
             <TouchableOpacity
               key={row.key}
               style={styles.providerCard}
-              onPress={() => handleSelectProvider(row)}
+              onPress={() => openProviderProfile(row)}
               activeOpacity={0.88}
+              accessibilityRole="button"
+              accessibilityLabel={`${row.nombre}, ver perfil`}
             >
-              <View style={styles.providerIcon}>
+              <View style={styles.providerPhoto}>
                 {row.avatarUri ? (
                   <Image
                     source={{ uri: row.avatarUri }}
-                    style={styles.providerAvatar}
+                    style={styles.providerPhotoImg}
                     contentFit="cover"
                     cachePolicy="memory-disk"
                   />
                 ) : (
-                  <Building2 size={22} color={COLORS.icon.active} />
+                  <View style={styles.providerPhotoFallback}>
+                    <Building2 size={28} color={COLORS.neutral.gray[400]} strokeWidth={1.75} />
+                  </View>
                 )}
               </View>
-              <View style={styles.providerText}>
+
+              <View style={styles.providerBody}>
                 <View style={styles.providerNameRow}>
                   <Text style={styles.providerName} numberOfLines={1}>
                     {row.nombre}
                   </Text>
                   {row.verificado ? <VerifiedSeal size={14} /> : null}
                 </View>
+
                 <View style={styles.providerMeta}>
                   {row.rating > 0 ? (
                     <View style={styles.ratingRow}>
@@ -284,28 +425,33 @@ const GuestServiceOfferScreen = () => {
                     </View>
                   ) : null}
                   <Text style={styles.metaText}>
-                    {row.providerType === 'mecanico' ? 'A domicilio' : 'Taller verificado'}
+                    {row.providerType === 'mecanico' ? 'A domicilio' : 'En taller'}
                   </Text>
+                  <Text style={styles.metaText}>{row.tipoServicioLabel}</Text>
                 </View>
-                {row.direccion && (
+
+                {row.coberturaLabel ? (
+                  <View style={styles.coberturaRow}>
+                    <Car size={12} color={COLORS.text.tertiary} />
+                    <Text style={styles.coberturaText} numberOfLines={1}>
+                      {row.coberturaLabel}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {row.locationLabel ? (
                   <View style={styles.addressRow}>
                     <MapPin size={12} color={COLORS.text.tertiary} />
                     <Text style={styles.addressText} numberOfLines={1}>
-                      {row.direccion}
+                      {row.locationLabel}
                     </Text>
                   </View>
-                )}
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    openProviderProfile(row);
-                  }}
-                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                >
-                  <Text style={styles.verPerfil}>Ver perfil</Text>
-                </TouchableOpacity>
+                ) : null}
+
+                <Text style={styles.verPerfil}>Ver perfil</Text>
               </View>
-              <View style={styles.providerPriceWrap}>
+
+              <View style={styles.providerAside}>
                 {row.precioLabel ? (
                   <Text style={styles.providerPrice}>{row.precioLabel}</Text>
                 ) : null}
@@ -314,6 +460,34 @@ const GuestServiceOfferScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Relacionados — rail Airbnb */}
+        {relatedServices.length > 0 ? (
+          <View style={styles.relatedSection}>
+            <HomeSectionHeader title="Servicios relacionados" />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={Platform.OS !== 'web'}
+              contentContainerStyle={styles.relatedRow}
+              style={Platform.OS === 'web' ? styles.relatedWeb : undefined}
+            >
+              {relatedServices.map((svc) => {
+                const precioInfo = labelPrecioServicioResuelto(svc, { vehicle: null });
+                const precioLabel = precioInfo.principal ?? formatPrecioCatalogoServicio(svc);
+                return (
+                  <GuestAirbnbServiceCard
+                    key={`related-${svc.id}`}
+                    width={relatedCardW}
+                    servicio={svc}
+                    precioLabel={precioLabel}
+                    tipoLabel={labelTipoServicioCatalogo(svc)}
+                    onPress={() => handleRelatedPress(svc)}
+                  />
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
 
         <View style={styles.infoBlock}>
           <Text style={styles.infoTitle}>¿Qué incluye agendar?</Text>
@@ -324,17 +498,12 @@ const GuestServiceOfferScreen = () => {
         </View>
       </ScrollView>
 
-      {!isMultiProvider ? (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
-          <GuestGradientButton
-            title="Agendar este servicio"
-            onPress={() => handleSelectProvider(providerRows[0])}
-          />
-          <TouchableOpacity onPress={() => openProviderProfile(providerRows[0])} style={styles.footerLink}>
-            <Text style={styles.footerLinkText}>Ver perfil completo del taller</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
+        <GuestGradientButton
+          title={isMultiProvider ? 'Agendar con un taller' : 'Agendar este servicio'}
+          onPress={() => openScheduleGate(selectedRow || providerRows[0])}
+        />
+      </View>
 
       <GuestScheduleGateModal
         visible={gateVisible}
@@ -438,44 +607,57 @@ const styles = StyleSheet.create({
     color: COLORS.text.tertiary,
     marginBottom: SPACING.lg,
   },
+  priceHintSpacer: {
+    height: SPACING.md,
+  },
   sectionLabel: {
     ...TYPOGRAPHY.styles.h4,
     color: COLORS.text.primary,
-    marginTop: SPACING.md,
-    marginBottom: SPACING.sm,
+    marginBottom: 4,
+  },
+  sectionHint: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    marginBottom: SPACING.md,
   },
   providerList: {
-    gap: SPACING.sm,
-    marginBottom: SPACING.lg,
+    gap: SPACING.md,
+    marginBottom: SPACING.xl,
   },
+  /** Listing horizontal Airbnb: foto cuadrada grande + detalle + precio */
   providerCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: SPACING.md,
-    padding: SPACING.md,
+    padding: SPACING.sm,
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.xl,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     ...SHADOWS.sm,
   },
-  providerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[50],
+  providerPhoto: {
+    width: 96,
+    height: 96,
+    borderRadius: BORDERS.radius.lg,
+    overflow: 'hidden',
+    backgroundColor: COLORS.neutral.gray[100],
+    flexShrink: 0,
+  },
+  providerPhotoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  providerPhotoFallback: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-  providerAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: BORDERS.radius.full,
-  },
-  providerText: {
+  providerBody: {
     flex: 1,
     minWidth: 0,
+    justifyContent: 'center',
+    paddingVertical: 2,
   },
   providerNameRow: {
     flexDirection: 'row',
@@ -503,6 +685,17 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
   },
+  coberturaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  coberturaText: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    flex: 1,
+  },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -515,25 +708,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   verPerfil: {
-    ...TYPOGRAPHY.styles.caption,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.buttonSecondary.outlineText,
-    marginTop: 4,
+    ...TYPOGRAPHY.styles.captionBold,
+    fontSize: 13,
+    color: COLORS.primary[600],
+    marginTop: 6,
   },
-  providerPriceWrap: {
+  providerAside: {
     alignItems: 'flex-end',
-    gap: 4,
+    justifyContent: 'center',
+    gap: 6,
+    paddingRight: 2,
   },
   providerPrice: {
     ...TYPOGRAPHY.styles.captionBold,
     fontSize: 15,
     color: COLORS.text.primary,
   },
+  relatedSection: {
+    marginBottom: SPACING.xl,
+  },
+  relatedRow: {
+    gap: SPACING.md,
+    paddingRight: SPACING.md,
+  },
+  relatedWeb: {
+    overflowX: 'auto',
+    overflowY: 'hidden',
+    scrollbarWidth: 'none',
+  },
   infoBlock: {
     paddingTop: SPACING.md,
     borderTopWidth: BORDERS.width.thin,
     borderTopColor: COLORS.border.light,
+    marginBottom: SPACING.lg,
   },
   infoTitle: {
     ...TYPOGRAPHY.styles.h4,
@@ -556,14 +763,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
     ...SHADOWS.lg,
-  },
-  footerLink: {
-    alignItems: 'center',
-    paddingVertical: SPACING.sm,
-  },
-  footerLinkText: {
-    ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.primary[600],
   },
 });
 
