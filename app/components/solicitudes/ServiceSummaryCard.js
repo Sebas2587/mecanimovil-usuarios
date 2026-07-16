@@ -381,6 +381,7 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.md,
         borderWidth: StyleSheet.hairlineWidth,
         borderColor: COLORS.border.light,
+        ...SHADOWS.sm,
     },
     cardEmbedded: {
         marginBottom: 0,

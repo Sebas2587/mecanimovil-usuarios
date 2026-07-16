@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Globe, Car } from 'lucide-react-native';
-import SectionHeader from '../base/SectionHeader/SectionHeader';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { View, Text, StyleSheet, Platform, useWindowDimensions } from 'react-native';
+import { Globe } from 'lucide-react-native';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import { chunkCatalogServiceRows } from './providerServiceCardStyles';
 
 /**
  * Agrupa marcas/modelos desde ofertas del catálogo + marcas declaradas del proveedor.
@@ -72,29 +72,66 @@ export function buildProviderVehicleCoverage(provider, servicios = []) {
   };
 }
 
-function modelsCaption(brand) {
-  if (brand.allModels && brand.modelos.length === 0) {
-    return 'Todos los modelos';
-  }
-  if (brand.allModels && brand.modelos.length > 0) {
-    return `Todos los modelos · Destaca: ${brand.modelos.slice(0, 4).join(', ')}`;
-  }
-  if (brand.modelos.length === 0) return 'Todos los modelos';
-  if (brand.modelos.length <= 6) return brand.modelos.join(', ');
-  return `${brand.modelos.slice(0, 5).join(', ')} +${brand.modelos.length - 5}`;
+function BrandCoverageCard({ brand }) {
+  const showAllModelsOnly = brand.allModels && brand.modelos.length === 0;
+  const modelTags = brand.modelos.slice(0, 10);
+  const overflow = Math.max(0, brand.modelos.length - modelTags.length);
+
+  return (
+    <View style={styles.card} accessibilityRole="text">
+      <Text style={styles.brandTitle} numberOfLines={1}>
+        {brand.nombre}
+      </Text>
+
+      <View style={styles.cardBody}>
+        {showAllModelsOnly ? (
+          <Text style={styles.allModelsText}>Todos los modelos</Text>
+        ) : (
+          <View style={styles.modelGrid}>
+            {brand.allModels ? (
+              <View style={styles.modelTag}>
+                <Text style={styles.modelTagText}>Todos</Text>
+              </View>
+            ) : null}
+            {modelTags.map((modelo) => (
+              <View key={`${brand.nombre}-${modelo}`} style={styles.modelTag}>
+                <Text style={styles.modelTagText} numberOfLines={1}>
+                  {modelo}
+                </Text>
+              </View>
+            ))}
+            {overflow > 0 ? (
+              <View style={styles.modelTag}>
+                <Text style={styles.modelTagText}>+{overflow}</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+      </View>
+    </View>
+  );
 }
 
 /**
- * Sección Airbnb: vehículos que atiende el taller (marcas → modelos).
- * Multimarca / servicios genéricos se indican explícitamente.
+ * Grid Airbnb de cards por marca (2 columnas en web/móvil ancho; 1 en estrecho).
+ * Marca = título tipográfico; modelos = tags meta.
  */
 const ProviderVehicleCoverageSection = ({ provider, servicios = [] }) => {
+  const { width } = useWindowDimensions();
+  /** Mobile estrecho: 1 col; resto (mobile/web): 2 cols como catálogo de servicios. */
+  const columns = width < 360 ? 1 : 2;
+
   const coverage = useMemo(
     () => buildProviderVehicleCoverage(provider, servicios),
     [provider, servicios],
   );
-
   const { esMultimarca, hasGenericOfertas, brands } = coverage;
+
+  const brandRows = useMemo(() => {
+    if (columns === 1) return brands.map((b) => [b]);
+    return chunkCatalogServiceRows(brands);
+  }, [brands, columns]);
+
   if (!esMultimarca && brands.length === 0 && !hasGenericOfertas) return null;
 
   const title = esMultimarca
@@ -103,61 +140,63 @@ const ProviderVehicleCoverageSection = ({ provider, servicios = [] }) => {
       ? 'Marcas y modelos'
       : 'Marca y modelos';
 
+  const hint = esMultimarca
+    ? 'Atiende cualquier marca. Algunos servicios pueden tener precio por modelo.'
+    : 'Marcas en las que se especializa y los modelos con precio en su catálogo.';
+
   return (
     <View style={styles.section}>
-      <SectionHeader title={title} />
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.hint}>{hint}</Text>
 
       {esMultimarca ? (
-        <View style={styles.multimarcaRow}>
+        <View style={styles.multimarcaCallout}>
           <View style={styles.multimarcaIcon}>
-            <Globe size={20} color={COLORS.text.secondary} strokeWidth={2} />
+            <Globe size={18} color={COLORS.badge.multimarca.icon} strokeWidth={2} />
           </View>
-          <View style={styles.multimarcaText}>
-            <Text style={styles.brandName}>Multimarca</Text>
-            <Text style={styles.modelsCaption}>
-              Atiende vehículos de cualquier marca. Los precios pueden variar según modelo.
+          <View style={styles.multimarcaBody}>
+            <Text style={styles.multimarcaTitle}>Multimarca</Text>
+            <Text style={styles.multimarcaSub}>
+              Sin restricción de marca en la mayoría de sus servicios.
             </Text>
           </View>
         </View>
       ) : null}
 
       {!esMultimarca && brands.length > 0 ? (
-        <View style={styles.brandList}>
-          {brands.map((brand, index) => (
-            <View
-              key={`brand-${brand.nombre}`}
-              style={[
-                styles.brandRow,
-                index < brands.length - 1 || hasGenericOfertas ? styles.brandRowBorder : null,
-              ]}
-            >
-              <View style={styles.brandIcon}>
-                <Car size={16} color={COLORS.text.secondary} strokeWidth={2} />
-              </View>
-              <View style={styles.brandBody}>
-                <Text style={styles.brandName}>{brand.nombre}</Text>
-                <Text style={styles.modelsCaption}>{modelsCaption(brand)}</Text>
-              </View>
+        <View style={styles.grid}>
+          {brandRows.map((row, rowIdx) => (
+            <View key={`brand-row-${rowIdx}`} style={styles.gridRow}>
+              {row.map((brand) => (
+                <BrandCoverageCard key={`brand-${brand.nombre}`} brand={brand} />
+              ))}
+              {columns === 2 && row.length === 1 ? (
+                <View style={styles.cardSpacer} />
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {esMultimarca && brands.length > 0 ? (
+        <View style={styles.grid}>
+          <Text style={styles.secondaryLabel}>También con precios por marca</Text>
+          {chunkCatalogServiceRows(brands).map((row, rowIdx) => (
+            <View key={`mm-row-${rowIdx}`} style={styles.gridRow}>
+              {row.map((brand) => (
+                <BrandCoverageCard key={`mm-${brand.nombre}`} brand={brand} />
+              ))}
+              {row.length === 1 ? <View style={styles.cardSpacer} /> : null}
             </View>
           ))}
         </View>
       ) : null}
 
       {hasGenericOfertas ? (
-        <View style={[styles.genericRow, !esMultimarca && brands.length > 0 && styles.genericTop]}>
-          <Text style={styles.brandName}>Servicios genéricos</Text>
-          <Text style={styles.modelsCaption}>
-            Algunos servicios aplican a cualquier marca (sin restricción de modelo).
-          </Text>
-        </View>
-      ) : null}
-
-      {esMultimarca && brands.length > 0 ? (
-        <View style={styles.specialPrices}>
-          <Text style={styles.specialPricesTitle}>Precios por marca</Text>
-          <Text style={styles.modelsCaption}>
-            {brands.map((b) => b.nombre).slice(0, 8).join(' · ')}
-            {brands.length > 8 ? ` +${brands.length - 8}` : ''}
+        <View style={styles.genericCallout}>
+          <Text style={styles.genericTitle}>Servicios genéricos</Text>
+          <Text style={styles.genericSub}>
+            Parte del catálogo aplica a cualquier marca, sin modelo fijo.
           </Text>
         </View>
       ) : null}
@@ -171,81 +210,134 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
     paddingBottom: SPACING.lg,
   },
-  multimarcaRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.md,
-  },
-  multimarcaIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.neutral.gray[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  multimarcaText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  brandList: {
-    marginTop: 2,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.md,
-    paddingVertical: SPACING.md,
-  },
-  brandRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border.light,
-  },
-  brandIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: BORDERS.radius.sm,
-    backgroundColor: COLORS.neutral.gray[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  brandBody: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  brandName: {
-    ...TYPOGRAPHY.styles.captionBold,
-    fontSize: 15,
+  title: {
+    ...TYPOGRAPHY.styles.h5,
     color: COLORS.text.primary,
-    letterSpacing: -0.2,
+    marginBottom: SPACING.xs,
   },
-  modelsCaption: {
+  hint: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
     lineHeight: 20,
+    marginBottom: SPACING.md,
   },
-  genericRow: {
+  multimarcaCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    backgroundColor: COLORS.badge.multimarca.background,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.badge.multimarca.border,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  multimarcaIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.background.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  multimarcaBody: {
+    flex: 1,
+    minWidth: 0,
     gap: 2,
-    paddingTop: SPACING.sm,
   },
-  genericTop: {
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.border.light,
-  },
-  specialPrices: {
-    marginTop: SPACING.lg,
-    gap: 2,
-    paddingTop: SPACING.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.border.light,
-  },
-  specialPricesTitle: {
+  multimarcaTitle: {
     ...TYPOGRAPHY.styles.captionBold,
+    fontSize: 15,
+    color: COLORS.badge.multimarca.text,
+  },
+  multimarcaSub: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    lineHeight: 18,
+  },
+  grid: {
+    gap: SPACING.md,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    width: '100%',
+    gap: SPACING.md,
+  },
+  card: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    overflow: 'hidden',
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.md,
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 1px 2px rgba(0,0,0,0.06)' }
+      : SHADOWS.sm),
+  },
+  cardSpacer: {
+    flex: 1,
+    minWidth: 0,
+  },
+  brandTitle: {
+    ...TYPOGRAPHY.styles.captionBold,
+    fontSize: 16,
     color: COLORS.text.primary,
+    letterSpacing: -0.2,
+    marginBottom: SPACING.sm,
+  },
+  cardBody: {
+    flexGrow: 1,
+  },
+  allModelsText: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    lineHeight: 18,
+  },
+  modelGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs + 2,
+  },
+  modelTag: {
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.badge.meta.border,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 5,
+    borderRadius: BORDERS.radius.full,
+    maxWidth: '100%',
+  },
+  modelTagText: {
+    ...TYPOGRAPHY.styles.caption,
+    fontSize: 12,
+    color: COLORS.badge.meta.text,
+  },
+  secondaryLabel: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.secondary,
+  },
+  genericCallout: {
+    marginTop: SPACING.md,
+    gap: 2,
+    backgroundColor: COLORS.selection.background,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.selection.border,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.md,
+  },
+  genericTitle: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.selection.text,
+  },
+  genericSub: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.tertiary,
+    lineHeight: 18,
   },
 });
 

@@ -264,11 +264,17 @@ export const buscarServicios = async (termino) => {
  * @param {number} [limit=12]
  * @returns {Promise<Array<{servicio_id:number, nombre:string, total_solicitudes:number, precio_desde:number|null, precio_hasta:number|null, ofertas:Array}>>}
  */
-export const getServiciosMasSolicitados = async (limit = 12) => {
+/**
+ * `marcaId` opcional: acota la demanda a lo que realmente pidieron otros dueños de esa
+ * marca (usuarios logueados con vehículo registrado), en vez del ranking global genérico.
+ */
+export const getServiciosMasSolicitados = async (limit = 12, marcaId = null) => {
   try {
+    const params = { limit };
+    if (marcaId != null && marcaId !== '') params.marca_id = marcaId;
     const response = await get(
       '/servicios/servicios/mas_solicitados/',
-      { limit },
+      params,
       { requiresAuth: false },
     );
     return Array.isArray(response) ? response : [];

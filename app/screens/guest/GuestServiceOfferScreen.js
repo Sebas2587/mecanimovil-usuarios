@@ -8,15 +8,19 @@ import {
   Platform,
   StatusBar,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
+import Toast from '../../components/feedback/Toast/Toast';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { Star, MapPin, Building2, ChevronLeft, Wrench, Car } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
+import { useAuth } from '../../context/AuthContext';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import GuestScheduleGateModal from '../../components/guest/GuestScheduleGateModal';
+import { navigateCrearSolicitudConProveedorYServicio } from '../../components/home/shared/homeScheduleNavigation';
 import GuestAirbnbServiceCard from '../../components/guest/GuestAirbnbServiceCard';
 import HomeSectionHeader from '../../components/home/shared/HomeSectionHeader';
 import VerifiedSeal from '../../components/base/VerifiedSeal/VerifiedSeal';
@@ -212,15 +216,25 @@ const GuestServiceOfferScreen = () => {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
+  const { isAuthenticated } = useAuth();
 
   const group = route.params?.group || null;
   const legacyOffer = route.params?.offer || null;
   const patente = route.params?.patente || null;
   const vehicleData = route.params?.vehicleData || null;
+  /** Usuario logueado con vehículo activo: agenda directo con el taller elegido (sin gate). */
+  const vehicle = route.params?.vehicle || null;
+  const isLoggedFlow = isAuthenticated && !!vehicle?.id;
 
   const [gateVisible, setGateVisible] = useState(false);
   const [selectedRowKey, setSelectedRowKey] = useState(null);
   const [relatedServices, setRelatedServices] = useState([]);
+  const [relatedLoadingId, setRelatedLoadingId] = useState(null);
+  /** Alert.alert no tiene implementación visible en react-native-web: toast propio para feedback confiable en toda plataforma. */
+  const [toast, setToast] = useState({ visible: false, message: '', variant: 'info' });
+  const showToast = useCallback((message, variant = 'warning') => {
+    setToast({ visible: true, message, variant });
+  }, []);
 
   const providerRows = useMemo(() => buildProviderRows(group, legacyOffer), [group, legacyOffer]);
   const selectedRow = useMemo(
@@ -349,38 +363,66 @@ const GuestServiceOfferScreen = () => {
     setGateVisible(true);
   }, []);
 
+  /** Logueado + vehículo activo: agenda directo con el taller/mecánico de esta fila (sin re-matching IA). */
+  const scheduleWithProvider = useCallback(
+    (row) => {
+      if (!row?.raw?.provider?.id || !vehicle?.id) return;
+      navigateCrearSolicitudConProveedorYServicio(navigation, {
+        vehicle,
+        provider: row.raw.provider,
+        servicio: row.raw,
+        providerType: row.providerType,
+      });
+    },
+    [navigation, vehicle],
+  );
+
   const handleRelatedPress = useCallback(
     async (related) => {
       const id = related?.id;
-      if (id == null) return;
+      if (id == null || relatedLoadingId != null) return;
+      setRelatedLoadingId(id);
 
-      const popular = await getServiciosMasSolicitados(24);
-      const match = (popular || []).find((item) => Number(item.servicio_id) === Number(id));
-      let nextGroup = null;
-      if (match) {
-        nextGroup = {
-          servicio_id: match.servicio_id,
-          nombre: match.nombre,
-          fotos_servicio: match.foto ? [{ imagen_url: match.foto }] : [],
-          precio_desde: match.precio_desde,
-          precio_hasta: match.precio_hasta,
-          total_proveedores: match.total_proveedores,
-          ofertas: match.ofertas || [],
-        };
-      } else {
-        nextGroup = await getServicioOfertasPublicasGroup(id);
+      try {
+        const popular = await getServiciosMasSolicitados(24);
+        const match = (popular || []).find((item) => Number(item.servicio_id) === Number(id));
+        let nextGroup = null;
+        if (match) {
+          nextGroup = {
+            servicio_id: match.servicio_id,
+            nombre: match.nombre,
+            fotos_servicio: match.foto ? [{ imagen_url: match.foto }] : [],
+            precio_desde: match.precio_desde,
+            precio_hasta: match.precio_hasta,
+            total_proveedores: match.total_proveedores,
+            ofertas: match.ofertas || [],
+          };
+        } else {
+          nextGroup = await getServicioOfertasPublicasGroup(id);
+        }
+
+        if (!nextGroup?.ofertas?.length) {
+          showToast(
+            `Por ahora no hay talleres ofreciendo "${related?.nombre || 'este servicio'}" cerca de ti.`,
+          );
+          return;
+        }
+
+        navigation.push(ROUTES.GUEST_SERVICE_OFFER, {
+          group: nextGroup,
+          offer: null,
+          patente,
+          vehicleData,
+          vehicle,
+        });
+      } catch (error) {
+        console.error('Error abriendo servicio relacionado:', error);
+        showToast('No pudimos abrir este servicio. Intenta nuevamente en unos segundos.', 'error');
+      } finally {
+        setRelatedLoadingId(null);
       }
-
-      if (!nextGroup?.ofertas?.length) return;
-
-      navigation.push(ROUTES.GUEST_SERVICE_OFFER, {
-        group: nextGroup,
-        offer: null,
-        patente,
-        vehicleData,
-      });
     },
-    [navigation, patente, vehicleData],
+    [navigation, patente, vehicleData, vehicle, relatedLoadingId, showToast],
   );
 
   if (providerRows.length === 0) {
@@ -395,6 +437,14 @@ const GuestServiceOfferScreen = () => {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        variant={toast.variant}
+        position="top"
+        duration={3500}
+        onClose={() => setToast((t) => ({ ...t, visible: false }))}
+      />
       <View style={styles.topBar}>
         <TouchableOpacity
           onPress={handleBack}
@@ -523,6 +573,15 @@ const GuestServiceOfferScreen = () => {
                 {row.precioLabel ? (
                   <Text style={styles.providerPrice}>{row.precioLabel}</Text>
                 ) : null}
+                {isLoggedFlow ? (
+                  <GuestGradientButton
+                    title="Agendar"
+                    size="compact"
+                    onPress={() => scheduleWithProvider(row)}
+                    style={styles.providerScheduleBtn}
+                    accessibilityLabel={`Agendar con ${row.nombre}`}
+                  />
+                ) : null}
               </View>
             </TouchableOpacity>
           ))}
@@ -541,15 +600,22 @@ const GuestServiceOfferScreen = () => {
               {relatedServices.map((svc) => {
                 const precioInfo = labelPrecioServicioResuelto(svc, { vehicle: null });
                 const precioLabel = precioInfo.principal ?? formatPrecioCatalogoServicio(svc);
+                const isLoadingThis = relatedLoadingId === svc.id;
                 return (
-                  <GuestAirbnbServiceCard
-                    key={`related-${svc.id}`}
-                    width={relatedCardW}
-                    servicio={svc}
-                    precioLabel={precioLabel}
-                    tipoLabel={labelTipoServicioCatalogo(svc)}
-                    onPress={() => handleRelatedPress(svc)}
-                  />
+                  <View key={`related-${svc.id}`} style={styles.relatedCardWrap}>
+                    <GuestAirbnbServiceCard
+                      width={relatedCardW}
+                      servicio={svc}
+                      precioLabel={precioLabel}
+                      tipoLabel={labelTipoServicioCatalogo(svc)}
+                      onPress={() => handleRelatedPress(svc)}
+                    />
+                    {isLoadingThis ? (
+                      <View style={styles.relatedLoadingOverlay} pointerEvents="none">
+                        <ActivityIndicator color={COLORS.base.white} size="small" />
+                      </View>
+                    ) : null}
+                  </View>
                 );
               })}
             </ScrollView>
@@ -559,27 +625,45 @@ const GuestServiceOfferScreen = () => {
         <View style={styles.infoBlock}>
           <Text style={styles.infoTitle}>¿Qué incluye agendar?</Text>
           <Text style={styles.infoBody}>
-            Al crear tu cuenta puedes solicitar este servicio con el taller que elijas, registrar
-            tu auto y llevar el control de su salud y mantenciones.
+            {isLoggedFlow
+              ? 'Elige el taller que prefieras: se crea tu solicitud con ese proveedor y este servicio, usando tu vehículo registrado.'
+              : 'Al crear tu cuenta puedes solicitar este servicio con el taller que elijas, registrar tu auto y llevar el control de su salud y mantenciones.'}
           </Text>
         </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
-        <GuestGradientButton
-          title={isMultiProvider ? 'Agendar con un taller' : 'Agendar este servicio'}
-          onPress={() => openScheduleGate(selectedRow || providerRows[0])}
-        />
+        {isLoggedFlow ? (
+          isMultiProvider ? (
+            <View style={styles.footerHint}>
+              <Text style={styles.footerHintText}>
+                Elige un taller arriba y toca “Agendar” en su card.
+              </Text>
+            </View>
+          ) : (
+            <GuestGradientButton
+              title="Agendar este servicio"
+              onPress={() => scheduleWithProvider(providerRows[0])}
+            />
+          )
+        ) : (
+          <GuestGradientButton
+            title={isMultiProvider ? 'Agendar con un taller' : 'Agendar este servicio'}
+            onPress={() => openScheduleGate(selectedRow || providerRows[0])}
+          />
+        )}
       </View>
 
-      <GuestScheduleGateModal
-        visible={gateVisible}
-        servicioNombre={serviceName}
-        providerNombre={selectedRow?.nombre}
-        onClose={() => setGateVisible(false)}
-        onRegister={() => persistAndGo(ROUTES.REGISTER)}
-        onLogin={() => persistAndGo(ROUTES.LOGIN)}
-      />
+      {!isLoggedFlow ? (
+        <GuestScheduleGateModal
+          visible={gateVisible}
+          servicioNombre={serviceName}
+          providerNombre={selectedRow?.nombre}
+          onClose={() => setGateVisible(false)}
+          onRegister={() => persistAndGo(ROUTES.REGISTER)}
+          onLogin={() => persistAndGo(ROUTES.LOGIN)}
+        />
+      ) : null}
     </View>
   );
 };
@@ -784,7 +868,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     justifyContent: 'center',
     alignItems: 'flex-end',
-    minWidth: 72,
+    minWidth: 92,
     paddingRight: 4,
   },
   providerPrice: {
@@ -792,6 +876,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.text.primary,
     textAlign: 'right',
+  },
+  providerScheduleBtn: {
+    marginTop: SPACING.sm,
   },
   relatedSection: {
     marginBottom: SPACING.xl,
@@ -804,6 +891,20 @@ const styles = StyleSheet.create({
     overflowX: 'auto',
     overflowY: 'hidden',
     scrollbarWidth: 'none',
+  },
+  relatedCardWrap: {
+    position: 'relative',
+  },
+  relatedLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    aspectRatio: 1,
+    borderRadius: BORDERS.radius.lg,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   infoBlock: {
     paddingTop: SPACING.md,
@@ -832,6 +933,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
     ...SHADOWS.lg,
+  },
+  footerHint: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDERS.radius.lg,
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.badge.meta.border,
+  },
+  footerHintText: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.badge.meta.text,
+    textAlign: 'center',
   },
 });
 

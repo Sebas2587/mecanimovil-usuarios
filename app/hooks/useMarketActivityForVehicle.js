@@ -22,6 +22,8 @@ export function useMarketActivityForVehicle(vehicle, { limit = 12, enabled = tru
       return {
         marca: data?.marca ?? vehicle?.marca_nombre ?? null,
         modelo: data?.modelo ?? vehicle?.modelo_nombre ?? null,
+        /** 'modelo': match exacto marca+modelo. 'marca': fallback — el modelo tenía poco historial. */
+        scope: data?.scope === 'marca' ? 'marca' : 'modelo',
         items: sorted,
       };
     },

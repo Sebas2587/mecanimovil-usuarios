@@ -11,8 +11,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, Navigation, X, Search } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS, GRADIENTS } from '../../design-system/tokens';
 import { useManualAddressEntry } from '../../hooks/useManualAddressEntry';
@@ -23,7 +25,12 @@ import { showAlert } from '../../utils/platformAlert';
  * Selector de dirección para invitados — patrón Airbnb sheet + acentos Tinder.
  */
 const GuestAddressPicker = ({ visible, onClose, onSelectAddress, currentAddress }) => {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [isLocating, setIsLocating] = useState(false);
+  /** Altura útil del sheet: deja aire arriba y espacio seguro abajo para ver resultados. */
+  const sheetMaxHeight = Math.min(windowHeight * 0.92, windowHeight - 24);
+  const suggestionsMaxHeight = Math.max(180, Math.min(340, sheetMaxHeight * 0.42));
 
   const {
     query: manualQuery,
@@ -109,7 +116,16 @@ const GuestAddressPicker = ({ visible, onClose, onSelectAddress, currentAddress 
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardWrap}
         >
-          <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[
+              styles.sheet,
+              {
+                maxHeight: sheetMaxHeight,
+                paddingBottom: Math.max(insets.bottom, SPACING.md) + SPACING.sm,
+              },
+            ]}
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.handleWrap}>
               <View style={styles.handle} />
             </View>
@@ -167,13 +183,16 @@ const GuestAddressPicker = ({ visible, onClose, onSelectAddress, currentAddress 
                 value={manualQuery}
                 onChangeText={onManualQueryChange}
                 autoCorrect={false}
+                underlineColorAndroid="transparent"
               />
             </View>
 
             <ScrollView
-              style={styles.suggestions}
+              style={[styles.suggestions, { maxHeight: suggestionsMaxHeight }]}
+              contentContainerStyle={styles.suggestionsContent}
               keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={Platform.OS !== 'web'}
+              nestedScrollEnabled
             >
               {manualLoadingSuggestions || manualResolving ? (
                 <ActivityIndicator style={styles.loader} color={COLORS.primary[500]} />
@@ -181,7 +200,11 @@ const GuestAddressPicker = ({ visible, onClose, onSelectAddress, currentAddress 
               {(manualSuggestions || []).slice(0, 8).map((item, idx) => (
                 <TouchableOpacity
                   key={`suggestion-${item.id ?? idx}`}
-                  style={styles.suggestionRow}
+                  style={[
+                    styles.suggestionRow,
+                    idx === Math.min(7, (manualSuggestions || []).length - 1)
+                      && styles.suggestionRowLast,
+                  ]}
                   onPress={() => handleSelectSuggestion(item)}
                   activeOpacity={0.85}
                 >
@@ -189,11 +212,11 @@ const GuestAddressPicker = ({ visible, onClose, onSelectAddress, currentAddress 
                     <MapPin size={14} color={COLORS.icon.active} />
                   </View>
                   <View style={styles.suggestionTextCol}>
-                    <Text style={styles.suggestionMain} numberOfLines={1}>
+                    <Text style={styles.suggestionMain} numberOfLines={2}>
                       {item.mainText || item.fullAddress || 'Dirección'}
                     </Text>
                     {item.secondaryText ? (
-                      <Text style={styles.suggestionSecondary} numberOfLines={1}>
+                      <Text style={styles.suggestionSecondary} numberOfLines={2}>
                         {item.secondaryText}
                       </Text>
                     ) : null}
@@ -221,6 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background.overlay,
   },
   keyboardWrap: {
+    width: '100%',
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -228,8 +252,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: BORDERS.radius.xl,
     borderTopRightRadius: BORDERS.radius.xl,
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xl,
-    maxHeight: '88%',
+    width: '100%',
     ...SHADOWS.modal,
   },
   handleWrap: {
@@ -281,7 +304,7 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     marginBottom: SPACING.md,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.brand.orange,
+    borderColor: COLORS.border.light,
   },
   currentText: {
     ...TYPOGRAPHY.styles.captionBold,
@@ -317,6 +340,9 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'web' ? SPACING.sm : SPACING.xs,
     backgroundColor: COLORS.background.paper,
     marginBottom: SPACING.sm,
+    ...(Platform.OS === 'web'
+      ? { outlineStyle: 'none', outlineWidth: 0, boxShadow: 'none' }
+      : null),
   },
   input: {
     flex: 1,
@@ -324,40 +350,59 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     paddingVertical: SPACING.sm,
     minWidth: 0,
+    ...(Platform.OS === 'web'
+      ? {
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          boxShadow: 'none',
+        }
+      : null),
   },
   suggestions: {
-    maxHeight: 260,
+    flexGrow: 0,
+  },
+  suggestionsContent: {
+    paddingBottom: SPACING.md,
+    flexGrow: 1,
   },
   suggestionRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: SPACING.sm,
+    gap: SPACING.md,
     paddingVertical: SPACING.md,
-    borderBottomWidth: BORDERS.width.thin,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border.light,
   },
+  suggestionRowLast: {
+    borderBottomWidth: 0,
+  },
   suggestionIconWrap: {
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
     borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: COLORS.badge.meta.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 1,
+    flexShrink: 0,
   },
   suggestionTextCol: {
     flex: 1,
     minWidth: 0,
+    paddingRight: SPACING.xs,
   },
   suggestionMain: {
     ...TYPOGRAPHY.styles.captionBold,
+    fontSize: 15,
     color: COLORS.text.primary,
+    letterSpacing: -0.2,
   },
   suggestionSecondary: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 18,
   },
   noResults: {
     ...TYPOGRAPHY.styles.caption,

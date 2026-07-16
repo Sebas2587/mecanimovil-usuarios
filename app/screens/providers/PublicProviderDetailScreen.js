@@ -9,10 +9,9 @@ import {
   Linking,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { MapPin, Smartphone, Apple, Play } from 'lucide-react-native';
+import { MapPin } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
-import { getAppStoreUrl, getPlayStoreUrl } from '../../config/publicListing';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
 import ProviderAboutSection from '../../components/provider/ProviderAboutSection';
@@ -23,6 +22,7 @@ import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
 import ProviderCatalogServiceCard from '../../components/provider/ProviderCatalogServiceCard';
 import ProviderScheduleSection from '../../components/provider/ProviderScheduleSection';
 import ProviderTeamSection from '../../components/provider/ProviderTeamSection';
+import StoreDownloadBadges from '../../components/guest/StoreDownloadBadges';
 import Button from '../../components/base/Button/Button';
 import SectionHeader from '../../components/base/SectionHeader/SectionHeader';
 import PublicProviderDetailSkeleton from '../../components/utils/PublicProviderDetailSkeleton';
@@ -254,31 +254,11 @@ const PublicProviderDetailScreen = () => {
 
       <View style={styles.bannerWrap}>
         <View style={styles.downloadBanner}>
-          <View style={styles.downloadBannerTitleRow}>
-            <Smartphone size={20} color={COLORS.primary[500]} strokeWidth={2} />
-            <Text style={styles.downloadBannerTitle}>Consigue MecaniMóvil</Text>
-          </View>
+          <Text style={styles.downloadBannerTitle}>Consigue MecaniMóvil</Text>
           <Text style={styles.downloadBannerSub}>
             Descarga la app para solicitar servicios, chatear con el especialista y agendar.
           </Text>
-          <View style={styles.downloadBannerActions}>
-            <Button
-              title="App Store"
-              type="primary"
-              size="sm"
-              iconNode={<Apple size={18} color={COLORS.text.onPrimary} strokeWidth={2} />}
-              onPress={() => Linking.openURL(getAppStoreUrl()).catch(() => {})}
-              style={styles.downloadBannerBtn}
-            />
-            <Button
-              title="Google Play"
-              type="secondary"
-              size="sm"
-              iconNode={<Play size={18} color={COLORS.text.primary} strokeWidth={2} />}
-              onPress={() => Linking.openURL(getPlayStoreUrl()).catch(() => {})}
-              style={styles.downloadBannerBtn}
-            />
-          </View>
+          <StoreDownloadBadges />
         </View>
       </View>
 
@@ -477,38 +457,23 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   downloadBanner: {
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDERS.radius.lg,
     backgroundColor: COLORS.background.paper,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
   },
-  downloadBannerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    marginBottom: SPACING.xs,
-  },
   downloadBannerTitle: {
-    ...TYPOGRAPHY.styles.bodyBold,
+    ...TYPOGRAPHY.styles.h5,
     color: COLORS.text.primary,
+    marginBottom: SPACING.xs,
   },
   downloadBannerSub: {
     ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.secondary,
+    color: COLORS.text.tertiary,
+    lineHeight: 20,
     marginBottom: SPACING.md,
-  },
-  downloadBannerActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: SPACING.sm,
-  },
-  downloadBannerBtn: {
-    flex: 1,
-    minWidth: 142,
-    maxWidth: Platform.OS === 'web' ? 220 : 200,
   },
   divider: {
     height: StyleSheet.hairlineWidth,

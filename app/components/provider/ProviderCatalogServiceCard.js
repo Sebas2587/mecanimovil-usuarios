@@ -31,8 +31,6 @@ export default function ProviderCatalogServiceCard({
       : React.Children.toArray(footer);
     return nodes.filter(Boolean);
   }, [footer]);
-  const showPrice = Boolean(precioLabel || precioSubtitulo);
-
   const cardContent = (
     <>
       <View style={[styles.mediaWrap, { height: imageHeight }]}>
@@ -53,27 +51,17 @@ export default function ProviderCatalogServiceCard({
       </View>
 
       <View style={styles.serviceCardBody}>
-        <View style={styles.bodyTop}>
-          <Text style={styles.serviceName} numberOfLines={2}>
-            {nombre}
-          </Text>
-        </View>
+        <Text style={styles.serviceName} numberOfLines={2}>
+          {nombre}
+        </Text>
 
-        {showPrice ? (
-          <View style={styles.priceBlock}>
-            {precioLabel ? (
-              <Text style={styles.servicePrice}>{precioLabel}</Text>
-            ) : (
-              <View style={styles.servicePricePlaceholder} />
-            )}
-            {precioSubtitulo ? (
-              <Text style={styles.servicePriceHint} numberOfLines={2}>
-                {precioSubtitulo}
-              </Text>
-            ) : (
-              <View style={styles.servicePriceHintPlaceholder} />
-            )}
-          </View>
+        {precioLabel ? (
+          <Text style={styles.servicePrice}>{precioLabel}</Text>
+        ) : null}
+        {precioSubtitulo ? (
+          <Text style={styles.servicePriceHint} numberOfLines={2}>
+            {precioSubtitulo}
+          </Text>
         ) : null}
 
         {tipoLabel ? (

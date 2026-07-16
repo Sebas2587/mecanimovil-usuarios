@@ -28,7 +28,7 @@ import {
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BackButton from '../../components/navigation/BackButton';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
 
 // Services & Context
 import chatService from '../../services/chatService';
@@ -38,6 +38,7 @@ import { ROUTES } from '../../utils/constants';
 import { requestDetailQueryKey, useRequestDetail, useChecklistPrincipal, useChecklistsVisiblesPorOrden, checklistPrincipalQueryKey, checklistsVisiblesQueryKey } from '../../hooks/useRequests';
 import { useConversationsList } from '../../hooks/useChats';
 import { puedeClienteCancelarSolicitudPublica } from '../../utils/solicitudVehicle';
+import { resolveEstadoEfectivoSolicitud } from '../../utils/solicitudEstadoDisplay';
 import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
 import { showAlert, showConfirm, showAlertButtons } from '../../utils/platformAlert';
 import { resolveOfertaProviderNav } from '../../utils/resolveOfertaProviderNav';
@@ -48,7 +49,6 @@ import ServiceSummaryCard, { getEstadoBadgeMeta } from '../../components/solicit
 import OfferCardDetailed from '../../components/solicitudes/OfferCardDetailed';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import CustomerSignatureModal from '../../components/checklist/CustomerSignatureModal';
-import Button from '../../components/base/Button/Button';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import PagoSaldoPendienteCierreBanner from '../../components/solicitudes/PagoSaldoPendienteCierreBanner';
 import DetalleSolicitudSkeleton from '../../components/utils/DetalleSolicitudSkeleton';
@@ -87,6 +87,47 @@ const getHeaderBlockHeight = (topInset) =>
   topInset + SPACING.xs + HEADER_CONTENT_HEIGHT + SPACING.xs;
 /** Espacio reservado bajo el scroll para que el contenido no quede tapado por el footer (web: footer fijo). */
 const FOOTER_SCROLL_PADDING = 120;
+
+/** Badge del header con tokens Tinder (selection / danger / meta). */
+function resolveHeaderEstadoBadgeSurface(badge, solicitud, options = {}) {
+  if (!badge || !solicitud) return badge;
+  const efectivo = resolveEstadoEfectivoSolicitud(solicitud, options);
+  if (['cancelada', 'expirada'].includes(efectivo)) {
+    return {
+      label: badge.label,
+      color: COLORS.error[700],
+      bg: COLORS.error[50],
+      border: COLORS.error[200],
+    };
+  }
+  if (
+    [
+      'con_ofertas',
+      'pendiente_pago',
+      'pagada_parcialmente',
+      'pendiente_firma_cliente',
+      'en_ejecucion_pago_pendiente',
+      'ofertas_adicionales_pendientes',
+      'esperando_creditos_proveedor',
+    ].includes(efectivo)
+  ) {
+    return {
+      label: badge.label,
+      color: COLORS.selection.text,
+      bg: COLORS.selection.background,
+      border: COLORS.selection.border,
+    };
+  }
+  if (['completada', 'creada', 'publicada'].includes(efectivo)) {
+    return {
+      label: badge.label,
+      color: COLORS.badge.meta.text,
+      bg: COLORS.badge.meta.background,
+      border: COLORS.badge.meta.border,
+    };
+  }
+  return badge;
+}
 
 const DetalleSolicitudScreen = () => {
   const navigation = useNavigation();
@@ -233,7 +274,14 @@ const DetalleSolicitudScreen = () => {
   }, [pagoPrincipalCompleto, checklistPrincipalData]);
 
   const estadoHeaderBadge = useMemo(
-    () => (solicitud ? getEstadoBadgeMeta(solicitud, { checklistPendienteFirma: requiereFirmaCliente }) : null),
+    () =>
+      solicitud
+        ? resolveHeaderEstadoBadgeSurface(
+            getEstadoBadgeMeta(solicitud, { checklistPendienteFirma: requiereFirmaCliente }),
+            solicitud,
+            { checklistPendienteFirma: requiereFirmaCliente },
+          )
+        : null,
     [solicitud, requiereFirmaCliente],
   );
 
@@ -699,7 +747,7 @@ const DetalleSolicitudScreen = () => {
                           style={styles.compareButton}
                           onPress={handleCompararOfertas}
                         >
-                          <GitCompare size={16} color={COLORS.primary[500]} />
+                          <GitCompare size={16} color={COLORS.buttonSecondary.outlineText} />
                           <Text style={styles.compareButtonText}>Comparar</Text>
                         </TouchableOpacity>
                       </View>
@@ -843,16 +891,17 @@ const DetalleSolicitudScreen = () => {
                 if (showFirmar && showChecklist) {
                   return (
                     <View style={styles.footerActionsRow}>
-                      <Button
+                      <GuestGradientButton
                         title="Revisar y firmar"
                         onPress={() => setShowSignatureModal(true)}
                         style={[styles.footerPrimaryCta, styles.footerPrimaryCtaInRow]}
-                        iconNode={<PenLine size={18} color={COLORS.text.onPrimary} />}
+                        iconNode={<PenLine size={18} color={COLORS.base.white} />}
                         iconPosition="right"
+                        fullWidth
                       />
                       <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                         <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
-                        <ClipboardList size={18} color={COLORS.text.primary} />
+                        <ClipboardList size={18} color={COLORS.buttonSecondary.text} />
                       </TouchableOpacity>
                     </View>
                   );
@@ -861,17 +910,18 @@ const DetalleSolicitudScreen = () => {
                 if (showPagarSaldo) {
                   return (
                     <View style={showChecklist ? styles.footerActionsRow : styles.footerActionsSingle}>
-                      <Button
+                      <GuestGradientButton
                         title={`Pagar saldo restante ($${formatearMontoCLP(montoSaldoPendiente)})`}
                         onPress={irOpcionesPago}
                         style={[styles.footerPrimaryCta, showChecklist && styles.footerPrimaryCtaInRow]}
-                        iconNode={<CreditCard size={18} color={COLORS.text.onPrimary} />}
+                        iconNode={<CreditCard size={18} color={COLORS.base.white} />}
                         iconPosition="right"
+                        fullWidth
                       />
                       {showChecklist ? (
                         <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                           <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
-                          <ClipboardList size={18} color={COLORS.text.primary} />
+                          <ClipboardList size={18} color={COLORS.buttonSecondary.text} />
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -881,7 +931,7 @@ const DetalleSolicitudScreen = () => {
                 if (showPagar) {
                   return (
                     <View style={showChecklist ? styles.footerActionsRow : styles.footerActionsSingle}>
-                      <Button
+                      <GuestGradientButton
                         title="Ir a Pagar"
                         onPress={() =>
                           navigation.navigate('OpcionesPago', {
@@ -890,13 +940,14 @@ const DetalleSolicitudScreen = () => {
                           })
                         }
                         style={[styles.footerPrimaryCta, showChecklist && styles.footerPrimaryCtaInRow]}
-                        iconNode={<CreditCard size={18} color={COLORS.text.onPrimary} />}
+                        iconNode={<CreditCard size={18} color={COLORS.base.white} />}
                         iconPosition="right"
+                        fullWidth
                       />
                       {showChecklist ? (
                         <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                           <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
-                          <ClipboardList size={18} color={COLORS.text.primary} />
+                          <ClipboardList size={18} color={COLORS.buttonSecondary.text} />
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -906,12 +957,13 @@ const DetalleSolicitudScreen = () => {
                 if (showChecklist) {
                   return (
                     <View style={styles.footerActionsSingle}>
-                      <Button
+                      <GuestGradientButton
                         title="Ver Checklist"
                         onPress={openChecklistPrincipal}
                         style={styles.footerPrimaryCta}
-                        iconNode={<ClipboardList size={18} color={COLORS.text.onPrimary} />}
+                        iconNode={<ClipboardList size={18} color={COLORS.base.white} />}
                         iconPosition="right"
+                        fullWidth
                       />
                     </View>
                   );
@@ -920,12 +972,13 @@ const DetalleSolicitudScreen = () => {
                 if (showFirmar) {
                   return (
                     <View style={styles.footerActionsSingle}>
-                      <Button
+                      <GuestGradientButton
                         title="Revisar y firmar"
                         onPress={() => setShowSignatureModal(true)}
                         style={styles.footerPrimaryCta}
-                        iconNode={<PenLine size={18} color={COLORS.text.onPrimary} />}
+                        iconNode={<PenLine size={18} color={COLORS.base.white} />}
                         iconPosition="right"
+                        fullWidth
                       />
                     </View>
                   );
@@ -949,7 +1002,7 @@ const DetalleSolicitudScreen = () => {
                 {hayAcciones ? (
                   <View style={hayAmbasAcciones ? styles.footerActionsRow : styles.footerActionsSingle}>
                     {ofertaParaPagar ? (
-                      <Button
+                      <GuestGradientButton
                         title="Ir a Pagar"
                         onPress={() =>
                           navigation.navigate('OpcionesPago', {
@@ -959,8 +1012,9 @@ const DetalleSolicitudScreen = () => {
                           })
                         }
                         style={[styles.footerPrimaryCta, hayAmbasAcciones && styles.footerPrimaryCtaInRow]}
-                        iconNode={<CreditCard size={18} color={COLORS.text.onPrimary} />}
+                        iconNode={<CreditCard size={18} color={COLORS.base.white} />}
                         iconPosition="right"
+                        fullWidth
                       />
                     ) : null}
                     {ofertaConChecklist ? (
@@ -975,10 +1029,10 @@ const DetalleSolicitudScreen = () => {
                           }}
                         >
                           <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
-                          <ClipboardList size={18} color={COLORS.text.primary} />
+                          <ClipboardList size={18} color={COLORS.buttonSecondary.text} />
                         </TouchableOpacity>
                       ) : (
-                        <Button
+                        <GuestGradientButton
                           title="Ver Checklist"
                           onPress={() => {
                             setChecklistOrdenId(
@@ -987,8 +1041,9 @@ const DetalleSolicitudScreen = () => {
                             setShowChecklistModal(true);
                           }}
                           style={styles.footerPrimaryCta}
-                          iconNode={<ClipboardList size={18} color={COLORS.text.onPrimary} />}
+                          iconNode={<ClipboardList size={18} color={COLORS.base.white} />}
                           iconPosition="right"
+                          fullWidth
                         />
                       )
                     ) : null}
@@ -1100,6 +1155,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border.light,
     paddingBottom: SPACING.xs,
+    ...SHADOWS.sm,
   },
   headerContent: {
     height: HEADER_CONTENT_HEIGHT,
@@ -1115,15 +1171,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xs,
   },
   headerTitle: {
-    ...TYPOGRAPHY.styles.bodyBold,
-    fontSize: 16,
-    lineHeight: 20,
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
   headerSubtitle: {
-    ...TYPOGRAPHY.styles.small,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    marginTop: 1,
+    marginTop: 2,
     textAlign: 'center',
   },
   headerSideSpacer: {
@@ -1134,7 +1190,7 @@ const styles = StyleSheet.create({
     minWidth: 40,
     maxWidth: 120,
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: BORDERS.radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
     flexShrink: 1,
@@ -1142,7 +1198,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerEstadoBadgeText: {
-    ...TYPOGRAPHY.styles.small,
+    ...TYPOGRAPHY.styles.caption,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     lineHeight: 16,
@@ -1203,16 +1259,18 @@ const styles = StyleSheet.create({
     color: COLORS.primary[700],
   },
   ofertasAdicionalesSection: {
-    marginTop: 24,
-    paddingTop: 20,
-    borderTopWidth: BORDERS.width.thin,
+    marginTop: SPACING.lg,
+    paddingTop: SPACING.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.border.light,
   },
   offersHeader: {
     marginBottom: 16,
   },
   offersTitle: {
-    ...TYPOGRAPHY.styles.bodyBold,
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     marginBottom: SPACING.xxs,
   },
@@ -1224,20 +1282,20 @@ const styles = StyleSheet.create({
   compareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.buttonSecondary.background,
     paddingHorizontal: SPACING.md,
     paddingVertical: 8,
     borderRadius: BORDERS.radius.pill,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.primary[100],
+    borderColor: COLORS.buttonSecondary.border,
     gap: 6,
   },
   compareButtonText: {
     ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.primary[500],
+    color: COLORS.buttonSecondary.text,
   },
   offersSubtitle: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
   },
   ofertaSecundariaWrapper: {
@@ -1268,6 +1326,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   emptyStateText: {
     marginTop: 16,
@@ -1372,13 +1431,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.xs,
     borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.buttonSecondary.background,
+    borderColor: COLORS.buttonSecondary.border,
     alignSelf: 'stretch',
     ...(Platform.OS === 'web' ? { cursor: 'pointer', boxSizing: 'border-box' } : {}),
   },
   footerSecondaryCtaText: {
-    color: COLORS.text.primary,
+    color: COLORS.buttonSecondary.text,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     fontSize: TYPOGRAPHY.fontSize.md,
   },
@@ -1386,9 +1445,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     borderRadius: BORDERS.radius.badge?.md ?? 999,
-    borderWidth: BORDERS.width.thin,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderColor: COLORS.border.light,
+    borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.badge.meta.background,
+    borderColor: COLORS.badge.meta.border,
     width: '100%',
   },
   footerHintBadgeStandalone: {
@@ -1397,21 +1456,23 @@ const styles = StyleSheet.create({
   footerHintBadgeText: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.secondary,
+    color: COLORS.badge.meta.text,
     textAlign: 'center',
     lineHeight: 20,
   },
   fotosNecesidadSection: {
-    marginHorizontal: SPACING.container.horizontal,
     marginBottom: SPACING.md,
     padding: SPACING.md,
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   fotosNecesidadTitle: {
-    ...TYPOGRAPHY.styles.bodyBold,
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     marginBottom: SPACING.sm,
   },
@@ -1443,6 +1504,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
+    ...SHADOWS.sm,
   },
   unifiedSectionDivider: {
     height: StyleSheet.hairlineWidth,
@@ -1455,7 +1517,9 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xs,
   },
   unifiedOfferTitle: {
-    ...TYPOGRAPHY.styles.captionBold,
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
   unifiedOfferHint: {
@@ -1477,16 +1541,18 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
     marginBottom: SPACING.md,
     padding: SPACING.md,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.selection.background,
     borderRadius: BORDERS.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.primary[100],
+    borderColor: COLORS.selection.border,
   },
   catalogoBannerTextWrap: {
     flex: 1,
   },
   catalogoBannerTitle: {
-    ...TYPOGRAPHY.styles.bodyBold,
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     marginBottom: 4,
   },
@@ -1502,9 +1568,12 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
+    ...SHADOWS.sm,
   },
   fechaAlternativaTitle: {
-    ...TYPOGRAPHY.styles.bodyBold,
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     marginBottom: 6,
   },

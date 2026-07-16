@@ -27,7 +27,12 @@ const HomeMarketActivitySection = ({
     activity?.marca || selectedVehicle.marca_nombre || selectedVehicle.marca || '';
   const modelo =
     activity?.modelo || selectedVehicle.modelo_nombre || selectedVehicle.modelo || '';
-  const vehicleLabel = [marca, modelo].filter(Boolean).join(' ').trim() || 'tu auto';
+  /** Si el modelo exacto no tenía suficiente historial, el backend amplía a la marca. */
+  const isBrandScope = activity?.scope === 'marca';
+  const vehicleLabel = isBrandScope
+    ? marca || 'tu marca'
+    : [marca, modelo].filter(Boolean).join(' ').trim() || 'tu auto';
+  const sectionTitle = isBrandScope ? 'Servicios en tu marca' : 'Servicios en tu modelo';
 
   const handlePress = useCallback(
     (row) => {
@@ -38,7 +43,7 @@ const HomeMarketActivitySection = ({
 
   return (
     <View style={styles.section}>
-      <HomeSectionHeader title="Servicios en tu modelo" />
+      <HomeSectionHeader title={sectionTitle} />
 
       {loading ? (
         <HomeTrendingChipsSkeleton />

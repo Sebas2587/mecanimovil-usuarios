@@ -76,27 +76,20 @@ export const providerServiceCardStyles = StyleSheet.create({
     color: COLORS.text.secondary,
   },
   serviceCardBody: {
-    flexGrow: 1,
-    flexShrink: 0,
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: SPACING.sm + 2,
     paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
-    gap: SPACING.sm,
-  },
-  bodyTop: {
-    minHeight: 40,
+    paddingBottom: SPACING.sm + 2,
+    gap: 4,
   },
   serviceName: {
     ...TYPOGRAPHY.styles.captionBold,
-    fontSize: TYPOGRAPHY.fontSize.md,
+    fontSize: 15,
     lineHeight: 20,
-    minHeight: 40,
-    letterSpacing: -0.15,
+    letterSpacing: -0.2,
     color: COLORS.text.primary,
   },
   tipoTagRow: {
-    minHeight: 22,
-    justifyContent: 'flex-start',
+    marginTop: 2,
   },
   serviceTipoTag: {
     alignSelf: 'flex-start',
@@ -124,35 +117,24 @@ export const providerServiceCardStyles = StyleSheet.create({
   serviceTipoTagTextSin: {
     color: COLORS.text.secondary,
   },
-  priceBlock: {
-    gap: 2,
-    minHeight: 54,
-    justifyContent: 'flex-start',
-  },
   servicePrice: {
     ...TYPOGRAPHY.styles.captionBold,
+    fontSize: 14,
     color: COLORS.text.primary,
     fontVariant: ['tabular-nums'],
-    minHeight: 20,
-  },
-  servicePricePlaceholder: {
-    minHeight: 20,
   },
   servicePriceHint: {
     ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
     lineHeight: 16,
-    minHeight: 32,
-  },
-  servicePriceHintPlaceholder: {
-    minHeight: 32,
   },
   serviceMeta: {
     ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
   },
   footerBlock: {
-    paddingTop: SPACING.xxs,
+    marginTop: SPACING.xs,
+    paddingTop: SPACING.xs,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.border.light,
   },

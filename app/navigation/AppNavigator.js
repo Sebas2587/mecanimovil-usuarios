@@ -19,6 +19,7 @@ import RegistrarViajeScreen from '../screens/trip/RegistrarViajeScreen';
 import { TalleresRedirect, MecanicosRedirect } from './LegacyExploreRedirect';
 
 import UserPanelScreen from '../screens/main/UserPanelScreen';
+import GuestServiceOfferScreen from '../screens/guest/GuestServiceOfferScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import MisVehiculosScreen from '../screens/vehicles/MisVehiculosScreen';
@@ -114,6 +115,7 @@ const HomeNavigator = () => (
     />
     <HomeStack.Screen name={ROUTES.TALLERES} component={TalleresRedirect} options={{ headerShown: false }} />
     <HomeStack.Screen name={ROUTES.MECANICOS} component={MecanicosRedirect} options={{ headerShown: false }} />
+    <HomeStack.Screen name={ROUTES.GUEST_SERVICE_OFFER} component={GuestServiceOfferScreen} />
   </HomeStack.Navigator>
 );
 

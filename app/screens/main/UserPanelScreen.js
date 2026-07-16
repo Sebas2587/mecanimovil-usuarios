@@ -23,13 +23,22 @@ import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehi
 import UserPanelSkeleton from '../../components/utils/UserPanelSkeleton';
 import { useParaTiProviders } from '../../hooks/useParaTiProviders';
 import { useMarketActivityForVehicle } from '../../hooks/useMarketActivityForVehicle';
-import { navigateCrearSolicitudDesdeHome, navigateCrearSolicitudDesdeTrending } from '../../components/home/shared/homeScheduleNavigation';
+import { partitionProvidersPorCoberturaMarca } from '../../utils/providerBrandCoverage';
+import { resolveVehicleMarcaId } from '../../components/home/shared/homeVehicleUtils';
+import {
+  navigateCrearSolicitudDesdeHome,
+  navigateCrearSolicitudDesdeTrending,
+  navigateCrearSolicitudConServicio,
+} from '../../components/home/shared/homeScheduleNavigation';
+import GuestServicesSection from '../../components/guest/GuestServicesSection';
+import { usePopularServicesForVehicle } from '../../hooks/usePopularServicesForVehicle';
 import {
   HomeContextHeader,
   HomeCategoryGrid,
   HomeContextualBanner,
   HomePendingReviewBanner,
   HomeHighlightedRow,
+  HomeMultimarcaRow,
   HomeMarketActivitySection,
   HomeVehicleSelectorModal,
 } from '../../components/home/discovery';
@@ -226,13 +235,35 @@ const UserPanelScreen = () => {
     vehicle: selectedVehicle,
     address: selectedAddress,
     enabled: !!selectedVehicle?.id,
+    limit: 24,
   });
+
+  /**
+   * Airbnb: 2 secciones exclusivas y sin duplicados — especialistas de la marca del
+   * vehículo primero, multimarca (atienden todas las marcas) después.
+   */
+  const { especialistas: paraTiEspecialistas, multimarca: paraTiMultimarca } = useMemo(
+    () =>
+      partitionProvidersPorCoberturaMarca(panelParaTiProviders, {
+        marcaId: resolveVehicleMarcaId(selectedVehicle),
+        marcaNombre: selectedVehicle?.marca_nombre || selectedVehicle?.marca || null,
+      }),
+    [panelParaTiProviders, selectedVehicle],
+  );
 
   const {
     data: marketActivity,
     isLoading: marketActivityLoading,
     refetch: refetchMarketActivity,
   } = useMarketActivityForVehicle(selectedVehicle, {
+    limit: 12,
+    enabled: !!selectedVehicle?.id,
+  });
+
+  const {
+    data: popularServiceOffers = [],
+    refetch: refetchPopularServices,
+  } = usePopularServicesForVehicle(selectedVehicle, {
     limit: 12,
     enabled: !!selectedVehicle?.id,
   });
@@ -280,6 +311,37 @@ const UserPanelScreen = () => {
     [navigation, selectedVehicle],
   );
 
+  /**
+   * Abre el listado de talleres del servicio (mismo shape/pantalla que guest), para que el
+   * usuario elija con qué taller agendar — evita el mismatch entre "N talleres disponibles"
+   * en la card y el resultado del comparador IA (que re-matchea por radio/dirección).
+   */
+  const handlePopularServicePress = useCallback(
+    (item) => {
+      if (!selectedVehicle?.id || !item) return;
+      if (Array.isArray(item.ofertas) && item.ofertas.length > 0) {
+        navigation.navigate(ROUTES.GUEST_SERVICE_OFFER, {
+          group: item,
+          vehicle: selectedVehicle,
+        });
+        return;
+      }
+      const servicioId = item.servicio_id ?? item.servicio?.id;
+      if (servicioId) {
+        navigateCrearSolicitudConServicio(navigation, {
+          vehicle: selectedVehicle,
+          servicio: {
+            id: servicioId,
+            nombre: item.nombre || item.servicio?.nombre || 'Servicio',
+          },
+        });
+        return;
+      }
+      navigateCrearSolicitudDesdeHome(navigation, { vehicle: selectedVehicle });
+    },
+    [navigation, selectedVehicle],
+  );
+
   const handleCategorySelect = useCallback(
     (cat) => {
       if (!selectedVehicle || !cat?.id) return;
@@ -297,6 +359,7 @@ const UserPanelScreen = () => {
     if (selectedVehicle?.id) {
       extras.push(refetchPanelParaTi());
       extras.push(refetchMarketActivity());
+      extras.push(refetchPopularServices());
       extras.push(
         queryClient.invalidateQueries({ queryKey: ['vehicleValorReal', selectedVehicle.id] }),
       );
@@ -314,6 +377,7 @@ const UserPanelScreen = () => {
     selectedVehicle?.id,
     refetchPanelParaTi,
     refetchMarketActivity,
+    refetchPopularServices,
   ]);
 
   if (showUserPanelSkeleton) {
@@ -390,10 +454,31 @@ const UserPanelScreen = () => {
           onPressHealth={openVehicleHealth}
         />
 
+        {popularServiceOffers.length > 0 ? (
+          <GuestServicesSection
+            title="Servicios más solicitados"
+            offers={popularServiceOffers}
+            onServicePress={handlePopularServicePress}
+          />
+        ) : null}
+
         <HomeHighlightedRow
           selectedVehicle={selectedVehicle}
           hasSelectedAddress={!!selectedAddress}
-          providers={panelParaTiProviders}
+          providers={paraTiEspecialistas}
+          loading={panelParaTiLoading}
+          onProviderPress={openProviderFromPanel}
+          onSeeAll={handleSeeAllParaTi}
+        />
+
+        <HomeMultimarcaRow
+          title={
+            selectedVehicle?.marca_nombre
+              ? `Talleres multimarca para tu ${selectedVehicle.marca_nombre}`
+              : 'Talleres multimarca'
+          }
+          userBrandName={selectedVehicle?.marca_nombre || null}
+          providers={paraTiMultimarca}
           loading={panelParaTiLoading}
           onProviderPress={openProviderFromPanel}
           onSeeAll={handleSeeAllParaTi}

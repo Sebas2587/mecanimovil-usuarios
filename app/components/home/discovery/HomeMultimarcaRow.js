@@ -5,17 +5,20 @@ import HomeProvidersCarouselSection from './HomeProvidersCarouselSection';
  * Sección horizontal de proveedores multimarca.
  */
 const HomeMultimarcaRow = ({
+  title = 'Multimarca',
   providers = [],
   loading,
   onProviderPress,
   onSeeAll,
+  userBrandName = null,
 }) => {
   if (!loading && providers.length === 0) return null;
 
   return (
     <HomeProvidersCarouselSection
-      title="Multimarca"
+      title={title}
       cardFooterVariant="bookings"
+      userBrandName={userBrandName}
       providers={providers}
       loading={loading}
       emptyRequiresAddress={false}
