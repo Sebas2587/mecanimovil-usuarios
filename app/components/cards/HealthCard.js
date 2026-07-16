@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, TYPOGRAPHY, BORDERS, SPACING } from '../../design-system/tokens';
 import { getHealthStatus } from '../../utils/healthFormat';
 import Button from '../base/Button/Button';
+import GuestGradientButton from '../guest/GuestGradientButton';
 
 /**
  * Estado legible: color semántico solo en texto/punto (Airbnb).
@@ -68,7 +69,12 @@ const HealthCard = ({
             />
           ) : null}
           {onAgendar ? (
-            <Button title="Agendar" onPress={onAgendar} style={styles.agendarBtn} />
+            <GuestGradientButton
+              title="Agendar"
+              onPress={onAgendar}
+              size="compact"
+              style={styles.agendarBtn}
+            />
           ) : null}
         </View>
       ) : null}

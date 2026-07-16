@@ -1,9 +1,10 @@
 /**
- * Gradientes para CTAs del flujo invitado (Tinder rosa → naranja cálido).
- * Uso exclusivo en app/screens/guest/* y app/components/guest/*.
+ * Gradiente primario Tinder: Magenta #FD2B7B → Orange #FF7158.
+ * Exclusivo de CTAs primarios (no tabs ni chips de filtro).
+ * Hex literales a propósito (evita ciclo con colors.js).
  */
 export const GRADIENTS = {
-  guestCta: ['#fe3c72', '#ff7a59'],
+  guestCta: ['#FD2B7B', '#FF7158'],
   guestCtaLocations: [0, 1],
 };
 

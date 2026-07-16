@@ -203,12 +203,11 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
   },
   headerTitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
   headerSubtitle: {
-    fontSize: 11,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
     marginTop: 2,
   },
@@ -228,7 +227,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   summaryChipText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   itemCard: {
@@ -251,12 +250,11 @@ const styles = StyleSheet.create({
   },
   itemHeaderText: { flex: 1 },
   itemName: {
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
   },
   itemHealth: {
-    fontSize: 11,
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     marginTop: 2,
   },
@@ -276,23 +274,19 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   metricLabel: {
-    fontSize: 9,
+    ...TYPOGRAPHY.styles.h6,
     color: COLORS.text.tertiary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
     marginTop: 2,
   },
   metricValue: {
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
     marginTop: 2,
   },
   recommendation: {
-    fontSize: 12,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
     marginTop: SPACING.xs,
-    lineHeight: 16,
   },
   itemFooter: {
     flexDirection: 'row',
@@ -311,23 +305,21 @@ const styles = StyleSheet.create({
     backgroundColor: withOpacity(COLORS.warning.main, 0.12),
   },
   climateText: {
-    fontSize: 9,
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.warning.main,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wide,
   },
   sourceText: {
-    fontSize: 10,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
     flex: 1,
     textAlign: 'right',
-    fontStyle: 'italic',
   },
   footerNote: {
-    fontSize: 10,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
-    fontStyle: 'italic',
     marginTop: SPACING.sm,
     textAlign: 'center',
   },

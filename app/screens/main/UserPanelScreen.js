@@ -387,7 +387,6 @@ const UserPanelScreen = () => {
           solicitud={firstVisibleSolicitud}
           healthScore={healthScore}
           onPressSolicitud={() => navigation.navigate(ROUTES.ACTIVIDAD)}
-          onPressAgendar={openNuevaSolicitud}
           onPressHealth={openVehicleHealth}
         />
 

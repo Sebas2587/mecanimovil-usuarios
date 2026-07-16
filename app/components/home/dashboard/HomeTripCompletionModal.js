@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { Check } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
+import GuestGradientButton from '../../guest/GuestGradientButton';
 import { SCREEN_WIDTH } from '../shared/homeLayoutConstants';
 import { formatDuration, formatKm } from '../shared/homeFormatters';
 
@@ -34,21 +35,13 @@ const HomeTripCompletionModal = ({
 
           <Text style={styles.hint}>Nuevo odómetro: {formatKm(projectedOdometer)} km</Text>
 
-          <TouchableOpacity
-            style={styles.confirmBtn}
+          <GuestGradientButton
+            title="Registrar kilometraje"
             onPress={onConfirm}
-            activeOpacity={0.85}
+            loading={registering}
             disabled={registering}
-          >
-            {registering ? (
-              <ActivityIndicator color={COLORS.text.inverse} size="small" />
-            ) : (
-              <>
-                <Check size={18} color={COLORS.text.inverse} />
-                <Text style={styles.confirmText}>Registrar kilometraje</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            style={styles.confirmBtnWrap}
+          />
 
           <TouchableOpacity style={styles.dismissBtn} onPress={onDismiss}>
             <Text style={styles.dismissText}>Descartar</Text>
@@ -136,22 +129,9 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginBottom: 20,
   },
-  confirmBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: BORDERS.radius.full,
+  confirmBtnWrap: {
     width: '100%',
     marginBottom: 10,
-  },
-  confirmText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.md,
   },
   dismissBtn: {
     paddingVertical: 10,

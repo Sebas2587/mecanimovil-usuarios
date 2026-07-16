@@ -23,6 +23,7 @@ import ProviderScheduleSection from '../../components/provider/ProviderScheduleS
 import ProviderTeamSection from '../../components/provider/ProviderTeamSection';
 import Button from '../../components/base/Button/Button';
 import SectionHeader from '../../components/base/SectionHeader/SectionHeader';
+import PublicProviderDetailSkeleton from '../../components/utils/PublicProviderDetailSkeleton';
 
 import { fetchPublicProviderFicha, getProviderReviews } from '../../services/providers';
 import {
@@ -32,7 +33,7 @@ import {
 } from '../../utils/publicListingRoute';
 
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
-import { providerServiceCardStyles as svcCard } from '../../components/provider/providerServiceCardStyles';
+import { providerServiceCardStyles as svcCard, chunkCatalogServiceRows } from '../../components/provider/providerServiceCardStyles';
 import {
   formatPrecioCatalogoServicio,
   labelTipoServicioCatalogo,
@@ -173,6 +174,7 @@ const PublicProviderDetailScreen = () => {
   }, [details, servicios, reviewsSummary]);
 
   const esMultimarcaProveedor = useMemo(() => isProviderMultimarca(provider), [provider]);
+  const hasTrustDocuments = (documents?.length ?? 0) > 0;
 
   const serviciosVisibles = useMemo(
     () =>
@@ -204,9 +206,9 @@ const PublicProviderDetailScreen = () => {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
+      <View style={styles.container}>
         <StatusBar barStyle="dark-content" />
-        <Text style={styles.bodyTextCenter}>Cargando información del especialista...</Text>
+        <PublicProviderDetailSkeleton />
       </View>
     );
   }
@@ -300,7 +302,6 @@ const PublicProviderDetailScreen = () => {
             <View style={styles.section}>
               <SectionHeader
                 title="Comunas de cobertura"
-                icon={<MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />}
               />
               {comunas.length > 0 ? (
                 <View style={styles.tagsRow}>
@@ -328,11 +329,10 @@ const PublicProviderDetailScreen = () => {
           <View style={styles.section}>
             <SectionHeader
               title="Dirección del taller"
-              icon={<MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />}
             />
             <Card>
               <View style={styles.iconRow}>
-                <MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />
+                <MapPin size={18} color={COLORS.icon.active} strokeWidth={2} />
                 <Text style={styles.bodyText}>{display}</Text>
               </View>
             </Card>
@@ -352,13 +352,12 @@ const PublicProviderDetailScreen = () => {
           <View style={styles.section}>
             <SectionHeader
               title={esMultimarca ? 'Cobertura de marcas' : 'Especialidad en marcas'}
-              icon={<Globe size={18} color={COLORS.primary[500]} strokeWidth={2} />}
             />
 
             {esMultimarca ? (
               <View style={styles.multimarcaBadge}>
                 <View style={styles.multimarcaBadgeIconWrap}>
-                  <Globe size={22} color={COLORS.primary[500]} strokeWidth={2} />
+                  <Globe size={22} color={COLORS.text.secondary} strokeWidth={2} />
                 </View>
                 <View style={styles.multimarcaBadgeText}>
                   <Text style={styles.multimarcaBadgeTitle}>Proveedor multimarca</Text>
@@ -371,8 +370,8 @@ const PublicProviderDetailScreen = () => {
                   <View key={i} style={[styles.tagBadge, styles.tagBadgeSpecialista]}>
                     <Star
                       size={12}
-                      color={COLORS.primary[600]}
-                      fill={COLORS.primary[500]}
+                      color={COLORS.badge.especialista.icon}
+                      fill={COLORS.badge.especialista.icon}
                       strokeWidth={2}
                     />
                     <Text style={[styles.tagText, styles.tagTextEspecialista]}>{brand}</Text>
@@ -392,42 +391,52 @@ const PublicProviderDetailScreen = () => {
         <ProviderScheduleSection horarios={details?.horarios_semanales || []} />
       )}
 
-      <Divider />
-
-      <TrustSection documents={documents || []} />
-
-      <Divider />
+      {hasTrustDocuments ? (
+        <>
+          <Divider />
+          <TrustSection documents={documents} />
+        </>
+      ) : null}
 
       {serviciosVisibles.length > 0 ? (
-        <View style={[styles.section, styles.sectionLast]}>
-          <SectionHeader title="Servicios" />
-          {esMultimarcaProveedor ? (
-            <Text style={styles.sectionHint}>
-              Precios orientativos. Inicia sesión para agendar según tu vehículo.
-            </Text>
-          ) : (
-            <Text style={styles.sectionHint}>
-              Servicios activos. Inicia sesión para solicitar presupuesto.
-            </Text>
-          )}
-          <View style={svcCard.servicesGrid}>
-            {serviciosVisibles.map((servicio, idx) => {
-              const precioInfo = labelPrecioServicioResuelto(servicio, { vehicle: null });
-              const precioLabel =
-                precioInfo.principal ?? formatPrecioCatalogoServicio(servicio);
-              return (
-                <ProviderCatalogServiceCard
-                  key={`${servicio.oferta_id || servicio.id || idx}-${servicio.tipo_servicio || 'o'}`}
-                  servicio={servicio}
-                  tipoLabel={labelTipoServicioCatalogo(servicio)}
-                  precioLabel={precioLabel}
-                  precioSubtitulo={precioInfo.subtitulo}
-                  imageHeight={110}
-                />
-              );
-            })}
+        <>
+          <Divider />
+          <View style={[styles.section, styles.sectionLast]}>
+            <SectionHeader title="Servicios" />
+            {esMultimarcaProveedor ? (
+              <Text style={styles.sectionHint}>
+                Precios orientativos. Inicia sesión para agendar según tu vehículo.
+              </Text>
+            ) : (
+              <Text style={styles.sectionHint}>
+                Servicios activos. Inicia sesión para solicitar presupuesto.
+              </Text>
+            )}
+            <View style={svcCard.servicesGrid}>
+              {chunkCatalogServiceRows(serviciosVisibles).map((row, rowIdx) => (
+                <View key={`svc-row-${rowIdx}`} style={svcCard.servicesRow}>
+                  {row.map((servicio, colIdx) => {
+                    const idx = rowIdx * 2 + colIdx;
+                    const precioInfo = labelPrecioServicioResuelto(servicio, { vehicle: null });
+                    const precioLabel =
+                      precioInfo.principal ?? formatPrecioCatalogoServicio(servicio);
+                    return (
+                      <ProviderCatalogServiceCard
+                        key={`${servicio.oferta_id || servicio.id || idx}-${servicio.tipo_servicio || 'o'}`}
+                        servicio={servicio}
+                        tipoLabel={labelTipoServicioCatalogo(servicio)}
+                        precioLabel={precioLabel}
+                        precioSubtitulo={precioInfo.subtitulo}
+                        imageHeight={110}
+                      />
+                    );
+                  })}
+                  {row.length === 1 ? <View style={svcCard.serviceCardSpacer} /> : null}
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        </>
       ) : null}
 
       <ProviderCompletedJobsSection jobs={completedJobs} />
@@ -576,18 +585,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.neutral.gray[50],
     borderRadius: BORDERS.radius.lg,
     padding: SPACING.md,
     marginTop: SPACING.sm,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
+    borderColor: COLORS.border.light,
   },
   multimarcaBadgeIconWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.primary[100],
+    backgroundColor: COLORS.neutral.gray[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -597,19 +606,19 @@ const styles = StyleSheet.create({
   },
   multimarcaBadgeTitle: {
     ...TYPOGRAPHY.styles.bodyBold,
-    color: COLORS.primary[700],
+    color: COLORS.text.primary,
   },
   multimarcaBadgeSub: {
     ...TYPOGRAPHY.styles.caption,
-    color: COLORS.primary[600],
+    color: COLORS.text.secondary,
     marginTop: 2,
   },
   tagBadgeSpecialista: {
-    backgroundColor: COLORS.primary[50],
-    borderColor: COLORS.primary[100],
+    backgroundColor: COLORS.badge.especialista.background,
+    borderColor: COLORS.badge.especialista.border,
   },
   tagTextEspecialista: {
-    color: COLORS.primary[700],
+    color: COLORS.badge.especialista.text,
   },
   tagsRow: {
     flexDirection: 'row',

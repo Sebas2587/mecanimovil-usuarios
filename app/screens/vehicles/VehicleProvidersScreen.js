@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, StatusBar } from 'react-native';
 import { Star, MapPin, CircleAlert } from 'lucide-react-native';
 import { getProvidersByVehiculo } from '../../services/providers';
 import ProvidersList from '../../components/providers/ProvidersList';
 import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
+import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
-import { BORDERS } from '../../design-system/tokens/borders';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 
 /**
@@ -82,9 +82,12 @@ const VehicleProvidersScreen = ({ route, navigation }) => {
         <View style={styles.centerContainer}>
           <CircleAlert size={50} color={COLORS.error[500]} />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadProviders}>
-            <Text style={styles.retryButtonText}>Reintentar</Text>
-          </TouchableOpacity>
+          <GuestGradientButton
+            title="Reintentar"
+            onPress={loadProviders}
+            size="compact"
+            style={styles.retryButton}
+          />
         </View>
       );
     }
@@ -142,14 +145,6 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     marginTop: SPACING.lg,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.primary[500],
-    borderRadius: BORDERS.radius.button.md,
-  },
-  retryButtonText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
   },
   contentContainer: {
     flex: 1,

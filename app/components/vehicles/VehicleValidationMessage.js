@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { FONT_SIZES } from '../../utils/constants';
 import { COLORS, SPACING } from '../../design-system/tokens';
 import Icon from '../base/Icon/Icon';
+import GuestGradientButton from '../guest/GuestGradientButton';
 
 /**
  * Componente para mostrar mensajes de validación de vehículos
@@ -35,13 +36,12 @@ const VehicleValidationMessage = ({
       <Text style={styles.message}>{message}</Text>
       
       {actionText && actionRoute && (
-        <TouchableOpacity 
-          style={styles.actionButton}
+        <GuestGradientButton
+          title={actionText}
           onPress={handleActionPress}
-        >
-          <Text style={styles.actionButtonText}>{actionText}</Text>
-          <Icon name="arrow-forward" size={16} color={COLORS.base.white} />
-        </TouchableOpacity>
+          size="compact"
+          style={styles.actionButton}
+        />
       )}
     </View>
   );
@@ -74,18 +74,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   actionButton: {
-    backgroundColor: COLORS.primary[500],
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-  },
-  actionButtonText: {
-    color: COLORS.base.white,
-    fontSize: FONT_SIZES.body,
-    fontWeight: '600',
+    alignSelf: 'center',
   },
 });
 

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { ArrowRightLeft } from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY, BORDERS, SPACING } from '../../design-system/tokens';
 import Button from '../base/Button/Button';
+import PrimaryGradientBadge from '../base/PrimaryGradientBadge/PrimaryGradientBadge';
 
 const TransferCard = ({
   vehicleName,
@@ -21,7 +22,7 @@ const TransferCard = ({
     </Text>
     {items.map((item, i) => (
       <View key={i} style={styles.itemRow}>
-        <View style={styles.bullet} />
+        <PrimaryGradientBadge style={styles.bullet} />
         <Text style={[TYPOGRAPHY.styles.body, styles.itemText]}>{item}</Text>
       </View>
     ))}
@@ -61,7 +62,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.primary[500],
     marginTop: 8,
   },
   itemText: { flex: 1, color: COLORS.text.primary },

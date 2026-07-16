@@ -17,6 +17,7 @@ import {
   Fuel,
 } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS, SPACING } from '../../design-system/tokens';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 import { buildProviderAvatarUri } from '../../utils/providerUtils';
 import { formatDistance } from '../../utils/geoUtils';
 import {
@@ -27,6 +28,7 @@ import MatchPercentRing from './MatchPercentRing';
 import ProveedorCoberturaMarcaChip from './ProveedorCoberturaMarcaChip';
 import {
   buildDesgloseCatalogoCandidato,
+  buildExplicacionCandidatoContextual,
   candidatoBadgeIncluyeRepuestos,
   etiquetaBadgeRepuestosCatalogo,
   etiquetaCatalogoRepuestos,
@@ -50,17 +52,38 @@ function CardDivider() {
   return <View style={styles.divider} />;
 }
 
-/** Oculta frases de distancia del backend (ya se muestran con MapPin en cabecera). */
+/** Fallback: limpia frases genéricas del backend si no hay texto contextual. */
 function sanitizeExplicacionCandidato(text) {
   if (!text) return null;
   let t = String(text).trim();
   t = t.replace(/muy cerca de ti\s*\([^)]*\)/gi, '');
   t = t.replace(/muy cerca de ti/gi, '');
+  t = t.replace(/cercano a tu direcci[oó]n/gi, '');
   t = t.replace(/a\s*~?\d+(?:[.,]\d+)?\s*km\s+de\s+tu\s+ubicaci[oó]n/gi, '');
   t = t.replace(/a\s+\d+(?:[.,]\d+)?\s*km\s+de\s+tu\s+ubicaci[oó]n/gi, '');
+  t = t.replace(/incluye repuestos en cat[aá]logo/gi, '');
+  t = t.replace(/solo mano de obra(?:\s+en cat[aá]logo)?/gi, '');
   t = t.replace(/\s*·\s*·+/g, ' · ').replace(/^\s*·\s*|\s*·\s*$/g, '').trim();
   if (!t || t.length < 4) return null;
   return t;
+}
+
+/** Ubicación / modalidad según distancia real y tipo de atención. */
+function buildLocationLabelCandidato(distKm, aDomicilio) {
+  if (distKm != null && Number.isFinite(Number(distKm))) {
+    const km = Number(distKm);
+    if (km <= 1.5) {
+      return aDomicilio
+        ? 'Cercano a tu dirección · a domicilio'
+        : 'Cercano a tu dirección';
+    }
+    const dist = formatDistance(km);
+    return aDomicilio
+      ? `A domicilio · ${dist} de tu dirección`
+      : `${dist} de tu dirección`;
+  }
+  if (aDomicilio) return 'Atiende a domicilio en tu zona';
+  return 'Según tu dirección seleccionada';
 }
 
 const AVATAR_SIZE = 64;
@@ -198,7 +221,12 @@ export default function CandidatoProveedorBookingCard({
     (acc, linea) => acc + (linea.repuestos_info?.length || 0),
     0,
   );
-  const explicacionVisible = sanitizeExplicacionCandidato(candidato.explicacion);
+  const explicacionVisible = buildExplicacionCandidatoContextual({
+    locationLabel: buildLocationLabelCandidato(distKm, aDomicilio),
+    aDomicilio,
+    solicitudConRepuestos,
+    candidato,
+  }) || sanitizeExplicacionCandidato(candidato.explicacion);
   const distanciaLabel = distKm != null
     ? formatDistance(distKm)
     : null;
@@ -256,7 +284,7 @@ export default function CandidatoProveedorBookingCard({
                   size={10}
                   color={
                     badgeIncluyeRepuestos
-                      ? COLORS.primary[600]
+                      ? COLORS.selection.icon
                       : COLORS.text.secondary
                   }
                 />
@@ -311,7 +339,7 @@ export default function CandidatoProveedorBookingCard({
             ) : null}
           </View>
           <View style={styles.distanciaBlock}>
-            <MapPin size={12} color={COLORS.primary[500]} style={styles.distanciaPin} />
+            <MapPin size={12} color={COLORS.icon.active} style={styles.distanciaPin} />
             {distanciaLabel != null ? (
               <Text style={styles.distanciaText}>
                 <Text style={styles.distanciaKm}>{distanciaLabel}</Text>
@@ -481,7 +509,7 @@ export default function CandidatoProveedorBookingCard({
 
       <TouchableOpacity
         style={[
-          styles.confirmBtn,
+          styles.confirmBtnWrap,
           selectable && styles.confirmBtnSpaced,
           btnDisabled && styles.confirmBtnDisabled,
         ]}
@@ -489,11 +517,13 @@ export default function CandidatoProveedorBookingCard({
         disabled={btnDisabled}
         activeOpacity={0.85}
       >
-        {btnLoading ? (
-          <ActivityIndicator color={COLORS.text.onPrimary} size="small" />
-        ) : (
-          <Text style={styles.confirmBtnText}>Confirmar con este proveedor</Text>
-        )}
+        <PrimaryGradientFill style={styles.confirmBtn}>
+          {btnLoading ? (
+            <ActivityIndicator color={COLORS.text.onPrimary} size="small" />
+          ) : (
+            <Text style={styles.confirmBtnText}>Confirmar con este proveedor</Text>
+          )}
+        </PrimaryGradientFill>
       </TouchableOpacity>
     </View>
   );
@@ -509,14 +539,14 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   cardSelected: {
-    borderColor: COLORS.primary[400],
+    borderColor: COLORS.brand.orange,
     borderWidth: 2,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.background.paper,
   },
   compareTitle: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[700],
+    color: COLORS.text.primary,
     marginBottom: 12,
     letterSpacing: 0.2,
   },
@@ -556,12 +586,12 @@ const styles = StyleSheet.create({
   },
   distanciaKm: {
     fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.primary[700],
+    color: COLORS.text.primary,
     fontVariant: ['tabular-nums'],
   },
   distanciaCaption: {
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.primary[600],
+    color: COLORS.text.secondary,
   },
   distanciaUnavailable: {
     flex: 1,
@@ -658,14 +688,14 @@ const styles = StyleSheet.create({
     lineHeight: 13,
   },
   repuestosCon: {
-    color: COLORS.primary[700],
+    color: COLORS.selection.text,
   },
   repuestosSin: {
     color: COLORS.text.secondary,
   },
   repuestosBadgeSolicitudCon: {
-    backgroundColor: COLORS.primary[50],
-    borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.selection.background,
+    borderColor: COLORS.selection.border,
   },
   repuestosBadgeSolicitudSin: {
     backgroundColor: COLORS.neutral.gray[100],
@@ -759,8 +789,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   servicioModoChipCon: {
-    backgroundColor: COLORS.primary[50],
-    borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.selection.background,
+    borderColor: COLORS.selection.border,
   },
   servicioModoChipSin: {
     backgroundColor: COLORS.neutral.gray[100],
@@ -772,7 +802,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
   },
   servicioModoChipTextCon: {
-    color: COLORS.primary[700],
+    color: COLORS.selection.text,
   },
   servicioPrecioMulti: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -861,13 +891,16 @@ const styles = StyleSheet.create({
     marginTop: 12,
     lineHeight: 17,
   },
-  confirmBtn: {
+  confirmBtnWrap: {
     marginTop: 14,
-    paddingVertical: 14,
     borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[500],
+    overflow: 'hidden',
+  },
+  confirmBtn: {
+    paddingVertical: 14,
     alignItems: 'center',
     minHeight: 48,
+    justifyContent: 'center',
   },
   confirmBtnDisabled: {
     opacity: 0.55,

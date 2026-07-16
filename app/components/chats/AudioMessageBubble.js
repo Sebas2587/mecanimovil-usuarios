@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { Play, Pause } from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY, BORDERS, SPACING, withOpacity } from '../../design-system/tokens';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 
 const formatDuration = (seconds) => {
   if (!seconds || Number.isNaN(seconds)) return '0:00';
@@ -42,13 +43,23 @@ const AudioMessageBubble = ({ uri, isMe }) => {
       </TouchableOpacity>
       <View style={styles.trackCol}>
         <View style={[styles.track, isMe ? styles.trackMe : styles.trackOther]}>
-          <View
-            style={[
-              styles.fill,
-              isMe ? styles.fillMe : styles.fillOther,
-              { width: `${progress * 100}%` },
-            ]}
-          />
+          {isMe ? (
+            <View
+              style={[
+                styles.fill,
+                styles.fillMe,
+                { width: `${progress * 100}%` },
+              ]}
+            />
+          ) : (
+            <PrimaryGradientFill
+              style={[
+                styles.fill,
+                styles.fillOther,
+                { width: `${progress * 100}%` },
+              ]}
+            />
+          )}
         </View>
         <Text style={[styles.time, isMe ? styles.timeMe : styles.timeOther]}>
           {status.playing ? formatDuration(current) : formatDuration(duration)}
@@ -102,7 +113,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.text.onPrimary,
   },
   fillOther: {
-    backgroundColor: COLORS.primary[500],
+    overflow: 'hidden',
   },
   time: {
     ...TYPOGRAPHY.styles.small,

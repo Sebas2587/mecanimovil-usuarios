@@ -7,7 +7,7 @@ import {
   Pressable,
   Platform,
 } from 'react-native';
-import { AlertTriangle } from 'lucide-react-native';
+import { AlertTriangle, LogOut } from 'lucide-react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { lucideSafeProps } from '../../design-system/icons/lucideDefaults';
 import { registerPlatformAlertHost } from '../../utils/platformAlert';
@@ -15,7 +15,7 @@ import Button from '../base/Button/Button';
 
 /**
  * Diálogos in-app en web (Alert.alert / window.confirm no son fiables en RN Web).
- * Superficies Airbnb + CTAs Tinder (tokens); tipografía Poppins.
+ * Layout Airbnb (centrado, acciones en fila) + colores Tinder (soft magenta, orange, CTA).
  */
 const PlatformAlertHost = () => {
   const [confirmState, setConfirmState] = useState(null);
@@ -69,11 +69,22 @@ const PlatformAlertHost = () => {
 
   if (Platform.OS !== 'web') return null;
 
+  const isLogoutConfirm = Boolean(
+    confirmState?.destructive
+    && /sesi[oó]n|salir|logout/i.test(
+      `${confirmState?.title || ''} ${confirmState?.confirmText || ''}`,
+    ),
+  );
+
   const renderDialogChrome = ({ title, message, destructive, children }) => (
     <Pressable style={styles.dialog} onPress={(e) => e.stopPropagation?.()}>
       {destructive ? (
         <View style={styles.iconWrap}>
-          <AlertTriangle size={24} color={COLORS.error[600]} {...lucideSafeProps()} />
+          {isLogoutConfirm ? (
+            <LogOut size={22} color={COLORS.icon.active} strokeWidth={1.75} {...lucideSafeProps()} />
+          ) : (
+            <AlertTriangle size={22} color={COLORS.icon.active} strokeWidth={1.75} {...lucideSafeProps()} />
+          )}
         </View>
       ) : null}
       {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -132,7 +143,7 @@ const PlatformAlertHost = () => {
                 />
                 <Button
                   title={confirmState?.confirmText || 'Aceptar'}
-                  type={confirmState?.destructive ? 'danger' : 'primary'}
+                  type="primary"
                   size="md"
                   style={styles.actionFlex}
                   onPress={() => resolveConfirm(true)}
@@ -163,7 +174,7 @@ const PlatformAlertHost = () => {
                       key={btn.text}
                       title={btn.text}
                       type={isDestructive ? 'danger' : isCancel ? 'secondary' : 'primary'}
-                      variant={isCancel ? 'outline' : 'solid'}
+                      variant={isCancel || isDestructive ? 'outline' : 'solid'}
                       size="md"
                       fullWidth
                       onPress={() => resolveAction(btn)}
@@ -202,7 +213,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.error[50],
+    backgroundColor: COLORS.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',

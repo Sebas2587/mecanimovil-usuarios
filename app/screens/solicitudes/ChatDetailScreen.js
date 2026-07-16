@@ -1054,10 +1054,10 @@ const getStyles = () => StyleSheet.create({
         maxWidth: '100%',
     },
     bubbleRight: {
-        backgroundColor: COLORS.primary[500],
         borderBottomRightRadius: 4,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.primary[600],
+        overflow: 'hidden',
     },
     bubbleLeft: {
         backgroundColor: COLORS.neutral.gray[100],

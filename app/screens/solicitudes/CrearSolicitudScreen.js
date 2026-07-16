@@ -1303,7 +1303,7 @@ const CrearSolicitudScreen = () => {
           <Text style={[TYPOGRAPHY.styles.h3, styles.emptyTitle]}>Sin vehículos registrados</Text>
           <Text style={[TYPOGRAPHY.styles.body, styles.stateText]}>Necesitas al menos un vehículo para crear una solicitud</Text>
           <TouchableOpacity style={styles.addVehicleBtn} onPress={() => navigation.navigate(ROUTES.MIS_VEHICULOS)} activeOpacity={0.8}>
-            <Plus size={18} color={COLORS.success[700]} />
+            <Plus size={18} color={COLORS.primary[700]} />
             <Text style={[TYPOGRAPHY.styles.button, styles.addVehicleBtnText]}>Agregar vehículo</Text>
           </TouchableOpacity>
         </View>
@@ -1402,12 +1402,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm + 2,
     borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.success.light,
+    backgroundColor: COLORS.primary[50],
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.success[200],
+    borderColor: COLORS.primary[200],
   },
   addVehicleBtnText: {
-    color: COLORS.success[700],
+    color: COLORS.primary[700],
   },
   creatingOverlay: {
     ...StyleSheet.absoluteFillObject,

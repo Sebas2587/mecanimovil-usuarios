@@ -42,9 +42,11 @@ import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import * as vehicleService from '../../services/vehicle';
 import { useQuery } from '@tanstack/react-query';
 import Button from '../../components/base/Button/Button';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import * as ImagePicker from 'expo-image-picker'; // New import
 import { useQueryClient } from '@tanstack/react-query'; // For invalidation
 import { ROUTES } from '../../utils/constants';
+import { navigateCrearSolicitudConProveedorYServicio } from '../../components/home/shared/homeScheduleNavigation';
 import { showAlert, showConfirm } from '../../utils/platformAlert';
 import { formatApiErrorMessage } from '../../utils/formatApiError';
 import { appendImageToFormData } from '../../utils/imagePickerWeb';
@@ -128,10 +130,12 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
                         accessibilityRole="checkbox"
                         accessibilityState={{ checked: isChecked }}
                     >
-                        <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-                            {isChecked && (
-                                <Check size={16} color={COLORS.text.inverse} strokeWidth={2.5} />
-                            )}
+                        <View style={[styles.checkbox, isChecked && styles.checkboxCheckedWrap]}>
+                            {isChecked ? (
+                                <PrimaryGradientFill style={styles.checkboxFill}>
+                                    <Check size={16} color={COLORS.text.inverse} strokeWidth={2.5} />
+                                </PrimaryGradientFill>
+                            ) : null}
                         </View>
                         <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
                     </TouchableOpacity>
@@ -150,10 +154,12 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: isChecked }}
             >
-                <View style={[styles.checkbox, isChecked && styles.checkboxChecked]}>
-                    {isChecked && (
-                        <Check size={16} color={COLORS.text.inverse} strokeWidth={2.5} />
-                    )}
+                <View style={[styles.checkbox, isChecked && styles.checkboxCheckedWrap]}>
+                    {isChecked ? (
+                        <PrimaryGradientFill style={styles.checkboxFill}>
+                            <Check size={16} color={COLORS.text.inverse} strokeWidth={2.5} />
+                        </PrimaryGradientFill>
+                    ) : null}
                 </View>
                 <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
             </TouchableOpacity>
@@ -205,28 +211,67 @@ const VehicleRegistrationScreen = () => {
         const prefillVehicleData = route.params?.prefillVehicleData;
         if (!prefillPatente && !prefillVehicleData) return;
 
-        if (prefillPatente) {
-            setPatente(String(prefillPatente).toUpperCase().slice(0, 6));
-        }
-        if (!prefillVehicleData) return;
+        let cancelled = false;
 
-        setVehicleData(prefillVehicleData);
-        setStep('success');
+        const applyPrefill = (data) => {
+            setVehicleData(data);
+            setStep('success');
 
-        let type = prefillVehicleData.tipo_motor || 'GASOLINA';
-        const upper = String(type).toUpperCase();
-        if (upper.includes('BENCINA') || upper.includes('GASOLINA')) type = 'GASOLINA';
-        else if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) type = 'DIESEL';
-        else if (upper.includes('HIBRIDO') || upper.includes('HÍBRIDO')) type = 'HIBRIDO';
-        else if (upper.includes('ELECTRICO') || upper.includes('ELÉCTRICO')) type = 'ELECTRICO';
-        else type = null;
-        setSelectedEngineType(type);
+            let type = data.tipo_motor || 'GASOLINA';
+            const upper = String(type).toUpperCase();
+            if (upper.includes('BENCINA') || upper.includes('GASOLINA')) type = 'GASOLINA';
+            else if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) type = 'DIESEL';
+            else if (upper.includes('HIBRIDO') || upper.includes('HÍBRIDO')) type = 'HIBRIDO';
+            else if (upper.includes('ELECTRICO') || upper.includes('ELÉCTRICO')) type = 'ELECTRICO';
+            else type = null;
+            setSelectedEngineType(type);
 
-        const requiereValorManual = necesitaValorMercadoManual(prefillVehicleData);
-        setShowValorMercadoAlert(requiereValorManual);
-        if (tieneValorMercadoDesdeApi(prefillVehicleData) && prefillVehicleData.precio_mercado_promedio != null) {
-            setValorMercado(String(prefillVehicleData.precio_mercado_promedio));
-        }
+            const requiereValorManual = necesitaValorMercadoManual(data);
+            setShowValorMercadoAlert(requiereValorManual);
+            if (tieneValorMercadoDesdeApi(data) && data.precio_mercado_promedio != null) {
+                setValorMercado(String(data.precio_mercado_promedio));
+            }
+        };
+
+        (async () => {
+            if (prefillPatente) {
+                setPatente(String(prefillPatente).toUpperCase().slice(0, 6));
+            }
+            if (!prefillVehicleData) return;
+
+            if (prefillPatente) {
+                try {
+                    const check = await vehicleService.verificarPatenteRegistrada(prefillPatente);
+                    if (cancelled) return;
+                    if (check?.registered) {
+                        if (check.owner === 'self') {
+                            showAlert(
+                                'Patente ya registrada',
+                                'Este vehículo ya se encuentra en tu garaje. Puedes verlo desde tu panel principal.',
+                            );
+                        } else {
+                            showAlert(
+                                'Patente no disponible',
+                                'Esta patente ya se encuentra registrada por otro usuario en el sistema. Si crees que esto es un error, contáctanos a soporte.',
+                            );
+                        }
+                        setStep('search');
+                        setVehicleData(null);
+                        return;
+                    }
+                } catch (_e) {
+                    // Si falla la verificación, continuar con prefill (handleSave recheck)
+                }
+            }
+
+            if (!cancelled) {
+                applyPrefill(prefillVehicleData);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
     }, [route.params?.prefillPatente, route.params?.prefillVehicleData]);
 
     // Fetch checklist for maintenance section
@@ -574,11 +619,22 @@ const VehicleRegistrationScreen = () => {
             console.log("   - Version:", vehicleData.version);
             console.log("   - Foto:", image ? 'sí' : 'no');
 
-            await vehicleService.createVehicle(formData);
+            const created = await vehicleService.createVehicle(formData);
 
             // Invalidar listas (UserPanel / CrearSolicitud usan ['userVehicles']; hooks usan ['vehicles', userId])
             queryClient.invalidateQueries({ queryKey: ['userVehicles'] });
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+
+            const pendingScheduleIntent = route.params?.pendingScheduleIntent;
+            if (pendingScheduleIntent?.provider && pendingScheduleIntent?.servicio && created?.id) {
+              navigateCrearSolicitudConProveedorYServicio(navigation, {
+                vehicle: created,
+                provider: pendingScheduleIntent.provider,
+                providerType: pendingScheduleIntent.providerType,
+                servicio: pendingScheduleIntent.servicio,
+              });
+              return;
+            }
 
             if (Platform.OS === 'web') {
                 showAlert('Éxito', 'Vehículo agregado a tu garaje.');
@@ -819,17 +875,20 @@ const VehicleRegistrationScreen = () => {
                                     </View>
 
                                     <TouchableOpacity
-                                        style={[styles.searchButton, loading && styles.disabledButton]}
+                                        style={[styles.searchButtonWrap, loading && styles.disabledButton]}
                                         onPress={handleSearch}
                                         disabled={loading}
                                         accessibilityRole="button"
                                         accessibilityLabel="Buscar patente"
+                                        activeOpacity={0.85}
                                     >
-                                        {loading ? (
-                                            <ActivityIndicator color={COLORS.text.onPrimary} />
-                                        ) : (
-                                            <Search size={22} color={COLORS.text.onPrimary} strokeWidth={1.75} />
-                                        )}
+                                        <PrimaryGradientFill style={styles.searchButton}>
+                                            {loading ? (
+                                                <ActivityIndicator color={COLORS.text.onPrimary} />
+                                            ) : (
+                                                <Search size={22} color={COLORS.text.onPrimary} strokeWidth={1.75} />
+                                            )}
+                                        </PrimaryGradientFill>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -927,14 +986,17 @@ const VehicleRegistrationScreen = () => {
                                                     accessibilityState={{ checked: active }}
                                                     accessibilityLabel={opt.label}
                                                 >
-                                                    <Text
-                                                        style={[
-                                                            styles.engineToggleText,
-                                                            active && styles.engineToggleTextActive,
-                                                        ]}
-                                                    >
-                                                        {opt.label}
-                                                    </Text>
+                                                    {active ? (
+                                                        <PrimaryGradientFill style={styles.engineToggleFill}>
+                                                            <Text style={[styles.engineToggleText, styles.engineToggleTextActive]}>
+                                                                {opt.label}
+                                                            </Text>
+                                                        </PrimaryGradientFill>
+                                                    ) : (
+                                                        <View style={styles.engineToggleInner}>
+                                                            <Text style={styles.engineToggleText}>{opt.label}</Text>
+                                                        </View>
+                                                    )}
                                                 </TouchableOpacity>
                                             );
                                         })}
@@ -1213,13 +1275,17 @@ const styles = StyleSheet.create({
         textTransform: 'uppercase',
         ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null),
     },
-    searchButton: {
-        backgroundColor: COLORS.primary[500],
+    searchButtonWrap: {
         width: 52,
         height: 52,
         borderRadius: BORDERS.radius.button.md,
-        justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    searchButton: {
+        width: 52,
+        height: 52,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     disabledButton: {
         opacity: 0.7,
@@ -1394,18 +1460,31 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         flexBasis: '46%',
         minHeight: 48,
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.sm,
         borderRadius: BORDERS.radius.button.md,
         borderWidth: BORDERS.width.thin,
         borderColor: COLORS.border.main,
         backgroundColor: COLORS.background.paper,
+        overflow: 'hidden',
+    },
+    engineToggleActive: {
+        borderColor: COLORS.primary[500],
+        padding: 0,
+    },
+    engineToggleFill: {
+        flex: 1,
+        minHeight: 48,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    engineToggleActive: {
-        backgroundColor: COLORS.primary[500],
-        borderColor: COLORS.primary[500],
+    engineToggleInner: {
+        flex: 1,
+        minHeight: 48,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: SPACING.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     engineToggleText: {
         ...TYPOGRAPHY.styles.button,
@@ -1498,9 +1577,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: COLORS.background.paper,
     },
-    checkboxChecked: {
-        backgroundColor: COLORS.primary[500],
+    checkboxCheckedWrap: {
         borderColor: COLORS.primary[500],
+        overflow: 'hidden',
+        padding: 0,
+    },
+    checkboxFill: {
+        width: '100%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     maintenanceLabel: {
         flex: 1,

@@ -13,7 +13,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
-import { ClipboardList, CirclePlus, CircleAlert } from 'lucide-react-native';
+import { ClipboardList, CircleAlert } from 'lucide-react-native';
+import Button from '../../components/base/Button/Button';
 import { ROUTES } from '../../utils/constants';
 import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import { useSolicitudes } from '../../context/SolicitudesContext';
@@ -21,7 +22,7 @@ import { solicitudVisibleParaVehiculoDashboard } from '../../utils/solicitudVehi
 import MisSolicitudesListSkeleton from '../../components/utils/MisSolicitudesListSkeleton';
 import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
 import BackButton from '../../components/navigation/BackButton';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { prefetchRequestDetail, refetchSolicitudesListQueries } from '../../hooks/useRequests';
 import { useAuth } from '../../context/AuthContext';
 import { showAlert } from '../../utils/platformAlert';
@@ -249,19 +250,16 @@ const MisSolicitudesScreen = () => {
         <Text style={styles.emptyTitle}>{mensajeActual.titulo}</Text>
         <Text style={styles.emptySubtitle}>{mensajeActual.subtitulo}</Text>
         {showCrear && (
-          <TouchableOpacity
-            style={styles.createButton}
+          <Button
+            title="Crear Solicitud"
+            icon="add-circle-outline"
             onPress={() =>
               navigation.navigate(
                 ROUTES.CREAR_SOLICITUD,
                 vehicleForCrearSolicitud ? { vehicle: vehicleForCrearSolicitud, fromDashboard: true } : {},
               )
             }
-            activeOpacity={0.85}
-          >
-            <CirclePlus size={20} color={COLORS.text.inverse} strokeWidth={2} />
-            <Text style={styles.createButtonText}>Crear Solicitud</Text>
-          </TouchableOpacity>
+          />
         )}
       </View>
     );
@@ -480,20 +478,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
-    gap: 8,
-    backgroundColor: COLORS.primary[500],
-  },
-  createButtonText: {
-    color: COLORS.text.inverse,
-    fontSize: 16,
-    fontWeight: '600',
   },
   errorContainer: {
     position: 'absolute',

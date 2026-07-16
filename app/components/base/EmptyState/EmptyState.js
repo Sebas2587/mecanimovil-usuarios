@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Button from '../Button/Button';
+import GuestGradientButton from '../../guest/GuestGradientButton';
 import { COLORS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 
 const EmptyState = ({
@@ -19,7 +19,7 @@ const EmptyState = ({
       <Text style={[TYPOGRAPHY.styles.body, styles.message]}>{message}</Text>
     ) : null}
     {actionLabel && onAction ? (
-      <Button title={actionLabel} onPress={onAction} style={styles.btn} />
+      <GuestGradientButton title={actionLabel} onPress={onAction} style={styles.btn} />
     ) : null}
   </View>
 );

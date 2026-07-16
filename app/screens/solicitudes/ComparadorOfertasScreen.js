@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { CircleAlert, ArrowLeftRight } from 'lucide-react-native';
 import ComparadorCatalogoCompareFooter from '../../components/agendamiento-asistido/ComparadorCatalogoCompareFooter';
+import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import { ROUTES } from '../../utils/constants';
 import ComparadorOfertas from '../../components/ofertas/ComparadorOfertas';
 import ComparadorCatalogoIaPanel from '../../components/agendamiento-asistido/ComparadorCatalogoIaPanel';
@@ -382,7 +383,6 @@ const ComparadorOfertasScreen = () => {
       <View style={styles.headerHost}>
         <SolicitudFlowHeader
           title="Comparar ofertas"
-          subtitle={modoCatalogo ? 'Elige tu proveedor' : undefined}
           onBack={() => navigation.goBack()}
         />
       </View>
@@ -410,13 +410,11 @@ const ComparadorOfertasScreen = () => {
           </View>
           <Text style={styles.emptyTitle}>Error de Validación</Text>
           <Text style={styles.emptyText}>{errorValidacion}</Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
+          <GuestGradientButton
+            title="Volver"
             onPress={() => navigation.goBack()}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.emptyButtonText}>Volver</Text>
-          </TouchableOpacity>
+            size="compact"
+          />
         </View>
     );
   }
@@ -437,13 +435,11 @@ const ComparadorOfertasScreen = () => {
               ? 'No hay proveedores de catálogo disponibles para comparar.'
               : 'Necesitas al menos 2 ofertas para poder compararlas'}
           </Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
+          <GuestGradientButton
+            title="Volver a Ofertas"
             onPress={() => navigation.goBack()}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.emptyButtonText}>Volver a Ofertas</Text>
-          </TouchableOpacity>
+            size="compact"
+          />
         </View>
     );
   }
@@ -594,18 +590,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     paddingHorizontal: SPACING.md,
     color: COLORS.text.secondary,
-  },
-  emptyButton: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.xl,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[500],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[600],
-  },
-  emptyButtonText: {
-    ...TYPOGRAPHY.styles.button,
-    color: COLORS.text.onPrimary,
   },
   processingOverlay: {
     position: 'absolute',

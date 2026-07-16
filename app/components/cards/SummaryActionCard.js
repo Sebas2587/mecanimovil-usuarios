@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ChevronRight } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import PrimaryGradientBadge from '../base/PrimaryGradientBadge/PrimaryGradientBadge';
 
 /**
  * Card summary estilo Airbnb (Messages / Trips compact):
@@ -36,11 +37,11 @@ const SummaryActionCard = ({
       ) : null}
     </View>
     {badgeCount > 0 ? (
-      <View style={styles.badge} accessibilityElementsHidden>
+      <PrimaryGradientBadge style={styles.badge} accessibilityElementsHidden>
         <Text style={styles.badgeText}>
           {badgeCount > 99 ? '99+' : badgeCount}
         </Text>
-      </View>
+      </PrimaryGradientBadge>
     ) : (
       <ChevronRight size={18} color={COLORS.text.tertiary} strokeWidth={2} style={styles.chevron} />
     )}
@@ -86,12 +87,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   badge: {
-    backgroundColor: COLORS.primary[500],
     borderRadius: BORDERS.radius.full,
     minWidth: 22,
     height: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingHorizontal: 6,
     flexShrink: 0,
   },

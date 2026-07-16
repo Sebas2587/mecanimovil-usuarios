@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 import {
   formatMetricaPct,
@@ -23,7 +24,7 @@ function MetricaRow({ label, value, displayValue, sinDato = false }) {
       </Text>
       <View style={[styles.track, sinValor && styles.trackSinDato]}>
         {!sinValor ? (
-          <View style={[styles.fill, { width: `${barPct}%` }]} />
+          <PrimaryGradientFill style={[styles.fill, { width: `${barPct}%` }]} />
         ) : null}
       </View>
       <Text style={[styles.pct, sinValor && styles.pctSinDato]}>{shown}</Text>
@@ -125,7 +126,6 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[500],
   },
   pct: {
     width: 40,

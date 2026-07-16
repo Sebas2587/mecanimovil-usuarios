@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import PrimaryGradientBadge from '../base/PrimaryGradientBadge/PrimaryGradientBadge';
 
 const HistoryItemCard = ({ title, dateLabel, providerName, amountLabel, isLast }) => (
   <View style={[styles.row, !isLast && styles.border]}>
     <View style={styles.dotCol}>
-      <View style={styles.dot} />
+      <PrimaryGradientBadge style={styles.dot} />
       {!isLast ? <View style={styles.line} /> : null}
     </View>
     <View style={styles.body}>
@@ -28,7 +29,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: COLORS.primary[500],
     marginTop: 4,
   },
   line: {

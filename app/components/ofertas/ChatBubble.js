@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { SPACING, BORDERS } from '../../utils/constants';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 
 /**
  * Componente para mostrar un mensaje de chat en formato bubble
@@ -21,35 +22,50 @@ const ChatBubble = ({ mensaje, esPropio }) => {
       styles.container,
       esPropio ? styles.containerPropio : styles.containerOtro
     ]}>
-      <View style={[
-        styles.bubble,
-        esPropio ? styles.bubblePropio : styles.bubbleOtro
-      ]}>
-        {!esPropio && (
+      {esPropio ? (
+        <PrimaryGradientFill style={[styles.bubble, styles.bubblePropio]}>
+          <Text style={[
+            styles.mensajeTexto,
+            styles.mensajeTextoPropio,
+          ]}>
+            {mensaje.mensaje}
+          </Text>
+          
+          <View style={styles.footer}>
+            <Text style={[
+              styles.timestamp,
+              styles.timestampPropio,
+            ]}>
+              {formatTime(mensaje.fecha_envio)}
+            </Text>
+            {mensaje.leido && (
+              <Text style={styles.checkmarks}>✓✓</Text>
+            )}
+          </View>
+        </PrimaryGradientFill>
+      ) : (
+        <View style={[styles.bubble, styles.bubbleOtro]}>
           <Text style={styles.nombreRemitente}>
             {mensaje.enviado_por_nombre || 'Usuario'}
           </Text>
-        )}
-        
-        <Text style={[
-          styles.mensajeTexto,
-          esPropio ? styles.mensajeTextoPropio : styles.mensajeTextoOtro
-        ]}>
-          {mensaje.mensaje}
-        </Text>
-        
-        <View style={styles.footer}>
+          
           <Text style={[
-            styles.timestamp,
-            esPropio ? styles.timestampPropio : styles.timestampOtro
+            styles.mensajeTexto,
+            styles.mensajeTextoOtro,
           ]}>
-            {formatTime(mensaje.fecha_envio)}
+            {mensaje.mensaje}
           </Text>
-          {esPropio && mensaje.leido && (
-            <Text style={styles.checkmarks}>✓✓</Text>
-          )}
+          
+          <View style={styles.footer}>
+            <Text style={[
+              styles.timestamp,
+              styles.timestampOtro,
+            ]}>
+              {formatTime(mensaje.fecha_envio)}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 };
@@ -75,8 +91,8 @@ const styles = StyleSheet.create({
     maxWidth: '100%'
   },
   bubblePropio: {
-    backgroundColor: COLORS.primary[500],
-    borderBottomRightRadius: 4
+    borderBottomRightRadius: 4,
+    overflow: 'hidden',
   },
   bubbleOtro: {
     backgroundColor: COLORS.neutral.gray[100],

@@ -13,6 +13,9 @@ import {
   Platform
 } from 'react-native';
 import Icon from '../base/Icon/Icon';
+import Button from '../base/Button/Button';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
+import PrimaryGradientBadge from '../base/PrimaryGradientBadge/PrimaryGradientBadge';
 import { COLORS, withOpacity } from '../../design-system/tokens';
 import * as serviceService from '../../services/service';
 // ModalAgendamiento eliminado - flujo antiguo de agendamiento
@@ -281,7 +284,9 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
             <View style={styles.providerCard}>
               <View style={styles.providerHeader}>
                 <View style={styles.providerIcon}>
-                  <Icon name={providerInfo.icon} size={24} color={COLORS.text.inverse} />
+                  <PrimaryGradientFill style={styles.providerIconFill}>
+                    <Icon name={providerInfo.icon} size={24} color={COLORS.text.inverse} />
+                  </PrimaryGradientFill>
                 </View>
                 <View style={styles.providerInfo}>
                   <Text style={styles.providerName}>{providerInfo.name}</Text>
@@ -289,9 +294,9 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
                     {renderRatingStars(providerInfo.rating)}
                   </View>
                 </View>
-                <View style={styles.providerBadge}>
+                <PrimaryGradientBadge style={styles.providerBadge}>
                   <Text style={styles.providerBadgeText}>{providerInfo.type}</Text>
-                </View>
+                </PrimaryGradientBadge>
               </View>
             </View>
             
@@ -345,12 +350,11 @@ const ServiceDetailModal = ({ visible, service, vehiculo, onClose, onRequestServ
           
           {/* Botón de solicitar servicio */}
           <View style={styles.modalFooter}>
-            <TouchableOpacity 
-              style={styles.requestButton}
+            <Button
+              title="Solicitar Servicio"
               onPress={handleIniciarAgendamiento}
-            >
-              <Text style={styles.requestButtonText}>Solicitar Servicio</Text>
-            </TouchableOpacity>
+              fullWidth
+            />
           </View>
         </View>
       </View>
@@ -449,10 +453,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.primary[500],
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  providerIconFill: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
   providerInfo: {
     flex: 1,
@@ -478,7 +486,6 @@ const styles = StyleSheet.create({
   providerBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: COLORS.primary[500],
     borderRadius: 12,
   },
   providerBadgeText: {
@@ -535,17 +542,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
-  },
-  requestButton: {
-    backgroundColor: COLORS.primary[500],
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  requestButtonText: {
-    color: COLORS.text.inverse,
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
 

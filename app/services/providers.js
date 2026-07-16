@@ -1332,9 +1332,20 @@ export const getNearbyProvidersForPanel = async (lat, lng, marcaId, options = {}
 
 /**
  * Proveedores para flujo invitado: por marca, con geo opcional.
- * @param {{ marcaId: number, lat?: number, lng?: number, dist?: number, limit?: number }} opts
+ * Filtra en cliente especialistas reales vs multimarca (misma regla que Destacados).
+ * El filtro por categoría de servicios se aplica en pantalla (especialidades), sin refetch.
+ *
+ * @param {{ marcaId: number, marcaNombre?: string, lat?: number, lng?: number, dist?: number, limit?: number }} opts
+ * @returns {Promise<object[]>}
  */
-export const getGuestProvidersByMarca = async ({ marcaId, lat, lng, dist = 25, limit = 24 }) => {
+export const getGuestProvidersByMarca = async ({
+  marcaId,
+  marcaNombre = null,
+  lat,
+  lng,
+  dist = 30,
+  limit = 48,
+}) => {
   if (marcaId == null || marcaId === '') return [];
 
   const opt = { requiresAuth: false, forceRefresh: true };
@@ -1343,24 +1354,76 @@ export const getGuestProvidersByMarca = async ({ marcaId, lat, lng, dist = 25, l
   const hasCoords = Number.isFinite(la) && Number.isFinite(lo);
 
   try {
+    let raw;
     if (hasCoords) {
-      const merged = await fetchCercaProvidersMerged(la, lo, dist, marcaId);
-      return merged.slice(0, limit);
+      raw = await fetchCercaProvidersMerged(la, lo, dist, marcaId);
+    } else {
+      const params = { marca_id: marcaId, ...PANEL_SERVICIOS_QUERY };
+      const [tRes, mRes] = await Promise.all([
+        get('/usuarios/talleres/proveedores_filtrados/', params, opt),
+        get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params, opt),
+      ]);
+      raw = [
+        ...(tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' })),
+        ...(mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' })),
+      ];
     }
 
-    const params = { marca_id: marcaId, ...PANEL_SERVICIOS_QUERY };
-    const [tRes, mRes] = await Promise.all([
-      get('/usuarios/talleres/proveedores_filtrados/', params, opt),
-      get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', params, opt),
-    ]);
+    const tagged = (raw || []).map(tagProviderMarcaFlags);
+    const { providers: eligible } = buildDestacadosList(tagged, {
+      marcaId,
+      marcaNombre,
+      limit: Math.max(limit, 48),
+      maxKm: null,
+    });
 
-    const raw = [
-      ...(tRes.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' })),
-      ...(mRes.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' })),
-    ];
-    return raw.slice(0, limit);
+    eligible.sort(compareProvidersByMarcaThenDistance);
+
+    return eligible.slice(0, limit);
   } catch (error) {
     console.error('Error obteniendo proveedores invitado:', error);
+    return [];
+  }
+};
+
+/**
+ * Proveedores navegables sin patente (exploración inicial invitado).
+ * Incluye especialistas por marca + multimarca para poder armar secciones
+ * Airbnb estilo «Especialistas Toyota», «Especialistas Chevrolet», etc.
+ * Con geo: /cerca/ (todos los verificados en radio). Sin geo: dos llamadas filtradas.
+ */
+export const getGuestBrowseProviders = async ({ lat, lng, dist = 30, limit = 72 } = {}) => {
+  const opt = { requiresAuth: false, forceRefresh: true };
+  const la = lat != null ? Number(lat) : NaN;
+  const lo = lng != null ? Number(lng) : NaN;
+  const hasCoords = Number.isFinite(la) && Number.isFinite(lo);
+
+  try {
+    let raw;
+    if (hasCoords) {
+      raw = await fetchCercaProvidersMerged(la, lo, dist, null);
+    } else {
+      const panel = { ...PANEL_SERVICIOS_QUERY };
+      const [tEsp, mEsp, tMm, mMm] = await Promise.all([
+        get('/usuarios/talleres/proveedores_filtrados/', { tipo_cobertura_marca: 'especialista', ...panel }, opt).catch(() => ({ talleres: [] })),
+        get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', { tipo_cobertura_marca: 'especialista', ...panel }, opt).catch(() => ({ mecanicos: [] })),
+        get('/usuarios/talleres/proveedores_filtrados/', { tipo_cobertura_marca: 'multimarca', ...panel }, opt).catch(() => ({ talleres: [] })),
+        get('/usuarios/mecanicos-domicilio/proveedores_filtrados/', { tipo_cobertura_marca: 'multimarca', ...panel }, opt).catch(() => ({ mecanicos: [] })),
+      ]);
+      raw = [
+        ...(tEsp?.talleres || []).map((p) => ({ ...p, _panelKind: 'taller' })),
+        ...(mEsp?.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico' })),
+        ...(tMm?.talleres || []).map((p) => ({ ...p, _panelKind: 'taller', _esMultimarca: true })),
+        ...(mMm?.mecanicos || []).map((p) => ({ ...p, _panelKind: 'mecanico', _esMultimarca: true })),
+      ];
+    }
+
+    const tagged = dedupeProvidersByStableKey((raw || []).map(tagProviderMarcaFlags));
+    /** Especialistas primero para que el slice no deje fuera marcas enteras. */
+    tagged.sort(compareProvidersByMarcaThenDistance);
+    return tagged.slice(0, limit);
+  } catch (error) {
+    console.error('Error obteniendo proveedores browse invitado:', error);
     return [];
   }
 };

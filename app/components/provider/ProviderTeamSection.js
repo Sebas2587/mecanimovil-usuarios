@@ -102,9 +102,9 @@ function MiembroCard({ miembro }) {
           {expanded ? 'Ocultar horario' : 'Ver horario semanal'}
         </Text>
         {expanded ? (
-          <ChevronUp size={16} color={COLORS.primary[600]} strokeWidth={2} />
+          <ChevronUp size={16} color={COLORS.buttonSecondary.outlineText} strokeWidth={2} />
         ) : (
-          <ChevronRight size={16} color={COLORS.primary[600]} strokeWidth={2} />
+          <ChevronRight size={16} color={COLORS.buttonSecondary.outlineText} strokeWidth={2} />
         )}
       </TouchableOpacity>
 
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   horarioToggleText: {
     ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.primary[600],
+    color: COLORS.buttonSecondary.outlineText,
   },
   horarioList: {
     marginTop: SPACING.xs,

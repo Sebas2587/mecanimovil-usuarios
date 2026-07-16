@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import PrimaryGradientFill from '../../base/PrimaryGradientFill/PrimaryGradientFill';
 import { COLORS, BORDERS } from '../../../design-system/tokens';
 
 /**
@@ -23,14 +24,13 @@ export const HomePanelCard = ({ children, style, onPress, innerStyle }) => {
 
 export const HomeSoftButton = ({ onPress, children, variant }) => (
   <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={styles.softBtnWrap}>
-    <View
-      style={[
-        styles.softBtnInner,
-        variant === 'stop' ? styles.softBtnInnerStop : styles.softBtnInnerPrimary,
-      ]}
-    >
-      {children}
-    </View>
+    {variant === 'stop' ? (
+      <View style={[styles.softBtnInner, styles.softBtnInnerStop]}>{children}</View>
+    ) : (
+      <PrimaryGradientFill style={[styles.softBtnInner, styles.softBtnInnerPrimary]}>
+        {children}
+      </PrimaryGradientFill>
+    )}
   </TouchableOpacity>
 );
 
@@ -47,6 +47,8 @@ const styles = StyleSheet.create({
   },
   softBtnWrap: {
     marginTop: 6,
+    borderRadius: BORDERS.radius.button.md,
+    overflow: 'hidden',
   },
   softBtnInner: {
     flexDirection: 'row',
@@ -57,9 +59,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: BORDERS.radius.button.md,
   },
-  softBtnInnerPrimary: {
-    backgroundColor: COLORS.primary[500],
-  },
+  softBtnInnerPrimary: {},
   softBtnInnerStop: {
     backgroundColor: COLORS.error.main,
   },

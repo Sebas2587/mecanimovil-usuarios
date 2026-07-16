@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, TYPOGRAPHY, BORDERS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import Button from '../../components/base/Button/Button';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 
 const HAS_SEEN_ONBOARDING_KEY = 'has_seen_onboarding_v1';
 const ONBOARDING_BG_1 = require('../../../assets/images/onboarding-mechanic.png');
@@ -230,10 +231,12 @@ const AnimatedDot = React.memo(function AnimatedDot({ index, scrollX, slideWidth
           {
             width: dotWidth,
             opacity,
-            backgroundColor: COLORS.primary[500],
+            overflow: 'hidden',
           },
         ]}
-      />
+      >
+        <PrimaryGradientFill style={StyleSheet.absoluteFillObject} />
+      </Animated.View>
     </Pressable>
   );
 });

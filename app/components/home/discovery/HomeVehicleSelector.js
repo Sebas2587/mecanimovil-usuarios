@@ -1,9 +1,10 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
-import { Car, ChevronDown, Plus } from 'lucide-react-native';
+import { Car, ChevronDown } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../../design-system/tokens';
 import { HomePanelCard } from '../shared/HomePanelCard';
+import GuestGradientButton from '../../guest/GuestGradientButton';
 
 /**
  * Selector compacto del vehículo activo en el home (card + estados vacío/carga).
@@ -79,10 +80,7 @@ const HomeVehicleSelector = ({
           Registra tu primer vehículo para desbloquear el dashboard predictivo, telemetría y salud
           IA.
         </Text>
-        <TouchableOpacity style={styles.emptyBtn} onPress={onAddVehicle} activeOpacity={0.85}>
-          <Plus size={18} color={COLORS.text.inverse} />
-          <Text style={styles.emptyBtnText}>Agregar Vehículo</Text>
-        </TouchableOpacity>
+        <GuestGradientButton title="Agregar Vehículo" onPress={onAddVehicle} style={styles.emptyBtnWrap} />
       </View>
     </HomePanelCard>
   );
@@ -171,20 +169,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
+  emptyBtnWrap: {
     marginTop: 20,
-  },
-  emptyBtnText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
+    alignSelf: 'stretch',
   },
 });
 

@@ -85,45 +85,52 @@ const KPI_CODE_DISPLAY = {
 };
 
 /**
- * Paleta KPI = etiquetas suaves del design system (mismo lenguaje que Tag).
- * No usar hex del API: suelen traer slate/Tailwind fuera de marca.
+ * Paleta KPI = medallas del design system (COLORS.kpi.*).
+ * No usar hex del API ni variants genéricos de Tag: el nivel debe leerse de un vistazo.
  */
 export const KPI_TIER_PALETTE = {
   ELITE: {
-    bg_color: DS.accent[50],
-    text_color: DS.accent[700],
-    border_color: DS.accent[100],
-    tagVariant: 'accent',
+    bg_color: DS.kpi.elite.background,
+    text_color: DS.kpi.elite.text,
+    border_color: DS.kpi.elite.border,
+    icon_color: DS.kpi.elite.icon,
+    highlight_color: DS.kpi.elite.highlight,
+    tagVariant: 'kpiElite',
   },
   MASTER: {
-    bg_color: DS.primary[50],
-    text_color: DS.primary[700],
-    border_color: DS.primary[100],
-    tagVariant: 'primary',
+    bg_color: DS.kpi.master.background,
+    text_color: DS.kpi.master.text,
+    border_color: DS.kpi.master.border,
+    icon_color: DS.kpi.master.icon,
+    tagVariant: 'kpiMaster',
   },
   PRO: {
-    bg_color: DS.success.light,
-    text_color: DS.success.dark,
-    border_color: DS.success[100],
-    tagVariant: 'success',
+    bg_color: DS.kpi.pro.background,
+    text_color: DS.kpi.pro.text,
+    border_color: DS.kpi.pro.border,
+    icon_color: DS.kpi.pro.icon,
+    tagVariant: 'kpiPro',
   },
   ASCENSO: {
-    bg_color: DS.warning.light,
-    text_color: DS.warning.darker,
-    border_color: DS.warning[200],
-    tagVariant: 'warning',
+    bg_color: DS.kpi.ascenso.background,
+    text_color: DS.kpi.ascenso.text,
+    border_color: DS.kpi.ascenso.border,
+    icon_color: DS.kpi.ascenso.icon,
+    tagVariant: 'kpiAscenso',
   },
   EN_PROGRESO: {
-    bg_color: DS.neutral.gray[100],
-    text_color: DS.text.secondary,
-    border_color: DS.border.light,
-    tagVariant: 'neutral',
+    bg_color: DS.kpi.enProgreso.background,
+    text_color: DS.kpi.enProgreso.text,
+    border_color: DS.kpi.enProgreso.border,
+    icon_color: DS.kpi.enProgreso.icon,
+    tagVariant: 'kpiEnProgreso',
   },
   SIN_ACTIVIDAD: {
-    bg_color: DS.neutral.gray[100],
-    text_color: DS.text.tertiary,
-    border_color: DS.border.light,
-    tagVariant: 'neutral',
+    bg_color: DS.kpi.sinActividad.background,
+    text_color: DS.kpi.sinActividad.text,
+    border_color: DS.kpi.sinActividad.border,
+    icon_color: DS.kpi.sinActividad.icon,
+    tagVariant: 'kpiSinActividad',
   },
 };
 
@@ -324,6 +331,8 @@ export const getKpiTierPresentation = (kpiBadge, provider = null, options = {}) 
     bg_color: palette.bg_color,
     text_color: palette.text_color,
     border_color: palette.border_color,
+    icon_color: palette.icon_color || palette.text_color,
+    highlight_color: palette.highlight_color || null,
     tagVariant: palette.tagVariant || 'neutral',
     styleCode,
     reason: kpiBadge.reason != null ? String(kpiBadge.reason).trim() : '',
@@ -612,6 +621,53 @@ export const getPanelServicios = (provider) => {
   if (!Array.isArray(raw)) return [];
   return raw.filter((item) => item && (item.nombre || item.servicio_id));
 };
+
+/**
+ * Aplana panel_servicios de varios proveedores y deduplica por servicio_id (menor precio gana).
+ * @returns {Array<{ servicio_id, oferta_id, nombre, precio, tipo_servicio, provider, providerType, servicio }>}
+ */
+export function dedupeProviderServiceOffers(providers) {
+  const byServicioId = new Map();
+
+  for (const provider of providers || []) {
+    const offers = getPanelServicios(provider);
+    const providerType = provider._panelKind === 'mecanico' ? 'mecanico' : 'taller';
+
+    for (const offer of offers) {
+      const servicioId = offer.servicio_id;
+      if (servicioId == null) continue;
+
+      const price =
+        Number(offer.precio ?? offer.precio_publicado_cliente ?? 0) || Number.POSITIVE_INFINITY;
+      const existing = byServicioId.get(servicioId);
+
+      if (!existing || price < existing.precio) {
+        byServicioId.set(servicioId, {
+          servicio_id: servicioId,
+          oferta_id: offer.oferta_id,
+          nombre: offer.nombre || 'Servicio',
+          precio: Number.isFinite(price) ? price : 0,
+          tipo_servicio: offer.tipo_servicio,
+          provider,
+          providerType,
+          servicio: {
+            ...offer,
+            id: servicioId,
+            servicio_id: servicioId,
+            nombre: offer.nombre,
+            oferta_id: offer.oferta_id,
+          },
+        });
+      }
+    }
+  }
+
+  return Array.from(byServicioId.values()).sort((a, b) => {
+    const pa = a.precio > 0 ? a.precio : Number.POSITIVE_INFINITY;
+    const pb = b.precio > 0 ? b.precio : Number.POSITIVE_INFINITY;
+    return pa - pb;
+  });
+}
 
 /** Servicios completados en plataforma (`servicios_completados` / anotación en listados). */
 export const getProviderCompletedServicesCount = (provider) => {

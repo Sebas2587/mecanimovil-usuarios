@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Gauge, History, Navigation, ChevronRight } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 import { getHealthLabel } from '../../utils/healthFormat';
+import BrandIconWell from '../base/BrandIconWell/BrandIconWell';
 
 /**
  * Accesos del perfil — grilla 3 columnas (Airbnb summary tiles + Tinder primary).
@@ -11,21 +12,20 @@ const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPr
   const score = Math.round(Number(healthScore) || 0);
   const count = Math.max(0, Math.round(Number(serviceCount) || 0));
   const healthLabel = getHealthLabel(score);
-  const iconColor = COLORS.primary[500];
 
   const tiles = [
     {
       key: 'health',
       title: 'Salud',
       subtitle: `${score}% · ${healthLabel}`,
-      icon: <Gauge size={18} color={iconColor} strokeWidth={2} />,
+      icon: <Gauge size={18} strokeWidth={2} />,
       onPress: onHealthPress,
     },
     {
       key: 'history',
       title: 'Historial',
       subtitle: `${count} ${count === 1 ? 'servicio' : 'servicios'}`,
-      icon: <History size={18} color={iconColor} strokeWidth={2} />,
+      icon: <History size={18} strokeWidth={2} />,
       onPress: onHistoryPress,
     },
   ];
@@ -35,7 +35,7 @@ const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPr
       key: 'trip',
       title: 'Viaje GPS',
       subtitle: 'Actualizar km',
-      icon: <Navigation size={18} color={iconColor} strokeWidth={2} />,
+      icon: <Navigation size={18} strokeWidth={2} />,
       onPress: onTripPress,
     });
   }
@@ -53,7 +53,7 @@ const QuickActionGrid = ({ healthScore, serviceCount, onHealthPress, onHistoryPr
           accessibilityLabel={`${tile.title}. ${tile.subtitle}`}
         >
           <View style={styles.tileTop}>
-            <View style={styles.iconCircle}>{tile.icon}</View>
+            <BrandIconWell size={36}>{tile.icon}</BrandIconWell>
             <ChevronRight size={14} color={COLORS.text.tertiary} strokeWidth={2} />
           </View>
           <Text style={styles.title} numberOfLines={1}>
@@ -91,14 +91,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[50],
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   title: {
     ...TYPOGRAPHY.styles.captionBold,

@@ -174,6 +174,43 @@ export const buscarServicios = async (termino) => {
 };
 
 /**
+ * Servicios realmente más solicitados (demanda histórica agregada), con todas
+ * las ofertas/precios de cada taller o mecánico disponible para ese servicio.
+ * Público (AllowAny) — usado en la landing de invitado.
+ * @param {number} [limit=12]
+ * @returns {Promise<Array<{servicio_id:number, nombre:string, total_solicitudes:number, precio_desde:number|null, precio_hasta:number|null, ofertas:Array}>>}
+ */
+export const getServiciosMasSolicitados = async (limit = 12) => {
+  try {
+    const response = await get(
+      '/servicios/servicios/mas_solicitados/',
+      { limit },
+      { requiresAuth: false },
+    );
+    return Array.isArray(response) ? response : [];
+  } catch (error) {
+    console.error('Error obteniendo servicios más solicitados:', error);
+    return [];
+  }
+};
+
+/** Búsqueda pública de servicios (flujo invitado, AllowAny). */
+export const buscarServiciosPublico = async (termino) => {
+  if (!termino || !String(termino).trim()) return [];
+  try {
+    const response = await get(
+      '/servicios/buscar/',
+      { q: String(termino).trim() },
+      { requiresAuth: false },
+    );
+    return response.results || response || [];
+  } catch (error) {
+    console.error('Error buscando servicios (público):', error);
+    return [];
+  }
+};
+
+/**
  * Obtiene los servicios más escogidos/populares para un vehículo específico
  * @param {number} vehiculoId - ID del vehículo
  * @returns {Promise<Array>} Lista de servicios más populares para el vehículo

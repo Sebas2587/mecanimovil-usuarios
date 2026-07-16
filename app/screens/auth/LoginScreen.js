@@ -31,6 +31,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import {
   useGoogleSignInFlow,
   getConnectedGoogleAccountsAsync,
@@ -132,6 +133,14 @@ const LoginScreen = () => {
   const goAccounts = () => setStep('accounts');
   const goMethods = () => setStep('methods');
   const goEmail = () => setStep('email');
+
+  const navigateBackToGuest = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    navigation.navigate(ROUTES.GUEST_LANDING);
+  };
 
   /* ── Acciones Google ──────────────────────────────────────────────── */
   const handleAccountTap = (email) => {
@@ -307,6 +316,11 @@ const LoginScreen = () => {
 
   const renderAccountsView = () => (
     <>
+      <TouchableOpacity onPress={navigateBackToGuest} style={styles.backRow} activeOpacity={0.7}>
+        <ChevronLeft size={20} color={COLORS.text.primary} strokeWidth={ICON_STROKE} />
+        <Text style={styles.backText}>Volver</Text>
+      </TouchableOpacity>
+
       <View style={styles.heading}>
         <Text style={styles.h1}>¿Con qué cuenta continuarás hoy?</Text>
         <Text style={styles.h2}>
@@ -377,12 +391,14 @@ const LoginScreen = () => {
 
   const renderMethodsView = () => (
     <>
-      {connectedAccounts.length > 0 && (
-        <TouchableOpacity onPress={goAccounts} style={styles.backRow} activeOpacity={0.7}>
-          <ChevronLeft size={20} color={COLORS.text.primary} strokeWidth={ICON_STROKE} />
-          <Text style={styles.backText}>Volver</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        onPress={connectedAccounts.length > 0 ? goAccounts : navigateBackToGuest}
+        style={styles.backRow}
+        activeOpacity={0.7}
+      >
+        <ChevronLeft size={20} color={COLORS.text.primary} strokeWidth={ICON_STROKE} />
+        <Text style={styles.backText}>Volver</Text>
+      </TouchableOpacity>
 
       <View style={styles.heading}>
         <Text style={styles.h1}>Inicia sesión o regístrate</Text>
@@ -484,8 +500,12 @@ const LoginScreen = () => {
 
         <View style={styles.optionsRow}>
           <TouchableOpacity style={styles.rememberRow} onPress={() => setRememberMe(!rememberMe)}>
-            <View style={[styles.checkbox, rememberMe && styles.checkboxOn]}>
-              {rememberMe && <Check size={13} color={COLORS.text.inverse} strokeWidth={2.5} />}
+            <View style={[styles.checkbox, rememberMe && styles.checkboxCheckedWrap]}>
+              {rememberMe ? (
+                <PrimaryGradientFill style={styles.checkboxFill}>
+                  <Check size={13} color={COLORS.text.inverse} strokeWidth={2.5} />
+                </PrimaryGradientFill>
+              ) : null}
             </View>
             <Text style={styles.rememberText}>Recordarme</Text>
           </TouchableOpacity>
@@ -788,7 +808,17 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.dark, marginRight: 8,
     alignItems: 'center', justifyContent: 'center',
   },
-  checkboxOn: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
+  checkboxCheckedWrap: {
+    borderColor: COLORS.primary[500],
+    overflow: 'hidden',
+    padding: 0,
+  },
+  checkboxFill: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rememberText: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,

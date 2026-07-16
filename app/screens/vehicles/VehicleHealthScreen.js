@@ -21,7 +21,6 @@ import {
   X,
   Heart,
   ChevronRight,
-  Hourglass,
   ShieldCheck,
   ShieldAlert,
   ClipboardEdit,
@@ -54,6 +53,7 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import Button from '../../components/base/Button/Button';
+import BrandIconWell from '../../components/base/BrandIconWell/BrandIconWell';
 import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
 import HealthCard from '../../components/cards/HealthCard';
 
@@ -734,18 +734,27 @@ const VehicleHealthScreen = ({ route }) => {
       <View style={styles.headerSection}>
         <View style={styles.vehicleMetaRow}>
           <View style={styles.vehicleInfo}>
-            <Text style={styles.brand}>
-              {vehicleData?.marca_nombre || 'Marca'} {vehicleData?.modelo_nombre}
-            </Text>
+            <View style={styles.brandRow}>
+              <Text style={styles.brand} numberOfLines={2}>
+                {vehicleData?.marca_nombre || 'Marca'} {vehicleData?.modelo_nombre}
+              </Text>
+              {vehicleData?.kilometraje != null ? (
+                <View style={styles.kmBadge}>
+                  <Gauge
+                    size={13}
+                    color={COLORS.badge.meta.icon}
+                    strokeWidth={2}
+                    fill="none"
+                  />
+                  <Text style={styles.kmText}>
+                    {Number(vehicleData.kilometraje).toLocaleString('es-CL')} km
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={styles.plate}>
               {vehicleData?.patente} • {vehicleData?.year}
             </Text>
-            <View style={styles.kmBadge}>
-              <Gauge size={14} color={COLORS.primary[500]} strokeWidth={2} fill="none" />
-              <Text style={styles.kmText}>
-                {vehicleData?.kilometraje?.toLocaleString()} km
-              </Text>
-            </View>
           </View>
         </View>
         <HealthCard
@@ -995,9 +1004,9 @@ const VehicleHealthScreen = ({ route }) => {
           <>
             {healthBanner?.message ? (
               <View style={styles.healthBanner} accessibilityRole="alert">
-                <View style={styles.healthBannerIcon}>
-                  <CheckCircle size={18} color={COLORS.primary[500]} strokeWidth={2} />
-                </View>
+                <BrandIconWell size={36}>
+                  <CheckCircle size={18} strokeWidth={2} />
+                </BrandIconWell>
                 <View style={styles.healthBannerTextCol}>
                   <Text style={styles.healthBannerTitle}>Actualizado</Text>
                   <Text style={styles.healthBannerText} numberOfLines={2}>
@@ -1019,21 +1028,19 @@ const VehicleHealthScreen = ({ route }) => {
             {/* Barra de acciones: título + botón sincronizar */}
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>Componentes</Text>
-              <TouchableOpacity
-                style={[styles.syncButton, syncing && styles.syncButtonDisabled]}
+              <Button
+                title="Sincronizar"
                 onPress={handleSync}
+                isLoading={syncing}
                 disabled={syncing}
+                type="secondary"
+                variant="solid"
+                size="sm"
                 accessibilityLabel="Sincronizar métricas de salud"
-              >
-                {syncing ? (
-                  <Hourglass size={18} color={COLORS.text.tertiary} strokeWidth={2} fill="none" />
-                ) : (
-                  <RefreshCw size={18} color={COLORS.primary[500]} strokeWidth={2} fill="none" />
-                )}
-                <Text style={[styles.syncButtonText, syncing && styles.syncButtonTextDisabled]}>
-                  {syncing ? 'Actualizando…' : 'Sincronizar'}
-                </Text>
-              </TouchableOpacity>
+                iconNode={
+                  <RefreshCw size={16} color={COLORS.buttonSecondary.text} strokeWidth={2} fill="none" />
+                }
+              />
             </View>
           </>
         }
@@ -1335,6 +1342,47 @@ const createStyles = () => StyleSheet.create({
   vehicleMetaRow: {
     marginBottom: SPACING.sm,
   },
+  vehicleInfo: {
+    flex: 1,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  brand: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    color: COLORS.text.primary,
+    textTransform: 'uppercase',
+  },
+  plate: {
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
+    marginTop: SPACING.xxs,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
+  kmBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.badge.meta.border,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xxs,
+    borderRadius: BORDERS.radius.full,
+    gap: 4,
+    marginTop: 2,
+  },
+  kmText: {
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.badge.meta.text,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  },
   listSectionHeader: {
     paddingBottom: SPACING.sm,
   },
@@ -1386,37 +1434,6 @@ const createStyles = () => StyleSheet.create({
     overflow: 'hidden',
     ...SHADOWS.sm,
   },
-  vehicleInfo: {
-    flex: 1,
-  },
-  brand: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    color: COLORS.text.primary,
-    textTransform: 'uppercase',
-  },
-  plate: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.text.secondary,
-    marginTop: SPACING.xxs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
-  kmBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: SPACING.xxs,
-    borderRadius: BORDERS.radius.sm,
-    alignSelf: 'flex-start',
-    marginTop: SPACING.xs,
-    gap: 6,
-  },
-  kmText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.primary[600],
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-  },
   scoreCircle: {
     width: 80,
     height: 80,
@@ -1453,31 +1470,6 @@ const createStyles = () => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  syncButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: BORDERS.radius.sm,
-    backgroundColor: COLORS.primary[50],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
-    flexShrink: 0,
-  },
-  syncButtonDisabled: {
-    opacity: 0.5,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderColor: COLORS.border.light,
-  },
-  syncButtonText: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.primary[600],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
-  syncButtonTextDisabled: {
-    color: COLORS.text.tertiary,
   },
   helpLink: {
     flexDirection: 'row',

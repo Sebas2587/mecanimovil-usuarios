@@ -5,13 +5,14 @@ import {
   Share2,
   Heart,
   Star,
-  BadgeCheck,
   Building2,
   Car,
   Globe,
 } from 'lucide-react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import BackButton from '../navigation/BackButton';
+import PrimaryGradientBadge from '../base/PrimaryGradientBadge/PrimaryGradientBadge';
+import VerifiedSeal from '../base/VerifiedSeal/VerifiedSeal';
 import {
   buildProviderAvatarUri,
   resolveProviderKpiBadge,
@@ -152,8 +153,8 @@ const ProviderHeader = ({
               >
                 <Heart
                   size={18}
-                  color={isFavorite ? COLORS.primary[500] : COLORS.text.primary}
-                  fill={isFavorite ? COLORS.primary[500] : 'transparent'}
+                  color={isFavorite ? COLORS.brand.magenta : COLORS.icon.default}
+                  fill={isFavorite ? COLORS.brand.magenta : 'transparent'}
                   strokeWidth={2}
                 />
               </TouchableOpacity>
@@ -186,14 +187,11 @@ const ProviderHeader = ({
                 accessibilityRole="text"
                 accessibilityLabel={availability.label}
               >
-                <View
-                  style={[
-                    styles.presenceDot,
-                    availability.phase === 'open'
-                      ? styles.presenceDotScheduleOpen
-                      : styles.presenceDotOffline,
-                  ]}
-                />
+                {availability.phase === 'open' ? (
+                  <PrimaryGradientBadge style={styles.presenceDot} />
+                ) : (
+                  <View style={[styles.presenceDot, styles.presenceDotOffline]} />
+                )}
                 <Text
                   style={[
                     styles.presenceText,
@@ -265,8 +263,8 @@ const ProviderHeader = ({
             <View style={[styles.pill, styles.pillEspecialista]}>
               <Star
                 size={12}
-                color={COLORS.secondary[700]}
-                fill={COLORS.secondary[700]}
+                color={COLORS.badge.especialista.icon}
+                fill={COLORS.badge.especialista.icon}
                 strokeWidth={2}
               />
               <Text style={[styles.pillText, styles.pillTextEspecialista]}>
@@ -274,16 +272,16 @@ const ProviderHeader = ({
               </Text>
             </View>
           ) : esMultimarca ? (
-            <View style={styles.pill}>
-              <Globe size={12} color={COLORS.text.secondary} strokeWidth={2} />
-              <Text style={styles.pillText}>Multimarca</Text>
+            <View style={[styles.pill, styles.pillMultimarca]}>
+              <Globe size={12} color={COLORS.badge.multimarca.icon} strokeWidth={2} />
+              <Text style={[styles.pillText, styles.pillTextMultimarca]}>Multimarca</Text>
             </View>
           ) : null}
 
           {showVerifiedBadge ? (
             <View style={styles.pill}>
-              <BadgeCheck size={13} color={COLORS.primary[600]} strokeWidth={2} />
-              <Text style={styles.pillText}>Verificado</Text>
+              <VerifiedSeal size={14} checkSize={9} accessibilityLabel="Proveedor verificado" />
+              <Text style={[styles.pillText, styles.pillTextVerified]}>Verificado</Text>
             </View>
           ) : null}
         </View>
@@ -302,7 +300,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: SPACING.container.horizontal,
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.background.paper,
+    backgroundColor: COLORS.background.default,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border.light,
   },
@@ -365,9 +363,6 @@ const styles = StyleSheet.create({
   presenceDotOnline: {
     backgroundColor: COLORS.success.main,
   },
-  presenceDotScheduleOpen: {
-    backgroundColor: COLORS.primary[500],
-  },
   presenceDotOffline: {
     backgroundColor: COLORS.text.tertiary,
   },
@@ -379,7 +374,7 @@ const styles = StyleSheet.create({
     color: COLORS.success.dark,
   },
   presenceTextScheduleOpen: {
-    color: COLORS.primary[600],
+    color: COLORS.success.dark,
   },
   presenceTextOffline: {
     color: COLORS.text.tertiary,
@@ -426,8 +421,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xxs,
-    backgroundColor: COLORS.neutral.gray[100],
+    backgroundColor: COLORS.background.secondary,
     borderRadius: BORDERS.radius.full,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
     paddingHorizontal: SPACING.sm,
     paddingVertical: 5,
   },
@@ -436,10 +433,21 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
   },
   pillEspecialista: {
-    backgroundColor: COLORS.secondary[50],
+    backgroundColor: COLORS.badge.especialista.background,
+    borderColor: COLORS.badge.especialista.border,
   },
   pillTextEspecialista: {
-    color: COLORS.secondary[700],
+    color: COLORS.badge.especialista.text,
+  },
+  pillMultimarca: {
+    backgroundColor: COLORS.badge.multimarca.background,
+    borderColor: COLORS.badge.multimarca.border,
+  },
+  pillTextMultimarca: {
+    color: COLORS.badge.multimarca.text,
+  },
+  pillTextVerified: {
+    color: COLORS.badge.verified.text,
   },
 });
 

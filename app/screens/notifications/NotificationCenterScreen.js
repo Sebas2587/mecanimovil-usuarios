@@ -31,6 +31,8 @@ import {
 } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
+import PrimaryGradientBadge from '../../components/base/PrimaryGradientBadge/PrimaryGradientBadge';
+import BrandIconWell from '../../components/base/BrandIconWell/BrandIconWell';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -154,19 +156,32 @@ export default function NotificationCenterScreen({ navigation }) {
         activeOpacity={0.85}
         accessibilityRole="button"
       >
-        <View style={[styles.iconContainer, { backgroundColor: isUnread ? soft : COLORS.neutral.gray[100] }]}>
-          <Icon
-            size={18}
-            color={isUnread ? color : COLORS.text.tertiary}
-            strokeWidth={2}
-          />
-        </View>
+        {isUnread && !payload?.es_critico ? (
+          <BrandIconWell size={40}>
+            <Icon size={18} strokeWidth={2} />
+          </BrandIconWell>
+        ) : (
+          <View
+            style={[
+              styles.iconContainer,
+              {
+                backgroundColor: isUnread ? soft : COLORS.neutral.gray[100],
+              },
+            ]}
+          >
+            <Icon
+              size={18}
+              color={isUnread ? color : COLORS.text.tertiary}
+              strokeWidth={2}
+            />
+          </View>
+        )}
         <View style={styles.textBlock}>
           <View style={styles.headerRow}>
             <Text style={[styles.title, isUnread && styles.unreadText]} numberOfLines={2}>
               {title}
             </Text>
-            {isUnread ? <View style={styles.dot} /> : null}
+            {isUnread ? <PrimaryGradientBadge style={styles.dot} /> : null}
           </View>
           {message ? (
             <Text style={styles.message} numberOfLines={2}>
@@ -215,7 +230,9 @@ export default function NotificationCenterScreen({ navigation }) {
           accessibilityRole="button"
           accessibilityLabel="Marcar todas como leídas"
         >
-          <ListChecks size={16} color={COLORS.primary[500]} strokeWidth={2} />
+          <BrandIconWell size={28}>
+            <ListChecks size={14} strokeWidth={2} />
+          </BrandIconWell>
           <Text style={styles.toolbarActionText}>Marcar leídas</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -369,7 +386,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.primary[500],
     marginTop: 6,
     flexShrink: 0,
   },

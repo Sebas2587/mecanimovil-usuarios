@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from '../base/Icon/Icon';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 import {
   COLORS,
   SPACING,
@@ -31,9 +32,11 @@ export default function PagoSaldoPendienteCierreBanner({ montoSaldo, onPagar }) 
         </View>
       </View>
 
-      <TouchableOpacity style={styles.cta} onPress={onPagar} activeOpacity={0.85}>
-        <Icon name="wallet-outline" size={20} color={COLORS.text.inverse} />
-        <Text style={styles.ctaText}>Pagar mano de obra</Text>
+      <TouchableOpacity style={styles.ctaWrap} onPress={onPagar} activeOpacity={0.85}>
+        <PrimaryGradientFill style={styles.cta}>
+          <Icon name="wallet-outline" size={20} color={COLORS.text.inverse} />
+          <Text style={styles.ctaText}>Pagar mano de obra</Text>
+        </PrimaryGradientFill>
       </TouchableOpacity>
     </View>
   );
@@ -75,11 +78,13 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     lineHeight: 20,
   },
+  ctaWrap: {
+    borderRadius: BORDERS.radius.pill,
+    overflow: 'hidden',
+  },
   cta: {
-    backgroundColor: COLORS.primary[500],
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.lg,
-    borderRadius: BORDERS.radius.pill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -20,6 +20,8 @@ import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
 import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
+import Button from '../../components/base/Button/Button';
+import PrimaryGradientPill from '../../components/base/PrimaryGradientPill/PrimaryGradientPill';
 import {
   generarDiasCalendario,
   obtenerDisponibilidadConDuracion,
@@ -488,20 +490,19 @@ export default function CalendarioProveedorScreen() {
                 const habilitado = fechasHabilitadas?.has(dia.fecha);
                 const sel = fechaSeleccionada === dia.fecha;
                 return (
-                  <TouchableOpacity
+                  <PrimaryGradientPill
                     key={dia.fecha}
-                    style={[
-                      styles.diaChip,
-                      !habilitado && styles.diaChipDisabled,
-                      sel && styles.diaChipSelected,
-                    ]}
+                    selected={sel}
                     disabled={!habilitado}
                     onPress={() => setFechaSeleccionada(dia.fecha)}
+                    style={[styles.diaChipShell, !habilitado && styles.diaChipDisabled]}
+                    fillStyle={[styles.diaChipFill, sel && styles.diaChipFillSelected]}
+                    inactiveStyle={styles.diaChipInactive}
                     activeOpacity={0.85}
                   >
                     <Text style={[styles.diaLabel, sel && styles.diaLabelSelected]}>{dia.label}</Text>
                     <Text style={[styles.diaNum, sel && styles.diaNumSelected]}>{dia.diaNum}</Text>
-                  </TouchableOpacity>
+                  </PrimaryGradientPill>
                 );
               })}
             </ScrollView>
@@ -523,10 +524,13 @@ export default function CalendarioProveedorScreen() {
             {slots.map((slot) => {
               const sel = slotSeleccionado?.hora === slot.hora;
               return (
-                <TouchableOpacity
+                <PrimaryGradientPill
                   key={slot.hora}
-                  style={[styles.slotChip, sel && styles.slotChipSelected]}
+                  selected={sel}
                   onPress={() => setSlotSeleccionado(slot)}
+                  style={styles.slotChipShell}
+                  fillStyle={styles.slotChipFill}
+                  inactiveStyle={styles.slotChipInactive}
                   activeOpacity={0.85}
                 >
                   <Text style={[styles.slotHora, sel && styles.slotHoraSelected]}>{slot.hora}</Text>
@@ -535,7 +539,7 @@ export default function CalendarioProveedorScreen() {
                       hasta ~{slot.hora_fin_estimada}
                     </Text>
                   ) : null}
-                </TouchableOpacity>
+                </PrimaryGradientPill>
               );
             })}
           </View>
@@ -544,24 +548,14 @@ export default function CalendarioProveedorScreen() {
       </View>
 
       <StickyFooterCTA>
-        <TouchableOpacity
-          style={[styles.confirmBtn, confirmarDeshabilitado && styles.confirmBtnDisabled]}
-          onPress={() => {
-            if (confirmarDeshabilitado) return;
-            handleConfirmar();
-          }}
+        <Button
+          title={finalizarSolicitudCatalogo ? 'Confirmar solicitud' : 'Usar este horario'}
+          onPress={handleConfirmar}
           disabled={confirmarDeshabilitado}
-          activeOpacity={0.9}
-          {...(Platform.OS === 'web' ? { accessibilityState: { disabled: confirmarDeshabilitado } } : {})}
-        >
-          {confirmandoSolicitud ? (
-            <ActivityIndicator color={COLORS.text.inverse} />
-          ) : (
-            <Text style={styles.confirmBtnText}>
-              {finalizarSolicitudCatalogo ? 'Confirmar solicitud' : 'Usar este horario'}
-            </Text>
-          )}
-        </TouchableOpacity>
+          isLoading={confirmandoSolicitud}
+          fullWidth
+          style={confirmarDeshabilitado ? styles.confirmBtnDisabled : undefined}
+        />
       </StickyFooterCTA>
     </View>
   );
@@ -649,23 +643,27 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     marginBottom: SPACING.xs,
   },
-  diaChip: {
+  diaChipShell: {
     width: 56,
-    paddingVertical: SPACING.sm,
     marginRight: SPACING.sm,
     borderRadius: BORDERS.radius.md,
+    overflow: 'hidden',
+  },
+  diaChipFill: {
+    width: 56,
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
+  },
+  diaChipFillSelected: {
+    ...SHADOWS.sm,
+  },
+  diaChipInactive: {
+    width: 56,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
   },
   diaChipDisabled: {
     opacity: 0.35,
-  },
-  diaChipSelected: {
-    backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
-    ...SHADOWS.sm,
   },
   diaLabel: {
     fontSize: 11,
@@ -673,7 +671,7 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
   diaLabelSelected: {
-    color: COLORS.text.inverse,
+    color: COLORS.tab.selectedText,
   },
   diaNum: {
     fontSize: TYPOGRAPHY.fontSize.lg,
@@ -682,28 +680,29 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   diaNumSelected: {
-    color: COLORS.text.inverse,
+    color: COLORS.tab.selectedText,
   },
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.sm,
   },
-  slotChip: {
+  slotChipShell: {
     minWidth: '30%',
     flexGrow: 1,
     maxWidth: '48%',
+    borderRadius: BORDERS.radius.md,
+    overflow: 'hidden',
+  },
+  slotChipFill: {
     paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.sm,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
     alignItems: 'center',
   },
-  slotChipSelected: {
-    backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
+  slotChipInactive: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.sm,
+    alignItems: 'center',
   },
   slotHora: {
     fontSize: TYPOGRAPHY.fontSize.base,
@@ -711,7 +710,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   slotHoraSelected: {
-    color: COLORS.text.inverse,
+    color: COLORS.tab.selectedText,
   },
   slotFin: {
     fontSize: TYPOGRAPHY.fontSize.xs,
@@ -719,7 +718,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   slotFinSelected: {
-    color: withOpacity(COLORS.text.inverse, 0.85),
+    color: withOpacity(COLORS.tab.selectedText, 0.9),
   },
   hint: {
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -744,19 +743,8 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.styles.caption,
     marginVertical: SPACING.md,
   },
-  confirmBtn: {
-    backgroundColor: COLORS.primary[500],
-    borderRadius: BORDERS.radius.md,
-    paddingVertical: 16,
-    alignItems: 'center',
-    ...SHADOWS.md,
-  },
   confirmBtnDisabled: {
     opacity: 0.45,
-  },
-  confirmBtnText: {
-    ...TYPOGRAPHY.styles.button,
-    color: COLORS.text.inverse,
   },
   tecnicoCarousel: {
     gap: SPACING.sm,

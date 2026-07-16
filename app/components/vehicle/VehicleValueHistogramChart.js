@@ -238,22 +238,22 @@ const styles = StyleSheet.create({
     width: THUMB,
     height: THUMB,
     borderRadius: THUMB_R,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: COLORS.base.white,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.neutral.gray[200],
     ...Platform.select({
       ios: {
-        shadowColor: '#000',
+        shadowColor: COLORS.base.inkBlack,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.18,
         shadowRadius: 4,
       },
       android: { elevation: 4 },
       web: {
-        boxShadow: '0 2px 8px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.04)',
+        boxShadow: `0 2px 8px ${COLORS.base.inkBlack}29, 0 0 0 1px ${COLORS.base.inkBlack}0a`,
       },
       default: {
-        shadowColor: '#000',
+        shadowColor: COLORS.base.inkBlack,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.16,
         shadowRadius: 4,

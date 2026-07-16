@@ -11,6 +11,7 @@ import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 
 /**
  * Sección aparte (perfil vehículo): revisión técnica con reglas de vencimiento y confirmación.
@@ -87,11 +88,13 @@ const RevisionTecnicaInner = ({ vehicle, mesRaw, renewalDueISO, onRenewalSaved }
             </View>
             {ui?.showConfirmButton ? (
                 <TouchableOpacity
-                    style={styles.rtButton}
+                    style={styles.rtButtonWrap}
                     onPress={handleConfirm}
                     activeOpacity={0.85}
                 >
-                    <Text style={styles.rtButtonText}>Confirmar revisión</Text>
+                    <PrimaryGradientFill style={styles.rtButton}>
+                        <Text style={styles.rtButtonText}>Confirmar revisión</Text>
+                    </PrimaryGradientFill>
                 </TouchableOpacity>
             ) : null}
         </View>
@@ -253,14 +256,16 @@ const styles = StyleSheet.create({
         ...TYPOGRAPHY.styles.captionBold,
         fontSize: 12,
     },
-    rtButton: {
+    rtButtonWrap: {
         marginTop: SPACING.sm,
+        borderRadius: BORDERS.radius.lg,
+        overflow: 'hidden',
+    },
+    rtButton: {
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: SPACING.sm,
         paddingHorizontal: SPACING.md,
-        borderRadius: BORDERS.radius.lg,
-        backgroundColor: COLORS.primary[500],
     },
     rtButtonText: {
         ...TYPOGRAPHY.styles.captionBold,

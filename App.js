@@ -40,6 +40,10 @@ import { queryClient, asyncStoragePersister, shouldPersistQuery } from './app/co
 import './app/services/tripTrackingService';
 import { discardStalePaymentSessionOnColdStart } from './app/utils/pagoPendienteStorage';
 import { consumePendingGuestIntent } from './app/utils/guestIntent';
+import { showAlert } from './app/utils/platformAlert';
+import { navigateCrearSolicitudConProveedorYServicio } from './app/components/home/shared/homeScheduleNavigation';
+import * as vehicleService from './app/services/vehicle';
+import { COLORS as DS_COLORS } from './app/design-system/tokens/colors';
 import { installLucideWebFillFix } from './app/design-system/icons/installLucideWebFillFix';
 
 installLucideWebFillFix();
@@ -431,11 +435,111 @@ const MainImpl = ({ lastNotificationResponse }) => {
     if (!isAuthenticated || loading || !navigationRef.isReady()) return;
     try {
       const intent = await consumePendingGuestIntent();
-      if (!intent?.patente) return;
-      navigationRef.navigate(ROUTES.CREAR_VEHICULO, {
-        prefillPatente: intent.patente,
-        prefillVehicleData: intent.vehicleData,
-      });
+      if (!intent) return;
+
+      const normalizePatente = (value) => String(value || '').toUpperCase().trim();
+      const findVehicleByPatente = (list, patente) =>
+        list.find((v) => normalizePatente(v.patente) === normalizePatente(patente));
+
+      const checkPatenteRegistration = async (patente) => {
+        if (!patente) return null;
+        try {
+          return await vehicleService.verificarPatenteRegistrada(patente);
+        } catch (_e) {
+          return null;
+        }
+      };
+
+      const goToGarage = () => {
+        navigationRef.navigate('TabNavigator', { screen: ROUTES.MIS_VEHICULOS });
+      };
+
+      if (intent.type === 'schedule' && intent.schedule) {
+        let vehicles = [];
+        try {
+          vehicles = await vehicleService.getUserVehicles();
+        } catch (_e) {
+          vehicles = [];
+        }
+        const list = Array.isArray(vehicles) ? vehicles : vehicles?.results || [];
+
+        if (intent.patente) {
+          const check = await checkPatenteRegistration(intent.patente);
+          if (check?.registered) {
+            if (check.owner === 'other') {
+              showAlert(
+                'Patente no disponible',
+                'Esta patente ya está registrada por otro usuario. No podemos continuar con el agendamiento.',
+              );
+              return;
+            }
+            const vehicle = findVehicleByPatente(list, intent.patente);
+            if (vehicle) {
+              navigateCrearSolicitudConProveedorYServicio(navigationRef, {
+                vehicle,
+                provider: intent.schedule.provider,
+                providerType: intent.schedule.providerType,
+                servicio: intent.schedule.servicio,
+              });
+              return;
+            }
+            showAlert(
+              'Patente ya registrada',
+              'Este vehículo ya está en tu garaje. Ve a Mis vehículos para agendar.',
+            );
+            goToGarage();
+            return;
+          }
+
+          navigationRef.navigate(ROUTES.CREAR_VEHICULO, {
+            prefillPatente: intent.patente,
+            prefillVehicleData: intent.vehicleData,
+            pendingScheduleIntent: intent.schedule,
+          });
+          return;
+        }
+
+        if (list.length > 0) {
+          navigateCrearSolicitudConProveedorYServicio(navigationRef, {
+            vehicle: list[0],
+            provider: intent.schedule.provider,
+            providerType: intent.schedule.providerType,
+            servicio: intent.schedule.servicio,
+          });
+          return;
+        }
+
+        navigationRef.navigate(ROUTES.CREAR_VEHICULO, {
+          prefillPatente: intent.patente,
+          prefillVehicleData: intent.vehicleData,
+          pendingScheduleIntent: intent.schedule,
+        });
+        return;
+      }
+
+      if (intent.patente) {
+        const check = await checkPatenteRegistration(intent.patente);
+        if (check?.registered) {
+          if (check.owner === 'other') {
+            showAlert(
+              'Patente no disponible',
+              'Esta patente ya está registrada por otro usuario. Si crees que es un error, contáctanos a soporte.',
+            );
+            return;
+          }
+          showAlert(
+            'Patente ya registrada',
+            'Este vehículo ya está en tu garaje. No es necesario registrarlo de nuevo.',
+          );
+          goToGarage();
+          return;
+        }
+
+        navigationRef.navigate(ROUTES.CREAR_VEHICULO, {
+          prefillPatente: intent.patente,
+          prefillVehicleData: intent.vehicleData,
+        });
+      }
     } catch (e) {
       logger.warn('No se pudo procesar intent invitado:', e);
     }
@@ -1378,12 +1482,12 @@ const MainImpl = ({ lastNotificationResponse }) => {
   const navigationTheme = {
     dark: false,
     colors: {
-      primary: COLORS.primary?.[500] || '#205ae9',
-      background: COLORS.background?.default || '#f2f6fe',
-      card: COLORS.background?.paper || '#ffffff',
-      text: COLORS.text?.primary || '#030a1d',
-      border: COLORS.border?.light || '#e3e8f2',
-      notification: COLORS.primary?.[500] || '#205ae9',
+      primary: DS_COLORS.primary[500],
+      background: DS_COLORS.background.default,
+      card: DS_COLORS.background.paper,
+      text: DS_COLORS.text.primary,
+      border: DS_COLORS.border.light,
+      notification: DS_COLORS.primary[500],
     },
   };
 
@@ -1391,7 +1495,7 @@ const MainImpl = ({ lastNotificationResponse }) => {
     <View
       style={{
         flex: 1,
-        backgroundColor: COLORS.background?.default || '#f2f6fe',
+        backgroundColor: DS_COLORS.background.default,
         ...(Platform.OS === 'web' ? { minHeight: 0, height: '100%' } : {}),
       }}
     >
@@ -1485,7 +1589,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: DS_COLORS.background.default,
     padding: 20,
   },
   errorTitle: {
@@ -1497,6 +1601,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     textAlign: 'center',
-    color: '#555',
+    color: DS_COLORS.text.secondary,
   },
 });

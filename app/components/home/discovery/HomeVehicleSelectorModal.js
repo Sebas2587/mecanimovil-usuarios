@@ -9,8 +9,10 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Car, X, Check, Plus } from 'lucide-react-native';
+import { Car, X, Check } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
+import GuestGradientButton from '../../guest/GuestGradientButton';
+import PrimaryGradientBadge from '../../base/PrimaryGradientBadge/PrimaryGradientBadge';
 import { formatKm } from '../shared/homeFormatters';
 import { resolveVehicleHealthPct } from '../../../utils/healthFormat';
 
@@ -85,9 +87,9 @@ const HomeVehicleSelectorModal = ({
                     </Text>
                   </View>
                   {isActive ? (
-                    <View style={styles.checkWrap}>
+                    <PrimaryGradientBadge style={styles.checkWrap}>
                       <Check size={16} color={COLORS.base.white} strokeWidth={2.5} />
-                    </View>
+                    </PrimaryGradientBadge>
                   ) : null}
                 </TouchableOpacity>
               );
@@ -100,10 +102,7 @@ const HomeVehicleSelectorModal = ({
           />
 
           <View style={styles.footer}>
-            <TouchableOpacity style={styles.addBtn} onPress={onAddVehicle} activeOpacity={0.9}>
-              <Plus size={18} color={COLORS.base.white} strokeWidth={2.5} />
-              <Text style={styles.addText}>Agregar vehículo</Text>
-            </TouchableOpacity>
+            <GuestGradientButton title="Agregar vehículo" onPress={onAddVehicle} />
             {onManageVehicles ? (
               <TouchableOpacity
                 style={styles.manageLink}
@@ -180,9 +179,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background.paper,
   },
   itemActive: {
-    borderColor: COLORS.primary[500],
+    borderColor: COLORS.brand.orange,
     borderWidth: 2,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.background.paper,
     paddingVertical: SPACING.sm - 1,
     paddingHorizontal: SPACING.sm - 1,
   },
@@ -195,7 +194,7 @@ const styles = StyleSheet.create({
   thumbFallback: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.background.secondary,
   },
   itemText: {
     flex: 1,
@@ -215,28 +214,11 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: COLORS.primary[500],
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   footer: {
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
     gap: SPACING.xs,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: BORDERS.radius.lg,
-    backgroundColor: COLORS.primary[500],
-  },
-  addText: {
-    ...TYPOGRAPHY.styles.bodyBold,
-    color: COLORS.base.white,
-    fontSize: 15,
   },
   manageLink: {
     alignItems: 'center',

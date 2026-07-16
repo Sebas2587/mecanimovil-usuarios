@@ -31,6 +31,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Componentes
 import Button from '../../components/base/Button/Button';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import Input from '../../components/base/Input/Input';
 import ScrollContainer from '../../components/base/ScrollContainer';
 
@@ -609,8 +610,12 @@ const MisVehiculosScreen = () => {
                   <Text style={styles.checklistTitle}>Checklist Inicial</Text>
                   {fetchingChecklist ? <ActivityIndicator color={COLORS.primary[500]} /> : checklistItems.map(item => (
                     <TouchableOpacity key={item.id} style={styles.checklistItem} onPress={() => toggleChecklistItem(item.id)}>
-                      <View style={[styles.checkbox, selectedChecklistItems.includes(item.id) && styles.checkboxActive]}>
-                        {selectedChecklistItems.includes(item.id) && <Check size={14} color={COLORS.text.inverse} />}
+                      <View style={[styles.checkbox, selectedChecklistItems.includes(item.id) && styles.checkboxCheckedWrap]}>
+                        {selectedChecklistItems.includes(item.id) ? (
+                          <PrimaryGradientFill style={styles.checkboxFill}>
+                            <Check size={14} color={COLORS.text.inverse} />
+                          </PrimaryGradientFill>
+                        ) : null}
                       </View>
                       <Text style={styles.checklistItemText}>{item.nombre}</Text>
                     </TouchableOpacity>
@@ -861,9 +866,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkboxActive: {
-    backgroundColor: COLORS.primary[500],
+  checkboxCheckedWrap: {
     borderColor: COLORS.primary[500],
+    overflow: 'hidden',
+    padding: 0,
+  },
+  checkboxFill: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalFooter: {
     marginTop: 20,

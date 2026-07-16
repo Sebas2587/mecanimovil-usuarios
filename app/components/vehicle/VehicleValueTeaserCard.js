@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { useVehicleValuationForecast } from '../../hooks/useVehicleValuationForecast';
 import { formatCLP } from '../../utils/vehicleValueChart';
 
@@ -42,11 +42,13 @@ const VehicleValueTeaserCard = ({ vehicle }) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.xl,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     padding: SPACING.md,
     marginBottom: SPACING.md,
+    overflow: 'hidden',
+    ...SHADOWS.sm,
   },
   title: {
     ...TYPOGRAPHY.styles.bodyBold,

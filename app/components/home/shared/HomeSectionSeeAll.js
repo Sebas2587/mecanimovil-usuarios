@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { COLORS, TYPOGRAPHY } from '../../../design-system/tokens';
 
 /**
- * Enlace «Ver todos» alineado al patrón Rappi/Uber Eats.
+ * Enlace «Ver todos» — Airbnb: texto + chevron secondary (sin well CTA).
  */
 const HomeSectionSeeAll = ({ onPress, label = 'Ver todos', disabled = false }) => {
   if (!onPress || disabled) return null;
@@ -17,7 +17,7 @@ const HomeSectionSeeAll = ({ onPress, label = 'Ver todos', disabled = false }) =
       accessibilityLabel={label}
     >
       <Text style={styles.text}>{label}</Text>
-      <ChevronRight size={16} color={COLORS.primary[500]} />
+      <ChevronRight size={16} color={COLORS.buttonSecondary.outlineText} strokeWidth={2.25} />
     </TouchableOpacity>
   );
 };
@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   text: {
     fontSize: TYPOGRAPHY.fontSize.sm,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.primary[500],
+    color: COLORS.buttonSecondary.outlineText,
   },
 });
 

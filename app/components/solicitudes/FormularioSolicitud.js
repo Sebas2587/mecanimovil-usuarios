@@ -20,6 +20,8 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
+import PrimaryGradientBadge from '../base/PrimaryGradientBadge/PrimaryGradientBadge';
 import * as ImagePicker from 'expo-image-picker';
 import { showAlert, showAlertButtons } from '../../utils/platformAlert';
 import { normalizeImagePickerAsset } from '../../utils/imagePickerWeb';
@@ -121,11 +123,12 @@ const GlassCard = ({ children, style, onPress, activeOpacity = 0.8 }) => {
 
 const glassCardBase = {
   backgroundColor: COLORS.background.paper,
-  borderRadius: BORDERS.radius.lg,
+  borderRadius: BORDERS.radius.xl,
   borderWidth: BORDERS.width.thin,
   borderColor: COLORS.border.light,
   overflow: 'hidden',
   padding: 16,
+  ...SHADOWS.sm,
 };
 
 /**
@@ -428,11 +431,11 @@ const FormularioSolicitud = ({
                 paddingHorizontal: 12,
                 borderRadius: BORDERS.radius.md,
                 borderWidth: 2,
-                borderColor: COLORS.primary[300],
+                borderColor: COLORS.selection.border,
                 borderStyle: 'dashed',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: COLORS.primary[50],
+                backgroundColor: COLORS.selection.background,
                 ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
               }}
             >
@@ -745,10 +748,12 @@ const FormularioSolicitud = ({
         filtros: proveedores.filtros_aplicados
       });
 
-      // Si no hay proveedores disponibles, mostrar mensaje informativo
+      // Si no hay proveedores disponibles, solo log (el aviso al usuario es al tocar Ver proveedores)
       const totalProveedores = (proveedores.talleres?.length || 0) + (proveedores.mecanicos?.length || 0);
       if (totalProveedores === 0) {
-        console.warn(`⚠️ No se encontraron proveedores que atiendan la marca del vehículo${servicioIds.length > 0 ? ' y ofrezcan los servicios seleccionados' : ''}`);
+        console.warn(
+          `⚠️ No se encontraron proveedores que atiendan la marca del vehículo${servicioIds.length > 0 ? ' y ofrezcan los servicios seleccionados' : ''}`,
+        );
       }
     } catch (error) {
       console.error('❌ Error cargando proveedores:', error);
@@ -885,21 +890,21 @@ const FormularioSolicitud = ({
 
   const irAComparadorCatalogo = React.useCallback(async () => {
     if (!formData.vehiculo?.id) {
-      Alert.alert('Error', 'Selecciona un vehículo');
+      showAlert('Selecciona un vehículo', 'Debes elegir un vehículo para buscar proveedores.');
       return;
     }
     const servicioIds = (formData.servicios_seleccionados || []).map((s) => s.id).filter(Boolean);
     if (!servicioIds.length) {
-      Alert.alert('Error', 'Selecciona al menos un servicio');
+      showAlert('Selecciona un servicio', 'Debes seleccionar al menos un servicio para continuar.');
       return;
     }
     if (!formData.direccion_usuario && !formData.direccion_servicio_texto?.trim()) {
-      Alert.alert('Ubicación requerida', 'Selecciona la dirección donde se realizará el servicio.');
+      showAlert('Ubicación requerida', 'Selecciona la dirección donde se realizará el servicio.');
       return;
     }
     const coords = resolveCoordenadasServicio(formData);
     if (!coords) {
-      Alert.alert(
+      showAlert(
         'Ubicación incompleta',
         'La dirección seleccionada no tiene coordenadas. Elige otra dirección o actualízala en tu perfil.',
       );
@@ -910,7 +915,11 @@ const FormularioSolicitud = ({
       formData.direccion_servicio_texto?.trim()
       || formData.direccion_usuario?.direccion?.trim()
       || '';
-    const { recomendados, otros, radioKm, mensajeRepuestos } = await cargarCandidatosIa({
+    const nombresServicio = (formData.servicios_seleccionados || [])
+      .map((s) => s.nombre || s.name)
+      .filter(Boolean)
+      .join(', ');
+    const { recomendados, otros, radioKm, mensajeRepuestos, raw } = await cargarCandidatosIa({
       vehiculoId: formData.vehiculo.id,
       servicioIds,
       lat: coords.lat,
@@ -919,15 +928,22 @@ const FormularioSolicitud = ({
       direccionTexto,
       requiereRepuestos: formData.requiere_repuestos !== false,
     });
-    if (!recomendados.length && !otros.length) {
-      Alert.alert(
-        'Sin proveedores',
-        'No encontramos candidatos cerca de tu dirección (5 km). Prueba otra ubicación o solicitud abierta.',
-      );
+    const ofertasRecomendadas = (recomendados || []).map(mapCandidatoToOfertaComparador).filter(Boolean);
+    const ofertasOtros = (otros || []).map(mapCandidatoToOfertaComparador).filter(Boolean);
+    if (!ofertasRecomendadas.length && !ofertasOtros.length) {
+      const mensajeApi =
+        raw?.mensaje
+        || raw?.detail
+        || mensajeRepuestos
+        || null;
+      const mensaje =
+        mensajeApi
+        || (nombresServicio
+          ? `No encontramos proveedores disponibles para «${nombresServicio}» cerca de tu dirección. Prueba con otro servicio o cambia la ubicación.`
+          : 'No encontramos proveedores disponibles para el servicio seleccionado cerca de tu dirección. Prueba con otro servicio o cambia la ubicación.');
+      showAlert('Sin proveedores disponibles', mensaje);
       return;
     }
-    const ofertasRecomendadas = recomendados.map(mapCandidatoToOfertaComparador).filter(Boolean);
-    const ofertasOtros = otros.map(mapCandidatoToOfertaComparador).filter(Boolean);
     navigation.navigate(ROUTES.COMPARADOR_OFERTAS, {
       modoCatalogo: true,
       ofertasPreview: ofertasRecomendadas,
@@ -1893,7 +1909,7 @@ const FormularioSolicitud = ({
     if (!mostrarRepuestos && !mostrarUrgencia) return null;
 
     return (
-      <GlassCard style={{ marginBottom: 16, paddingVertical: 12, paddingHorizontal: 14, gap: 12 }}>
+      <View style={{ marginBottom: 16, gap: 12 }}>
         {mostrarRepuestos ? (
           <SolicitudRepuestosToggle
             value={formData.requiere_repuestos !== false}
@@ -1908,7 +1924,7 @@ const FormularioSolicitud = ({
             onChange={(urgencia) => setFormData((prev) => ({ ...prev, urgencia }))}
           />
         ) : null}
-      </GlassCard>
+      </View>
     );
   };
 
@@ -1975,8 +1991,8 @@ const FormularioSolicitud = ({
                     <InlineChipSkeleton width={160} />
                   ) : (
                     <>
-                      <Search size={20} color={COLORS.success[600]} />
-                      <Text style={{ color: COLORS.success[700], fontSize: 14, fontWeight: '600' }}>Inspección precompra</Text>
+                      <Search size={20} color={COLORS.primary[600]} />
+                      <Text style={{ color: COLORS.primary[700], fontSize: 14, fontWeight: '600' }}>Inspección precompra</Text>
                     </>
                   )}
                 </GlassCard>
@@ -2145,8 +2161,8 @@ const FormularioSolicitud = ({
               && Array.isArray(formData.servicios_seleccionados)
               && formData.servicios_seleccionados.length > 0 ? (
               <View style={gs.selectedBadge}>
-                <CheckCircle2Icon size={16} color={COLORS.success[500]} />
-                <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '600' }}>
+                <CheckCircle2Icon size={16} color={COLORS.primary[500]} />
+                <Text style={{ color: COLORS.primary[700], fontSize: 13, fontWeight: '600' }}>
                   {formData.servicios_seleccionados.length} servicio{formData.servicios_seleccionados.length !== 1 ? 's' : ''} seleccionado{formData.servicios_seleccionados.length !== 1 ? 's' : ''}
                 </Text>
               </View>
@@ -2217,7 +2233,7 @@ const FormularioSolicitud = ({
                     </Text>
                   </View>
                   {formData.vehiculo?.id === vehiculo.id && (
-                    <CheckCircle2Icon size={20} color={COLORS.success[600]} />
+                    <CheckCircle2Icon size={20} color={COLORS.primary[600]} />
                   )}
                 </View>
               </TouchableOpacity>
@@ -2250,7 +2266,7 @@ const FormularioSolicitud = ({
               activeOpacity={0.7}
             >
               {cargandoPrecompra ? (
-                <ActivityIndicator color={COLORS.success[600]} />
+                <ActivityIndicator color={COLORS.primary[600]} />
               ) : (
                 <>
                   <Search size={22} color={COLORS.primary[400]} />
@@ -2269,7 +2285,7 @@ const FormularioSolicitud = ({
         {formData.vehiculo && (
           <View style={styles.vehiculoSeleccionado}>
             <View style={styles.vehiculoSeleccionadoContent}>
-              <CheckCircle2Icon size={18} color={COLORS.success[600]} />
+              <CheckCircle2Icon size={18} color={COLORS.primary[600]} />
               <Text style={styles.vehiculoText}>
                 {formData.vehiculo.marca_nombre} {formData.vehiculo.modelo_nombre} ({formData.vehiculo.year})
               </Text>
@@ -2508,23 +2524,23 @@ const FormularioSolicitud = ({
                     alignItems: 'center',
                     gap: 12,
                     marginBottom: 10,
-                    borderColor: conRep ? COLORS.primary[400] : COLORS.neutral.gray[600],
-                    backgroundColor: conRep ? COLORS.primary[50] : COLORS.neutral.gray[100],
+                    borderColor: conRep ? COLORS.brand.orange : COLORS.border.light,
+                    backgroundColor: conRep ? COLORS.background.paper : COLORS.neutral.gray[100],
                   }]}
                 >
                   <View style={{
                     width: 40,
                     height: 40,
                     borderRadius: 20,
-                    backgroundColor: conRep ? COLORS.primary[100] : COLORS.neutral.gray[200],
+                    backgroundColor: conRep ? COLORS.background.secondary : COLORS.neutral.gray[200],
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                   >
                     {conRep ? (
-                      <Package size={20} color={COLORS.primary[500]} />
+                      <Package size={20} color={COLORS.icon.active} />
                     ) : (
-                      <Wrench size={20} color={COLORS.primary[700]} />
+                      <Wrench size={20} color={COLORS.icon.default} />
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
@@ -2539,7 +2555,7 @@ const FormularioSolicitud = ({
                   </View>
                   <CheckCircle2Icon
                     size={22}
-                    color={conRep ? COLORS.primary[500] : COLORS.primary[700]}
+                    color={conRep ? COLORS.icon.active : COLORS.icon.default}
                   />
                 </GlassCard>
               </>
@@ -2555,7 +2571,7 @@ const FormularioSolicitud = ({
 
               <GlassCard
                 style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-                  formData.requiere_repuestos === true && { borderColor: COLORS.primary[400], backgroundColor: COLORS.primary[50] }]}
+                  formData.requiere_repuestos === true && { borderColor: COLORS.brand.orange, backgroundColor: COLORS.background.paper }]}
                 onPress={() => setFormData(prev => ({ ...prev, requiere_repuestos: true }))}
               >
                 <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
@@ -2616,7 +2632,7 @@ const FormularioSolicitud = ({
     return (
       <GlassCard
         key={`${tipo}-${proveedor.id}`}
-        style={[{ padding: 0, overflow: 'hidden' }, estaSeleccionado && { borderColor: COLORS.success[400], backgroundColor: COLORS.success.light }]}
+        style={[{ padding: 0, overflow: 'hidden' }, estaSeleccionado && { borderColor: COLORS.brand.orange, backgroundColor: COLORS.background.paper }]}
         onPress={() => toggleProveedorSeleccionado(proveedor, tipo)}
       >
         {/* Image Section (4:3 aspect) */}
@@ -2649,9 +2665,9 @@ const FormularioSolicitud = ({
           )}
           {/* Selection indicator */}
           {estaSeleccionado && (
-            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: COLORS.success[500], borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+            <PrimaryGradientBadge style={{ position: 'absolute', top: 8, right: 8, borderRadius: 12, width: 24, height: 24 }}>
               <CheckIcon size={14} color={COLORS.text.inverse} />
-            </View>
+            </PrimaryGradientBadge>
           )}
         </View>
 
@@ -2718,7 +2734,7 @@ const FormularioSolicitud = ({
         {/* Global option */}
         <GlassCard
           style={[{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-            formData.tipo_solicitud === 'global' && { borderColor: COLORS.primary[400], backgroundColor: COLORS.primary[50] }]}
+            formData.tipo_solicitud === 'global' && { borderColor: COLORS.brand.orange, backgroundColor: COLORS.background.paper }]}
           onPress={() => setFormData(prev => ({ ...prev, tipo_solicitud: 'global', proveedores_dirigidos: [] }))}
         >
           <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' }}>
@@ -2764,14 +2780,14 @@ const FormularioSolicitud = ({
 
             {cargandoProveedores ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={COLORS.success[600]} />
+                <ActivityIndicator size="large" color={COLORS.primary[600]} />
                 <Text style={{ color: COLORS.text.secondary, marginTop: 10, fontSize: 13 }}>Cargando proveedores...</Text>
               </View>
             ) : todosProveedores.length === 0 ? (
               <GlassCard style={{ alignItems: 'center', paddingVertical: 24 }}>
                 <Building2 size={32} color={COLORS.neutral.gray[400]} />
                 <Text style={{ color: COLORS.text.secondary, marginTop: 10, fontSize: 13, textAlign: 'center' }}>
-                  No hay proveedores disponibles. Prueba solicitud abierta a todos.
+                  No hay proveedores disponibles para este servicio cerca de tu ubicación. Prueba con otro servicio o cambia la dirección.
                 </Text>
               </GlassCard>
             ) : (
@@ -2822,7 +2838,7 @@ const FormularioSolicitud = ({
     return (
     <View style={styles.pasoContainer}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <MapPinned size={20} color={COLORS.success[600]} />
+        <MapPinned size={20} color={COLORS.primary[600]} />
         <Text style={styles.pasoTitle}>Ubicación del servicio</Text>
       </View>
       <Text style={styles.pasoDescripcion}>Selecciona una dirección registrada o ingresa una nueva</Text>
@@ -2850,10 +2866,10 @@ const FormularioSolicitud = ({
       />
 
       {formData.direccion_usuario && (
-        <GlassCard style={{ marginTop: 12, borderColor: COLORS.success[200], backgroundColor: COLORS.success.light }}>
+        <GlassCard style={{ marginTop: 12, borderColor: COLORS.selection.border, backgroundColor: COLORS.selection.background }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <MapPin size={16} color={COLORS.success[600]} />
-            <Text style={{ color: COLORS.success[700], fontSize: 14, fontWeight: '600', flex: 1 }}>{formData.direccion_usuario.direccion}</Text>
+            <MapPin size={16} color={COLORS.primary[600]} />
+            <Text style={{ color: COLORS.primary[700], fontSize: 14, fontWeight: '600', flex: 1 }}>{formData.direccion_usuario.direccion}</Text>
           </View>
           {formData.direccion_usuario.detalles && (
             <Text style={{ color: COLORS.text.tertiary, fontSize: 12, marginLeft: 24 }}>{formData.direccion_usuario.detalles}</Text>
@@ -3030,7 +3046,7 @@ const FormularioSolicitud = ({
     return (
       <View style={styles.pasoContainer}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <CalendarDays size={20} color={COLORS.success[600]} />
+          <CalendarDays size={20} color={COLORS.primary[600]} />
           <Text style={styles.pasoTitle}>Fecha y hora preferida</Text>
         </View>
         <Text style={styles.pasoDescripcion}>¿Cuándo te gustaría recibir el servicio?</Text>
@@ -3076,8 +3092,8 @@ const FormularioSolicitud = ({
         {/* Preview */}
         {formData.fecha_preferida && validarFecha(formData.fecha_preferida) && (
           <View style={[gs.selectedBadge, { marginTop: 4, marginBottom: 0 }]}>
-            <CheckCircle2Icon size={16} color={COLORS.success[500]} />
-            <Text style={{ color: COLORS.success[700], fontSize: 13, fontWeight: '600' }}>
+            <CheckCircle2Icon size={16} color={COLORS.primary[500]} />
+            <Text style={{ color: COLORS.primary[700], fontSize: 13, fontWeight: '600' }}>
               {formatDate(formData.fecha_preferida)}
               {formData.hora_preferida && validarHora(formData.hora_preferida) && ` a las ${formatTime(formData.hora_preferida)}`}
             </Text>
@@ -3247,13 +3263,12 @@ const FormularioSolicitud = ({
         <View style={styles.progressBar}>
           <View
             style={[
-              styles.progressFill,
-              {
-                width: `${(pasoVisual / totalPasos) * 100}%`,
-                backgroundColor: COLORS.primary[500],
-              },
+              styles.progressFillWrap,
+              { width: `${(pasoVisual / totalPasos) * 100}%` },
             ]}
-          />
+          >
+            <PrimaryGradientFill style={StyleSheet.absoluteFillObject} />
+          </View>
         </View>
       </View>
 
@@ -3306,7 +3321,7 @@ const FormularioSolicitud = ({
           activeOpacity={0.8}
           disabled={loadingCandidatosIa}
         >
-          <View style={[styles.navNextBtn, { backgroundColor: COLORS.primary[500] }]}>
+          <PrimaryGradientFill style={styles.navNextBtn}>
             {loadingCandidatosIa ? (
               <ActivityIndicator size="small" color={COLORS.text.onPrimary} style={{ marginRight: 6 }} />
             ) : esUltimoPaso() ? (
@@ -3319,7 +3334,7 @@ const FormularioSolicitud = ({
                   ? (wizardComparadorTresPasos ? 'Ver proveedores' : 'Crear Solicitud')
                   : 'Siguiente'}
             </Text>
-          </View>
+          </PrimaryGradientFill>
         </TouchableOpacity>
       </View>
 
@@ -3435,10 +3450,19 @@ const FormularioSolicitud = ({
                   }}
                   disabled={!tempDescription.trim()}
                 >
-                  <View style={{ borderRadius: BORDERS.radius.md, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.primary[500] }}>
+                  <PrimaryGradientFill
+                    style={{
+                      borderRadius: BORDERS.radius.md,
+                      paddingVertical: 14,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                    }}
+                  >
                     <Text style={{ color: COLORS.text.onPrimary, fontSize: 15, fontWeight: '700' }}>Continuar</Text>
                     <ChevronRightIcon size={18} color={COLORS.text.onPrimary} />
-                  </View>
+                  </PrimaryGradientFill>
                 </TouchableOpacity>
               </View>
             </View>
@@ -3541,9 +3565,6 @@ const gs = StyleSheet.create({
     borderRadius: BORDERS.radius.full,
     backgroundColor: COLORS.neutral.gray[100],
   },
-  catTabActive: {
-    backgroundColor: COLORS.primary[500],
-  },
   catTabText: {
     ...TYPOGRAPHY.styles.caption,
     fontFamily: TYPOGRAPHY.fontFamily.medium,
@@ -3558,7 +3579,7 @@ const gs = StyleSheet.create({
   },
   selectedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: COLORS.success.light, borderWidth: BORDERS.width.thin, borderColor: COLORS.success[200],
+    backgroundColor: COLORS.selection.background, borderWidth: BORDERS.width.thin, borderColor: COLORS.selection.border,
     borderRadius: BORDERS.radius.md, paddingHorizontal: 14, paddingVertical: 10, marginTop: 12,
   },
 });
@@ -3600,9 +3621,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.gray[200],
     overflow: 'hidden',
   },
-  progressFill: {
+  progressFillWrap: {
     height: '100%',
     borderRadius: 2,
+    overflow: 'hidden',
   },
   navBar: {
     flexDirection: 'row',
@@ -3718,8 +3740,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   opcionSeleccionada: {
-    borderColor: COLORS.primary[400],
-    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.brand.orange,
+    backgroundColor: COLORS.background.paper,
   },
   opcionContent: { flex: 1 },
   opcionTitle: {
@@ -3744,8 +3766,8 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   vehiculoCardSeleccionado: {
-    borderColor: COLORS.primary[400],
-    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.brand.orange,
+    backgroundColor: COLORS.background.paper,
   },
   vehiculoCardContent: {
     flexDirection: 'row',
@@ -3827,8 +3849,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   paso2UrgenciaCardActiveNormal: {
-    borderColor: COLORS.success[400],
-    backgroundColor: COLORS.success.light,
+    borderColor: COLORS.brand.orange,
+    backgroundColor: COLORS.background.paper,
   },
   paso2UrgenciaCardActiveUrgent: {
     borderColor: COLORS.warning[400],
@@ -3841,8 +3863,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: BORDERS.radius.md,
     borderLeftWidth: 3,
-    backgroundColor: COLORS.primary[50],
-    borderLeftColor: COLORS.primary[500],
+    backgroundColor: COLORS.selection.background,
+    borderLeftColor: COLORS.brand.magenta,
   },
   infoBoxText: {
     color: COLORS.primary[700],
@@ -3906,12 +3928,12 @@ const styles = StyleSheet.create({
   },
 
   vehiculoSeleccionado: {
-    backgroundColor: COLORS.success.light,
+    backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.md,
     padding: 12,
     marginTop: 16,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.success[200],
+    borderColor: COLORS.primary[200],
   },
   vehiculoSeleccionadoContent: {
     flexDirection: 'row',
@@ -3919,7 +3941,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   vehiculoText: {
-    color: COLORS.success[700],
+    color: COLORS.primary[700],
     fontSize: 13,
     fontWeight: '600',
     flex: 1,
@@ -3976,9 +3998,9 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.sm,
   },
   calendarDaySelected: {
-    backgroundColor: COLORS.primary[100],
+    backgroundColor: COLORS.background.paper,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[400],
+    borderColor: COLORS.brand.orange,
     borderRadius: BORDERS.radius.sm,
   },
   calendarDayText: {
@@ -3987,7 +4009,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   calendarDayTextSelected: {
-    color: COLORS.primary[700],
+    color: COLORS.brand.orange,
     fontWeight: '700',
   },
   calendarDayTextDisabled: {
@@ -4015,8 +4037,8 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
   },
   timeButtonSelected: {
-    backgroundColor: COLORS.primary[50],
-    borderColor: COLORS.primary[300],
+    backgroundColor: COLORS.buttonSecondary.background,
+    borderColor: COLORS.brand.orange,
   },
   timeButtonText: {
     color: COLORS.text.secondary,
@@ -4045,21 +4067,21 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   proveedorCardSeleccionado: {
-    borderColor: COLORS.success[400],
-    backgroundColor: COLORS.success.light,
+    borderColor: COLORS.brand.orange,
+    backgroundColor: COLORS.background.paper,
   },
   proveedorCardContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   proveedorCardInfo: { flex: 1 },
   proveedorCardNombre: { color: COLORS.text.primary, fontSize: 14, fontWeight: '600' },
-  proveedorCardNombreSeleccionado: { color: COLORS.success[700] },
+  proveedorCardNombreSeleccionado: { color: COLORS.primary[700] },
   proveedorCardDireccion: { color: COLORS.text.tertiary, fontSize: 11, marginTop: 2 },
   proveedorCardRating: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   proveedorCardRatingText: { color: COLORS.text.secondary, fontSize: 11 },
   proveedoresSeleccionadosBadge: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 10, marginTop: 10,
-    backgroundColor: COLORS.primary[50], borderRadius: BORDERS.radius.md,
-    borderWidth: BORDERS.width.thin, borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.selection.background, borderRadius: BORDERS.radius.md,
+    borderWidth: BORDERS.width.thin, borderColor: COLORS.selection.border,
   },
   proveedoresSeleccionadosText: { color: COLORS.primary[700], fontSize: 13, fontWeight: '600' },
 
@@ -4075,8 +4097,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: 16, paddingVertical: 10, paddingHorizontal: 14,
     borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
-    borderWidth: BORDERS.width.thin, borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.buttonSecondary.background,
+    borderWidth: BORDERS.width.thin, borderColor: COLORS.buttonSecondary.border,
     alignSelf: 'flex-start',
   },
   cambiarServicioButtonText: { color: COLORS.primary[700], fontSize: 13, fontWeight: '600' },
@@ -4089,7 +4111,7 @@ const styles = StyleSheet.create({
   servicioPreseleccionadoHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   servicioPreseleccionadoNombre: { color: COLORS.text.primary, fontSize: 14, fontWeight: '600', flex: 1 },
   servicioPreseleccionadoDescripcion: { color: COLORS.text.tertiary, fontSize: 12, marginBottom: 4 },
-  servicioPreseleccionadoPrecio: { color: COLORS.success[700], fontSize: 13, fontWeight: '600' },
+  servicioPreseleccionadoPrecio: { color: COLORS.primary[700], fontSize: 13, fontWeight: '600' },
   serviciosPreseleccionadosContainer: { gap: 10, marginBottom: 12 },
 
   direccionCard: {
@@ -4098,7 +4120,7 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin, borderColor: COLORS.border.light,
     ...SHADOWS.sm,
   },
-  direccionCardSelected: { borderColor: COLORS.primary[400], backgroundColor: COLORS.primary[50] },
+  direccionCardSelected: { borderColor: COLORS.brand.orange, backgroundColor: COLORS.background.paper },
   direccionCardContent: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   direccionCardInfo: { flex: 1 },
   direccionCardNombre: { color: COLORS.text.primary, fontSize: 14, fontWeight: '600' },
@@ -4114,7 +4136,7 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.md, backgroundColor: COLORS.neutral.gray[100],
     borderWidth: BORDERS.width.thin, borderColor: COLORS.border.light,
   },
-  vistaButtonActiva: { backgroundColor: COLORS.primary[50], borderColor: COLORS.primary[300] },
+  vistaButtonActiva: { backgroundColor: COLORS.buttonSecondary.background, borderColor: COLORS.brand.orange },
   vistaButtonText: { color: COLORS.text.secondary, fontSize: 13, fontWeight: '500' },
   vistaButtonTextActiva: { color: COLORS.primary[700], fontWeight: '600' },
 

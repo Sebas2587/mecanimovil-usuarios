@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Home, CalendarPlus, ClipboardList } from 'lucide-react-native';
 import AppHeader from '../components/navigation/AppHeader';
 import ProfileTabIcon from '../components/navigation/ProfileTabIcon';
+import PrimaryGradientFill from '../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import { COLORS, TYPOGRAPHY, BORDERS, SPACING } from '../design-system/tokens';
 import { useAuth } from '../context/AuthContext';
 import { useTripTracking } from '../context/TripTrackingContext';
@@ -160,7 +161,7 @@ const AirbnbTabBar = ({ state, descriptors, navigation }) => {
           iconSize = 24;
         }
 
-        const color = isFocused ? COLORS.primary[500] : COLORS.text.tertiary;
+        const color = isFocused ? COLORS.brand.magenta : COLORS.icon.default;
 
         return (
           <Pressable
@@ -176,6 +177,18 @@ const AirbnbTabBar = ({ state, descriptors, navigation }) => {
           >
             {isProfile ? (
               <ProfileTabIcon focused={isFocused} />
+            ) : isAgendar && isFocused ? (
+              <PrimaryGradientFill
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <IconComponent size={iconSize - 2} color={COLORS.text.onPrimary} strokeWidth={2.25} />
+              </PrimaryGradientFill>
             ) : (
               <IconComponent size={iconSize} color={color} strokeWidth={isFocused ? 2.25 : 2} />
             )}

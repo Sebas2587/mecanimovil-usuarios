@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Image, Animated, Easing } from 'react-native';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 import { COLORS, TYPOGRAPHY, SPACING as DESIGN_SPACING } from '../../design-system/tokens';
 
 // Acceso seguro a TYPOGRAPHY con valores fallback
@@ -109,7 +110,7 @@ const SplashScreen = () => {
 
       {/* Footer minimalista opcional */}
       <View style={styles.footer}>
-        <View style={styles.footerLine} />
+        <PrimaryGradientFill style={styles.footerLine} />
       </View>
     </View>
   );
@@ -179,7 +180,6 @@ const styles = StyleSheet.create({
   footerLine: {
     height: '100%',
     width: '100%',
-    backgroundColor: COLORS.primary[500],
     opacity: 0.1,
   },
 });

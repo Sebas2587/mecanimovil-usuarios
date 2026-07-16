@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
   icon: { marginRight: SPACING.xxs },
   title: { color: COLORS.text.primary },
   hint: { color: COLORS.text.secondary, marginTop: 2 },
-  action: { color: COLORS.primary[500] },
+  action: { color: COLORS.buttonSecondary.outlineText },
 });
 
 export default SectionHeader;

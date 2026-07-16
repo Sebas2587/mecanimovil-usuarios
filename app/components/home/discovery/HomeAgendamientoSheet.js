@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
+import GuestGradientButton from '../../guest/GuestGradientButton';
 import { useAgendamientoAsistido } from '../../../hooks/useAgendamientoAsistido';
 import { isAsistidoHabilitado } from '../../../services/agendamientoAsistidoService';
 import VehicleHealthService from '../../../services/vehicleHealthService';
@@ -251,9 +252,11 @@ const HomeAgendamientoSheet = ({
               <Text style={styles.fallbackText}>
                 El asistente no está disponible. Puedes crear una solicitud manualmente.
               </Text>
-              <TouchableOpacity style={styles.primaryBtn} onPress={handleAgendarSinIa}>
-                <Text style={styles.primaryBtnText}>Nueva solicitud</Text>
-              </TouchableOpacity>
+              <GuestGradientButton
+                title="Nueva solicitud"
+                onPress={handleAgendarSinIa}
+                style={styles.primaryBtnWrap}
+              />
             </View>
           ) : (
             <>
@@ -298,20 +301,13 @@ const HomeAgendamientoSheet = ({
 
         {iaActivo ? (
           <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-            <TouchableOpacity
-              style={[
-                styles.primaryBtn,
-                (loadingAnalisis || serviciosSeleccionados.length === 0) && styles.primaryDisabled,
-              ]}
+            <GuestGradientButton
+              title="Continuar agendamiento"
               onPress={handleAgendar}
+              loading={loadingAnalisis}
               disabled={loadingAnalisis || serviciosSeleccionados.length === 0}
-            >
-              {loadingAnalisis ? (
-                <ActivityIndicator color={COLORS.text.inverse} size="small" />
-              ) : (
-                <Text style={styles.primaryBtnText}>Continuar agendamiento</Text>
-              )}
-            </TouchableOpacity>
+              style={styles.primaryBtnWrap}
+            />
           </View>
         ) : null}
       </KeyboardAvoidingView>
@@ -368,19 +364,8 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
   },
-  primaryBtn: {
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 14,
-    borderRadius: BORDERS.radius.lg,
-    alignItems: 'center',
-  },
-  primaryDisabled: {
-    opacity: 0.55,
-  },
-  primaryBtnText: {
-    color: COLORS.text.inverse,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  primaryBtnWrap: {
+    width: '100%',
   },
   fallbackBox: {
     padding: 20,

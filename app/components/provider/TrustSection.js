@@ -31,7 +31,7 @@ const TrustSection = ({ documents }) => {
           <View key={doc.id || index} style={styles.badgeCard}>
             <CircleCheck
               size={20}
-              color={COLORS.primary[500]}
+              color={COLORS.success.main}
               strokeWidth={1.75}
               style={styles.checkIcon}
             />

@@ -29,6 +29,7 @@ import { ROUTES } from '../../utils/constants';
 import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../design-system/tokens';
 import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
 import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
+import Button from '../../components/base/Button/Button';
 import MercadoPagoService from '../../services/mercadopago';
 
 const METODOS_PAGO = {
@@ -531,53 +532,37 @@ const ConfirmacionScreen = () => {
 
       <StickyFooterCTA>
         {isPaymentSuccessful && metodoPago === METODOS_PAGO.MERCADOPAGO && (paymentId || paymentInfo?.id) ? (
-          <TouchableOpacity
-            style={styles.downloadButton}
+          <Button
+            title="Descargar comprobante"
             onPress={handleDownloadReceipt}
+            isLoading={downloadingReceipt}
             disabled={downloadingReceipt}
-            activeOpacity={0.8}
-          >
-            {downloadingReceipt ? (
-              <ActivityIndicator size="small" color={COLORS.text.inverse} />
-            ) : (
-              <>
-                <Download size={20} color={COLORS.text.inverse} strokeWidth={2} />
-                <Text style={[TYPOGRAPHY.styles.button, styles.downloadButtonText]}>Descargar comprobante</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            style={styles.downloadButton}
+            iconNode={<Download size={20} color={COLORS.text.onPrimary} strokeWidth={2} />}
+            iconPosition="left"
+          />
         ) : null}
 
         {(!metodoPago || metodoPago !== METODOS_PAGO.MERCADOPAGO || isPaymentSuccessful) ? (
-          <TouchableOpacity
-            style={[
-              styles.confirmarButton,
-              confirmando && styles.confirmarButtonDisabled,
-            ]}
+          <Button
+            title="Confirmar agendamiento"
             onPress={handleConfirmar}
+            isLoading={confirmando}
             disabled={confirmando}
-            activeOpacity={0.8}
-          >
-            {confirmando ? (
-              <ActivityIndicator size="small" color={COLORS.text.inverse} />
-            ) : (
-              <>
-                <Text style={[TYPOGRAPHY.styles.button, styles.confirmarButtonText]}>Confirmar agendamiento</Text>
-                <Check size={20} color={COLORS.text.inverse} strokeWidth={2.5} />
-              </>
-            )}
-          </TouchableOpacity>
+            style={styles.confirmarButton}
+            iconNode={<Check size={20} color={COLORS.text.onPrimary} strokeWidth={2.5} />}
+            iconPosition="right"
+          />
         ) : null}
 
         {pagoRechazado ? (
-          <TouchableOpacity
-            style={styles.retryButton}
+          <Button
+            title="Reintentar pago"
             onPress={() => navigation.navigate('OpcionesPago')}
-            activeOpacity={0.8}
-          >
-            <RefreshCw size={20} color={COLORS.text.inverse} strokeWidth={2} />
-            <Text style={[TYPOGRAPHY.styles.button, styles.retryButtonText]}>Reintentar pago</Text>
-          </TouchableOpacity>
+            style={styles.retryButton}
+            iconNode={<RefreshCw size={20} color={COLORS.text.onPrimary} strokeWidth={2} />}
+            iconPosition="left"
+          />
         ) : null}
       </StickyFooterCTA>
     </SafeAreaView>
@@ -733,48 +718,15 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   confirmarButton: {
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDERS.radius.button.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: SPACING.xs,
+    width: '100%',
     marginBottom: SPACING.xs,
   },
-  confirmarButtonDisabled: {
-    backgroundColor: COLORS.states.disabled.background,
-  },
-  confirmarButtonText: {
-    color: COLORS.text.inverse,
-  },
   downloadButton: {
-    backgroundColor: COLORS.primary[600],
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDERS.radius.button.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: SPACING.xs,
+    width: '100%',
     marginBottom: SPACING.sm,
   },
-  downloadButtonText: {
-    color: COLORS.text.inverse,
-  },
   retryButton: {
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    borderRadius: BORDERS.radius.button.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: SPACING.xs,
-  },
-  retryButtonText: {
-    color: COLORS.text.inverse,
+    width: '100%',
   },
 });
 

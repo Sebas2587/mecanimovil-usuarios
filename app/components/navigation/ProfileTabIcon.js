@@ -4,12 +4,13 @@ import { Image } from 'expo-image';
 import { User } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { getMediaURL } from '../../services/api';
-import { COLORS } from '../../design-system/tokens';
+import { COLORS, BORDERS } from '../../design-system/tokens';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 
 const SIZE = 28;
 
 /**
- * Icono de la pestaña Perfil: foto del usuario (misma lógica que el header anterior).
+ * Icono de la pestaña Perfil — selected = gradiente Tinder (indicador activo).
  */
 const ProfileTabIcon = ({ focused }) => {
   const { user } = useAuth();
@@ -45,7 +46,45 @@ const ProfileTabIcon = ({ focused }) => {
 
   const innerSize = SIZE - (focused ? 4 : 2);
   const showImage = !!profileImageUrl && !imageFailed;
-  const iconColor = focused ? COLORS.primary[500] : COLORS.text.tertiary;
+  const iconColor = focused ? COLORS.text.onPrimary : COLORS.icon.default;
+
+  const avatarInner = showImage ? (
+    <Image
+      source={{ uri: profileImageUrl }}
+      style={{
+        width: innerSize,
+        height: innerSize,
+        borderRadius: innerSize / 2,
+      }}
+      contentFit="cover"
+      cachePolicy="memory-disk"
+      onError={() => setImageFailed(true)}
+    />
+  ) : (
+    <View
+      style={[
+        styles.fallback,
+        {
+          width: innerSize,
+          height: innerSize,
+          borderRadius: innerSize / 2,
+          backgroundColor: focused ? COLORS.base.white : COLORS.background.secondary,
+        },
+      ]}
+    >
+      <User size={16} color={iconColor} strokeWidth={focused ? 2.25 : 2} />
+    </View>
+  );
+
+  if (focused) {
+    return (
+      <PrimaryGradientFill
+        style={[styles.ring, { width: SIZE, height: SIZE, borderRadius: SIZE / 2 }]}
+      >
+        {avatarInner}
+      </PrimaryGradientFill>
+    );
+  }
 
   return (
     <View
@@ -55,37 +94,12 @@ const ProfileTabIcon = ({ focused }) => {
           width: SIZE,
           height: SIZE,
           borderRadius: SIZE / 2,
-          borderColor: focused ? COLORS.primary[500] : COLORS.border.light,
-          borderWidth: focused ? 2 : 1,
+          borderColor: COLORS.border.light,
+          borderWidth: BORDERS.width.thin,
         },
       ]}
     >
-      {showImage ? (
-        <Image
-          source={{ uri: profileImageUrl }}
-          style={{
-            width: innerSize,
-            height: innerSize,
-            borderRadius: innerSize / 2,
-          }}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <View
-          style={[
-            styles.fallback,
-            {
-              width: innerSize,
-              height: innerSize,
-              borderRadius: innerSize / 2,
-            },
-          ]}
-        >
-          <User size={16} color={iconColor} strokeWidth={focused ? 2.25 : 2} />
-        </View>
-      )}
+      {avatarInner}
     </View>
   );
 };
@@ -95,11 +109,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    padding: 2,
   },
   fallback: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary[50],
   },
 });
 

@@ -57,11 +57,11 @@ const styles = StyleSheet.create({
     newRequestCard: {
         width: 140,
         height: 170, // Match RequestCard height
-        backgroundColor: COLORS.primary[500],
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 16,
+        overflow: 'hidden',
         shadowColor: COLORS.primary[500],
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,

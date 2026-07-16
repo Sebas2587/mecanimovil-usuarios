@@ -6,9 +6,10 @@ export { default as ExploreSearchBar } from './ExploreSearchBar';
 export {
   EXPLORE_MODE_CERCA,
   EXPLORE_MODE_PARA_TI,
+  EXPLORE_FILTER_ALL,
   EXPLORE_TAB_ALL,
   EXPLORE_TAB_TALLER,
   EXPLORE_TAB_MECANICO,
-  EXPLORE_TABS,
+  shortCategoryLabel,
   filterProvidersByExploreTab,
 } from './exploreProvidersConstants';

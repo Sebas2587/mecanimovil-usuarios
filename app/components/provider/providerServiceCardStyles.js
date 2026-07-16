@@ -1,37 +1,60 @@
 import { StyleSheet } from 'react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS, SPACING, withOpacity } from '../../design-system/tokens';
 
+/** Agrupa ítems de catálogo en filas de 2 para igualar alturas (web + native). */
+export function chunkCatalogServiceRows(items) {
+  const rows = [];
+  const list = Array.isArray(items) ? items : [];
+  for (let i = 0; i < list.length; i += 2) {
+    rows.push(list.slice(i, i + 2));
+  }
+  return rows;
+}
+
 /**
- * Cards de catálogo en “Servicios Profesionales” (ficha proveedor).
- * Patrón Coinbase: paper + hairline neutro + sombra sm.
+ * Cards de catálogo en ficha proveedor — Airbnb listing grid + tintes Tinder en badges.
  */
 export const providerServiceCardStyles = StyleSheet.create({
   servicesGrid: {
+    gap: SPACING.md,
+  },
+  servicesRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: SPACING.sm,
+    alignItems: 'stretch',
+    width: '100%',
+    gap: SPACING.md,
+  },
+  serviceCardSpacer: {
+    flex: 1,
+    minWidth: 0,
   },
   serviceCardShell: {
-    width: '48%',
-    marginBottom: SPACING.sm,
+    flex: 1,
+    minWidth: 0,
+    alignSelf: 'stretch',
+    flexDirection: 'column',
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.lg,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
     ...SHADOWS.sm,
   },
+  serviceCardInner: {
+    flex: 1,
+    alignSelf: 'stretch',
+    flexDirection: 'column',
+  },
   mediaWrap: {
     position: 'relative',
     width: '100%',
     backgroundColor: COLORS.neutral.gray[100],
-  },
-  mediaWrapCompact: {
-    backgroundColor: COLORS.neutral.gray[50],
+    overflow: 'hidden',
   },
   mediaPlaceholder: {
     width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: COLORS.neutral.gray[100],
   },
   categoryOverlay: {
@@ -39,76 +62,98 @@ export const providerServiceCardStyles = StyleSheet.create({
     top: SPACING.sm,
     right: SPACING.sm,
     maxWidth: '72%',
-    paddingHorizontal: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
-    borderRadius: BORDERS.radius.sm,
+    borderRadius: BORDERS.radius.full,
     backgroundColor: withOpacity(COLORS.base.white, 0.94),
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     zIndex: 2,
   },
   categoryOverlayText: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.secondary,
   },
   serviceCardBody: {
+    flexGrow: 1,
+    flexShrink: 0,
     paddingHorizontal: SPACING.sm,
     paddingTop: SPACING.sm,
-    paddingBottom: SPACING.sm,
-    gap: SPACING.xxs,
+    paddingBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  bodyTop: {
+    minHeight: 40,
   },
   serviceName: {
-    color: COLORS.text.primary,
+    ...TYPOGRAPHY.styles.captionBold,
     fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    lineHeight: Math.round(TYPOGRAPHY.fontSize.md * TYPOGRAPHY.lineHeight.tight),
-    letterSpacing: TYPOGRAPHY.letterSpacing.tight,
-    marginBottom: 2,
+    lineHeight: 20,
+    minHeight: 40,
+    letterSpacing: -0.15,
+    color: COLORS.text.primary,
   },
-  serviceTipoBadge: {
+  tipoTagRow: {
+    minHeight: 22,
+    justifyContent: 'flex-start',
+  },
+  serviceTipoTag: {
     alignSelf: 'flex-start',
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: BORDERS.radius.sm,
-    marginBottom: SPACING.xxs,
-  },
-  serviceTipoBadgeCon: {
-    backgroundColor: COLORS.primary[50],
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
   },
-  serviceTipoBadgeSin: {
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: BORDERS.width.thin,
+  serviceTipoTagCon: {
+    backgroundColor: COLORS.selection.background,
+    borderColor: COLORS.selection.border,
+  },
+  serviceTipoTagSin: {
+    backgroundColor: COLORS.background.secondary,
     borderColor: COLORS.border.light,
   },
-  serviceTipoBadgeText: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
+  serviceTipoTagText: {
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    letterSpacing: 0.1,
   },
-  serviceTipoBadgeTextCon: {
-    color: COLORS.primary[700],
+  serviceTipoTagTextCon: {
+    color: COLORS.selection.text,
   },
-  serviceTipoBadgeTextSin: {
+  serviceTipoTagTextSin: {
     color: COLORS.text.secondary,
   },
+  priceBlock: {
+    gap: 2,
+    minHeight: 54,
+    justifyContent: 'flex-start',
+  },
   servicePrice: {
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
     fontVariant: ['tabular-nums'],
-    marginTop: 2,
+    minHeight: 20,
+  },
+  servicePricePlaceholder: {
+    minHeight: 20,
   },
   servicePriceHint: {
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
     lineHeight: 16,
+    minHeight: 32,
+  },
+  servicePriceHintPlaceholder: {
+    minHeight: 32,
   },
   serviceMeta: {
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    marginTop: 2,
+  },
+  footerBlock: {
+    paddingTop: SPACING.xxs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
   },
 });

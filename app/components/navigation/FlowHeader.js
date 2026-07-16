@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 import { COLORS, TYPOGRAPHY, SPACING, BORDERS } from '../../design-system/tokens';
 import BackButton from './BackButton';
 
@@ -53,7 +54,9 @@ const FlowHeader = ({
       ) : null}
       {showProgress ? (
         <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          <View style={[styles.progressFillWrap, { width: `${progress * 100}%` }]}>
+            <PrimaryGradientFill style={StyleSheet.absoluteFillObject} />
+          </View>
         </View>
       ) : null}
     </View>
@@ -104,10 +107,10 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     overflow: 'hidden',
   },
-  progressFill: {
+  progressFillWrap: {
     height: '100%',
-    backgroundColor: COLORS.primary[500],
     borderRadius: BORDERS.radius.pill,
+    overflow: 'hidden',
   },
 });
 

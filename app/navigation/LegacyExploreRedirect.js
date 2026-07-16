@@ -2,13 +2,13 @@ import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { ROUTES } from '../utils/constants';
-import { EXPLORE_TAB_TALLER, EXPLORE_TAB_MECANICO } from '../components/providers/explore';
+import { EXPLORE_FILTER_ALL } from '../components/providers/explore';
 import { COLORS } from '../design-system/tokens';
 
 /**
- * Redirige rutas legacy Talleres/Mecánicos → ExploreProviders
+ * Redirige rutas legacy Talleres/Mecánicos → ExploreProviders (filtro Todos).
  */
-const LegacyExploreRedirect = ({ initialTab = 'all' }) => {
+const LegacyExploreRedirect = ({ initialFilter = EXPLORE_FILTER_ALL }) => {
   const navigation = useNavigation();
   const route = useRoute();
 
@@ -16,19 +16,15 @@ const LegacyExploreRedirect = ({ initialTab = 'all' }) => {
     const params = route.params || {};
     navigation.replace(ROUTES.EXPLORE_PROVIDERS, {
       ...params,
-      initialTab: params.initialTab || initialTab,
+      initialTab: EXPLORE_FILTER_ALL,
+      categoryId: params.categoryId ?? undefined,
     });
-  }, [navigation, route.params, initialTab]);
+  }, [navigation, route.params, initialFilter]);
 
   return <View style={{ flex: 1, backgroundColor: COLORS.background.default }} />;
 };
 
-export const TalleresRedirect = () => (
-  <LegacyExploreRedirect initialTab={EXPLORE_TAB_TALLER} />
-);
-
-export const MecanicosRedirect = () => (
-  <LegacyExploreRedirect initialTab={EXPLORE_TAB_MECANICO} />
-);
+export const TalleresRedirect = () => <LegacyExploreRedirect />;
+export const MecanicosRedirect = () => <LegacyExploreRedirect />;
 
 export default LegacyExploreRedirect;

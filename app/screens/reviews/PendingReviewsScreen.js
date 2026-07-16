@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { get } from '../../services/api';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS, SPACING } from '../../design-system/tokens';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 
 const PendingReviewsScreen = () => {
   const navigation = useNavigation();
@@ -82,9 +83,15 @@ const PendingReviewsScreen = () => {
         <Text style={styles.completionDate}>
           Completado: {new Date(item.completion_date).toLocaleDateString()}
         </Text>
-        <TouchableOpacity style={styles.reviewButton} onPress={() => handleCreateReview(item)}>
-          <Star size={16} color={COLORS.text.onPrimary} strokeWidth={1.75} />
-          <Text style={styles.reviewButtonText}>Dejar Reseña</Text>
+        <TouchableOpacity
+          style={styles.reviewButtonWrap}
+          onPress={() => handleCreateReview(item)}
+          activeOpacity={0.85}
+        >
+          <PrimaryGradientFill style={styles.reviewButton}>
+            <Star size={16} color={COLORS.text.onPrimary} strokeWidth={1.75} />
+            <Text style={styles.reviewButtonText}>Dejar Reseña</Text>
+          </PrimaryGradientFill>
         </TouchableOpacity>
       </View>
     </View>
@@ -212,13 +219,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.text.tertiary,
   },
+  reviewButtonWrap: {
+    borderRadius: BORDERS.radius.pill,
+    overflow: 'hidden',
+  },
   reviewButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary[500],
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: BORDERS.radius.pill,
     gap: 6,
   },
   reviewButtonText: {

@@ -20,12 +20,13 @@ import { normalizeDistanceKm } from './exploreProviderUtils';
 
 /**
  * ¿Compatible con la marca del vehículo del usuario?
- * Multimarca: sí. Especialista: solo si atiende esa marca.
+ * Multimarca: sí. Especialista: solo si atiende esa marca
+ * (valida id y, si faltan ids en el payload, el nombre).
  */
 export function isBrandCompatible(provider, marcaId, marcaNombre) {
   if (!provider) return false;
   if (marcaId != null && String(marcaId).trim() !== '') {
-    return coversBrand(provider, marcaId);
+    return coversBrand(provider, marcaId, marcaNombre);
   }
   if (marcaNombre) {
     return coversBrand(provider, marcaNombre);

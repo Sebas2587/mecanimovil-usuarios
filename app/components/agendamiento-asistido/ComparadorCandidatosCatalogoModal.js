@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, Trophy } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING, SHADOWS } from '../../design-system/tokens';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 import { formatDistance } from '../../utils/geoUtils';
 import {
   buildScoringContextFromForm,
@@ -167,13 +168,23 @@ export default function ComparadorCandidatosCatalogoModal({
 
                   {onConfirmar ? (
                     <TouchableOpacity
-                      style={[styles.btn, esMejor && styles.btnMejor]}
+                      style={styles.btnWrap}
                       onPress={() => onConfirmar(candidato)}
                       activeOpacity={0.85}
                     >
-                      <Text style={styles.btnText}>
-                        {esMejor ? 'Elegir mejor opción' : 'Elegir proveedor'}
-                      </Text>
+                      {esMejor ? (
+                        <PrimaryGradientFill style={styles.btn}>
+                          <Text style={styles.btnText}>
+                            Elegir mejor opción
+                          </Text>
+                        </PrimaryGradientFill>
+                      ) : (
+                        <View style={styles.btn}>
+                          <Text style={styles.btnText}>
+                            Elegir proveedor
+                          </Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -331,15 +342,15 @@ const styles = StyleSheet.create({
   metricasBlock: {
     paddingTop: SPACING.xxs,
   },
-  btn: {
+  btnWrap: {
     marginTop: SPACING.xxs,
-    paddingVertical: 12,
     borderRadius: BORDERS.radius.md,
+    overflow: 'hidden',
+  },
+  btn: {
+    paddingVertical: 12,
     backgroundColor: COLORS.neutral.gray[800],
     alignItems: 'center',
-  },
-  btnMejor: {
-    backgroundColor: COLORS.primary[500],
   },
   btnText: {
     color: COLORS.text.onPrimary,

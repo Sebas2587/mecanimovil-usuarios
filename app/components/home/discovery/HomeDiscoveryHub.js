@@ -88,21 +88,31 @@ const HomeDiscoveryHub = ({
         >
           {categories.map((cat) => {
             const isHealth = cat.isHealth;
+            if (isHealth) {
+              return (
+                <TouchableOpacity
+                  key={String(cat.id)}
+                  style={[styles.catChip, styles.catChipHealth]}
+                  onPress={() => handleCategory(cat)}
+                  activeOpacity={0.85}
+                  disabled={!selectedVehicle}
+                >
+                  <HeartPulse size={14} color={COLORS.icon.active} style={styles.catIcon} />
+                  <Text style={styles.catTextHealth} numberOfLines={1}>
+                    {cat.nombre}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }
             return (
               <TouchableOpacity
                 key={String(cat.id)}
-                style={[styles.catChip, isHealth && styles.catChipHealth]}
+                style={styles.catChip}
                 onPress={() => handleCategory(cat)}
                 activeOpacity={0.85}
                 disabled={!selectedVehicle}
               >
-                {isHealth ? (
-                  <HeartPulse size={14} color={COLORS.success.main} style={styles.catIcon} />
-                ) : null}
-                <Text
-                  style={[styles.catText, isHealth && styles.catTextHealth]}
-                  numberOfLines={1}
-                >
+                <Text style={styles.catText} numberOfLines={1}>
                   {cat.nombre}
                 </Text>
               </TouchableOpacity>
@@ -154,8 +164,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   catChipHealth: {
-    backgroundColor: COLORS.success.light,
-    borderColor: COLORS.success.main,
+    backgroundColor: COLORS.buttonSecondary.background,
+    borderColor: COLORS.buttonSecondary.border,
   },
   catIcon: {
     marginRight: 4,
@@ -166,7 +176,9 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   catTextHealth: {
-    color: COLORS.success.dark,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.buttonSecondary.outlineText,
   },
 });
 

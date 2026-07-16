@@ -25,6 +25,7 @@ import {
   View,
 } from 'react-native';
 import Icon from '../base/Icon/Icon';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 import SignaturePad from '../signature/SignaturePad';
 import * as Location from 'expo-location';
 import {
@@ -339,28 +340,44 @@ const CustomerSignatureModal = ({
         <View style={styles.footer}>
           <TouchableOpacity
             style={[
-              styles.confirmButton,
+              styles.confirmButtonWrap,
               (!hasDrawn || submitting) && styles.confirmButtonDisabled,
             ]}
             onPress={handleConfirm}
             disabled={!hasDrawn || submitting}
+            activeOpacity={0.85}
           >
-            {submitting ? (
-              <View style={styles.confirmRow}>
-                <ActivityIndicator size="small" color={COLORS.text.inverse} />
-                <Text style={styles.confirmText}>
-                  {obtainingLocation ? 'Obteniendo ubicación…' : 'Enviando firma…'}
-                </Text>
+            {(!hasDrawn || submitting) ? (
+              <View style={styles.confirmButton}>
+                {submitting ? (
+                  <View style={styles.confirmRow}>
+                    <ActivityIndicator size="small" color={COLORS.text.inverse} />
+                    <Text style={styles.confirmText}>
+                      {obtainingLocation ? 'Obteniendo ubicación…' : 'Enviando firma…'}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.confirmRow}>
+                    <Icon
+                      name="checkmark-circle"
+                      size={20}
+                      color={COLORS.text.inverse}
+                    />
+                    <Text style={styles.confirmText}>Confirmar y cerrar servicio</Text>
+                  </View>
+                )}
               </View>
             ) : (
-              <View style={styles.confirmRow}>
-                <Icon
-                  name="checkmark-circle"
-                  size={20}
-                  color={COLORS.text.inverse}
-                />
-                <Text style={styles.confirmText}>Confirmar y cerrar servicio</Text>
-              </View>
+              <PrimaryGradientFill style={styles.confirmButton}>
+                <View style={styles.confirmRow}>
+                  <Icon
+                    name="checkmark-circle"
+                    size={20}
+                    color={COLORS.text.inverse}
+                  />
+                  <Text style={styles.confirmText}>Confirmar y cerrar servicio</Text>
+                </View>
+              </PrimaryGradientFill>
             )}
           </TouchableOpacity>
         </View>
@@ -508,10 +525,12 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border.light,
     backgroundColor: COLORS.background.default,
   },
-  confirmButton: {
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: SPACING.md,
+  confirmButtonWrap: {
     borderRadius: BORDERS.radius.lg,
+    overflow: 'hidden',
+  },
+  confirmButton: {
+    paddingVertical: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
-import { User, Check, Pencil } from 'lucide-react-native';
+import { User, Pencil } from 'lucide-react-native';
 import { COLORS } from '../../design-system/tokens/colors';
 import { BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import VerifiedSeal from '../base/VerifiedSeal/VerifiedSeal';
 
 /**
- * Card de identidad en Cuenta — summary Airbnb + badge verificado brand primary.
+ * Card de identidad en Cuenta — summary Airbnb + sello verificado canónico.
  */
 const MemberCard = ({ user, onEditPress }) => {
   const firstName = user?.firstName || user?.first_name || '';
@@ -28,9 +29,12 @@ const MemberCard = ({ user, onEditPress }) => {
             </View>
           )}
 
-          <View style={styles.verifiedBadge} accessibilityLabel="Cuenta verificada">
-            <Check size={12} color={COLORS.text.onPrimary} strokeWidth={3} />
-          </View>
+          <VerifiedSeal
+            size={20}
+            checkSize={12}
+            style={styles.verifiedBadge}
+            accessibilityLabel="Cuenta verificada"
+          />
         </View>
 
         <View style={styles.textContainer}>
@@ -50,8 +54,10 @@ const MemberCard = ({ user, onEditPress }) => {
 
       <View style={styles.statusFooter}>
         <Text style={styles.statusLabel}>Estado de Cuenta</Text>
-        <View style={styles.statusPill}>
-          <Text style={styles.statusText}>Verificado</Text>
+        <View style={styles.statusPillWrap}>
+          <View style={styles.statusPill}>
+            <Text style={styles.statusText}>Verificado</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -96,12 +102,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: COLORS.primary[500],
     width: 20,
     height: 20,
     borderRadius: BORDERS.radius.full,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 2,
     borderColor: COLORS.background.paper,
   },
@@ -144,16 +147,20 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
+  statusPillWrap: {
+    borderRadius: BORDERS.radius.pill,
+    overflow: 'hidden',
+  },
   statusPill: {
-    backgroundColor: COLORS.primary[50],
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: BORDERS.radius.pill,
+    backgroundColor: COLORS.selection.background,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
+    borderColor: COLORS.selection.border,
+    borderRadius: BORDERS.radius.pill,
   },
   statusText: {
-    color: COLORS.primary[700],
+    color: COLORS.brand.magenta,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     fontSize: TYPOGRAPHY.fontSize.xs,
   },

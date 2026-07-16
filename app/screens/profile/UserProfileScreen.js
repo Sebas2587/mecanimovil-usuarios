@@ -8,7 +8,7 @@ import { TAB_BAR_BASE_HEIGHT } from '../../components/home/shared/homeLayoutCons
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../context/AuthContext';
 import { confirmDestructive } from '../../utils/platformAlert';
-import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
+import { COLORS, SPACING, TYPOGRAPHY, BORDERS } from '../../design-system/tokens';
 import Button from '../../components/base/Button/Button';
 
 import MemberCard from '../../components/profile/MemberCard';
@@ -115,10 +115,10 @@ const UserProfileScreen = () => {
             onPress={handleLogout}
             type="danger"
             variant="outline"
-            size="md"
+            size="lg"
             fullWidth
             style={styles.logoutButton}
-            iconNode={<LogOut size={20} color={COLORS.error.main} strokeWidth={ICON_STROKE} />}
+            iconNode={<LogOut size={20} color={COLORS.error[700]} strokeWidth={ICON_STROKE} />}
           />
 
           <View style={styles.versionContainer}>
@@ -149,9 +149,10 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   logoutButton: {
-    marginTop: 8,
-    borderColor: COLORS.error.main,
-    backgroundColor: COLORS.error.light,
+    marginTop: SPACING.md,
+    borderRadius: BORDERS.radius.lg,
+    borderColor: COLORS.error[200],
+    backgroundColor: COLORS.error[50],
   },
   versionContainer: {
     marginTop: 28,

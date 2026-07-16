@@ -5,6 +5,7 @@ import { TOKENS, COLORS, withOpacity } from '../../design-system/tokens';
 import { getHealthColor } from '../../utils/healthFormat';
 import ofertasService from '../../services/ofertasService';
 import Icon from '../base/Icon/Icon';
+import VerifiedSeal from '../base/VerifiedSeal/VerifiedSeal';
 
 // Extraer tokens con valores por defecto
 const typography = TOKENS?.typography || {};
@@ -557,9 +558,12 @@ const ComparadorOfertas = ({ ofertas, onAceptarOferta, solicitudAdjudicada = fal
                     </View>
                   )}
                   {(oferta.proveedor_verificado || oferta.documentos_verificados) && (
-                    <View style={styles.verificadoBadge}>
-                      <Icon name="checkmark" size={10} color={textOnPrimary} />
-                    </View>
+                    <VerifiedSeal
+                      size={18}
+                      checkSize={10}
+                      style={styles.verificadoBadge}
+                      accessibilityLabel="Proveedor verificado"
+                    />
                   )}
                 </View>
                 <View style={styles.proveedorInfo}>
@@ -998,12 +1002,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: successColor,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 2,
     borderColor: bgPaper,
   },

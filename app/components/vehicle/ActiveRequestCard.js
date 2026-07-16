@@ -5,6 +5,7 @@ import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 
 const ActiveRequestCard = ({ request, onPress }) => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -57,9 +58,11 @@ const ActiveRequestCard = ({ request, onPress }) => {
                 <Text style={styles.subtitle}>Esperando ofertas...</Text>
             )}
 
-            <TouchableOpacity style={styles.button} activeOpacity={0.8} onPress={onPress}>
-                <Text style={styles.buttonText}>{status === 'pendiente' ? 'Ver Ofertas' : 'Ver Detalles'}</Text>
-                <ArrowRight size={16} color={COLORS.text.inverse} />
+            <TouchableOpacity style={styles.buttonWrap} activeOpacity={0.8} onPress={onPress}>
+                <PrimaryGradientFill style={styles.button}>
+                    <Text style={styles.buttonText}>{status === 'pendiente' ? 'Ver Ofertas' : 'Ver Detalles'}</Text>
+                    <ArrowRight size={16} color={COLORS.text.inverse} />
+                </PrimaryGradientFill>
             </TouchableOpacity>
         </View>
     );
@@ -114,14 +117,16 @@ const styles = StyleSheet.create({
         color: COLORS.text.secondary,
         marginBottom: SPACING.md,
     },
-    button: {
+    buttonWrap: {
         borderRadius: BORDERS.radius.button.md,
+        overflow: 'hidden',
+    },
+    button: {
         paddingVertical: SPACING.sm,
         paddingHorizontal: SPACING.md,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: COLORS.primary[500],
     },
     buttonText: {
         color: COLORS.text.inverse,

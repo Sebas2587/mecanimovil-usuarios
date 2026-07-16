@@ -3,8 +3,11 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { HomeContextHeaderSkeleton } from '../../utils/HomePanelSkeletons';
 import { Image } from 'expo-image';
 import { Bell, Car, ChevronDown, MapPin, Plus } from 'lucide-react-native';
-import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
 import VehicleHealthCompactRing from '../../vehicles/VehicleHealthCompactRing';
+import PrimaryGradientBadge from '../../base/PrimaryGradientBadge/PrimaryGradientBadge';
+import BrandIconWell from '../../base/BrandIconWell/BrandIconWell';
+import PrimaryGradientFill from '../../base/PrimaryGradientFill/PrimaryGradientFill';
 
 /**
  * Header home: dirección + notificaciones, luego selector de vehículo (Airbnb + Tinder).
@@ -43,7 +46,7 @@ const HomeContextHeader = ({
           accessibilityRole="button"
           accessibilityLabel="Cambiar dirección de servicio"
         >
-          <MapPin size={15} color={COLORS.primary[500]} strokeWidth={2.25} />
+          <MapPin size={15} color={COLORS.icon.active} strokeWidth={2.25} />
           <Text style={styles.addressText} numberOfLines={1}>
             {addressLabel}
           </Text>
@@ -58,9 +61,9 @@ const HomeContextHeader = ({
         >
           <Bell size={18} color={COLORS.text.primary} strokeWidth={2} />
           {unreadCount > 0 ? (
-            <View style={styles.bellBadge}>
+            <PrimaryGradientBadge style={styles.bellBadge}>
               <Text style={styles.bellBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-            </View>
+            </PrimaryGradientBadge>
           ) : null}
         </TouchableOpacity>
       </View>
@@ -76,9 +79,9 @@ const HomeContextHeader = ({
           {selectedVehicle.foto ? (
             <Image source={{ uri: selectedVehicle.foto }} style={styles.vehicleThumb} contentFit="cover" />
           ) : (
-            <View style={[styles.vehicleThumb, styles.vehicleThumbFallback]}>
-              <Car size={15} color={COLORS.primary[500]} strokeWidth={2} />
-            </View>
+            <BrandIconWell size={40} style={styles.vehicleThumb}>
+              <Car size={15} strokeWidth={2} />
+            </BrandIconWell>
           )}
           <View style={styles.vehicleTextCol}>
             <Text style={styles.vehicleTitle} numberOfLines={1}>
@@ -105,9 +108,11 @@ const HomeContextHeader = ({
       ) : vehiclesLoading ? (
         <HomeContextHeaderSkeleton />
       ) : (
-        <TouchableOpacity style={styles.addVehiclePill} onPress={onAddVehicle} activeOpacity={0.85}>
-          <Plus size={16} color={COLORS.primary[500]} strokeWidth={2.25} />
-          <Text style={styles.addVehicleText}>Agregar vehículo</Text>
+        <TouchableOpacity style={styles.addVehiclePillWrap} onPress={onAddVehicle} activeOpacity={0.85}>
+          <PrimaryGradientFill style={styles.addVehiclePill}>
+            <Plus size={16} color={COLORS.text.onPrimary} strokeWidth={2.25} />
+            <Text style={styles.addVehicleText}>Agregar vehículo</Text>
+          </PrimaryGradientFill>
         </TouchableOpacity>
       )}
     </View>
@@ -144,10 +149,11 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.sm,
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.xl,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     minWidth: 0,
+    ...SHADOWS.sm,
   },
   vehicleThumb: {
     width: 40,
@@ -158,7 +164,6 @@ const styles = StyleSheet.create({
   vehicleThumbFallback: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.primary[50],
   },
   vehicleTextCol: {
     flex: 1,
@@ -174,20 +179,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
   },
+  addVehiclePillWrap: {
+    borderRadius: BORDERS.radius.lg,
+    overflow: 'hidden',
+  },
   addVehiclePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.primary[50],
-    borderRadius: BORDERS.radius.lg,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
   },
   addVehicleText: {
     ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.primary[600],
+    color: COLORS.text.onPrimary,
   },
   iconBtn: {
     width: 36,
@@ -204,12 +209,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -3,
     right: -3,
-    backgroundColor: COLORS.primary[500],
     borderRadius: BORDERS.radius.full,
     minWidth: 16,
     height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingHorizontal: 3,
     borderWidth: 2,
     borderColor: COLORS.background.paper,

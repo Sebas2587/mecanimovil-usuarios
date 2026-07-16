@@ -4,14 +4,17 @@ import { Car, Globe } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 
 /**
- * Etiqueta compacta: especialista en marca vs multimarca (comparador catálogo).
+ * Etiqueta compacta: especialista vs multimarca.
+ * Colores canónicos: COLORS.badge.especialista | COLORS.badge.multimarca.
  */
 export default function ProveedorCoberturaMarcaChip({ badge, compact = false }) {
   if (!badge?.label) return null;
 
   const esMultimarca = badge.variant === 'multimarca';
   const Icon = esMultimarca ? Globe : Car;
-  const iconColor = esMultimarca ? COLORS.primary[700] : COLORS.success[700];
+  const iconColor = esMultimarca
+    ? COLORS.badge.multimarca.icon
+    : COLORS.badge.especialista.icon;
 
   return (
     <View
@@ -54,12 +57,12 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   chipMultimarca: {
-    backgroundColor: COLORS.primary[50],
-    borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.badge.multimarca.background,
+    borderColor: COLORS.badge.multimarca.border,
   },
   chipEspecialista: {
-    backgroundColor: COLORS.success[50],
-    borderColor: COLORS.success[200],
+    backgroundColor: COLORS.badge.especialista.background,
+    borderColor: COLORS.badge.especialista.border,
   },
   label: {
     fontSize: TYPOGRAPHY.fontSize.xs,
@@ -70,9 +73,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   labelMultimarca: {
-    color: COLORS.primary[800],
+    color: COLORS.badge.multimarca.text,
   },
   labelEspecialista: {
-    color: COLORS.success[800],
+    color: COLORS.badge.especialista.text,
   },
 });

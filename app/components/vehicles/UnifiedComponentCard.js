@@ -252,28 +252,26 @@ const s = StyleSheet.create({
     gap: 6,
   },
   name: {
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.bodyBold,
     color: COLORS.text.primary,
     flex: 1,
     flexShrink: 1,
   },
   pct: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.captionBold,
     flexShrink: 0,
   },
   badge: {
-    borderRadius: 4,
-    paddingHorizontal: 5,
+    borderRadius: BORDERS.radius.xs,
+    paddingHorizontal: SPACING.xs,
     paddingVertical: 2,
     flexShrink: 0,
   },
   badgeText: {
-    fontSize: 9,
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wide,
   },
   barTrack: {
     height: 5,
@@ -293,7 +291,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   predText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.secondary,
     flex: 1,
   },
@@ -311,10 +309,10 @@ const s = StyleSheet.create({
     borderRadius: 5,
   },
   chipText: {
-    fontSize: 9,
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wide,
   },
   // Section header
   sectionHeader: {
@@ -326,21 +324,17 @@ const s = StyleSheet.create({
     paddingHorizontal: 2,
   },
   sectionTitle: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.h6,
     color: COLORS.text.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    fontSize: 11,
   },
   sectionCount: {
     backgroundColor: COLORS.neutral.gray[200],
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 1,
+    borderRadius: BORDERS.radius.full,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
   },
   sectionCountText: {
-    fontSize: 11,
+    ...TYPOGRAPHY.styles.small,
     fontWeight: TYPOGRAPHY.fontWeight.bold,
     color: COLORS.text.tertiary,
   },

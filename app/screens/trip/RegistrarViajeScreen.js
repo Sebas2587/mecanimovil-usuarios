@@ -11,6 +11,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Car, ChevronRight } from 'lucide-react-native';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import { ROUTES } from '../../utils/constants';
 import { useTripTracking } from '../../context/TripTrackingContext';
 import HomeTelemetrySection from '../../components/home/dashboard/HomeTelemetrySection';
@@ -132,11 +133,13 @@ const RegistrarViajeScreen = () => {
               Agrega un auto para iniciar el seguimiento GPS y actualizar el kilometraje.
             </Text>
             <TouchableOpacity
-              style={styles.hintBtn}
+              style={styles.hintBtnWrap}
               onPress={() => navigation.navigate(ROUTES.CREAR_VEHICULO)}
               activeOpacity={0.9}
             >
-              <Text style={styles.hintBtnText}>Agregar vehículo</Text>
+              <PrimaryGradientFill style={styles.hintBtn}>
+                <Text style={styles.hintBtnText}>Agregar vehículo</Text>
+              </PrimaryGradientFill>
             </TouchableOpacity>
           </View>
         ) : (
@@ -263,12 +266,14 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginBottom: SPACING.md,
   },
-  hintBtn: {
+  hintBtnWrap: {
     alignSelf: 'flex-start',
+    borderRadius: BORDERS.radius.lg,
+    overflow: 'hidden',
+  },
+  hintBtn: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    borderRadius: BORDERS.radius.lg,
-    backgroundColor: COLORS.primary[500],
   },
   hintBtnText: {
     ...TYPOGRAPHY.styles.captionBold,

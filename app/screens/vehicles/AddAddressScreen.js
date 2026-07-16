@@ -28,6 +28,7 @@ import { BORDERS } from '../../design-system/tokens/borders';
 import { SHADOWS } from '../../design-system/tokens/shadows';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
 import BackButton from '../../components/navigation/BackButton';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import * as locationService from '../../services/location';
 
 import Input from '../../components/base/Input/Input';
@@ -220,9 +221,13 @@ const AddAddressScreen = () => {
             {etiquetaOptions.map(opt => (
               <TouchableOpacity
                 key={opt}
-                style={[styles.tag, etiqueta === opt && styles.tagActive]}
+                style={[styles.tag, etiqueta === opt && styles.tagActiveWrap]}
                 onPress={() => setEtiqueta(opt)}
+                activeOpacity={0.85}
               >
+                {etiqueta === opt ? (
+                  <PrimaryGradientFill style={StyleSheet.absoluteFillObject} />
+                ) : null}
                 {opt === 'Casa' ? (
                   <Home size={14} color={etiqueta === opt ? COLORS.text.inverse : COLORS.text.secondary} strokeWidth={1.75} />
                 ) : opt === 'Trabajo' ? (
@@ -395,9 +400,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background.paper,
     gap: 6,
   },
-  tagActive: {
-    backgroundColor: COLORS.primary[500],
+  tagActiveWrap: {
     borderColor: COLORS.primary[500],
+    overflow: 'hidden',
   },
   tagText: {
     fontSize: TYPOGRAPHY.fontSize.sm,

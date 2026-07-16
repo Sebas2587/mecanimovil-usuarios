@@ -79,6 +79,9 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
           incluye_repuestos_efectivo: s.incluye_repuestos_efectivo,
           permite_solo_mano_obra: s.permite_solo_mano_obra,
           ofrece_repuestos_catalogo: s.ofrece_repuestos_catalogo,
+          es_diagnostico: s.es_diagnostico,
+          categoria: s.categoria,
+          categoria_nombre: s.categoria_nombre,
         }))
       : null);
   const candidatoBase = {
@@ -93,7 +96,12 @@ function toCandidato(oferta, requiereRepuestos, userCoords) {
     ...oferta,
     proveedor,
     servicio: oferta.servicio || (oferta.servicios?.[0]
-      ? { nombre: oferta.servicios[0].nombre }
+      ? {
+          nombre: oferta.servicios[0].nombre,
+          es_diagnostico: oferta.servicios[0].es_diagnostico,
+          categoria: oferta.servicios[0].categoria,
+          categoria_nombre: oferta.servicios[0].categoria_nombre,
+        }
       : null),
     servicios_ofrecidos: serviciosOfrecidos,
     servicios_cubiertos: oferta.servicios_cubiertos,

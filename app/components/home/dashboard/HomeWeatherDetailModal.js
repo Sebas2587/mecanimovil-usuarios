@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CloudRain, Disc, Wind, Zap, Droplets } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../../design-system/tokens';
+import GuestGradientButton from '../../guest/GuestGradientButton';
 import { riskColorForLevel } from './riskColorMap';
 
 const HomeWeatherDetailModal = ({
@@ -104,9 +105,7 @@ const HomeWeatherDetailModal = ({
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, SPACING.md) }]}>
-          <TouchableOpacity style={styles.btn} onPress={onClose} activeOpacity={0.85}>
-            <Text style={styles.btnText}>Entendido</Text>
-          </TouchableOpacity>
+          <GuestGradientButton title="Entendido" onPress={onClose} style={styles.btnWrap} />
         </View>
       </View>
     </View>
@@ -242,16 +241,8 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     lineHeight: 20,
   },
-  btn: {
-    backgroundColor: COLORS.primary[500],
-    borderRadius: BORDERS.radius.full,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  btnText: {
-    color: COLORS.text.inverse,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.md,
+  btnWrap: {
+    marginTop: SPACING.sm,
   },
 });
 

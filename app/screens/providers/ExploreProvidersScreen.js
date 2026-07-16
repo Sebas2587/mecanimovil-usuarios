@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useQuery } from '@tanstack/react-query';
 
 import { ROUTES } from '../../utils/constants';
 import { H_PAD } from '../../components/home/shared/homeLayoutConstants';
@@ -12,19 +13,21 @@ import {
   ExploreProvidersTabs,
   ExploreSearchBar,
   ExploreProvidersGrid,
-  EXPLORE_TAB_ALL,
-  EXPLORE_TAB_TALLER,
-  EXPLORE_TAB_MECANICO,
-  filterProvidersByExploreTab,
+  EXPLORE_FILTER_ALL,
   EXPLORE_MODE_CERCA,
   EXPLORE_MODE_PARA_TI,
 } from '../../components/providers/explore';
-import { filterProvidersBySearchQuery, splitProvidersByRadar, normalizeDistanceKm } from '../../utils/exploreProviderUtils';
+import {
+  filterProvidersBySearchQuery,
+  filterProvidersByServicioIds,
+  splitProvidersByRadar,
+  normalizeDistanceKm,
+} from '../../utils/exploreProviderUtils';
+import { getMainCategories, getServicesByCategory, normalizeApiList } from '../../services/categories';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 
 /**
- * Explorar proveedores — una sola arquitectura de cards (ProviderPreviewCard / listing Airbnb)
- * vía ExploreProvidersGrid (2 columnas responsive).
+ * Explorar proveedores — filtro por categoría de servicio (no taller/domicilio).
  */
 const ExploreProvidersScreen = () => {
   const navigation = useNavigation();
@@ -32,33 +35,55 @@ const ExploreProvidersScreen = () => {
 
   const vehicle = route.params?.vehicle ?? null;
   const address = route.params?.address ?? null;
-  const categoryId = route.params?.categoryId ?? null;
+  const routeCategoryId = route.params?.categoryId ?? null;
   const categoryName = route.params?.categoryName ?? null;
   const mode = route.params?.mode ?? null;
   const userBrandName = vehicle?.marca_nombre || vehicle?.marca || null;
 
-  const [activeTab, setActiveTab] = useState(route.params?.initialTab ?? EXPLORE_TAB_ALL);
+  const initialFilter =
+    routeCategoryId != null
+      ? String(routeCategoryId)
+      : route.params?.initialTab && route.params.initialTab !== 'taller' && route.params.initialTab !== 'mecanico'
+        ? String(route.params.initialTab)
+        : EXPLORE_FILTER_ALL;
+
+  const [activeFilter, setActiveFilter] = useState(initialFilter);
   const [searchQuery, setSearchQuery] = useState(route.params?.searchQuery ?? '');
 
-  const isParaTiExplore = mode === EXPLORE_MODE_PARA_TI && !categoryId;
+  const isParaTiExplore = mode === EXPLORE_MODE_PARA_TI && !routeCategoryId;
   const isCercaExplore = mode === EXPLORE_MODE_CERCA;
   const isUnifiedExplore = !isParaTiExplore && !isCercaExplore;
 
+  const filterCategoryId =
+    activeFilter === EXPLORE_FILTER_ALL ? null : Number(activeFilter) || null;
+
   useEffect(() => {
-    if (route.params?.initialTab) setActiveTab(route.params.initialTab);
-  }, [route.params?.initialTab]);
+    if (routeCategoryId != null) {
+      setActiveFilter(String(routeCategoryId));
+    }
+  }, [routeCategoryId]);
+
+  const categoriesQuery = useQuery({
+    queryKey: ['mainCategories'],
+    queryFn: getMainCategories,
+    staleTime: 1000 * 60 * 60,
+  });
+  const categories = useMemo(
+    () => (Array.isArray(categoriesQuery.data) ? categoriesQuery.data : []).slice(0, 10),
+    [categoriesQuery.data],
+  );
 
   const unifiedQuery = useExploreProviders({
     vehicle,
     address,
-    categoryId,
+    categoryId: isUnifiedExplore ? filterCategoryId : null,
     searchQuery: isUnifiedExplore ? searchQuery : '',
     enabled: !!vehicle && isUnifiedExplore,
   });
 
   const categoryExploreEmpty =
     isUnifiedExplore &&
-    !!categoryId &&
+    !!filterCategoryId &&
     !unifiedQuery.isLoading &&
     (unifiedQuery.categoryHasNoServices || unifiedQuery.providers.length === 0);
 
@@ -74,14 +99,35 @@ const ExploreProvidersScreen = () => {
     enabled: !!vehicle && isCercaExplore,
   });
 
+  /** Servicios de la categoría activa — solo para filtrar listados Para ti / Cerca en cliente. */
+  const panelCategoryServicesQuery = useQuery({
+    queryKey: ['exploreCategoryServices', filterCategoryId],
+    queryFn: () => getServicesByCategory(filterCategoryId),
+    enabled: !!filterCategoryId && (isParaTiExplore || isCercaExplore),
+    staleTime: 1000 * 60 * 30,
+  });
+
+  const panelServicioIds = useMemo(() => {
+    const list = normalizeApiList(panelCategoryServicesQuery.data);
+    return list.map((s) => s.id).filter(Boolean);
+  }, [panelCategoryServicesQuery.data]);
+
   const rawProviders = useMemo(() => {
     if (isParaTiExplore) {
       const data = paraTiQuery.data ?? [];
-      return filterProvidersBySearchQuery(Array.isArray(data) ? data : [], searchQuery);
+      let list = filterProvidersBySearchQuery(Array.isArray(data) ? data : [], searchQuery);
+      if (filterCategoryId && panelServicioIds.length) {
+        list = filterProvidersByServicioIds(list, panelServicioIds);
+      }
+      return list;
     }
     if (isCercaExplore) {
       const data = nearbyQuery.data ?? [];
-      return filterProvidersBySearchQuery(Array.isArray(data) ? data : [], searchQuery);
+      let list = filterProvidersBySearchQuery(Array.isArray(data) ? data : [], searchQuery);
+      if (filterCategoryId && panelServicioIds.length) {
+        list = filterProvidersByServicioIds(list, panelServicioIds);
+      }
+      return list;
     }
     return unifiedQuery.providers;
   }, [
@@ -91,12 +137,14 @@ const ExploreProvidersScreen = () => {
     nearbyQuery.data,
     unifiedQuery.providers,
     searchQuery,
+    filterCategoryId,
+    panelServicioIds,
   ]);
 
   const isLoading = isParaTiExplore
-    ? paraTiQuery.isLoading
+    ? paraTiQuery.isLoading || (!!filterCategoryId && panelCategoryServicesQuery.isLoading)
     : isCercaExplore
-      ? nearbyQuery.isLoading
+      ? nearbyQuery.isLoading || (!!filterCategoryId && panelCategoryServicesQuery.isLoading)
       : unifiedQuery.isLoading;
 
   const isRefetching = isParaTiExplore
@@ -113,28 +161,13 @@ const ExploreProvidersScreen = () => {
 
   const hasAddress = isParaTiExplore || isCercaExplore ? !!address : unifiedQuery.hasAddress;
 
-  const tabProviders = useMemo(
-    () => filterProvidersByExploreTab(rawProviders, activeTab),
-    [rawProviders, activeTab],
-  );
-
   const { inRadar, outOfRadar, noLocation } = useMemo(() => {
     if (isCercaExplore) {
-      // En modo cerca: solo quienes tienen distancia real
-      const withKm = tabProviders.filter((p) => normalizeDistanceKm(p) != null);
+      const withKm = rawProviders.filter((p) => normalizeDistanceKm(p) != null);
       return { inRadar: withKm, outOfRadar: [], noLocation: [] };
     }
-    return splitProvidersByRadar(tabProviders);
-  }, [tabProviders, isCercaExplore]);
-
-  const tabCounts = useMemo(() => {
-    const countForTab = (tabId) => filterProvidersByExploreTab(rawProviders, tabId).length;
-    return {
-      all: countForTab(EXPLORE_TAB_ALL),
-      taller: countForTab(EXPLORE_TAB_TALLER),
-      mecanico: countForTab(EXPLORE_TAB_MECANICO),
-    };
-  }, [rawProviders]);
+    return splitProvidersByRadar(rawProviders);
+  }, [rawProviders, isCercaExplore]);
 
   const openProvider = useCallback(
     (item) => {
@@ -151,18 +184,28 @@ const ExploreProvidersScreen = () => {
     [navigation, vehicle],
   );
 
+  const activeCategoryName = useMemo(() => {
+    if (!filterCategoryId) return categoryName;
+    const cat = categories.find((c) => String(c.id) === String(filterCategoryId));
+    return cat?.nombre || categoryName;
+  }, [filterCategoryId, categories, categoryName]);
+
   const emptyTitle = searchQuery.trim() ? 'Sin resultados' : 'Sin proveedores';
   const emptyMessage = searchQuery.trim()
     ? 'Prueba otro término.'
     : isParaTiExplore
-      ? 'Aún no hay talleres destacados para tu marca.'
+      ? filterCategoryId
+        ? 'Ningún destacado ofrece servicios de esta categoría para tu vehículo.'
+        : 'Aún no hay talleres destacados para tu marca.'
       : isCercaExplore
-        ? 'No hay talleres compatibles en tu radio. Prueba otra dirección.'
+        ? filterCategoryId
+          ? 'No hay talleres cercanos con esta categoría. Prueba otra o cambia de dirección.'
+          : 'No hay talleres compatibles en tu radio. Prueba otra dirección.'
         : categoryExploreEmpty
           ? unifiedQuery.categoryHasNoServices
             ? 'No hay servicios catalogados para esta categoría.'
             : 'Ningún proveedor cercano ofrece servicios de esta categoría para tu vehículo.'
-          : 'Amplía la zona o cambia de pestaña.';
+          : 'Amplía la zona o cambia de categoría.';
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
@@ -178,12 +221,21 @@ const ExploreProvidersScreen = () => {
             <ExploreSearchBar
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder={categoryName ? `Buscar en ${categoryName}…` : 'Buscar taller…'}
+              placeholder={
+                activeCategoryName
+                  ? `Buscar en ${activeCategoryName}…`
+                  : 'Buscar taller…'
+              }
             />
             <ExploreProvidersTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              counts={tabCounts}
+              activeFilter={activeFilter}
+              onFilterChange={setActiveFilter}
+              categories={categories}
+              allCount={
+                activeFilter === EXPLORE_FILTER_ALL && !isLoading
+                  ? rawProviders.length
+                  : null
+              }
             />
             <ExploreProvidersGrid
               inRadar={inRadar}

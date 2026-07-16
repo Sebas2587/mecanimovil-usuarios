@@ -86,7 +86,7 @@ const ProviderCompletedJobsSection = ({ jobs = [] }) => {
           <Icon
             name="checkmark-done-circle-outline"
             size={18}
-            color={COLORS.primary[500]}
+            color={COLORS.icon.active}
           />
         </View>
         <Text style={styles.title}>Trabajos Realizados</Text>
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.background.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,

@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
-import { Star, Wrench, Check } from 'lucide-react-native';
+import { Star, Wrench } from 'lucide-react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
+import VerifiedSeal from '../base/VerifiedSeal/VerifiedSeal';
 import {
   getProviderImageCandidatesResolved,
   getPanelServicios,
@@ -11,7 +12,7 @@ import {
   isProviderRealtimeOnline,
 } from '../../utils/providerUtils';
 import { getProviderModalidad, modalidadLabel } from '../../utils/providerModalidad';
-import { getProviderBrandCoverage } from '../../utils/providerBrandCoverage';
+import { getCoverageBadgeLabel } from '../../utils/providerBrandCoverage';
 import { getAxiosMediaBaseSync } from '../../services/api';
 
 /**
@@ -87,13 +88,7 @@ const ProviderPreviewCard = ({
   const distanceLabel = distanceFromProp ?? (providerRaw ? getProviderDistance(providerRaw) : null);
 
   const modalidadTagLabel = modalidadLabel(getProviderModalidad(providerRaw));
-  const { isMultimarca, brandNames } = getProviderBrandCoverage(providerRaw);
-  const specialistBrand = userBrandName || brandNames[0] || null;
-  const coverageBadgeLabel = isMultimarca
-    ? 'Multimarca'
-    : specialistBrand
-      ? `Especialista ${specialistBrand}`
-      : null;
+  const coverageBadgeLabel = getCoverageBadgeLabel(providerRaw, userBrandName);
 
   const panelOffers =
     serviceOffers != null ? serviceOffers : providerRaw ? getPanelServicios(providerRaw) : [];
@@ -178,13 +173,11 @@ const ProviderPreviewCard = ({
               {name}
             </Text>
             {verified ? (
-              <View
-                style={styles.verifiedBadge}
-                accessibilityRole="image"
+              <VerifiedSeal
+                size={16}
+                checkSize={10}
                 accessibilityLabel="Proveedor verificado"
-              >
-                <Check size={10} color={COLORS.text.onPrimary} strokeWidth={3} />
-              </View>
+              />
             ) : null}
           </View>
           {ratingText ? (
@@ -301,15 +294,6 @@ const getStyles = (width, omitRightMargin, imageHeight, imageRadius) =>
       flexShrink: 1,
       ...TYPOGRAPHY.styles.bodyBold,
       color: COLORS.text.primary,
-    },
-    verifiedBadge: {
-      width: 16,
-      height: 16,
-      borderRadius: BORDERS.radius.full,
-      backgroundColor: COLORS.primary[500],
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
     },
     rating: {
       flexDirection: 'row',

@@ -1,27 +1,22 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { COLORS, TYPOGRAPHY, SPACING, BORDERS } from '../../../design-system/tokens';
+import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../../design-system/tokens';
 
 /**
- * Segmento/pills único de la app (patrón Airbnb Explore filters):
- * - Inactivo: surface soft + tipografía caption medium (Poppins 500)
- * - Activo: primary fill + tipografía captionBold (Poppins 600) en inverso
- *
- * @param {Array<{id: string, label: string, count?: number, Icon?: React.ComponentType}>} segments
- * @param {string|null} value id del segmento activo
- * @param {(id: string) => void} onChange
- * @param {boolean} scrollable si hay muchos segmentos, permite scroll horizontal
+ * Tabs / filtros — sin track gris (el canvas ya es #F9F9F9).
+ * Unselected: solo texto muted · Selected: paper + borde orange.
+ * Gradiente CTA solo en botones primarios.
  */
 const SegmentedControl = ({ segments = [], value, onChange, scrollable = false, style }) => {
   const content = segments.map((seg) => {
     const active = value === seg.id;
     const { Icon } = seg;
-    const label =
-      seg.count != null ? `${seg.label} (${seg.count})` : seg.label;
+    const label = seg.count != null ? `${seg.label} (${seg.count})` : seg.label;
+
     return (
       <TouchableOpacity
         key={seg.id}
-        style={[styles.pill, active && styles.pillActive]}
+        style={[styles.pill, active ? styles.pillActive : styles.pillInactive]}
         onPress={() => onChange?.(seg.id)}
         activeOpacity={0.85}
         accessibilityRole="tab"
@@ -31,7 +26,7 @@ const SegmentedControl = ({ segments = [], value, onChange, scrollable = false, 
         {Icon ? (
           <Icon
             size={15}
-            color={active ? COLORS.text.inverse : COLORS.text.secondary}
+            color={active ? COLORS.tab.selectedText : COLORS.tab.unselected}
             strokeWidth={2}
           />
         ) : null}
@@ -47,8 +42,8 @@ const SegmentedControl = ({ segments = [], value, onChange, scrollable = false, 
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={style}
-        contentContainerStyle={styles.track}
+        style={[styles.scroll, style]}
+        contentContainerStyle={styles.trackScroll}
         accessibilityRole="tablist"
         keyboardShouldPersistTaps="handled"
       >
@@ -65,35 +60,57 @@ const SegmentedControl = ({ segments = [], value, onChange, scrollable = false, 
 };
 
 const styles = StyleSheet.create({
+  /** Evita que el ScrollView horizontal se estire en altura dentro de columnas flex (web). */
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+    maxHeight: 44,
+  },
   track: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
+    flexWrap: 'wrap',
+  },
+  trackScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    flexGrow: 0,
+    paddingVertical: 2,
   },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: SPACING.md,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[50],
     minHeight: 36,
+    borderRadius: BORDERS.radius.pill,
+    borderWidth: BORDERS.width.thin,
+    flexShrink: 0,
+  },
+  pillInactive: {
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   pillActive: {
-    backgroundColor: COLORS.primary[500],
+    backgroundColor: COLORS.tab.selectedBg,
+    borderColor: COLORS.tab.selectedBorder,
+    ...SHADOWS.sm,
   },
   label: {
     ...TYPOGRAPHY.styles.caption,
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.secondary,
+    color: COLORS.tab.unselected,
   },
   labelActive: {
     ...TYPOGRAPHY.styles.captionBold,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.text.inverse,
+    color: COLORS.tab.selectedText,
   },
 });
 

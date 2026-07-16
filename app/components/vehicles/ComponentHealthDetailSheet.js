@@ -28,7 +28,7 @@ import {
 } from '../../utils/healthFormat';
 import { buildShortDiagnosticSummary } from '../../utils/componentDiagnosticCopy';
 import ComponentDiagnosticInsights from './ComponentDiagnosticInsights';
-import Button from '../base/Button/Button';
+import GuestGradientButton from '../guest/GuestGradientButton';
 
 /**
  * Sheet a pantalla completa (patrón Airbnb / pageSheet) con el detalle
@@ -313,9 +313,10 @@ export default function ComponentHealthDetailSheet({
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <Button
+          <GuestGradientButton
             title={servicios.length > 0 ? 'Agendar servicio' : 'Cotizar / Nueva solicitud'}
             onPress={handlePrimaryAgendar}
+            fullWidth
             accessibilityLabel="Agendar servicio para este componente"
           />
           {servicios.length > 0 ? (

@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/constants';
 import Input from '../../components/base/Input/Input';
 import Button from '../../components/base/Button/Button';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { showAlert, showAlertButtons } from '../../utils/platformAlert';
 import LegalFooterLinks from '../../components/support/LegalFooterLinks';
@@ -216,7 +217,7 @@ const RegisterScreen = () => {
           </TouchableOpacity>
           <TouchableOpacity style={styles.tab}>
             <Text style={styles.tabTextActive}>Registrarse</Text>
-            <View style={styles.tabIndicatorActive} />
+            <PrimaryGradientFill style={styles.tabIndicatorActive} />
           </TouchableOpacity>
         </View>
 
@@ -271,8 +272,12 @@ const RegisterScreen = () => {
 
           {/* Terms */}
           <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(!acceptTerms)}>
-            <View style={[styles.checkbox, acceptTerms && styles.checkboxChecked]}>
-              {acceptTerms && <Check size={14} color={COLORS.text.inverse} strokeWidth={2.5} />}
+            <View style={[styles.checkbox, acceptTerms && styles.checkboxCheckedWrap]}>
+              {acceptTerms ? (
+                <PrimaryGradientFill style={styles.checkboxFill}>
+                  <Check size={14} color={COLORS.text.inverse} strokeWidth={2.5} />
+                </PrimaryGradientFill>
+              ) : null}
             </View>
             <LegalFooterLinks
               variant="register"
@@ -332,7 +337,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.styles.label,
     color: COLORS.text.tertiary,
   },
-  tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2, backgroundColor: COLORS.primary[500] },
+  tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2 },
 
   card: {
     borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
@@ -365,7 +370,17 @@ const styles = StyleSheet.create({
 
   termsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 8 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border.dark, marginRight: 10, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { backgroundColor: COLORS.primary[500], borderColor: COLORS.primary[500] },
+  checkboxCheckedWrap: {
+    borderColor: COLORS.primary[500],
+    overflow: 'hidden',
+    padding: 0,
+  },
+  checkboxFill: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   termsText: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,

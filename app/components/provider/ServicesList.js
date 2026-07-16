@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import Icon from '../base/Icon/Icon';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 
 const ServicesList = ({ services, onServicePress }) => {
   if (!services || services.length === 0) return null;
@@ -15,7 +16,7 @@ const ServicesList = ({ services, onServicePress }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Icon name="construct" size={18} color={COLORS.primary[500]} />
+          <Icon name="construct" size={18} color={COLORS.icon.active} />
         </View>
         <Text style={styles.title}>Servicios Principales</Text>
       </View>
@@ -28,7 +29,7 @@ const ServicesList = ({ services, onServicePress }) => {
             <View key={service.id || index} style={styles.serviceCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.iconBox}>
-                  <Icon name="construct-outline" size={20} color={COLORS.primary[500]} />
+                  <Icon name="construct-outline" size={20} color={COLORS.icon.active} />
                 </View>
                 <View style={styles.headerTextContainer}>
                   <Text style={styles.serviceName}>{service.nombre || service.name}</Text>
@@ -43,17 +44,19 @@ const ServicesList = ({ services, onServicePress }) => {
                   </View>
                 ) : null}
                 <TouchableOpacity
-                  style={styles.agendarButton}
+                  style={styles.agendarButtonWrap}
                   onPress={() => onServicePress?.(service)}
                   activeOpacity={0.85}
                 >
-                  <Icon
-                    name="calendar-outline"
-                    size={16}
-                    color={COLORS.text.inverse}
-                    style={styles.agendarIcon}
-                  />
-                  <Text style={styles.agendarButtonText}>Agendar</Text>
+                  <PrimaryGradientFill style={styles.agendarButton}>
+                    <Icon
+                      name="calendar-outline"
+                      size={16}
+                      color={COLORS.text.inverse}
+                      style={styles.agendarIcon}
+                    />
+                    <Text style={styles.agendarButtonText}>Agendar</Text>
+                  </PrimaryGradientFill>
                 </TouchableOpacity>
               </View>
             </View>
@@ -78,7 +81,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.background.secondary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -112,7 +115,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.background.secondary,
     borderWidth: 1,
     borderColor: COLORS.border.light,
     justifyContent: 'center',
@@ -149,12 +152,14 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
+  agendarButtonWrap: {
+    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
+    overflow: 'hidden',
+  },
   agendarButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.primary[500],
-    borderRadius: BORDERS.radius.button?.md ?? BORDERS.radius.full,
     paddingHorizontal: SPACING.buttonPadding?.horizontal ?? 20,
     paddingVertical: SPACING.buttonPadding?.vertical ?? 14,
   },

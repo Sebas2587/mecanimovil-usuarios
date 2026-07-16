@@ -198,6 +198,10 @@ export const ROUTES = {
   ONBOARDING: 'Onboarding',
   GUEST_LANDING: 'GuestLanding',
   GUEST_VEHICLE_RESULTS: 'GuestVehicleResults',
+  /** Detalle de oferta de servicio (invitado) → perfil taller + gate agendar */
+  GUEST_SERVICE_OFFER: 'GuestServiceOffer',
+  /** Ver todos los talleres de una sección del landing */
+  GUEST_SECTION_PROVIDERS: 'GuestSectionProviders',
   LOGIN: 'Login',
   REGISTER: 'Register',
 
@@ -225,7 +229,7 @@ export const ROUTES = {
   // Nuevas rutas para categorías de proveedores
   TALLERES: 'Talleres',
   MECANICOS: 'Mecanicos',
-  /** Listado completo desde home (tabs Todos / Talleres / A domicilio) */
+  /** Listado completo desde home (filtro Todos + categorías de servicio) */
   EXPLORE_PROVIDERS: 'ExploreProviders',
   PROVIDER_DETAIL: 'ProviderDetail',
 

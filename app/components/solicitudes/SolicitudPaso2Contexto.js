@@ -1,13 +1,14 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
-import { FileText, Camera } from 'lucide-react-native';
-import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import { View, Text, TextInput, StyleSheet, Platform } from 'react-native';
+import { Camera } from 'lucide-react-native';
+import { COLORS, BORDERS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import ServicePhotosCarousel from '../provider/ServicePhotosCarousel';
 import AddressSelector from '../forms/AddressSelector';
 import SolicitudUrgenciaToggle from './SolicitudUrgenciaToggle';
 
 /**
  * Paso 2: ubicación → preferencias → detalles + fotos.
+ * Bloque detalles: editorial Airbnb (sin GlassCard / sombra / radio 24).
  */
 export default function SolicitudPaso2Contexto({
   formData,
@@ -15,7 +16,7 @@ export default function SolicitudPaso2Contexto({
   sinVehiculoRegistrado,
   servicioSeleccionado,
   renderFotosNecesidadEditor,
-  GlassCard,
+  GlassCard: _GlassCard,
   styles,
   childrenBeforeDetalles = null,
   preferenciasBlock = null,
@@ -58,60 +59,53 @@ export default function SolicitudPaso2Contexto({
       {preferenciasBlock}
 
       <View style={paso2Styles.sectionWrap}>
-        <View style={paso2Styles.sectionHeaderRow}>
-          <View style={paso2Styles.sectionIconWrap}>
-            <FileText size={18} color={COLORS.primary[500]} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={paso2Styles.sectionTitle}>
-              Detalles para el proveedor <Text style={styles.paso2Required}>*</Text>
-            </Text>
-            <Text style={paso2Styles.sectionSubtitle}>
-              Cuéntanos qué necesitas para que el proveedor entienda tu solicitud.
-            </Text>
-          </View>
-        </View>
+        <Text style={paso2Styles.sectionTitle}>
+          Detalles para el proveedor <Text style={styles.paso2Required}>*</Text>
+        </Text>
+        <Text style={paso2Styles.sectionSubtitle}>
+          Cuéntanos qué necesitas para que el proveedor entienda tu solicitud.
+        </Text>
 
-        <GlassCard style={paso2Styles.detallesCard}>
+        <View style={paso2Styles.fields}>
           {tieneFotosProveedor ? (
             <View style={paso2Styles.fotosProveedorBlock}>
               <Text style={paso2Styles.fieldLabel}>Fotos del servicio (proveedor)</Text>
               <ServicePhotosCarousel photos={fotosProveedor} height={120} />
-              <View style={paso2Styles.hairline} />
             </View>
           ) : null}
 
-          <Text style={paso2Styles.fieldLabel}>
-            Descripción <Text style={styles.paso2Required}>*</Text>
-          </Text>
-          <TextInput
-            style={[
-              paso2Styles.textArea,
-              descripcionError ? paso2Styles.textAreaError : null,
-            ]}
-            multiline
-            numberOfLines={5}
-            placeholder={placeholderDetalles}
-            placeholderTextColor={COLORS.text.disabled}
-            value={formData.descripcion_problema || ''}
-            onChangeText={(text) => {
-              setFormData((prev) => ({ ...prev, descripcion_problema: text || '' }));
-              if (typeof onDescripcionEdited === 'function') onDescripcionEdited(text);
-            }}
-            textAlignVertical="top"
-            accessibilityLabel="Descripción del problema"
-          />
-          {descripcionError ? (
-            <Text style={paso2Styles.fieldError} accessibilityLiveRegion="polite">
-              {descripcionError}
-            </Text>
-          ) : null}
+          <View style={paso2Styles.fieldBlock}>
+            <TextInput
+              style={[
+                paso2Styles.textArea,
+                descripcionError ? paso2Styles.textAreaError : null,
+              ]}
+              multiline
+              numberOfLines={5}
+              placeholder={placeholderDetalles}
+              placeholderTextColor={COLORS.text.disabled}
+              value={formData.descripcion_problema || ''}
+              onChangeText={(text) => {
+                setFormData((prev) => ({ ...prev, descripcion_problema: text || '' }));
+                if (typeof onDescripcionEdited === 'function') onDescripcionEdited(text);
+              }}
+              textAlignVertical="top"
+              accessibilityLabel="Descripción del problema"
+            />
+            {descripcionError ? (
+              <Text style={paso2Styles.fieldError} accessibilityLiveRegion="polite">
+                {descripcionError}
+              </Text>
+            ) : null}
+          </View>
 
           {typeof renderFotosNecesidadEditor === 'function' ? (
             <View style={paso2Styles.fotosUsuarioBlock}>
               <View style={paso2Styles.fotosUsuarioHeader}>
-                <Camera size={16} color={COLORS.text.secondary} />
-                <Text style={paso2Styles.fieldLabel}>Tus fotos (opcional)</Text>
+                <Camera size={16} color={COLORS.icon.default} strokeWidth={2} />
+                <Text style={[paso2Styles.fieldLabel, paso2Styles.fieldLabelInline]}>
+                  Tus fotos (opcional)
+                </Text>
               </View>
               <Text style={paso2Styles.fotosUsuarioHint}>
                 Adjunta hasta 3 fotos para ayudar al proveedor a evaluar tu caso.
@@ -123,7 +117,7 @@ export default function SolicitudPaso2Contexto({
               )}
             </View>
           ) : null}
-        </GlassCard>
+        </View>
       </View>
 
       {!hideUrgencia ? (
@@ -144,93 +138,77 @@ const paso2Styles = StyleSheet.create({
   sectionWrap: {
     marginBottom: SPACING.lg,
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.sm,
-    marginBottom: SPACING.md,
-  },
-  sectionIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: BORDERS.radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary[50],
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
-  },
   sectionTitle: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.h5,
     color: COLORS.text.primary,
-    lineHeight: 24,
+    marginBottom: SPACING.xxs,
   },
   sectionSubtitle: {
-    marginTop: 2,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    lineHeight: 20,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
+    lineHeight: 20,
+    marginBottom: SPACING.md,
   },
-  detallesCard: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    marginBottom: 0,
+  fields: {
+    gap: SPACING.md,
+  },
+  fieldBlock: {
+    gap: SPACING.xs,
   },
   fieldLabel: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.secondary,
-    marginBottom: SPACING.xs,
+  },
+  fieldLabelInline: {
+    marginBottom: 0,
   },
   textArea: {
     minHeight: 112,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
-    borderRadius: BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.md,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm + 4,
     fontSize: TYPOGRAPHY.fontSize.md,
     lineHeight: 22,
     color: COLORS.text.primary,
     backgroundColor: COLORS.background.paper,
-    ...SHADOWS.sm,
+    ...(Platform.OS === 'web'
+      ? {
+          outlineStyle: 'none',
+          outlineWidth: 0,
+          boxShadow: 'none',
+        }
+      : null),
   },
   textAreaError: {
     borderColor: COLORS.error.main,
     backgroundColor: COLORS.error.light,
   },
   fieldError: {
-    marginTop: SPACING.xs,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    lineHeight: 17,
+    marginTop: SPACING.xxs,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.error.main,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
   },
-  hairline: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: COLORS.border.light,
-    marginVertical: SPACING.md,
-  },
   fotosProveedorBlock: {
-    marginBottom: SPACING.xs,
+    gap: SPACING.xs,
   },
   fotosUsuarioBlock: {
-    marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: COLORS.border.light,
+    gap: SPACING.xs,
   },
   fotosUsuarioHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 4,
   },
   fotosUsuarioHint: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    lineHeight: 17,
+    ...TYPOGRAPHY.styles.small,
     color: COLORS.text.tertiary,
-    marginBottom: SPACING.sm,
+    lineHeight: 17,
+    marginBottom: SPACING.xs,
   },
 });

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { ClipboardList, HeartPulse, ChevronRight } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
+import { COLORS, BORDERS, TYPOGRAPHY, SPACING, SHADOWS } from '../../../design-system/tokens';
+import BrandIconWell from '../../base/BrandIconWell/BrandIconWell';
 
 function pickBanner({ solicitud, healthScore }) {
   if (solicitud) {
@@ -12,7 +13,6 @@ function pickBanner({ solicitud, healthScore }) {
       'Solicitud en curso';
     return {
       key: 'solicitud',
-      tone: 'info',
       Icon: ClipboardList,
       title: 'Solicitud en curso',
       subtitle: titulo,
@@ -21,7 +21,6 @@ function pickBanner({ solicitud, healthScore }) {
   if (healthScore != null && healthScore < 60) {
     return {
       key: 'health-critical',
-      tone: 'danger',
       Icon: HeartPulse,
       title: 'Tu auto necesita atención',
       subtitle: `Salud ${Math.round(healthScore)}% · Agenda un servicio recomendado`,
@@ -30,7 +29,6 @@ function pickBanner({ solicitud, healthScore }) {
   if (healthScore != null && healthScore < 75) {
     return {
       key: 'health-warn',
-      tone: 'warning',
       Icon: HeartPulse,
       title: 'Mantenimiento preventivo',
       subtitle: `Salud ${Math.round(healthScore)}% · Anticipa revisiones a tiempo`,
@@ -39,28 +37,16 @@ function pickBanner({ solicitud, healthScore }) {
   return null;
 }
 
-/** Círculo tonal por severidad — fondo transparente; el color va solo en el trazo. */
-const TONE_CONFIG = {
-  info: {
-    iconBg: 'transparent',
-    iconColor: COLORS.primary[600],
-  },
-  danger: {
-    iconBg: 'transparent',
-    iconColor: COLORS.error.main,
-  },
-  warning: {
-    iconBg: 'transparent',
-    iconColor: COLORS.warning.dark,
-  },
-};
-
+/**
+ * Banner contextual home.
+ * Salud → VehicleHealthScreen (toda la card).
+ * «Ver salud del vehículo» es solo indicativo, no CTA aparte.
+ */
 const HomeContextualBanner = ({
   solicitud,
   healthScore,
   onPressSolicitud,
   onPressHealth,
-  onPressAgendar,
 }) => {
   const banner = useMemo(
     () => pickBanner({ solicitud, healthScore }),
@@ -69,16 +55,13 @@ const HomeContextualBanner = ({
 
   if (!banner) return null;
 
-  const tone = TONE_CONFIG[banner.tone] || TONE_CONFIG.info;
   const { Icon } = banner;
+  const isHealth = banner.key.startsWith('health');
 
   const onPrimary = () => {
     if (banner.key === 'solicitud') onPressSolicitud?.();
-    else onPressAgendar?.();
+    else if (isHealth) onPressHealth?.();
   };
-
-  const showHealthLink =
-    banner.key.startsWith('health') && typeof onPressHealth === 'function';
 
   return (
     <TouchableOpacity
@@ -86,12 +69,14 @@ const HomeContextualBanner = ({
       onPress={onPrimary}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel={banner.title}
+      accessibilityLabel={
+        isHealth ? `${banner.title}. Ver salud del vehículo` : banner.title
+      }
     >
       <View style={styles.row}>
-        <View style={[styles.iconCircle, { backgroundColor: tone.iconBg }]}>
-          <Icon size={20} color={tone.iconColor} strokeWidth={2} fill="none" />
-        </View>
+        <BrandIconWell size={40}>
+          <Icon size={20} strokeWidth={2} fill="none" />
+        </BrandIconWell>
 
         <View style={styles.textCol}>
           <Text style={styles.title} numberOfLines={2}>
@@ -100,16 +85,10 @@ const HomeContextualBanner = ({
           <Text style={styles.subtitle} numberOfLines={2}>
             {banner.subtitle}
           </Text>
-          {showHealthLink ? (
-            <Text
-              style={styles.healthLink}
-              onPress={onPressHealth}
-              suppressHighlighting
-              accessibilityRole="link"
-              accessibilityLabel="Ver salud del vehículo"
-            >
-              Ver salud del vehículo
-            </Text>
+          {isHealth ? (
+            <View style={styles.healthHint} pointerEvents="none">
+              <Text style={styles.healthHintText}>Ver salud del vehículo</Text>
+            </View>
           ) : null}
         </View>
 
@@ -128,18 +107,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
+    ...SHADOWS.sm,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   textCol: {
     flex: 1,
@@ -154,11 +127,19 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: 2,
   },
-  healthLink: {
-    ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.primary[600],
+  healthHint: {
     marginTop: SPACING.xs,
     alignSelf: 'flex-start',
+    borderRadius: BORDERS.radius.full,
+    paddingVertical: 4,
+    paddingHorizontal: SPACING.sm,
+    backgroundColor: COLORS.buttonSecondary.background,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.buttonSecondary.border,
+  },
+  healthHintText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.buttonSecondary.outlineText,
   },
 });
 

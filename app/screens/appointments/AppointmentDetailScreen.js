@@ -35,6 +35,7 @@ import * as userService from '../../services/user';
 
 // Componentes
 import Card from '../../components/base/Card/Card';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import PendingClientSignatureCard from '../../components/checklist/PendingClientSignatureCard';
 
@@ -667,11 +668,14 @@ const AppointmentDetailScreen = () => {
                 </View>
               ) : checklistDisponible ? (
                 <TouchableOpacity
-                  style={[styles.actionButtonLarge, styles.checklistButton]}
+                  style={styles.actionButtonTouchable}
                   onPress={handleVerChecklist}
+                  activeOpacity={0.85}
                 >
-                  <FileText size={20} color={COLORS.text.inverse} />
-                  <Text style={styles.actionButtonLargeText}>Ver Inspección Realizada</Text>
+                  <PrimaryGradientFill style={styles.actionButtonLarge}>
+                    <FileText size={20} color={COLORS.text.inverse} />
+                    <Text style={styles.actionButtonLargeText}>Ver Inspección Realizada</Text>
+                  </PrimaryGradientFill>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.checklistNoDisponible}>
@@ -702,13 +706,16 @@ const AppointmentDetailScreen = () => {
           )}
           
           <TouchableOpacity
-            style={[styles.actionButtonLarge, styles.contactButton]}
+            style={styles.actionButtonTouchable}
             onPress={() => {
               Alert.alert('Información', 'Funcionalidad de soporte próximamente disponible');
             }}
+            activeOpacity={0.85}
           >
-            <MessageCircle size={20} color={COLORS.text.inverse} />
-            <Text style={styles.actionButtonLargeText}>Contactar Soporte</Text>
+            <PrimaryGradientFill style={styles.actionButtonLarge}>
+              <MessageCircle size={20} color={COLORS.text.inverse} />
+              <Text style={styles.actionButtonLargeText}>Contactar Soporte</Text>
+            </PrimaryGradientFill>
           </TouchableOpacity>
         </View>
       </>
@@ -897,19 +904,19 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     gap: SPACING.sm,
   },
+  actionButtonTouchable: {
+    borderRadius: BORDERS.radius.button.md,
+    overflow: 'hidden',
+  },
   actionButtonLarge: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: SPACING.md,
-    borderRadius: BORDERS.radius.button.md,
     gap: SPACING.xs,
   },
   cancelButton: {
     backgroundColor: COLORS.error.main,
-  },
-  contactButton: {
-    backgroundColor: COLORS.primary[500],
   },
   actionButtonLargeText: {
     ...TYPOGRAPHY.styles.button,
@@ -1065,9 +1072,6 @@ const styles = StyleSheet.create({
   checklistVerificandoText: {
     ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[600],
-  },
-  checklistButton: {
-    backgroundColor: COLORS.primary[500],
   },
   checklistNoDisponible: {
     flexDirection: 'row',

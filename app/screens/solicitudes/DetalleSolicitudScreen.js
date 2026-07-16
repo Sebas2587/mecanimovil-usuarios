@@ -48,6 +48,8 @@ import ServiceSummaryCard, { getEstadoBadgeMeta } from '../../components/solicit
 import OfferCardDetailed from '../../components/solicitudes/OfferCardDetailed';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import CustomerSignatureModal from '../../components/checklist/CustomerSignatureModal';
+import Button from '../../components/base/Button/Button';
+import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import PagoSaldoPendienteCierreBanner from '../../components/solicitudes/PagoSaldoPendienteCierreBanner';
 import DetalleSolicitudSkeleton from '../../components/utils/DetalleSolicitudSkeleton';
 import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
@@ -621,13 +623,13 @@ const DetalleSolicitudScreen = () => {
                 {ofertaCatalogoActiva.motivo_fecha_alternativa}
               </Text>
             ) : null}
-            <TouchableOpacity
-              style={styles.fechaAlternativaBtn}
+            <GuestGradientButton
+              title="Aceptar esta fecha"
               onPress={handleAceptarFechaCatalogo}
               disabled={procesando}
-            >
-              <Text style={styles.fechaAlternativaBtnText}>Aceptar esta fecha</Text>
-            </TouchableOpacity>
+              loading={procesando}
+              style={styles.fechaAlternativaBtnWrap}
+            />
           </View>
         ) : null}
 
@@ -841,13 +843,13 @@ const DetalleSolicitudScreen = () => {
                 if (showFirmar && showChecklist) {
                   return (
                     <View style={styles.footerActionsRow}>
-                      <TouchableOpacity
-                        style={[styles.footerPrimaryCta, styles.footerPrimaryCtaInRow]}
+                      <Button
+                        title="Revisar y firmar"
                         onPress={() => setShowSignatureModal(true)}
-                      >
-                        <Text style={styles.footerPrimaryCtaText}>Revisar y firmar</Text>
-                        <PenLine size={18} color={COLORS.text.onPrimary} />
-                      </TouchableOpacity>
+                        style={[styles.footerPrimaryCta, styles.footerPrimaryCtaInRow]}
+                        iconNode={<PenLine size={18} color={COLORS.text.onPrimary} />}
+                        iconPosition="right"
+                      />
                       <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                         <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
                         <ClipboardList size={18} color={COLORS.text.primary} />
@@ -859,15 +861,13 @@ const DetalleSolicitudScreen = () => {
                 if (showPagarSaldo) {
                   return (
                     <View style={showChecklist ? styles.footerActionsRow : styles.footerActionsSingle}>
-                      <TouchableOpacity
-                        style={[styles.footerPrimaryCta, showChecklist && styles.footerPrimaryCtaInRow]}
+                      <Button
+                        title={`Pagar saldo restante ($${formatearMontoCLP(montoSaldoPendiente)})`}
                         onPress={irOpcionesPago}
-                      >
-                        <Text style={styles.footerPrimaryCtaText} numberOfLines={2}>
-                          Pagar saldo restante (${formatearMontoCLP(montoSaldoPendiente)})
-                        </Text>
-                        <CreditCard size={18} color={COLORS.text.onPrimary} />
-                      </TouchableOpacity>
+                        style={[styles.footerPrimaryCta, showChecklist && styles.footerPrimaryCtaInRow]}
+                        iconNode={<CreditCard size={18} color={COLORS.text.onPrimary} />}
+                        iconPosition="right"
+                      />
                       {showChecklist ? (
                         <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                           <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
@@ -881,18 +881,18 @@ const DetalleSolicitudScreen = () => {
                 if (showPagar) {
                   return (
                     <View style={showChecklist ? styles.footerActionsRow : styles.footerActionsSingle}>
-                      <TouchableOpacity
-                        style={[styles.footerPrimaryCta, showChecklist && styles.footerPrimaryCtaInRow]}
+                      <Button
+                        title="Ir a Pagar"
                         onPress={() =>
                           navigation.navigate('OpcionesPago', {
                             solicitudId,
                             origen: 'solicitud_publica',
                           })
                         }
-                      >
-                        <Text style={styles.footerPrimaryCtaText}>Ir a Pagar</Text>
-                        <CreditCard size={18} color={COLORS.text.onPrimary} />
-                      </TouchableOpacity>
+                        style={[styles.footerPrimaryCta, showChecklist && styles.footerPrimaryCtaInRow]}
+                        iconNode={<CreditCard size={18} color={COLORS.text.onPrimary} />}
+                        iconPosition="right"
+                      />
                       {showChecklist ? (
                         <TouchableOpacity style={styles.footerSecondaryCta} onPress={openChecklistPrincipal}>
                           <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
@@ -906,13 +906,13 @@ const DetalleSolicitudScreen = () => {
                 if (showChecklist) {
                   return (
                     <View style={styles.footerActionsSingle}>
-                      <TouchableOpacity
-                        style={styles.footerPrimaryCta}
+                      <Button
+                        title="Ver Checklist"
                         onPress={openChecklistPrincipal}
-                      >
-                        <Text style={styles.footerPrimaryCtaText}>Ver Checklist</Text>
-                        <ClipboardList size={18} color={COLORS.text.onPrimary} />
-                      </TouchableOpacity>
+                        style={styles.footerPrimaryCta}
+                        iconNode={<ClipboardList size={18} color={COLORS.text.onPrimary} />}
+                        iconPosition="right"
+                      />
                     </View>
                   );
                 }
@@ -920,13 +920,13 @@ const DetalleSolicitudScreen = () => {
                 if (showFirmar) {
                   return (
                     <View style={styles.footerActionsSingle}>
-                      <TouchableOpacity
-                        style={styles.footerPrimaryCta}
+                      <Button
+                        title="Revisar y firmar"
                         onPress={() => setShowSignatureModal(true)}
-                      >
-                        <Text style={styles.footerPrimaryCtaText}>Revisar y firmar</Text>
-                        <PenLine size={18} color={COLORS.text.onPrimary} />
-                      </TouchableOpacity>
+                        style={styles.footerPrimaryCta}
+                        iconNode={<PenLine size={18} color={COLORS.text.onPrimary} />}
+                        iconPosition="right"
+                      />
                     </View>
                   );
                 }
@@ -949,8 +949,8 @@ const DetalleSolicitudScreen = () => {
                 {hayAcciones ? (
                   <View style={hayAmbasAcciones ? styles.footerActionsRow : styles.footerActionsSingle}>
                     {ofertaParaPagar ? (
-                      <TouchableOpacity
-                        style={[styles.footerPrimaryCta, hayAmbasAcciones && styles.footerPrimaryCtaInRow]}
+                      <Button
+                        title="Ir a Pagar"
                         onPress={() =>
                           navigation.navigate('OpcionesPago', {
                             solicitudId,
@@ -958,39 +958,39 @@ const DetalleSolicitudScreen = () => {
                             origen: 'oferta_secundaria',
                           })
                         }
-                      >
-                        <Text style={styles.footerPrimaryCtaText}>Ir a Pagar</Text>
-                        <CreditCard size={18} color={COLORS.text.onPrimary} />
-                      </TouchableOpacity>
+                        style={[styles.footerPrimaryCta, hayAmbasAcciones && styles.footerPrimaryCtaInRow]}
+                        iconNode={<CreditCard size={18} color={COLORS.text.onPrimary} />}
+                        iconPosition="right"
+                      />
                     ) : null}
                     {ofertaConChecklist ? (
-                      <TouchableOpacity
-                        style={
-                          hayAmbasAcciones
-                            ? styles.footerSecondaryCta
-                            : styles.footerPrimaryCta
-                        }
-                        onPress={() => {
-                          setChecklistOrdenId(
-                            ofertaConChecklist.solicitud_servicio_id ?? ofertaConChecklist.orden_id,
-                          );
-                          setShowChecklistModal(true);
-                        }}
-                      >
-                        <Text
-                          style={
-                            hayAmbasAcciones
-                              ? styles.footerSecondaryCtaText
-                              : styles.footerPrimaryCtaText
-                          }
+                      hayAmbasAcciones ? (
+                        <TouchableOpacity
+                          style={styles.footerSecondaryCta}
+                          onPress={() => {
+                            setChecklistOrdenId(
+                              ofertaConChecklist.solicitud_servicio_id ?? ofertaConChecklist.orden_id,
+                            );
+                            setShowChecklistModal(true);
+                          }}
                         >
-                          Ver Checklist
-                        </Text>
-                        <ClipboardList
-                          size={18}
-                          color={hayAmbasAcciones ? COLORS.text.primary : COLORS.text.onPrimary}
+                          <Text style={styles.footerSecondaryCtaText}>Ver Checklist</Text>
+                          <ClipboardList size={18} color={COLORS.text.primary} />
+                        </TouchableOpacity>
+                      ) : (
+                        <Button
+                          title="Ver Checklist"
+                          onPress={() => {
+                            setChecklistOrdenId(
+                              ofertaConChecklist.solicitud_servicio_id ?? ofertaConChecklist.orden_id,
+                            );
+                            setShowChecklistModal(true);
+                          }}
+                          style={styles.footerPrimaryCta}
+                          iconNode={<ClipboardList size={18} color={COLORS.text.onPrimary} />}
+                          iconPosition="right"
                         />
-                      </TouchableOpacity>
+                      )
                     ) : null}
                   </View>
                 ) : null}
@@ -1176,8 +1176,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: COLORS.primary[500],
     borderRadius: BORDERS.radius.md,
+    overflow: 'hidden',
   },
   accionSecundariaButtonTextPrimary: {
     fontSize: 15,
@@ -1346,15 +1346,6 @@ const styles = StyleSheet.create({
   },
   footerPrimaryCta: {
     width: '100%',
-    flexDirection: 'row',
-    height: 48,
-    minHeight: 48,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDERS.radius.pill,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.primary[500],
     ...(Platform.OS === 'web' ? { cursor: 'pointer', boxSizing: 'border-box' } : {}),
   },
   footerPrimaryCtaInRow: {
@@ -1559,16 +1550,8 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginBottom: 12,
   },
-  fechaAlternativaBtn: {
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 12,
-    borderRadius: BORDERS.radius.pill,
-    alignItems: 'center',
-  },
-  fechaAlternativaBtnText: {
-    color: COLORS.text.onPrimary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: TYPOGRAPHY.fontSize.sm,
+  fechaAlternativaBtnWrap: {
+    marginTop: 4,
   },
   fotoLightboxImage: {
     width: '100%',

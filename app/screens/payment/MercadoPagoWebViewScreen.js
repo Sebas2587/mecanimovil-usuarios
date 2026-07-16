@@ -14,6 +14,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { CreditCard, CircleCheck, ExternalLink, X } from 'lucide-react-native';
 import { COLORS, withOpacity } from '../../design-system/tokens';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MercadoPagoService from '../../services/mercadopago';
@@ -651,12 +652,14 @@ const MercadoPagoWebViewScreen = ({ route, navigation }) => {
           <ActivityIndicator size="large" color={COLORS.primary[500]} style={{ marginTop: 24 }} />
         ) : (
           <TouchableOpacity
-            style={styles.webVerifyButton}
+            style={styles.webVerifyButtonWrap}
             onPress={handleWebVerificarPago}
             activeOpacity={0.8}
           >
-            <CircleCheck size={20} color={COLORS.text.inverse} />
-            <Text style={styles.webVerifyButtonText}>Ya pagué — Verificar pago</Text>
+            <PrimaryGradientFill style={styles.webVerifyButton}>
+              <CircleCheck size={20} color={COLORS.text.inverse} />
+              <Text style={styles.webVerifyButtonText}>Ya pagué — Verificar pago</Text>
+            </PrimaryGradientFill>
           </TouchableOpacity>
         )}
 
@@ -901,15 +904,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
+  webVerifyButtonWrap: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
   webVerifyButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: COLORS.primary[500],
     paddingVertical: 14,
     paddingHorizontal: 28,
-    borderRadius: 14,
-    marginBottom: 16,
   },
   webVerifyButtonText: {
     color: COLORS.text.inverse,

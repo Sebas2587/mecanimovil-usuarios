@@ -15,6 +15,7 @@ import {
 } from '../../../services/categories';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import { resolveCategoryVisual } from '../shared/homeCategoryIcons';
+import { H_PAD } from '../shared/homeLayoutConstants';
 
 const VISIBLE_CATEGORIES = 6;
 /** Airbnb Explore: celda con espacio para nombres largos en 2–3 líneas. */
@@ -83,6 +84,7 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.carouselBleed}
         contentContainerStyle={styles.row}
         keyboardShouldPersistTaps="handled"
       >
@@ -129,10 +131,15 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginBottom: SPACING.sm,
   },
+  /** Mismo full-bleed que Destacados: sale del padding del panel y oculta al borde del device. */
+  carouselBleed: {
+    marginHorizontal: -H_PAD,
+  },
   row: {
     flexDirection: 'row',
     gap: SPACING.xs,
-    paddingRight: SPACING.sm,
+    paddingHorizontal: H_PAD,
+    paddingRight: H_PAD + SPACING.sm,
   },
   cell: {
     width: CELL_WIDTH,
@@ -149,12 +156,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.gray[100],
   },
   label: {
-    ...TYPOGRAPHY.styles.small,
+    ...TYPOGRAPHY.styles.caption,
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.primary,
     textAlign: 'center',
     width: '100%',
+    lineHeight: 16,
   },
 });
 

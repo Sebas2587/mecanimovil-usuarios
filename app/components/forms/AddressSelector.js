@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPin, Plus, Star, Trash2, ChevronDown, Navigation, X } from 'lucide-react-native';
 import * as locationService from '../../services/location';
 import AddressSelectionModal from '../location/AddressSelectionModal';
+import Button from '../base/Button/Button';
 import { showAlert, showConfirm } from '../../utils/platformAlert';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { BORDERS } from '../../design-system/tokens/borders';
@@ -38,11 +39,11 @@ const AddressRow = React.memo(function AddressRow({
           {item.es_principal ? (
             <Star
               size={18}
-              color={isSelected ? COLORS.primary[600] : COLORS.warning[600]}
+              color={isSelected ? COLORS.icon.active : COLORS.warning[600]}
               fill={COLORS.warning[500]}
             />
           ) : (
-            <MapPin size={18} color={isSelected ? COLORS.primary[600] : COLORS.text.tertiary} />
+            <MapPin size={18} color={isSelected ? COLORS.icon.active : COLORS.icon.default} />
           )}
         </View>
 
@@ -270,7 +271,7 @@ const AddressSelector = ({
       >
         <View style={useInstitutional ? styles.triggerContent : styles.triggerContentLegacy}>
           <View style={useInstitutional ? styles.triggerIconWrap : styles.triggerIconWrapLegacy}>
-            <Navigation size={18} color={currentAddress ? COLORS.primary[500] : COLORS.text.tertiary} />
+            <Navigation size={18} color={currentAddress ? COLORS.icon.active : COLORS.icon.default} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={useInstitutional ? styles.triggerLabel : styles.triggerLabelLegacy}>Ubicación</Text>
@@ -299,7 +300,7 @@ const AddressSelector = ({
               <X size={22} color={useInstitutional ? COLORS.text.secondary : withOpacity(COLORS.base.white, 0.85)} />
             </TouchableOpacity>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <MapPin size={18} color={useInstitutional ? COLORS.primary[500] : COLORS.success[300]} />
+              <MapPin size={18} color={useInstitutional ? COLORS.icon.active : COLORS.success[300]} />
               <Text style={useInstitutional ? styles.modalTitle : styles.modalTitleLegacy}>Mis direcciones</Text>
             </View>
             <TouchableOpacity
@@ -307,7 +308,7 @@ const AddressSelector = ({
               style={useInstitutional ? styles.modalAddBtn : styles.modalAddBtnLegacy}
               activeOpacity={0.7}
             >
-              <Plus size={20} color={useInstitutional ? COLORS.primary[500] : COLORS.primary[200]} />
+              <Plus size={20} color={useInstitutional ? COLORS.icon.active : COLORS.primary[200]} />
             </TouchableOpacity>
           </View>
 
@@ -326,12 +327,12 @@ const AddressSelector = ({
                 <Text style={useInstitutional ? styles.emptySubtitle : styles.emptySubtitleLegacy}>
                   Agrega tu primera dirección para comenzar
                 </Text>
-                <TouchableOpacity onPress={handleAddNew} style={styles.emptyButton} activeOpacity={0.85}>
-                  <View style={useInstitutional ? styles.emptyButtonSolid : styles.emptyButtonGradientLegacy}>
-                    <Plus size={18} color={COLORS.text.inverse} />
-                    <Text style={styles.emptyButtonText}>Agregar dirección</Text>
-                  </View>
-                </TouchableOpacity>
+                <Button
+                  title="Agregar dirección"
+                  iconNode={<Plus size={18} color={COLORS.text.onPrimary} strokeWidth={2} />}
+                  onPress={handleAddNew}
+                  style={styles.emptyButton}
+                />
               </View>
             ) : (
               <FlatList
@@ -434,7 +435,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.background.secondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -523,9 +524,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.buttonSecondary.background,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[200],
+    borderColor: COLORS.buttonSecondary.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -585,14 +586,19 @@ const styles = StyleSheet.create({
     ...SHADOWS.sm,
   },
   addressCardSelected: {
-    borderColor: COLORS.primary[400],
-    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.brand.orange,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: 2,
   },
   addressCardMain: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    paddingVertical: 14,
+    paddingLeft: 14,
+    paddingRight: 8,
+    gap: 12,
+    minWidth: 0,
   },
   addressCardContent: {
     flexDirection: 'row',
@@ -607,9 +613,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.gray[100],
     justifyContent: 'center',
     alignItems: 'center',
+    flexShrink: 0,
   },
   addressIconWrapSelected: {
-    backgroundColor: COLORS.primary[100],
+    backgroundColor: COLORS.background.secondary,
   },
   addressTextContainer: {
     flex: 1,
@@ -622,7 +629,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   addressLabelSelected: {
-    color: COLORS.primary[700],
+    color: COLORS.text.primary,
   },
   addressText: {
     fontSize: 13,
@@ -645,7 +652,12 @@ const styles = StyleSheet.create({
   addressActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    alignSelf: 'stretch',
+    gap: 8,
+    paddingVertical: 14,
+    paddingRight: 14,
+    paddingLeft: 4,
+    flexShrink: 0,
   },
   actionBtn: {
     width: 36,
@@ -803,31 +815,6 @@ const styles = StyleSheet.create({
     borderRadius: BORDERS.radius.md,
     overflow: 'hidden',
     minWidth: 220,
-  },
-  emptyButtonSolid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[500],
-  },
-  emptyButtonGradientLegacy: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-    backgroundColor: COLORS.primary[500],
-  },
-  emptyButtonText: {
-    color: COLORS.text.onPrimary,
-    fontSize: 15,
-    fontWeight: '700',
   },
 });
 

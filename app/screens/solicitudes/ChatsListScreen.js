@@ -23,6 +23,7 @@ import { useConversationsList, CONVERSATIONS_KEYS } from '../../hooks/useChats';
 import ChatsListSkeleton from '../../components/utils/ChatsListSkeleton';
 import chatService from '../../services/chatService';
 import ChatSwipeableRow from '../../components/chats/ChatSwipeableRow';
+import PrimaryGradientBadge from '../../components/base/PrimaryGradientBadge/PrimaryGradientBadge';
 import { attachmentPreviewLabel, getMessageAttachmentUri } from '../../utils/chatAttachmentMedia';
 
 const ChatsListScreen = () => {
@@ -139,9 +140,9 @@ const ChatsListScreen = () => {
                   {lastMsg}
                 </Text>
                 {unread ? (
-                  <View style={styles.unreadBadge}>
+                  <PrimaryGradientBadge style={styles.unreadBadge}>
                     <Text style={styles.unreadText}>{item.unread_count}</Text>
-                  </View>
+                  </PrimaryGradientBadge>
                 ) : null}
               </View>
             </View>
@@ -332,13 +333,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   unreadBadge: {
-    backgroundColor: COLORS.primary[500],
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
+    overflow: 'hidden',
   },
   unreadText: {
     ...TYPOGRAPHY.styles.small,

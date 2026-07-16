@@ -694,7 +694,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: colors.primary[50],
+        backgroundColor: colors.background.secondary,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: spacing.md,
@@ -892,8 +892,9 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         minWidth: 0,
     },
     addressItemSelected: {
-        backgroundColor: colors.primary[50],
-        borderColor: colors.primary[200],
+        backgroundColor: colors.background.paper,
+        borderColor: colors.brand.orange,
+        borderWidth: 2,
     },
     itemIcon: {
         width: 40,
@@ -905,7 +906,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         flexShrink: 0,
     },
     itemIconSelected: {
-        backgroundColor: colors.primary[100],
+        backgroundColor: colors.background.secondary,
     },
     itemContent: {
         flex: 1,
@@ -951,7 +952,7 @@ const getStyles = (colors, typography, spacing, borders) => StyleSheet.create({
         width: 28,
         height: 28,
         borderRadius: 14,
-        backgroundColor: colors.primary[100],
+        backgroundColor: colors.background.secondary,
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,

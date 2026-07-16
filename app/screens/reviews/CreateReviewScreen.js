@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -28,6 +26,7 @@ import { post } from '../../services/api';
 import { showAlert } from '../../utils/platformAlert';
 import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { BORDERS, SPACING, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
+import Button from '../../components/base/Button/Button';
 import { TAB_BAR_BASE_HEIGHT } from '../../components/home/shared/homeLayoutConstants';
 import { PENDING_REVIEWS_QUERY_KEY } from '../../hooks/usePendingReviews';
 
@@ -342,26 +341,15 @@ const CreateReviewScreen = () => {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.submitButton,
-            (rating === 0 || submitting) && styles.submitButtonDisabled,
-            pressed && !(rating === 0 || submitting) && styles.submitButtonPressed,
-          ]}
+        <Button
+          title="Enviar reseña"
           onPress={handleSubmit}
           disabled={rating === 0 || submitting}
-          accessibilityRole="button"
+          isLoading={submitting}
+          fullWidth
+          iconNode={<Send size={18} color={COLORS.text.onPrimary} strokeWidth={1.75} />}
           accessibilityLabel="Enviar reseña"
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color={COLORS.text.onPrimary} />
-          ) : (
-            <>
-              <Send size={18} color={COLORS.text.onPrimary} strokeWidth={1.75} />
-              <Text style={styles.submitButtonText}>Enviar reseña</Text>
-            </>
-          )}
-        </Pressable>
+        />
       </View>
     </SafeAreaView>
   );
@@ -580,30 +568,6 @@ const styles = StyleSheet.create({
       },
       default: {},
     }),
-  },
-  submitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 14,
-    borderRadius: BORDERS.radius.pill,
-    gap: 8,
-    ...Platform.select({
-      web: { cursor: 'pointer' },
-      default: {},
-    }),
-  },
-  submitButtonPressed: {
-    opacity: 0.9,
-  },
-  submitButtonDisabled: {
-    backgroundColor: COLORS.neutral.gray[300],
-  },
-  submitButtonText: {
-    color: COLORS.text.onPrimary,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
   },
   emptyState: {
     flex: 1,

@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from '../base/Icon/Icon';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
+import VerifiedSeal from '../base/VerifiedSeal/VerifiedSeal';
 import { Image } from 'expo-image';
 import { COLORS, SPACING, BORDERS, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { calcularDesgloseIvaOferta, resolverDesgloseIvaMostrado } from '../../utils/ofertaPrecioDesglose';
@@ -203,7 +205,7 @@ const OfferCardDetailed = ({
                                 {oferta.nombre_proveedor}
                             </Text>
                             {oferta.proveedor_verificado && (
-                                <Icon name="checkmark-circle" size={16} color={COLORS.primary[500]} />
+                                <VerifiedSeal size={16} checkSize={10} accessibilityLabel="Proveedor verificado" />
                             )}
                         </View>
                         <View style={styles.viewProfileRow}>
@@ -515,12 +517,21 @@ const OfferCardDetailed = ({
                     </View>
                 ) : (
                     <TouchableOpacity
-                        style={[styles.acceptButton, disabled && styles.disabledButton]}
+                        style={styles.acceptButton}
                         onPress={() => onAceptarPress(oferta)}
                         disabled={disabled}
                     >
-                        <Text style={styles.acceptButtonText}>Aceptar Oferta</Text>
-                        <Icon name="arrow-forward" size={18} color={COLORS.text.onPrimary} />
+                        {disabled ? (
+                            <View style={[styles.acceptButtonFill, styles.disabledButtonFill]}>
+                                <Text style={styles.acceptButtonText}>Aceptar Oferta</Text>
+                                <Icon name="arrow-forward" size={18} color={COLORS.text.onPrimary} />
+                            </View>
+                        ) : (
+                            <PrimaryGradientFill style={styles.acceptButtonFill}>
+                                <Text style={styles.acceptButtonText}>Aceptar Oferta</Text>
+                                <Icon name="arrow-forward" size={18} color={COLORS.text.onPrimary} />
+                            </PrimaryGradientFill>
+                        )}
                     </TouchableOpacity>
                 )}
             </View>
@@ -956,9 +967,13 @@ const styles = StyleSheet.create({
     },
     acceptButton: {
         flex: 1,
-        flexDirection: 'row',
-        backgroundColor: COLORS.primary[500],
         borderRadius: BORDERS.radius.pill,
+        overflow: 'hidden',
+        height: 48,
+    },
+    acceptButtonFill: {
+        flex: 1,
+        flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         gap: SPACING.xs,
@@ -1004,7 +1019,7 @@ const styles = StyleSheet.create({
     acceptedInfoValuePending: {
         color: COLORS.primary[700],
     },
-    disabledButton: {
+    disabledButtonFill: {
         backgroundColor: COLORS.neutral.gray[200],
         borderColor: COLORS.border.light,
     },

@@ -21,10 +21,10 @@ import { COLORS } from '../../../design-system/tokens';
 
 const DEFAULT_ICON = Wrench;
 
-/** Fondo / trazo únicos del sistema (Airbnb Explore: círculo neutro + icono ink). */
+/** Fondo / trazo únicos del sistema (Airbnb Explore: círculo tonal + icono default). */
 const CATEGORY_SURFACE = {
-  bg: COLORS.neutral.gray[100],
-  color: COLORS.text.primary,
+  bg: COLORS.background.secondary,
+  color: COLORS.icon.default,
 };
 
 const RULES = [
@@ -44,8 +44,8 @@ export const HEALTH_CATEGORY = {
   nombre: 'Salud',
   isHealth: true,
   Icon: HeartPulse,
-  bg: COLORS.primary[50],
-  color: COLORS.primary[600],
+  bg: COLORS.background.secondary,
+  color: COLORS.icon.active,
 };
 
 export function resolveCategoryVisual(category) {

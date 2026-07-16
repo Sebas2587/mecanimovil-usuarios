@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Wrench } from 'lucide-react-native';
+import { COLORS } from '../../design-system/tokens';
 import ServicePhotosCarousel from './ServicePhotosCarousel';
 import { providerServiceCardStyles as styles } from './providerServiceCardStyles';
 
 /**
- * Card de servicio en catálogo de proveedor (grid 2 columnas).
- * Coinbase: categoría sobre imagen (arriba-derecha), badge repuestos, título, precio.
+ * Card de servicio en catálogo de proveedor (grid 2 columnas, patrón Airbnb).
+ * Zonas fijas (título, precio, tag repuestos) para alinear contenido entre cards de la misma fila.
  */
 export default function ProviderCatalogServiceCard({
   servicio,
@@ -22,19 +24,24 @@ export default function ProviderCatalogServiceCard({
   const fotos = Array.isArray(servicio?.fotos_servicio) ? servicio.fotos_servicio : [];
   const hasPhotos = fotos.length > 0;
   const conRepuestos = tipoLabel === 'Con repuestos';
+  const footerNodes = React.useMemo(() => {
+    if (footer == null) return [];
+    const nodes = Array.isArray(footer)
+      ? footer
+      : React.Children.toArray(footer);
+    return nodes.filter(Boolean);
+  }, [footer]);
+  const showPrice = Boolean(precioLabel || precioSubtitulo);
 
-  const Wrapper = onPress ? TouchableOpacity : View;
-  const wrapperProps = onPress
-    ? { onPress, activeOpacity: 0.88, disabled }
-    : {};
-
-  return (
-    <Wrapper style={styles.serviceCardShell} {...wrapperProps}>
-      <View style={[styles.mediaWrap, !hasPhotos && styles.mediaWrapCompact]}>
+  const cardContent = (
+    <>
+      <View style={[styles.mediaWrap, { height: imageHeight }]}>
         {hasPhotos ? (
           <ServicePhotosCarousel photos={fotos} height={imageHeight} />
         ) : (
-          <View style={[styles.mediaPlaceholder, { height: imageHeight * 0.55 }]} />
+          <View style={[styles.mediaPlaceholder, { height: imageHeight }]}>
+            <Wrench size={24} color={COLORS.neutral.gray[400]} strokeWidth={1.75} />
+          </View>
         )}
         {categoria ? (
           <View style={styles.categoryOverlay} pointerEvents="none">
@@ -46,37 +53,70 @@ export default function ProviderCatalogServiceCard({
       </View>
 
       <View style={styles.serviceCardBody}>
-        <View
-          style={[
-            styles.serviceTipoBadge,
-            conRepuestos ? styles.serviceTipoBadgeCon : styles.serviceTipoBadgeSin,
-          ]}
-        >
-          <Text
-            style={[
-              styles.serviceTipoBadgeText,
-              conRepuestos ? styles.serviceTipoBadgeTextCon : styles.serviceTipoBadgeTextSin,
-            ]}
-          >
-            {tipoLabel}
+        <View style={styles.bodyTop}>
+          <Text style={styles.serviceName} numberOfLines={2}>
+            {nombre}
           </Text>
         </View>
 
-        <Text style={styles.serviceName} numberOfLines={2}>
-          {nombre}
-        </Text>
-
-        {precioLabel ? (
-          <Text style={styles.servicePrice}>{precioLabel}</Text>
+        {showPrice ? (
+          <View style={styles.priceBlock}>
+            {precioLabel ? (
+              <Text style={styles.servicePrice}>{precioLabel}</Text>
+            ) : (
+              <View style={styles.servicePricePlaceholder} />
+            )}
+            {precioSubtitulo ? (
+              <Text style={styles.servicePriceHint} numberOfLines={2}>
+                {precioSubtitulo}
+              </Text>
+            ) : (
+              <View style={styles.servicePriceHintPlaceholder} />
+            )}
+          </View>
         ) : null}
-        {precioSubtitulo ? (
-          <Text style={styles.servicePriceHint} numberOfLines={2}>
-            {precioSubtitulo}
-          </Text>
+
+        {tipoLabel ? (
+          <View style={styles.tipoTagRow}>
+            <View
+              style={[
+                styles.serviceTipoTag,
+                conRepuestos ? styles.serviceTipoTagCon : styles.serviceTipoTagSin,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.serviceTipoTagText,
+                  conRepuestos ? styles.serviceTipoTagTextCon : styles.serviceTipoTagTextSin,
+                ]}
+              >
+                {tipoLabel}
+              </Text>
+            </View>
+          </View>
         ) : null}
 
-        {footer}
+        {footerNodes.length > 0 ? (
+          <View style={styles.footerBlock}>{footerNodes}</View>
+        ) : null}
       </View>
-    </Wrapper>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        style={styles.serviceCardShell}
+        onPress={onPress}
+        activeOpacity={0.88}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={nombre}
+      >
+        <View style={styles.serviceCardInner}>{cardContent}</View>
+      </TouchableOpacity>
+    );
+  }
+
+  return <View style={styles.serviceCardShell}>{cardContent}</View>;
 }

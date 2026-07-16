@@ -12,6 +12,8 @@ import {
   TextInput
 } from 'react-native';
 import Icon from '../base/Icon/Icon';
+import Button from '../base/Button/Button';
+import PrimaryGradientPill from '../base/PrimaryGradientPill/PrimaryGradientPill';
 import { COLORS, withOpacity } from '../../design-system/tokens';
 import * as vehicleService from '../../services/vehicle';
 
@@ -241,15 +243,15 @@ const FiltersModal = ({
             
             <Text style={styles.modalTitle}>Filtros</Text>
             
-            <TouchableOpacity
-              style={[styles.clearButton, !hasActiveFilters && styles.clearButtonDisabled]}
+            <Button
+              title="Limpiar"
               onPress={handleClearFilters}
               disabled={!hasActiveFilters}
-            >
-              <Text style={[styles.clearButtonText, !hasActiveFilters && styles.clearButtonTextDisabled]}>
-                Limpiar
-              </Text>
-            </TouchableOpacity>
+              type="primary"
+              variant={hasActiveFilters ? 'solid' : 'outline'}
+              size="sm"
+              style={styles.clearButton}
+            />
           </View>
 
           <ScrollView 
@@ -261,28 +263,28 @@ const FiltersModal = ({
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Ordenar por</Text>
               <View style={styles.optionsContainer}>
-                {getSortOptions().map((option) => (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={[
-                      styles.optionButton,
-                      localSortBy === option.id && styles.optionButtonSelected
-                    ]}
-                    onPress={() => handleSortOptionPress(option.id)}
-                  >
-                    <Icon 
-                      name={option.icon} 
-                      size={16} 
-                      color={localSortBy === option.id ? COLORS.text.inverse : COLORS.text.primary} 
-                    />
-                    <Text style={[
-                      styles.optionText,
-                      localSortBy === option.id && styles.optionTextSelected
-                    ]}>
-                      {option.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {getSortOptions().map((option) => {
+                  const isSelected = localSortBy === option.id;
+                  return (
+                    <PrimaryGradientPill
+                      key={option.id}
+                      selected={isSelected}
+                      onPress={() => handleSortOptionPress(option.id)}
+                      style={styles.optionButtonShell}
+                      fillStyle={styles.optionButtonFill}
+                      inactiveStyle={styles.optionButtonInactive}
+                    >
+                      <Icon
+                        name={option.icon}
+                        size={16}
+                        color={isSelected ? COLORS.tab.selectedText : COLORS.text.primary}
+                      />
+                      <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                        {option.name}
+                      </Text>
+                    </PrimaryGradientPill>
+                  );
+                })}
               </View>
             </View>
 
@@ -303,13 +305,15 @@ const FiltersModal = ({
               </TouchableOpacity>
               
               {localSelectedComuna && (
-                <TouchableOpacity
-                  style={styles.selectedCommuneChip}
+                <PrimaryGradientPill
+                  selected
                   onPress={() => setLocalSelectedComuna(null)}
+                  style={styles.selectedCommuneChipShell}
+                  fillStyle={styles.selectedCommuneChipFill}
                 >
                   <Text style={styles.selectedCommuneChipText}>{localSelectedComuna}</Text>
-                  <Icon name="close" size={16} color={COLORS.text.inverse} />
-                </TouchableOpacity>
+                  <Icon name="close" size={16} color={COLORS.tab.selectedText} />
+                </PrimaryGradientPill>
               )}
             </View>
 
@@ -321,21 +325,18 @@ const FiltersModal = ({
                   {availableModels.map((model) => {
                     const isSelected = localSelectedMarca === model.marca && localSelectedModelo === model.nombre;
                     return (
-                      <TouchableOpacity
+                      <PrimaryGradientPill
                         key={`${model.marca}-${model.nombre}`}
-                        style={[
-                          styles.vehicleModelButton,
-                          isSelected && styles.vehicleModelButtonSelected
-                        ]}
+                        selected={isSelected}
                         onPress={() => handleVehicleModelPress(model)}
+                        style={styles.vehicleModelShell}
+                        fillStyle={styles.vehicleModelFill}
+                        inactiveStyle={styles.vehicleModelInactive}
                       >
-                        <Text style={[
-                          styles.vehicleModelText,
-                          isSelected && styles.vehicleModelTextSelected
-                        ]}>
+                        <Text style={[styles.vehicleModelText, isSelected && styles.vehicleModelTextSelected]}>
                           {model.marca} {model.nombre}
                         </Text>
-                      </TouchableOpacity>
+                      </PrimaryGradientPill>
                     );
                   })}
                 </View>
@@ -345,12 +346,11 @@ const FiltersModal = ({
 
           {/* Botón de aplicar filtros */}
           <View style={styles.bottomContainer}>
-            <TouchableOpacity
-              style={styles.applyButton}
+            <Button
+              title="Aplicar Filtros"
               onPress={handleApplyFilters}
-            >
-              <Text style={styles.applyButtonText}>Aplicar Filtros</Text>
-            </TouchableOpacity>
+              fullWidth
+            />
           </View>
         </View>
 
@@ -433,21 +433,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   clearButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: COLORS.primary[500],
-  },
-  clearButtonDisabled: {
-    backgroundColor: COLORS.neutral.gray[200],
-  },
-  clearButtonText: {
-    color: COLORS.text.inverse,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  clearButtonTextDisabled: {
-    color: COLORS.text.tertiary,
   },
   modalScrollView: {
     flex: 1,
@@ -469,19 +455,21 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
-  optionButton: {
+  optionButtonShell: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  optionButtonFill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
   },
-  optionButtonSelected: {
-    backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
+  optionButtonInactive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
   optionText: {
     marginLeft: 8,
@@ -489,7 +477,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   optionTextSelected: {
-    color: COLORS.text.inverse,
+    color: COLORS.tab.selectedText,
   },
   communeSelector: {
     flexDirection: 'row',
@@ -513,58 +501,51 @@ const styles = StyleSheet.create({
     color: COLORS.primary[500],
     fontWeight: '500',
   },
-  selectedCommuneChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary[500],
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  selectedCommuneChipShell: {
     borderRadius: 15,
+    overflow: 'hidden',
     marginTop: 10,
     alignSelf: 'flex-start',
   },
+  selectedCommuneChipFill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
   selectedCommuneChipText: {
-    color: COLORS.text.inverse,
+    color: COLORS.tab.selectedText,
     fontSize: 14,
     marginRight: 8,
   },
   vehicleModelsContainer: {
     gap: 10,
   },
-  vehicleModelButton: {
+  vehicleModelShell: {
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  vehicleModelFill: {
     paddingHorizontal: 15,
     paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderWidth: 1,
-    borderColor: COLORS.border.light,
+    alignItems: 'flex-start',
   },
-  vehicleModelButtonSelected: {
-    backgroundColor: COLORS.primary[500],
-    borderColor: COLORS.primary[500],
+  vehicleModelInactive: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    alignItems: 'flex-start',
   },
   vehicleModelText: {
     fontSize: 14,
     color: COLORS.text.primary,
   },
   vehicleModelTextSelected: {
-    color: COLORS.text.inverse,
+    color: COLORS.tab.selectedText,
   },
   bottomContainer: {
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: COLORS.border.light,
-  },
-  applyButton: {
-    backgroundColor: COLORS.primary[500],
-    paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    color: COLORS.text.inverse,
-    fontSize: 16,
-    fontWeight: '600',
   },
   communeModalOverlay: {
     flex: 1,

@@ -9,6 +9,7 @@ import {
 } from 'expo-audio';
 import { Mic, Square, X } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
 
 const formatMs = (ms) => {
   const total = Math.floor((ms || 0) / 1000);
@@ -124,8 +125,10 @@ const AudioRecorderBar = ({ onRecorded, onRecordingChange, disabled, variant = '
       <View style={styles.dot} />
       <Text style={styles.timer}>{formatMs(state.durationMillis)}</Text>
       <Text style={styles.hint}>Grabando…</Text>
-      <TouchableOpacity onPress={finishRecording} style={styles.stopBtn}>
-        <Square size={16} color={COLORS.text.onPrimary} fill={COLORS.text.onPrimary} />
+      <TouchableOpacity onPress={finishRecording} style={styles.stopBtn} activeOpacity={0.85}>
+        <PrimaryGradientFill style={styles.stopBtnFill}>
+          <Square size={16} color={COLORS.text.onPrimary} fill={COLORS.text.onPrimary} />
+        </PrimaryGradientFill>
       </TouchableOpacity>
     </View>
   );
@@ -197,7 +200,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.primary[500],
+    overflow: 'hidden',
+  },
+  stopBtnFill: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },

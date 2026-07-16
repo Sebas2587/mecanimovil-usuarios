@@ -5,8 +5,35 @@
  * La preferencia del cliente (con/sin repuestos) solo afecta ranking del match y badges.
  */
 
+import {
+  esServicioDiagnosticoInspeccion,
+  todosServiciosSonDiagnosticoInspeccion,
+} from './servicioDiagnosticoInspeccion';
+
 export function solicitudRequiereRepuestos(valor) {
   return valor !== false;
+}
+
+/** true si el candidato / oferta es diagnóstico o inspección (no aplica repuestos). */
+export function candidatoEsDiagnosticoInspeccion(candidato) {
+  if (!candidato) return false;
+  if (candidato.es_diagnostico === true) return true;
+
+  const lineas = candidato.servicios_ofrecidos;
+  if (Array.isArray(lineas) && lineas.length > 0) {
+    return todosServiciosSonDiagnosticoInspeccion(lineas);
+  }
+
+  if (candidato.servicio) {
+    return esServicioDiagnosticoInspeccion(candidato.servicio);
+  }
+
+  const servicios = candidato.servicios;
+  if (Array.isArray(servicios) && servicios.length > 0) {
+    return todosServiciosSonDiagnosticoInspeccion(servicios);
+  }
+
+  return false;
 }
 
 function parsePrecioPositivo(value) {
@@ -167,6 +194,48 @@ export function etiquetaModoPrecioServicio(svc) {
   if (!svc) return null;
   if (servicioOfreceRepuestosEnCatalogo(svc)) return 'Con repuestos';
   return 'Solo mano de obra';
+}
+
+/**
+ * Subtítulo contextual del comparador: ubicación real + tipo de servicio vs preferencia.
+ * Sustituye la `explicacion` genérica del API cuando hay datos locales.
+ *
+ * @param {{ locationLabel?: string|null, aDomicilio?: boolean, solicitudConRepuestos?: boolean, candidato: object }} opts
+ */
+export function buildExplicacionCandidatoContextual({
+  locationLabel = null,
+  aDomicilio = false,
+  solicitudConRepuestos = true,
+  candidato,
+} = {}) {
+  const parts = [];
+
+  const loc = locationLabel != null ? String(locationLabel).trim() : '';
+  if (loc) {
+    parts.push(loc);
+  } else if (aDomicilio) {
+    parts.push('Atiende a domicilio en tu zona');
+  }
+
+  if (candidatoEsDiagnosticoInspeccion(candidato)) {
+    parts.push('Diagnóstico · no incluye repuestos');
+    return parts.join(' · ');
+  }
+
+  const catalogoCon = ofreceRepuestosEnCatalogo(candidato);
+  const quiereRep = solicitudRequiereRepuestos(solicitudConRepuestos);
+
+  if (quiereRep && catalogoCon) {
+    parts.push('Incluye repuestos en catálogo');
+  } else if (quiereRep && !catalogoCon) {
+    parts.push('Solo mano de obra en catálogo');
+  } else if (!quiereRep && !catalogoCon) {
+    parts.push('Solo mano de obra, como pediste');
+  } else {
+    parts.push('Catálogo con repuestos · pediste solo mano de obra');
+  }
+
+  return parts.length ? parts.join(' · ') : null;
 }
 
 export function sumPreciosServiciosOfrecidos(candidato) {

@@ -24,8 +24,6 @@ import {
   Globe,
   Star,
   Camera,
-  Building2,
-  Wrench,
 } from 'lucide-react-native';
 
 import { useQuery } from '@tanstack/react-query';
@@ -40,6 +38,7 @@ import {
 } from '../../components/home/shared/providerCatalogSchedule';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
+import ProviderAboutSection from '../../components/provider/ProviderAboutSection';
 import TrustSection from '../../components/provider/TrustSection';
 import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
@@ -62,14 +61,15 @@ import { filtrarServiciosCatalogoPerfilProveedor } from '../../utils/servicioVeh
 import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
 import { resolveVehiclePanelSeleccionado } from '../../utils/vehiclePanelContext';
 import { useAuth } from '../../context/AuthContext';
-import ServicioTarifasPorMarca from '../../components/provider/ServicioTarifasPorMarca';
+import ServicioTarifasPorMarca, { tarifasMuestranDesglose } from '../../components/provider/ServicioTarifasPorMarca';
 import { isProviderMultimarca, mergeProviderKpiBadge } from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
 import { useFavorites } from '../../context/FavoritesContext';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
-import { providerServiceCardStyles as svcCard } from '../../components/provider/providerServiceCardStyles';
+import { providerServiceCardStyles as svcCard, chunkCatalogServiceRows } from '../../components/provider/providerServiceCardStyles';
 import SectionHeader from '../../components/base/SectionHeader/SectionHeader';
 import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
+import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import Button from '../../components/base/Button/Button';
 import { formatProviderStreetAddress } from '../../utils/formatProviderStreetAddress';
 import HeroImageGradientScrim from '../../components/vehicles/HeroImageGradientScrim';
@@ -168,8 +168,8 @@ const ProviderHeroGallery = ({
             >
               <Heart
                 size={18}
-                color={isFavorite ? COLORS.primary[400] : COLORS.text.inverse}
-                fill={isFavorite ? COLORS.primary[400] : 'transparent'}
+                color={isFavorite ? COLORS.brand.magenta : COLORS.text.inverse}
+                fill={isFavorite ? COLORS.brand.magenta : 'transparent'}
                 strokeWidth={2}
               />
             </TouchableOpacity>
@@ -346,6 +346,7 @@ const ProviderDetailScreen = () => {
   );
   const tieneEquipoPublico = providerType === 'taller' && equipoPublico.length > 0;
   const { data: documents } = useProviderDocuments(idToLoad, providerType);
+  const hasTrustDocuments = (documents?.length ?? 0) > 0;
   const { data: reviewsData } = useProviderReviews(idToLoad, providerType);
   const { data: completedJobs = [] } = useProviderCompletedJobs(idToLoad, providerType);
 
@@ -415,11 +416,15 @@ const ProviderDetailScreen = () => {
     return `Precio para tu ${marca}. Toca un servicio para agendar.`;
   }, [userVehiclesActivos]);
 
-  const showStickyCta = serviciosVisibles.length > 0;
+  const firstSchedulableService = useMemo(
+    () => serviciosVisibles.find((s) => resolveServicioId(s)),
+    [serviciosVisibles],
+  );
 
-  const handleStickyCta = useCallback(() => {
-    scrollRef.current?.scrollTo({ y: servicesSectionY.current, animated: true });
-  }, []);
+  /** Solo invitados: usuarios logueados agendan desde las cards del catálogo. */
+  const showStickyCta = Boolean(
+    !user && vehicleForSchedule?.id && firstSchedulableService,
+  );
 
   const handleScheduleService = useCallback(
     (servicio) => {
@@ -443,6 +448,12 @@ const ProviderDetailScreen = () => {
     },
     [vehicleForSchedule, provider, providerType, navigation],
   );
+
+  const handleStickyCta = useCallback(() => {
+    if (firstSchedulableService) {
+      handleScheduleService(firstSchedulableService);
+    }
+  }, [firstSchedulableService, handleScheduleService]);
 
   const handleShare = async () => {
     if (!idToLoad) return;
@@ -530,6 +541,11 @@ const ProviderDetailScreen = () => {
           />
         )}
 
+        <ProviderAboutSection
+          description={provider?.descripcion}
+          providerType={providerType === 'taller' ? 'taller' : 'mecanico'}
+        />
+
         <Divider />
 
         {/* Cobertura / Dirección */}
@@ -557,7 +573,6 @@ const ProviderDetailScreen = () => {
               <View style={styles.section}>
                 <SectionHeader
                   title="Comunas de Cobertura"
-                  icon={<MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />}
                 />
                 {comunas.length > 0 ? (
                   <View style={styles.tagsRow}>
@@ -587,11 +602,10 @@ const ProviderDetailScreen = () => {
             <View style={styles.section}>
               <SectionHeader
                 title="Dirección del Taller"
-                icon={<Building2 size={18} color={COLORS.primary[500]} strokeWidth={2} />}
               />
               <Card variant="outlined">
                 <View style={styles.iconRow}>
-                  <MapPin size={18} color={COLORS.primary[500]} strokeWidth={2} />
+                  <MapPin size={18} color={COLORS.icon.active} strokeWidth={2} />
                   <Text style={[TYPOGRAPHY.styles.body, styles.bodyText]}>{display}</Text>
                 </View>
               </Card>
@@ -610,11 +624,10 @@ const ProviderDetailScreen = () => {
             <View style={styles.section}>
               <SectionHeader
                 title={esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
-                icon={<Wrench size={18} color={COLORS.primary[500]} strokeWidth={2} />}
               />
               {esMultimarca ? (
                 <View style={styles.multimarcaBadge}>
-                  <Globe size={28} color={COLORS.primary[500]} strokeWidth={1.75} />
+                  <Globe size={28} color={COLORS.text.secondary} strokeWidth={1.75} />
                   <View>
                     <Text style={[TYPOGRAPHY.styles.h5, styles.multimarcaBadgeTitle]}>
                       Proveedor Multimarca
@@ -630,8 +643,8 @@ const ProviderDetailScreen = () => {
                     <View key={i} style={[styles.tagBadge, styles.tagBadgeEspecialista]}>
                       <Star
                         size={12}
-                        color={COLORS.secondary[600]}
-                        fill={COLORS.secondary[500]}
+                        color={COLORS.badge.especialista.icon}
+                        fill={COLORS.badge.especialista.icon}
                         strokeWidth={2}
                       />
                       <Text style={[styles.tagText, styles.tagTextEspecialista]}>{brand}</Text>
@@ -677,84 +690,96 @@ const ProviderDetailScreen = () => {
           )}
         </View>
 
-        <Divider />
+        {hasTrustDocuments ? (
+          <>
+            <Divider />
+            <TrustSection documents={documents} />
+          </>
+        ) : null}
 
-        <TrustSection documents={documents || []} />
-
-        <Divider />
-
-        {/* SECCIÓN DE SERVICIOS */}
         {(provider.servicios?.length > 0 || serviciosVisibles.length > 0) && (
-          <View
-            style={[styles.section, styles.sectionLast]}
-            onLayout={(e) => {
-              servicesSectionY.current = e.nativeEvent.layout.y;
-            }}
-          >
-            <SectionHeader title="Servicios Profesionales" hint={servicesHint} />
-            {userVehiclesActivos.length === 0 ? (
-              <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
-                Agrega un vehículo en tu perfil para ver precios y agendar.
-              </Text>
-            ) : !vehicleForSchedule?.id ? (
-              <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
-                Selecciona un vehículo activo en el inicio para agendar.
-              </Text>
-            ) : null}
-            {serviciosVisibles.length === 0 ? (
-              <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
-                {userVehiclesActivos.length > 0
-                  ? 'Este proveedor no tiene precio para ninguno de tus vehículos registrados en estos servicios.'
-                  : 'Registra un vehículo para ver los servicios disponibles con precios para tu marca.'}
-              </Text>
-            ) : null}
-            <View style={svcCard.servicesGrid}>
-              {serviciosVisibles.map((servicio, idx) => {
-                const servicioId = resolveServicioId(servicio);
-                const canSchedule = !!vehicleForSchedule?.id && !!servicioId;
-                const tarifasUsuario = servicio._tarifas_usuario || [];
-                const precioInfo = labelPrecioServicioResuelto(servicio, {
-                  vehicle: vehicleForSchedule,
-                  vehicles: userVehiclesActivos,
-                });
-                const precioLabel =
-                  precioInfo.principal
-                  ?? formatPrecioCatalogoServicio(servicio, {
-                    vehicle: vehicleForSchedule,
-                    vehicles: userVehiclesActivos,
-                  });
-                const tipoLabel = labelTipoServicioCatalogo(servicio);
-
-                return (
-                  <ProviderCatalogServiceCard
-                    key={`${servicio.oferta_id || servicioId || idx}-${servicio.tipo_servicio || 'o'}`}
-                    servicio={servicio}
-                    tipoLabel={tipoLabel}
-                    precioLabel={precioLabel}
-                    precioSubtitulo={precioInfo.subtitulo}
-                    onPress={() => handleScheduleService(servicio)}
-                    disabled={!canSchedule}
-                    imageHeight={120}
-                    footer={(
-                      <>
-                        {tarifasUsuario.length > 1 ? (
+          <>
+            <Divider />
+            <View
+              style={[styles.section, styles.sectionLast]}
+              onLayout={(e) => {
+                servicesSectionY.current = e.nativeEvent.layout.y;
+              }}
+            >
+              <SectionHeader title="Servicios Profesionales" hint={servicesHint} />
+              {userVehiclesActivos.length === 0 ? (
+                <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
+                  Agrega un vehículo en tu perfil para ver precios y agendar.
+                </Text>
+              ) : !vehicleForSchedule?.id ? (
+                <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
+                  Selecciona un vehículo activo en el inicio para agendar.
+                </Text>
+              ) : null}
+              {serviciosVisibles.length === 0 ? (
+                <Text style={[TYPOGRAPHY.styles.caption, styles.noVehicleHint]}>
+                  {userVehiclesActivos.length > 0
+                    ? 'Este proveedor no tiene precio para ninguno de tus vehículos registrados en estos servicios.'
+                    : 'Registra un vehículo para ver los servicios disponibles con precios para tu marca.'}
+                </Text>
+              ) : null}
+              <View style={svcCard.servicesGrid}>
+                {chunkCatalogServiceRows(serviciosVisibles).map((row, rowIdx) => (
+                  <View key={`svc-row-${rowIdx}`} style={svcCard.servicesRow}>
+                    {row.map((servicio, colIdx) => {
+                      const idx = rowIdx * 2 + colIdx;
+                      const servicioId = resolveServicioId(servicio);
+                      const canSchedule = !!vehicleForSchedule?.id && !!servicioId;
+                      const tarifasUsuario = servicio._tarifas_usuario || [];
+                      const precioInfo = labelPrecioServicioResuelto(servicio, {
+                        vehicle: vehicleForSchedule,
+                        vehicles: userVehiclesActivos,
+                      });
+                      const precioLabel =
+                        precioInfo.principal
+                        ?? formatPrecioCatalogoServicio(servicio, {
+                          vehicle: vehicleForSchedule,
+                          vehicles: userVehiclesActivos,
+                        });
+                      const tipoLabel = labelTipoServicioCatalogo(servicio);
+                      const footerContent = [];
+                      if (tarifasMuestranDesglose(tarifasUsuario)) {
+                        footerContent.push(
                           <ServicioTarifasPorMarca
+                            key="tarifas"
                             tarifas={tarifasUsuario}
-                            soloSiVarias={false}
-                          />
-                        ) : null}
-                        {servicio.duracion_estimada ? (
-                          <Text style={svcCard.serviceMeta}>
+                            soloSiVarias
+                          />,
+                        );
+                      }
+                      if (servicio.duracion_estimada) {
+                        footerContent.push(
+                          <Text key="duracion" style={svcCard.serviceMeta}>
                             ~{servicio.duracion_estimada}
-                          </Text>
-                        ) : null}
-                      </>
-                    )}
-                  />
-                );
-              })}
+                          </Text>,
+                        );
+                      }
+
+                      return (
+                        <ProviderCatalogServiceCard
+                          key={`${servicio.oferta_id || servicioId || idx}-${servicio.tipo_servicio || 'o'}`}
+                          servicio={servicio}
+                          tipoLabel={tipoLabel}
+                          precioLabel={precioLabel}
+                          precioSubtitulo={precioInfo.subtitulo}
+                          onPress={() => handleScheduleService(servicio)}
+                          disabled={!canSchedule}
+                          imageHeight={120}
+                          footer={footerContent.length > 0 ? footerContent : null}
+                        />
+                      );
+                    })}
+                    {row.length === 1 ? <View style={svcCard.serviceCardSpacer} /> : null}
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
+          </>
         )}
 
         <ProviderCompletedJobsSection jobs={completedJobs} />
@@ -763,12 +788,11 @@ const ProviderDetailScreen = () => {
 
       {showStickyCta ? (
         <StickyFooterCTA style={styles.footerBar}>
-          <Button
-            title="Solicitar servicio"
-            type="primary"
-            size="lg"
+          <GuestGradientButton
+            title="Agendar servicio"
             onPress={handleStickyCta}
             fullWidth
+            accessibilityLabel="Agendar servicio con este proveedor"
           />
         </StickyFooterCTA>
       ) : null}
@@ -852,7 +876,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   seeAllText: {
-    color: COLORS.primary[500],
+    color: COLORS.buttonSecondary.outlineText,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     fontSize: TYPOGRAPHY.fontSize.sm,
   },
@@ -901,25 +925,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
-    backgroundColor: COLORS.primary[50],
+    backgroundColor: COLORS.neutral.gray[50],
     borderRadius: BORDERS.radius.lg,
     padding: SPACING.md,
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
+    borderColor: COLORS.border.light,
   },
   multimarcaBadgeTitle: {
-    color: COLORS.primary[600],
+    color: COLORS.text.primary,
     marginBottom: 2,
   },
   multimarcaBadgeSub: {
-    color: COLORS.primary[500],
+    color: COLORS.text.secondary,
   },
   tagBadgeEspecialista: {
-    backgroundColor: COLORS.secondary[50],
-    borderColor: COLORS.secondary[200],
+    backgroundColor: COLORS.badge.especialista.background,
+    borderColor: COLORS.badge.especialista.border,
   },
   tagTextEspecialista: {
-    color: COLORS.secondary[700],
+    color: COLORS.badge.especialista.text,
   },
   tagsRow: {
     flexDirection: 'row',

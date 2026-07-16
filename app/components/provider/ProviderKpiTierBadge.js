@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { SPACING } from '../../design-system/tokens';
+import { BORDERS, SPACING } from '../../design-system/tokens';
 import { getKpiTierPresentation } from '../../utils/providerUtils';
 import Tag from '../base/Tag/Tag';
 import Icon from '../base/Icon/Icon';
 
 /**
- * Etiqueta KPI (Elite / Máster / Pro / En progreso…) — Tag + tokens del design system.
+ * Etiqueta KPI (Elite / Máster / Pro / En progreso…).
+ * Colores canónicos: COLORS.kpi.* vía getKpiTierPresentation (oro → plata → bronce).
  */
 export default function ProviderKpiTierBadge({
   kpiBadge = null,
@@ -25,22 +26,32 @@ export default function ProviderKpiTierBadge({
     : `Nivel ${presentation.label}`;
 
   const size = variant === 'profile' ? 'md' : 'sm';
+  const iconColor = presentation.icon_color || presentation.text_color;
+  const isElite = presentation.styleCode === 'ELITE';
+
   const icon = (
-    <Icon name="ribbon-outline" size={iconSize} color={presentation.text_color} />
+    <Icon name="ribbon-outline" size={iconSize} color={iconColor} />
   );
 
   const tag = (
     <Tag
       label={presentation.label}
-      variant={presentation.tagVariant || 'neutral'}
+      variant="neutral"
       size={size}
       icon={icon}
       style={[
+        {
+          backgroundColor: presentation.bg_color,
+          borderWidth: BORDERS.width.thin,
+          borderColor: presentation.border_color,
+        },
+        isElite ? styles.eliteShine : null,
         variant === 'inline' ? styles.inline : null,
         variant === 'floating' ? styles.floating : null,
         variant === 'profile' ? styles.profile : null,
         style,
       ]}
+      textStyle={{ color: presentation.text_color, fontWeight: '700' }}
     />
   );
 
@@ -80,5 +91,13 @@ const styles = StyleSheet.create({
   },
   profile: {
     marginBottom: SPACING.xs,
+  },
+  /** Toque dorado extra en Elite (máxima distinción). */
+  eliteShine: {
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });

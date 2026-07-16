@@ -1,10 +1,12 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Package, Wrench } from 'lucide-react-native';
-import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import { COLORS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
+import SegmentedControl from '../base/SegmentedControl/SegmentedControl';
 
 /**
- * Con / sin repuestos en estilo segmented (Coinbase-light).
+ * Con / sin repuestos — mismo patrón Airbnb que SegmentedControl
+ * (selected: paper + orange; sin track gris; no CTA gradient).
  */
 export default function SolicitudRepuestosToggle({
   value = true,
@@ -14,51 +16,55 @@ export default function SolicitudRepuestosToggle({
   fijoConRepuestos = true,
   compact = false,
 }) {
+  const conRepuestos = value !== false;
+
+  const segments = useMemo(
+    () => [
+      {
+        id: 'con',
+        label: compact ? 'Con rep.' : 'Con repuestos',
+        Icon: Package,
+      },
+      {
+        id: 'sin',
+        label: compact ? 'M. de obra' : 'Solo mano de obra',
+        Icon: Wrench,
+      },
+    ],
+    [compact],
+  );
+
   if (catalogoFijo) {
+    const conRep = fijoConRepuestos;
     return (
-      <View style={styles.wrap}>
-        <Text style={styles.label}>Repuestos</Text>
-        <View style={[styles.segment, styles.segmentActivePrimary, styles.segmentFijo]}>
-          <Package size={16} color={COLORS.primary[600]} />
-          <Text style={[styles.segmentText, styles.segmentTextActivePrimary]}>
-            {fijoConRepuestos ? 'Con repuestos (catálogo)' : 'Solo mano de obra (catálogo)'}
+      <View style={[styles.wrap, compact && styles.wrapCompact]}>
+        {!compact ? <Text style={styles.label}>Repuestos</Text> : null}
+        <View style={styles.fijoChip}>
+          {conRep ? (
+            <Package size={15} color={COLORS.tab.selectedText} strokeWidth={2} />
+          ) : (
+            <Wrench size={15} color={COLORS.tab.selectedText} strokeWidth={2} />
+          )}
+          <Text style={styles.fijoText}>
+            {conRep ? 'Con repuestos (catálogo)' : 'Solo mano de obra (catálogo)'}
           </Text>
         </View>
       </View>
     );
   }
 
-  const conRepuestos = value !== false;
-
   return (
-    <View style={[styles.wrap, compact && styles.wrapCompact]}>
+    <View style={[styles.wrap, compact && styles.wrapCompact]} pointerEvents={disabled ? 'none' : 'auto'}>
       {!compact ? <Text style={styles.label}>¿Incluir repuestos?</Text> : null}
-      <View style={[styles.segments, compact && styles.segmentsCompact]}>
-        <TouchableOpacity
-          style={[styles.segment, compact && styles.segmentCompact, conRepuestos && styles.segmentActivePrimary]}
-          onPress={() => onChange?.(true)}
-          disabled={disabled}
-          accessibilityRole="button"
-          accessibilityState={{ selected: conRepuestos }}
-        >
-          <Package size={compact ? 14 : 16} color={conRepuestos ? COLORS.primary[600] : COLORS.text.secondary} />
-          <Text style={[styles.segmentText, compact && styles.segmentTextCompact, conRepuestos && styles.segmentTextActivePrimary]}>
-            {compact ? 'Con rep.' : 'Con repuestos'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.segment, compact && styles.segmentCompact, !conRepuestos && styles.segmentActiveNeutral]}
-          onPress={() => onChange?.(false)}
-          disabled={disabled}
-          accessibilityRole="button"
-          accessibilityState={{ selected: !conRepuestos }}
-        >
-          <Wrench size={compact ? 14 : 16} color={!conRepuestos ? COLORS.primary[700] : COLORS.text.secondary} />
-          <Text style={[styles.segmentText, compact && styles.segmentTextCompact, !conRepuestos && styles.segmentTextActiveNeutral]}>
-            {compact ? 'M. de obra' : 'Solo mano de obra'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <SegmentedControl
+        segments={segments}
+        value={conRepuestos ? 'con' : 'sin'}
+        onChange={(id) => {
+          if (disabled) return;
+          onChange?.(id === 'con');
+        }}
+        style={styles.control}
+      />
     </View>
   );
 }
@@ -76,59 +82,23 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginBottom: SPACING.xs,
   },
-  segments: {
-    flexDirection: 'row',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.neutral.gray[100],
-    borderRadius: BORDERS.radius.md,
-    padding: 4,
+  control: {
+    alignSelf: 'stretch',
   },
-  segmentsCompact: {
-    padding: 3,
-  },
-  segment: {
-    flex: 1,
+  fijoChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
     gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: BORDERS.radius.sm,
+    paddingVertical: 8,
+    paddingHorizontal: SPACING.md,
+    borderRadius: 999,
+    backgroundColor: COLORS.tab.selectedBg,
+    borderWidth: 1,
+    borderColor: COLORS.tab.selectedBorder,
   },
-  segmentCompact: {
-    paddingVertical: 7,
-    paddingHorizontal: 6,
-    gap: 4,
-  },
-  segmentFijo: {
-    justifyContent: 'flex-start',
-    paddingHorizontal: 12,
-  },
-  segmentActivePrimary: {
-    backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[200],
-  },
-  segmentActiveNeutral: {
-    backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-  },
-  segmentText: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.secondary,
-  },
-  segmentTextCompact: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-  },
-  segmentTextActivePrimary: {
-    color: COLORS.primary[700],
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-  },
-  segmentTextActiveNeutral: {
-    color: COLORS.text.primary,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+  fijoText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.tab.selectedText,
   },
 });

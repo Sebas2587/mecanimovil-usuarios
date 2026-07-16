@@ -25,7 +25,8 @@ import { useUserProfile } from '../../hooks/useUserProfile';
 import { useQueryClient } from '@tanstack/react-query';
 
 import Input from '../../components/base/Input/Input';
-import Button from '../../components/base/Button/Button';
+import GuestGradientButton from '../../components/guest/GuestGradientButton';
+import PrimaryGradientBadge from '../../components/base/PrimaryGradientBadge/PrimaryGradientBadge';
 import PhoneInput, { validatePhoneNumber, parsePhoneValue } from '../../components/base/PhoneInput/PhoneInput';
 
 const EditProfileScreen = () => {
@@ -215,17 +216,19 @@ const EditProfileScreen = () => {
         keyboardDismissMode={Platform.OS === 'web' ? 'none' : 'on-drag'}
       >
         <View style={styles.profilePicWrapper}>
-          <TouchableOpacity onPress={handleImagePick} activeOpacity={0.8} style={styles.avatarContainer}>
-            {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <User size={40} color={COLORS.text.tertiary} strokeWidth={1.75} />
-              </View>
-            )}
-            <View style={styles.cameraBadge}>
-              <Camera size={14} color={COLORS.text.onPrimary} strokeWidth={2} />
+          <TouchableOpacity onPress={handleImagePick} activeOpacity={0.8} style={styles.avatarOuter}>
+            <View style={styles.avatarClip}>
+              {profileImage ? (
+                <Image source={{ uri: profileImage }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <User size={40} color={COLORS.text.tertiary} strokeWidth={1.75} />
+                </View>
+              )}
             </View>
+            <PrimaryGradientBadge style={styles.cameraBadge}>
+              <Camera size={14} color={COLORS.text.onPrimary} strokeWidth={2} />
+            </PrimaryGradientBadge>
           </TouchableOpacity>
         </View>
         <View style={styles.spacer} />
@@ -281,13 +284,12 @@ const EditProfileScreen = () => {
         </View>
 
         <View style={styles.actionButtons}>
-          <Button
+          <GuestGradientButton
             title="Guardar Cambios"
             onPress={handleSubmit}
-            isLoading={loading}
+            loading={loading}
+            disabled={loading}
             style={styles.saveButton}
-            useGradient={false}
-            type="primary"
           />
           <TouchableOpacity style={styles.cancelLink} onPress={() => navigation.goBack()}>
             <Text style={styles.cancelText}>Cancelar</Text>
@@ -314,8 +316,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 18,
   },
-  avatarContainer: {
+  avatarOuter: {
     position: 'relative',
+    width: 108,
+    height: 108,
+  },
+  avatarClip: {
     width: 108,
     height: 108,
     borderRadius: 54,
@@ -323,8 +329,6 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
-    justifyContent: 'center',
-    alignItems: 'center',
     ...SHADOWS.sm,
   },
   avatar: {
@@ -339,16 +343,15 @@ const styles = StyleSheet.create({
   },
   cameraBadge: {
     position: 'absolute',
-    bottom: 6,
-    right: 6,
-    backgroundColor: COLORS.primary[500],
+    bottom: 0,
+    right: 0,
     width: 28,
     height: 28,
     borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderWidth: 2,
     borderColor: COLORS.base.white,
+    zIndex: 2,
+    elevation: 4,
   },
   formContainer: {
     paddingHorizontal: SPACING.md,
@@ -384,8 +387,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   saveButton: {
-    borderRadius: BORDERS.radius.md,
-    overflow: 'hidden',
+    width: '100%',
   },
   cancelLink: {
     alignItems: 'center',

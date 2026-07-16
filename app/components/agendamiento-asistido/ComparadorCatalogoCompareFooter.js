@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { GitCompare } from 'lucide-react-native';
+import Button from '../base/Button/Button';
 import { COLORS, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 
 export default function ComparadorCatalogoCompareFooter({
@@ -16,17 +17,14 @@ export default function ComparadorCatalogoCompareFooter({
           ? 'Selecciona proveedores'
           : `${countSel} seleccionado${countSel === 1 ? '' : 's'}`}
       </Text>
-      <TouchableOpacity
-        style={[styles.btn, !compareEnabled && styles.btnDisabled]}
+      <Button
+        title="Comparar"
         onPress={onPress}
         disabled={!compareEnabled}
-        activeOpacity={0.85}
-        accessibilityRole="button"
-        accessibilityLabel="Comparar proveedores seleccionados"
-      >
-        <GitCompare size={18} color={COLORS.text.onPrimary} />
-        <Text style={styles.btnText}>Comparar</Text>
-      </TouchableOpacity>
+        iconNode={<GitCompare size={18} color={COLORS.text.onPrimary} />}
+        style={styles.btn}
+        size="sm"
+      />
     </View>
   );
 }
@@ -49,20 +47,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   btn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.primary[500],
-  },
-  btnDisabled: {
-    backgroundColor: COLORS.neutral.gray[300],
-  },
-  btnText: {
-    color: COLORS.text.onPrimary,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    minWidth: 120,
   },
 });

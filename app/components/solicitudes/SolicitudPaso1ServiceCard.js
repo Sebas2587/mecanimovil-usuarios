@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Check } from 'lucide-react-native';
+import PrimaryGradientBadge from '../base/PrimaryGradientBadge/PrimaryGradientBadge';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 
 /**
  * Card de servicio (paso 1 solicitud) — listing Airbnb:
- * paper + hairline, tipografía Poppins, selección con primary suave.
+ * paper + hairline; selección con borde orange (sin wash rosa).
  */
 export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress, width }) {
   return (
@@ -26,9 +27,9 @@ export default function SolicitudPaso1ServiceCard({ servicio, selected, onPress,
           {servicio.nombre}
         </Text>
         {selected ? (
-          <View style={styles.checkCircle}>
+          <PrimaryGradientBadge style={styles.checkCircle}>
             <Check size={14} color={COLORS.text.inverse} strokeWidth={2.5} />
-          </View>
+          </PrimaryGradientBadge>
         ) : (
           <View style={styles.checkIdle} />
         )}
@@ -51,8 +52,8 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[500],
-    backgroundColor: COLORS.primary[50],
+    borderColor: COLORS.brand.orange,
+    backgroundColor: COLORS.background.paper,
   },
   row: {
     flexDirection: 'row',
@@ -63,9 +64,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: COLORS.primary[500],
-    alignItems: 'center',
-    justifyContent: 'center',
     flexShrink: 0,
   },
   checkIdle: {

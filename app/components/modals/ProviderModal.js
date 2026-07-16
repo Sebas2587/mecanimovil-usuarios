@@ -4,6 +4,9 @@ import { Image } from 'expo-image';
 import { formatCurrency } from '../../utils/format';
 import { COLORS, withOpacity } from '../../design-system/tokens';
 import Icon from '../base/Icon/Icon';
+import Button from '../base/Button/Button';
+import PrimaryGradientFill from '../base/PrimaryGradientFill/PrimaryGradientFill';
+import PrimaryGradientBadge from '../base/PrimaryGradientBadge/PrimaryGradientBadge';
 
 /**
  * Componente Modal para mostrar detalles de proveedores (talleres o mecánicos)
@@ -160,13 +163,13 @@ const ProviderModal = ({
                   cachePolicy="memory-disk"
                 />
               ) : (
-                <View style={styles.providerImagePlaceholder}>
+                <PrimaryGradientFill style={styles.providerImagePlaceholder}>
                   <Icon
                     name={type === 'taller' ? 'business' : 'person'}
                     size={60}
                     color={COLORS.text.inverse}
                   />
-                </View>
+                </PrimaryGradientFill>
               )}
 
               <View style={styles.providerDetails}>
@@ -181,14 +184,15 @@ const ProviderModal = ({
                 </View>
 
                 {/* Tipo de proveedor */}
-                <View style={[
-                  styles.typeBadge,
-                  type === 'taller' ? styles.workshopType : styles.mechanicType
-                ]}>
-                  <Text style={styles.typeBadgeText}>
-                    {type === 'taller' ? 'Taller' : 'Mecánico a domicilio'}
-                  </Text>
-                </View>
+                {type === 'taller' ? (
+                  <PrimaryGradientBadge style={styles.typeBadge}>
+                    <Text style={styles.typeBadgeText}>Taller</Text>
+                  </PrimaryGradientBadge>
+                ) : (
+                  <View style={[styles.typeBadge, styles.mechanicType]}>
+                    <Text style={styles.typeBadgeText}>Mecánico a domicilio</Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -277,13 +281,13 @@ const ProviderModal = ({
               <Text style={styles.actionButtonText}>Llamar</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.actionButton, styles.mapButton]}
+            <Button
+              title="Ver ubicación"
               onPress={handleOpenMap}
-            >
-              <Icon name="location-outline" size={20} color={COLORS.text.inverse} />
-              <Text style={styles.actionButtonText}>Ver ubicación</Text>
-            </TouchableOpacity>
+              style={styles.mapButton}
+              iconNode={<Icon name="location-outline" size={20} color={COLORS.text.inverse} />}
+              iconPosition="left"
+            />
           </View>
         </View>
       </View>
@@ -355,9 +359,9 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     marginBottom: 15,
-    backgroundColor: COLORS.primary[500],
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   providerDetails: {
     alignItems: 'center',
@@ -391,9 +395,6 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     marginTop: 8,
-  },
-  workshopType: {
-    backgroundColor: COLORS.primary[500],
   },
   mechanicType: {
     backgroundColor: COLORS.secondary[500],
@@ -499,7 +500,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.secondary[500],
   },
   mapButton: {
-    backgroundColor: COLORS.primary[500],
+    flex: 1,
   },
   actionButtonText: {
     color: COLORS.text.inverse,

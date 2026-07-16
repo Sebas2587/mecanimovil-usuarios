@@ -16,7 +16,7 @@ const HomeServiceLocation = ({ hasAddresses, selectedAddress, onPressSelectAddre
         accessibilityRole="button"
         accessibilityLabel="Cambiar dirección de servicio"
       >
-        <MapPin size={13} color={COLORS.primary[500]} />
+        <MapPin size={13} color={COLORS.icon.active} />
         <Text style={styles.addressText} numberOfLines={1}>
           {selectedAddress?.etiqueta || 'Dirección'}: {selectedAddress?.direccion || '—'}
         </Text>
