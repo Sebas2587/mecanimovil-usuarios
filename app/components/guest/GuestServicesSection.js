@@ -39,8 +39,20 @@ const GuestServicesSection = ({
               ? `Desde $${Math.round(desde).toLocaleString('es-CL')}`
               : `$${Math.round(desde).toLocaleString('es-CL')}`)
           : null;
-        const total = item.total_proveedores || (item.ofertas?.length ?? 0);
-        const metaLabel = total > 0 ? `${total} taller${total === 1 ? '' : 'es'} disponible${total === 1 ? '' : 's'}` : null;
+        /** Contar talleres únicos (mismo proveedor puede tener varias ofertas por marca). */
+        const uniqueProviders = new Set(
+          (item.ofertas || [])
+            .map((o) => {
+              const id = o?.provider?.id ?? o?.provider_id;
+              if (id == null) return null;
+              return `${o.provider_type || o.provider?.tipo || 'taller'}-${id}`;
+            })
+            .filter(Boolean),
+        );
+        const total = uniqueProviders.size || Number(item.total_proveedores) || 0;
+        const metaLabel = total > 0
+          ? `${total} taller${total === 1 ? '' : 'es'} disponible${total === 1 ? '' : 's'}`
+          : null;
 
         return (
           <GuestAirbnbServiceCard

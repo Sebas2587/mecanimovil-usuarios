@@ -616,6 +616,14 @@ export const getProviderDistance = (provider) => {
  *
  * @returns {string|null}
  */
+const isBareStreetNumberOrSn = (value) => {
+  const t = String(value || '').trim().toLowerCase();
+  if (!t) return true;
+  if (t === 's/n' || t === 'sn' || t === 's/n.') return true;
+  // Solo dígitos / número de calle suelto ("1499") — no es una ubicación útil en cards.
+  return /^\d+[a-z]?$/.test(t);
+};
+
 export const getProviderLocationLabel = (provider) => {
   if (!provider) return null;
 
@@ -627,10 +635,21 @@ export const getProviderLocationLabel = (provider) => {
 
   const df = provider.direccion_fisica;
   const comunaDf = df?.comuna != null ? String(df.comuna).trim() : '';
-  if (comunaDf) return comunaDf;
+  if (comunaDf && !isBareStreetNumberOrSn(comunaDf)) return comunaDf;
 
   const comunaFlat = provider.comuna != null ? String(provider.comuna).trim() : '';
-  if (comunaFlat) return comunaFlat;
+  if (comunaFlat && !isBareStreetNumberOrSn(comunaFlat)) return comunaFlat;
+
+  // Preferir calle + comuna legible (evita "1499" / "s/n" como meta).
+  try {
+    // Lazy require evita ciclo si format importa utils en el futuro.
+    // eslint-disable-next-line global-require
+    const { formatProviderStreetAddress } = require('./formatProviderStreetAddress');
+    const formatted = formatProviderStreetAddress(provider);
+    if (formatted) return formatted;
+  } catch {
+    /* ignore */
+  }
 
   const rawDir =
     provider.direccion
@@ -644,14 +663,23 @@ export const getProviderLocationLabel = (provider) => {
   const servicioEn = text.match(/^servicio en\s+(.+)$/i);
   if (servicioEn) {
     const first = servicioEn[1].split(',')[0].trim();
-    if (first) return first;
+    if (first && !isBareStreetNumberOrSn(first)) return first;
   }
 
-  // "Calle 123, Providencia, Región…" → Preferir comuna (2º segmento) si es corta
-  const segs = text.split(',').map((s) => s.trim()).filter(Boolean);
+  // "Calle 123, Providencia, Región…" — saltar número suelto / s/n
+  const segs = text
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s && !isBareStreetNumberOrSn(s))
+    .filter((s) => {
+      const lower = s.toLowerCase();
+      return !lower.startsWith('región ') && !lower.startsWith('region ')
+        && !lower.startsWith('provincia de ') && lower !== 'chile';
+    });
+
   if (segs.length >= 2) {
-    const candidate = segs[1];
-    if (candidate.length > 1 && candidate.length <= 40) return candidate;
+    // Calle + comuna
+    return `${segs[0]}, ${segs[1]}`;
   }
   if (segs[0] && segs[0].length <= 48) return segs[0];
   return text.length > 48 ? `${text.slice(0, 45)}…` : text;

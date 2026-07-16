@@ -12,7 +12,7 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
-import { Star, MapPin, Building2, ChevronLeft, ChevronRight, Wrench, Car } from 'lucide-react-native';
+import { Star, MapPin, Building2, ChevronLeft, Wrench, Car } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
@@ -30,6 +30,7 @@ import {
   buildProviderAvatarUri,
   getProviderLocationLabel,
 } from '../../utils/providerUtils';
+import { formatProviderStreetAddress } from '../../utils/formatProviderStreetAddress';
 import { savePendingGuestScheduleIntent } from '../../utils/guestIntent';
 import {
   getServicioDetallePublico,
@@ -93,8 +94,9 @@ function buildProviderRows(group, legacyOffer) {
           rating: Number(provider.calificacion_promedio) || 0,
           verificado: Boolean(provider.verificado),
           locationLabel:
-            getProviderLocationLabel(provider)
-            || (provider.direccion ? String(provider.direccion).split(',')[0]?.trim() : null),
+            formatProviderStreetAddress(provider)
+            || getProviderLocationLabel(provider)
+            || null,
           servicioNombre: oferta.nombre || group.nombre,
           precios: [],
           tipos: new Set(),
@@ -521,7 +523,6 @@ const GuestServiceOfferScreen = () => {
                 {row.precioLabel ? (
                   <Text style={styles.providerPrice}>{row.precioLabel}</Text>
                 ) : null}
-                <ChevronRight size={16} color={COLORS.text.tertiary} />
               </View>
             </TouchableOpacity>
           ))}
@@ -780,15 +781,17 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   providerAside: {
-    alignItems: 'flex-end',
+    alignSelf: 'stretch',
     justifyContent: 'center',
-    gap: 6,
-    paddingRight: 2,
+    alignItems: 'flex-end',
+    minWidth: 72,
+    paddingRight: 4,
   },
   providerPrice: {
     ...TYPOGRAPHY.styles.captionBold,
     fontSize: 15,
     color: COLORS.text.primary,
+    textAlign: 'right',
   },
   relatedSection: {
     marginBottom: SPACING.xl,

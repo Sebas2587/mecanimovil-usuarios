@@ -17,7 +17,9 @@ function cleanPart(raw) {
 
 function isUselessNumero(n) {
   const t = String(n || '').trim().toLowerCase();
-  return !t || SKIP_NUMERO.has(t);
+  if (!t || SKIP_NUMERO.has(t)) return true;
+  // Segmento que es solo número de calle (p. ej. reverse-geocode "Longaví, 1499, Santiago")
+  return /^\d+[a-z]?$/.test(t);
 }
 
 /**
