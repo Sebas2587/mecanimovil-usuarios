@@ -9,12 +9,14 @@ import {
   Linking,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { MapPin, Globe, Star, Smartphone, Apple, Play } from 'lucide-react-native';
+import { MapPin, Smartphone, Apple, Play } from 'lucide-react-native';
 
 import { ROUTES } from '../../utils/constants';
 import { getAppStoreUrl, getPlayStoreUrl } from '../../config/publicListing';
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
+import ProviderAboutSection from '../../components/provider/ProviderAboutSection';
+import ProviderVehicleCoverageSection from '../../components/provider/ProviderVehicleCoverageSection';
 import TrustSection from '../../components/provider/TrustSection';
 import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
@@ -280,6 +282,11 @@ const PublicProviderDetailScreen = () => {
         </View>
       </View>
 
+      <ProviderAboutSection
+        description={provider?.descripcion}
+        providerType={providerType === 'taller' ? 'taller' : 'mecanico'}
+      />
+
       <Divider />
 
       {/* Cobertura / Dirección */}
@@ -342,46 +349,10 @@ const PublicProviderDetailScreen = () => {
 
       <Divider />
 
-      {/* Cobertura de marcas */}
-      {(() => {
-        const tipoCobertura = provider?.tipo_cobertura_marca;
-        const esMultimarca = tipoCobertura === 'multimarca'
-          || (!tipoCobertura && !(provider.marcas_atendidas_nombres?.length > 0));
-
-        return (
-          <View style={styles.section}>
-            <SectionHeader
-              title={esMultimarca ? 'Cobertura de marcas' : 'Especialidad en marcas'}
-            />
-
-            {esMultimarca ? (
-              <View style={styles.multimarcaBadge}>
-                <View style={styles.multimarcaBadgeIconWrap}>
-                  <Globe size={22} color={COLORS.text.secondary} strokeWidth={2} />
-                </View>
-                <View style={styles.multimarcaBadgeText}>
-                  <Text style={styles.multimarcaBadgeTitle}>Proveedor multimarca</Text>
-                  <Text style={styles.multimarcaBadgeSub}>Atiende vehículos de cualquier marca</Text>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.tagsRow}>
-                {(provider.marcas_atendidas_nombres || []).map((brand, i) => (
-                  <View key={i} style={[styles.tagBadge, styles.tagBadgeSpecialista]}>
-                    <Star
-                      size={12}
-                      color={COLORS.badge.especialista.icon}
-                      fill={COLORS.badge.especialista.icon}
-                      strokeWidth={2}
-                    />
-                    <Text style={[styles.tagText, styles.tagTextEspecialista]}>{brand}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        );
-      })()}
+      <ProviderVehicleCoverageSection
+        provider={provider}
+        servicios={provider?.servicios || serviciosVisibles}
+      />
 
       <Divider />
 

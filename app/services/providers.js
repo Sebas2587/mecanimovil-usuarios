@@ -1620,6 +1620,11 @@ function mapOfertaToServicioRow(oferta, type, id, providerName) {
     marca_vehiculo_seleccionada: oferta.marca_vehiculo_seleccionada ?? null,
     marca_vehiculo_nombre: oferta.marca_vehiculo_info?.nombre || null,
     marca_vehiculo_info: oferta.marca_vehiculo_info || null,
+    modelo_vehiculo_id:
+      oferta.modelo_vehiculo_seleccionado ?? oferta.modelo_vehiculo_info?.id ?? null,
+    modelo_vehiculo_seleccionado: oferta.modelo_vehiculo_seleccionado ?? null,
+    modelo_vehiculo_nombre: oferta.modelo_vehiculo_info?.nombre || null,
+    modelo_vehiculo_info: oferta.modelo_vehiculo_info || null,
     oferta_id: oferta.id,
     disponible: oferta.disponible !== false,
     duracion_estimada: oferta.duracion_estimada,

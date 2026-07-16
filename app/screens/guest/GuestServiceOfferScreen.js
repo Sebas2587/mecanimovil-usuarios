@@ -44,22 +44,16 @@ const formatCLP = (n) => {
   return `$${Math.round(num).toLocaleString('es-CL')}`;
 };
 
-/** Etiqueta de cobertura de vehículo por oferta: marca específica, multimarca o especialista. */
-function resolveCoberturaLabel(cobertura) {
-  if (!cobertura) return null;
-  if (cobertura.alcance === 'marca' && cobertura.marca_nombre) {
-    return `Solo ${cobertura.marca_nombre}`;
+/** Etiqueta agregada de cobertura por taller (marcas únicas, no una card por marca). */
+function resolveAggregatedCoberturaLabel({ marcas, hasMultimarca, especialistaMarcas }) {
+  if (hasMultimarca && marcas.size === 0) return 'Todas las marcas';
+  const list = Array.from(marcas.size > 0 ? marcas : especialistaMarcas);
+  if (list.length === 0) {
+    return hasMultimarca ? 'Todas las marcas' : null;
   }
-  if (cobertura.alcance === 'multimarca') {
-    return 'Todas las marcas';
-  }
-  if (cobertura.alcance === 'especialista') {
-    const marcas = Array.isArray(cobertura.marcas_nombres) ? cobertura.marcas_nombres : [];
-    if (marcas.length > 0) {
-      return `Especialista en ${marcas.join(', ')}`;
-    }
-  }
-  return null;
+  if (list.length === 1) return list[0];
+  if (list.length <= 3) return list.join(' · ');
+  return `${list.slice(0, 2).join(' · ')} +${list.length - 2}`;
 }
 
 function resolveProviderPhoto(provider) {
@@ -74,17 +68,26 @@ function resolveProviderPhoto(provider) {
   );
 }
 
-/** Normaliza ofertas (grupo mas_solicitados o legacy) a filas de listing Airbnb. */
+/**
+ * Una card por taller/mecánico: agrupa ofertas del mismo proveedor
+ * (varias marcas/modelos) en un solo listing Airbnb.
+ */
 function buildProviderRows(group, legacyOffer) {
   if (group) {
-    return (group.ofertas || [])
-      .filter((oferta) => oferta?.provider?.id)
-      .map((oferta) => {
-        const provider = oferta.provider;
-        return {
-          key: `oferta-${oferta.oferta_id}`,
+    const byProvider = new Map();
+
+    for (const oferta of group.ofertas || []) {
+      const provider = oferta?.provider;
+      if (!provider?.id) continue;
+
+      const providerType = oferta.provider_type === 'mecanico' ? 'mecanico' : 'taller';
+      const key = `${providerType}-${provider.id}`;
+      let bucket = byProvider.get(key);
+      if (!bucket) {
+        bucket = {
+          key,
           providerId: provider.id,
-          providerType: oferta.provider_type === 'mecanico' ? 'mecanico' : 'taller',
+          providerType,
           nombre: provider.nombre || 'Taller',
           avatarUri: resolveProviderPhoto(provider),
           rating: Number(provider.calificacion_promedio) || 0,
@@ -92,15 +95,78 @@ function buildProviderRows(group, legacyOffer) {
           locationLabel:
             getProviderLocationLabel(provider)
             || (provider.direccion ? String(provider.direccion).split(',')[0]?.trim() : null),
-          precioLabel: formatCLP(oferta.precio),
-          tipoServicioLabel:
-            oferta.tipo_servicio === 'sin_repuestos' ? 'Sin repuestos' : 'Con repuestos',
-          coberturaLabel: resolveCoberturaLabel(oferta.cobertura_vehiculo),
           servicioNombre: oferta.nombre || group.nombre,
-          ofertaServicioId: oferta.oferta_id,
-          raw: oferta,
+          precios: [],
+          tipos: new Set(),
+          marcas: new Set(),
+          especialistaMarcas: new Set(),
+          hasMultimarca: false,
+          bestOferta: null,
+          bestPrecio: Infinity,
         };
-      });
+        byProvider.set(key, bucket);
+      }
+
+      const precio = Number(oferta.precio) || 0;
+      if (precio > 0) {
+        bucket.precios.push(precio);
+        if (precio < bucket.bestPrecio) {
+          bucket.bestPrecio = precio;
+          bucket.bestOferta = oferta;
+        }
+      } else if (!bucket.bestOferta) {
+        bucket.bestOferta = oferta;
+      }
+
+      bucket.tipos.add(oferta.tipo_servicio || 'sin_repuestos');
+
+      const cob = oferta.cobertura_vehiculo;
+      if (cob?.alcance === 'marca' && cob.marca_nombre) {
+        bucket.marcas.add(cob.marca_nombre);
+      } else if (cob?.alcance === 'multimarca') {
+        bucket.hasMultimarca = true;
+      } else if (cob?.alcance === 'especialista') {
+        for (const m of cob.marcas_nombres || []) {
+          if (m) bucket.especialistaMarcas.add(m);
+        }
+      }
+    }
+
+    return Array.from(byProvider.values())
+      .map((bucket) => {
+        const min = bucket.precios.length ? Math.min(...bucket.precios) : 0;
+        const max = bucket.precios.length ? Math.max(...bucket.precios) : 0;
+        const precioLabel =
+          min > 0
+            ? (max > min ? `Desde ${formatCLP(min)}` : formatCLP(min))
+            : null;
+
+        let tipoServicioLabel = 'Con repuestos';
+        if (bucket.tipos.has('sin_repuestos') && bucket.tipos.has('con_repuestos')) {
+          tipoServicioLabel = 'Con o sin repuestos';
+        } else if (bucket.tipos.has('sin_repuestos')) {
+          tipoServicioLabel = 'Sin repuestos';
+        }
+
+        return {
+          key: bucket.key,
+          providerId: bucket.providerId,
+          providerType: bucket.providerType,
+          nombre: bucket.nombre,
+          avatarUri: bucket.avatarUri,
+          rating: bucket.rating,
+          verificado: bucket.verificado,
+          locationLabel: bucket.locationLabel,
+          precioLabel,
+          minPrecio: min > 0 ? min : Infinity,
+          tipoServicioLabel,
+          coberturaLabel: resolveAggregatedCoberturaLabel(bucket),
+          servicioNombre: bucket.servicioNombre,
+          ofertaServicioId: bucket.bestOferta?.oferta_id ?? null,
+          raw: bucket.bestOferta,
+        };
+      })
+      .sort((a, b) => a.minPrecio - b.minPrecio);
   }
 
   if (legacyOffer?.provider) {
@@ -433,7 +499,7 @@ const GuestServiceOfferScreen = () => {
                 {row.coberturaLabel ? (
                   <View style={styles.coberturaRow}>
                     <Car size={12} color={COLORS.text.tertiary} />
-                    <Text style={styles.coberturaText} numberOfLines={1}>
+                    <Text style={styles.coberturaText} numberOfLines={2}>
                       {row.coberturaLabel}
                     </Text>
                   </View>

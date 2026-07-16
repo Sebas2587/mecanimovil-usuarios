@@ -21,8 +21,6 @@ import {
   Heart,
   MessageCircle,
   MapPin,
-  Globe,
-  Star,
   Camera,
 } from 'lucide-react-native';
 
@@ -39,6 +37,7 @@ import {
 
 import ProviderHeader from '../../components/provider/ProviderHeader';
 import ProviderAboutSection from '../../components/provider/ProviderAboutSection';
+import ProviderVehicleCoverageSection from '../../components/provider/ProviderVehicleCoverageSection';
 import TrustSection from '../../components/provider/TrustSection';
 import ProviderCompletedJobsSection from '../../components/provider/ProviderCompletedJobsSection';
 import PortfolioCarousel from '../../components/provider/PortfolioCarousel';
@@ -615,46 +614,10 @@ const ProviderDetailScreen = () => {
 
         <Divider />
 
-        {/* Cobertura de marcas */}
-        {(() => {
-          const tipoCobertura = provider?.tipo_cobertura_marca;
-          const esMultimarca = tipoCobertura === 'multimarca'
-            || (!tipoCobertura && !(provider.marcas_atendidas_nombres?.length > 0));
-          return (
-            <View style={styles.section}>
-              <SectionHeader
-                title={esMultimarca ? 'Cobertura de Marcas' : 'Especialidad en Marcas'}
-              />
-              {esMultimarca ? (
-                <View style={styles.multimarcaBadge}>
-                  <Globe size={28} color={COLORS.text.secondary} strokeWidth={1.75} />
-                  <View>
-                    <Text style={[TYPOGRAPHY.styles.h5, styles.multimarcaBadgeTitle]}>
-                      Proveedor Multimarca
-                    </Text>
-                    <Text style={[TYPOGRAPHY.styles.caption, styles.multimarcaBadgeSub]}>
-                      Atiende vehículos de cualquier marca
-                    </Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.tagsRow}>
-                  {(provider.marcas_atendidas_nombres || []).map((brand, i) => (
-                    <View key={i} style={[styles.tagBadge, styles.tagBadgeEspecialista]}>
-                      <Star
-                        size={12}
-                        color={COLORS.badge.especialista.icon}
-                        fill={COLORS.badge.especialista.icon}
-                        strokeWidth={2}
-                      />
-                      <Text style={[styles.tagText, styles.tagTextEspecialista]}>{brand}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          );
-        })()}
+        <ProviderVehicleCoverageSection
+          provider={provider}
+          servicios={provider?.servicios || serviciosVisibles}
+        />
 
         <Divider />
 
