@@ -282,12 +282,15 @@ const PublicProviderDetailScreen = () => {
         </View>
       </View>
 
-      <ProviderAboutSection
-        description={provider?.descripcion}
-        providerType={providerType === 'taller' ? 'taller' : 'mecanico'}
-      />
-
-      <Divider />
+      {provider?.descripcion ? (
+        <>
+          <ProviderAboutSection
+            description={provider.descripcion}
+            providerType={providerType === 'taller' ? 'taller' : 'mecanico'}
+          />
+          <Divider />
+        </>
+      ) : null}
 
       {/* Cobertura / Dirección */}
       {(() => {
