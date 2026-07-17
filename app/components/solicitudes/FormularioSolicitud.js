@@ -1277,11 +1277,16 @@ const FormularioSolicitud = ({
     // Catálogo/perfil: confirmar en calendario (igual que comparador), sin "Revisa tu pedido".
     const finalizarEnCalendario = flujoCatalogoProveedor || flujoCuatroPasos;
     const coords = resolveCoordenadasServicio(formData);
+    const nombresServiciosAgenda = (formData.servicios_seleccionados || [])
+      .map((s) => (typeof s === 'object' ? (s.nombre || s.servicio_nombre || s.nombre_servicio) : null))
+      .filter(Boolean);
     const pendingConfirmOferta = finalizarEnCalendario && agenda.ofertaServicioId
       ? {
           oferta_servicio_id: agenda.ofertaServicioId,
           oferta_servicio_ids: [agenda.ofertaServicioId],
           tipo_proveedor: agenda.tipoProveedor,
+          nombre_servicio: nombresServiciosAgenda[0] || null,
+          servicios_seleccionados: formData.servicios_seleccionados,
           ...(agenda.tipoProveedor === 'taller'
             ? {
                 direccion_servicio_texto:

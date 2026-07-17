@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Platform,
   useWindowDimensions,
-  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -17,18 +16,16 @@ import { COLORS, withOpacity } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
 import { BORDERS } from '../../design-system/tokens/borders';
 import { TYPOGRAPHY } from '../../design-system/tokens/typography';
-import { SHADOWS } from '../../design-system/tokens/shadows';
 import SolicitudFlowHeader from '../../components/solicitudes/SolicitudFlowHeader';
 import StickyFooterCTA from '../../components/base/StickyFooterCTA/StickyFooterCTA';
 import Button from '../../components/base/Button/Button';
-import PrimaryGradientPill from '../../components/base/PrimaryGradientPill/PrimaryGradientPill';
+import AgendaBookingSummary from '../../components/booking/AgendaBookingSummary';
 import {
   generarDiasCalendario,
   obtenerDisponibilidadConDuracion,
   obtenerMecanicosAptosAgenda,
   resolverFechasAgendaReales,
 } from '../../services/disponibilidadProveedorService';
-import { modalidadLabel } from '../../utils/providerModalidad';
 import {
   PASO_FORMULARIO_UBICACION,
   resolveAgendaParams,
@@ -41,15 +38,17 @@ import {
 } from '../../services/agendamientoAsistidoService';
 import { ROUTES } from '../../utils/constants';
 import { showAlert, showAlertButtons } from '../../utils/platformAlert';
+import { resolveServiciosAgendaLabel } from '../../utils/resolveServiciosAgendaLabel';
 
 /**
- * Selección de fecha y hora según agenda real del proveedor (ventanas libres + duración del servicio).
+ * Agenda Airbnb Experiences: tira de días + grilla de horas.
+ * Colores del DS (ink / selection / orange) — sin gradiente CTA en chips.
  */
 export default function CalendarioProveedorScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const webScreenFrame =
     Platform.OS === 'web'
@@ -61,6 +60,9 @@ export default function CalendarioProveedorScreen() {
           overflow: 'hidden',
         }
       : null;
+
+  const slotColumns = windowWidth >= 720 ? 3 : 2;
+  const slotMaxWidth = `${Math.floor(100 / slotColumns) - 1}%`;
 
   const routeParams = route.params || {};
   const {
@@ -110,6 +112,18 @@ export default function CalendarioProveedorScreen() {
   const [loadingMecanicos, setLoadingMecanicos] = useState(false);
   const confirmandoSolicitudRef = useRef(false);
   const solicitudConfirmadaRef = useRef(false);
+
+  const serviciosAgenda = useMemo(
+    () =>
+      resolveServiciosAgendaLabel({
+        routeParams,
+        returnParams,
+        disponibilidadDia,
+      }),
+    [routeParams, returnParams, disponibilidadDia],
+  );
+  const servicioNombre = serviciosAgenda.label;
+  const serviciosNombres = serviciosAgenda.names;
 
   const finalizarSolicitudCatalogo = useMemo(
     () => shouldFinalizarSolicitudEnCalendario({ returnRoute, returnParams }),
@@ -283,7 +297,6 @@ export default function CalendarioProveedorScreen() {
           lng: pendingConfirmOferta.lng,
         },
       );
-      // Catálogo perfil / comparador: mismo endpoint, sin exigir flag IA en cliente
       const esCatalogoPerfil =
         returnRoute === ROUTES.CREAR_SOLICITUD
         || returnParams?.flujoCatalogoProveedor === true
@@ -373,6 +386,10 @@ export default function CalendarioProveedorScreen() {
     setDisponibilidadDia(null);
   }, []);
 
+  const seleccionarFecha = useCallback((fecha) => {
+    setFechaSeleccionada(fecha);
+  }, []);
+
   const confirmarDeshabilitado =
     !fechaSeleccionada
     || !slotSeleccionado
@@ -384,166 +401,146 @@ export default function CalendarioProveedorScreen() {
     <View style={[styles.container, webScreenFrame]}>
       <SolicitudFlowHeader
         title="Elegir horario"
-        subtitle={proveedorNombre}
         onBack={() => navigation.goBack()}
       />
 
       <View style={styles.scrollHost}>
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 100 }]}
+          contentContainerStyle={[
+            styles.scroll,
+            Platform.OS === 'web' && styles.scrollWeb,
+            { paddingBottom: insets.bottom + 100 },
+          ]}
           showsVerticalScrollIndicator={Platform.OS === 'web'}
           keyboardShouldPersistTaps="handled"
           {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
         >
-        {estadoActual?.ocupado ? (
-          <View style={styles.badgeOcupado}>
-            <Clock size={16} color={COLORS.warning[700]} />
-            <Text style={styles.badgeOcupadoText}>
-              {estadoActual.servicio_en_curso
-                ? `En servicio: ${estadoActual.servicio_en_curso}. `
-                : ''}
-              Libre hoy a las {estadoActual.hora_estimada_libre || '—'}
-              {estadoActual.minutos_restantes > 0
-                ? ` (~${estadoActual.minutos_restantes} min)`
-                : ''}
-            </Text>
-          </View>
-        ) : null}
+          <AgendaBookingSummary
+            servicioNombre={servicioNombre}
+            serviciosNombres={serviciosNombres}
+            proveedorNombre={proveedorNombre}
+            tipoProveedor={tipoNorm}
+            mecanicos={mecanicosAptos}
+            miembroSeleccionadoId={miembroSeleccionado}
+            onSelectMiembro={seleccionarMiembro}
+            loadingMecanicos={loadingMecanicos}
+            requierePicker={tipoNorm === 'taller'}
+          />
 
-        {!estadoActual?.ocupado && (duracion?.etiqueta || fechaSeleccionada === diasBase[0]?.fecha) ? (
-          <View style={styles.metaRow}>
-            {!estadoActual?.ocupado && fechaSeleccionada === diasBase[0]?.fecha ? (
-              <View style={styles.metaChip}>
-                <Text style={styles.metaChipText}>Hoy disponible</Text>
-              </View>
-            ) : null}
-            {duracion?.etiqueta ? (
-              <View style={[styles.metaChip, styles.metaChipMuted]}>
-                <Text style={[styles.metaChipText, styles.metaChipTextMuted]}>
-                  {duracion.etiqueta}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        ) : null}
+          {estadoActual?.ocupado ? (
+            <View style={styles.badgeOcupado}>
+              <Clock size={16} color={COLORS.warning[700]} />
+              <Text style={styles.badgeOcupadoText}>
+                {estadoActual.servicio_en_curso
+                  ? `En servicio: ${estadoActual.servicio_en_curso}. `
+                  : ''}
+                Libre hoy a las {estadoActual.hora_estimada_libre || '—'}
+                {estadoActual.minutos_restantes > 0
+                  ? ` (~${estadoActual.minutos_restantes} min)`
+                  : ''}
+              </Text>
+            </View>
+          ) : null}
 
-        {requierePickerTecnico ? (
-          <>
-            <Text style={styles.sectionLabel}>Técnico</Text>
-            {loadingMecanicos ? (
-              <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 12 }} />
+          {duracion?.etiqueta ? (
+            <Text style={styles.durationLine}>{duracion.etiqueta}</Text>
+          ) : null}
+
+          <View style={styles.block}>
+            <Text style={styles.sectionTitle}>Fecha</Text>
+            {loadingDias ? (
+              <ActivityIndicator color={COLORS.icon.active} style={styles.loader} />
             ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tecnicoCarousel}
-              >
-                {mecanicosAptos.map((m) => {
-                  const sel = miembroSeleccionado === m.id;
-                  const modLabel = m.modalidad_display || modalidadLabel(m.modalidad_tecnico);
-                  return (
-                    <TouchableOpacity
-                      key={m.id}
-                      style={[styles.tecnicoCard, sel && styles.tecnicoCardSelected]}
-                      onPress={() => seleccionarMiembro(m.id)}
-                      activeOpacity={0.85}
-                    >
-                      {m.foto_url ? (
-                        <Image source={{ uri: m.foto_url }} style={styles.tecnicoAvatar} />
-                      ) : (
-                        <View style={styles.tecnicoAvatarPlaceholder}>
-                          <Text style={styles.tecnicoAvatarInitial}>
-                            {(m.nombre || '?').charAt(0).toUpperCase()}
+              <>
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                {agendaSinDias && !error ? (
+                  <Text style={styles.hintCompact}>
+                    Sin horarios libres en los próximos 14 días.
+                  </Text>
+                ) : null}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.diasRow}
+                >
+                  {diasBase.map((dia) => {
+                    const habilitado = fechasHabilitadas?.has(dia.fecha);
+                    const sel = fechaSeleccionada === dia.fecha;
+                    return (
+                      <TouchableOpacity
+                        key={dia.fecha}
+                        style={[styles.diaCell, !habilitado && styles.diaCellDisabled]}
+                        disabled={!habilitado}
+                        onPress={() => seleccionarFecha(dia.fecha)}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: sel, disabled: !habilitado }}
+                        accessibilityLabel={`${dia.label} ${dia.diaNum}`}
+                      >
+                        <Text style={[styles.diaWeekday, sel && styles.diaWeekdaySelected]}>
+                          {dia.label}
+                        </Text>
+                        <View style={[styles.diaCircle, sel && styles.diaCircleSelected]}>
+                          <Text style={[styles.diaNum, sel && styles.diaNumSelected]}>
+                            {dia.diaNum}
                           </Text>
                         </View>
-                      )}
-                      <Text style={[styles.tecnicoNombre, sel && styles.tecnicoNombreSelected]} numberOfLines={2}>
-                        {m.nombre}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+          </View>
+
+          <View style={styles.block}>
+            <Text style={styles.sectionTitle}>Horario</Text>
+            {loadingSlots ? (
+              <ActivityIndicator color={COLORS.icon.active} style={styles.loader} />
+            ) : !fechaSeleccionada ? (
+              <Text style={styles.hintCompact}>Elige un día</Text>
+            ) : slots.length === 0 ? (
+              <View style={styles.emptySlots}>
+                <CalendarDays size={22} color={COLORS.icon.muted} strokeWidth={1.75} />
+                <Text style={styles.hintCompact}>Sin horarios este día</Text>
+              </View>
+            ) : (
+              <View style={styles.slotsGrid}>
+                {slots.map((slot) => {
+                  const sel = slotSeleccionado?.hora === slot.hora;
+                  return (
+                    <TouchableOpacity
+                      key={slot.hora}
+                      style={[
+                        styles.slotCard,
+                        { maxWidth: slotMaxWidth, minWidth: slotColumns === 3 ? '30%' : '46%' },
+                        sel && styles.slotCardSelected,
+                      ]}
+                      onPress={() => setSlotSeleccionado(slot)}
+                      activeOpacity={0.85}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: sel }}
+                      accessibilityLabel={
+                        slot.hora_fin_estimada
+                          ? `${slot.hora}, hasta aproximadamente ${slot.hora_fin_estimada}`
+                          : slot.hora
+                      }
+                    >
+                      <Text style={[styles.slotHora, sel && styles.slotHoraSelected]}>
+                        {slot.hora}
                       </Text>
-                      {modLabel ? (
-                        <Text style={[styles.tecnicoModalidad, sel && styles.tecnicoModalidadSelected]} numberOfLines={1}>
-                          {modLabel}
+                      {slot.hora_fin_estimada ? (
+                        <Text style={[styles.slotFin, sel && styles.slotFinSelected]}>
+                          hasta ~{slot.hora_fin_estimada}
                         </Text>
                       ) : null}
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
             )}
-          </>
-        ) : null}
-
-        <Text style={[styles.sectionLabel, requierePickerTecnico && styles.sectionLabelTight]}>Fecha</Text>
-        {loadingDias ? (
-          <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 16 }} />
-        ) : (
-          <>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            {agendaSinDias && !error ? (
-              <Text style={styles.hintCompact}>
-                Sin horarios libres en los próximos 14 días.
-              </Text>
-            ) : null}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.diasRow}>
-              {diasBase.map((dia) => {
-                const habilitado = fechasHabilitadas?.has(dia.fecha);
-                const sel = fechaSeleccionada === dia.fecha;
-                return (
-                  <PrimaryGradientPill
-                    key={dia.fecha}
-                    selected={sel}
-                    disabled={!habilitado}
-                    onPress={() => setFechaSeleccionada(dia.fecha)}
-                    style={[styles.diaChipShell, !habilitado && styles.diaChipDisabled]}
-                    fillStyle={[styles.diaChipFill, sel && styles.diaChipFillSelected]}
-                    inactiveStyle={styles.diaChipInactive}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={[styles.diaLabel, sel && styles.diaLabelSelected]}>{dia.label}</Text>
-                    <Text style={[styles.diaNum, sel && styles.diaNumSelected]}>{dia.diaNum}</Text>
-                  </PrimaryGradientPill>
-                );
-              })}
-            </ScrollView>
-          </>
-        )}
-
-        <Text style={styles.sectionLabel}>Horario</Text>
-        {loadingSlots ? (
-          <ActivityIndicator color={COLORS.primary[500]} style={{ marginVertical: 12 }} />
-        ) : !fechaSeleccionada ? (
-          <Text style={styles.hintCompact}>Elige un día</Text>
-        ) : slots.length === 0 ? (
-          <View style={styles.emptySlots}>
-            <CalendarDays size={24} color={COLORS.neutral.gray[400]} />
-            <Text style={styles.hintCompact}>Sin horarios este día</Text>
           </View>
-        ) : (
-          <View style={styles.slotsGrid}>
-            {slots.map((slot) => {
-              const sel = slotSeleccionado?.hora === slot.hora;
-              return (
-                <PrimaryGradientPill
-                  key={slot.hora}
-                  selected={sel}
-                  onPress={() => setSlotSeleccionado(slot)}
-                  style={styles.slotChipShell}
-                  fillStyle={styles.slotChipFill}
-                  inactiveStyle={styles.slotChipInactive}
-                  activeOpacity={0.85}
-                >
-                  <Text style={[styles.slotHora, sel && styles.slotHoraSelected]}>{slot.hora}</Text>
-                  {slot.hora_fin_estimada ? (
-                    <Text style={[styles.slotFin, sel && styles.slotFinSelected]}>
-                      hasta ~{slot.hora_fin_estimada}
-                    </Text>
-                  ) : null}
-                </PrimaryGradientPill>
-              );
-            })}
-          </View>
-        )}
         </ScrollView>
       </View>
 
@@ -585,220 +582,162 @@ const styles = StyleSheet.create({
         }
       : null),
   },
+  scroll: {
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+  },
+  scrollWeb: {
+    maxWidth: 720,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  block: {
+    marginBottom: SPACING.lg,
+  },
+  sectionTitle: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.md,
+  },
+  durationLine: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.md,
+  },
+  loader: {
+    marginVertical: SPACING.md,
+  },
   badgeOcupado: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
-    marginBottom: SPACING.xs,
-    padding: SPACING.sm,
-    borderRadius: BORDERS.radius.md,
+    marginBottom: SPACING.md,
+    padding: SPACING.md,
+    borderRadius: BORDERS.radius.lg,
     backgroundColor: COLORS.warning[50],
-    borderWidth: 1,
+    borderWidth: BORDERS.width.thin,
     borderColor: COLORS.warning[200],
   },
   badgeOcupadoText: {
     flex: 1,
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontSize: 13,
+    lineHeight: 18,
     color: COLORS.warning[800],
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: SPACING.sm,
-  },
-  metaChip: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: withOpacity(COLORS.success[500], 0.12),
-  },
-  metaChipMuted: {
-    backgroundColor: COLORS.neutral.gray[100],
-  },
-  metaChipText: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    color: COLORS.success[700],
-  },
-  metaChipTextMuted: {
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    color: COLORS.text.secondary,
-  },
-  scroll: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.xs,
-  },
-  sectionLabel: {
-    ...TYPOGRAPHY.styles.h6,
-    color: COLORS.text.secondary,
-    marginBottom: SPACING.xs,
-    marginTop: SPACING.sm,
-  },
-  sectionLabelTight: {
-    marginTop: SPACING.xs,
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
   },
   diasRow: {
-    flexGrow: 0,
-    marginBottom: SPACING.xs,
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    paddingRight: SPACING.sm,
   },
-  diaChipShell: {
-    width: 56,
-    marginRight: SPACING.sm,
-    borderRadius: BORDERS.radius.md,
-    overflow: 'hidden',
-  },
-  diaChipFill: {
-    width: 56,
-    paddingVertical: SPACING.sm,
+  diaCell: {
+    width: 52,
     alignItems: 'center',
+    gap: 8,
   },
-  diaChipFillSelected: {
-    ...SHADOWS.sm,
+  diaCellDisabled: {
+    opacity: 0.28,
   },
-  diaChipInactive: {
-    width: 56,
-    paddingVertical: SPACING.sm,
-    alignItems: 'center',
-  },
-  diaChipDisabled: {
-    opacity: 0.35,
-  },
-  diaLabel: {
-    fontSize: 11,
-    color: COLORS.text.tertiary,
+  diaWeekday: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
+    textAlign: 'center',
   },
-  diaLabelSelected: {
-    color: COLORS.tab.selectedText,
+  diaWeekdaySelected: {
+    color: COLORS.text.primary,
+  },
+  diaCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: BORDERS.radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: BORDERS.width.thin,
+    borderColor: 'transparent',
+  },
+  diaCircleSelected: {
+    backgroundColor: COLORS.selection.fill,
+    borderColor: COLORS.selection.fill,
   },
   diaNum: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontSize: 18,
+    lineHeight: 22,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
-    marginTop: 2,
   },
   diaNumSelected: {
-    color: COLORS.tab.selectedText,
+    color: COLORS.selection.onFill,
   },
   slotsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: SPACING.sm,
   },
-  slotChipShell: {
-    minWidth: '30%',
+  slotCard: {
     flexGrow: 1,
-    maxWidth: '48%',
-    borderRadius: BORDERS.radius.md,
-    overflow: 'hidden',
-  },
-  slotChipFill: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.sm,
+    paddingVertical: 16,
+    paddingHorizontal: SPACING.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: BORDERS.radius.lg,
+    backgroundColor: COLORS.background.paper,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+    minHeight: 64,
   },
-  slotChipInactive: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.sm,
-    alignItems: 'center',
+  slotCardSelected: {
+    backgroundColor: COLORS.base.inkBlack,
+    borderColor: COLORS.base.inkBlack,
   },
   slotHora: {
-    fontSize: TYPOGRAPHY.fontSize.base,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    fontSize: 15,
+    lineHeight: 20,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
   slotHoraSelected: {
-    color: COLORS.tab.selectedText,
+    color: COLORS.selection.onFill,
   },
   slotFin: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.tertiary,
     marginTop: 4,
+    fontSize: 12,
+    lineHeight: 16,
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    color: COLORS.text.tertiary,
   },
   slotFinSelected: {
-    color: withOpacity(COLORS.tab.selectedText, 0.9),
-  },
-  hint: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.tertiary,
-    textAlign: 'center',
-    marginVertical: SPACING.lg,
+    color: withOpacity(COLORS.selection.onFill, 0.85),
   },
   hintCompact: {
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontSize: 14,
+    lineHeight: 20,
     color: COLORS.text.tertiary,
-    marginBottom: SPACING.xs,
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
   },
   emptySlots: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
+    gap: SPACING.sm,
     paddingVertical: SPACING.md,
   },
   errorText: {
     color: COLORS.error.main,
     ...TYPOGRAPHY.styles.caption,
-    marginVertical: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   confirmBtnDisabled: {
     opacity: 0.45,
-  },
-  tecnicoCarousel: {
-    gap: SPACING.sm,
-    paddingBottom: SPACING.xs,
-  },
-  tecnicoCard: {
-    width: 112,
-    alignItems: 'center',
-    padding: SPACING.sm,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    backgroundColor: COLORS.background.paper,
-  },
-  tecnicoCardSelected: {
-    borderColor: COLORS.primary[500],
-    backgroundColor: COLORS.primary[50],
-  },
-  tecnicoAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginBottom: 6,
-  },
-  tecnicoAvatarPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginBottom: 6,
-    backgroundColor: COLORS.neutral.gray[200],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tecnicoAvatarInitial: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.primary[600],
-  },
-  tecnicoNombre: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text.primary,
-    textAlign: 'center',
-  },
-  tecnicoNombreSelected: {
-    color: COLORS.primary[700],
-  },
-  tecnicoModalidad: {
-    fontSize: 10,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  tecnicoModalidadSelected: {
-    color: COLORS.primary[600],
   },
 });

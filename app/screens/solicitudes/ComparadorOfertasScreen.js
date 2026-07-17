@@ -223,6 +223,19 @@ const ComparadorOfertasScreen = () => {
         return;
       }
       const nombre = oferta.nombre_proveedor || oferta.proveedor_nombre || 'el proveedor';
+      const nombresFromForm = (formPayload?.servicios_seleccionados || [])
+        .map((s) => (typeof s === 'object' ? (s.nombre || s.servicio_nombre || s.nombre_servicio) : null))
+        .filter(Boolean);
+      const nombresFromOferta = Array.isArray(oferta.servicios)
+        ? oferta.servicios.map((s) => s?.nombre || s?.servicio_nombre).filter(Boolean)
+        : [];
+      const servicioNombre =
+        (nombresFromForm.length ? nombresFromForm.join(' · ') : null)
+        || (nombresFromOferta.length ? nombresFromOferta.join(' · ') : null)
+        || oferta.nombre_servicio
+        || oferta.servicio_nombre
+        || formPayload?.servicio?.nombre
+        || null;
       const agendaContext = {
         tipoProveedor: tipoProv,
         proveedorId,
@@ -235,6 +248,7 @@ const ComparadorOfertasScreen = () => {
         proveedorId,
         proveedorEntityId: proveedorId,
         proveedorNombre: nombre,
+        servicioNombre,
         ofertaServicioId: ofertaIds[0],
         agendaContext: {
           ...agendaContext,
@@ -248,11 +262,15 @@ const ComparadorOfertasScreen = () => {
           ofertasOtros: ofertasOtrosState,
           radioKm: radioKmState,
           formPayload,
+          servicioNombre,
+          servicios_seleccionados: formPayload?.servicios_seleccionados || [],
           pendingConfirmOferta: {
             oferta_servicio_id: ofertaIds[0],
             oferta_servicio_ids: ofertaIds,
             score_match: oferta.score_match,
             tipo_proveedor: tipoProv,
+            nombre_servicio: servicioNombre,
+            servicios_seleccionados: formPayload?.servicios_seleccionados || [],
             ...resolveUbicacionConfirmacionFromOferta(oferta),
           },
         },

@@ -142,18 +142,33 @@ export function navigateCalendarioProveedor(navigation, {
 
   const { agendaContext } = built;
 
+  const serviciosNav = servicios.length
+    ? servicios
+    : (returnParams?.servicios_seleccionados
+      || returnParams?.formPayload?.servicios_seleccionados
+      || []);
+  const nombres = (Array.isArray(serviciosNav) ? serviciosNav : [])
+    .map((s) => {
+      if (typeof s !== 'object' || !s) return null;
+      return s.nombre || s.servicio_nombre || s.nombre_servicio || s.servicio?.nombre || null;
+    })
+    .filter(Boolean);
+  const servicioNombre = nombres.length ? nombres.join(' · ') : null;
+
   navigation.navigate(ROUTES.CALENDARIO_PROVEEDOR, {
     ...agendaContext,
     tipoProveedor: agendaContext.tipoProveedor,
     proveedorId: agendaContext.proveedorId,
     proveedorEntityId: agendaContext.proveedorEntityId,
     proveedorNombre: proveedor?.nombre || proveedor?.nombre_comercial || 'Proveedor',
+    servicioNombre,
     ofertaServicioId: agendaContext.ofertaServicioId,
     agendaContext,
     returnRoute: ROUTES.CREAR_SOLICITUD,
     returnParams: {
       ...returnParams,
-      servicios_seleccionados: servicios.length ? servicios : returnParams?.servicios_seleccionados,
+      servicios_seleccionados: serviciosNav,
+      servicioNombre,
       proveedorEntityId: agendaContext.proveedorEntityId,
       ofertaServicioId: agendaContext.ofertaServicioId,
       tipoProveedorPreseleccionado: agendaContext.tipoProveedor,
