@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -23,9 +23,10 @@ import { resolveToAbsoluteMediaUrl } from '../../../utils/providerUtils';
 const VISIBLE_CATEGORIES = 6;
 /** Airbnb Explore: celda con espacio para nombres largos en 2–3 líneas. */
 const CELL_WIDTH = 104;
+/** Slot Explore: imagen recortada por API llena el área; Lucide va en círculo tonal. */
 const ICON_SIZE = 56;
-/** Bump de cache: v2 usa imagen_url vía proxy API (no R2 firmado). */
-const CATEGORIES_QUERY_VERSION = 'v2-imagen';
+/** Bump de cache: v3 = imagen normalizada (trim) vía API. */
+const CATEGORIES_QUERY_VERSION = 'v3-imagen-trim';
 
 function vehiclesQueryKey(vehicles) {
   return (Array.isArray(vehicles) ? vehicles : [])
@@ -41,29 +42,29 @@ function CategoryIcon({ cat, failedUris, onImageError }) {
   const imageUri = resolveToAbsoluteMediaUrl(cat.imagen_url || cat.imagen || null);
   const showImage = Boolean(imageUri) && !failedUris.has(imageUri);
 
-  return (
-    <View
-      style={[
-        styles.iconCircle,
-        { backgroundColor: showImage ? COLORS.background.paper : visual.bg },
-        showImage ? styles.iconCircleWithImage : null,
-      ]}
-    >
-      {showImage ? (
+  // Explore: glifo PNG transparente a tamaño de slot (sin máscara/scale).
+  // Fallback: círculo tonal + Lucide outline.
+  if (showImage) {
+    return (
+      <View style={styles.iconSlot}>
         <Image
           key={imageUri}
           source={{ uri: imageUri }}
           style={styles.iconImage}
-          contentFit="cover"
+          contentFit="contain"
           transition={180}
           cachePolicy="none"
           recyclingKey={imageUri}
           accessibilityIgnoresInvertColors
           onError={() => onImageError(imageUri)}
         />
-      ) : (
-        <Icon size={22} color={visual.color} strokeWidth={1.75} fill="none" />
-      )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.iconCircle, { backgroundColor: visual.bg }]}>
+      <Icon size={22} color={visual.color} strokeWidth={1.75} fill="none" />
     </View>
   );
 }
@@ -79,6 +80,7 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
     data: categoriesRaw,
     isPending,
     isFetching,
+    dataUpdatedAt,
   } = useQuery({
     queryKey: hasVehicles
       ? ['mainCategoriesForVehicles', CATEGORIES_QUERY_VERSION, vehicleIdsKey]
@@ -92,8 +94,15 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
     refetchOnMount: 'always',
   });
 
-  /** Fallos por URI (no por id): si la URL cambia (proxy nuevo), se reintenta. */
+  /**
+   * Fallos por URI (no por id): si la URL cambia (proxy nuevo), se reintenta.
+   * Se limpia con cada fetch exitoso nuevo: un fallo puntual (red, deploy en curso)
+   * no debe bloquear la imagen para siempre en la sesión.
+   */
   const [failedUris, setFailedUris] = useState(() => new Set());
+  useEffect(() => {
+    if (dataUpdatedAt) setFailedUris(new Set());
+  }, [dataUpdatedAt]);
   const markImageFailed = useCallback((uri) => {
     if (!uri) return;
     setFailedUris((prev) => {
@@ -196,6 +205,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.xxs,
   },
+  iconSlot: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.xs,
+    backgroundColor: 'transparent',
+  },
   iconCircle: {
     width: ICON_SIZE,
     height: ICON_SIZE,
@@ -206,13 +223,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.neutral.gray[100],
     overflow: 'hidden',
   },
-  iconCircleWithImage: {
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-  },
   iconImage: {
     width: ICON_SIZE,
     height: ICON_SIZE,
+    backgroundColor: 'transparent',
     ...(Platform.OS === 'web' ? { display: 'block' } : null),
   },
   label: {
