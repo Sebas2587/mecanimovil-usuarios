@@ -23,7 +23,9 @@ const HomeMultimarcaRow = ({
       loading={loading}
       emptyRequiresAddress={false}
       hasSelectedAddress
-      emptyNoResultsMessage="No hay proveedores multimarca disponibles en este momento."
+      emptyTitle="Sin talleres multimarca cerca"
+      emptyNoResultsMessage="Todavía no hay talleres multimarca disponibles en esta zona."
+      emptyActionLabel={onSeeAll ? 'Explorar talleres' : null}
       onProviderPress={onProviderPress}
       onSeeAll={onSeeAll}
       seeAllWhen={!loading && providers.length > 0}

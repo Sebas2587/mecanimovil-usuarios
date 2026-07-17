@@ -10,6 +10,9 @@ import {
 import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
 import { H_PAD } from '../home/shared/homeLayoutConstants';
 
+/** Preview del rail; el resto va a «Ver todos» (mismo criterio que talleres). */
+export const SERVICES_SECTION_PREVIEW_LIMIT = 4;
+
 /**
  * Rail horizontal de servicios — proporciones Airbnb (media 1:1, ancho fijo por card).
  */
@@ -19,11 +22,17 @@ const GuestServicesSection = ({
   onServicePress,
   spacingTop = false,
   onSeeAll,
+  previewLimit = SERVICES_SECTION_PREVIEW_LIMIT,
 }) => {
   const { width } = useWindowDimensions();
   const layoutW = Platform.OS === 'web' ? Math.min(width, 480) : width;
   /** ~2.15 cards visibles en mobile; en web panel estrecho. */
   const cardWidth = Math.max(148, Math.min(196, Math.floor((layoutW - H_PAD * 2) * 0.42)));
+  const previewOffers =
+    previewLimit > 0 && offers.length > previewLimit
+      ? offers.slice(0, previewLimit)
+      : offers;
+  const showSeeAll = Boolean(onSeeAll) && offers.length > previewLimit;
 
   const renderCard = useCallback(
     (item) => {
@@ -89,15 +98,15 @@ const GuestServicesSection = ({
 
   return (
     <View style={[styles.section, spacingTop && styles.sectionTop]}>
-      <HomeSectionHeader title={title} onSeeAll={onSeeAll} />
+      <HomeSectionHeader title={title} onSeeAll={showSeeAll ? onSeeAll : undefined} />
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={Platform.OS !== 'web'}
+        showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
         keyboardShouldPersistTaps="handled"
         style={Platform.OS === 'web' ? styles.carouselWeb : undefined}
       >
-        {offers.map(renderCard)}
+        {previewOffers.map(renderCard)}
       </ScrollView>
     </View>
   );
@@ -119,6 +128,7 @@ const styles = StyleSheet.create({
     overflowX: 'auto',
     overflowY: 'hidden',
     scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
   },
 });
 

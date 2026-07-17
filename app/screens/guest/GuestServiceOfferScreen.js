@@ -39,8 +39,9 @@ import { savePendingGuestScheduleIntent } from '../../utils/guestIntent';
 import {
   getServicioDetallePublico,
   getServicioOfertasPublicasGroup,
-  getServiciosMasSolicitados,
 } from '../../services/service';
+import { resolveVehicleMarcaId } from '../../components/home/shared/homeVehicleUtils';
+import { ofertaPublicaCompatibleConVehiculo } from '../../utils/popularServicesForVehicle';
 import { H_PAD } from '../../components/home/shared/homeLayoutConstants';
 
 const formatCLP = (n) => {
@@ -301,21 +302,80 @@ const GuestServiceOfferScreen = () => {
     (async () => {
       const detalle = await getServicioDetallePublico(servicioId);
       if (!mounted) return;
-      const related = Array.isArray(detalle?.servicios_relacionados_info)
-        ? detalle.servicios_relacionados_info
-        : Array.isArray(detalle?.servicios_relacionados)
-          ? detalle.servicios_relacionados
-          : [];
-      setRelatedServices(
-        related
-          .filter((s) => s?.id != null && Number(s.id) !== Number(servicioId))
-          .slice(0, 8),
+      const related = (
+        Array.isArray(detalle?.servicios_relacionados_info)
+          ? detalle.servicios_relacionados_info
+          : Array.isArray(detalle?.servicios_relacionados)
+            ? detalle.servicios_relacionados
+            : []
+      )
+        .filter((s) => s?.id != null && Number(s.id) !== Number(servicioId))
+        .slice(0, 8);
+
+      if (related.length === 0) {
+        if (mounted) setRelatedServices([]);
+        return;
+      }
+
+      const marcaId = isLoggedFlow ? resolveVehicleMarcaId(vehicle) : null;
+
+      /**
+       * Misma vista que GuestLanding/UserPanel: cada relacionado se resuelve a un
+       * grupo con ofertas. Logueado: solo servicios con talleres compatibles
+       * con la marca/modelo del vehículo seleccionado.
+       */
+      const groups = await Promise.all(
+        related.map(async (svc) => {
+          const group = await getServicioOfertasPublicasGroup(svc.id, { marcaId });
+          if (!group?.ofertas?.length) return null;
+          if (isLoggedFlow && vehicle?.id) {
+            const ofertas = group.ofertas.filter((o) =>
+              ofertaPublicaCompatibleConVehiculo(o, vehicle),
+            );
+            if (ofertas.length === 0) return null;
+            const precios = ofertas.map((o) => Number(o.precio) || 0).filter((p) => p > 0);
+            return {
+              ...group,
+              ofertas,
+              precio_desde: precios.length ? Math.min(...precios) : group.precio_desde,
+              precio_hasta: precios.length ? Math.max(...precios) : group.precio_hasta,
+              total_proveedores: new Set(
+                ofertas.map((o) => `${o.provider_type}-${o.provider?.id}`),
+              ).size,
+              /** Card UI: enriquecer con foto/precio del grupo. */
+              id: group.servicio_id,
+              nombre: group.nombre || svc.nombre,
+              foto: group.foto || svc.foto,
+              fotos_servicio: group.fotos_servicio?.length
+                ? group.fotos_servicio
+                : svc.foto
+                  ? [{ imagen_url: svc.foto }]
+                  : [],
+              _group: true,
+            };
+          }
+          return {
+            ...group,
+            id: group.servicio_id,
+            nombre: group.nombre || svc.nombre,
+            foto: group.foto || svc.foto,
+            fotos_servicio: group.fotos_servicio?.length
+              ? group.fotos_servicio
+              : svc.foto
+                ? [{ imagen_url: svc.foto }]
+                : [],
+            _group: true,
+          };
+        }),
       );
+
+      if (!mounted) return;
+      setRelatedServices(groups.filter(Boolean));
     })();
     return () => {
       mounted = false;
     };
-  }, [servicioId]);
+  }, [servicioId, isLoggedFlow, vehicle]);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -379,26 +439,50 @@ const GuestServiceOfferScreen = () => {
 
   const handleRelatedPress = useCallback(
     async (related) => {
-      const id = related?.id;
+      const id = related?.servicio_id ?? related?.id;
       if (id == null || relatedLoadingId != null) return;
       setRelatedLoadingId(id);
 
       try {
-        const popular = await getServiciosMasSolicitados(24);
-        const match = (popular || []).find((item) => Number(item.servicio_id) === Number(id));
-        let nextGroup = null;
-        if (match) {
-          nextGroup = {
-            servicio_id: match.servicio_id,
-            nombre: match.nombre,
-            fotos_servicio: match.foto ? [{ imagen_url: match.foto }] : [],
-            precio_desde: match.precio_desde,
-            precio_hasta: match.precio_hasta,
-            total_proveedores: match.total_proveedores,
-            ofertas: match.ofertas || [],
-          };
-        } else {
-          nextGroup = await getServicioOfertasPublicasGroup(id);
+        /** Si ya resolvimos el grupo al cargar el rail, navegar directo (paridad GuestLanding). */
+        let nextGroup =
+          Array.isArray(related?.ofertas) && related.ofertas.length > 0
+            ? {
+                servicio_id: related.servicio_id ?? id,
+                nombre: related.nombre,
+                foto: related.foto || null,
+                fotos_servicio: related.fotos_servicio || [],
+                precio_desde: related.precio_desde,
+                precio_hasta: related.precio_hasta,
+                total_proveedores: related.total_proveedores,
+                ofertas: related.ofertas,
+              }
+            : null;
+
+        if (!nextGroup?.ofertas?.length) {
+          const marcaId = isLoggedFlow ? resolveVehicleMarcaId(vehicle) : null;
+          nextGroup = await getServicioOfertasPublicasGroup(id, { marcaId });
+          if (nextGroup?.ofertas?.length && isLoggedFlow && vehicle?.id) {
+            const ofertas = nextGroup.ofertas.filter((o) =>
+              ofertaPublicaCompatibleConVehiculo(o, vehicle),
+            );
+            if (ofertas.length === 0) {
+              showToast(
+                `Por ahora no hay talleres ofreciendo "${related?.nombre || 'este servicio'}" para tu vehículo.`,
+              );
+              return;
+            }
+            const precios = ofertas.map((o) => Number(o.precio) || 0).filter((p) => p > 0);
+            nextGroup = {
+              ...nextGroup,
+              ofertas,
+              precio_desde: precios.length ? Math.min(...precios) : nextGroup.precio_desde,
+              precio_hasta: precios.length ? Math.max(...precios) : nextGroup.precio_hasta,
+              total_proveedores: new Set(
+                ofertas.map((o) => `${o.provider_type}-${o.provider?.id}`),
+              ).size,
+            };
+          }
         }
 
         if (!nextGroup?.ofertas?.length) {
@@ -422,7 +506,15 @@ const GuestServiceOfferScreen = () => {
         setRelatedLoadingId(null);
       }
     },
-    [navigation, patente, vehicleData, vehicle, relatedLoadingId, showToast],
+    [
+      navigation,
+      patente,
+      vehicleData,
+      vehicle,
+      isLoggedFlow,
+      relatedLoadingId,
+      showToast,
+    ],
   );
 
   if (providerRows.length === 0) {
@@ -598,15 +690,26 @@ const GuestServiceOfferScreen = () => {
               style={Platform.OS === 'web' ? styles.relatedWeb : undefined}
             >
               {relatedServices.map((svc) => {
-                const precioInfo = labelPrecioServicioResuelto(svc, { vehicle: null });
-                const precioLabel = precioInfo.principal ?? formatPrecioCatalogoServicio(svc);
-                const isLoadingThis = relatedLoadingId === svc.id;
+                const sid = svc.servicio_id ?? svc.id;
+                const desde = Number(svc.precio_desde) || 0;
+                const precioLabel =
+                  desde > 0
+                    ? `Desde ${formatCLP(desde)}`
+                    : (labelPrecioServicioResuelto(svc, { vehicle: null }).principal
+                      ?? formatPrecioCatalogoServicio(svc));
+                const nTalleres = Number(svc.total_proveedores) || (svc.ofertas?.length ?? 0);
+                const metaLabel =
+                  nTalleres > 0
+                    ? `${nTalleres} taller${nTalleres === 1 ? '' : 'es'} disponible${nTalleres === 1 ? '' : 's'}`
+                    : null;
+                const isLoadingThis = relatedLoadingId === sid;
                 return (
-                  <View key={`related-${svc.id}`} style={styles.relatedCardWrap}>
+                  <View key={`related-${sid}`} style={styles.relatedCardWrap}>
                     <GuestAirbnbServiceCard
                       width={relatedCardW}
                       servicio={svc}
                       precioLabel={precioLabel}
+                      metaLabel={metaLabel}
                       tipoLabel={labelTipoServicioCatalogo(svc)}
                       onPress={() => handleRelatedPress(svc)}
                     />

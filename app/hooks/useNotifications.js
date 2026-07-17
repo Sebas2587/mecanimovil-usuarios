@@ -46,11 +46,12 @@ export const useNotifications = () => {
     });
 };
 
-export const useUnreadCount = () => {
+export const useUnreadCount = (enabled = true) => {
     return useQuery({
         queryKey: ['unreadCount'],
         queryFn: notificationService.getUnreadCount,
         refetchInterval: 30000,
+        enabled: Boolean(enabled),
     });
 };
 

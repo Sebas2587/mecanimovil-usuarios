@@ -173,16 +173,74 @@ export const getServicioDetallePublico = async (servicioId) => {
   }
 };
 
+/** OfertaServicioSerializer: `taller`/`mecanico` son IDs; el objeto viene en `*_info`. */
+function resolveOfertaProviderPublico(oferta) {
+  const tallerInfo = oferta?.taller_info;
+  const mecanicoInfo = oferta?.mecanico_info;
+  if (tallerInfo && typeof tallerInfo === 'object' && tallerInfo.id != null) {
+    return { provider: tallerInfo, providerType: 'taller' };
+  }
+  if (mecanicoInfo && typeof mecanicoInfo === 'object' && mecanicoInfo.id != null) {
+    return { provider: mecanicoInfo, providerType: 'mecanico' };
+  }
+  // Payload ya normalizado (mas_solicitados / buscar)
+  if (oferta?.provider?.id) {
+    return {
+      provider: oferta.provider,
+      providerType: oferta.provider_type === 'mecanico' ? 'mecanico' : 'taller',
+    };
+  }
+  return { provider: null, providerType: null };
+}
+
+function coberturaFromOfertaSerializer(oferta, provider) {
+  if (oferta?.cobertura_vehiculo) return oferta.cobertura_vehiculo;
+  const marca = oferta?.marca_vehiculo_info;
+  const modelo = oferta?.modelo_vehiculo_info;
+  if (marca?.nombre) {
+    return {
+      alcance: 'marca',
+      marca_nombre: marca.nombre,
+      modelo_nombre: modelo?.nombre || null,
+      marcas_nombres: [],
+    };
+  }
+  const coberturaTipo = provider?.tipo_cobertura_marca;
+  if (coberturaTipo === 'multimarca') {
+    return {
+      alcance: 'multimarca',
+      marca_nombre: null,
+      modelo_nombre: null,
+      marcas_nombres: [],
+    };
+  }
+  const marcasNombres = Array.isArray(provider?.marcas_atendidas_nombres)
+    ? provider.marcas_atendidas_nombres
+    : Array.isArray(provider?.marcas_atendidas)
+      ? provider.marcas_atendidas.map((m) => m?.nombre || m).filter(Boolean)
+      : [];
+  return {
+    alcance: 'especialista',
+    marca_nombre: null,
+    modelo_nombre: null,
+    marcas_nombres: marcasNombres,
+  };
+}
+
 /**
- * Ofertas públicas de un servicio → shape de “grupo” para GuestServiceOfferScreen.
- * Preferir mas_solicitados cuando exista; este fallback arma el catálogo por servicio.
+ * Ofertas públicas de un servicio → shape de “grupo” para GuestServiceOfferScreen
+ * (mismo contrato que mas_solicitados / GuestLanding).
+ * `marcaId` opcional: acota ofertas a la marca del vehículo del usuario logueado.
  */
-export const getServicioOfertasPublicasGroup = async (servicioId) => {
+export const getServicioOfertasPublicasGroup = async (servicioId, { marcaId = null } = {}) => {
   if (servicioId == null || servicioId === '') return null;
   try {
+    const params = {};
+    if (marcaId != null && marcaId !== '') params.marca = marcaId;
+
     const [detalle, ofertasRaw] = await Promise.all([
       getServicioDetallePublico(servicioId),
-      get(`/servicios/servicios/${servicioId}/ofertas/`, {}, { requiresAuth: false }),
+      get(`/servicios/servicios/${servicioId}/ofertas/`, params, { requiresAuth: false }),
     ]);
     const ofertasList = Array.isArray(ofertasRaw)
       ? ofertasRaw
@@ -192,24 +250,31 @@ export const getServicioOfertasPublicasGroup = async (servicioId) => {
 
     const ofertas = [];
     const precios = [];
+    const providersUnicos = new Set();
     for (const oferta of ofertasList) {
       if (!oferta?.disponible && oferta?.disponible !== undefined) continue;
-      const provider = oferta.taller || oferta.mecanico || oferta.taller_info || oferta.mecanico_info;
-      if (!provider?.id) continue;
-      const providerType = oferta.taller || oferta.taller_info ? 'taller' : 'mecanico';
+      const { provider, providerType } = resolveOfertaProviderPublico(oferta);
+      if (!provider?.id || !providerType) continue;
+
       const precio = Number(
         oferta.precio_publicado_cliente
         || oferta.precio_sin_repuestos
+        || oferta.precio_con_repuestos
         || oferta.precio
         || 0,
       );
       if (precio > 0) precios.push(precio);
+      providersUnicos.add(`${providerType}-${provider.id}`);
       ofertas.push({
         oferta_id: oferta.id,
-        servicio_id: servicioId,
-        nombre: detalle?.nombre || oferta.servicio_nombre || 'Servicio',
+        servicio_id: Number(servicioId),
+        nombre:
+          detalle?.nombre
+          || oferta.servicio_info?.nombre
+          || oferta.servicio_nombre
+          || 'Servicio',
         precio,
-        precio_publicado_cliente: Number(oferta.precio_publicado_cliente || 0),
+        precio_publicado_cliente: Number(oferta.precio_publicado_cliente || precio || 0),
         tipo_servicio: oferta.tipo_servicio || 'sin_repuestos',
         provider: {
           id: provider.id,
@@ -219,8 +284,11 @@ export const getServicioOfertasPublicasGroup = async (servicioId) => {
           calificacion_promedio: provider.calificacion_promedio,
           direccion: provider.direccion,
           verificado: provider.verificado,
+          tipo_cobertura_marca: provider.tipo_cobertura_marca,
+          marcas_atendidas_nombres: provider.marcas_atendidas_nombres,
         },
         provider_type: providerType,
+        cobertura_vehiculo: coberturaFromOfertaSerializer(oferta, provider),
       });
     }
 
@@ -233,7 +301,7 @@ export const getServicioOfertasPublicasGroup = async (servicioId) => {
       fotos_servicio: detalle?.foto ? [{ imagen_url: detalle.foto }] : [],
       precio_desde: precios.length ? Math.min(...precios) : null,
       precio_hasta: precios.length ? Math.max(...precios) : null,
-      total_proveedores: ofertas.length,
+      total_proveedores: providersUnicos.size,
       ofertas,
     };
   } catch (error) {

@@ -202,6 +202,8 @@ export const ROUTES = {
   GUEST_SERVICE_OFFER: 'GuestServiceOffer',
   /** Ver todos los talleres de una sección del landing */
   GUEST_SECTION_PROVIDERS: 'GuestSectionProviders',
+  /** Ver todos los servicios de una sección del landing */
+  GUEST_SECTION_SERVICES: 'GuestSectionServices',
   LOGIN: 'Login',
   REGISTER: 'Register',
 

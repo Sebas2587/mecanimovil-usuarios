@@ -1,6 +1,10 @@
 import React from 'react';
 import HomeProvidersCarouselSection from './HomeProvidersCarouselSection';
 
+/**
+ * Destacados especialistas de la marca — vacío Airbnb (sin card):
+ * título de sección + mensaje quieto + enlace «Explorar talleres».
+ */
 const HomeHighlightedRow = ({
   selectedVehicle,
   hasSelectedAddress = false,
@@ -24,11 +28,14 @@ const HomeHighlightedRow = ({
       loading={loading}
       emptyRequiresAddress
       hasSelectedAddress={hasSelectedAddress}
-      emptyNoAddressMessage="Elige una dirección para ver talleres recomendados cerca de ti."
-      emptyNoResultsMessage="Aún no hay talleres que atiendan tu marca en esta zona. Explora «Cerca de ti» o agenda un servicio."
+      emptyNoAddressTitle="Elige dónde te atienden"
+      emptyNoAddressMessage="Agrega o selecciona una dirección para ver especialistas cerca de ti."
+      emptyTitle={`Sin especialistas ${marcaLabel} cerca`}
+      emptyNoResultsMessage={`Todavía no encontramos talleres especializados en ${marcaLabel} en tu zona.`}
+      emptyActionLabel="Explorar talleres"
       onProviderPress={onProviderPress}
       onSeeAll={onSeeAll}
-      seeAllWhen={!loading && (hasSelectedAddress || providers.length > 0)}
+      seeAllWhen={!loading && providers.length > 0}
     />
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,51 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MapPin, Wrench, Building2 } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
+import {
+  resolveToAbsoluteMediaUrl,
+  buildProviderAvatarUri,
+} from '../../utils/providerUtils';
+
+function resolveServiceCoverUri(offer) {
+  if (!offer) return null;
+  const fotos = Array.isArray(offer.fotos_servicio) ? offer.fotos_servicio : [];
+  const first = fotos[0];
+  if (first) {
+    return resolveToAbsoluteMediaUrl(
+      first.imagen_url || first.image || first.url || first.imagen || null,
+    );
+  }
+  return resolveToAbsoluteMediaUrl(offer.foto || null);
+}
+
+function SuggestionThumb({ uri, kind = 'service' }) {
+  const Icon = kind === 'provider' ? Building2 : Wrench;
+  const fallbackBg = kind === 'provider' ? COLORS.badge.meta.background : COLORS.primary[50];
+  const iconColor = kind === 'provider' ? COLORS.text.secondary : COLORS.icon.active;
+
+  return (
+    <View style={[styles.thumb, { backgroundColor: fallbackBg }]}>
+      {uri ? (
+        <Image
+          source={{ uri }}
+          style={styles.thumbImage}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={120}
+        />
+      ) : (
+        <Icon size={18} color={iconColor} strokeWidth={2} />
+      )}
+    </View>
+  );
+}
 
 /**
  * Dropdown de sugerencias estilo Airbnb bajo el search pill.
+ * Muestra foto real del servicio / taller cuando existe.
  */
 const GuestSearchSuggestions = ({
   visible,
@@ -52,33 +92,13 @@ const GuestSearchSuggestions = ({
           {hasServices ? (
             <View style={styles.group}>
               <Text style={styles.groupTitle}>Servicios</Text>
-              {serviceOffers.slice(0, 5).map((offer) => {
-                const total = offer.total_proveedores || offer.ofertas?.length || 0;
-                const desde = Number(offer.precio_desde) || 0;
-                const subtitleParts = [];
-                if (total > 0) subtitleParts.push(`${total} taller${total === 1 ? '' : 'es'}`);
-                if (desde > 0) subtitleParts.push(`Desde $${Math.round(desde).toLocaleString('es-CL')}`);
-                return (
-                  <TouchableOpacity
-                    key={`sug-svc-${offer.servicio_id}`}
-                    style={styles.row}
-                    onPress={() => onSelectService?.(offer)}
-                    activeOpacity={0.85}
-                  >
-                    <View style={[styles.iconWrap, styles.iconService]}>
-                      <Wrench size={18} color={COLORS.icon.active} strokeWidth={2} />
-                    </View>
-                    <View style={styles.textCol}>
-                      <Text style={styles.rowTitle} numberOfLines={1}>
-                        {offer.nombre}
-                      </Text>
-                      <Text style={styles.rowSub} numberOfLines={1}>
-                        {subtitleParts.length ? subtitleParts.join(' · ') : 'Servicio automotriz'}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {serviceOffers.slice(0, 5).map((offer) => (
+                <ServiceSuggestionRow
+                  key={`sug-svc-${offer.servicio_id}`}
+                  offer={offer}
+                  onPress={() => onSelectService?.(offer)}
+                />
+              ))}
             </View>
           ) : null}
 
@@ -86,27 +106,11 @@ const GuestSearchSuggestions = ({
             <View style={styles.group}>
               <Text style={styles.groupTitle}>Talleres</Text>
               {providers.slice(0, 5).map((p) => (
-                <TouchableOpacity
+                <ProviderSuggestionRow
                   key={`sug-prov-${p._panelKind}-${p.id}`}
-                  style={styles.row}
+                  provider={p}
                   onPress={() => onSelectProvider?.(p)}
-                  activeOpacity={0.85}
-                >
-                  <View style={[styles.iconWrap, styles.iconProvider]}>
-                    <Building2 size={18} color={COLORS.text.secondary} strokeWidth={2} />
-                  </View>
-                  <View style={styles.textCol}>
-                    <Text style={styles.rowTitle} numberOfLines={1}>
-                      {p.nombre || 'Taller'}
-                    </Text>
-                    <Text style={styles.rowSub} numberOfLines={1}>
-                      {p._panelKind === 'mecanico' ? 'A domicilio' : 'Taller'}
-                      {p.distance != null || p.distancia_km != null
-                        ? ` · cerca de ti`
-                        : ''}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
+                />
               ))}
             </View>
           ) : null}
@@ -122,6 +126,48 @@ const GuestSearchSuggestions = ({
     </View>
   );
 };
+
+function ServiceSuggestionRow({ offer, onPress }) {
+  const coverUri = useMemo(() => resolveServiceCoverUri(offer), [offer]);
+  const total = offer.total_proveedores || offer.ofertas?.length || 0;
+  const desde = Number(offer.precio_desde) || 0;
+  const subtitleParts = [];
+  if (total > 0) subtitleParts.push(`${total} taller${total === 1 ? '' : 'es'}`);
+  if (desde > 0) subtitleParts.push(`Desde $${Math.round(desde).toLocaleString('es-CL')}`);
+
+  return (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.85}>
+      <SuggestionThumb uri={coverUri} kind="service" />
+      <View style={styles.textCol}>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {offer.nombre}
+        </Text>
+        <Text style={styles.rowSub} numberOfLines={1}>
+          {subtitleParts.length ? subtitleParts.join(' · ') : 'Servicio automotriz'}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function ProviderSuggestionRow({ provider, onPress }) {
+  const avatarUri = useMemo(() => buildProviderAvatarUri(provider), [provider]);
+
+  return (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.85}>
+      <SuggestionThumb uri={avatarUri} kind="provider" />
+      <View style={styles.textCol}>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {provider.nombre || 'Taller'}
+        </Text>
+        <Text style={styles.rowSub} numberOfLines={1}>
+          {provider._panelKind === 'mecanico' ? 'A domicilio' : 'Taller'}
+          {provider.distance != null || provider.distancia_km != null ? ' · cerca de ti' : ''}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 const styles = StyleSheet.create({
   panel: {
@@ -180,18 +226,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm + 2,
   },
-  iconWrap: {
-    width: 40,
-    height: 40,
+  thumb: {
+    width: 44,
+    height: 44,
     borderRadius: BORDERS.radius.md,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  iconService: {
-    backgroundColor: COLORS.primary[50],
-  },
-  iconProvider: {
-    backgroundColor: COLORS.badge.meta.background,
+  thumbImage: {
+    width: '100%',
+    height: '100%',
   },
   textCol: {
     flex: 1,

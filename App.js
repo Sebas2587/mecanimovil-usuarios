@@ -39,7 +39,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { queryClient, asyncStoragePersister, shouldPersistQuery } from './app/config/queryClient';
 import './app/services/tripTrackingService';
 import { discardStalePaymentSessionOnColdStart } from './app/utils/pagoPendienteStorage';
-import { consumePendingGuestIntent } from './app/utils/guestIntent';
+import {
+  consumePendingGuestIntent,
+  savePendingGuestVehicleSuggestion,
+  clearPendingGuestVehicleSuggestion,
+  setPreferredVehiclePatente,
+} from './app/utils/guestIntent';
 import { showAlert } from './app/utils/platformAlert';
 import { navigateCrearSolicitudConProveedorYServicio } from './app/components/home/shared/homeScheduleNavigation';
 import * as vehicleService from './app/services/vehicle';
@@ -517,28 +522,50 @@ const MainImpl = ({ lastNotificationResponse }) => {
         return;
       }
 
+      /**
+       * Consulta de patente como invitado (sin agendar):
+       * - Si ya es del usuario → home + preferir ese auto (nunca forzar registro).
+       * - Si es de otro → aviso y salir.
+       * - Si no está en el garaje → sugerencia opcional en UserPanel (banner), no CREAR_VEHICULO.
+       */
       if (intent.patente) {
+        let vehicles = [];
+        try {
+          vehicles = await vehicleService.getUserVehicles();
+        } catch (_e) {
+          vehicles = [];
+        }
+        const list = Array.isArray(vehicles) ? vehicles : vehicles?.results || [];
+        const owned = findVehicleByPatente(list, intent.patente);
+        if (owned) {
+          await clearPendingGuestVehicleSuggestion();
+          await setPreferredVehiclePatente(intent.patente);
+          navigationRef.navigate('TabNavigator', { screen: ROUTES.HOME });
+          return;
+        }
+
         const check = await checkPatenteRegistration(intent.patente);
         if (check?.registered) {
           if (check.owner === 'other') {
+            await clearPendingGuestVehicleSuggestion();
             showAlert(
               'Patente no disponible',
               'Esta patente ya está registrada por otro usuario. Si crees que es un error, contáctanos a soporte.',
             );
             return;
           }
-          showAlert(
-            'Patente ya registrada',
-            'Este vehículo ya está en tu garaje. No es necesario registrarlo de nuevo.',
-          );
-          goToGarage();
+          // owner === 'self' pero aún no llegó a getUserVehicles: preferir home.
+          await clearPendingGuestVehicleSuggestion();
+          await setPreferredVehiclePatente(intent.patente);
+          navigationRef.navigate('TabNavigator', { screen: ROUTES.HOME });
           return;
         }
 
-        navigationRef.navigate(ROUTES.CREAR_VEHICULO, {
-          prefillPatente: intent.patente,
-          prefillVehicleData: intent.vehicleData,
+        await savePendingGuestVehicleSuggestion({
+          patente: intent.patente,
+          vehicleData: intent.vehicleData,
         });
+        navigationRef.navigate('TabNavigator', { screen: ROUTES.HOME });
       }
     } catch (e) {
       logger.warn('No se pudo procesar intent invitado:', e);

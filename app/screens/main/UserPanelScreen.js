@@ -37,6 +37,7 @@ import {
   HomeCategoryGrid,
   HomeContextualBanner,
   HomePendingReviewBanner,
+  HomeGuestVehicleSuggestionBanner,
   HomeHighlightedRow,
   HomeMultimarcaRow,
   HomeMarketActivitySection,
@@ -48,14 +49,20 @@ import { useTripTracking } from '../../context/TripTrackingContext';
 import { TRIP_ACTIVE_BAR_HEIGHT, TRIP_ACTIVE_BAR_GAP } from '../../components/trip/TripActiveBar';
 import { H_PAD, TAB_BAR_BASE_HEIGHT, SCROLL_BOTTOM_GAP } from '../../components/home/shared/homeLayoutConstants';
 import { COLORS } from '../../design-system/tokens';
+import {
+  peekPendingGuestVehicleSuggestion,
+  clearPendingGuestVehicleSuggestion,
+  peekPreferredVehiclePatente,
+  consumePreferredVehiclePatente,
+} from '../../utils/guestIntent';
 
 const UserPanelScreen = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { solicitudesActivas, cargarSolicitudesActivas } = useSolicitudes();
-  const { data: unreadData } = useUnreadCount();
+  const { data: unreadData } = useUnreadCount(isAuthenticated);
   const unreadCount = typeof unreadData === 'number' ? unreadData : (unreadData?.count || 0);
   const { data: pendingReviews = [], refetch: refetchPendingReviews } = usePendingReviews();
   const pendingReviewCount = pendingReviews.length;
@@ -76,6 +83,8 @@ const UserPanelScreen = () => {
   const [selectorVisible, setSelectorVisible] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
+  /** Sugerencia opcional: auto consultado como invitado antes del login. */
+  const [guestVehicleSuggestion, setGuestVehicleSuggestion] = useState(null);
 
   const {
     data: vehiclesRaw,
@@ -109,6 +118,83 @@ const UserPanelScreen = () => {
       if (!exists) setSelectedVehicleId(vehicles[0].id);
     }
   }, [vehicles, selectedVehicleId]);
+
+  /** Preferir el auto consultado como invitado si ya está en el garaje. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!vehicles.length) return;
+      const preferred = await peekPreferredVehiclePatente();
+      if (cancelled || !preferred) return;
+      const match = vehicles.find(
+        (v) => String(v.patente || '').toUpperCase().trim() === preferred,
+      );
+      if (match?.id) {
+        setSelectedVehicleId(match.id);
+        await consumePreferredVehiclePatente();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [vehicles]);
+
+  /**
+   * Banner opcional: vehículo consultado sin login que aún no está en el garaje.
+   * Reintenta tras el flush post-login (race: panel monta antes de guardar sugerencia).
+   */
+  const refreshGuestVehicleSuggestion = useCallback(async () => {
+    const suggestion = await peekPendingGuestVehicleSuggestion();
+    if (!suggestion?.patente) {
+      setGuestVehicleSuggestion(null);
+      return;
+    }
+    const plate = String(suggestion.patente).toUpperCase().trim();
+    const alreadyOwned = vehicles.some(
+      (v) => String(v.patente || '').toUpperCase().trim() === plate,
+    );
+    if (alreadyOwned) {
+      await clearPendingGuestVehicleSuggestion();
+      setGuestVehicleSuggestion(null);
+      return;
+    }
+    setGuestVehicleSuggestion(suggestion);
+  }, [vehicles]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const run = async () => {
+        if (!active) return;
+        await refreshGuestVehicleSuggestion();
+      };
+      run();
+      /** Cubrir race con flushPendingGuestIntent tras login/registro. */
+      const t1 = setTimeout(run, 400);
+      const t2 = setTimeout(run, 1200);
+      return () => {
+        active = false;
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }, [refreshGuestVehicleSuggestion]),
+  );
+
+  const dismissGuestVehicleSuggestion = useCallback(async () => {
+    await clearPendingGuestVehicleSuggestion();
+    setGuestVehicleSuggestion(null);
+  }, []);
+
+  const addGuestVehicleSuggestion = useCallback(async () => {
+    if (!guestVehicleSuggestion?.patente) return;
+    const { patente, vehicleData } = guestVehicleSuggestion;
+    await clearPendingGuestVehicleSuggestion();
+    setGuestVehicleSuggestion(null);
+    navigation.navigate(ROUTES.CREAR_VEHICULO, {
+      prefillPatente: patente,
+      prefillVehicleData: vehicleData,
+    });
+  }, [guestVehicleSuggestion, navigation]);
 
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId) || null,
@@ -522,6 +608,27 @@ const UserPanelScreen = () => {
           if (savedAddr?.id) setSelectedAddressId(savedAddr.id);
           setAddAddressModalOpen(false);
         }}
+      />
+
+      {/* Modal Airbnb encima del panel: sugerencia de registrar auto consultado como invitado */}
+      <HomeGuestVehicleSuggestionBanner
+        visible={!!guestVehicleSuggestion?.patente}
+        patente={guestVehicleSuggestion?.patente}
+        marca={
+          guestVehicleSuggestion?.vehicleData?.marca_nombre
+          || guestVehicleSuggestion?.vehicleData?.marca
+        }
+        modelo={
+          guestVehicleSuggestion?.vehicleData?.modelo_nombre
+          || guestVehicleSuggestion?.vehicleData?.modelo
+        }
+        anio={
+          guestVehicleSuggestion?.vehicleData?.anio
+          || guestVehicleSuggestion?.vehicleData?.ano
+          || guestVehicleSuggestion?.vehicleData?.year
+        }
+        onAdd={addGuestVehicleSuggestion}
+        onDismiss={dismissGuestVehicleSuggestion}
       />
     </View>
   );

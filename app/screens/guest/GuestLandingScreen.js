@@ -44,7 +44,12 @@ import { consultarPatentePublica } from '../../services/vehicle';
 import { getGuestBrowseProviders, getGuestProvidersByMarca } from '../../services/providers';
 import { getMainCategories } from '../../services/categories';
 import { buscarServiciosPublico, getServiciosMasSolicitados } from '../../services/service';
-import { savePendingGuestIntent, savePendingGuestScheduleIntent } from '../../utils/guestIntent';
+import {
+  savePendingGuestIntent,
+  savePendingGuestScheduleIntent,
+  savePendingGuestVehicleSuggestion,
+  clearPendingGuestVehicleSuggestion,
+} from '../../utils/guestIntent';
 import { formatGuestValorLabel, mapPublicDataToPrefill } from '../../utils/guestExploreUtils';
 import { showAlert } from '../../utils/platformAlert';
 import {
@@ -96,6 +101,7 @@ function mapSearchServiciosToOffers(servicios) {
     .map((item) => ({
       servicio_id: item.servicio_id,
       nombre: item.nombre,
+      foto: item.foto || null,
       fotos_servicio: item.foto ? [{ imagen_url: item.foto }] : [],
       precio_desde: item.precio_desde,
       precio_hasta: item.precio_hasta,
@@ -308,10 +314,22 @@ const GuestLandingScreen = () => {
       const data = await consultarPatentePublica(normalizedPatente);
       setVehicleData(data);
       if (data?.registered_in_app) {
+        /** Ya existe en la app: no sugerir registro tras login. */
+        await clearPendingGuestVehicleSuggestion();
         showAlert(
           'Patente ya registrada',
           'Este vehículo ya está en Mecanimovil. Inicia sesión con tu cuenta para acceder a su historial y agendar servicios.',
         );
+      } else if (data) {
+        /**
+         * Persistir sugerencia al consultar (antes del login/registro), para que
+         * UserPanel pueda ofrecer “Agregar al garaje” sin depender del CTA de auth.
+         */
+        const prefill = mapPublicDataToPrefill(data, normalizedPatente);
+        await savePendingGuestVehicleSuggestion({
+          patente: normalizedPatente,
+          vehicleData: prefill,
+        });
       }
     } catch (error) {
       const msg =
@@ -401,6 +419,21 @@ const GuestLandingScreen = () => {
       });
     },
     [navigation, hasVehicleResults, marcaNombre, textFilteredProviders],
+  );
+
+  /** Airbnb “Ver todos” para rails de servicios (búsqueda / más solicitados). */
+  const navigateToServicesSection = useCallback(
+    (title, offers) => {
+      const total = offers?.length || 0;
+      navigation.navigate(ROUTES.GUEST_SECTION_SERVICES, {
+        title,
+        meta: `${total} servicio${total === 1 ? '' : 's'}`,
+        offers: offers || [],
+        patente: normalizedPatente || null,
+        vehicleData: mapPublicDataToPrefill(vehicleData, normalizedPatente),
+      });
+    },
+    [navigation, normalizedPatente, vehicleData],
   );
 
   const handleRegister = useCallback(async () => {
@@ -518,14 +551,16 @@ const GuestLandingScreen = () => {
         }
       >
         <View style={styles.heroWrap}>
-          <View style={styles.heroBadge}>
-            <Sparkles size={13} color={COLORS.primary[600]} strokeWidth={2.25} />
-            <Text style={styles.heroBadgeText}>Explora sin registrarte</Text>
-          </View>
           <Text style={styles.heroTitle}>¿Qué necesita tu auto?</Text>
           <Text style={styles.heroSubtitle}>
             Descubre talleres verificados, servicios y valor estimado — sin registrarte.
           </Text>
+
+          {/* Trust bajo el copy, antes del CTA de búsqueda (jerarquía Airbnb). */}
+          <View style={styles.trustRow}>
+            <TrustPill icon={Sparkles} label="Consulta gratis" />
+            <TrustPill icon={ShieldCheck} label="Talleres verificados" />
+          </View>
 
           <View style={styles.searchBlock}>
             <GuestSearchBar
@@ -587,11 +622,6 @@ const GuestLandingScreen = () => {
               </TouchableOpacity>
             </View>
           ) : null}
-
-          <View style={styles.trustRow}>
-            <TrustPill icon={Sparkles} label="Consulta gratis" />
-            <TrustPill icon={ShieldCheck} label="Talleres verificados" />
-          </View>
         </View>
 
         {hasVehicleResults ? (
@@ -672,6 +702,9 @@ const GuestLandingScreen = () => {
             title="Servicios más solicitados"
             offers={popularServiceOffers}
             onServicePress={handleServicePress}
+            onSeeAll={() =>
+              navigateToServicesSection('Servicios más solicitados', popularServiceOffers)
+            }
           />
         ) : null}
 
@@ -680,6 +713,12 @@ const GuestLandingScreen = () => {
             title={`Servicios para "${appliedSearchQuery}"`}
             offers={searchServiceOffers}
             onServicePress={handleServicePress}
+            onSeeAll={() =>
+              navigateToServicesSection(
+                `Servicios para "${appliedSearchQuery}"`,
+                searchServiceOffers,
+              )
+            }
             spacingTop
           />
         ) : null}
@@ -778,7 +817,7 @@ const GuestLandingScreen = () => {
 function TrustPill({ icon: IconCmp, label }) {
   return (
     <View style={styles.trustPill}>
-      <IconCmp size={14} color={COLORS.primary[600]} />
+      <IconCmp size={14} color={COLORS.icon.default} strokeWidth={2} />
       <Text style={styles.trustPillText}>{label}</Text>
     </View>
   );
@@ -825,10 +864,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
     minHeight: 56,
+    gap: SPACING.sm,
   },
   logo: {
     width: 132,
     height: 34,
+    flexShrink: 1,
+    maxWidth: '52%',
   },
   loginBtn: {
     flexShrink: 0,
@@ -843,23 +885,6 @@ const styles = StyleSheet.create({
     overflow: 'visible',
     zIndex: 1,
   },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    backgroundColor: COLORS.primary[50],
-    borderRadius: BORDERS.radius.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 6,
-    marginBottom: SPACING.md,
-  },
-  heroBadgeText: {
-    ...TYPOGRAPHY.styles.captionBold,
-    color: COLORS.primary[600],
-    fontSize: 12,
-    letterSpacing: 0.2,
-  },
   heroTitle: {
     ...TYPOGRAPHY.styles.h2,
     color: COLORS.text.primary,
@@ -870,7 +895,7 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.styles.body,
     color: COLORS.text.secondary,
     lineHeight: 22,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     maxWidth: 520,
   },
   searchBlock: {
@@ -882,7 +907,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: SPACING.sm,
+    marginBottom: 0,
     minWidth: 0,
     paddingVertical: 2,
   },
@@ -893,6 +918,7 @@ const styles = StyleSheet.create({
   },
   compactSearchBar: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.sm,
@@ -908,6 +934,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.primary[200],
+    flexShrink: 1,
+    minWidth: 0,
   },
   compactPatenteText: {
     ...TYPOGRAPHY.styles.captionBold,
@@ -925,31 +953,31 @@ const styles = StyleSheet.create({
     borderWidth: BORDERS.width.thin,
     borderColor: COLORS.primary[200],
     backgroundColor: COLORS.base.soft,
+    flexShrink: 1,
   },
   changeBtnText: {
     ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[600],
+    flexShrink: 1,
   },
   trustRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING.sm,
-    marginTop: SPACING.sm,
+    alignItems: 'center',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
   trustPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.full,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.primary[100],
+    gap: 5,
+    flexShrink: 1,
+    maxWidth: '100%',
   },
   trustPillText: {
     ...TYPOGRAPHY.styles.caption,
-    color: COLORS.text.secondary,
+    color: COLORS.text.tertiary,
+    flexShrink: 1,
   },
   vehicleBlock: {
     marginBottom: SPACING.md,

@@ -13,6 +13,7 @@ export { default as HomeSearchBar } from './HomeSearchBar';
 export { default as HomeCategoryGrid } from './HomeCategoryGrid';
 export { default as HomeContextualBanner } from './HomeContextualBanner';
 export { default as HomePendingReviewBanner } from './HomePendingReviewBanner';
+export { default as HomeGuestVehicleSuggestionBanner } from './HomeGuestVehicleSuggestionBanner';
 export { default as HomeOffersRow } from './HomeOffersRow';
 export { default as HomeHighlightedRow } from './HomeHighlightedRow';
 export { default as HomeNearbyRow } from './HomeNearbyRow';

@@ -412,22 +412,26 @@ function setupInterceptors(apiInstance) {
         // CRÍTICO: Solo limpiar credenciales si es un error REAL de autenticación
         // NO limpiar si hay problemas de servidor/BD/red que causan 401 incorrectamente
         if (error.response.status === 401 && !isUnauthorizedExpected) {
-          // Verificar si es un error real de autenticación (token inválido/expirado)
           const errorData = error.response.data;
           const errorMessage = (errorData?.detail || errorData?.error || '').toLowerCase();
           const errorString = JSON.stringify(errorData || {}).toLowerCase();
+          const authHeader = error.config?.headers?.Authorization
+            || error.config?.headers?.authorization
+            || '';
+          const sentWithoutToken = !authHeader || !String(authHeader).startsWith('Token ');
 
-          // Solo limpiar credenciales si el mensaje indica claramente problema de autenticación
-          // NO limpiar si hay indicios de errores de servidor/BD/red
-          const isAuthError = (
-            errorMessage.includes('token') && !errorMessage.includes('server') ||
-            errorMessage.includes('authentication') && !errorMessage.includes('server') ||
-            errorMessage.includes('unauthorized') && !errorMessage.includes('server') ||
-            errorMessage.includes('invalid credentials') ||
-            errorMessage.includes('token expired') ||
-            errorString.includes('invalid_token') ||
-            errorString.includes('token_not_found')
-          ) && !(
+          // Sesión fantasma: React cree que hay usuario, pero no hay Authorization → GuestLanding.
+          // También mensajes DRF ES/EN clásicos de “no hay credenciales”.
+          const isMissingCredentials = (
+            sentWithoutToken ||
+            errorMessage.includes('credenciales') ||
+            errorMessage.includes('no se proveyeron') ||
+            errorMessage.includes('authentication credentials were not provided') ||
+            errorMessage.includes('not authenticated') ||
+            errorMessage.includes('autenticaci')
+          );
+
+          const looksLikeServerFault = (
             errorMessage.includes('server error') ||
             errorMessage.includes('connection') ||
             errorMessage.includes('database') ||
@@ -435,15 +439,27 @@ function setupInterceptors(apiInstance) {
             errorString.includes('operationalerror')
           );
 
+          const isAuthError = !looksLikeServerFault && (
+            isMissingCredentials ||
+            (errorMessage.includes('token') && !errorMessage.includes('server')) ||
+            (errorMessage.includes('authentication') && !errorMessage.includes('server')) ||
+            (errorMessage.includes('unauthorized') && !errorMessage.includes('server')) ||
+            errorMessage.includes('no autorizado') ||
+            errorMessage.includes('inicia sesión') ||
+            errorMessage.includes('invalid credentials') ||
+            errorMessage.includes('token expired') ||
+            errorString.includes('invalid_token') ||
+            errorString.includes('token_not_found')
+          );
+
           if (isAuthError) {
-            logger.info('🔒 Error 401 de autenticación: Token inválido o expirado, limpiando credenciales');
+            logger.info('🔒 Error 401 de autenticación: sin sesión válida, limpiando credenciales');
             AsyncStorage.removeItem('auth_token');
             AsyncStorage.removeItem('user');
             if (_onAuthExpired) {
               try { _onAuthExpired(); } catch (_e) { /* no-op */ }
             }
           } else {
-            // 401 por problemas de servidor/BD - NO limpiar credenciales para evitar desconexiones incorrectas
             logger.warn('⚠️ Error 401 posiblemente por problemas de servidor/BD/red. NO limpiando credenciales para evitar desconexiones incorrectas.');
           }
         }

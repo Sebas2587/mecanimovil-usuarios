@@ -104,8 +104,7 @@ export const AuthProvider = ({ children }) => {
             await userService.getUserProfile(normalizedUser?.id || null);
           } catch (e) {
             const status = e?.status || e?.response?.status;
-            const msg = (e?.message || '').toLowerCase();
-            if (status === 401 && (msg.includes('token') || msg.includes('no autorizado') || msg.includes('inicia sesión'))) {
+            if (status === 401) {
               logger.info('🔒 Token inválido al restaurar sesión. Limpiando credenciales antes de continuar.');
               await AsyncStorage.removeItem('auth_token');
               await AsyncStorage.removeItem('user');
@@ -118,6 +117,10 @@ export const AuthProvider = ({ children }) => {
           setToken(storedToken);
           setUser(normalizedUser);
           logger.info('Sesión restaurada exitosamente');
+        } else {
+          // Sin par token+user válido → forzar estado guest (evita UI de UserPanel sin sesión).
+          setToken(null);
+          setUser(null);
         }
       } catch (e) {
         logger.error('Error al cargar datos de autenticación:', e);
@@ -237,8 +240,11 @@ export const AuthProvider = ({ children }) => {
 
       logger.debug('🔐 AuthContext: Intentando iniciar sesión con:', username);
 
-      // Limpiar cualquier token anterior para evitar problemas
+      // Limpiar sesión previa (storage + React) para no dejar UserPanel con token fantasma
       await AsyncStorage.removeItem('auth_token');
+      await AsyncStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
 
       // Llamar al servicio de autenticación
       const response = await authService.login(username, password);
@@ -592,8 +598,11 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Limpiar cualquier token anterior para evitar problemas
+      // Limpiar sesión previa (storage + React) para no dejar UserPanel con token fantasma
       await AsyncStorage.removeItem('auth_token');
+      await AsyncStorage.removeItem('user');
+      setToken(null);
+      setUser(null);
 
       const response = await authService.googleLogin(idToken, flow);
 
@@ -1043,7 +1052,13 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateProfile,
     registerSuccess,
-    isAuthenticated: !!token,
+    /** Sesión real: token válido + usuario. Sin esto → GuestLanding (nunca UserPanel vacío). */
+    isAuthenticated: Boolean(
+      token &&
+      token !== 'usuario_registrado_exitosamente' &&
+      user &&
+      (user.id != null || user.email || user.username),
+    ),
   }), [user, token, loading, error, registerSuccess]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -7,6 +7,7 @@ import GuestLandingScreen from '../screens/guest/GuestLandingScreen';
 import GuestVehicleResultsScreen from '../screens/guest/GuestVehicleResultsScreen';
 import GuestServiceOfferScreen from '../screens/guest/GuestServiceOfferScreen';
 import GuestSectionProvidersScreen from '../screens/guest/GuestSectionProvidersScreen';
+import GuestSectionServicesScreen from '../screens/guest/GuestSectionServicesScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
@@ -175,6 +176,24 @@ const AuthNavigator = ({ registerSuccess }) => {
       <Stack.Screen
         name={ROUTES.GUEST_SECTION_PROVIDERS}
         component={GuestSectionProvidersScreen}
+        options={
+          Platform.OS === 'web'
+            ? {
+                cardStyle: {
+                  backgroundColor: COLORS.background.default,
+                  flex: 1,
+                  maxHeight: '100vh',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  WebkitOverflowScrolling: 'touch',
+                },
+              }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.GUEST_SECTION_SERVICES}
+        component={GuestSectionServicesScreen}
         options={
           Platform.OS === 'web'
             ? {

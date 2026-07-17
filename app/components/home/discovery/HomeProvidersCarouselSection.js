@@ -9,12 +9,34 @@ import {
 } from 'react-native';
 import { HomeProvidersCarouselSkeleton } from '../../utils/HomePanelSkeletons';
 import { COLORS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
-import { HomePanelCard } from '../shared/HomePanelCard';
 import HomeSectionHeader from '../shared/HomeSectionHeader';
+import HomeSectionSeeAll from '../shared/HomeSectionSeeAll';
 import ProviderPreviewCard from '../ProviderPreviewCard';
 import { formatProviderForCard } from '../../../utils/providerUtils';
 import { getSpecialtyForBrandContext } from '../../../utils/providerBrandCoverage';
 import { CARD_GAP, H_PAD } from '../shared/homeLayoutConstants';
+
+/**
+ * Empty Airbnb Explore: sin card/borde — título corto + cuerpo + enlace textual opcional.
+ */
+function AirbnbSectionEmpty({ title, message, actionLabel, onAction }) {
+  if (!message && !title) return null;
+  return (
+    <View style={styles.emptyState} accessibilityRole="text">
+      {title ? (
+        <Text style={styles.emptyTitle} numberOfLines={2}>
+          {title}
+        </Text>
+      ) : null}
+      {message ? <Text style={styles.emptyBody}>{message}</Text> : null}
+      {onAction && actionLabel ? (
+        <View style={styles.emptyAction}>
+          <HomeSectionSeeAll onPress={onAction} label={actionLabel} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 /**
  * Carrusel horizontal 2×N de proveedores con encabezado y estados vacío/carga.
@@ -25,8 +47,12 @@ const HomeProvidersCarouselSection = ({
   loading,
   emptyRequiresAddress = false,
   hasSelectedAddress = true,
+  emptyTitle = null,
+  emptyNoAddressTitle = null,
   emptyNoAddressMessage,
   emptyNoResultsMessage,
+  /** CTA bajo el empty (texto + chevron Airbnb). Si no hay, se omite. */
+  emptyActionLabel = null,
   onProviderPress,
   onSeeAll,
   seeAllWhen,
@@ -53,12 +79,15 @@ const HomeProvidersCarouselSection = ({
     return pages;
   }, [providers]);
 
+  const showContent = !emptyRequiresAddress || hasSelectedAddress;
+  const isEmpty = showContent && !loading && providers.length === 0;
+
+  /** Airbnb: «Ver todos» solo cuando hay listings; el empty usa su propio enlace. */
   const showSeeAll =
     !!onSeeAll &&
     !loading &&
-    (seeAllWhen != null ? seeAllWhen : providers.length > 0 || hasSelectedAddress);
-
-  const showContent = !emptyRequiresAddress || hasSelectedAddress;
+    !isEmpty &&
+    (seeAllWhen != null ? seeAllWhen : providers.length > 0);
 
   const showHeader = !!(title || showSeeAll);
 
@@ -79,15 +108,21 @@ const HomeProvidersCarouselSection = ({
       ) : null}
 
       {!showContent ? (
-        <HomePanelCard innerStyle={styles.emptyCard}>
-          <Text style={styles.emptyText}>{emptyNoAddressMessage}</Text>
-        </HomePanelCard>
+        <AirbnbSectionEmpty
+          title={emptyNoAddressTitle || emptyTitle}
+          message={emptyNoAddressMessage}
+          actionLabel={emptyActionLabel}
+          onAction={onSeeAll}
+        />
       ) : loading ? (
         <HomeProvidersCarouselSkeleton />
       ) : providers.length === 0 ? (
-        <HomePanelCard innerStyle={styles.emptyCard}>
-          <Text style={styles.emptyText}>{emptyNoResultsMessage}</Text>
-        </HomePanelCard>
+        <AirbnbSectionEmpty
+          title={emptyTitle}
+          message={emptyNoResultsMessage}
+          actionLabel={emptyActionLabel}
+          onAction={onSeeAll}
+        />
       ) : (
         <ScrollView
           horizontal
@@ -95,7 +130,7 @@ const HomeProvidersCarouselSection = ({
           decelerationRate={Platform.OS === 'web' ? undefined : 'fast'}
           snapToInterval={Platform.OS === 'web' ? undefined : nearbyPageWidth}
           snapToAlignment={Platform.OS === 'web' ? undefined : 'start'}
-          showsHorizontalScrollIndicator={Platform.OS !== 'web'}
+          showsHorizontalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           style={Platform.OS === 'web' ? styles.carouselWeb : styles.carouselBleed}
         >
@@ -146,14 +181,29 @@ const styles = StyleSheet.create({
   sectionFlush: {
     marginBottom: 0,
   },
-  emptyCard: {
-    paddingVertical: 16,
+  /** Vacío Airbnb: flush bajo el header, sin caja ni sombra. */
+  emptyState: {
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.sm,
+    gap: 6,
+    maxWidth: 360,
   },
-  emptyText: {
+  emptyTitle: {
+    ...TYPOGRAPHY.styles.bodyBold,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.primary,
+    letterSpacing: -0.2,
+  },
+  emptyBody: {
+    ...TYPOGRAPHY.styles.body,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
-    textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 20,
+  },
+  emptyAction: {
+    alignSelf: 'flex-start',
+    marginTop: SPACING.xs,
+    marginLeft: -8,
   },
   carouselBleed: {
     marginHorizontal: -H_PAD,

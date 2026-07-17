@@ -21,10 +21,13 @@ const GuestAirbnbServiceCard = ({
   const fotos = Array.isArray(servicio?.fotos_servicio) ? servicio.fotos_servicio : [];
   const coverUri = useMemo(() => {
     const first = fotos[0];
-    if (!first) return null;
-    const raw = first.imagen_url || first.image || first.url || first.imagen || null;
-    return resolveToAbsoluteMediaUrl(raw);
-  }, [fotos]);
+    if (first) {
+      const raw = first.imagen_url || first.image || first.url || first.imagen || null;
+      return resolveToAbsoluteMediaUrl(raw);
+    }
+    /** ServicioListSerializer / relacionados: campo plano `foto`. */
+    return resolveToAbsoluteMediaUrl(servicio?.foto || null);
+  }, [fotos, servicio?.foto]);
 
   return (
     <TouchableOpacity

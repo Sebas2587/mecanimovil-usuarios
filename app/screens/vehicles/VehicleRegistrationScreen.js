@@ -245,16 +245,18 @@ const VehicleRegistrationScreen = () => {
                     if (cancelled) return;
                     if (check?.registered) {
                         if (check.owner === 'self') {
-                            showAlert(
-                                'Patente ya registrada',
-                                'Este vehículo ya se encuentra en tu garaje. Puedes verlo desde tu panel principal.',
-                            );
-                        } else {
-                            showAlert(
-                                'Patente no disponible',
-                                'Esta patente ya se encuentra registrada por otro usuario en el sistema. Si crees que esto es un error, contáctanos a soporte.',
-                            );
+                            // Prefill post-login: el auto ya está en el garaje — volver sin forzar el flujo.
+                            if (navigation.canGoBack()) {
+                                navigation.goBack();
+                            } else {
+                                navigation.navigate('TabNavigator', { screen: ROUTES.HOME });
+                            }
+                            return;
                         }
+                        showAlert(
+                            'Patente no disponible',
+                            'Esta patente ya se encuentra registrada por otro usuario en el sistema. Si crees que esto es un error, contáctanos a soporte.',
+                        );
                         setStep('search');
                         setVehicleData(null);
                         return;
@@ -272,7 +274,7 @@ const VehicleRegistrationScreen = () => {
         return () => {
             cancelled = true;
         };
-    }, [route.params?.prefillPatente, route.params?.prefillVehicleData]);
+    }, [route.params?.prefillPatente, route.params?.prefillVehicleData, navigation]);
 
     // Fetch checklist for maintenance section
     const engineForChecklist = selectedEngineType || 'GASOLINA';

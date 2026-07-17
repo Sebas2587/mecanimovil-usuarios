@@ -40,6 +40,7 @@ function TripCompletionOverlay() {
 
 /**
  * App autenticada: navegación + barra de viaje global + modal de registro de km.
+ * El gate GuestLanding vs shell está en App.js (`isAuthenticated`).
  */
 export default function AuthenticatedAppShell() {
   return (

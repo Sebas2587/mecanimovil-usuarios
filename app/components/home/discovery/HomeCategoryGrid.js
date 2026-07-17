@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
 import Skeleton from '../../feedback/Skeleton/Skeleton';
 import { HomeCategoryGridSkeleton } from '../../utils/HomePanelSkeletons';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ import {
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING } from '../../../design-system/tokens';
 import { resolveCategoryVisual } from '../shared/homeCategoryIcons';
 import { H_PAD } from '../shared/homeLayoutConstants';
+import { resolveToAbsoluteMediaUrl } from '../../../utils/providerUtils';
 
 const VISIBLE_CATEGORIES = 6;
 /** Airbnb Explore: celda con espacio para nombres largos en 2–3 líneas. */
@@ -91,6 +93,7 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
         {categories.map((cat) => {
           const visual = resolveCategoryVisual(cat);
           const { Icon } = visual;
+          const imageUri = resolveToAbsoluteMediaUrl(cat.imagen_url || cat.imagen || null);
 
           return (
             <TouchableOpacity
@@ -102,8 +105,24 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
               accessibilityRole="button"
               accessibilityLabel={cat.nombre || 'Categoría'}
             >
-              <View style={[styles.iconCircle, { backgroundColor: visual.bg }]}>
-                <Icon size={22} color={visual.color} strokeWidth={1.75} fill="none" />
+              <View
+                style={[
+                  styles.iconCircle,
+                  { backgroundColor: imageUri ? COLORS.background.paper : visual.bg },
+                  imageUri ? styles.iconCircleWithImage : null,
+                ]}
+              >
+                {imageUri ? (
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={styles.iconImage}
+                    contentFit="cover"
+                    transition={180}
+                    accessibilityIgnoresInvertColors
+                  />
+                ) : (
+                  <Icon size={22} color={visual.color} strokeWidth={1.75} fill="none" />
+                )}
               </View>
               <Text style={styles.label} numberOfLines={3}>
                 {cat.nombre || 'Categoría'}
@@ -154,6 +173,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: SPACING.xs,
     backgroundColor: COLORS.neutral.gray[100],
+    overflow: 'hidden',
+  },
+  iconCircleWithImage: {
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.border.light,
+  },
+  iconImage: {
+    width: '100%',
+    height: '100%',
   },
   label: {
     ...TYPOGRAPHY.styles.caption,
