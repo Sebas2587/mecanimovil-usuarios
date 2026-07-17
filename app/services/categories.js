@@ -12,9 +12,13 @@ export function normalizeApiList(data) {
  * Obtiene todas las categorías de servicios
  * @returns {Promise<Array>} Lista de categorías
  */
-export const getAllCategories = async () => {
+export const getAllCategories = async (options = {}) => {
   try {
-    const data = await get('/servicios/categorias/', {}, { requiresAuth: false });
+    const data = await get(
+      '/servicios/categorias/',
+      {},
+      { requiresAuth: false, forceRefresh: Boolean(options.forceRefresh) },
+    );
     return normalizeApiList(data);
   } catch (error) {
     console.error('Error obteniendo categorías:', error);
@@ -26,10 +30,10 @@ export const getAllCategories = async () => {
  * Obtiene solo las categorías principales (sin categoría padre)
  * @returns {Promise<Array>} Lista de categorías principales
  */
-export const getMainCategories = async () => {
+export const getMainCategories = async (options = {}) => {
   try {
     // Filtrar las categorías que no tienen padre directamente
-    const allCategories = await getAllCategories();
+    const allCategories = await getAllCategories(options);
     // Filtramos las categorías principales (sin categoria_padre)
     return allCategories.filter(cat => !cat.categoria_padre);
   } catch (error) {
@@ -177,13 +181,13 @@ function serviceMatchesMainCategory(servicio, mainCategoryId, categoriesById) {
   return false;
 }
 
-async function buildMainCategoriesFromServices(allServices) {
+async function buildMainCategoriesFromServices(allServices, options = {}) {
   if (!allServices.length) return [];
 
   const categoryIds = collectCategoryIdsFromServices(allServices);
   if (categoryIds.size === 0) return [];
 
-  const categoriesData = await getAllCategories();
+  const categoriesData = await getAllCategories(options);
   const categoriesById = new Map();
   categoriesData.forEach((categoria) => {
     categoriesById.set(categoria.id, categoria);
@@ -214,7 +218,7 @@ async function buildMainCategoriesFromServices(allServices) {
  * Categorías principales con al menos un servicio compatible con los vehículos del usuario.
  * Usa por_modelo (misma fuente que nueva solicitud / formulario).
  */
-export async function getMainCategoriesForUserVehicles(vehicles) {
+export async function getMainCategoriesForUserVehicles(vehicles, options = {}) {
   const vehiculos = normalizeApiList(vehicles).filter((v) => v?.id);
   if (!vehiculos.length) return [];
 
@@ -234,11 +238,11 @@ export async function getMainCategoriesForUserVehicles(vehicles) {
     });
   });
 
-  const fromServices = await buildMainCategoriesFromServices(allServices);
+  const fromServices = await buildMainCategoriesFromServices(allServices, options);
   if (fromServices.length > 0) return fromServices;
 
   // Fallback: catálogo principal (OpenSpec fase 6/7) si por_modelo no trae categorías en metadata
-  return getMainCategories();
+  return getMainCategories(options);
 }
 
 /**

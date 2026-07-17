@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
 import Skeleton from '../../feedback/Skeleton/Skeleton';
@@ -22,6 +23,9 @@ import { resolveToAbsoluteMediaUrl } from '../../../utils/providerUtils';
 const VISIBLE_CATEGORIES = 6;
 /** Airbnb Explore: celda con espacio para nombres largos en 2–3 líneas. */
 const CELL_WIDTH = 104;
+const ICON_SIZE = 56;
+/** Bump de cache: v2 usa imagen_url vía proxy API (no R2 firmado). */
+const CATEGORIES_QUERY_VERSION = 'v2-imagen';
 
 function vehiclesQueryKey(vehicles) {
   return (Array.isArray(vehicles) ? vehicles : [])
@@ -31,8 +35,41 @@ function vehiclesQueryKey(vehicles) {
     .join(',');
 }
 
+function CategoryIcon({ cat, failedUris, onImageError }) {
+  const visual = resolveCategoryVisual(cat);
+  const { Icon } = visual;
+  const imageUri = resolveToAbsoluteMediaUrl(cat.imagen_url || cat.imagen || null);
+  const showImage = Boolean(imageUri) && !failedUris.has(imageUri);
+
+  return (
+    <View
+      style={[
+        styles.iconCircle,
+        { backgroundColor: showImage ? COLORS.background.paper : visual.bg },
+        showImage ? styles.iconCircleWithImage : null,
+      ]}
+    >
+      {showImage ? (
+        <Image
+          key={imageUri}
+          source={{ uri: imageUri }}
+          style={styles.iconImage}
+          contentFit="cover"
+          transition={180}
+          cachePolicy="none"
+          recyclingKey={imageUri}
+          accessibilityIgnoresInvertColors
+          onError={() => onImageError(imageUri)}
+        />
+      ) : (
+        <Icon size={22} color={visual.color} strokeWidth={1.75} fill="none" />
+      )}
+    </View>
+  );
+}
+
 /**
- * Categorías del home — patrón Airbnb Explore (icono outline + círculo neutro + caption).
+ * Categorías del home — patrón Airbnb Explore (imagen o Lucide + caption).
  */
 const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
   const vehicleIdsKey = useMemo(() => vehiclesQueryKey(vehicles), [vehicles]);
@@ -44,23 +81,25 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
     isFetching,
   } = useQuery({
     queryKey: hasVehicles
-      ? ['mainCategoriesForVehicles', vehicleIdsKey]
-      : ['mainCategories'],
+      ? ['mainCategoriesForVehicles', CATEGORIES_QUERY_VERSION, vehicleIdsKey]
+      : ['mainCategories', CATEGORIES_QUERY_VERSION],
     queryFn: () =>
-      hasVehicles ? getMainCategoriesForUserVehicles(vehicles) : getMainCategories(),
+      hasVehicles
+        ? getMainCategoriesForUserVehicles(vehicles, { forceRefresh: true })
+        : getMainCategories({ forceRefresh: true }),
     staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 30,
     refetchOnMount: 'always',
   });
 
-  /** Si falla la carga de imagen (CORS/R2), volver a Lucide por categoría. */
-  const [failedImageIds, setFailedImageIds] = useState(() => new Set());
-  const markImageFailed = useCallback((id) => {
-    setFailedImageIds((prev) => {
-      const key = String(id);
-      if (prev.has(key)) return prev;
+  /** Fallos por URI (no por id): si la URL cambia (proxy nuevo), se reintenta. */
+  const [failedUris, setFailedUris] = useState(() => new Set());
+  const markImageFailed = useCallback((uri) => {
+    if (!uri) return;
+    setFailedUris((prev) => {
+      if (prev.has(uri)) return prev;
       const next = new Set(prev);
-      next.add(key);
+      next.add(uri);
       return next;
     });
   }, []);
@@ -103,48 +142,26 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
         contentContainerStyle={styles.row}
         keyboardShouldPersistTaps="handled"
       >
-        {categories.map((cat) => {
-          const visual = resolveCategoryVisual(cat);
-          const { Icon } = visual;
-          const imageUri = resolveToAbsoluteMediaUrl(cat.imagen_url || cat.imagen || null);
-          const showImage = Boolean(imageUri) && !failedImageIds.has(String(cat.id));
-
-          return (
-            <TouchableOpacity
-              key={String(cat.id)}
-              style={styles.cell}
-              onPress={() => onSelectCategory?.(cat)}
-              activeOpacity={0.85}
-              disabled={disabled}
-              accessibilityRole="button"
-              accessibilityLabel={cat.nombre || 'Categoría'}
-            >
-              <View
-                style={[
-                  styles.iconCircle,
-                  { backgroundColor: showImage ? COLORS.background.paper : visual.bg },
-                  showImage ? styles.iconCircleWithImage : null,
-                ]}
-              >
-                {showImage ? (
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={styles.iconImage}
-                    contentFit="cover"
-                    transition={180}
-                    accessibilityIgnoresInvertColors
-                    onError={() => markImageFailed(cat.id)}
-                  />
-                ) : (
-                  <Icon size={22} color={visual.color} strokeWidth={1.75} fill="none" />
-                )}
-              </View>
-              <Text style={styles.label} numberOfLines={3}>
-                {cat.nombre || 'Categoría'}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        {categories.map((cat) => (
+          <TouchableOpacity
+            key={String(cat.id)}
+            style={styles.cell}
+            onPress={() => onSelectCategory?.(cat)}
+            activeOpacity={0.85}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={cat.nombre || 'Categoría'}
+          >
+            <CategoryIcon
+              cat={cat}
+              failedUris={failedUris}
+              onImageError={markImageFailed}
+            />
+            <Text style={styles.label} numberOfLines={3}>
+              {cat.nombre || 'Categoría'}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
     </View>
   );
@@ -165,7 +182,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginBottom: SPACING.sm,
   },
-  /** Mismo full-bleed que Destacados: sale del padding del panel y oculta al borde del device. */
   carouselBleed: {
     marginHorizontal: -H_PAD,
   },
@@ -181,8 +197,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.xxs,
   },
   iconCircle: {
-    width: 56,
-    height: 56,
+    width: ICON_SIZE,
+    height: ICON_SIZE,
     borderRadius: BORDERS.radius.full,
     justifyContent: 'center',
     alignItems: 'center',
@@ -195,8 +211,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
   },
   iconImage: {
-    width: '100%',
-    height: '100%',
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+    ...(Platform.OS === 'web' ? { display: 'block' } : null),
   },
   label: {
     ...TYPOGRAPHY.styles.caption,
