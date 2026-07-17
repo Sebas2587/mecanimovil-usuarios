@@ -16,6 +16,7 @@ import { COLORS, TYPOGRAPHY, SPACING } from '../../design-system/tokens';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import { useConversationsList } from '../../hooks/useChats';
 import ActivityCard from '../../components/cards/ActivityCard';
+import SolicitudCard from '../../components/solicitudes/SolicitudCard';
 import EmptyState from '../../components/base/EmptyState/EmptyState';
 import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
 import AppHeader from '../../components/navigation/AppHeader';
@@ -86,6 +87,13 @@ const ActividadScreen = () => {
     [unreadChats],
   );
 
+  const handleSolicitudPress = useCallback(
+    (solicitud) => {
+      navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: solicitud.id });
+    },
+    [navigation],
+  );
+
   const renderContent = () => {
     if (segment === 'solicitudes') {
       if (solicitudesList.length === 0) {
@@ -100,16 +108,13 @@ const ActividadScreen = () => {
         );
       }
       return solicitudesList.map((s) => (
-        <ActivityCard
-          key={String(s.id)}
-          title={s.titulo || s.descripcion_problema?.slice(0, 48) || 'Solicitud'}
-          subtitle={s.estado_display || s.estado}
-          statusLabel={s.estado_display || s.estado}
-          statusVariant="primary"
-          onPress={() =>
-            navigation.navigate(ROUTES.DETALLE_SOLICITUD, { solicitudId: s.id })
-          }
-        />
+        <View key={String(s.id)} style={styles.solicitudCardWrap}>
+          <SolicitudCard
+            solicitud={s}
+            fullWidth
+            onPress={handleSolicitudPress}
+          />
+        </View>
       ));
     }
 
@@ -230,6 +235,9 @@ const styles = StyleSheet.create({
   segments: {
     paddingHorizontal: SPACING.container.horizontal,
     marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  solicitudCardWrap: {
     marginBottom: SPACING.md,
   },
   loading: {

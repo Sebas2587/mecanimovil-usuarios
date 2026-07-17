@@ -1,11 +1,15 @@
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Icon from '../base/Icon/Icon';
 import { Image } from 'expo-image';
 import { useSolicitudes } from '../../context/SolicitudesContext';
 import CountdownTimer from '../common/CountdownTimer';
 import { isSolicitudSinVehiculoEnCuenta } from '../../utils/solicitudVehicle';
-import { formatServiciosListaTexto, resolveServiciosSolicitud } from '../../utils/solicitudServicios';
+import {
+  formatCLPServicio,
+  formatServiciosListaTexto,
+  resolveServiciosSolicitud,
+} from '../../utils/solicitudServicios';
 import {
   resolveModalidadServicio,
   resolveUbicacionServicioTexto,
@@ -13,8 +17,17 @@ import {
 } from '../../utils/solicitudModalidadServicio';
 import { resolveRepuestosServicioMeta } from '../../utils/solicitudRepuestosServicio';
 import { resolveProveedorSolicitudResumen } from '../../utils/solicitudProveedorResumen';
+import { resolvePrecioTotalOfrecidoEfectivo } from '../../utils/ofertaPrecioRepuestos';
 import { COLORS, BORDERS, SHADOWS, SPACING, TYPOGRAPHY } from '../../design-system/tokens';
 import { getEstadoSolicitudSurface } from '../../utils/solicitudEstadoDisplay';
+
+function resolvePrecioTotalSolicitud(solicitud) {
+  const oferta =
+    solicitud?.oferta_seleccionada_detail
+    || (Array.isArray(solicitud?.ofertas) ? solicitud.ofertas[0] : null);
+  if (!oferta) return 0;
+  return resolvePrecioTotalOfrecidoEfectivo(oferta, solicitud);
+}
 
 function MetaLine({ icon, text, numberOfLines = 2 }) {
   if (!text) return null;
@@ -145,6 +158,11 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
 
   const estadoConfig = getEstadoSolicitudSurface(solicitud);
   const totalOfertas = solicitud.total_ofertas ?? 0;
+  const precioTotal = useMemo(
+    () => resolvePrecioTotalSolicitud(solicitud),
+    [solicitud],
+  );
+  const precioTotalTexto = precioTotal > 0 ? formatCLPServicio(precioTotal) : null;
 
   const handlePress = () => {
     if (onPress) onPress(solicitud);
@@ -155,6 +173,7 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
       style={[styles.card, fullWidth && styles.cardFullWidth]}
       onPress={handlePress}
       activeOpacity={0.85}
+      accessibilityRole="button"
     >
       <View style={styles.header}>
         <View style={styles.headerBadges}>
@@ -183,9 +202,6 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
             </View>
           ) : null}
         </View>
-        {solicitud.id ? (
-          <Text style={styles.idText}>#{String(solicitud.id).slice(0, 8)}</Text>
-        ) : null}
       </View>
 
       <Text style={styles.title} numberOfLines={2}>
@@ -215,6 +231,13 @@ const SolicitudCard = ({ solicitud, onPress, fullWidth = false }) => {
           <MetaLine icon="location-outline" text={ubicacionTexto} numberOfLines={2} />
         ) : null}
       </View>
+
+      {precioTotalTexto ? (
+        <View style={styles.footerPrice}>
+          <Text style={styles.footerPriceLabel}>Total</Text>
+          <Text style={styles.footerPriceValue}>{precioTotalTexto}</Text>
+        </View>
+      ) : null}
 
       {solicitud.estado === 'esperando_creditos_proveedor'
         && solicitud.fecha_limite_confirmacion_creditos ? (
@@ -293,20 +316,36 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     lineHeight: 16,
   },
-  idText: {
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    fontFamily: Platform.select({ ios: 'Courier New', android: 'monospace' }),
-    color: COLORS.text.tertiary,
-    fontWeight: TYPOGRAPHY.fontWeight.medium,
-    marginTop: 2,
-  },
   title: {
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
     letterSpacing: TYPOGRAPHY.letterSpacing.tight,
     marginBottom: SPACING.xs,
     lineHeight: 22,
+  },
+  footerPrice: {
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: BORDERS.width.thin,
+    borderTopColor: COLORS.border.light,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  footerPriceLabel: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+  },
+  footerPriceValue: {
+    ...TYPOGRAPHY.styles.h5,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
+    color: COLORS.text.primary,
   },
   vehiculoStrip: {
     flexDirection: 'row',
