@@ -99,7 +99,7 @@ function buildProviderRows(group, legacyOffer) {
           rating: Number(provider.calificacion_promedio) || 0,
           verificado: Boolean(provider.verificado),
           locationLabel:
-            formatProviderStreetAddress(provider)
+            formatProviderStreetAddress(provider, { variant: 'full' })
             || getProviderLocationLabel(provider)
             || null,
           servicioNombre: oferta.nombre || group.nombre,
@@ -652,7 +652,7 @@ const GuestServiceOfferScreen = () => {
                 {row.locationLabel ? (
                   <View style={styles.addressRow}>
                     <MapPin size={12} color={COLORS.text.tertiary} />
-                    <Text style={styles.addressText} numberOfLines={1}>
+                    <Text style={styles.addressText} numberOfLines={3}>
                       {row.locationLabel}
                     </Text>
                   </View>

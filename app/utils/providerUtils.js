@@ -645,7 +645,8 @@ export const getProviderLocationLabel = (provider) => {
     // Lazy require evita ciclo si format importa utils en el futuro.
     // eslint-disable-next-line global-require
     const { formatProviderStreetAddress } = require('./formatProviderStreetAddress');
-    const formatted = formatProviderStreetAddress(provider);
+    // Cards Explore: variante corta; el detalle usa full en formatProviderStreetAddress.
+    const formatted = formatProviderStreetAddress(provider, { variant: 'short' });
     if (formatted) return formatted;
   } catch {
     /* ignore */

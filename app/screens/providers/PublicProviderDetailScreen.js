@@ -312,7 +312,7 @@ const PublicProviderDetailScreen = () => {
         }
 
         const display =
-          formatProviderStreetAddress(provider) ||
+          formatProviderStreetAddress(provider, { variant: 'full' }) ||
           'Este taller aún no ha publicado su dirección.';
 
         return (
@@ -321,7 +321,7 @@ const PublicProviderDetailScreen = () => {
               title="Dirección del taller"
             />
             <Card>
-              <View style={styles.iconRow}>
+              <View style={[styles.iconRow, styles.addressRow]}>
                 <MapPin size={18} color={COLORS.icon.active} strokeWidth={2} />
                 <Text style={styles.bodyText}>{display}</Text>
               </View>
@@ -519,6 +519,9 @@ const styles = StyleSheet.create({
   iconRow: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  addressRow: {
+    alignItems: 'flex-start',
   },
   multimarcaBadge: {
     flexDirection: 'row',
