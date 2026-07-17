@@ -157,7 +157,7 @@ const OfferCardDetailed = ({
                         </Text>
                     </View>
                     <View style={[styles.tag, styles.tagGarantia]}>
-                        <Icon name="shield-checkmark-outline" size={14} color={COLORS.primary[600]} />
+                        <Icon name="shield-checkmark-outline" size={14} color={COLORS.badge.meta.icon} />
                         <Text style={[styles.tagText, styles.tagGarantiaText]}>
                             Garantía {oferta.garantia_ofrecida || '3 meses'}
                         </Text>
@@ -219,7 +219,7 @@ const OfferCardDetailed = ({
 
                 {resumidoCatalogo ? (
                     <View style={[styles.tag, styles.tagGarantia]}>
-                        <Icon name="shield-checkmark-outline" size={14} color={COLORS.primary[600]} />
+                        <Icon name="shield-checkmark-outline" size={14} color={COLORS.badge.meta.icon} />
                         <Text style={[styles.tagText, styles.tagGarantiaText]}>
                             Garantía {oferta.garantia_ofrecida || '3 meses'}
                         </Text>
@@ -704,8 +704,8 @@ const styles = StyleSheet.create({
         maxWidth: '48%',
     },
     tagGarantia: {
-        backgroundColor: COLORS.primary[50],
-        borderColor: COLORS.primary[200],
+        backgroundColor: COLORS.badge.meta.background,
+        borderColor: COLORS.badge.meta.border,
     },
     tagDuracion: {
         backgroundColor: COLORS.neutral.gray[50],
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
         fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     tagGarantiaText: {
-        color: COLORS.primary[700],
+        color: COLORS.badge.meta.text,
     },
     tagDuracionText: {
         color: COLORS.text.secondary,

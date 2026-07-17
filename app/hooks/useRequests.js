@@ -58,12 +58,14 @@ export function prependSolicitudToListCache(queryClient, userId, solicitud) {
     const estadosActivos = new Set([
         'publicada',
         'con_ofertas',
+        'pendiente_confirmacion',
         'esperando_creditos_proveedor',
         'adjudicada',
         'pendiente_pago',
         'creada',
         'seleccionando_servicios',
         'pagada',
+        'pagada_parcialmente',
         'en_ejecucion',
     ]);
     if (estadosActivos.has(normalized.estado)) {

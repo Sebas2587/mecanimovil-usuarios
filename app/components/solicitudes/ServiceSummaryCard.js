@@ -358,16 +358,42 @@ const ServiceSummaryCard = ({
             ) : null}
 
             <View style={styles.detailsSection}>
-                {detailRows.map((row, index) => (
-                    <SolicitudDetalleRow
-                        key={row.key}
-                        icon={row.icon}
-                        label={row.label}
-                        value={row.value}
-                        hint={row.hint}
-                        isLast={index === detailRows.length - 1}
-                    />
-                ))}
+                {(() => {
+                    const pairKeys = new Set(['cuando', 'modalidad']);
+                    const pairRows = detailRows.filter((row) => pairKeys.has(row.key));
+                    const restRows = detailRows.filter((row) => !pairKeys.has(row.key));
+                    const showPair = pairRows.length >= 1;
+
+                    return (
+                        <>
+                            {showPair ? (
+                                <View style={[styles.detailsPair, restRows.length === 0 && styles.detailsPairLast]}>
+                                    {pairRows.map((row) => (
+                                        <SolicitudDetalleRow
+                                            key={row.key}
+                                            icon={row.icon}
+                                            label={row.label}
+                                            value={row.value}
+                                            hint={row.hint}
+                                            compact
+                                            isLast
+                                        />
+                                    ))}
+                                </View>
+                            ) : null}
+                            {restRows.map((row, index) => (
+                                <SolicitudDetalleRow
+                                    key={row.key}
+                                    icon={row.icon}
+                                    label={row.label}
+                                    value={row.value}
+                                    hint={row.hint}
+                                    isLast={index === restRows.length - 1}
+                                />
+                            ))}
+                        </>
+                    );
+                })()}
             </View>
         </View>
     );
@@ -549,6 +575,18 @@ const styles = StyleSheet.create({
         paddingTop: SPACING.xs,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: COLORS.border.light,
+    },
+    detailsPair: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: SPACING.md,
+        paddingVertical: SPACING.sm,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: COLORS.border.light,
+    },
+    detailsPairLast: {
+        borderBottomWidth: 0,
+        paddingBottom: 0,
     },
 });
 

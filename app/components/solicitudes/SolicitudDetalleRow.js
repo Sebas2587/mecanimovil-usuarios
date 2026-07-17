@@ -11,18 +11,20 @@ export default function SolicitudDetalleRow({
   hint,
   badge,
   isLast = false,
+  /** Celda en grilla 2 columnas (Cuándo / Modalidad). */
+  compact = false,
 }) {
   if (!value && !badge) return null;
 
   return (
-    <View style={[styles.row, isLast && styles.rowLast]}>
+    <View style={[styles.row, isLast && styles.rowLast, compact && styles.rowCompact]}>
       <View style={styles.labelRow}>
         {icon ? (
           <Icon name={icon} size={14} color={COLORS.text.tertiary} />
         ) : null}
         <Text style={styles.label}>{label}</Text>
       </View>
-      <View style={styles.valueBlock}>
+      <View style={[styles.valueBlock, compact && styles.valueBlockCompact]}>
         {badge ?? (
           <>
             <Text style={styles.value}>{value}</Text>
@@ -49,6 +51,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     paddingBottom: 0,
   },
+  rowCompact: {
+    flex: 1,
+    minWidth: 0,
+    borderBottomWidth: 0,
+    paddingVertical: 0,
+    paddingBottom: 0,
+  },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -62,6 +71,9 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   valueBlock: {
+    paddingLeft: 18,
+  },
+  valueBlockCompact: {
     paddingLeft: 18,
   },
   value: {

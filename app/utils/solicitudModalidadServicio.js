@@ -3,12 +3,27 @@
  * Con talleres unificados, la modalidad efectiva depende del técnico asignado/preferido.
  */
 import { resolveTecnicoPreferido } from './solicitudTecnicoPreferido';
+import { formatProviderStreetAddress } from './formatProviderStreetAddress';
 import {
   MODALIDAD_A_DOMICILIO,
   MODALIDAD_EN_TALLER,
   MODALIDAD_AMBAS,
   modalidadLabel,
 } from './providerModalidad';
+
+function resolveProviderForUbicacion(solicitud) {
+  const oferta = solicitud?.oferta_seleccionada_detail;
+  if (oferta?.proveedor) return oferta.proveedor;
+  if (oferta?.direccion_fisica || oferta?.direccion_proveedor) {
+    return {
+      direccion_fisica: oferta.direccion_fisica,
+      direccion: oferta.direccion_proveedor || oferta.direccion,
+    };
+  }
+  const dirigido = solicitud?.proveedores_dirigidos_detail?.[0];
+  if (dirigido) return dirigido;
+  return null;
+}
 
 function modalidadTecnicoToServicio(modalidadTecnico, modalidadDisplay) {
   if (modalidadTecnico === MODALIDAD_A_DOMICILIO) {
@@ -122,8 +137,16 @@ export function resolveUbicacionServicioTexto(solicitud, modalidad) {
     return 'Tu domicilio';
   }
 
+  const fromProvider = formatProviderStreetAddress(
+    resolveProviderForUbicacion(solicitud),
+    { variant: 'full' },
+  );
+  if (fromProvider) return fromProvider;
+
   const texto = (solicitud?.direccion_servicio_texto || '').trim();
-  if (texto) return texto;
+  if (texto) {
+    return formatProviderStreetAddress({ direccion: texto }, { variant: 'full' }) || texto;
+  }
   return 'Ubicación no especificada';
 }
 

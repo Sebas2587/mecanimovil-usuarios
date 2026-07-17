@@ -53,6 +53,7 @@ import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import PagoSaldoPendienteCierreBanner from '../../components/solicitudes/PagoSaldoPendienteCierreBanner';
 import DetalleSolicitudSkeleton from '../../components/utils/DetalleSolicitudSkeleton';
 import SegmentedControl from '../../components/base/SegmentedControl/SegmentedControl';
+import Button from '../../components/base/Button/Button';
 
 const TAB_PRINCIPALES = 'principales';
 const TAB_ADICIONALES = 'adicionales';
@@ -520,26 +521,7 @@ const DetalleSolicitudScreen = () => {
                 : `#${String(solicitudId).slice(0, 8)}`}
             </Text>
           </View>
-          {estadoHeaderBadge ? (
-            <View
-              style={[
-                styles.headerEstadoBadge,
-                {
-                  backgroundColor: estadoHeaderBadge.bg,
-                  borderColor: estadoHeaderBadge.border,
-                },
-              ]}
-            >
-              <Text
-                style={[styles.headerEstadoBadgeText, { color: estadoHeaderBadge.color }]}
-                numberOfLines={1}
-              >
-                {estadoHeaderBadge.label}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.headerSideSpacer} />
-          )}
+          <View style={styles.headerSideSpacer} />
         </View>
       </View>
 
@@ -560,6 +542,23 @@ const DetalleSolicitudScreen = () => {
           keyboardShouldPersistTaps="handled"
           {...(Platform.OS === 'web' ? { nestedScrollEnabled: true } : {})}
         >
+        {estadoHeaderBadge ? (
+          <View
+            style={[
+              styles.contentEstadoBadge,
+              {
+                backgroundColor: estadoHeaderBadge.bg,
+                borderColor: estadoHeaderBadge.border,
+              },
+            ]}
+          >
+            <Text
+              style={[styles.contentEstadoBadgeText, { color: estadoHeaderBadge.color }]}
+            >
+              {estadoHeaderBadge.label}
+            </Text>
+          </View>
+        ) : null}
         {layoutCatalogoUnificado ? (
           <View style={styles.unifiedSolicitudCard}>
             <ServiceSummaryCard
@@ -856,16 +855,25 @@ const DetalleSolicitudScreen = () => {
       >
         <View style={styles.footerContent}>
           {puedeClienteCancelarSolicitudPublica(solicitud) ? (
-            <TouchableOpacity
-              style={[styles.footerCancelLikeAccept, procesando && styles.footerCancelLikeAcceptDisabled]}
+            <Button
+              title="Cancelar solicitud"
+              type="danger"
+              variant="outline"
+              fullWidth
+              size="md"
               onPress={handleConfirmarCancelarSolicitud}
               disabled={procesando}
+              isLoading={procesando}
+              iconNode={(
+                <CircleX
+                  size={18}
+                  color={procesando ? COLORS.states.disabled.text : COLORS.error.main}
+                  strokeWidth={1.75}
+                />
+              )}
+              iconPosition="right"
               accessibilityLabel="Cancelar solicitud"
-              accessibilityRole="button"
-            >
-              <Text style={styles.footerCancelLikeAcceptText}>Cancelar solicitud</Text>
-              <CircleX size={18} color={COLORS.text.onError} />
-            </TouchableOpacity>
+            />
           ) : null}
 
           {tabActivo === TAB_PRINCIPALES ? (
@@ -1186,23 +1194,20 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
-  headerEstadoBadge: {
-    minWidth: 40,
-    maxWidth: 120,
+  contentEstadoBadge: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
     paddingHorizontal: SPACING.sm,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: BORDERS.radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    flexShrink: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: SPACING.sm,
   },
-  headerEstadoBadgeText: {
+  contentEstadoBadgeText: {
     ...TYPOGRAPHY.styles.caption,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
     lineHeight: 16,
-    textAlign: 'center',
   },
   scrollContent: {
     paddingHorizontal: SPACING.md,
@@ -1382,26 +1387,6 @@ const styles = StyleSheet.create({
   },
   footerActionsSingle: {
     width: '100%',
-  },
-  /** Botón ancho completo, columna única (sticky inferior). */
-  footerCancelLikeAccept: {
-    width: '100%',
-    flexDirection: 'row',
-    height: 48,
-    borderRadius: BORDERS.radius.pill,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    backgroundColor: COLORS.error.main,
-    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
-  },
-  footerCancelLikeAcceptText: {
-    color: COLORS.text.onError,
-    fontWeight: TYPOGRAPHY.fontWeight.bold,
-    fontSize: TYPOGRAPHY.fontSize.md,
-  },
-  footerCancelLikeAcceptDisabled: {
-    opacity: 0.55,
   },
   footerPrimaryCta: {
     width: '100%',
