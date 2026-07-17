@@ -6,8 +6,9 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  Image as RNImage,
 } from 'react-native';
-import { Image } from 'expo-image';
+import { Image as ExpoImage } from 'expo-image';
 import Skeleton from '../../feedback/Skeleton/Skeleton';
 import { HomeCategoryGridSkeleton } from '../../utils/HomePanelSkeletons';
 import { useQuery } from '@tanstack/react-query';
@@ -25,8 +26,11 @@ const VISIBLE_CATEGORIES = 6;
 const CELL_WIDTH = 104;
 /** Slot Explore: imagen recortada por API llena el área; Lucide va en círculo tonal. */
 const ICON_SIZE = 56;
-/** Bump de cache: v3 = imagen normalizada (trim) vía API. */
-const CATEGORIES_QUERY_VERSION = 'v3-imagen-trim';
+/** Bump: v4 = list sin cache server + URL con hash de archivo. */
+const CATEGORIES_QUERY_VERSION = 'v4-imagen-prod';
+
+/** En web RN Image es más fiable con PNG cross-origin; nativo usa expo-image. */
+const CategoryRemoteImage = Platform.OS === 'web' ? RNImage : ExpoImage;
 
 function vehiclesQueryKey(vehicles) {
   return (Array.isArray(vehicles) ? vehicles : [])
@@ -36,28 +40,58 @@ function vehiclesQueryKey(vehicles) {
     .join(',');
 }
 
-function CategoryIcon({ cat, failedUris, onImageError }) {
+function CategoryIcon({ cat }) {
   const visual = resolveCategoryVisual(cat);
   const { Icon } = visual;
   const imageUri = resolveToAbsoluteMediaUrl(cat.imagen_url || cat.imagen || null);
-  const showImage = Boolean(imageUri) && !failedUris.has(imageUri);
+  const [failed, setFailed] = useState(false);
+  const [retryToken, setRetryToken] = useState(0);
 
-  // Explore: glifo PNG transparente a tamaño de slot (sin máscara/scale).
+  useEffect(() => {
+    setFailed(false);
+    setRetryToken(0);
+  }, [imageUri]);
+
+  const handleError = useCallback(() => {
+    if (retryToken < 1) {
+      // Un reintento: cold start de Render / race de deploy.
+      setRetryToken((n) => n + 1);
+      return;
+    }
+    setFailed(true);
+  }, [retryToken]);
+
+  const showImage = Boolean(imageUri) && !failed;
+  const uriWithRetry =
+    showImage && retryToken > 0
+      ? `${imageUri}${imageUri.includes('?') ? '&' : '?'}r=${retryToken}`
+      : imageUri;
+
+  // Explore: glifo PNG transparente a tamaño de slot.
   // Fallback: círculo tonal + Lucide outline.
   if (showImage) {
+    const imageProps =
+      Platform.OS === 'web'
+        ? {
+            source: { uri: uriWithRetry },
+            style: styles.iconImage,
+            resizeMode: 'contain',
+            onError: handleError,
+          }
+        : {
+            source: { uri: uriWithRetry },
+            style: styles.iconImage,
+            contentFit: 'contain',
+            transition: 180,
+            cachePolicy: 'memory-disk',
+            recyclingKey: uriWithRetry,
+            accessibilityIgnoresInvertColors: true,
+            onError: handleError,
+          };
+
     return (
       <View style={styles.iconSlot}>
-        <Image
-          key={imageUri}
-          source={{ uri: imageUri }}
-          style={styles.iconImage}
-          contentFit="contain"
-          transition={180}
-          cachePolicy="none"
-          recyclingKey={imageUri}
-          accessibilityIgnoresInvertColors
-          onError={() => onImageError(imageUri)}
-        />
+        <CategoryRemoteImage key={uriWithRetry} {...imageProps} />
       </View>
     );
   }
@@ -80,7 +114,6 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
     data: categoriesRaw,
     isPending,
     isFetching,
-    dataUpdatedAt,
   } = useQuery({
     queryKey: hasVehicles
       ? ['mainCategoriesForVehicles', CATEGORIES_QUERY_VERSION, vehicleIdsKey]
@@ -93,25 +126,6 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
     gcTime: 1000 * 60 * 30,
     refetchOnMount: 'always',
   });
-
-  /**
-   * Fallos por URI (no por id): si la URL cambia (proxy nuevo), se reintenta.
-   * Se limpia con cada fetch exitoso nuevo: un fallo puntual (red, deploy en curso)
-   * no debe bloquear la imagen para siempre en la sesión.
-   */
-  const [failedUris, setFailedUris] = useState(() => new Set());
-  useEffect(() => {
-    if (dataUpdatedAt) setFailedUris(new Set());
-  }, [dataUpdatedAt]);
-  const markImageFailed = useCallback((uri) => {
-    if (!uri) return;
-    setFailedUris((prev) => {
-      if (prev.has(uri)) return prev;
-      const next = new Set(prev);
-      next.add(uri);
-      return next;
-    });
-  }, []);
 
   const categories = useMemo(() => {
     const list = Array.isArray(categoriesRaw) ? categoriesRaw : [];
@@ -161,12 +175,8 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
             accessibilityRole="button"
             accessibilityLabel={cat.nombre || 'Categoría'}
           >
-            <CategoryIcon
-              cat={cat}
-              failedUris={failedUris}
-              onImageError={markImageFailed}
-            />
-            <Text style={styles.label} numberOfLines={3}>
+            <CategoryIcon cat={cat} />
+            <Text style={styles.label} numberOfLines={2}>
               {cat.nombre || 'Categoría'}
             </Text>
           </TouchableOpacity>
@@ -229,14 +239,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     ...(Platform.OS === 'web' ? { display: 'block' } : null),
   },
+  /**
+   * Airbnb Homes category strip: caption_12_16 + medium (Cereal ≈ Poppins).
+   */
   label: {
-    ...TYPOGRAPHY.styles.caption,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0,
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
     color: COLORS.text.primary,
     textAlign: 'center',
     width: '100%',
-    lineHeight: 16,
   },
 });
 

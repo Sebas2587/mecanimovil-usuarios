@@ -228,7 +228,7 @@ const UserPanelScreen = () => {
     });
     if (vehiclesCategoryKey) {
       queryClient.prefetchQuery({
-        queryKey: ['mainCategoriesForVehicles', 'v3-imagen-trim', vehiclesCategoryKey],
+        queryKey: ['mainCategoriesForVehicles', 'v4-imagen-prod', vehiclesCategoryKey],
         queryFn: () => getMainCategoriesForUserVehicles(vehicles, { forceRefresh: true }),
         staleTime: 1000 * 60 * 2,
       });
