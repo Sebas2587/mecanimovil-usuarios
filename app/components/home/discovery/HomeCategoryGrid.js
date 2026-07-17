@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -48,9 +48,22 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
       : ['mainCategories'],
     queryFn: () =>
       hasVehicles ? getMainCategoriesForUserVehicles(vehicles) : getMainCategories(),
-    staleTime: 1000 * 60 * 15,
+    staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 60,
+    refetchOnMount: 'always',
   });
+
+  /** Si falla la carga de imagen (CORS/R2), volver a Lucide por categoría. */
+  const [failedImageIds, setFailedImageIds] = useState(() => new Set());
+  const markImageFailed = useCallback((id) => {
+    setFailedImageIds((prev) => {
+      const key = String(id);
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  }, []);
 
   const categories = useMemo(() => {
     const list = Array.isArray(categoriesRaw) ? categoriesRaw : [];
@@ -94,6 +107,7 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
           const visual = resolveCategoryVisual(cat);
           const { Icon } = visual;
           const imageUri = resolveToAbsoluteMediaUrl(cat.imagen_url || cat.imagen || null);
+          const showImage = Boolean(imageUri) && !failedImageIds.has(String(cat.id));
 
           return (
             <TouchableOpacity
@@ -108,17 +122,18 @@ const HomeCategoryGrid = ({ disabled, onSelectCategory, vehicles = [] }) => {
               <View
                 style={[
                   styles.iconCircle,
-                  { backgroundColor: imageUri ? COLORS.background.paper : visual.bg },
-                  imageUri ? styles.iconCircleWithImage : null,
+                  { backgroundColor: showImage ? COLORS.background.paper : visual.bg },
+                  showImage ? styles.iconCircleWithImage : null,
                 ]}
               >
-                {imageUri ? (
+                {showImage ? (
                   <Image
                     source={{ uri: imageUri }}
                     style={styles.iconImage}
                     contentFit="cover"
                     transition={180}
                     accessibilityIgnoresInvertColors
+                    onError={() => markImageFailed(cat.id)}
                   />
                 ) : (
                   <Icon size={22} color={visual.color} strokeWidth={1.75} fill="none" />
