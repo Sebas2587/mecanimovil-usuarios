@@ -109,6 +109,65 @@ function PhotoGrid({ fotos, contentWidth }) {
   );
 }
 
+const SEVERIDAD_COLORS = {
+  ok: COLORS.success.main,
+  atencion: COLORS.warning.main,
+  alerta: COLORS.brand.orange,
+  critico: COLORS.error.main,
+};
+
+function severityColor(severidad) {
+  return SEVERIDAD_COLORS[severidad] || COLORS.text.secondary;
+}
+
+/** Valor de amenity: % con barra por gravedad, o texto. */
+function AmenityValue({ item, attentionStyle }) {
+  const formato = item?.formato;
+  const pct = Number(item?.porcentaje);
+  if (formato === 'porcentaje' && Number.isFinite(pct)) {
+    const color = severityColor(item.severidad);
+    const widthPct = Math.max(0, Math.min(100, pct));
+    return (
+      <View style={styles.pctValueWrap}>
+        <View style={styles.pctBarTrack}>
+          <View style={[styles.pctBarFill, { width: `${widthPct}%`, backgroundColor: color }]} />
+        </View>
+        <Text style={[styles.pctValueText, { color }]}>
+          {item.valor || `${Math.round(widthPct)}%`}
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Text style={[styles.amenityValue, attentionStyle && styles.amenityValueAttention]}>
+      {item?.valor || '—'}
+    </Text>
+  );
+}
+
+/** Resalta el nombre del taller dentro del párrafo del resumen. */
+function HighlightedResumenText({ text, tallerNombre, style }) {
+  const taller = String(tallerNombre || '').trim();
+  const body = String(text || '');
+  if (!taller || !body) {
+    return <Text style={style}>{body}</Text>;
+  }
+  const idx = body.toLowerCase().indexOf(taller.toLowerCase());
+  if (idx < 0) {
+    return <Text style={style}>{body}</Text>;
+  }
+  const before = body.slice(0, idx);
+  const match = body.slice(idx, idx + taller.length);
+  const after = body.slice(idx + taller.length);
+  return (
+    <Text style={style}>
+      {before}
+      <Text style={styles.tallerHighlight}>{match}</Text>
+      {after}
+    </Text>
+  );
+}
+
 const InformeServicioScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -344,12 +403,12 @@ const InformeServicioScreen = () => {
             <View style={styles.sectionRule} />
             <View style={styles.resumenBlock}>
               {resumenParrafos.map((p, idx) => (
-                <Text
+                <HighlightedResumenText
                   key={`p-${idx}`}
+                  text={p}
+                  tallerNombre={informe.taller_nombre}
                   style={idx === 0 ? styles.resumenLead : styles.resumenParagraph}
-                >
-                  {p}
-                </Text>
+                />
               ))}
             </View>
           </View>
@@ -379,7 +438,7 @@ const InformeServicioScreen = () => {
                 {hallazgos.map((h) => (
                   <View key={String(h.id)} style={styles.amenityRow}>
                     <Text style={styles.amenityLabel}>{h.pregunta}</Text>
-                    <Text style={styles.amenityValue}>{h.valor}</Text>
+                    <AmenityValue item={h} />
                   </View>
                 ))}
               </View>
@@ -438,14 +497,10 @@ const InformeServicioScreen = () => {
                           </View>
                         ) : null}
                       </View>
-                      <Text
-                        style={[
-                          styles.amenityValue,
-                          item.es_hallazgo && styles.amenityValueAttention,
-                        ]}
-                      >
-                        {item.valor || '—'}
-                      </Text>
+                      <AmenityValue
+                        item={item}
+                        attentionStyle={item.es_hallazgo && item.formato !== 'porcentaje'}
+                      />
                     </View>
                     {item.fotos?.length ? (
                       <View style={styles.checklistPhotosWrap}>
@@ -777,6 +832,32 @@ const styles = StyleSheet.create({
   amenityValueAttention: {
     color: COLORS.brand.orange,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
+  },
+  pctValueWrap: {
+    flexShrink: 0,
+    width: 112,
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  pctBarTrack: {
+    width: '100%',
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.badge.meta.background,
+    overflow: 'hidden',
+  },
+  pctBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  pctValueText: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    lineHeight: 20,
+  },
+  tallerHighlight: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    color: COLORS.brand.orange,
   },
   attentionChip: {
     alignSelf: 'flex-start',
