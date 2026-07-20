@@ -54,12 +54,24 @@ function vehicleHeadline(vehiculo) {
   return parts.join(' ') || vehiculo.patente || 'Tu vehículo';
 }
 
-function splitResumenParagraphs(text) {
+function splitResumenParagraphs(text, { stripHallazgosBlock = false } = {}) {
   if (!text) return [];
-  return String(text)
+  let raw = String(text).trim();
+  if (stripHallazgosBlock) {
+    raw = raw
+      .replace(/\n*Hallazgos que conviene tener presente:[\s\S]*?(?=\n\n[A-ZÁÉÍÓÚ¡]|El resto|\n*$)/i, '')
+      .replace(/\n*El resto de la inspección[^\n.]+\.?/gi, '')
+      .replace(/\n*La inspección no presentó observaciones críticas[^\n.]+\.?/gi, '')
+      .trim();
+  }
+  return raw
     .split(/\n{2,}/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+    .map((p) => p
+      .replace(/\s+\n/g, '\n')
+      .replace(/\.\s*con\s+/gi, '. Con ')
+      .replace(/^[•\-*]\s+/gm, '')
+      .trim())
+    .filter((p) => p && !/^•/.test(p) && !p.includes('Hallazgos que conviene'));
 }
 
 function photoGridMetrics(contentWidth) {
@@ -121,7 +133,8 @@ const InformeServicioScreen = () => {
   const [hasDrawn, setHasDrawn] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showHallazgos, setShowHallazgos] = useState(true);
-  const [showDetalleChecklist, setShowDetalleChecklist] = useState(true);
+  // Airbnb: listados largos parten cerrados; el cliente abre si quiere el detalle.
+  const [showDetalleChecklist, setShowDetalleChecklist] = useState(false);
 
   const cargarInforme = useCallback(async () => {
     if (!token) {
@@ -151,15 +164,21 @@ const InformeServicioScreen = () => {
   const yaFirmado = informe?.estado === 'FIRMADO' || informe?.estado === 'VEHICULO_RECLAMADO';
   const puedeFirmar = informe?.estado === 'PENDIENTE_FIRMA_CLIENTE' && !yaFirmado;
 
-  const resumenParrafos = useMemo(
-    () => splitResumenParagraphs(informe?.resumen_ia),
-    [informe?.resumen_ia],
-  );
   const hallazgos = informe?.hallazgos || [];
+  const resumenParrafos = useMemo(
+    () => splitResumenParagraphs(informe?.resumen_ia, {
+      stripHallazgosBlock: hallazgos.length > 0,
+    }),
+    [informe?.resumen_ia, hallazgos.length],
+  );
   const checklistItems = informe?.checklist?.items || [];
   const itemsConValor = useMemo(
     () => checklistItems.filter((it) => it.completado),
     [checklistItems],
+  );
+  const itemsConFotos = useMemo(
+    () => itemsConValor.filter((it) => (it.fotos || []).length > 0).length,
+    [itemsConValor],
   );
   const kmLabel = formatKm(informe?.vehiculo?.kilometraje_servicio);
   const qrPayload = informe?.qr_payload || informe?.url_publica;
@@ -317,19 +336,26 @@ const InformeServicioScreen = () => {
           </View>
         </View>
 
-        {/* Resumen narrativo — sin card pesada */}
+        {/* Sobre el servicio — prosa Airbnb (About this place) */}
         {resumenParrafos.length > 0 ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Qué se hizo</Text>
-            {resumenParrafos.map((p, idx) => (
-              <Text key={`p-${idx}`} style={styles.resumenParagraph}>
-                {p}
-              </Text>
-            ))}
+            <Text style={styles.sectionEyebrow}>Sobre el servicio</Text>
+            <Text style={styles.sectionTitle}>Qué se hizo</Text>
+            <View style={styles.sectionRule} />
+            <View style={styles.resumenBlock}>
+              {resumenParrafos.map((p, idx) => (
+                <Text
+                  key={`p-${idx}`}
+                  style={idx === 0 ? styles.resumenLead : styles.resumenParagraph}
+                >
+                  {p}
+                </Text>
+              ))}
+            </View>
           </View>
         ) : null}
 
-        {/* Hallazgos relevantes (plegable) */}
+        {/* Hallazgos — filas tipo amenities Airbnb */}
         {hallazgos.length > 0 ? (
           <View style={styles.section}>
             <TouchableOpacity
@@ -339,20 +365,21 @@ const InformeServicioScreen = () => {
               accessibilityRole="button"
               accessibilityState={{ expanded: showHallazgos }}
             >
-              <Text style={styles.sectionLabel}>Hallazgos a tener presente</Text>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.sectionEyebrow}>Revisión</Text>
+                <Text style={styles.sectionTitle}>Qué conviene revisar</Text>
+              </View>
               {showHallazgos
-                ? <ChevronUp size={20} color={COLORS.icon.default} strokeWidth={2} />
-                : <ChevronDown size={20} color={COLORS.icon.default} strokeWidth={2} />}
+                ? <ChevronUp size={22} color={COLORS.icon.default} strokeWidth={2} />
+                : <ChevronDown size={22} color={COLORS.icon.default} strokeWidth={2} />}
             </TouchableOpacity>
+            <View style={styles.sectionRule} />
             {showHallazgos ? (
-              <View style={styles.hallazgosList}>
+              <View style={styles.amenityList}>
                 {hallazgos.map((h) => (
-                  <View key={String(h.id)} style={styles.hallazgoRow}>
-                    <View style={styles.hallazgoDot} />
-                    <View style={styles.hallazgoBody}>
-                      <Text style={styles.hallazgoTitle}>{h.pregunta}</Text>
-                      <Text style={styles.hallazgoValue}>{h.valor}</Text>
-                    </View>
+                  <View key={String(h.id)} style={styles.amenityRow}>
+                    <Text style={styles.amenityLabel}>{h.pregunta}</Text>
+                    <Text style={styles.amenityValue}>{h.valor}</Text>
                   </View>
                 ))}
               </View>
@@ -360,7 +387,7 @@ const InformeServicioScreen = () => {
           </View>
         ) : null}
 
-        {/* Detalle del checklist: pregunta + valor del técnico + fotos */}
+        {/* Detalle checklist — amenities table + evidencia */}
         {itemsConValor.length > 0 ? (
           <View style={styles.section}>
             <TouchableOpacity
@@ -371,36 +398,50 @@ const InformeServicioScreen = () => {
               accessibilityState={{ expanded: showDetalleChecklist }}
             >
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.sectionLabel}>Detalle del checklist</Text>
+                <Text style={styles.sectionEyebrow}>Inspección</Text>
+                <Text style={styles.sectionTitle}>Respuestas del técnico</Text>
                 <Text style={styles.sectionMeta}>
                   {informe.checklist?.items_completados ?? itemsConValor.length}
                   {informe.checklist?.items_total
                     ? ` de ${informe.checklist.items_total}`
                     : ''}{' '}
-                  ítems con respuesta del técnico
+                  puntos revisados
+                  {itemsConFotos > 0 ? ` · ${itemsConFotos} con fotos` : ''}
                 </Text>
               </View>
               {showDetalleChecklist
-                ? <ChevronUp size={20} color={COLORS.icon.default} strokeWidth={2} />
-                : <ChevronDown size={20} color={COLORS.icon.default} strokeWidth={2} />}
+                ? <ChevronUp size={22} color={COLORS.icon.default} strokeWidth={2} />
+                : <ChevronDown size={22} color={COLORS.icon.default} strokeWidth={2} />}
             </TouchableOpacity>
+            <View style={styles.sectionRule} />
 
-            {showDetalleChecklist ? (
-              <View style={styles.checklistList}>
+            {!showDetalleChecklist ? (
+              <TouchableOpacity
+                style={styles.showAllBtn}
+                onPress={() => setShowDetalleChecklist(true)}
+                activeOpacity={0.88}
+              >
+                <Text style={styles.showAllBtnText}>
+                  Mostrar las {itemsConValor.length} respuestas
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.amenityList}>
                 {itemsConValor.map((item) => (
-                  <View
-                    key={item.id}
-                    style={[
-                      styles.checklistItem,
-                      item.es_hallazgo && styles.checklistItemHallazgo,
-                    ]}
-                  >
-                    <View style={styles.checklistItemHeader}>
-                      <Text style={styles.checklistQuestion}>{item.pregunta_texto}</Text>
+                  <View key={item.id} style={styles.checklistBlock}>
+                    <View style={styles.amenityRow}>
+                      <View style={styles.amenityLabelCol}>
+                        <Text style={styles.amenityLabel}>{item.pregunta_texto}</Text>
+                        {item.es_hallazgo ? (
+                          <View style={styles.attentionChip}>
+                            <Text style={styles.attentionChipText}>Atención</Text>
+                          </View>
+                        ) : null}
+                      </View>
                       <Text
                         style={[
-                          styles.checklistValue,
-                          item.es_hallazgo && styles.checklistValueHallazgo,
+                          styles.amenityValue,
+                          item.es_hallazgo && styles.amenityValueAttention,
                         ]}
                       >
                         {item.valor || '—'}
@@ -408,16 +449,23 @@ const InformeServicioScreen = () => {
                     </View>
                     {item.fotos?.length ? (
                       <View style={styles.checklistPhotosWrap}>
-                        <Text style={styles.photoCountLabel}>
-                          {item.fotos.length} foto{item.fotos.length === 1 ? '' : 's'} de evidencia
-                        </Text>
-                        <PhotoGrid fotos={item.fotos} contentWidth={contentWidth} />
+                        <PhotoGrid
+                          fotos={item.fotos}
+                          contentWidth={Math.max(contentWidth - 4, 280)}
+                        />
                       </View>
                     ) : null}
                   </View>
                 ))}
+                <TouchableOpacity
+                  style={styles.showAllBtn}
+                  onPress={() => setShowDetalleChecklist(false)}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.showAllBtnText}>Ocultar respuestas</Text>
+                </TouchableOpacity>
               </View>
-            ) : null}
+            )}
           </View>
         ) : null}
 
@@ -643,108 +691,131 @@ const styles = StyleSheet.create({
   section: {
     gap: SPACING.sm,
   },
-  sectionLabel: {
+  sectionEyebrow: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    letterSpacing: TYPOGRAPHY.letterSpacing.section,
+    textTransform: 'uppercase',
+    color: COLORS.text.secondary,
+    marginBottom: 2,
+  },
+  sectionTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    lineHeight: 28,
+    letterSpacing: -0.3,
     color: COLORS.text.primary,
   },
   sectionMeta: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
-    marginTop: 2,
+    marginTop: 4,
+  },
+  sectionRule: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border.light,
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  resumenBlock: {
+    gap: SPACING.md,
+    paddingTop: SPACING.xs,
+  },
+  resumenLead: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    lineHeight: 28,
+    color: COLORS.text.primary,
   },
   resumenParagraph: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.md,
     lineHeight: 24,
-    color: COLORS.text.primary,
+    color: COLORS.text.secondary,
   },
   disclosureHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: SPACING.sm,
   },
-  hallazgosList: {
-    gap: SPACING.sm,
-    marginTop: SPACING.xs,
-  },
-  hallazgoRow: {
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    alignItems: 'flex-start',
-  },
-  hallazgoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.brand.orange,
-    marginTop: 7,
-  },
-  hallazgoBody: {
-    flex: 1,
-    gap: 2,
-  },
-  hallazgoTitle: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.text.primary,
-  },
-  hallazgoValue: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.text.secondary,
-  },
-  checklistList: {
-    marginTop: SPACING.sm,
+  amenityList: {
     gap: 0,
   },
-  checklistItem: {
-    paddingVertical: SPACING.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.border.light,
-    gap: SPACING.sm,
-  },
-  checklistItemHallazgo: {
-    backgroundColor: withOpacity(COLORS.brand.orange, 0.04),
-    marginHorizontal: -SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: BORDERS.radius.sm,
-  },
-  checklistItemHeader: {
+  amenityRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: SPACING.md,
+    gap: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border.light,
   },
-  checklistQuestion: {
+  amenityLabelCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  amenityLabel: {
     flex: 1,
     minWidth: 0,
     fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.base,
-    color: COLORS.text.secondary,
-    lineHeight: 20,
-  },
-  checklistValue: {
-    flexShrink: 0,
-    maxWidth: '46%',
-    textAlign: 'right',
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.base,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    lineHeight: 22,
     color: COLORS.text.primary,
-    lineHeight: 20,
   },
-  checklistValueHallazgo: {
+  amenityValue: {
+    flexShrink: 0,
+    maxWidth: '42%',
+    textAlign: 'right',
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    lineHeight: 22,
+    color: COLORS.text.secondary,
+  },
+  amenityValueAttention: {
     color: COLORS.brand.orange,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+  },
+  attentionChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.badge.especialista.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.badge.especialista.border,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderRadius: BORDERS.radius.sm,
+  },
+  attentionChipText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.badge.especialista.text,
+    letterSpacing: 0.2,
+  },
+  checklistBlock: {
+    gap: SPACING.sm,
   },
   checklistPhotosWrap: {
-    gap: SPACING.xs,
+    paddingBottom: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border.light,
   },
-  photoCountLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
+  showAllBtn: {
+    marginTop: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: 1,
+    borderColor: COLORS.text.primary,
+    backgroundColor: COLORS.base.white,
+    paddingHorizontal: SPACING.lg,
+  },
+  showAllBtnText: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.primary,
   },
   photoGrid: {
     flexDirection: 'row',
