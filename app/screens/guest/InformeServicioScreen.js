@@ -77,15 +77,22 @@ function PhotoGrid({ fotos, contentWidth }) {
   if (!fotos?.length) return null;
   return (
     <View style={[styles.photoGrid, { gap }]}>
-      {fotos.map((foto) => (
-        <Image
-          key={foto.id}
-          source={{ uri: foto.imagen_url }}
-          style={[styles.photoTile, { width: tile, height }]}
-          resizeMode="cover"
-          accessibilityLabel={foto.descripcion || 'Foto del servicio'}
-        />
-      ))}
+      {fotos.map((foto, index) => {
+        const caption = String(foto.descripcion || '').trim() || `Foto ${index + 1}`;
+        return (
+          <View key={foto.id} style={[styles.photoCard, { width: tile }]}>
+            <Image
+              source={{ uri: foto.imagen_url }}
+              style={[styles.photoTile, { width: tile, height }]}
+              resizeMode="cover"
+              accessibilityLabel={caption}
+            />
+            <Text style={styles.photoCaption} numberOfLines={3}>
+              {caption}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -743,9 +750,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
+  photoCard: {
+    gap: 6,
+  },
   photoTile: {
     borderRadius: BORDERS.radius.md,
     backgroundColor: COLORS.buttonSecondary.background,
+  },
+  photoCaption: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 18,
+    color: COLORS.text.primary,
   },
   signedBanner: {
     flexDirection: 'row',
