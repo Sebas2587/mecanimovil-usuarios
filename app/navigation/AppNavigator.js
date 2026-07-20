@@ -58,6 +58,8 @@ import TransferenciaResumenScreen from '../screens/marketplace/TransferenciaResu
 import TransferenciaVendedorScreen from '../screens/marketplace/TransferenciaVendedorScreen';
 import TransferenciaCompradorScreen from '../screens/marketplace/TransferenciaCompradorScreen';
 import TransferenciaExitoScreen from '../screens/marketplace/TransferenciaExitoScreen';
+import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
+import EscanearInformeServicioScreen from '../screens/guest/EscanearInformeServicioScreen';
 
 const getHeaderOptions = (title, options = {}) => ({
   headerShown: true,
@@ -286,6 +288,12 @@ const AppNavigator = () => (
     <Stack.Screen name={ROUTES.TRANSFERENCIA_VENDEDOR} component={TransferenciaVendedorScreen} />
     <Stack.Screen name={ROUTES.TRANSFERENCIA_COMPRADOR} component={TransferenciaCompradorScreen} />
     <Stack.Screen name={ROUTES.TRANSFERENCIA_EXITO} component={TransferenciaExitoScreen} />
+    <Stack.Screen name={ROUTES.INFORME_SERVICIO} component={InformeServicioScreen} />
+    <Stack.Screen
+      name={ROUTES.ESCANEAR_INFORME_SERVICIO}
+      component={EscanearInformeServicioScreen}
+      options={{ headerShown: false }}
+    />
   </Stack.Navigator>
 );
 

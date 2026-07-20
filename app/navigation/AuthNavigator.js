@@ -8,19 +8,19 @@ import GuestVehicleResultsScreen from '../screens/guest/GuestVehicleResultsScree
 import GuestServiceOfferScreen from '../screens/guest/GuestServiceOfferScreen';
 import GuestSectionProvidersScreen from '../screens/guest/GuestSectionProvidersScreen';
 import GuestSectionServicesScreen from '../screens/guest/GuestSectionServicesScreen';
+import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import { ROUTES } from '../utils/constants';
-import { getPublicProviderFromWebPath } from '../utils/publicListingRoute';
+import { getPublicProviderFromWebPath, getInformeTokenFromWebPath } from '../utils/publicListingRoute';
 import { COLORS } from '../design-system/tokens';
 import SplashScreen from '../components/utils/SplashScreen';
-import PlatformAlertHost from '../components/common/PlatformAlertHost';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ONBOARDING_STORAGE_KEY } from '../components/onboarding';
 
 const Stack = createStackNavigator();
-const HAS_SEEN_ONBOARDING_KEY = 'has_seen_onboarding_v1';
 
 const authLegalHeaderOptions = {
   headerShown: true,
@@ -59,6 +59,7 @@ const authLegalWebScreenOptions = Platform.OS === 'web'
  */
 const AuthNavigator = ({ registerSuccess }) => {
   const publicProviderData = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
+  const informeTokenFromWeb = Platform.OS === 'web' ? getInformeTokenFromWebPath() : null;
 
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
 
@@ -66,7 +67,7 @@ const AuthNavigator = ({ registerSuccess }) => {
     let mounted = true;
     const run = async () => {
       try {
-        const v = await AsyncStorage.getItem(HAS_SEEN_ONBOARDING_KEY);
+        const v = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
         if (mounted) setHasSeenOnboarding(v === 'true');
       } catch {
         if (mounted) setHasSeenOnboarding(true);
@@ -80,12 +81,13 @@ const AuthNavigator = ({ registerSuccess }) => {
 
   const initialRouteName = useMemo(() => {
     if (publicProviderData) return ROUTES.PROVIDER_DETAIL;
+    if (informeTokenFromWeb) return ROUTES.INFORME_SERVICIO;
     if (registerSuccess) return ROUTES.REGISTER;
     if (hasSeenOnboarding === false) return ROUTES.ONBOARDING;
     return ROUTES.GUEST_LANDING;
-  }, [publicProviderData, registerSuccess, hasSeenOnboarding]);
+  }, [publicProviderData, informeTokenFromWeb, registerSuccess, hasSeenOnboarding]);
 
-  if (hasSeenOnboarding == null && !publicProviderData && !registerSuccess) {
+  if (hasSeenOnboarding == null && !publicProviderData && !informeTokenFromWeb && !registerSuccess) {
     return <SplashScreen />;
   }
 
@@ -107,7 +109,7 @@ const AuthNavigator = ({ registerSuccess }) => {
           Platform.OS === 'web'
             ? {
                 cardStyle: {
-                  backgroundColor: COLORS.base.inkBlack,
+                  backgroundColor: '#0B0B0B',
                   flex: 1,
                   width: '100%',
                   height: '100vh',
@@ -116,7 +118,7 @@ const AuthNavigator = ({ registerSuccess }) => {
                   overflow: 'hidden',
                 },
               }
-            : undefined
+            : { cardStyle: { backgroundColor: '#0B0B0B' } }
         }
       />
       <Stack.Screen
@@ -194,6 +196,25 @@ const AuthNavigator = ({ registerSuccess }) => {
       <Stack.Screen
         name={ROUTES.GUEST_SECTION_SERVICES}
         component={GuestSectionServicesScreen}
+        options={
+          Platform.OS === 'web'
+            ? {
+                cardStyle: {
+                  backgroundColor: COLORS.background.default,
+                  flex: 1,
+                  maxHeight: '100vh',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  WebkitOverflowScrolling: 'touch',
+                },
+              }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.INFORME_SERVICIO}
+        component={InformeServicioScreen}
+        initialParams={informeTokenFromWeb ? { token: informeTokenFromWeb } : undefined}
         options={
           Platform.OS === 'web'
             ? {
@@ -290,7 +311,6 @@ const AuthNavigator = ({ registerSuccess }) => {
         }}
       />
     </Stack.Navigator>
-    <PlatformAlertHost />
     </>
   );
 };

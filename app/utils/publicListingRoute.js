@@ -56,6 +56,22 @@ export function normalizeProviderRouteParams(params) {
 }
 
 /**
+ * Token de informe público en ruta /reporte/:token (web).
+ */
+export function getInformeTokenFromWebPath() {
+  if (Platform.OS !== 'web') return null;
+  if (typeof window === 'undefined') return null;
+  const raw = String(window.location?.pathname || '');
+  const path = raw.split('?')[0].split('#')[0];
+  const hash = String(window.location?.hash || '').replace(/^#\/?/, '');
+  let m = path.match(/\/reporte\/([A-Za-z0-9_-]+)\/?$/i);
+  if (!m && hash) {
+    m = hash.match(/reporte\/([A-Za-z0-9_-]+)/i);
+  }
+  return m ? m[1] : null;
+}
+
+/**
  * Parses /provider/:type/:id from web location (navegador / WhatsApp → Chrome).
  * Sin ancla ^: tolera subrutas; opcional slug tras el id; fallback en hash (#/provider/...).
  */

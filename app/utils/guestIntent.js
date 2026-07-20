@@ -5,23 +5,63 @@ export const PENDING_GUEST_INTENT_KEY = 'pending_guest_intent';
 export const PENDING_GUEST_VEHICLE_SUGGESTION_KEY = 'pending_guest_vehicle_suggestion';
 /** Tras login: preferir seleccionar esta patente en el panel si ya está en el garaje. */
 export const PREFERRED_VEHICLE_PATENTE_KEY = 'preferred_vehicle_patente';
+/** Tras firmar informe público: reclamar servicio al registrar vehículo. */
+export const PENDING_INFORME_CLAIM_KEY = 'pending_informe_claim';
 
 /**
  * Guarda intención del invitado antes de registrarse.
- * @param {{ type?: 'vehicle'|'schedule', patente?: string, vehicleData?: object, schedule?: object }} payload
+ * @param {{ type?: 'vehicle'|'schedule'|'informe_claim', patente?: string, vehicleData?: object, schedule?: object, informeToken?: string }} payload
  */
 export async function savePendingGuestIntent(payload = {}) {
-  const { patente, vehicleData, schedule, type } = payload;
-  if (!patente && !schedule) return;
+  const { patente, vehicleData, schedule, type, informeToken } = payload;
+  if (!patente && !schedule && !informeToken) return;
 
   const data = {
-    type: schedule ? 'schedule' : type || 'vehicle',
+    type: informeToken ? 'informe_claim' : schedule ? 'schedule' : type || 'vehicle',
     patente: patente ? String(patente).toUpperCase().trim() : null,
     vehicleData: vehicleData || null,
     schedule: schedule || null,
+    informeToken: informeToken || null,
     savedAt: Date.now(),
   };
   await AsyncStorage.setItem(PENDING_GUEST_INTENT_KEY, JSON.stringify(data));
+}
+
+/** Guarda token de informe firmado para reclamar tras registro/login. */
+export async function savePendingInformeClaimIntent({ token, vehicleData } = {}) {
+  const safeToken = token ? String(token).trim() : null;
+  if (!safeToken) return;
+  const payload = {
+    type: 'informe_claim',
+    informeToken: safeToken,
+    patente: vehicleData?.patente ? String(vehicleData.patente).toUpperCase().trim() : null,
+    vehicleData: vehicleData || null,
+    savedAt: Date.now(),
+  };
+  await AsyncStorage.setItem(PENDING_GUEST_INTENT_KEY, JSON.stringify(payload));
+  await AsyncStorage.setItem(PENDING_INFORME_CLAIM_KEY, JSON.stringify(payload));
+}
+
+export async function peekPendingInformeClaimIntent() {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_INFORME_CLAIM_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export async function consumePendingInformeClaimIntent() {
+  const intent = await peekPendingInformeClaimIntent();
+  if (intent) {
+    await AsyncStorage.removeItem(PENDING_INFORME_CLAIM_KEY);
+  }
+  return intent;
+}
+
+export async function clearPendingInformeClaimIntent() {
+  await AsyncStorage.removeItem(PENDING_INFORME_CLAIM_KEY);
 }
 
 /**

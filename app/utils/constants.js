@@ -204,6 +204,10 @@ export const ROUTES = {
   GUEST_SECTION_PROVIDERS: 'GuestSectionProviders',
   /** Ver todos los servicios de una sección del landing */
   GUEST_SECTION_SERVICES: 'GuestSectionServices',
+  /** Informe público de servicio (guest, /reporte/:token) */
+  INFORME_SERVICIO: 'InformeServicio',
+  /** Escanear QR de informe para reclamar servicio (autenticado) */
+  ESCANEAR_INFORME_SERVICIO: 'EscanearInformeServicio',
   LOGIN: 'Login',
   REGISTER: 'Register',
 

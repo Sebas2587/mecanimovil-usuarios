@@ -62,6 +62,8 @@ import {
     tieneMileageSii,
     validarKilometrajeContraSii,
 } from '../../utils/vehicleMileage';
+import { reclamarInformeServicio } from '../../services/informeServicioService';
+import { clearPendingInformeClaimIntent } from '../../utils/guestIntent';
 
 // Utility
 const formatPatente = (text) => {
@@ -89,8 +91,10 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
     isWideLayout,
     onToggle,
     onKmChange,
+    readOnly,
+    readOnlyLabel,
 }) {
-    const kmField = isChecked ? (
+    const kmField = isChecked && !readOnly ? (
         <View
             style={[
                 styles.maintenanceKmBlock,
@@ -121,14 +125,15 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
 
     if (isWideLayout) {
         return (
-            <View style={styles.maintenanceItem}>
+            <View style={[styles.maintenanceItem, readOnly && styles.maintenanceItemReadOnly]}>
                 <View style={styles.maintenanceItemRowWide}>
                     <TouchableOpacity
                         style={styles.maintenanceItemHeaderWide}
-                        onPress={onToggle}
-                        activeOpacity={0.7}
+                        onPress={readOnly ? undefined : onToggle}
+                        activeOpacity={readOnly ? 1 : 0.7}
                         accessibilityRole="checkbox"
-                        accessibilityState={{ checked: isChecked }}
+                        accessibilityState={{ checked: isChecked, disabled: !!readOnly }}
+                        disabled={readOnly}
                     >
                         <View style={[styles.checkbox, isChecked && styles.checkboxCheckedWrap]}>
                             {isChecked ? (
@@ -137,7 +142,12 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
                                 </PrimaryGradientFill>
                             ) : null}
                         </View>
-                        <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
+                        <View style={styles.maintenanceLabelWrap}>
+                            <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
+                            {readOnly && readOnlyLabel ? (
+                                <Text style={styles.maintenanceOfficialBadge}>{readOnlyLabel}</Text>
+                            ) : null}
+                        </View>
                     </TouchableOpacity>
                     {kmField}
                 </View>
@@ -146,13 +156,14 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
     }
 
     return (
-        <View style={styles.maintenanceItem}>
+        <View style={[styles.maintenanceItem, readOnly && styles.maintenanceItemReadOnly]}>
             <TouchableOpacity
                 style={styles.maintenanceItemHeader}
-                onPress={onToggle}
-                activeOpacity={0.7}
+                onPress={readOnly ? undefined : onToggle}
+                activeOpacity={readOnly ? 1 : 0.7}
                 accessibilityRole="checkbox"
-                accessibilityState={{ checked: isChecked }}
+                accessibilityState={{ checked: isChecked, disabled: !!readOnly }}
+                disabled={readOnly}
             >
                 <View style={[styles.checkbox, isChecked && styles.checkboxCheckedWrap]}>
                     {isChecked ? (
@@ -161,7 +172,12 @@ const MaintenanceChecklistItem = memo(function MaintenanceChecklistItem({
                         </PrimaryGradientFill>
                     ) : null}
                 </View>
-                <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
+                <View style={styles.maintenanceLabelWrap}>
+                    <Text style={styles.maintenanceLabel}>{item.nombre}</Text>
+                    {readOnly && readOnlyLabel ? (
+                        <Text style={styles.maintenanceOfficialBadge}>{readOnlyLabel}</Text>
+                    ) : null}
+                </View>
             </TouchableOpacity>
             {kmField}
         </View>
@@ -200,6 +216,11 @@ const VehicleRegistrationScreen = () => {
     const [saving, setSaving] = useState(false);
     const [selectedEngineType, setSelectedEngineType] = useState(null);
     const [maintenanceSelections, setMaintenanceSelections] = useState({});
+    const [componentesOficialesIds, setComponentesOficialesIds] = useState(() => {
+        const fromRoute = route.params?.componentesOficialesIds;
+        return Array.isArray(fromRoute) ? fromRoute.map(Number).filter(Boolean) : [];
+    });
+    const pendingInformeClaimToken = route.params?.pendingInformeClaimToken || null;
     const [maintenanceExpanded, setMaintenanceExpanded] = useState(true);
     const [valorMercado, setValorMercado] = useState('');
     const [showValorMercadoAlert, setShowValorMercadoAlert] = useState(false);
@@ -209,6 +230,9 @@ const VehicleRegistrationScreen = () => {
     useEffect(() => {
         const prefillPatente = route.params?.prefillPatente;
         const prefillVehicleData = route.params?.prefillVehicleData;
+        const prefillKm = prefillVehicleData?.kilometraje_servicio
+            ?? prefillVehicleData?.kilometraje_api
+            ?? prefillVehicleData?.mileage_sii;
         if (!prefillPatente && !prefillVehicleData) return;
 
         let cancelled = false;
@@ -268,6 +292,9 @@ const VehicleRegistrationScreen = () => {
 
             if (!cancelled) {
                 applyPrefill(prefillVehicleData);
+                if (prefillKm != null && String(prefillKm).trim() !== '') {
+                    setKilometraje(String(parseInt(String(prefillKm), 10) || ''));
+                }
             }
         })();
 
@@ -291,6 +318,7 @@ const VehicleRegistrationScreen = () => {
     }, []);
 
     const toggleMaintenanceCheck = useCallback((compId) => {
+        if (componentesOficialesIds.includes(Number(compId))) return;
         const isChecked = maintenanceSelections[compId] !== undefined;
         if (isChecked) {
             setMaintenanceSelections(prev => {
@@ -301,7 +329,20 @@ const VehicleRegistrationScreen = () => {
         } else {
             setMaintenanceSelections(prev => ({ ...prev, [compId]: '' }));
         }
-    }, [maintenanceSelections]);
+    }, [maintenanceSelections, componentesOficialesIds]);
+
+    useEffect(() => {
+        if (!checklistItems.length || !componentesOficialesIds.length) return;
+        setMaintenanceSelections((prev) => {
+            const next = { ...prev };
+            checklistItems.forEach((item) => {
+                if (componentesOficialesIds.includes(Number(item.id))) {
+                    next[item.id] = next[item.id] ?? '';
+                }
+            });
+            return next;
+        });
+    }, [checklistItems, componentesOficialesIds]);
 
     // Initial focus
     const patenteInputRef = useRef(null);
@@ -600,7 +641,10 @@ const VehicleRegistrationScreen = () => {
 
             // Componentes historial (mantenimientos recientes)
             const historialEntries = Object.entries(maintenanceSelections)
-                .filter(([, km]) => km !== '' && km !== undefined && !isNaN(Number(km)))
+                .filter(([componente_id, km]) => {
+                    if (componentesOficialesIds.includes(Number(componente_id))) return false;
+                    return km !== '' && km !== undefined && !isNaN(Number(km));
+                })
                 .map(([componente_id, km]) => ({ componente_id: Number(componente_id), km_ultimo_cambio: Number(km) }));
             if (historialEntries.length > 0) {
                 formData.append('componentes_historial', JSON.stringify(historialEntries));
@@ -623,6 +667,23 @@ const VehicleRegistrationScreen = () => {
 
             const created = await vehicleService.createVehicle(formData);
 
+            let claimMessage = null;
+            if (pendingInformeClaimToken) {
+                try {
+                    const claim = await reclamarInformeServicio(pendingInformeClaimToken);
+                    await clearPendingInformeClaimIntent();
+                    claimMessage = claim?.message || 'Servicio del taller vinculado a tu vehículo.';
+                    const oficiales = claim?.componentes_oficiales;
+                    if (Array.isArray(oficiales) && oficiales.length > 0) {
+                        setComponentesOficialesIds(oficiales.map((c) => Number(c.id)).filter(Boolean));
+                    }
+                } catch (claimErr) {
+                    console.warn('Reclamo de informe post-registro:', claimErr);
+                    claimMessage = claimErr?.response?.data?.error
+                        || 'Vehículo creado. Escanea el QR del informe para vincular el servicio.';
+                }
+            }
+
             // Invalidar listas (UserPanel / CrearSolicitud usan ['userVehicles']; hooks usan ['vehicles', userId])
             queryClient.invalidateQueries({ queryKey: ['userVehicles'] });
             queryClient.invalidateQueries({ queryKey: ['vehicles'] });
@@ -639,7 +700,7 @@ const VehicleRegistrationScreen = () => {
             }
 
             if (Platform.OS === 'web') {
-                showAlert('Éxito', 'Vehículo agregado a tu garaje.');
+                showAlert('Éxito', claimMessage || 'Vehículo agregado a tu garaje.');
                 if (navigation.canGoBack()) {
                     navigation.goBack();
                 } else {
@@ -649,7 +710,7 @@ const VehicleRegistrationScreen = () => {
                     });
                 }
             } else {
-                Alert.alert('Éxito', 'Vehículo agregado a tu garaje.', [
+                Alert.alert('Éxito', claimMessage || 'Vehículo agregado a tu garaje.', [
                     {
                         text: 'OK',
                         onPress: () => {
@@ -1101,6 +1162,7 @@ const VehicleRegistrationScreen = () => {
                                         <View style={styles.maintenanceItems}>
                                             {checklistItems.map((item) => {
                                                 const handlers = maintenanceItemHandlers.get(item.id);
+                                                const isOfficial = componentesOficialesIds.includes(Number(item.id));
                                                 return (
                                                     <MaintenanceChecklistItem
                                                         key={item.id}
@@ -1110,12 +1172,22 @@ const VehicleRegistrationScreen = () => {
                                                         isWideLayout={isWideLayout}
                                                         onToggle={handlers?.onToggle}
                                                         onKmChange={handlers?.onKmChange}
+                                                        readOnly={isOfficial}
+                                                        readOnlyLabel={isOfficial ? 'Ya registrado oficialmente ✓' : undefined}
                                                     />
                                                 );
                                             })}
                                         </View>
                                         <TouchableOpacity
-                                            onPress={() => setMaintenanceSelections({})}
+                                            onPress={() => {
+                                                setMaintenanceSelections((prev) => {
+                                                    const next = {};
+                                                    componentesOficialesIds.forEach((id) => {
+                                                        if (prev[id] !== undefined) next[id] = prev[id];
+                                                    });
+                                                    return next;
+                                                });
+                                            }}
                                             style={styles.skipLink}
                                         >
                                             <Text style={styles.skipLinkText}>Continuar sin especificar</Text>
@@ -1591,9 +1663,21 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     maintenanceLabel: {
-        flex: 1,
         ...TYPOGRAPHY.styles.body,
         color: COLORS.text.primary,
+    },
+    maintenanceLabelWrap: {
+        flex: 1,
+        gap: 2,
+    },
+    maintenanceOfficialBadge: {
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.success.main,
+        fontWeight: '600',
+    },
+    maintenanceItemReadOnly: {
+        opacity: 0.92,
+        backgroundColor: withOpacity(COLORS.success.main, 0.06),
     },
     maintenanceKmBlock: {
         marginTop: SPACING.sm,

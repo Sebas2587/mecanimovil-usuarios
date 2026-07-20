@@ -17,6 +17,7 @@ import * as Notifications from 'expo-notifications';
 import { useLastNotificationResponse } from 'expo-notifications';
 import AuthNavigator from './app/navigation/AuthNavigator';
 import AuthenticatedAppShell from './app/navigation/AuthenticatedAppShell';
+import PlatformAlertHost from './app/components/common/PlatformAlertHost';
 import { AuthProvider, useAuth } from './app/context/AuthContext';
 import { AgendamientoProvider } from './app/context/AgendamientoContext';
 import { SolicitudesProvider } from './app/context/SolicitudesContext';
@@ -44,7 +45,9 @@ import {
   savePendingGuestVehicleSuggestion,
   clearPendingGuestVehicleSuggestion,
   setPreferredVehiclePatente,
+  clearPendingInformeClaimIntent,
 } from './app/utils/guestIntent';
+import { reclamarInformeServicio } from './app/services/informeServicioService';
 import { showAlert } from './app/utils/platformAlert';
 import { navigateCrearSolicitudConProveedorYServicio } from './app/components/home/shared/homeScheduleNavigation';
 import * as vehicleService from './app/services/vehicle';
@@ -209,6 +212,12 @@ const linking = {
           },
           // name es opcional - puede ser undefined
           name: (name) => name || undefined,
+        },
+      },
+      InformeServicio: {
+        path: 'reporte/:token',
+        parse: {
+          token: (token) => (token ? String(token).trim() : null),
         },
       },
       // marketplace/vehicle deep links ignorados (MarketplaceVehicleDetail eliminado)
@@ -518,6 +527,39 @@ const MainImpl = ({ lastNotificationResponse }) => {
           prefillPatente: intent.patente,
           prefillVehicleData: intent.vehicleData,
           pendingScheduleIntent: intent.schedule,
+        });
+        return;
+      }
+
+      if (intent.type === 'informe_claim' && intent.informeToken) {
+        let vehicles = [];
+        try {
+          vehicles = await vehicleService.getUserVehicles();
+        } catch (_e) {
+          vehicles = [];
+        }
+        const list = Array.isArray(vehicles) ? vehicles : vehicles?.results || [];
+        const owned = intent.patente ? findVehicleByPatente(list, intent.patente) : null;
+
+        if (owned) {
+          try {
+            const claim = await reclamarInformeServicio(intent.informeToken);
+            await clearPendingInformeClaimIntent();
+            showAlert('Servicio vinculado', claim?.message || 'El servicio quedó en tu vehículo.');
+            navigationRef.navigate('TabNavigator', { screen: ROUTES.MIS_VEHICULOS });
+            return;
+          } catch (e) {
+            const msg = e?.response?.data?.error || e?.message || 'No se pudo vincular el servicio';
+            showAlert('Vincular servicio', msg);
+            navigationRef.navigate(ROUTES.INFORME_SERVICIO, { token: intent.informeToken });
+            return;
+          }
+        }
+
+        navigationRef.navigate(ROUTES.CREAR_VEHICULO, {
+          prefillPatente: intent.patente || intent.vehicleData?.patente,
+          prefillVehicleData: intent.vehicleData,
+          pendingInformeClaimToken: intent.informeToken,
         });
         return;
       }
@@ -1587,6 +1629,7 @@ export default function App() {
                   <AgendamientoProvider>
                                           <SolicitudesProvider>
                         <Main />
+                        <PlatformAlertHost />
                         <StatusBar style="auto" />
                       </SolicitudesProvider>
                                       </AgendamientoProvider>
