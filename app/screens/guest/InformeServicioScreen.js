@@ -242,16 +242,23 @@ const InformeServicioScreen = () => {
   const kmLabel = formatKm(informe?.vehiculo?.kilometraje_servicio);
   const qrPayload = informe?.qr_payload || informe?.url_publica;
 
-  const claimVehicleData = useMemo(() => ({
-    patente: informe?.vehiculo?.patente,
-    marca_nombre: informe?.vehiculo?.marca,
-    modelo_nombre: informe?.vehiculo?.modelo,
-    year: informe?.vehiculo?.anio,
-    anio: informe?.vehiculo?.anio,
-    vin: informe?.vehiculo?.vin,
-    kilometraje_api: informe?.vehiculo?.kilometraje_api,
-    mileage_sii: informe?.vehiculo?.kilometraje_api,
-  }), [informe]);
+  const claimVehicleData = useMemo(() => {
+    const v = informe?.vehiculo || {};
+    const plate = v.patente ? String(v.patente).toUpperCase().trim() : null;
+    return {
+      patente: plate,
+      marca: v.marca || null,
+      marca_nombre: v.marca || null,
+      modelo: v.modelo || null,
+      modelo_nombre: v.modelo || null,
+      year: v.anio || null,
+      anio: v.anio || null,
+      vin: v.vin || null,
+      kilometraje_servicio: v.kilometraje_servicio ?? null,
+      kilometraje_api: v.kilometraje_api ?? null,
+      mileage_sii: v.kilometraje_api ?? null,
+    };
+  }, [informe]);
 
   const handleFirmar = useCallback(async (firmaBase64) => {
     if (!token || !firmaBase64) return;

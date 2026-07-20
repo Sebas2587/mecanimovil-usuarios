@@ -228,26 +228,47 @@ const VehicleRegistrationScreen = () => {
     const queryClient = useQueryClient();
 
     useEffect(() => {
-        const prefillPatente = route.params?.prefillPatente;
         const prefillVehicleData = route.params?.prefillVehicleData;
+        const prefillPatente = route.params?.prefillPatente
+            || prefillVehicleData?.patente
+            || null;
         const prefillKm = prefillVehicleData?.kilometraje_servicio
             ?? prefillVehicleData?.kilometraje_api
-            ?? prefillVehicleData?.mileage_sii;
+            ?? prefillVehicleData?.mileage_sii
+            ?? prefillVehicleData?.mileage;
         if (!prefillPatente && !prefillVehicleData) return;
 
         let cancelled = false;
+
+        const normalizeInformePrefill = (data) => {
+            if (!data || typeof data !== 'object') return {};
+            return {
+                ...data,
+                patente: data.patente || prefillPatente || undefined,
+                marca_nombre: data.marca_nombre || data.marca || undefined,
+                modelo_nombre: data.modelo_nombre || data.modelo || undefined,
+                year: data.year || data.anio || undefined,
+                anio: data.anio || data.year || undefined,
+                vin: data.vin || undefined,
+                kilometraje_api: data.kilometraje_api ?? data.mileage_sii ?? data.mileage ?? undefined,
+                mileage_sii: data.mileage_sii ?? data.kilometraje_api ?? data.mileage ?? undefined,
+                kilometraje_servicio: data.kilometraje_servicio ?? undefined,
+            };
+        };
 
         const applyPrefill = (data) => {
             setVehicleData(data);
             setStep('success');
 
-            let type = data.tipo_motor || 'GASOLINA';
-            const upper = String(type).toUpperCase();
-            if (upper.includes('BENCINA') || upper.includes('GASOLINA')) type = 'GASOLINA';
-            else if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) type = 'DIESEL';
-            else if (upper.includes('HIBRIDO') || upper.includes('HÍBRIDO')) type = 'HIBRIDO';
-            else if (upper.includes('ELECTRICO') || upper.includes('ELÉCTRICO')) type = 'ELECTRICO';
-            else type = null;
+            let type = data.tipo_motor || null;
+            if (type) {
+                const upper = String(type).toUpperCase();
+                if (upper.includes('BENCINA') || upper.includes('GASOLINA')) type = 'GASOLINA';
+                else if (upper.includes('DIESEL') || upper.includes('DIÉSEL')) type = 'DIESEL';
+                else if (upper.includes('HIBRIDO') || upper.includes('HÍBRIDO')) type = 'HIBRIDO';
+                else if (upper.includes('ELECTRICO') || upper.includes('ELÉCTRICO')) type = 'ELECTRICO';
+                else type = null;
+            }
             setSelectedEngineType(type);
 
             const requiereValorManual = necesitaValorMercadoManual(data);
@@ -255,21 +276,25 @@ const VehicleRegistrationScreen = () => {
             if (tieneValorMercadoDesdeApi(data) && data.precio_mercado_promedio != null) {
                 setValorMercado(String(data.precio_mercado_promedio));
             }
+            if (!tieneMileageSii(data)) {
+                setKmValidationHint({ tipo: 'aviso', mensaje: mensajeSinMileageSii() });
+            } else {
+                setKmValidationHint(null);
+            }
         };
 
         (async () => {
-            if (prefillPatente) {
-                setPatente(String(prefillPatente).toUpperCase().slice(0, 6));
-            }
-            if (!prefillVehicleData) return;
+            const plate = prefillPatente
+                ? String(prefillPatente).toUpperCase().trim().slice(0, 6)
+                : '';
+            if (plate) setPatente(plate);
 
-            if (prefillPatente) {
+            if (plate) {
                 try {
-                    const check = await vehicleService.verificarPatenteRegistrada(prefillPatente);
+                    const check = await vehicleService.verificarPatenteRegistrada(plate);
                     if (cancelled) return;
                     if (check?.registered) {
                         if (check.owner === 'self') {
-                            // Prefill post-login: el auto ya está en el garaje — volver sin forzar el flujo.
                             if (navigation.canGoBack()) {
                                 navigation.goBack();
                             } else {
@@ -286,15 +311,75 @@ const VehicleRegistrationScreen = () => {
                         return;
                     }
                 } catch (_e) {
-                    // Si falla la verificación, continuar con prefill (handleSave recheck)
+                    // Continuar: handleSave re-verifica
                 }
             }
 
-            if (!cancelled) {
-                applyPrefill(prefillVehicleData);
-                if (prefillKm != null && String(prefillKm).trim() !== '') {
-                    setKilometraje(String(parseInt(String(prefillKm), 10) || ''));
+            // Igual que el canal tradicional: enriquecer con GetAPI (motor, color, tipo, etc.).
+            // El informe solo trae un subset; sin esta consulta la ficha queda en N/A.
+            let merged = normalizeInformePrefill(prefillVehicleData);
+            if (plate) {
+                setLoading(true);
+                try {
+                    const apiData = await vehicleService.getVehicleByPatente(plate);
+                    if (cancelled) return;
+                    if (apiData) {
+                        merged = {
+                            ...apiData,
+                            ...merged,
+                            patente: plate,
+                            marca_nombre: apiData.marca_nombre || merged.marca_nombre,
+                            modelo_nombre: apiData.modelo_nombre || merged.modelo_nombre,
+                            year: apiData.year || merged.year || merged.anio,
+                            anio: apiData.year || merged.anio || merged.year,
+                            vin: apiData.vin || merged.vin,
+                            color: apiData.color || merged.color,
+                            motor: apiData.motor || merged.motor || apiData.cilindraje,
+                            tipo_motor: apiData.tipo_motor || merged.tipo_motor,
+                            kilometraje_api:
+                                merged.kilometraje_api
+                                ?? apiData.kilometraje_api
+                                ?? apiData.mileage
+                                ?? null,
+                            mileage_sii:
+                                merged.mileage_sii
+                                ?? apiData.kilometraje_api
+                                ?? apiData.mileage
+                                ?? null,
+                        };
+                    }
+                } catch (_e) {
+                    // Si GetAPI falla, usar lo que trajo el informe
+                } finally {
+                    if (!cancelled) setLoading(false);
                 }
+            }
+
+            if (cancelled) return;
+
+            const hasUsefulData = !!(
+                merged.marca_nombre
+                || merged.modelo_nombre
+                || merged.vin
+                || merged.year
+                || merged.motor
+            );
+
+            if (hasUsefulData) {
+                applyPrefill(merged);
+                const kmSource = prefillKm
+                    ?? merged.kilometraje_servicio
+                    ?? merged.kilometraje_api
+                    ?? merged.mileage_sii;
+                if (kmSource != null && String(kmSource).trim() !== '') {
+                    const kmInt = parseInt(String(kmSource).replace(/\D/g, ''), 10);
+                    if (Number.isFinite(kmInt) && kmInt > 0) {
+                        setKilometraje(String(kmInt));
+                    }
+                }
+            } else if (plate) {
+                // Patente lista; el usuario puede pulsar buscar (GetAPI falló).
+                setStep('search');
             }
         })();
 
