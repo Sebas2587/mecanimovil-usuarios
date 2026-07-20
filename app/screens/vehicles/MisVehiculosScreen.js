@@ -51,6 +51,11 @@ import * as vehicleService from '../../services/vehicle';
 import { getHealthColorToken, resolveVehicleHealthPct } from '../../utils/healthFormat';
 import VehiclesListSkeleton from '../../components/utils/VehiclesListSkeleton';
 import VehicleListingCard from '../../components/cards/VehicleListingCard';
+import { HomePendingInformeClaimBanner } from '../../components/home/discovery';
+import {
+  peekPendingInformeClaimIntent,
+  clearPendingInformeClaimIntent,
+} from '../../utils/guestIntent';
 
 const tiposMotor = [
   { id: 1, nombre: 'Gasolina' },
@@ -89,6 +94,21 @@ const MisVehiculosScreen = () => {
   const loading = isLoadingVehicles && vehicles.length === 0;
 
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingInformeClaim, setPendingInformeClaim] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      (async () => {
+        const claim = await peekPendingInformeClaimIntent();
+        if (!active) return;
+        setPendingInformeClaim(claim?.informeToken ? claim : null);
+      })();
+      return () => {
+        active = false;
+      };
+    }, []),
+  );
 
   // Mutations
   const { mutateAsync: createVehicleAsync } = useCreateVehicle();
@@ -509,6 +529,47 @@ const MisVehiculosScreen = () => {
             size="sm"
           />
         </View>
+
+        {pendingInformeClaim?.informeToken ? (
+          <HomePendingInformeClaimBanner
+            patente={
+              pendingInformeClaim.patente
+              || pendingInformeClaim.vehicleData?.patente
+            }
+            marca={
+              pendingInformeClaim.vehicleData?.marca_nombre
+              || pendingInformeClaim.vehicleData?.marca
+            }
+            modelo={
+              pendingInformeClaim.vehicleData?.modelo_nombre
+              || pendingInformeClaim.vehicleData?.modelo
+            }
+            anio={
+              pendingInformeClaim.vehicleData?.anio
+              || pendingInformeClaim.vehicleData?.year
+            }
+            onRegister={() => {
+              const plate =
+                pendingInformeClaim.patente
+                || pendingInformeClaim.vehicleData?.patente
+                || null;
+              navigation.navigate(ROUTES.CREAR_VEHICULO, {
+                prefillPatente: plate,
+                prefillVehicleData: pendingInformeClaim.vehicleData,
+                pendingInformeClaimToken: pendingInformeClaim.informeToken,
+              });
+            }}
+            onViewInforme={() => {
+              navigation.navigate(ROUTES.INFORME_SERVICIO, {
+                token: pendingInformeClaim.informeToken,
+              });
+            }}
+            onDismiss={async () => {
+              await clearPendingInformeClaimIntent();
+              setPendingInformeClaim(null);
+            }}
+          />
+        ) : null}
 
         {loading && !refreshing ? (
           <View style={styles.listHost}>

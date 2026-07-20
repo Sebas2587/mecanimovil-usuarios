@@ -38,6 +38,7 @@ import {
   HomeContextualBanner,
   HomePendingReviewBanner,
   HomeGuestVehicleSuggestionBanner,
+  HomePendingInformeClaimBanner,
   HomeHighlightedRow,
   HomeMultimarcaRow,
   HomeMarketActivitySection,
@@ -54,6 +55,8 @@ import {
   clearPendingGuestVehicleSuggestion,
   peekPreferredVehiclePatente,
   consumePreferredVehiclePatente,
+  peekPendingInformeClaimIntent,
+  clearPendingInformeClaimIntent,
 } from '../../utils/guestIntent';
 
 const UserPanelScreen = () => {
@@ -85,6 +88,8 @@ const UserPanelScreen = () => {
   const [addAddressModalOpen, setAddAddressModalOpen] = useState(false);
   /** Sugerencia opcional: auto consultado como invitado antes del login. */
   const [guestVehicleSuggestion, setGuestVehicleSuggestion] = useState(null);
+  /** Informe firmado pendiente de vincular (p. ej. canceló el registro del auto). */
+  const [pendingInformeClaim, setPendingInformeClaim] = useState(null);
 
   const {
     data: vehiclesRaw,
@@ -195,6 +200,87 @@ const UserPanelScreen = () => {
       prefillVehicleData: vehicleData,
     });
   }, [guestVehicleSuggestion, navigation]);
+
+  /**
+   * Banner recuperable: informe de taller pendiente tras cancelar registro.
+   * El claim vive en AsyncStorage hasta vincular o descartar explícitamente.
+   */
+  const refreshPendingInformeClaim = useCallback(async () => {
+    const claim = await peekPendingInformeClaimIntent();
+    if (!claim?.informeToken) {
+      setPendingInformeClaim(null);
+      return;
+    }
+    const plate = claim.patente
+      ? String(claim.patente).toUpperCase().trim()
+      : claim.vehicleData?.patente
+        ? String(claim.vehicleData.patente).toUpperCase().trim()
+        : null;
+    if (plate) {
+      const alreadyOwned = vehicles.some(
+        (v) => String(v.patente || '').toUpperCase().trim() === plate,
+      );
+      if (alreadyOwned) {
+        // El auto ya está; dejar que el usuario abra el informe o reclame desde ahí.
+        setPendingInformeClaim(claim);
+        return;
+      }
+    }
+    setPendingInformeClaim(claim);
+  }, [vehicles]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const run = async () => {
+        if (!active) return;
+        await refreshPendingInformeClaim();
+      };
+      run();
+      const t1 = setTimeout(run, 400);
+      const t2 = setTimeout(run, 1200);
+      return () => {
+        active = false;
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }, [refreshPendingInformeClaim]),
+  );
+
+  const resumePendingInformeClaim = useCallback(() => {
+    if (!pendingInformeClaim?.informeToken) return;
+    const plate = String(
+      pendingInformeClaim.patente
+      || pendingInformeClaim.vehicleData?.patente
+      || '',
+    ).toUpperCase().trim();
+    const owned = plate
+      ? vehicles.find((v) => String(v.patente || '').toUpperCase().trim() === plate)
+      : null;
+    if (owned) {
+      navigation.navigate(ROUTES.INFORME_SERVICIO, {
+        token: pendingInformeClaim.informeToken,
+      });
+      return;
+    }
+    navigation.navigate(ROUTES.CREAR_VEHICULO, {
+      prefillPatente: plate || null,
+      prefillVehicleData: pendingInformeClaim.vehicleData,
+      pendingInformeClaimToken: pendingInformeClaim.informeToken,
+    });
+  }, [pendingInformeClaim, navigation, vehicles]);
+
+  const viewPendingInforme = useCallback(() => {
+    if (!pendingInformeClaim?.informeToken) return;
+    navigation.navigate(ROUTES.INFORME_SERVICIO, {
+      token: pendingInformeClaim.informeToken,
+    });
+  }, [pendingInformeClaim, navigation]);
+
+  const dismissPendingInformeClaim = useCallback(async () => {
+    await clearPendingInformeClaimIntent();
+    setPendingInformeClaim(null);
+  }, []);
 
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId) || null,
@@ -524,6 +610,30 @@ const UserPanelScreen = () => {
             navigation.navigate(ROUTES.PROFILE, { screen: ROUTES.PENDING_REVIEWS })
           }
         />
+
+        {pendingInformeClaim?.informeToken ? (
+          <HomePendingInformeClaimBanner
+            patente={
+              pendingInformeClaim.patente
+              || pendingInformeClaim.vehicleData?.patente
+            }
+            marca={
+              pendingInformeClaim.vehicleData?.marca_nombre
+              || pendingInformeClaim.vehicleData?.marca
+            }
+            modelo={
+              pendingInformeClaim.vehicleData?.modelo_nombre
+              || pendingInformeClaim.vehicleData?.modelo
+            }
+            anio={
+              pendingInformeClaim.vehicleData?.anio
+              || pendingInformeClaim.vehicleData?.year
+            }
+            onRegister={resumePendingInformeClaim}
+            onViewInforme={viewPendingInforme}
+            onDismiss={dismissPendingInformeClaim}
+          />
+        ) : null}
 
         <HomeCategoryGrid
           vehicles={vehicles}

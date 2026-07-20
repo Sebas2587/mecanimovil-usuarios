@@ -63,7 +63,10 @@ import {
     validarKilometrajeContraSii,
 } from '../../utils/vehicleMileage';
 import { reclamarInformeServicio } from '../../services/informeServicioService';
-import { clearPendingInformeClaimIntent } from '../../utils/guestIntent';
+import {
+    clearPendingInformeClaimIntent,
+    savePendingInformeClaimIntent,
+} from '../../utils/guestIntent';
 
 // Utility
 const formatPatente = (text) => {
@@ -221,11 +224,40 @@ const VehicleRegistrationScreen = () => {
         return Array.isArray(fromRoute) ? fromRoute.map(Number).filter(Boolean) : [];
     });
     const pendingInformeClaimToken = route.params?.pendingInformeClaimToken || null;
+    const claimPersistedRef = useRef(false);
     const [maintenanceExpanded, setMaintenanceExpanded] = useState(true);
     const [valorMercado, setValorMercado] = useState('');
     const [showValorMercadoAlert, setShowValorMercadoAlert] = useState(false);
     const [kmValidationHint, setKmValidationHint] = useState(null);
     const queryClient = useQueryClient();
+
+    /**
+     * Si el usuario cancela el registro, el claim debe seguir disponible
+     * en home / Mis vehículos (no solo en params de esta pantalla).
+     */
+    useEffect(() => {
+        if (!pendingInformeClaimToken) return undefined;
+        const persistClaim = () => {
+            if (claimPersistedRef.current) return;
+            const prefill = route.params?.prefillVehicleData || vehicleData || null;
+            void savePendingInformeClaimIntent({
+                token: pendingInformeClaimToken,
+                vehicleData: prefill
+                    ? { ...prefill, patente: prefill.patente || patente || route.params?.prefillPatente }
+                    : { patente: patente || route.params?.prefillPatente },
+            });
+        };
+        persistClaim();
+        const unsub = navigation.addListener('beforeRemove', persistClaim);
+        return unsub;
+    }, [
+        navigation,
+        pendingInformeClaimToken,
+        route.params?.prefillVehicleData,
+        route.params?.prefillPatente,
+        vehicleData,
+        patente,
+    ]);
 
     useEffect(() => {
         const prefillVehicleData = route.params?.prefillVehicleData;
@@ -756,6 +788,7 @@ const VehicleRegistrationScreen = () => {
             if (pendingInformeClaimToken) {
                 try {
                     const claim = await reclamarInformeServicio(pendingInformeClaimToken);
+                    claimPersistedRef.current = true;
                     await clearPendingInformeClaimIntent();
                     claimMessage = claim?.message || 'Servicio del taller vinculado a tu vehículo.';
                     const oficiales = claim?.componentes_oficiales;

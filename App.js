@@ -46,6 +46,7 @@ import {
   clearPendingGuestVehicleSuggestion,
   setPreferredVehiclePatente,
   clearPendingInformeClaimIntent,
+  savePendingInformeClaimIntent,
 } from './app/utils/guestIntent';
 import { reclamarInformeServicio } from './app/services/informeServicioService';
 import { showAlert } from './app/utils/platformAlert';
@@ -551,11 +552,22 @@ const MainImpl = ({ lastNotificationResponse }) => {
           } catch (e) {
             const msg = e?.response?.data?.error || e?.message || 'No se pudo vincular el servicio';
             showAlert('Vincular servicio', msg);
+            // Mantener claim para retomar desde el home si falla o cancela.
+            await savePendingInformeClaimIntent({
+              token: intent.informeToken,
+              vehicleData: intent.vehicleData,
+            });
             navigationRef.navigate(ROUTES.INFORME_SERVICIO, { token: intent.informeToken });
             return;
           }
         }
 
+        // Persistir claim aparte del intent consumido: si cancela el registro,
+        // el home / Mis vehículos pueden mostrar el banner para retomar.
+        await savePendingInformeClaimIntent({
+          token: intent.informeToken,
+          vehicleData: intent.vehicleData,
+        });
         navigationRef.navigate(ROUTES.CREAR_VEHICULO, {
           prefillPatente: intent.patente || intent.vehicleData?.patente,
           prefillVehicleData: intent.vehicleData,
