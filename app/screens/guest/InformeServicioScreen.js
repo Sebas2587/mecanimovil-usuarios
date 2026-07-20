@@ -62,12 +62,41 @@ function splitResumenParagraphs(text) {
     .filter(Boolean);
 }
 
+function photoGridMetrics(contentWidth) {
+  const gap = SPACING.xs;
+  const cols = contentWidth >= 720 ? 3 : contentWidth >= 420 ? 2 : 1;
+  const tile = Math.max(
+    120,
+    Math.floor((contentWidth - gap * (cols - 1)) / cols),
+  );
+  return { cols, gap, tile, height: Math.round(tile * 0.72) };
+}
+
+function PhotoGrid({ fotos, contentWidth }) {
+  const { gap, tile, height } = photoGridMetrics(contentWidth);
+  if (!fotos?.length) return null;
+  return (
+    <View style={[styles.photoGrid, { gap }]}>
+      {fotos.map((foto) => (
+        <Image
+          key={foto.id}
+          source={{ uri: foto.imagen_url }}
+          style={[styles.photoTile, { width: tile, height }]}
+          resizeMode="cover"
+          accessibilityLabel={foto.descripcion || 'Foto del servicio'}
+        />
+      ))}
+    </View>
+  );
+}
+
 const InformeServicioScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { isAuthenticated } = useAuth();
   const { width } = useWindowDimensions();
   const signatureRef = useRef(null);
+  const contentWidth = Math.min(width - SPACING.lg * 2, 720);
 
   const token = useMemo(() => {
     const fromRoute = route.params?.token;
@@ -85,6 +114,7 @@ const InformeServicioScreen = () => {
   const [hasDrawn, setHasDrawn] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showHallazgos, setShowHallazgos] = useState(true);
+  const [showDetalleChecklist, setShowDetalleChecklist] = useState(true);
 
   const cargarInforme = useCallback(async () => {
     if (!token) {
@@ -119,7 +149,11 @@ const InformeServicioScreen = () => {
     [informe?.resumen_ia],
   );
   const hallazgos = informe?.hallazgos || [];
-  const fotos = informe?.fotos_evidencia || [];
+  const checklistItems = informe?.checklist?.items || [];
+  const itemsConValor = useMemo(
+    () => checklistItems.filter((it) => it.completado),
+    [checklistItems],
+  );
   const kmLabel = formatKm(informe?.vehiculo?.kilometraje_servicio);
   const qrPayload = informe?.qr_payload || informe?.url_publica;
 
@@ -238,7 +272,10 @@ const InformeServicioScreen = () => {
         <View style={styles.topBarSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { maxWidth: 752, width: '100%', alignSelf: 'center' }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Hero: una composición — marca, vehículo, meta */}
         <View style={styles.hero}>
           <Text style={styles.brandKicker}>
@@ -285,7 +322,7 @@ const InformeServicioScreen = () => {
           </View>
         ) : null}
 
-        {/* Hallazgos relevantes (plegable) — no dump del checklist */}
+        {/* Hallazgos relevantes (plegable) */}
         {hallazgos.length > 0 ? (
           <View style={styles.section}>
             <TouchableOpacity
@@ -316,25 +353,64 @@ const InformeServicioScreen = () => {
           </View>
         ) : null}
 
-        {/* Evidencia fotográfica */}
-        {fotos.length > 0 ? (
+        {/* Detalle del checklist: pregunta + valor del técnico + fotos */}
+        {itemsConValor.length > 0 ? (
           <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Evidencia del taller</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.photoStrip}
+            <TouchableOpacity
+              style={styles.disclosureHeader}
+              onPress={() => setShowDetalleChecklist((v) => !v)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showDetalleChecklist }}
             >
-              {fotos.map((foto) => (
-                <Image
-                  key={foto.id}
-                  source={{ uri: foto.imagen_url }}
-                  style={styles.photo}
-                  resizeMode="cover"
-                  accessibilityLabel={foto.descripcion || 'Foto del servicio'}
-                />
-              ))}
-            </ScrollView>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.sectionLabel}>Detalle del checklist</Text>
+                <Text style={styles.sectionMeta}>
+                  {informe.checklist?.items_completados ?? itemsConValor.length}
+                  {informe.checklist?.items_total
+                    ? ` de ${informe.checklist.items_total}`
+                    : ''}{' '}
+                  ítems con respuesta del técnico
+                </Text>
+              </View>
+              {showDetalleChecklist
+                ? <ChevronUp size={20} color={COLORS.icon.default} strokeWidth={2} />
+                : <ChevronDown size={20} color={COLORS.icon.default} strokeWidth={2} />}
+            </TouchableOpacity>
+
+            {showDetalleChecklist ? (
+              <View style={styles.checklistList}>
+                {itemsConValor.map((item) => (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.checklistItem,
+                      item.es_hallazgo && styles.checklistItemHallazgo,
+                    ]}
+                  >
+                    <View style={styles.checklistItemHeader}>
+                      <Text style={styles.checklistQuestion}>{item.pregunta_texto}</Text>
+                      <Text
+                        style={[
+                          styles.checklistValue,
+                          item.es_hallazgo && styles.checklistValueHallazgo,
+                        ]}
+                      >
+                        {item.valor || '—'}
+                      </Text>
+                    </View>
+                    {item.fotos?.length ? (
+                      <View style={styles.checklistPhotosWrap}>
+                        <Text style={styles.photoCountLabel}>
+                          {item.fotos.length} foto{item.fotos.length === 1 ? '' : 's'} de evidencia
+                        </Text>
+                        <PhotoGrid fotos={item.fotos} contentWidth={contentWidth} />
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -565,6 +641,12 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.lg,
     color: COLORS.text.primary,
   },
+  sectionMeta: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+    marginTop: 2,
+  },
   resumenParagraph: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.md,
@@ -607,13 +689,61 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.secondary,
   },
-  photoStrip: {
-    gap: SPACING.sm,
-    paddingVertical: SPACING.xs,
+  checklistList: {
+    marginTop: SPACING.sm,
+    gap: 0,
   },
-  photo: {
-    width: 220,
-    height: 148,
+  checklistItem: {
+    paddingVertical: SPACING.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
+    gap: SPACING.sm,
+  },
+  checklistItemHallazgo: {
+    backgroundColor: withOpacity(COLORS.brand.orange, 0.04),
+    marginHorizontal: -SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: BORDERS.radius.sm,
+  },
+  checklistItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+  },
+  checklistQuestion: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.secondary,
+    lineHeight: 20,
+  },
+  checklistValue: {
+    flexShrink: 0,
+    maxWidth: '46%',
+    textAlign: 'right',
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.base,
+    color: COLORS.text.primary,
+    lineHeight: 20,
+  },
+  checklistValueHallazgo: {
+    color: COLORS.brand.orange,
+  },
+  checklistPhotosWrap: {
+    gap: SPACING.xs,
+  },
+  photoCountLabel: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  photoTile: {
     borderRadius: BORDERS.radius.md,
     backgroundColor: COLORS.buttonSecondary.background,
   },
