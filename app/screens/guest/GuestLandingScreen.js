@@ -353,6 +353,10 @@ const GuestLandingScreen = () => {
     navigation.navigate(ROUTES.LOGIN);
   }, [navigation, persistGuestVehicleIntent]);
 
+  const handleOpenOnboarding = useCallback(() => {
+    navigation.navigate(ROUTES.ONBOARDING);
+  }, [navigation]);
+
   const navigateToServiceOffer = useCallback(
     (item) => {
       setSearchFocused(false);
@@ -561,6 +565,16 @@ const GuestLandingScreen = () => {
             <TrustPill icon={Sparkles} label="Consulta gratis" />
             <TrustPill icon={ShieldCheck} label="Talleres verificados" />
           </View>
+
+          <TouchableOpacity
+            onPress={handleOpenOnboarding}
+            accessibilityRole="button"
+            accessibilityLabel="Ver cómo funciona MecaniMóvil"
+            hitSlop={8}
+            style={styles.howItWorksBtn}
+          >
+            <Text style={styles.howItWorksText}>Cómo funciona</Text>
+          </TouchableOpacity>
 
           <View style={styles.searchBlock}>
             <GuestSearchBar
@@ -965,7 +979,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  howItWorksBtn: {
+    alignSelf: 'flex-start',
     marginBottom: SPACING.md,
+    paddingVertical: 2,
+  },
+  howItWorksText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[600],
   },
   trustPill: {
     flexDirection: 'row',

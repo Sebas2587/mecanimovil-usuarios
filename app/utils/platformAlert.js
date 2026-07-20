@@ -2,13 +2,26 @@ import { Platform, Alert } from 'react-native';
 
 /**
  * React Native `Alert.alert` no tiene implementación completa en web.
- * Con `PlatformAlertHost` montado usamos modales in-app; si no, fallback nativo del navegador.
+ * Un único `PlatformAlertHost` en App.js registra el host; no montar varios.
  */
 
 let alertHost = null;
+let alertHostId = 0;
 
-export function registerPlatformAlertHost(host) {
+/**
+ * @param {object|null} host
+ * @param {number} [hostId] — si se pasa en cleanup, solo anula si sigue siendo el host activo
+ */
+export function registerPlatformAlertHost(host, hostId) {
+  if (host == null) {
+    if (hostId == null || hostId === alertHostId) {
+      alertHost = null;
+    }
+    return;
+  }
+  alertHostId += 1;
   alertHost = host;
+  return alertHostId;
 }
 
 export function showAlert(title, message = '', options = {}) {
@@ -30,7 +43,17 @@ export function showAlert(title, message = '', options = {}) {
 /**
  * Diálogo con Cancelar + acción principal.
  */
-export function showConfirm(title, message, { onConfirm, onCancel, confirmText = 'Aceptar', destructive = false } = {}) {
+export function showConfirm(
+  title,
+  message,
+  {
+    onConfirm,
+    onCancel,
+    confirmText = 'Aceptar',
+    cancelText = 'Cancelar',
+    destructive = false,
+  } = {},
+) {
   const t = title ?? '';
   const m = message ?? '';
 
@@ -39,7 +62,7 @@ export function showConfirm(title, message, { onConfirm, onCancel, confirmText =
 
     if (alertHost?.confirm) {
       alertHost
-        .confirm({ title: t, message: m, confirmText, destructive })
+        .confirm({ title: t, message: m, confirmText, cancelText, destructive })
         .then((accepted) => {
           if (accepted) runConfirm();
           else onCancel?.();
@@ -58,7 +81,7 @@ export function showConfirm(title, message, { onConfirm, onCancel, confirmText =
   }
 
   Alert.alert(t, m, [
-    { text: 'Cancelar', style: 'cancel', onPress: onCancel },
+    { text: cancelText, style: 'cancel', onPress: onCancel },
     {
       text: confirmText,
       style: destructive ? 'destructive' : 'default',

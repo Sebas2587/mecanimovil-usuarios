@@ -418,13 +418,17 @@ const DetalleSolicitudScreen = () => {
   const handleConfirmarCancelarSolicitud = useCallback(() => {
     showConfirm(
       'Cancelar solicitud',
-      '¿Seguro? Los proveedores con oferta enviada serán notificados. No podrás deshacer esta acción. Si ya elegiste una oferta, no es posible cancelar desde aquí.',
+      'Los proveedores con oferta enviada serán notificados.\n\nEsta acción no se puede deshacer. Si ya elegiste una oferta, no es posible cancelar desde aquí.',
       {
         confirmText: 'Sí, cancelar',
+        cancelText: 'Volver',
+        destructive: true,
         onConfirm: async () => {
           try {
             setProcesando(true);
             await cancelarSolicitud(solicitudId);
+            // Esperar a que el Modal de confirmación desmonte (evita “doble diseño” en web).
+            await new Promise((r) => setTimeout(r, 280));
             showAlert(
               'Solicitud cancelada',
               'Se notificó a los proveedores que tenían ofertas pendientes.',
@@ -436,6 +440,7 @@ const DetalleSolicitudScreen = () => {
               error?.response?.data?.error ||
               error?.message ||
               'No se pudo cancelar la solicitud.';
+            await new Promise((r) => setTimeout(r, 280));
             showAlert('Error', String(msg));
           } finally {
             setProcesando(false);

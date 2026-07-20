@@ -257,8 +257,8 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.background.default,
-    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.input.md,
     borderWidth: BORDERS.width.thin ?? 1,
     borderColor: COLORS.border.light,
     overflow: 'hidden',

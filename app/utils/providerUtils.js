@@ -44,12 +44,12 @@ export const resolveToAbsoluteMediaUrl = (raw) => {
  * Así el campo ya resuelto por cPanel/storage se usa directamente sin re-resolución incorrecta.
  */
 function buildProfileOrderedRawPhotos(provider) {
+  // Solo identidad del proveedor. No usar `imagen`/`foto` de servicios o categorías.
   const seq = [
     provider?.foto_perfil_url,
     provider?.usuario?.foto_perfil_url,
     provider?.foto_perfil,
     provider?.usuario?.foto_perfil,
-    provider?.imagen,
   ];
   const out = [];
   const seen = new Set();

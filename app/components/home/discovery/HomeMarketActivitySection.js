@@ -32,7 +32,6 @@ const HomeMarketActivitySection = ({
   const vehicleLabel = isBrandScope
     ? marca || 'tu marca'
     : [marca, modelo].filter(Boolean).join(' ').trim() || 'tu auto';
-  const sectionTitle = isBrandScope ? 'Servicios en tu marca' : 'Servicios en tu modelo';
 
   const handlePress = useCallback(
     (row) => {
@@ -43,7 +42,7 @@ const HomeMarketActivitySection = ({
 
   return (
     <View style={styles.section}>
-      <HomeSectionHeader title={sectionTitle} />
+      <HomeSectionHeader title="Servicios para tu modelo" />
 
       {loading ? (
         <HomeTrendingChipsSkeleton />

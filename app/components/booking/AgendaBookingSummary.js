@@ -3,16 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Check, Wrench } from 'lucide-react-native';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY } from '../../design-system/tokens';
 import { modalidadLabel } from '../../utils/providerModalidad';
 
 /**
  * Resumen Airbnb Experiences del booking: servicio + taller + mecánico apto.
+ * Cards de host alineadas a listing Airbnb + tokens Tinder (meta / selection).
  */
 function AgendaBookingSummary({
   servicioNombre,
@@ -71,28 +72,19 @@ function AgendaBookingSummary({
         <ActivityIndicator color={COLORS.icon.active} style={styles.loader} />
       ) : null}
 
-      {hostToShow ? (
-        <View style={styles.hostCard}>
-          <HostAvatar miembro={hostToShow} selected />
-          <View style={styles.hostCopy}>
-            <Text style={styles.hostEyebrow}>Te atiende</Text>
-            <Text style={styles.hostName} numberOfLines={1}>
-              {hostToShow.nombre}
-            </Text>
-            <Text style={styles.hostRole} numberOfLines={1}>
-              {hostToShow.modalidad_display
-                || modalidadLabel(hostToShow.modalidad_tecnico)
-                || (esTaller ? 'Mecánico del taller' : 'Mecánico a domicilio')}
-            </Text>
-          </View>
-        </View>
+      {hostToShow && !showPicker ? (
+        <HostCard
+          miembro={hostToShow}
+          eyebrow="Te atiende"
+          roleFallback={esTaller ? 'Mecánico del taller' : 'Mecánico a domicilio'}
+        />
       ) : null}
 
       {showPicker ? (
         <View style={styles.pickerBlock}>
           <Text style={styles.pickerTitle}>Quién te atiende</Text>
           <Text style={styles.pickerHint}>
-            Mecánicos del taller aptos para este servicio
+            Elige un mecánico del taller apto para este servicio
           </Text>
           <View style={styles.hostList}>
             {mecanicos.map((m) => {
@@ -104,21 +96,22 @@ function AgendaBookingSummary({
               return (
                 <TouchableOpacity
                   key={m.id}
-                  style={[styles.hostRow, sel && styles.hostRowSelected]}
+                  style={[styles.hostCard, sel && styles.hostCardSelected]}
                   onPress={() => onSelectMiembro?.(m.id)}
-                  activeOpacity={0.85}
+                  activeOpacity={0.9}
                   accessibilityRole="button"
                   accessibilityState={{ selected: sel }}
                   accessibilityLabel={`${m.nombre}, ${role}`}
                 >
                   <HostAvatar miembro={m} selected={sel} />
                   <View style={styles.hostCopy}>
-                    <Text style={[styles.hostName, sel && styles.hostNameSelected]} numberOfLines={1}>
+                    <Text
+                      style={[styles.hostName, sel && styles.hostNameSelected]}
+                      numberOfLines={1}
+                    >
                       {m.nombre}
                     </Text>
-                    <Text style={styles.hostRole} numberOfLines={1}>
-                      {role}
-                    </Text>
+                    <ModalidadChip label={role} selected={sel} />
                   </View>
                   <View style={[styles.checkDisk, sel && styles.checkDiskSelected]}>
                     {sel ? (
@@ -141,12 +134,50 @@ function AgendaBookingSummary({
   );
 }
 
+function HostCard({ miembro, eyebrow, roleFallback }) {
+  const role =
+    miembro?.modalidad_display
+    || modalidadLabel(miembro?.modalidad_tecnico)
+    || roleFallback
+    || null;
+
+  return (
+    <View style={styles.hostCard} accessibilityRole="text">
+      <HostAvatar miembro={miembro} selected />
+      <View style={styles.hostCopy}>
+        {eyebrow ? <Text style={styles.hostEyebrow}>{eyebrow}</Text> : null}
+        <Text style={styles.hostName} numberOfLines={1}>
+          {miembro?.nombre}
+        </Text>
+        {role ? <ModalidadChip label={role} /> : null}
+      </View>
+    </View>
+  );
+}
+
+function ModalidadChip({ label, selected = false }) {
+  if (!label) return null;
+  return (
+    <View style={[styles.modalidadChip, selected && styles.modalidadChipSelected]}>
+      <Text
+        style={[styles.modalidadChipText, selected && styles.modalidadChipTextSelected]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 function HostAvatar({ miembro, selected }) {
   if (miembro?.foto_url) {
     return (
       <Image
         source={{ uri: miembro.foto_url }}
         style={[styles.avatar, selected && styles.avatarSelected]}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
       />
     );
   }
@@ -158,7 +189,11 @@ function HostAvatar({ miembro, selected }) {
           {initial}
         </Text>
       ) : (
-        <Wrench size={18} color={selected ? COLORS.selection.text : COLORS.icon.default} />
+        <Wrench
+          size={18}
+          color={selected ? COLORS.selection.icon : COLORS.icon.default}
+          strokeWidth={1.75}
+        />
       )}
     </View>
   );
@@ -172,11 +207,9 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border.light,
   },
   serviceTitle: {
+    ...TYPOGRAPHY.styles.h3,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: 22,
-    lineHeight: 28,
-    letterSpacing: -0.25,
     color: COLORS.text.primary,
     marginBottom: 4,
   },
@@ -185,16 +218,14 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   serviceListItem: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: 14,
-    lineHeight: 20,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.primary,
+    lineHeight: 20,
   },
   providerMeta: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: 14,
-    lineHeight: 20,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
+    lineHeight: 20,
   },
   loader: {
     marginTop: SPACING.md,
@@ -205,72 +236,78 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.md,
     marginTop: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.background.paper,
+  },
+  hostCardSelected: {
+    borderColor: COLORS.buttonSecondary.outline,
+    backgroundColor: COLORS.selection.background,
   },
   pickerBlock: {
     marginTop: SPACING.md,
   },
   pickerTitle: {
+    ...TYPOGRAPHY.styles.h4,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: 16,
-    lineHeight: 22,
     color: COLORS.text.primary,
     marginBottom: 4,
   },
   pickerHint: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: 13,
-    lineHeight: 18,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
     marginBottom: SPACING.sm,
+    lineHeight: 18,
   },
   hostList: {
     gap: SPACING.sm,
   },
-  hostRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.sm,
-    borderRadius: BORDERS.radius.lg,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    backgroundColor: COLORS.background.paper,
-  },
-  hostRowSelected: {
-    borderColor: COLORS.base.inkBlack,
-    backgroundColor: COLORS.background.paper,
-  },
   hostCopy: {
     flex: 1,
     minWidth: 0,
+    gap: 4,
   },
   hostEyebrow: {
+    ...TYPOGRAPHY.styles.caption,
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontWeight: TYPOGRAPHY.fontWeight.medium,
-    fontSize: 12,
-    lineHeight: 16,
     color: COLORS.text.tertiary,
-    marginBottom: 2,
   },
   hostName: {
+    ...TYPOGRAPHY.styles.bodyBold,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: 15,
-    lineHeight: 20,
     color: COLORS.text.primary,
   },
   hostNameSelected: {
     color: COLORS.text.primary,
   },
-  hostRole: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: 13,
-    lineHeight: 18,
-    color: COLORS.text.secondary,
-    marginTop: 1,
+  modalidadChip: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: BORDERS.radius.pill,
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.badge.meta.border,
+    maxWidth: '100%',
+  },
+  modalidadChipSelected: {
+    backgroundColor: COLORS.background.paper,
+    borderColor: COLORS.selection.border,
+  },
+  modalidadChipText: {
+    ...TYPOGRAPHY.styles.small,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.badge.meta.text,
+  },
+  modalidadChipTextSelected: {
+    color: COLORS.selection.text,
   },
   avatar: {
     width: 56,
@@ -280,25 +317,27 @@ const styles = StyleSheet.create({
   },
   avatarSelected: {
     borderWidth: 2,
-    borderColor: COLORS.base.inkBlack,
+    borderColor: COLORS.buttonSecondary.outline,
   },
   avatarFallback: {
     width: 56,
     height: 56,
     borderRadius: 28,
     backgroundColor: COLORS.badge.meta.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.badge.meta.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarFallbackSelected: {
     backgroundColor: COLORS.selection.background,
     borderWidth: 2,
-    borderColor: COLORS.base.inkBlack,
+    borderColor: COLORS.buttonSecondary.outline,
   },
   avatarInitial: {
+    ...TYPOGRAPHY.styles.h4,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontWeight: TYPOGRAPHY.fontWeight.semibold,
-    fontSize: 20,
     color: COLORS.text.primary,
   },
   avatarInitialSelected: {
@@ -308,21 +347,22 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    borderWidth: BORDERS.width.thin,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.main,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.background.paper,
+    flexShrink: 0,
   },
   checkDiskSelected: {
-    backgroundColor: COLORS.base.inkBlack,
-    borderColor: COLORS.base.inkBlack,
+    backgroundColor: COLORS.brand.magenta,
+    borderColor: COLORS.brand.magenta,
   },
   emptyHint: {
     marginTop: SPACING.md,
-    fontSize: 13,
-    lineHeight: 18,
+    ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.tertiary,
+    lineHeight: 18,
   },
 });
 

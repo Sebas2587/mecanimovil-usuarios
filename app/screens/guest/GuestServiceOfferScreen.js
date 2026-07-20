@@ -292,6 +292,8 @@ const GuestServiceOfferScreen = () => {
   }, [providerRows]);
 
   const isMultiProvider = providerRows.length > 1;
+  /** Airbnb: sin barra inferior de hint; CTA sticky solo cuando hay acción clara. */
+  const showStickyFooter = !isLoggedFlow || !isMultiProvider;
 
   useEffect(() => {
     let mounted = true;
@@ -555,7 +557,11 @@ const GuestServiceOfferScreen = () => {
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingBottom: insets.bottom + 120 },
+          {
+            paddingBottom: showStickyFooter
+              ? insets.bottom + 120
+              : insets.bottom + SPACING.xl,
+          },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -735,27 +741,21 @@ const GuestServiceOfferScreen = () => {
         </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
-        {isLoggedFlow ? (
-          isMultiProvider ? (
-            <View style={styles.footerHint}>
-              <Text style={styles.footerHintText}>
-                Elige un taller arriba y toca “Agendar” en su card.
-              </Text>
-            </View>
-          ) : (
+      {showStickyFooter ? (
+        <View style={[styles.footer, { paddingBottom: insets.bottom + SPACING.sm }]}>
+          {isLoggedFlow ? (
             <GuestGradientButton
               title="Agendar este servicio"
               onPress={() => scheduleWithProvider(providerRows[0])}
             />
-          )
-        ) : (
-          <GuestGradientButton
-            title={isMultiProvider ? 'Agendar con un taller' : 'Agendar este servicio'}
-            onPress={() => openScheduleGate(selectedRow || providerRows[0])}
-          />
-        )}
-      </View>
+          ) : (
+            <GuestGradientButton
+              title={isMultiProvider ? 'Agendar con un taller' : 'Agendar este servicio'}
+              onPress={() => openScheduleGate(selectedRow || providerRows[0])}
+            />
+          )}
+        </View>
+      ) : null}
 
       {!isLoggedFlow ? (
         <GuestScheduleGateModal
@@ -1036,19 +1036,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
     ...SHADOWS.lg,
-  },
-  footerHint: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    borderRadius: BORDERS.radius.lg,
-    backgroundColor: COLORS.badge.meta.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.badge.meta.border,
-  },
-  footerHintText: {
-    ...TYPOGRAPHY.styles.caption,
-    color: COLORS.badge.meta.text,
-    textAlign: 'center',
   },
 });
 

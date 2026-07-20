@@ -61,7 +61,12 @@ import { labelPrecioServicioResuelto } from '../../utils/ofertaResolucionMarca';
 import { resolveVehiclePanelSeleccionado } from '../../utils/vehiclePanelContext';
 import { useAuth } from '../../context/AuthContext';
 import ServicioTarifasPorMarca, { tarifasMuestranDesglose } from '../../components/provider/ServicioTarifasPorMarca';
-import { isProviderMultimarca, mergeProviderKpiBadge } from '../../utils/providerUtils';
+import {
+  isProviderMultimarca,
+  mergeProviderKpiBadge,
+  resolveToAbsoluteMediaUrl,
+  buildProviderAvatarUri,
+} from '../../utils/providerUtils';
 import { goBackFromProviderProfile } from '../../utils/navigationBack';
 import { useFavorites } from '../../context/FavoritesContext';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
@@ -390,16 +395,22 @@ const ProviderDetailScreen = () => {
   const heroImages = useMemo(() => {
     const urls = [];
     const push = (uri) => {
-      if (uri && typeof uri === 'string' && !urls.includes(uri)) urls.push(uri);
+      const abs = resolveToAbsoluteMediaUrl(uri);
+      if (abs && !urls.includes(abs)) urls.push(abs);
     };
-    push(provider?.foto_portada);
+    // Solo fotos del taller/proveedor (portada, portafolio, perfil).
+    // Nunca fotos de configuración de servicios de Django (`servicio.foto` / fotos_servicio).
+    push(provider?.foto_portada_url || provider?.foto_portada);
     (provider?.portafolio || []).forEach((item) => {
-      push(item?.image || item?.url || item?.foto);
+      push(
+        item?.imagen_url
+          || item?.image
+          || item?.url
+          || item?.foto
+          || item?.imagen,
+      );
     });
-    (provider?.servicios || []).forEach((svc) => {
-      push(svc?.foto || svc?.imagen || svc?.foto_servicio);
-    });
-    // Sin fotos reales del proveedor no se muestra hero (nada de imágenes stock).
+    push(buildProviderAvatarUri(provider));
     return urls;
   }, [provider]);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,26 +11,31 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { User, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 import { useAuth } from '../../context/AuthContext';
 import * as userService from '../../services/user';
-import { COLORS } from '../../design-system/tokens/colors';
-import { BORDERS, SPACING, SHADOWS } from '../../design-system/tokens';
+import { COLORS, BORDERS, SPACING, SHADOWS, TYPOGRAPHY } from '../../design-system/tokens';
 import { getMediaURL } from '../../services/api';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import { useQueryClient } from '@tanstack/react-query';
 
 import Input from '../../components/base/Input/Input';
+import Button from '../../components/base/Button/Button';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import PrimaryGradientBadge from '../../components/base/PrimaryGradientBadge/PrimaryGradientBadge';
 import PhoneInput, { validatePhoneNumber, parsePhoneValue } from '../../components/base/PhoneInput/PhoneInput';
 
+/**
+ * Editar perfil — arquitectura Airbnb:
+ * card de identidad centrada + secciones con título sentence-case + campos planos + CTA inferior.
+ */
 const EditProfileScreen = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { user, updateProfile } = useAuth();
   const queryClient = useQueryClient();
   /** Evita que un refetch de perfil pise lo que el usuario ya editó (muy visible en web). */
@@ -85,6 +90,11 @@ const EditProfileScreen = () => {
       }
     }
   }, [userProfile, user]);
+
+  const displayName = useMemo(() => {
+    const name = `${formData.first_name || ''} ${formData.last_name || ''}`.trim();
+    return name || user?.username || 'Tu perfil';
+  }, [formData.first_name, formData.last_name, user?.username]);
 
   const handleChange = (field, value) => {
     formDirtyRef.current = true;
@@ -206,23 +216,33 @@ const EditProfileScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
-        contentContainerStyle={styles.formContainer}
+        contentContainerStyle={[
+          styles.formContainer,
+          { paddingBottom: Math.max(insets.bottom, 16) + SPACING.xl },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="always"
         keyboardDismissMode={Platform.OS === 'web' ? 'none' : 'on-drag'}
       >
-        <View style={styles.profilePicWrapper}>
-          <TouchableOpacity onPress={handleImagePick} activeOpacity={0.8} style={styles.avatarOuter}>
+        {/* Card de identidad — patrón Airbnb summary */}
+        <View style={styles.identityCard}>
+          <TouchableOpacity
+            onPress={handleImagePick}
+            activeOpacity={0.85}
+            style={styles.avatarOuter}
+            accessibilityRole="button"
+            accessibilityLabel="Cambiar foto de perfil"
+          >
             <View style={styles.avatarClip}>
               {profileImage ? (
                 <Image source={{ uri: profileImage }} style={styles.avatar} />
               ) : (
                 <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <User size={40} color={COLORS.text.tertiary} strokeWidth={1.75} />
+                  <User size={44} color={COLORS.text.tertiary} strokeWidth={1.75} />
                 </View>
               )}
             </View>
@@ -230,47 +250,53 @@ const EditProfileScreen = () => {
               <Camera size={14} color={COLORS.text.onPrimary} strokeWidth={2} />
             </PrimaryGradientBadge>
           </TouchableOpacity>
+
+          <Text style={styles.identityName} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <TouchableOpacity onPress={handleImagePick} activeOpacity={0.7} hitSlop={8}>
+            <Text style={styles.changePhotoLink}>Cambiar foto</Text>
+          </TouchableOpacity>
         </View>
-        <View style={styles.spacer} />
 
-        <Text style={styles.sectionLabel}>INFORMACIÓN BÁSICA</Text>
-
-        <View style={styles.inputGroup}>
+        <Text style={styles.sectionTitle}>Información básica</Text>
+        <View style={styles.fieldsBlock}>
           <Input
             label="Nombre"
             value={formData.first_name}
             onChangeText={(v) => handleChange('first_name', v)}
             placeholder="Tu nombre"
-            leftIcon="person-outline"
+            autoCapitalize="words"
             appearance="light"
-            variant="filled"
-            style={styles.inputContainer}
+            variant="default"
+            style={styles.input}
           />
           <Input
             label="Apellidos"
             value={formData.last_name}
             onChangeText={(v) => handleChange('last_name', v)}
             placeholder="Tus apellidos"
-            leftIcon="person-outline"
+            autoCapitalize="words"
             appearance="light"
-            variant="filled"
-            style={styles.inputContainer}
+            variant="default"
+            style={styles.input}
           />
         </View>
 
-        <Text style={styles.sectionLabel}>CONTACTO</Text>
+        <View style={styles.sectionDivider} />
 
-        <View style={styles.inputGroup}>
+        <Text style={styles.sectionTitle}>Contacto</Text>
+        <View style={styles.fieldsBlock}>
           <Input
             label="Email"
             value={formData.email}
             onChangeText={(v) => handleChange('email', v)}
             placeholder="usuario@email.com"
-            leftIcon="mail-outline"
             editable={false}
             appearance="light"
-            variant="filled"
-            style={[styles.inputContainer, { opacity: 0.6 }]}
+            variant="default"
+            helperText="El email no se puede cambiar aquí"
+            style={[styles.input, styles.inputReadonly]}
           />
           <PhoneInput
             label="Teléfono"
@@ -283,20 +309,26 @@ const EditProfileScreen = () => {
           />
         </View>
 
-        <View style={styles.actionButtons}>
+        <View style={styles.actions}>
           <GuestGradientButton
-            title="Guardar Cambios"
+            title="Guardar"
             onPress={handleSubmit}
             loading={loading}
             disabled={loading}
             style={styles.saveButton}
           />
-          <TouchableOpacity style={styles.cancelLink} onPress={() => navigation.goBack()}>
-            <Text style={styles.cancelText}>Cancelar</Text>
-          </TouchableOpacity>
+          <Button
+            title="Cancelar"
+            type="secondary"
+            variant="outline"
+            fullWidth
+            size="md"
+            onPress={() => navigation.goBack()}
+            disabled={loading}
+          />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -311,30 +343,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.background.default,
   },
-  profilePicWrapper: {
+  formContainer: {
+    paddingHorizontal: SPACING.container.horizontal,
+    paddingTop: SPACING.md,
+  },
+  identityCard: {
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 18,
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    paddingVertical: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    marginBottom: SPACING.xl,
+    ...SHADOWS.sm,
   },
   avatarOuter: {
     position: 'relative',
-    width: 108,
-    height: 108,
+    width: 120,
+    height: 120,
+    marginBottom: SPACING.md,
   },
   avatarClip: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
     overflow: 'hidden',
-    ...SHADOWS.sm,
   },
   avatar: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: COLORS.neutral.gray[100],
   },
   avatarPlaceholder: {
@@ -343,59 +385,51 @@ const styles = StyleSheet.create({
   },
   cameraBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    bottom: 2,
+    right: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 2,
-    borderColor: COLORS.base.white,
+    borderColor: COLORS.background.paper,
     zIndex: 2,
     elevation: 4,
   },
-  formContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: 40,
+  identityName: {
+    ...TYPOGRAPHY.styles.h3,
+    color: COLORS.text.primary,
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
   },
-  spacer: {
-    height: 16,
+  changePhotoLink: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.buttonSecondary.outlineText,
   },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.text.secondary,
-    marginBottom: 12,
-    marginTop: 8,
-    letterSpacing: 1,
+  sectionTitle: {
+    ...TYPOGRAPHY.styles.h4,
+    color: COLORS.text.primary,
+    marginBottom: SPACING.md,
   },
-  inputGroup: {
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
-    padding: SPACING.md,
-    marginBottom: 18,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
-    gap: 16,
-    ...SHADOWS.sm,
+  fieldsBlock: {
+    marginBottom: SPACING.sm,
   },
-  inputContainer: {
-    marginBottom: 0,
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border.light,
+    marginVertical: SPACING.lg,
   },
-  actionButtons: {
-    gap: 16,
-    marginTop: 8,
-    marginBottom: 6,
+  input: {
+    marginBottom: SPACING.md,
+  },
+  inputReadonly: {
+    opacity: 0.72,
+  },
+  actions: {
+    marginTop: SPACING.xl,
+    gap: SPACING.sm,
   },
   saveButton: {
     width: '100%',
-  },
-  cancelLink: {
-    alignItems: 'center',
-    padding: 12,
-  },
-  cancelText: {
-    color: COLORS.primary[700],
-    fontWeight: '700',
   },
 });
 

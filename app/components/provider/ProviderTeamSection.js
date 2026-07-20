@@ -36,12 +36,10 @@ function MiembroCard({ miembro }) {
   const [expanded, setExpanded] = useState(false);
   const modalidad = miembro.modalidad_display || modalidadLabel(miembro.modalidad_tecnico);
   const serviciosCount = Number(miembro.servicios_asignados) || 0;
-  const subtitle = [
-    modalidad,
-    serviciosCount > 0 ? `${serviciosCount} servicio${serviciosCount === 1 ? '' : 's'}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const serviciosLabel =
+    serviciosCount > 0
+      ? `${serviciosCount} servicio${serviciosCount === 1 ? '' : 's'}`
+      : null;
 
   const inicial = (miembro.nombre || '?').trim().charAt(0).toUpperCase();
   const especialidades = Array.isArray(miembro.especialidades) ? miembro.especialidades : [];
@@ -57,6 +55,7 @@ function MiembroCard({ miembro }) {
             style={styles.avatar}
             contentFit="cover"
             cachePolicy="memory-disk"
+            transition={150}
           />
         ) : (
           <View style={styles.avatarPlaceholder}>
@@ -64,33 +63,39 @@ function MiembroCard({ miembro }) {
           </View>
         )}
         <View style={styles.memberInfo}>
+          <Text style={styles.hostEyebrow}>Te atiende</Text>
           <Text style={styles.memberName} numberOfLines={1}>
             {miembro.nombre}
           </Text>
-          {subtitle ? (
+          {serviciosLabel ? (
             <Text style={styles.memberSubtitle} numberOfLines={1}>
-              {subtitle}
+              {serviciosLabel}
             </Text>
           ) : null}
         </View>
       </View>
 
-      {visibles.length > 0 ? (
-        <View style={styles.chipsRow}>
-          {visibles.map((esp) => (
-            <View key={esp.id} style={styles.chip}>
-              <Text style={styles.chipText} numberOfLines={1}>
-                {esp.nombre}
-              </Text>
-            </View>
-          ))}
-          {restantes > 0 ? (
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>+{restantes}</Text>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
+      <View style={styles.chipsRow}>
+        {modalidad ? (
+          <View style={styles.chipModalidad}>
+            <Text style={styles.chipModalidadText} numberOfLines={1}>
+              {modalidad}
+            </Text>
+          </View>
+        ) : null}
+        {visibles.map((esp) => (
+          <View key={esp.id} style={styles.chip}>
+            <Text style={styles.chipText} numberOfLines={1}>
+              {esp.nombre}
+            </Text>
+          </View>
+        ))}
+        {restantes > 0 ? (
+          <View style={styles.chip}>
+            <Text style={styles.chipText}>+{restantes}</Text>
+          </View>
+        ) : null}
+      </View>
 
       <TouchableOpacity
         style={styles.horarioToggle}
@@ -156,39 +161,50 @@ const styles = StyleSheet.create({
   memberHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: SPACING.md,
   },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
+    backgroundColor: COLORS.badge.meta.background,
   },
   avatarPlaceholder: {
     width: 56,
     height: 56,
     borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.background.paper,
-    borderWidth: BORDERS.width.thin,
-    borderColor: COLORS.border.light,
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.badge.meta.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
     ...TYPOGRAPHY.styles.h4,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
   memberInfo: {
     flex: 1,
-    marginLeft: SPACING.sm,
+    minWidth: 0,
+    gap: 2,
+  },
+  hostEyebrow: {
+    ...TYPOGRAPHY.styles.caption,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.text.tertiary,
   },
   memberName: {
     ...TYPOGRAPHY.styles.bodyBold,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontWeight: TYPOGRAPHY.fontWeight.semibold,
     color: COLORS.text.primary,
   },
   memberSubtitle: {
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.text.secondary,
-    marginTop: 2,
   },
   chipsRow: {
     flexDirection: 'row',
@@ -196,16 +212,33 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     gap: SPACING.xxs,
   },
-  chip: {
-    paddingHorizontal: SPACING.xs,
+  chipModalidad: {
+    paddingHorizontal: SPACING.sm,
     paddingVertical: 4,
-    borderRadius: BORDERS.radius.full,
-    backgroundColor: COLORS.neutral.gray[100],
+    borderRadius: BORDERS.radius.pill,
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.badge.meta.border,
+    maxWidth: '100%',
+  },
+  chipModalidadText: {
+    ...TYPOGRAPHY.styles.small,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontWeight: TYPOGRAPHY.fontWeight.medium,
+    color: COLORS.badge.meta.text,
+  },
+  chip: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDERS.radius.pill,
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.badge.meta.border,
     maxWidth: '100%',
   },
   chipText: {
     ...TYPOGRAPHY.styles.small,
-    color: COLORS.text.secondary,
+    color: COLORS.badge.meta.text,
   },
   horarioToggle: {
     flexDirection: 'row',
