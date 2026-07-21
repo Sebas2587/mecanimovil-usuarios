@@ -835,6 +835,9 @@ const VehicleRegistrationScreen = () => {
                     const batch = await reclamarInformesServicio(claimTokensFromProof);
                     claimPersistedRef.current = true;
                     await clearPendingInformeClaimIntent();
+                    if (created?.id) {
+                        queryClient.invalidateQueries({ queryKey: ['vehicleHealth', created.id] });
+                    }
                     const exitosos = batch?.exitosos ?? 0;
                     const total = batch?.total ?? claimTokensFromProof.length;
                     const restantes = Math.max(0, informesPendientes.length - exitosos);
@@ -1200,8 +1203,8 @@ const VehicleRegistrationScreen = () => {
                                     </View>
                                     <Text style={styles.informesPendientesBody}>
                                         {claimTokensFromProof.length > 0
-                                            ? 'Al registrar el auto, ese servicio del taller quedará en el historial del vehículo. La salud se calcula aparte, con lo que indiques abajo o con servicios futuros en la app.'
-                                            : 'Para guardar estos servicios en el historial necesitas el QR o el enlace del informe del taller. La patente sola no alcanza: así protegemos al dueño real del auto.'}
+                                            ? 'Al registrar, el servicio queda en el historial y la salud se actualiza con lo que el taller midió (vida útil, niveles). No se usa el km antiguo del taller para degradar el auto.'
+                                            : 'Para guardar estos servicios en el historial y actualizar la salud necesitas el QR o el enlace del informe del taller. La patente sola no alcanza.'}
                                     </Text>
                                     {informesPendientes.map((informe) => (
                                         <View
@@ -1438,9 +1441,9 @@ const VehicleRegistrationScreen = () => {
                                             <View style={styles.officialNoticeBoxNeutral}>
                                                 <Info size={16} color={COLORS.text.secondary} strokeWidth={2} />
                                                 <Text style={styles.officialNoticeTextNeutral}>
-                                                    El informe del taller se guarda en el historial del vehículo.
-                                                    Lo que indiques aquí alimenta la salud estimada; no se pisa
-                                                    con el checklist externo.
+                                                    Con el QR del taller, los ítems con vida útil o nivel medido
+                                                    actualizan la salud. Lo que indiques aquí completa lo que el
+                                                    checklist no midió.
                                                 </Text>
                                             </View>
                                         ) : null}

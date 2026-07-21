@@ -365,8 +365,11 @@ const InformeServicioScreen = () => {
       </View>
 
       <ScrollView
+        style={[styles.scrollView, Platform.OS === 'web' && styles.scrollViewWeb]}
         contentContainerStyle={[styles.scrollContent, { maxWidth: 752, width: '100%', alignSelf: 'center' }]}
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
       >
         {/* Hero: una composición — marca, vehículo, meta */}
         <View style={styles.hero}>
@@ -664,6 +667,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.background.default,
+    ...(Platform.OS === 'web' ? { minHeight: 0, overflow: 'hidden' } : null),
   },
   topBar: {
     flexDirection: 'row',
@@ -681,10 +685,18 @@ const styles = StyleSheet.create({
   topBarSpacer: {
     width: 40,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewWeb: {
+    flex: 1,
+    minHeight: 0,
+  },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING['2xl'],
     gap: SPACING.xl,
+    flexGrow: 1,
   },
   centered: {
     flex: 1,
