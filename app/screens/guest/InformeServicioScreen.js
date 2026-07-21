@@ -350,27 +350,10 @@ const InformeServicioScreen = () => {
       : navigation.navigate(ROUTES.GUEST_LANDING)
   );
 
-  return (
-    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-      <LinearGradient
-        colors={[COLORS.base.soft, COLORS.background.default, COLORS.background.default]}
-        locations={[0, 0.28, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+  const contentWidthStyle = { maxWidth: 752, width: '100%', alignSelf: 'center' };
 
-      <View style={styles.topBar}>
-        <BackButton onPress={goBack} />
-        <Image source={LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="Mecanimovil" />
-        <View style={styles.topBarSpacer} />
-      </View>
-
-      <ScrollView
-        style={[styles.scrollView, Platform.OS === 'web' && styles.scrollViewWeb]}
-        contentContainerStyle={[styles.scrollContent, { maxWidth: 752, width: '100%', alignSelf: 'center' }]}
-        showsVerticalScrollIndicator
-        keyboardShouldPersistTaps="handled"
-        nestedScrollEnabled
-      >
+  const informeBody = (
+    <>
         {/* Hero: una composición — marca, vehículo, meta */}
         <View style={styles.hero}>
           <Text style={styles.brandKicker}>
@@ -658,7 +641,43 @@ const InformeServicioScreen = () => {
             ) : null}
           </View>
         ) : null}
-      </ScrollView>
+    </>
+  );
+
+  return (
+    <SafeAreaView
+      style={[styles.root, Platform.OS === 'web' && styles.rootWebFlow]}
+      edges={['top', 'bottom']}
+    >
+      <LinearGradient
+        colors={[COLORS.base.soft, COLORS.background.default, COLORS.background.default]}
+        locations={[0, 0.28, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      <View style={styles.topBar}>
+        <BackButton onPress={goBack} />
+        <Image source={LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="Mecanimovil" />
+        <View style={styles.topBarSpacer} />
+      </View>
+
+      {/*
+        Web: sin ScrollView interno — el stack card hace overflowY:auto
+        (ScrollView + overflow:hidden del navigator rompe el wheel en Chrome).
+        Native: ScrollView normal.
+      */}
+      {Platform.OS === 'web' ? (
+        <View style={[styles.scrollContent, contentWidthStyle]}>{informeBody}</View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[styles.scrollContent, contentWidthStyle]}
+          showsVerticalScrollIndicator
+          keyboardShouldPersistTaps="handled"
+        >
+          {informeBody}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -667,7 +686,14 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.background.default,
-    ...(Platform.OS === 'web' ? { minHeight: 0, overflow: 'hidden' } : null),
+  },
+  /** Misma estrategia que PublicProviderDetailScreen: la escena crece y scrollea el card. */
+  rootWebFlow: {
+    flexGrow: 0,
+    flexShrink: 0,
+    width: '100%',
+    minHeight: '100%',
+    alignSelf: 'stretch',
   },
   topBar: {
     flexDirection: 'row',
@@ -688,15 +714,10 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollViewWeb: {
-    flex: 1,
-    minHeight: 0,
-  },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING['2xl'],
     gap: SPACING.xl,
-    flexGrow: 1,
   },
   centered: {
     flex: 1,

@@ -288,7 +288,25 @@ const AppNavigator = () => (
     <Stack.Screen name={ROUTES.TRANSFERENCIA_VENDEDOR} component={TransferenciaVendedorScreen} />
     <Stack.Screen name={ROUTES.TRANSFERENCIA_COMPRADOR} component={TransferenciaCompradorScreen} />
     <Stack.Screen name={ROUTES.TRANSFERENCIA_EXITO} component={TransferenciaExitoScreen} />
-    <Stack.Screen name={ROUTES.INFORME_SERVICIO} component={InformeServicioScreen} />
+    <Stack.Screen
+      name={ROUTES.INFORME_SERVICIO}
+      component={InformeServicioScreen}
+      options={
+        Platform.OS === 'web'
+          ? {
+              /** Scroll en la card; ScrollView interno rompe el wheel en Chrome. */
+              cardStyle: {
+                backgroundColor: COLORS.background.default,
+                flex: 1,
+                maxHeight: '100vh',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                WebkitOverflowScrolling: 'touch',
+              },
+            }
+          : undefined
+      }
+    />
     <Stack.Screen
       name={ROUTES.ESCANEAR_INFORME_SERVICIO}
       component={EscanearInformeServicioScreen}
