@@ -443,7 +443,12 @@ export const getVehicleValorReal = async (vehicleId, options = {}) => {
  */
 export const getVehicleServiceHistory = async (vehicleId) => {
   try {
-    const data = await get(`/vehiculos/${vehicleId}/historial-servicios/`);
+    // forceRefresh: el empty state previo no debe quedar cacheado tras vincular un informe.
+    const data = await get(
+      `/vehiculos/${vehicleId}/historial-servicios/`,
+      {},
+      { forceRefresh: true },
+    );
     return data;
   } catch (error) {
     console.error(`Error obteniendo historial servicios ${vehicleId}:`, error);

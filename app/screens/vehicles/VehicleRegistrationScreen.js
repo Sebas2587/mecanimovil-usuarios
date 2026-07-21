@@ -69,7 +69,6 @@ import {
 import {
     getInformesPendientesPorPatente,
     reclamarInformesServicio,
-    obtenerInformePublico,
 } from '../../services/informeServicioService';
 import {
     clearPendingInformeClaimIntent,
@@ -501,38 +500,6 @@ const VehicleRegistrationScreen = () => {
         });
     }, [checklistItems, componentesOficialesIds]);
 
-    /**
-     * Si ya tenemos prueba (QR/enlace) de un informe de taller, previsualizamos qué
-     * componentes de salud cubrirá ANTES de crear el vehículo. Así el checklist manual
-     * no pide de nuevo lo que el informe del taller ya certificó (evita datos duplicados
-     * o contradictorios entre lo declarado a mano y lo real del taller).
-     */
-    useEffect(() => {
-        if (!claimTokensFromProof.length) return undefined;
-        let cancelled = false;
-        (async () => {
-            const idsSet = new Set();
-            for (const token of claimTokensFromProof) {
-                try {
-                    const detalle = await obtenerInformePublico(token);
-                    (detalle?.componentes_oficiales || []).forEach((c) => {
-                        const id = Number(c?.id);
-                        if (Number.isFinite(id)) idsSet.add(id);
-                    });
-                } catch (_e) {
-                    // Si un token individual falla, el resto del flujo sigue igual;
-                    // el reclamo real ocurre recién al guardar.
-                }
-            }
-            if (!cancelled && idsSet.size > 0) {
-                setComponentesOficialesIds((prev) => [...new Set([...prev, ...idsSet])]);
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [claimTokensFromProof]);
-
     // Initial focus
     const patenteInputRef = useRef(null);
 
@@ -868,11 +835,6 @@ const VehicleRegistrationScreen = () => {
                     const batch = await reclamarInformesServicio(claimTokensFromProof);
                     claimPersistedRef.current = true;
                     await clearPendingInformeClaimIntent();
-                    // El reclamo puede pisar componentes de salud calculados en el create
-                    // (checklist manual vs. checklist real del taller); refrescar caché.
-                    if (created?.id) {
-                        queryClient.invalidateQueries({ queryKey: ['vehicleHealth', created.id] });
-                    }
                     const exitosos = batch?.exitosos ?? 0;
                     const total = batch?.total ?? claimTokensFromProof.length;
                     const restantes = Math.max(0, informesPendientes.length - exitosos);
@@ -1238,8 +1200,8 @@ const VehicleRegistrationScreen = () => {
                                     </View>
                                     <Text style={styles.informesPendientesBody}>
                                         {claimTokensFromProof.length > 0
-                                            ? 'Al registrar el auto vincularemos el informe que ya confirmaste con el QR o enlace del taller. El resto requiere su propio informe.'
-                                            : 'Para vincular estos servicios a tu garaje necesitas el QR o el enlace del informe que te dio el taller. La patente sola no alcanza: así protegemos al dueño real del auto.'}
+                                            ? 'Al registrar el auto, ese servicio del taller quedará en el historial del vehículo. La salud se calcula aparte, con lo que indiques abajo o con servicios futuros en la app.'
+                                            : 'Para guardar estos servicios en el historial necesitas el QR o el enlace del informe del taller. La patente sola no alcanza: así protegemos al dueño real del auto.'}
                                     </Text>
                                     {informesPendientes.map((informe) => (
                                         <View
@@ -1472,26 +1434,13 @@ const VehicleRegistrationScreen = () => {
                                             Ingresa los km del odómetro al momento del cambio (ej: si hoy tienes
                                             145.000 km y lo cambiaste a los 125.000, escribe 125000).
                                         </Text>
-                                        {componentesOficialesIds.length > 0 ? (
-                                            <View style={styles.officialNoticeBox}>
-                                                <CircleCheck
-                                                    size={16}
-                                                    color={COLORS.success[600]}
-                                                    strokeWidth={2}
-                                                />
-                                                <Text style={styles.officialNoticeText}>
-                                                    Los componentes marcados "Ya registrado oficialmente" se
-                                                    completarán solos con el informe del taller que vas a vincular;
-                                                    no hace falta declararlos a mano.
-                                                </Text>
-                                            </View>
-                                        ) : informesPendientes.length > 0 ? (
+                                        {claimTokensFromProof.length > 0 || informesPendientes.length > 0 ? (
                                             <View style={styles.officialNoticeBoxNeutral}>
                                                 <Info size={16} color={COLORS.text.secondary} strokeWidth={2} />
                                                 <Text style={styles.officialNoticeTextNeutral}>
-                                                    Lo que llenes aquí es una estimación general. Si escaneas el QR
-                                                    del informe del taller, la salud se calcula con datos reales del
-                                                    servicio realizado.
+                                                    El informe del taller se guarda en el historial del vehículo.
+                                                    Lo que indiques aquí alimenta la salud estimada; no se pisa
+                                                    con el checklist externo.
                                                 </Text>
                                             </View>
                                         ) : null}
