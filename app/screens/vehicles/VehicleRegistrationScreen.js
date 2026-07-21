@@ -69,6 +69,7 @@ import {
 import {
     getInformesPendientesPorPatente,
     reclamarInformesServicio,
+    obtenerInformePublico,
 } from '../../services/informeServicioService';
 import {
     clearPendingInformeClaimIntent,
@@ -500,6 +501,38 @@ const VehicleRegistrationScreen = () => {
         });
     }, [checklistItems, componentesOficialesIds]);
 
+    /**
+     * Si ya tenemos prueba (QR/enlace) de un informe de taller, previsualizamos qué
+     * componentes de salud cubrirá ANTES de crear el vehículo. Así el checklist manual
+     * no pide de nuevo lo que el informe del taller ya certificó (evita datos duplicados
+     * o contradictorios entre lo declarado a mano y lo real del taller).
+     */
+    useEffect(() => {
+        if (!claimTokensFromProof.length) return undefined;
+        let cancelled = false;
+        (async () => {
+            const idsSet = new Set();
+            for (const token of claimTokensFromProof) {
+                try {
+                    const detalle = await obtenerInformePublico(token);
+                    (detalle?.componentes_oficiales || []).forEach((c) => {
+                        const id = Number(c?.id);
+                        if (Number.isFinite(id)) idsSet.add(id);
+                    });
+                } catch (_e) {
+                    // Si un token individual falla, el resto del flujo sigue igual;
+                    // el reclamo real ocurre recién al guardar.
+                }
+            }
+            if (!cancelled && idsSet.size > 0) {
+                setComponentesOficialesIds((prev) => [...new Set([...prev, ...idsSet])]);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [claimTokensFromProof]);
+
     // Initial focus
     const patenteInputRef = useRef(null);
 
@@ -835,6 +868,11 @@ const VehicleRegistrationScreen = () => {
                     const batch = await reclamarInformesServicio(claimTokensFromProof);
                     claimPersistedRef.current = true;
                     await clearPendingInformeClaimIntent();
+                    // El reclamo puede pisar componentes de salud calculados en el create
+                    // (checklist manual vs. checklist real del taller); refrescar caché.
+                    if (created?.id) {
+                        queryClient.invalidateQueries({ queryKey: ['vehicleHealth', created.id] });
+                    }
                     const exitosos = batch?.exitosos ?? 0;
                     const total = batch?.total ?? claimTokensFromProof.length;
                     const restantes = Math.max(0, informesPendientes.length - exitosos);
@@ -1434,6 +1472,29 @@ const VehicleRegistrationScreen = () => {
                                             Ingresa los km del odómetro al momento del cambio (ej: si hoy tienes
                                             145.000 km y lo cambiaste a los 125.000, escribe 125000).
                                         </Text>
+                                        {componentesOficialesIds.length > 0 ? (
+                                            <View style={styles.officialNoticeBox}>
+                                                <CircleCheck
+                                                    size={16}
+                                                    color={COLORS.success[600]}
+                                                    strokeWidth={2}
+                                                />
+                                                <Text style={styles.officialNoticeText}>
+                                                    Los componentes marcados "Ya registrado oficialmente" se
+                                                    completarán solos con el informe del taller que vas a vincular;
+                                                    no hace falta declararlos a mano.
+                                                </Text>
+                                            </View>
+                                        ) : informesPendientes.length > 0 ? (
+                                            <View style={styles.officialNoticeBoxNeutral}>
+                                                <Info size={16} color={COLORS.text.secondary} strokeWidth={2} />
+                                                <Text style={styles.officialNoticeTextNeutral}>
+                                                    Lo que llenes aquí es una estimación general. Si escaneas el QR
+                                                    del informe del taller, la salud se calcula con datos reales del
+                                                    servicio realizado.
+                                                </Text>
+                                            </View>
+                                        ) : null}
                                         <View style={styles.maintenanceItems}>
                                             {checklistItems.map((item) => {
                                                 const handlers = maintenanceItemHandlers.get(item.id);
@@ -1976,6 +2037,34 @@ const styles = StyleSheet.create({
         ...TYPOGRAPHY.styles.caption,
         color: COLORS.text.secondary,
         marginBottom: SPACING.md,
+    },
+    officialNoticeBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: SPACING.xs,
+        marginBottom: SPACING.md,
+        padding: SPACING.sm,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.success[50] || COLORS.background.paper,
+    },
+    officialNoticeText: {
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.success[700] || COLORS.text.primary,
+        flex: 1,
+    },
+    officialNoticeBoxNeutral: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: SPACING.xs,
+        marginBottom: SPACING.md,
+        padding: SPACING.sm,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.neutral.gray[50] || COLORS.background.paper,
+    },
+    officialNoticeTextNeutral: {
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.text.secondary,
+        flex: 1,
     },
     maintenanceItems: {
         gap: 0,

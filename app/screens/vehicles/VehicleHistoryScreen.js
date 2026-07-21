@@ -121,13 +121,18 @@ const VehicleHistoryScreen = () => {
   }, [fetchHistory]);
 
   const handleViewChecklist = useCallback((item, proveedorPreview) => {
+    if (item.tipo === 'informe_taller') {
+      if (!item.informe_token) return;
+      navigation.navigate(ROUTES.INFORME_SERVICIO, { token: item.informe_token });
+      return;
+    }
     const ordenId = item.id;
     if (!ordenId) return;
     setSelectedChecklistId(ordenId);
     setSelectedServiceName(item.servicio_nombre || 'Servicio');
     setChecklistProveedorPreview(proveedorPreview || null);
     setChecklistModalVisible(true);
-  }, []);
+  }, [navigation]);
 
   const closeChecklistModal = useCallback(() => {
     setChecklistModalVisible(false);
@@ -170,9 +175,15 @@ const VehicleHistoryScreen = () => {
 
   const renderHistoryItem = ({ item, index }) => {
     const { providerName, serviceName, dateLabel, amountLabel } = resolveHistoryRow(item);
+    const isInformeTaller = item.tipo === 'informe_taller';
 
     return (
       <View style={styles.timelineCard}>
+        {isInformeTaller ? (
+          <View style={styles.externalBadge}>
+            <Text style={styles.externalBadgeText}>Servicio vinculado por checklist</Text>
+          </View>
+        ) : null}
         <HistoryItemCard
           title={serviceName}
           dateLabel={dateLabel}
@@ -192,7 +203,9 @@ const VehicleHistoryScreen = () => {
           activeOpacity={0.75}
         >
           <ClipboardList size={16} color={COLORS.primary[600]} />
-          <Text style={styles.checklistButtonText}>Ver informe de servicio</Text>
+          <Text style={styles.checklistButtonText}>
+            {isInformeTaller ? 'Ver informe firmado' : 'Ver informe de servicio'}
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -317,6 +330,19 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border.light,
     padding: SPACING.md,
     ...SHADOWS.sm,
+  },
+  externalBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.secondary?.[50] || COLORS.primary[50],
+    borderRadius: BORDERS.radius.full || 999,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    marginBottom: SPACING.xs,
+  },
+  externalBadgeText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.secondary?.[700] || COLORS.primary[700],
+    fontSize: 11,
   },
   checklistButton: {
     flexDirection: 'row',
