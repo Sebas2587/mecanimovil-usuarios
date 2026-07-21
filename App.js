@@ -227,7 +227,16 @@ const linking = {
           token: (token) => (token ? String(token).trim() : null),
         },
       },
-      // marketplace/vehicle deep links ignorados (MarketplaceVehicleDetail eliminado)
+      MarketplaceVehicleDetail: {
+        path: 'marketplace/vehicle/:vehicleId',
+        parse: {
+          vehicleId: (id) => {
+            if (!id || id === 'undefined' || id === 'null') return null;
+            const parsed = parseInt(id, 10);
+            return Number.isNaN(parsed) ? null : parsed;
+          },
+        },
+      },
     },
   },
   // Función para parsear URLs de Mercado Pago que vienen con query params
@@ -742,7 +751,14 @@ const MainImpl = ({ lastNotificationResponse }) => {
       const p = route?.params || {};
 
       if (pending.kind === 'vehicle') {
-        // Marketplace vehicle deep links ignorados (pantalla eliminada)
+        const already =
+          currentName === ROUTES.MARKETPLACE_VEHICLE_DETAIL
+          && Number(p?.vehicleId ?? p?.id) === Number(pending.id);
+        if (already) {
+          pendingGuestPublicRef.current = null;
+          return;
+        }
+        navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId: pending.id });
         pendingGuestPublicRef.current = null;
         return;
       }
@@ -781,6 +797,7 @@ const MainImpl = ({ lastNotificationResponse }) => {
       const provider = vehicleId ? null : parsePublicProviderFromUrl(url);
       if (vehicleId) {
         await AsyncStorage.removeItem(PENDING_PUBLIC_DEEP_LINK_KEY);
+        navigationRef.navigate(ROUTES.MARKETPLACE_VEHICLE_DETAIL, { vehicleId });
         return;
       }
       if (!provider) {
@@ -1536,9 +1553,8 @@ const MainImpl = ({ lastNotificationResponse }) => {
       const vehicleId = parseMarketplaceVehicleIdFromUrl(url);
       const provider = vehicleId ? null : parsePublicProviderFromUrl(url);
       if (vehicleId) {
-        return;
-      }
-      if (provider) {
+        pendingGuestPublicRef.current = { kind: 'vehicle', id: vehicleId };
+      } else if (provider) {
         pendingGuestPublicRef.current = { kind: 'provider', type: provider.type, id: provider.id };
       } else {
         return;

@@ -407,6 +407,22 @@ export const getMarketplaceVehicleDetail = async (vehicleId) => {
 };
 
 /**
+ * Ficha pública compartible (sin datos sensibles).
+ * @param {number} vehicleId
+ */
+export const getPublicVehicleFicha = async (vehicleId) => {
+  try {
+    return await get(`/vehiculos/${vehicleId}/ficha-publica/`, {}, {
+      requiresAuth: false,
+      forceRefresh: true,
+    });
+  } catch (error) {
+    console.error(`Error obteniendo ficha pública ${vehicleId}:`, error);
+    throw error;
+  }
+};
+
+/**
  * Obtiene la tasación del vehículo (Fiscal + Mercado + Bonus Salud)
  * @param {number} vehicleId
  * @returns {Promise<Object>}

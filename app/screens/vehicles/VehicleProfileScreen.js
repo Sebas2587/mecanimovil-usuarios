@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Trash2, Info, Car } from 'lucide-react-native';
+import { Camera, Trash2, Info, Car, Share2 } from 'lucide-react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ROUTES } from '../../utils/constants';
@@ -33,6 +33,7 @@ import { loadRtRenewalDueISO } from '../../utils/revisionTecnica';
 import * as VehicleHealthService from '../../services/vehicleHealthService';
 import { resolveVehicleHealthPct } from '../../utils/healthFormat';
 import { useSolicitudes } from '../../context/SolicitudesContext'; // To get active requests
+import { shareVehicleFicha } from '../../utils/shareVehicleFicha';
 
 // Components
 import ActiveRequestCard from '../../components/vehicle/ActiveRequestCard';
@@ -201,6 +202,10 @@ const VehicleProfileScreen = () => {
             }
         );
     };
+
+    const handleShareFicha = useCallback(() => {
+        void shareVehicleFicha(vehicle);
+    }, [vehicle]);
 
     const handleChangePhoto = () => {
         if (Platform.OS === 'web') {
@@ -372,14 +377,24 @@ const VehicleProfileScreen = () => {
                             </TouchableOpacity>
                         </View>
 
-                        <TouchableOpacity
-                            style={[styles.iconButton, Platform.OS === 'web' && styles.iconButtonWeb]}
-                            onPress={handleDelete}
-                            accessibilityRole="button"
-                            accessibilityLabel="Eliminar vehículo"
-                        >
-                            <Trash2 size={20} color={COLORS.text.inverse} strokeWidth={2} fill="none" />
-                        </TouchableOpacity>
+                        <View style={styles.headerRightActions}>
+                            <TouchableOpacity
+                                style={styles.iconButton}
+                                onPress={handleShareFicha}
+                                accessibilityRole="button"
+                                accessibilityLabel="Compartir ficha pública"
+                            >
+                                <Share2 size={20} color={COLORS.text.inverse} strokeWidth={2} fill="none" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.iconButton, Platform.OS === 'web' && styles.iconButtonWeb]}
+                                onPress={handleDelete}
+                                accessibilityRole="button"
+                                accessibilityLabel="Eliminar vehículo"
+                            >
+                                <Trash2 size={20} color={COLORS.text.inverse} strokeWidth={2} fill="none" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     <View style={styles.headerInfoBlock}>
@@ -591,6 +606,11 @@ const getStyles = (insets) => StyleSheet.create({
         paddingTop: SPACING.sm,
     },
     headerLeftActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xs,
+    },
+    headerRightActions: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: SPACING.xs,

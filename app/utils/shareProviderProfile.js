@@ -4,6 +4,8 @@ import { showAlert } from './platformAlert';
 
 /**
  * Construye el texto y URL pública para compartir un perfil de proveedor.
+ * El mensaje NO incluye la URL: iOS/Android/Web Share la añaden vía el campo `url`
+ * (si va en ambos, el link se duplica).
  */
 export function buildProviderSharePayload(provider, providerType, providerId) {
   const webUrl = buildPublicProviderUrl(providerType, providerId);
@@ -43,10 +45,9 @@ export function buildProviderSharePayload(provider, providerType, providerId) {
     `Conoce a ${name}, ${titleSpec}.`,
     comunasText,
     `Especialista en: ${marcasText}`,
-    '',
-    webUrl,
+    'Ver perfil en MecaniMovil:',
   ]
-    .filter((line) => line !== undefined && line !== null)
+    .filter((line) => line !== undefined && line !== null && String(line).trim() !== '')
     .join('\n')
     .trim();
 

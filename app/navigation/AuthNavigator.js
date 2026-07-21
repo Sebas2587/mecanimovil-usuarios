@@ -11,12 +11,18 @@ import GuestSectionServicesScreen from '../screens/guest/GuestSectionServicesScr
 import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
 import CotizacionPublicaScreen from '../screens/guest/CotizacionPublicaScreen';
 import EscanearInformeServicioScreen from '../screens/guest/EscanearInformeServicioScreen';
+import PublicVehicleFichaScreen from '../screens/guest/PublicVehicleFichaScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import { ROUTES } from '../utils/constants';
-import { getPublicProviderFromWebPath, getInformeTokenFromWebPath, getCotizacionTokenFromWebPath } from '../utils/publicListingRoute';
+import {
+  getPublicProviderFromWebPath,
+  getInformeTokenFromWebPath,
+  getCotizacionTokenFromWebPath,
+  getMarketplaceVehicleIdFromWebPath,
+} from '../utils/publicListingRoute';
 import { COLORS } from '../design-system/tokens';
 import SplashScreen from '../components/utils/SplashScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -57,12 +63,13 @@ const authLegalWebScreenOptions = Platform.OS === 'web'
 /**
  * Navegador para autenticación. Si la URL es una ficha pública de proveedor (web), abre el detalle
  * primero — sin forzar login a visitantes sin app / sin cuenta.
- * Deep links de marketplace/vehicle se ignoran (pantalla eliminada).
+ * Deep links de marketplace/vehicle abren la ficha pública de salud (sin datos sensibles).
  */
 const AuthNavigator = ({ registerSuccess }) => {
   const publicProviderData = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
   const informeTokenFromWeb = Platform.OS === 'web' ? getInformeTokenFromWebPath() : null;
   const cotizacionTokenFromWeb = Platform.OS === 'web' ? getCotizacionTokenFromWebPath() : null;
+  const marketplaceVehicleIdFromWeb = Platform.OS === 'web' ? getMarketplaceVehicleIdFromWebPath() : null;
 
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
 
@@ -84,16 +91,25 @@ const AuthNavigator = ({ registerSuccess }) => {
 
   const initialRouteName = useMemo(() => {
     if (publicProviderData) return ROUTES.PROVIDER_DETAIL;
+    if (marketplaceVehicleIdFromWeb) return ROUTES.MARKETPLACE_VEHICLE_DETAIL;
     if (informeTokenFromWeb) return ROUTES.INFORME_SERVICIO;
     if (cotizacionTokenFromWeb) return ROUTES.COTIZACION_PUBLICA;
     if (registerSuccess) return ROUTES.REGISTER;
     if (hasSeenOnboarding === false) return ROUTES.ONBOARDING;
     return ROUTES.GUEST_LANDING;
-  }, [publicProviderData, informeTokenFromWeb, cotizacionTokenFromWeb, registerSuccess, hasSeenOnboarding]);
+  }, [
+    publicProviderData,
+    marketplaceVehicleIdFromWeb,
+    informeTokenFromWeb,
+    cotizacionTokenFromWeb,
+    registerSuccess,
+    hasSeenOnboarding,
+  ]);
 
   if (
     hasSeenOnboarding == null
     && !publicProviderData
+    && !marketplaceVehicleIdFromWeb
     && !informeTokenFromWeb
     && !cotizacionTokenFromWeb
     && !registerSuccess
@@ -323,6 +339,30 @@ const AuthNavigator = ({ registerSuccess }) => {
         initialParams={
           publicProviderData
             ? { type: publicProviderData.providerType, id: publicProviderData.providerId }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.MARKETPLACE_VEHICLE_DETAIL}
+        component={PublicVehicleFichaScreen}
+        options={{
+          headerShown: false,
+          ...(Platform.OS === 'web'
+            ? {
+                cardStyle: {
+                  backgroundColor: COLORS.background.default,
+                  flex: 1,
+                  maxHeight: '100vh',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  WebkitOverflowScrolling: 'touch',
+                },
+              }
+            : {}),
+        }}
+        initialParams={
+          marketplaceVehicleIdFromWeb
+            ? { vehicleId: marketplaceVehicleIdFromWeb }
             : undefined
         }
       />

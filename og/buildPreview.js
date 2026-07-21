@@ -285,43 +285,36 @@ export async function buildPreviewForRoute(route, {
 
   if (route.kind === 'vehicle') {
     const data = await fetchJson(
-      `${base}/vehiculos/${encodeURIComponent(route.id)}/marketplace-public-detail/`,
+      `${base}/vehiculos/${encodeURIComponent(route.id)}/ficha-publica/`,
     );
     if (!data) {
       return {
-        title: 'Vehículo en venta · MecaniMovil',
-        description: 'Ficha pública de vehículo en MecaniMovil.',
+        title: 'Ficha de vehículo · MecaniMovil',
+        description: 'Salud, servicios y talleres en MecaniMovil.',
         image: fallbackImage,
         url: pageUrl,
       };
     }
     const veh = vehicleLabel({
-      marca: data.marca_nombre || data.marca,
-      modelo: data.modelo_nombre || data.modelo,
-      anio: data.year || data.anio,
-      patente: data.patente,
+      marca: data.marca,
+      modelo: data.modelo,
+      anio: data.anio,
     });
-    const precio = formatClp(data.precio_venta || data.suggested_price);
-    const km =
-      data.kilometraje != null
-        ? `${Number(data.kilometraje).toLocaleString('es-CL')} km`
-        : '';
+    const cilindraje = data.cilindraje ? String(data.cilindraje) : '';
     const health =
       data.health_score != null ? `Salud ${Math.round(Number(data.health_score))}%` : '';
-    const title = truncate(`${veh || 'Vehículo'} · En venta`, 70);
+    const servicios =
+      data.servicios_count != null
+        ? `${data.servicios_count} ${Number(data.servicios_count) === 1 ? 'servicio' : 'servicios'}`
+        : '';
+    const title = truncate(`${veh || 'Vehículo'} · Ficha de salud`, 90);
     const description = truncate(
-      [precio, km, health, 'Ficha pública en MecaniMovil'].filter(Boolean).join(' · '),
+      [cilindraje, health, servicios, 'Historial y talleres en MecaniMovil']
+        .filter(Boolean)
+        .join(' · '),
+      200,
     );
-    const image =
-      absoluteMediaUrl(data.foto_url, base)
-      || absoluteMediaUrl(
-        Array.isArray(data.fotos) && data.fotos[0]
-          ? (data.fotos[0].url || data.fotos[0].imagen || data.fotos[0])
-          : null,
-        base,
-      )
-      || fallbackImage;
-    return { title, description, image, url: pageUrl };
+    return { title, description, image: fallbackImage, url: pageUrl };
   }
 
   return {
