@@ -422,6 +422,18 @@ export const getPublicVehicleFicha = async (vehicleId) => {
   }
 };
 
+export const getPublicVehicleFichaByToken = async (token) => {
+  try {
+    return await get(`/vehiculos/ficha-publica-token/${encodeURIComponent(token)}/`, {}, {
+      requiresAuth: false,
+      forceRefresh: true,
+    });
+  } catch (error) {
+    console.error(`Error obteniendo ficha pública token ${token}:`, error);
+    throw error;
+  }
+};
+
 /**
  * Obtiene la tasación del vehículo (Fiscal + Mercado + Bonus Salud)
  * @param {number} vehicleId

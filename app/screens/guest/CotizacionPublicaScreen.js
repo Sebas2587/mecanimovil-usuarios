@@ -82,7 +82,12 @@ const CotizacionPublicaScreen = () => {
       const res = await obtenerCotizacionPublica(token);
       setData(res);
     } catch (e) {
-      setError(e?.message || 'No se pudo cargar la cotización.');
+      const status = e?.response?.status || e?.status;
+      if (status === 410) {
+        setError('Este enlace de cotización expiró. Solicita una nueva al taller.');
+      } else {
+        setError(e?.message || 'No se pudo cargar la cotización.');
+      }
     } finally {
       setLoading(false);
     }

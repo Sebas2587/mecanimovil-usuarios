@@ -250,6 +250,8 @@ export const ROUTES = {
   SUPPORT: 'Support',
   TERMS: 'Terms',
   PRIVACY_POLICY: 'PrivacyPolicy',
+  PRIVACY_DATA: 'PrivacyData',
+  DELETE_ACCOUNT: 'DeleteAccount',
   HISTORIAL_PAGOS: 'HistorialPagos',
 
   // Rutas para reviews de proveedores
@@ -304,11 +306,15 @@ export const ROUTES = {
   TRANSFERENCIA_RESUMEN: 'TransferenciaResumen',
   TRANSFERENCIA_VENDEDOR: 'TransferenciaVendedor',
   TRANSFERENCIA_COMPRADOR: 'TransferenciaComprador',
+  TRANSFERENCIA_CLAIM: 'TransferenciaClaim',
   TRANSFERENCIA_EXITO: 'TransferenciaExito',
 };
 
 /** Invitado: URL de ficha pública (proveedor o marketplace) guardada al abrir la app — misma vía que lee React Navigation (iOS). */
 export const PENDING_PUBLIC_DEEP_LINK_KEY = 'PENDING_PUBLIC_DEEP_LINK';
+
+/** Traspaso: token pendiente tras login/registro desde link de WhatsApp. */
+export const PENDING_TRANSFER_CLAIM_KEY = 'PENDING_TRANSFER_CLAIM';
 
 /** AsyncStorage: checkout Mercado Pago abierto en WebView (evita saltos a PaymentCallback en inactive→active). Valor: timestamp ms. */
 export const MP_CHECKOUT_WEBVIEW_ACTIVE_KEY = 'mp_checkout_webview_active';

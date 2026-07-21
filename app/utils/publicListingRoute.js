@@ -1,7 +1,25 @@
 import { Platform } from 'react-native';
 
 /**
+ * Token de ficha pública en ruta /marketplace/vehicle/ficha/:token (web).
+ */
+export function getMarketplaceFichaTokenFromWebPath() {
+  if (Platform.OS !== 'web') return null;
+  if (typeof window === 'undefined') return null;
+  const raw = String(window.location?.pathname || '');
+  const path = raw.split('?')[0].split('#')[0];
+  const m = path.match(/\/marketplace\/vehicle\/ficha\/([^/]+)\/?$/i);
+  if (!m?.[1]) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return m[1];
+  }
+}
+
+/**
  * ID de vehículo en ruta pública /marketplace/vehicle/:id (web, pathname).
+ * Legacy grace period — preferir token en /ficha/:token.
  */
 export function getMarketplaceVehicleIdFromWebPath() {
   if (Platform.OS !== 'web') return null;
@@ -85,6 +103,54 @@ export function getCotizacionTokenFromWebPath() {
     m = hash.match(/cotizacion\/([A-Za-z0-9_-]+)/i);
   }
   return m ? m[1] : null;
+}
+
+/**
+ * Token de traspaso en /transferencia/claim/:token (web).
+ * token_urlsafe: A-Za-z0-9_- (+ posible % encoding).
+ */
+export function getTransferClaimTokenFromWebPath() {
+  if (Platform.OS !== 'web') return null;
+  if (typeof window === 'undefined') return null;
+  const raw = String(window.location?.pathname || '');
+  const path = raw.split('?')[0].split('#')[0];
+  const hash = String(window.location?.hash || '').replace(/^#\/?/, '');
+  const search = new URLSearchParams(window.location?.search || '');
+  let m = path.match(/\/transferencia\/claim\/([^/]+)\/?$/i);
+  if (!m && hash) {
+    m = hash.match(/transferencia\/claim\/([^/]+)/i);
+  }
+  if (m?.[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return m[1];
+    }
+  }
+  const q = search.get('token');
+  return q ? String(q).trim() : null;
+}
+
+/**
+ * Extrae token de traspaso desde deep link o HTTPS.
+ */
+export function parseTransferClaimTokenFromUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  const m = url.match(/transferencia\/claim\/([^/?#]+)/i);
+  if (m?.[1]) {
+    try {
+      return decodeURIComponent(m[1]);
+    } catch {
+      return m[1];
+    }
+  }
+  try {
+    const u = new URL(url.replace(/^mecanimovil:\/\//i, 'https://app/'));
+    const q = u.searchParams.get('token');
+    return q ? String(q).trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 /**

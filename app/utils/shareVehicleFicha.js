@@ -3,21 +3,35 @@
  * El mensaje no incluye la URL cuando también se pasa `url` (evita duplicado).
  */
 import { Platform, Share, Alert } from 'react-native';
-import { buildPublicListingUrl } from '../config/publicListing';
+import { buildPublicFichaUrl } from '../config/publicListing';
+import { enablePublicVehicleFicha } from '../services/privacyService';
 import { showAlert } from './platformAlert';
 
-export function buildVehicleSharePayload(vehicle) {
+export function buildVehicleSharePayload(vehicle, shareMeta) {
   const id = vehicle?.id;
-  const webUrl = buildPublicListingUrl(id);
-  const marca = vehicle?.marca_nombre || vehicle?.marca || '';
-  const modelo = vehicle?.modelo_nombre || vehicle?.modelo || '';
+  const token = shareMeta?.ficha_publica_token || vehicle?.ficha_publica_token;
+  const webUrl = shareMeta?.url_publica || (token ? buildPublicFichaUrl(token) : null);
+  const marca = vehicle?.marca_nombre || vehicle?.marca?.nombre || vehicle?.marca || '';
+  const modelo = vehicle?.modelo_nombre || vehicle?.modelo?.nombre || vehicle?.modelo || '';
   const anio = vehicle?.year || vehicle?.anio || '';
-  const name = [marca, modelo, anio].filter(Boolean).join(' ') || 'mi vehículo';
+  const cilindraje = vehicle?.cilindraje || vehicle?.cilindrada || '';
+  const healthRaw = vehicle?.health_score ?? vehicle?.salud_general_porcentaje;
+  const healthPct =
+    healthRaw != null && Number.isFinite(Number(healthRaw))
+      ? Math.round(Number(healthRaw))
+      : null;
+
+  const name = [marca, modelo, anio].filter(Boolean).join(' ') || 'este vehículo';
+  const facts = [
+    cilindraje ? String(cilindraje) : null,
+    healthPct != null ? `salud ${healthPct}%` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   const message = [
-    `Revisa la ficha de salud de ${name} en MecaniMovil.`,
-    'Historial de servicios, talleres y métricas — sin datos sensibles.',
-    'Ver ficha:',
+    `Ficha de ${name}${facts ? ` (${facts})` : ''} en MecaniMovil.`,
+    'Regístrate y lleva el control de tu auto: salud, servicios y talleres.',
   ].join('\n');
 
   return {
@@ -37,7 +51,15 @@ async function copyText(text) {
 
 export async function shareVehicleFicha(vehicle) {
   if (!vehicle?.id) return { ok: false };
-  const payload = buildVehicleSharePayload(vehicle);
+  let shareMeta = null;
+  try {
+    shareMeta = await enablePublicVehicleFicha(vehicle.id);
+  } catch (error) {
+    console.error('habilitar ficha pública', error);
+    showAlert('No se pudo compartir', 'Intenta de nuevo en un momento.');
+    return { ok: false };
+  }
+  const payload = buildVehicleSharePayload(vehicle, shareMeta);
 
   try {
     if (Platform.OS === 'web' && typeof navigator !== 'undefined') {

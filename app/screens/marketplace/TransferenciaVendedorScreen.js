@@ -1,12 +1,24 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    TouchableOpacity,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import QRCode from 'react-native-qrcode-svg';
-import { Clock, ScanLine, ShieldCheck } from 'lucide-react-native';
+import { Clock, ScanLine, ShieldCheck, Share2, Check } from 'lucide-react-native';
 import AppHeader from '../../components/navigation/AppHeader';
 import Button from '../../components/base/Button/Button';
+import Modal from '../../components/feedback/Modal/Modal';
+import PrimaryGradientFill from '../../components/base/PrimaryGradientFill/PrimaryGradientFill';
 import TransferenciaService from '../../services/transferenciaService';
+import { shareTransferCode } from '../../utils/shareTransferCode';
+import { buildTransferClaimUrl } from '../../config/publicListing';
 import { ROUTES } from '../../utils/constants';
 import { COLORS, TYPOGRAPHY, SPACING, BORDERS, SHADOWS } from '../../design-system/tokens';
 
@@ -18,7 +30,23 @@ const TransferenciaVendedorScreen = () => {
     const [loading, setLoading] = useState(true);
     const [tokenData, setTokenData] = useState(null);
     const [error, setError] = useState(null);
+    const [sharing, setSharing] = useState(false);
+    const [shareModalVisible, setShareModalVisible] = useState(false);
+    const [acceptShareRisks, setAcceptShareRisks] = useState(false);
     const pollingInterval = useRef(null);
+
+    const vehicleLabel = useMemo(() => {
+        const marca = vehicle?.marca?.nombre || vehicle?.marca_nombre || vehicle?.marca || '';
+        const modelo = vehicle?.modelo?.nombre || vehicle?.modelo_nombre || vehicle?.modelo || '';
+        const year = vehicle?.year || '';
+        const base = [marca, modelo].filter(Boolean).join(' ');
+        return year ? `${base} ${year}`.trim() : base || 'el vehículo';
+    }, [vehicle]);
+
+    const claimUrl = useMemo(() => {
+        if (!tokenData?.token) return null;
+        return buildTransferClaimUrl(tokenData.token);
+    }, [tokenData?.token]);
 
     const stopPolling = useCallback(() => {
         if (pollingInterval.current) {
@@ -89,6 +117,30 @@ const TransferenciaVendedorScreen = () => {
         navigation.goBack();
     };
 
+    const openShareModal = useCallback(() => {
+        if (!tokenData?.token) return;
+        setAcceptShareRisks(false);
+        setShareModalVisible(true);
+    }, [tokenData?.token]);
+
+    const closeShareModal = useCallback(() => {
+        if (sharing) return;
+        setShareModalVisible(false);
+        setAcceptShareRisks(false);
+    }, [sharing]);
+
+    const confirmShare = useCallback(async () => {
+        if (!tokenData?.token || sharing || !acceptShareRisks) return;
+        setSharing(true);
+        try {
+            await shareTransferCode(tokenData.token, vehicleLabel);
+            setShareModalVisible(false);
+            setAcceptShareRisks(false);
+        } finally {
+            setSharing(false);
+        }
+    }, [acceptShareRisks, sharing, tokenData?.token, vehicleLabel]);
+
     if (loading) {
         return (
             <SafeAreaView style={styles.focusRoot} edges={['top', 'bottom']}>
@@ -129,14 +181,14 @@ const TransferenciaVendedorScreen = () => {
                     Código de entrega
                 </Text>
                 <Text style={[TYPOGRAPHY.styles.body, styles.subtitle]}>
-                    Muestra este código al comprador para transferir el vehículo e historial.
+                    Muéstralo o compártelo por WhatsApp. Quien lo use con su cuenta recibe el historial.
                 </Text>
 
                 <View style={[styles.qrCard, SHADOWS.sm]}>
-                    {tokenData ? (
+                    {claimUrl ? (
                         <View style={styles.qrContainer}>
                             <QRCode
-                                value={tokenData.token}
+                                value={claimUrl}
                                 size={220}
                                 color={COLORS.primary[500]}
                                 backgroundColor={COLORS.background.paper}
@@ -152,13 +204,22 @@ const TransferenciaVendedorScreen = () => {
                     </View>
                 </View>
 
+                <Button
+                    title="Compartir por WhatsApp"
+                    onPress={openShareModal}
+                    disabled={!tokenData?.token}
+                    fullWidth
+                    style={styles.shareBtn}
+                    iconNode={<Share2 size={18} color={COLORS.base.white} strokeWidth={2} />}
+                />
+
                 <View style={styles.instructions}>
                     <View style={styles.step}>
                         <View style={styles.stepIcon}>
                             <ScanLine size={18} color={COLORS.primary[500]} strokeWidth={2} />
                         </View>
                         <Text style={[TYPOGRAPHY.styles.body, styles.stepText]}>
-                            El comprador debe escanear este código desde su App (Transferir vehículo → Escanear QR).
+                            El comprador puede escanear el QR en la app o abrir el enlace que le envíes.
                         </Text>
                     </View>
                     <View style={styles.step}>
@@ -166,7 +227,7 @@ const TransferenciaVendedorScreen = () => {
                             <ShieldCheck size={18} color={COLORS.primary[500]} strokeWidth={2} />
                         </View>
                         <Text style={[TYPOGRAPHY.styles.body, styles.stepText]}>
-                            Confirma que has recibido el pago antes de mostrar este código.
+                            Confirma el pago antes de compartir. El enlace es como el QR: cualquiera con él puede reclamar el auto en esos 15 minutos.
                         </Text>
                     </View>
                 </View>
@@ -178,6 +239,61 @@ const TransferenciaVendedorScreen = () => {
                     style={styles.cancelBtn}
                 />
             </ScrollView>
+
+            <Modal
+                visible={shareModalVisible}
+                onClose={closeShareModal}
+                title="Antes de compartir"
+                size="md"
+                dismissible={!sharing}
+                footer={(
+                    <View style={styles.modalFooter}>
+                        <Button
+                            title="Cancelar"
+                            variant="ghost"
+                            onPress={closeShareModal}
+                            disabled={sharing}
+                            fullWidth
+                        />
+                        <Button
+                            title={sharing ? 'Abriendo…' : 'Compartir enlace'}
+                            onPress={confirmShare}
+                            disabled={!acceptShareRisks || sharing}
+                            isLoading={sharing}
+                            fullWidth
+                            style={styles.modalConfirmBtn}
+                        />
+                    </View>
+                )}
+            >
+                <Text style={[TYPOGRAPHY.styles.body, styles.modalBody]}>
+                    El enlace y el QR son equivalentes a una llave temporal. Quien lo abra con una cuenta
+                    MecaniMovil distinta a la tuya puede recibir el historial de {vehicleLabel} mientras
+                    el código esté vigente (15 minutos).
+                </Text>
+                <Text style={[TYPOGRAPHY.styles.caption, styles.modalHint]}>
+                    Compártelo solo con el comprador y solo después de confirmar el pago.
+                </Text>
+
+                <TouchableOpacity
+                    style={styles.acceptRow}
+                    onPress={() => setAcceptShareRisks((v) => !v)}
+                    activeOpacity={0.7}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: acceptShareRisks }}
+                >
+                    <View style={[styles.checkbox, acceptShareRisks && styles.checkboxCheckedWrap]}>
+                        {acceptShareRisks ? (
+                            <PrimaryGradientFill style={styles.checkboxFill}>
+                                <Check size={14} color={COLORS.text.inverse} strokeWidth={2.5} />
+                            </PrimaryGradientFill>
+                        ) : null}
+                    </View>
+                    <Text style={[TYPOGRAPHY.styles.body, styles.acceptText]}>
+                        Acepto los riesgos y confirmo que compartiré este código solo con el comprador.
+                    </Text>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -232,6 +348,11 @@ const styles = StyleSheet.create({
     expiryText: {
         color: COLORS.text.secondary,
     },
+    shareBtn: {
+        marginTop: SPACING.lg,
+        width: '100%',
+        maxWidth: 340,
+    },
     instructions: {
         width: '100%',
         marginTop: SPACING.lg,
@@ -267,6 +388,55 @@ const styles = StyleSheet.create({
     errorText: {
         color: COLORS.error.main,
         textAlign: 'center',
+    },
+    modalBody: {
+        color: COLORS.text.primary,
+        lineHeight: 22,
+        marginBottom: SPACING.sm,
+    },
+    modalHint: {
+        color: COLORS.text.secondary,
+        lineHeight: 18,
+        marginBottom: SPACING.md,
+    },
+    acceptRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: SPACING.sm,
+    },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: COLORS.border.dark,
+        backgroundColor: COLORS.background.paper,
+        overflow: 'hidden',
+        marginTop: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxCheckedWrap: {
+        borderColor: COLORS.primary[500],
+        padding: 0,
+    },
+    checkboxFill: {
+        width: '100%',
+        height: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    acceptText: {
+        flex: 1,
+        color: COLORS.text.primary,
+        lineHeight: 20,
+    },
+    modalFooter: {
+        width: '100%',
+        gap: SPACING.xs,
+    },
+    modalConfirmBtn: {
+        marginTop: SPACING.xxs,
     },
 });
 

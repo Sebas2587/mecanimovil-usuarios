@@ -23,9 +23,9 @@ import StoreDownloadBadges from '../../components/guest/StoreDownloadBadges';
 import BrandIconWell from '../../components/base/BrandIconWell/BrandIconWell';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
-import { getMarketplaceVehicleIdFromWebPath } from '../../utils/publicListingRoute';
+import { getMarketplaceVehicleIdFromWebPath, getMarketplaceFichaTokenFromWebPath } from '../../utils/publicListingRoute';
 import { getHealthLabel } from '../../utils/healthFormat';
-import { getPublicVehicleFicha } from '../../services/vehicle';
+import { getPublicVehicleFicha, getPublicVehicleFichaByToken } from '../../services/vehicle';
 import { useAuth } from '../../context/AuthContext';
 
 const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
@@ -40,6 +40,13 @@ const PublicVehicleFichaScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const { isAuthenticated } = useAuth();
+
+  const fichaToken = useMemo(() => {
+    const fromRoute = route.params?.fichaToken ?? route.params?.token;
+    if (fromRoute) return String(fromRoute).trim();
+    if (Platform.OS === 'web') return getMarketplaceFichaTokenFromWebPath();
+    return null;
+  }, [route.params?.fichaToken, route.params?.token]);
 
   const vehicleId = useMemo(() => {
     const fromRoute = route.params?.vehicleId ?? route.params?.id;
@@ -56,7 +63,7 @@ const PublicVehicleFichaScreen = () => {
   const [error, setError] = useState(null);
 
   const cargar = useCallback(async () => {
-    if (!vehicleId) {
+    if (!fichaToken && !vehicleId) {
       setError('Enlace de ficha inválido.');
       setLoading(false);
       return;
@@ -64,14 +71,16 @@ const PublicVehicleFichaScreen = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await getPublicVehicleFicha(vehicleId);
+      const res = fichaToken
+        ? await getPublicVehicleFichaByToken(fichaToken)
+        : await getPublicVehicleFicha(vehicleId);
       setData(res);
     } catch (e) {
       setError(e?.message || 'No se pudo cargar la ficha.');
     } finally {
       setLoading(false);
     }
-  }, [vehicleId]);
+  }, [fichaToken, vehicleId]);
 
   useEffect(() => {
     void cargar();

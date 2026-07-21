@@ -210,7 +210,12 @@ const InformeServicioScreen = () => {
         setNombreCliente(String(data.cliente_nombre).trim());
       }
     } catch (e) {
-      setError(e?.response?.data?.error || e?.message || 'No se pudo cargar el informe');
+      const status = e?.response?.status || e?.status;
+      if (status === 410) {
+        setError('Este enlace de informe expiró. Solicita uno nuevo al taller.');
+      } else {
+        setError(e?.response?.data?.error || e?.message || 'No se pudo cargar el informe');
+      }
     } finally {
       setLoading(false);
     }

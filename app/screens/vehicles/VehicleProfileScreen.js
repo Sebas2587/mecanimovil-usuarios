@@ -204,8 +204,11 @@ const VehicleProfileScreen = () => {
     };
 
     const handleShareFicha = useCallback(() => {
-        void shareVehicleFicha(vehicle);
-    }, [vehicle]);
+        void shareVehicleFicha({
+            ...vehicle,
+            health_score: profileHealthScorePct,
+        });
+    }, [vehicle, profileHealthScorePct]);
 
     const handleChangePhoto = () => {
         if (Platform.OS === 'web') {

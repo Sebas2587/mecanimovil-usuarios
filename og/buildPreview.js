@@ -79,6 +79,10 @@ export function matchShareRoute(pathname) {
   m = path.match(/^\/marketplace\/vehicle\/(\d+)\/?$/i);
   if (m) return { kind: 'vehicle', id: m[1] };
 
+  // token_urlsafe: A-Za-z0-9_-
+  m = path.match(/^\/transferencia\/claim\/([A-Za-z0-9_-]+)\/?$/i);
+  if (m) return { kind: 'transfer_claim', token: m[1] };
+
   return null;
 }
 
@@ -289,32 +293,50 @@ export async function buildPreviewForRoute(route, {
     );
     if (!data) {
       return {
-        title: 'Ficha de vehículo · MecaniMovil',
-        description: 'Salud, servicios y talleres en MecaniMovil.',
+        title: 'Ficha de salud · MecaniMovil',
+        description:
+          'Consulta marca, modelo, salud y talleres. Regístrate en MecaniMovil para llevar el control de tu auto.',
         image: fallbackImage,
         url: pageUrl,
       };
     }
-    const veh = vehicleLabel({
-      marca: data.marca,
-      modelo: data.modelo,
-      anio: data.anio,
-    });
+    const marca = data.marca || '';
+    const modelo = data.modelo || '';
+    const anio = data.anio != null ? String(data.anio) : '';
     const cilindraje = data.cilindraje ? String(data.cilindraje) : '';
-    const health =
-      data.health_score != null ? `Salud ${Math.round(Number(data.health_score))}%` : '';
-    const servicios =
-      data.servicios_count != null
-        ? `${data.servicios_count} ${Number(data.servicios_count) === 1 ? 'servicio' : 'servicios'}`
-        : '';
-    const title = truncate(`${veh || 'Vehículo'} · Ficha de salud`, 90);
+    const healthPct =
+      data.health_score != null && Number.isFinite(Number(data.health_score))
+        ? Math.round(Number(data.health_score))
+        : null;
+    const nameBits = [marca, modelo, anio].filter(Boolean);
+    const title = truncate(
+      nameBits.length
+        ? `${nameBits.join(' ')}${cilindraje ? ` · ${cilindraje}` : ''} · MecaniMovil`
+        : 'Ficha de salud · MecaniMovil',
+      90,
+    );
     const description = truncate(
-      [cilindraje, health, servicios, 'Historial y talleres en MecaniMovil']
+      [
+        healthPct != null ? `Salud ${healthPct}%` : null,
+        cilindraje && !nameBits.length ? cilindraje : null,
+        'Regístrate en MecaniMovil y lleva el control de tu auto.',
+      ]
         .filter(Boolean)
         .join(' · '),
       200,
     );
     return { title, description, image: fallbackImage, url: pageUrl };
+  }
+
+  if (route.kind === 'transfer_claim') {
+    const transferImage = `${String(requestOrigin || '').replace(/\/$/, '')}/og-transfer.jpg`;
+    return {
+      title: 'Código de traspaso · MecaniMovil',
+      description:
+        'Abre este enlace con tu cuenta para recibir el historial y la salud del vehículo. Expira en 15 minutos. Solo para el comprador.',
+      image: transferImage,
+      url: pageUrl,
+    };
   }
 
   return {

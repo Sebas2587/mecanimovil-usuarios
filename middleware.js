@@ -7,6 +7,8 @@
  * - /reporte/:token  (informe / checklist)
  * - /provider/:type/:id
  * - /marketplace/vehicle/:id
+ * - /marketplace/vehicle/ficha/:token
+ * - /transferencia/claim/:token
  */
 
 import {
@@ -23,6 +25,8 @@ export const config = {
     '/reporte/:token*',
     '/provider/:path*',
     '/marketplace/vehicle/:id*',
+    '/marketplace/vehicle/ficha/:token*',
+    '/transferencia/claim/:token*',
   ],
 };
 
@@ -55,7 +59,8 @@ export default async function middleware(request) {
     status: 200,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=86400',
+      // Short TTL: WhatsApp/FB cache previews aggressively; avoid stale “en venta” copy.
+      'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
       'X-Robots-Tag': 'noindex',
     },
   });

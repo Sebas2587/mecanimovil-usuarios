@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TripTrackingProvider, useTripTracking } from '../context/TripTrackingContext';
+import { useAuth } from '../context/AuthContext';
 import TripActiveBar from '../components/trip/TripActiveBar';
 import HomeTripCompletionModal from '../components/home/dashboard/HomeTripCompletionModal';
+import LegalConsentModal, { useLegalConsentGate } from '../components/legal/LegalConsentModal';
 import AppNavigator from './AppNavigator';
 
 function TripCompletionOverlay() {
@@ -42,6 +44,9 @@ function TripCompletionOverlay() {
  * El gate GuestLanding vs shell está en App.js (`isAuthenticated`).
  */
 export default function AuthenticatedAppShell() {
+  const { isAuthenticated } = useAuth();
+  const { needsConsent, clearNeedsConsent } = useLegalConsentGate(isAuthenticated);
+
   return (
     <TripTrackingProvider>
       <View style={styles.root}>
@@ -50,6 +55,7 @@ export default function AuthenticatedAppShell() {
         </View>
         <TripActiveBar />
         <TripCompletionOverlay />
+        <LegalConsentModal visible={needsConsent} onAccepted={clearNeedsConsent} />
       </View>
     </TripTrackingProvider>
   );

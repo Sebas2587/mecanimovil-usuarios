@@ -31,6 +31,7 @@ import {
   MP_CHECKOUT_WEBVIEW_ACTIVE_KEY,
   MP_CHECKOUT_WEBVIEW_MAX_AGE_MS,
   PENDING_PUBLIC_DEEP_LINK_KEY,
+  PENDING_TRANSFER_CLAIM_KEY,
 } from './app/utils/constants';
 import SplashScreen from './app/components/utils/SplashScreen';
 import logger from './app/utils/logger';
@@ -225,6 +226,19 @@ const linking = {
         path: 'cotizacion/:token',
         parse: {
           token: (token) => (token ? String(token).trim() : null),
+        },
+      },
+      TransferenciaClaim: {
+        path: 'transferencia/claim/:token',
+        parse: {
+          token: (token) => {
+            if (!token) return null;
+            try {
+              return decodeURIComponent(String(token).trim());
+            } catch {
+              return String(token).trim();
+            }
+          },
         },
       },
       MarketplaceVehicleDetail: {
@@ -1194,6 +1208,29 @@ const MainImpl = ({ lastNotificationResponse }) => {
     loading,
     navigateToPaymentCallback,
   ]); // Usar navigationRef, no navigationRef.isReady()
+
+  // Traspaso: continuar reclamo guardado tras login/registro desde WhatsApp
+  useEffect(() => {
+    if (!navigationRef.isReady() || !isAuthenticated || loading) return;
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const token = await AsyncStorage.getItem(PENDING_TRANSFER_CLAIM_KEY);
+        if (!token || cancelled) return;
+        await AsyncStorage.removeItem(PENDING_TRANSFER_CLAIM_KEY);
+        navigationRef.navigate(ROUTES.TRANSFERENCIA_CLAIM, { token });
+      } catch (e) {
+        logger.warn('Error procesando traspaso pendiente:', e);
+      }
+    };
+
+    const timeout = setTimeout(run, 600);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [navigationRef, isAuthenticated, loading]);
 
   // Listener para cuando la app vuelve al foreground después de estar en background
   // Esto es crítico cuando el usuario completa el pago en la app de Mercado Pago

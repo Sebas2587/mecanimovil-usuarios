@@ -98,6 +98,11 @@ const UserProfileScreen = () => {
               onPress={() => navigation.navigate(ROUTES.SUPPORT)}
             />
             <ProfileMenuItem
+              icon="shield-outline"
+              label="Privacidad y datos"
+              onPress={() => navigation.navigate(ROUTES.PRIVACY_DATA)}
+            />
+            <ProfileMenuItem
               icon="document-text-outline"
               label="Términos y Condiciones"
               onPress={() => navigation.navigate(ROUTES.TERMS)}

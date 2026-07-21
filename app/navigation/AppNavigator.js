@@ -37,6 +37,8 @@ import CalendarioProveedorScreen from '../screens/booking/CalendarioProveedorScr
 import SupportScreen from '../screens/support/SupportScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
+import DeleteAccountScreen from '../screens/profile/DeleteAccountScreen';
+import PrivacyDataScreen from '../screens/profile/PrivacyDataScreen';
 import OpcionesPagoScreen from '../screens/payment/OpcionesPagoScreen';
 import ConfirmacionScreen from '../screens/confirmation/ConfirmacionScreen';
 import PaymentCallbackScreen from '../screens/payment/PaymentCallbackScreen';
@@ -58,6 +60,7 @@ import NotificationCenterScreen from '../screens/notifications/NotificationCente
 import TransferenciaResumenScreen from '../screens/marketplace/TransferenciaResumenScreen';
 import TransferenciaVendedorScreen from '../screens/marketplace/TransferenciaVendedorScreen';
 import TransferenciaCompradorScreen from '../screens/marketplace/TransferenciaCompradorScreen';
+import TransferenciaClaimScreen from '../screens/marketplace/TransferenciaClaimScreen';
 import TransferenciaExitoScreen from '../screens/marketplace/TransferenciaExitoScreen';
 import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
 import CotizacionPublicaScreen from '../screens/guest/CotizacionPublicaScreen';
@@ -100,6 +103,8 @@ const ProfileStackNavigator = ({ tabRoot = false }) => (
     <ProfileStack.Screen name={ROUTES.SUPPORT} component={SupportScreen} options={getHeaderOptions('Soporte')} />
     <ProfileStack.Screen name={ROUTES.TERMS} component={TermsScreen} options={getHeaderOptions('Términos y condiciones')} />
     <ProfileStack.Screen name={ROUTES.PRIVACY_POLICY} component={PrivacyPolicyScreen} options={getHeaderOptions('Política de privacidad')} />
+    <ProfileStack.Screen name={ROUTES.PRIVACY_DATA} component={PrivacyDataScreen} options={getHeaderOptions('Privacidad y datos')} />
+    <ProfileStack.Screen name={ROUTES.DELETE_ACCOUNT} component={DeleteAccountScreen} options={getHeaderOptions('Eliminar cuenta')} />
     <ProfileStack.Screen name={ROUTES.HISTORIAL_PAGOS} component={HistorialPagosScreen} options={getHeaderOptions('Historial de pagos')} />
     <ProfileStack.Screen name={ROUTES.FAVORITE_PROVIDERS} component={FavoriteProvidersScreen} options={getHeaderOptions('Favoritos')} />
   </ProfileStack.Navigator>
@@ -290,6 +295,7 @@ const AppNavigator = () => (
     <Stack.Screen name={ROUTES.TRANSFERENCIA_RESUMEN} component={TransferenciaResumenScreen} />
     <Stack.Screen name={ROUTES.TRANSFERENCIA_VENDEDOR} component={TransferenciaVendedorScreen} />
     <Stack.Screen name={ROUTES.TRANSFERENCIA_COMPRADOR} component={TransferenciaCompradorScreen} />
+    <Stack.Screen name={ROUTES.TRANSFERENCIA_CLAIM} component={TransferenciaClaimScreen} />
     <Stack.Screen name={ROUTES.TRANSFERENCIA_EXITO} component={TransferenciaExitoScreen} />
     <Stack.Screen
       name={ROUTES.INFORME_SERVICIO}

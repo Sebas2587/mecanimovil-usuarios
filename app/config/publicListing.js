@@ -14,8 +14,16 @@ export function buildPublicListingPath(vehicleId) {
   return `/marketplace/vehicle/${vehicleId}`;
 }
 
+export function buildPublicFichaPath(token) {
+  return `/marketplace/vehicle/ficha/${encodeURIComponent(String(token || '').trim())}`;
+}
+
 export function buildPublicListingUrl(vehicleId) {
   return `${getPublicListingWebOrigin()}${buildPublicListingPath(vehicleId)}`;
+}
+
+export function buildPublicFichaUrl(token) {
+  return `${getPublicListingWebOrigin()}${buildPublicFichaPath(token)}`;
 }
 
 export function buildDeepLinkListingUrl(vehicleId) {
@@ -34,6 +42,19 @@ export function buildPublicProviderUrl(providerType, providerId) {
 export function buildDeepLinkProviderUrl(providerType, providerId) {
   const path = buildPublicProviderPath(providerType, providerId).replace(/^\//, '');
   return `mecanimovil://${path}`;
+}
+
+/** Link corto de reclamo de traspaso (misma vigencia que el QR: ~15 min). */
+export function buildTransferClaimPath(token) {
+  return `/transferencia/claim/${encodeURIComponent(String(token || '').trim())}`;
+}
+
+export function buildTransferClaimUrl(token) {
+  return `${getPublicListingWebOrigin()}${buildTransferClaimPath(token)}`;
+}
+
+export function buildDeepLinkTransferClaimUrl(token) {
+  return `mecanimovil://transferencia/claim/${encodeURIComponent(String(token || '').trim())}`;
 }
 
 export function getPlayStoreUrl() {

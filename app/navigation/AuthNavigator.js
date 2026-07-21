@@ -12,6 +12,7 @@ import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
 import CotizacionPublicaScreen from '../screens/guest/CotizacionPublicaScreen';
 import EscanearInformeServicioScreen from '../screens/guest/EscanearInformeServicioScreen';
 import PublicVehicleFichaScreen from '../screens/guest/PublicVehicleFichaScreen';
+import TransferenciaClaimScreen from '../screens/marketplace/TransferenciaClaimScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
@@ -22,6 +23,7 @@ import {
   getInformeTokenFromWebPath,
   getCotizacionTokenFromWebPath,
   getMarketplaceVehicleIdFromWebPath,
+  getTransferClaimTokenFromWebPath,
 } from '../utils/publicListingRoute';
 import { COLORS } from '../design-system/tokens';
 import SplashScreen from '../components/utils/SplashScreen';
@@ -70,6 +72,7 @@ const AuthNavigator = ({ registerSuccess }) => {
   const informeTokenFromWeb = Platform.OS === 'web' ? getInformeTokenFromWebPath() : null;
   const cotizacionTokenFromWeb = Platform.OS === 'web' ? getCotizacionTokenFromWebPath() : null;
   const marketplaceVehicleIdFromWeb = Platform.OS === 'web' ? getMarketplaceVehicleIdFromWebPath() : null;
+  const transferClaimTokenFromWeb = Platform.OS === 'web' ? getTransferClaimTokenFromWebPath() : null;
 
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
 
@@ -92,6 +95,7 @@ const AuthNavigator = ({ registerSuccess }) => {
   const initialRouteName = useMemo(() => {
     if (publicProviderData) return ROUTES.PROVIDER_DETAIL;
     if (marketplaceVehicleIdFromWeb) return ROUTES.MARKETPLACE_VEHICLE_DETAIL;
+    if (transferClaimTokenFromWeb) return ROUTES.TRANSFERENCIA_CLAIM;
     if (informeTokenFromWeb) return ROUTES.INFORME_SERVICIO;
     if (cotizacionTokenFromWeb) return ROUTES.COTIZACION_PUBLICA;
     if (registerSuccess) return ROUTES.REGISTER;
@@ -100,6 +104,7 @@ const AuthNavigator = ({ registerSuccess }) => {
   }, [
     publicProviderData,
     marketplaceVehicleIdFromWeb,
+    transferClaimTokenFromWeb,
     informeTokenFromWeb,
     cotizacionTokenFromWeb,
     registerSuccess,
@@ -110,6 +115,7 @@ const AuthNavigator = ({ registerSuccess }) => {
     hasSeenOnboarding == null
     && !publicProviderData
     && !marketplaceVehicleIdFromWeb
+    && !transferClaimTokenFromWeb
     && !informeTokenFromWeb
     && !cotizacionTokenFromWeb
     && !registerSuccess
@@ -363,6 +369,16 @@ const AuthNavigator = ({ registerSuccess }) => {
         initialParams={
           marketplaceVehicleIdFromWeb
             ? { vehicleId: marketplaceVehicleIdFromWeb }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.TRANSFERENCIA_CLAIM}
+        component={TransferenciaClaimScreen}
+        options={{ headerShown: false }}
+        initialParams={
+          transferClaimTokenFromWeb
+            ? { token: transferClaimTokenFromWeb }
             : undefined
         }
       />

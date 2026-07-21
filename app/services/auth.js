@@ -174,6 +174,7 @@ export const register = async (userData) => {
       last_name: userData.lastName.trim(),
       telefono: userData.telefono || null,
       direccion: userData.direccion || null,
+      acepta_terminos: true,
       es_mecanico: userData.esMecanico || false,
     };
 

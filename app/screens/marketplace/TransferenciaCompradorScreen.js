@@ -8,6 +8,7 @@ import AppHeader from '../../components/navigation/AppHeader';
 import Button from '../../components/base/Button/Button';
 import TransferenciaService from '../../services/transferenciaService';
 import { ROUTES } from '../../utils/constants';
+import { extractTransferToken } from '../../utils/shareTransferCode';
 import { COLORS, TYPOGRAPHY, SPACING, BORDERS, withOpacity } from '../../design-system/tokens';
 
 const SCAN_AREA_SIZE = 280;
@@ -28,7 +29,10 @@ const TransferenciaCompradorScreen = () => {
         setScanned(true);
 
         try {
-            const token = data;
+            const token = extractTransferToken(data);
+            if (!token) {
+                throw new Error('Código QR no válido');
+            }
 
             const result = await TransferenciaService.completeTransfer(token);
 

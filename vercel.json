@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx expo export --platform web && cp -f public/og-default.png dist/og-default.png",
+  "buildCommand": "npx expo export --platform web && cp -f public/og-default.png dist/og-default.png && cp -f public/og-transfer.jpg dist/og-transfer.jpg",
   "outputDirectory": "dist",
   "git": {
     "deploymentEnabled": {
