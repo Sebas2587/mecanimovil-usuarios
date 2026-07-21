@@ -221,6 +221,12 @@ const linking = {
           token: (token) => (token ? String(token).trim() : null),
         },
       },
+      CotizacionPublica: {
+        path: 'cotizacion/:token',
+        parse: {
+          token: (token) => (token ? String(token).trim() : null),
+        },
+      },
       // marketplace/vehicle deep links ignorados (MarketplaceVehicleDetail eliminado)
     },
   },

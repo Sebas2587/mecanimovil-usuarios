@@ -206,6 +206,8 @@ export const ROUTES = {
   GUEST_SECTION_SERVICES: 'GuestSectionServices',
   /** Informe público de servicio (guest, /reporte/:token) */
   INFORME_SERVICIO: 'InformeServicio',
+  /** Cotización pública del taller (guest, /cotizacion/:token) */
+  COTIZACION_PUBLICA: 'CotizacionPublica',
   /** Escanear QR de informe para reclamar servicio (autenticado) */
   ESCANEAR_INFORME_SERVICIO: 'EscanearInformeServicio',
   LOGIN: 'Login',

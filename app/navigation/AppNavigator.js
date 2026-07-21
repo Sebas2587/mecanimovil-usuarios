@@ -59,6 +59,7 @@ import TransferenciaVendedorScreen from '../screens/marketplace/TransferenciaVen
 import TransferenciaCompradorScreen from '../screens/marketplace/TransferenciaCompradorScreen';
 import TransferenciaExitoScreen from '../screens/marketplace/TransferenciaExitoScreen';
 import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
+import CotizacionPublicaScreen from '../screens/guest/CotizacionPublicaScreen';
 import EscanearInformeServicioScreen from '../screens/guest/EscanearInformeServicioScreen';
 
 const getHeaderOptions = (title, options = {}) => ({
@@ -295,6 +296,24 @@ const AppNavigator = () => (
         Platform.OS === 'web'
           ? {
               /** Scroll en la card; ScrollView interno rompe el wheel en Chrome. */
+              cardStyle: {
+                backgroundColor: COLORS.background.default,
+                flex: 1,
+                maxHeight: '100vh',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                WebkitOverflowScrolling: 'touch',
+              },
+            }
+          : undefined
+      }
+    />
+    <Stack.Screen
+      name={ROUTES.COTIZACION_PUBLICA}
+      component={CotizacionPublicaScreen}
+      options={
+        Platform.OS === 'web'
+          ? {
               cardStyle: {
                 backgroundColor: COLORS.background.default,
                 flex: 1,

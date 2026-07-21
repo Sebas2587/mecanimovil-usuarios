@@ -9,13 +9,14 @@ import GuestServiceOfferScreen from '../screens/guest/GuestServiceOfferScreen';
 import GuestSectionProvidersScreen from '../screens/guest/GuestSectionProvidersScreen';
 import GuestSectionServicesScreen from '../screens/guest/GuestSectionServicesScreen';
 import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
+import CotizacionPublicaScreen from '../screens/guest/CotizacionPublicaScreen';
 import EscanearInformeServicioScreen from '../screens/guest/EscanearInformeServicioScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
 import OnboardingScreen from '../screens/onboarding/OnboardingScreen';
 import { ROUTES } from '../utils/constants';
-import { getPublicProviderFromWebPath, getInformeTokenFromWebPath } from '../utils/publicListingRoute';
+import { getPublicProviderFromWebPath, getInformeTokenFromWebPath, getCotizacionTokenFromWebPath } from '../utils/publicListingRoute';
 import { COLORS } from '../design-system/tokens';
 import SplashScreen from '../components/utils/SplashScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -61,6 +62,7 @@ const authLegalWebScreenOptions = Platform.OS === 'web'
 const AuthNavigator = ({ registerSuccess }) => {
   const publicProviderData = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
   const informeTokenFromWeb = Platform.OS === 'web' ? getInformeTokenFromWebPath() : null;
+  const cotizacionTokenFromWeb = Platform.OS === 'web' ? getCotizacionTokenFromWebPath() : null;
 
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(null);
 
@@ -83,12 +85,19 @@ const AuthNavigator = ({ registerSuccess }) => {
   const initialRouteName = useMemo(() => {
     if (publicProviderData) return ROUTES.PROVIDER_DETAIL;
     if (informeTokenFromWeb) return ROUTES.INFORME_SERVICIO;
+    if (cotizacionTokenFromWeb) return ROUTES.COTIZACION_PUBLICA;
     if (registerSuccess) return ROUTES.REGISTER;
     if (hasSeenOnboarding === false) return ROUTES.ONBOARDING;
     return ROUTES.GUEST_LANDING;
-  }, [publicProviderData, informeTokenFromWeb, registerSuccess, hasSeenOnboarding]);
+  }, [publicProviderData, informeTokenFromWeb, cotizacionTokenFromWeb, registerSuccess, hasSeenOnboarding]);
 
-  if (hasSeenOnboarding == null && !publicProviderData && !informeTokenFromWeb && !registerSuccess) {
+  if (
+    hasSeenOnboarding == null
+    && !publicProviderData
+    && !informeTokenFromWeb
+    && !cotizacionTokenFromWeb
+    && !registerSuccess
+  ) {
     return <SplashScreen />;
   }
 
@@ -216,6 +225,25 @@ const AuthNavigator = ({ registerSuccess }) => {
         name={ROUTES.INFORME_SERVICIO}
         component={InformeServicioScreen}
         initialParams={informeTokenFromWeb ? { token: informeTokenFromWeb } : undefined}
+        options={
+          Platform.OS === 'web'
+            ? {
+                cardStyle: {
+                  backgroundColor: COLORS.background.default,
+                  flex: 1,
+                  maxHeight: '100vh',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  WebkitOverflowScrolling: 'touch',
+                },
+              }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.COTIZACION_PUBLICA}
+        component={CotizacionPublicaScreen}
+        initialParams={cotizacionTokenFromWeb ? { token: cotizacionTokenFromWeb } : undefined}
         options={
           Platform.OS === 'web'
             ? {
