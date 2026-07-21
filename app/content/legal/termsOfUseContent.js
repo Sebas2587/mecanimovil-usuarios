@@ -1,9 +1,9 @@
-/** Términos y Condiciones de Uso — Mecanimovil SpA. Última actualización: 14 de junio de 2026. */
+/** Términos y Condiciones de Uso — Mecanimovil SpA. Última actualización: 21 de julio de 2026. */
 
 export const TERMS_META = {
   title: 'Términos y Condiciones de Uso',
   subtitle: 'Plataforma Mecanimovil',
-  lastUpdated: '14 de junio de 2026',
+  lastUpdated: '21 de julio de 2026',
   icon: 'document-text-outline',
 };
 
@@ -121,7 +121,7 @@ export const TERMS_SECTIONS = [
   {
     title: '23. Protección de datos personales',
     content:
-      'El tratamiento se rige por la Política de Privacidad, la Ley N° 19.628, la Ley N° 21.719 y demás normativa aplicable.',
+      'El tratamiento se rige por la Política de Privacidad, la Ley N° 19.628, la Ley N° 21.719 y demás normativa aplicable. Desde la app puede acceder a exportación de datos, eliminación de cuenta y gestión de consentimientos en Cuenta > Privacidad y datos.',
   },
   {
     title: '24. Enlaces a terceros',

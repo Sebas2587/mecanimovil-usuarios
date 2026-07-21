@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
   },
   sectionTitle: {
-    fontFamily: TYPOGRAPHY.fontFamily.sansMedium,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
     marginBottom: SPACING.sm,
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     paddingRight: SPACING.md,
   },
   prefLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.sansMedium,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.base,
     color: COLORS.text.primary,
   },

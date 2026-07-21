@@ -18,26 +18,10 @@ const LEGAL_ICONS = {
   'shield-checkmark-outline': ShieldCheck,
 };
 
-/**
- * Vista reutilizable para documentos legales (Términos, Privacidad).
- * En web: altura acotada bajo el header del stack para que el ScrollView reciba wheel/touch.
- */
-const LegalDocumentView = ({ meta, sections, footer }) => {
-  const { height: windowHeight } = useWindowDimensions();
-  const headerHeight = useHeaderHeight();
+function LegalDocumentBody({ meta, sections, footer }) {
   const IntroIcon = LEGAL_ICONS[meta.icon] || FileText;
 
-  const webRootStyle =
-    Platform.OS === 'web'
-      ? {
-          minHeight: 0,
-          height: Math.max(windowHeight - headerHeight, 0),
-          maxHeight: Math.max(windowHeight - headerHeight, 0),
-          overflow: 'hidden',
-        }
-      : null;
-
-  const body = (
+  return (
     <>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background.default} />
       <ScrollView
@@ -78,16 +62,49 @@ const LegalDocumentView = ({ meta, sections, footer }) => {
       </ScrollView>
     </>
   );
+}
 
-  if (Platform.OS === 'web') {
-    return <View style={[styles.container, webRootStyle]}>{body}</View>;
-  }
+function LegalDocumentViewStack({ meta, sections, footer }) {
+  const { height: windowHeight } = useWindowDimensions();
+  const navHeaderHeight = useHeaderHeight();
+
+  const webRootStyle =
+    Platform.OS === 'web'
+      ? {
+          minHeight: 0,
+          height: Math.max(windowHeight - navHeaderHeight, 0),
+          maxHeight: Math.max(windowHeight - navHeaderHeight, 0),
+          overflow: 'hidden',
+        }
+      : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['left', 'right', 'bottom']}>
-      {body}
+      {Platform.OS === 'web' ? (
+        <View style={[styles.container, webRootStyle]}>
+          <LegalDocumentBody meta={meta} sections={sections} footer={footer} />
+        </View>
+      ) : (
+        <LegalDocumentBody meta={meta} sections={sections} footer={footer} />
+      )}
     </SafeAreaView>
   );
+}
+
+/**
+ * Vista reutilizable para documentos legales (Términos, Privacidad).
+ * @param {boolean} [embedded] — overlay/modal con header propio (sin useHeaderHeight).
+ */
+const LegalDocumentView = ({ meta, sections, footer, embedded = false }) => {
+  if (embedded) {
+    return (
+      <View style={[styles.container, styles.embedded]}>
+        <LegalDocumentBody meta={meta} sections={sections} footer={footer} />
+      </View>
+    );
+  }
+
+  return <LegalDocumentViewStack meta={meta} sections={sections} footer={footer} />;
 };
 
 const styles = StyleSheet.create({
@@ -95,6 +112,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background.default,
     ...(Platform.OS === 'web' ? { minHeight: 0 } : {}),
+  },
+  embedded: {
+    minHeight: 0,
   },
   scrollContainer: {
     flex: 1,

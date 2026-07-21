@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   warningTitle: {
-    fontFamily: TYPOGRAPHY.fontFamily.sansMedium,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.lg,
     color: COLORS.error[800] || COLORS.error[700],
   },
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   label: {
-    fontFamily: TYPOGRAPHY.fontFamily.sansMedium,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.sm,
     marginBottom: SPACING.xs,
     color: COLORS.text.primary,

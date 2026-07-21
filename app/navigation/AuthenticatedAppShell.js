@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { TripTrackingProvider, useTripTracking } from '../context/TripTrackingContext';
 import { useAuth } from '../context/AuthContext';
 import TripActiveBar from '../components/trip/TripActiveBar';
 import HomeTripCompletionModal from '../components/home/dashboard/HomeTripCompletionModal';
-import LegalConsentModal, { useLegalConsentGate } from '../components/legal/LegalConsentModal';
+import { useLegalConsentGate } from '../hooks/useLegalConsentGate';
 import AppNavigator from './AppNavigator';
+
+const LegalConsentModal = lazy(() => import('../components/legal/LegalConsentModal'));
 
 function TripCompletionOverlay() {
   const {
@@ -55,7 +57,11 @@ export default function AuthenticatedAppShell() {
         </View>
         <TripActiveBar />
         <TripCompletionOverlay />
-        <LegalConsentModal visible={needsConsent} onAccepted={clearNeedsConsent} />
+        {needsConsent ? (
+          <Suspense fallback={null}>
+            <LegalConsentModal visible={needsConsent} onAccepted={clearNeedsConsent} />
+          </Suspense>
+        ) : null}
       </View>
     </TripTrackingProvider>
   );

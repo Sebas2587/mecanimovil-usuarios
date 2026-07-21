@@ -9,7 +9,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { AlertCircle, Check } from 'lucide-react-native';
+import { AlertCircle, Check, ChevronLeft } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,10 +24,6 @@ import LegalFooterLinks from '../../components/support/LegalFooterLinks';
 
 const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
 const ICON_STROKE = 1.75;
-
-const FormCard = ({ children, style }) => (
-  <View style={[styles.card, style]}>{children}</View>
-);
 
 const RegisterScreen = () => {
   const navigation = useNavigation();
@@ -193,43 +189,51 @@ const RegisterScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
       <ScrollView
         style={Platform.OS === 'web' ? styles.webScroll : undefined}
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 40 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 40 },
+        ]}
         showsVerticalScrollIndicator={Platform.OS === 'web'}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'web' ? undefined : 'on-drag'}
       >
-        {/* Logo + Title */}
-        <View style={styles.headerSection}>
+        <View style={styles.logoWrap}>
           <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.headerTitle}>Crear Cuenta</Text>
-          <Text style={styles.headerSub}>Únete a MecaniMóvil hoy</Text>
         </View>
 
-        {/* Tabs */}
-        <View style={styles.tabRow}>
-          <TouchableOpacity style={styles.tab} onPress={() => navigation.navigate(ROUTES.LOGIN)}>
-            <Text style={styles.tabTextInactive}>Iniciar Sesión</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabTextActive}>Registrarse</Text>
-            <PrimaryGradientFill style={styles.tabIndicatorActive} />
-          </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate(ROUTES.LOGIN)}
+          style={styles.backRow}
+          activeOpacity={0.7}
+        >
+          <ChevronLeft size={20} color={COLORS.text.primary} strokeWidth={ICON_STROKE} />
+          <Text style={styles.backText}>Volver</Text>
+        </TouchableOpacity>
+
+        <View style={styles.heading}>
+          <Text style={styles.h1}>Crea tu cuenta</Text>
+          <Text style={styles.h2}>
+            ¿Ya tienes cuenta?{' '}
+            <Text style={styles.headingLink} onPress={() => navigation.navigate(ROUTES.LOGIN)}>
+              Inicia sesión
+            </Text>
+            .
+          </Text>
         </View>
 
-        {/* Form */}
-        {formError ? (
-          <View style={styles.formErrorBanner}>
-            <AlertCircle size={18} color={COLORS.error.main} strokeWidth={ICON_STROKE} />
-            <Text style={styles.formErrorText}>{formError}</Text>
-          </View>
-        ) : null}
+        <View style={styles.card}>
+          {formError ? (
+            <View style={styles.formErrorBanner}>
+              <AlertCircle size={18} color={COLORS.error.main} strokeWidth={ICON_STROKE} />
+              <Text style={styles.formErrorText}>{formError}</Text>
+            </View>
+          ) : null}
 
-        <FormCard style={styles.formCard}>
           <View style={styles.nameRow}>
             <View style={[styles.nameInput, { marginRight: 12 }]}>
               <Input label="Nombre" placeholder="Juan" value={firstName}
@@ -245,14 +249,14 @@ const RegisterScreen = () => {
             </View>
           </View>
 
-          <View style={styles.inputWrapper}>
+          <View style={styles.fieldWrap}>
             <Input label="Correo Electrónico" placeholder="ejemplo@correo.com" value={email}
               onChangeText={(t) => { setEmail(t); if (errors.email) setErrors(p => ({ ...p, email: undefined })); }}
               keyboardType="email-address" autoCapitalize="none" autoCorrect={false}
               returnKeyType="next" blurOnSubmit={false} error={errors.email} leftIcon="mail-outline" appearance="light" />
           </View>
 
-          <View style={styles.inputWrapper}>
+          <View style={styles.fieldWrap}>
             <Input label="Contraseña" placeholder="••••••••" value={password}
               onChangeText={(t) => {
                 setPassword(t);
@@ -263,31 +267,35 @@ const RegisterScreen = () => {
               error={errors.password} leftIcon="lock-closed-outline" appearance="light" />
           </View>
 
-          <View style={styles.inputWrapper}>
+          <View style={styles.fieldWrap}>
             <Input label="Confirmar Contraseña" placeholder="••••••••" value={confirmPassword}
               onChangeText={(t) => { setConfirmPassword(t); if (errors.confirmPassword) setErrors(p => ({ ...p, confirmPassword: undefined })); }}
               secureTextEntry autoCorrect={false} returnKeyType="done"
               error={errors.confirmPassword} leftIcon="lock-closed-outline" appearance="light" />
           </View>
 
-          {/* Terms */}
-          <TouchableOpacity style={styles.termsRow} onPress={() => setAcceptTerms(!acceptTerms)}>
-            <View style={[styles.checkbox, acceptTerms && styles.checkboxCheckedWrap]}>
-              {acceptTerms ? (
-                <PrimaryGradientFill style={styles.checkboxFill}>
-                  <Check size={14} color={COLORS.text.inverse} strokeWidth={2.5} />
-                </PrimaryGradientFill>
-              ) : null}
-            </View>
+          <View style={styles.termsRow}>
+            <TouchableOpacity
+              onPress={() => setAcceptTerms(!acceptTerms)}
+              style={styles.checkboxTouch}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, acceptTerms && styles.checkboxCheckedWrap]}>
+                {acceptTerms ? (
+                  <PrimaryGradientFill style={styles.checkboxFill}>
+                    <Check size={13} color={COLORS.text.inverse} strokeWidth={2.5} />
+                  </PrimaryGradientFill>
+                ) : null}
+              </View>
+            </TouchableOpacity>
             <LegalFooterLinks
               variant="register"
               textStyle={styles.termsText}
               linkStyle={styles.termsLink}
             />
-          </TouchableOpacity>
-          {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
+          </View>
+          {errors.terms ? <Text style={styles.errorText}>{errors.terms}</Text> : null}
 
-          {/* Submit */}
           <Button
             title="Crear Cuenta"
             onPress={handleRegister}
@@ -297,14 +305,16 @@ const RegisterScreen = () => {
             size="md"
             fullWidth
           />
-        </FormCard>
+        </View>
+
+        <LegalFooterLinks textStyle={styles.footer} linkStyle={styles.footerLink} />
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
     backgroundColor: COLORS.background.default,
     ...(Platform.OS === 'web'
@@ -312,47 +322,54 @@ const styles = StyleSheet.create({
       : null),
   },
   webScroll: { flex: 1 },
-
-  scroll: { paddingHorizontal: SPACING.container.horizontal, maxWidth: 480, width: '100%', alignSelf: 'center' },
-  headerSection: { alignItems: 'center', marginBottom: 24 },
-  logo: { width: 180, height: 60, marginBottom: 16 },
-  headerTitle: {
+  scroll: {
+    paddingHorizontal: SPACING.container.horizontal,
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  logoWrap: { alignItems: 'center', marginBottom: 24 },
+  logo: { width: 170, height: 50 },
+  heading: { marginBottom: 22 },
+  h1: {
     ...TYPOGRAPHY.styles.h2,
     color: COLORS.text.primary,
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  headerSub: {
+  h2: {
     ...TYPOGRAPHY.styles.body,
     color: COLORS.text.secondary,
-    textAlign: 'center',
   },
-
-  tabRow: { flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: COLORS.border.light },
-  tab: { flex: 1, paddingVertical: 14, alignItems: 'center', position: 'relative' },
-  tabTextActive: {
-    ...TYPOGRAPHY.styles.label,
+  headingLink: {
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.primary[500],
+    textDecorationLine: 'underline',
+  },
+  backRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  backText: {
+    ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.text.primary,
+    marginLeft: 2,
   },
-  tabTextInactive: {
-    ...TYPOGRAPHY.styles.label,
-    color: COLORS.text.tertiary,
-  },
-  tabIndicatorActive: { position: 'absolute', bottom: -1, left: '15%', right: '15%', height: 3, borderRadius: 2 },
-
   card: {
     borderRadius: BORDERS.radius.card?.lg ?? BORDERS.radius.lg,
     borderWidth: 1,
     borderColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
-    padding: 20,
+    padding: 18,
+    marginBottom: 18,
   },
-
-  formCard: { marginBottom: 20 },
   formErrorBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 14,
     padding: 12,
     borderRadius: BORDERS.radius.md,
     borderWidth: 1,
@@ -364,12 +381,25 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.styles.caption,
     color: COLORS.error.main,
   },
-  inputWrapper: { marginBottom: 16 },
-  nameRow: { flexDirection: 'row', marginBottom: 16 },
+  fieldWrap: { marginBottom: 14 },
+  nameRow: { flexDirection: 'row', marginBottom: 0 },
   nameInput: { flex: 1 },
-
-  termsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 8 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: COLORS.border.dark, marginRight: 10, alignItems: 'center', justifyContent: 'center' },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  checkboxTouch: { paddingTop: 2, marginRight: 10 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: COLORS.border.dark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   checkboxCheckedWrap: {
     borderColor: COLORS.primary[500],
     overflow: 'hidden',
@@ -389,11 +419,22 @@ const styles = StyleSheet.create({
   termsLink: {
     ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[500],
+    textDecorationLine: 'underline',
   },
   errorText: {
     ...TYPOGRAPHY.styles.small,
     color: COLORS.error.main,
     marginBottom: 8,
+  },
+  footer: {
+    ...TYPOGRAPHY.styles.small,
+    color: COLORS.text.tertiary,
+    marginBottom: 10,
+  },
+  footerLink: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.primary[500],
+    textDecorationLine: 'underline',
   },
 });
 

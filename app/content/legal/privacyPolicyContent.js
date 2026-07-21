@@ -1,9 +1,9 @@
-/** Política de Privacidad — Mecanimovil SpA. Última actualización: 14 de junio de 2026. */
+/** Política de Privacidad — Mecanimovil SpA. Última actualización: 21 de julio de 2026. */
 
 export const PRIVACY_META = {
   title: 'Política de Privacidad',
   subtitle: 'Plataforma Mecanimovil',
-  lastUpdated: '14 de junio de 2026',
+  lastUpdated: '21 de julio de 2026',
   icon: 'shield-checkmark-outline',
 };
 
@@ -81,7 +81,7 @@ export const PRIVACY_SECTIONS = [
   {
     title: '15. Procedimiento para ejercer derechos',
     content:
-      'Envíe solicitud a soporte@mecanimovil.cl o WhatsApp +56 9 9594 5258, indicando identidad, derecho que desea ejercer y descripción. Podemos solicitar antecedentes para verificar identidad. Plazo de respuesta: hasta 30 días corridos, prorrogables 30 días adicionales si la complejidad lo justifica. El ejercicio es gratuito salvo solicitudes repetitivas o infundadas.',
+      'Desde la app, en Cuenta > Privacidad y datos, puede exportar sus datos, solicitar eliminación de cuenta y ajustar preferencias de notificaciones comerciales.\n\nTambién puede enviar solicitud a soporte@mecanimovil.cl o WhatsApp +56 9 9594 5258, indicando identidad, derecho que desea ejercer y descripción. Podemos solicitar antecedentes para verificar identidad. Plazo de respuesta: hasta 30 días corridos, prorrogables 30 días adicionales si la complejidad lo justifica. El ejercicio es gratuito salvo solicitudes repetitivas o infundadas.',
   },
   {
     title: '16. Seguridad',

@@ -450,14 +450,20 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      // UI de fallback amigable - SIN detalles técnicos
-      // El usuario NUNCA verá stack traces, códigos de error, o mensajes técnicos
       return (
         <View style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Algo salió mal</Text>
           <Text style={styles.errorText}>
             Estamos trabajando para solucionarlo. Por favor, reinicia la aplicación.
           </Text>
+          {__DEV__ ? (
+            <Text
+              style={styles.errorRetry}
+              onPress={() => this.setState({ hasError: false, error: null })}
+            >
+              Reintentar
+            </Text>
+          ) : null}
         </View>
       );
     }
@@ -1743,5 +1749,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     color: DS_COLORS.text.secondary,
+  },
+  errorRetry: {
+    marginTop: 16,
+    fontSize: 15,
+    color: DS_COLORS.primary[500],
+    textDecorationLine: 'underline',
   },
 });
