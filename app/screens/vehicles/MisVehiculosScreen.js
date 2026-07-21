@@ -55,6 +55,7 @@ import { HomePendingInformeClaimBanner } from '../../components/home/discovery';
 import {
   peekPendingInformeClaimIntent,
   clearPendingInformeClaimIntent,
+  getPendingInformeClaimTokens,
 } from '../../utils/guestIntent';
 
 const tiposMotor = [
@@ -102,7 +103,7 @@ const MisVehiculosScreen = () => {
       (async () => {
         const claim = await peekPendingInformeClaimIntent();
         if (!active) return;
-        setPendingInformeClaim(claim?.informeToken ? claim : null);
+        setPendingInformeClaim(getPendingInformeClaimTokens(claim).length ? claim : null);
       })();
       return () => {
         active = false;
@@ -530,8 +531,9 @@ const MisVehiculosScreen = () => {
           />
         </View>
 
-        {pendingInformeClaim?.informeToken ? (
+        {getPendingInformeClaimTokens(pendingInformeClaim).length ? (
           <HomePendingInformeClaimBanner
+            serviciosCount={getPendingInformeClaimTokens(pendingInformeClaim).length}
             patente={
               pendingInformeClaim.patente
               || pendingInformeClaim.vehicleData?.patente
@@ -549,6 +551,7 @@ const MisVehiculosScreen = () => {
               || pendingInformeClaim.vehicleData?.year
             }
             onRegister={() => {
+              const tokens = getPendingInformeClaimTokens(pendingInformeClaim);
               const plate =
                 pendingInformeClaim.patente
                 || pendingInformeClaim.vehicleData?.patente
@@ -556,12 +559,15 @@ const MisVehiculosScreen = () => {
               navigation.navigate(ROUTES.CREAR_VEHICULO, {
                 prefillPatente: plate,
                 prefillVehicleData: pendingInformeClaim.vehicleData,
-                pendingInformeClaimToken: pendingInformeClaim.informeToken,
+                pendingInformeClaimToken: tokens[0] || null,
+                pendingInformeClaimTokens: tokens,
               });
             }}
             onViewInforme={() => {
+              const tokens = getPendingInformeClaimTokens(pendingInformeClaim);
+              if (!tokens.length) return;
               navigation.navigate(ROUTES.INFORME_SERVICIO, {
-                token: pendingInformeClaim.informeToken,
+                token: tokens[0],
               });
             }}
             onDismiss={async () => {

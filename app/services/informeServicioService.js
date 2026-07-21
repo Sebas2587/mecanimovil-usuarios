@@ -36,6 +36,28 @@ export async function reclamarInformeServicio(token) {
 }
 
 /**
+ * Lista informes firmados pendientes de reclamar para una patente.
+ * @param {string} patente
+ */
+export async function getInformesPendientesPorPatente(patente) {
+  const safe = String(patente || '').toUpperCase().trim();
+  if (!safe) throw new Error('Patente inválida');
+  return get('/vehiculos/informes-pendientes/', { patente: safe });
+}
+
+/**
+ * Reclama varios informes en lote tras registrar el vehículo.
+ * @param {string[]} tokens
+ */
+export async function reclamarInformesServicio(tokens) {
+  const list = Array.isArray(tokens)
+    ? tokens.map((t) => String(t || '').trim()).filter(Boolean)
+    : [];
+  if (!list.length) throw new Error('No hay tokens para reclamar');
+  return post('/vehiculos/reclamar-informes/', { tokens: list });
+}
+
+/**
  * Extrae token de informe desde URL o texto QR.
  * @param {string} raw
  * @returns {string|null}

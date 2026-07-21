@@ -28,6 +28,8 @@ import {
   Bell,
   Search,
   AlertTriangle,
+  QrCode,
+  ClipboardList,
 } from 'lucide-react-native';
 import { COLORS, BORDERS, SPACING, TYPOGRAPHY, SHADOWS, GRADIENTS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
@@ -147,6 +149,7 @@ const GuestLandingScreen = () => {
 
   const hasVehicleResults = Boolean(vehicleData && (vehicleData.marca_nombre || vehicleData.marca_id));
   const plateRegisteredInApp = Boolean(vehicleData?.registered_in_app);
+  const serviciosPendientesCount = Number(vehicleData?.servicios_pendientes_count || 0);
   const normalizedPatente = patente.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   const marcaId = vehicleData?.marca_id;
   const marcaNombre = vehicleData?.marca_nombre || 'tu marca';
@@ -594,6 +597,17 @@ const GuestLandingScreen = () => {
               patenteDisabled={normalizedPatente.length < 6}
             />
 
+            <TouchableOpacity
+              style={styles.scanInformeBtn}
+              onPress={() => navigation.navigate(ROUTES.ESCANEAR_INFORME_SERVICIO)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Escanear informe de servicio"
+            >
+              <QrCode size={16} color={COLORS.brand.magenta} strokeWidth={2.25} />
+              <Text style={styles.scanInformeText}>Escanear informe de servicio</Text>
+            </TouchableOpacity>
+
             <GuestSearchSuggestions
               visible={showSuggestions}
               loading={suggestLoading}
@@ -678,6 +692,24 @@ const GuestLandingScreen = () => {
                 <Text style={styles.valorHint}>
                   Es una referencia, no una tasación oficial. Al registrarte puedes seguir su evolución.
                 </Text>
+              </View>
+            ) : null}
+
+            {!plateRegisteredInApp && serviciosPendientesCount > 0 ? (
+              <View style={styles.serviciosPendientesBanner}>
+                <View style={styles.serviciosPendientesIconWrap}>
+                  <ClipboardList size={18} color={COLORS.brand.magenta} strokeWidth={2} />
+                </View>
+                <View style={styles.serviciosPendientesTextCol}>
+                  <Text style={styles.serviciosPendientesTitle}>
+                    {serviciosPendientesCount === 1
+                      ? '1 servicio registrado en la red'
+                      : `${serviciosPendientesCount} servicios registrados en la red`}
+                  </Text>
+                  <Text style={styles.serviciosPendientesBody}>
+                    Hay checklist(s) de taller en Mecanimovil. Para vincular el historial a tu cuenta necesitas el QR o el enlace del informe que te dio el taller; luego regístrate y agrega el auto.
+                  </Text>
+                </View>
               </View>
             ) : null}
 
@@ -1094,6 +1126,51 @@ const styles = StyleSheet.create({
     padding: SPACING.md,
     gap: SPACING.sm,
     marginBottom: SPACING.md,
+  },
+  scanInformeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.sm,
+  },
+  scanInformeText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.brand.magenta,
+  },
+  serviciosPendientesBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    backgroundColor: COLORS.selection?.background || COLORS.base.soft,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: BORDERS.width.thin,
+    borderColor: COLORS.selection?.border || COLORS.border.light,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  serviciosPendientesIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.background.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  serviciosPendientesTextCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  serviciosPendientesTitle: {
+    ...TYPOGRAPHY.styles.bodyBold,
+    color: COLORS.text.primary,
+  },
+  serviciosPendientesBody: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
+    lineHeight: 18,
   },
   registeredAlertBanner: {
     flexDirection: 'row',

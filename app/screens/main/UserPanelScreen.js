@@ -57,6 +57,7 @@ import {
   consumePreferredVehiclePatente,
   peekPendingInformeClaimIntent,
   clearPendingInformeClaimIntent,
+  getPendingInformeClaimTokens,
 } from '../../utils/guestIntent';
 
 const UserPanelScreen = () => {
@@ -207,7 +208,7 @@ const UserPanelScreen = () => {
    */
   const refreshPendingInformeClaim = useCallback(async () => {
     const claim = await peekPendingInformeClaimIntent();
-    if (!claim?.informeToken) {
+    if (!getPendingInformeClaimTokens(claim).length) {
       setPendingInformeClaim(null);
       return;
     }
@@ -248,7 +249,8 @@ const UserPanelScreen = () => {
   );
 
   const resumePendingInformeClaim = useCallback(() => {
-    if (!pendingInformeClaim?.informeToken) return;
+    const tokens = getPendingInformeClaimTokens(pendingInformeClaim);
+    if (!tokens.length) return;
     const plate = String(
       pendingInformeClaim.patente
       || pendingInformeClaim.vehicleData?.patente
@@ -259,23 +261,30 @@ const UserPanelScreen = () => {
       : null;
     if (owned) {
       navigation.navigate(ROUTES.INFORME_SERVICIO, {
-        token: pendingInformeClaim.informeToken,
+        token: tokens[0],
       });
       return;
     }
     navigation.navigate(ROUTES.CREAR_VEHICULO, {
       prefillPatente: plate || null,
       prefillVehicleData: pendingInformeClaim.vehicleData,
-      pendingInformeClaimToken: pendingInformeClaim.informeToken,
+      pendingInformeClaimToken: tokens[0],
+      pendingInformeClaimTokens: tokens,
     });
   }, [pendingInformeClaim, navigation, vehicles]);
 
   const viewPendingInforme = useCallback(() => {
-    if (!pendingInformeClaim?.informeToken) return;
+    const tokens = getPendingInformeClaimTokens(pendingInformeClaim);
+    if (!tokens.length) return;
     navigation.navigate(ROUTES.INFORME_SERVICIO, {
-      token: pendingInformeClaim.informeToken,
+      token: tokens[0],
     });
   }, [pendingInformeClaim, navigation]);
+
+  const pendingInformeClaimCount = useMemo(
+    () => getPendingInformeClaimTokens(pendingInformeClaim).length,
+    [pendingInformeClaim],
+  );
 
   const dismissPendingInformeClaim = useCallback(async () => {
     await clearPendingInformeClaimIntent();
@@ -611,8 +620,9 @@ const UserPanelScreen = () => {
           }
         />
 
-        {pendingInformeClaim?.informeToken ? (
+        {pendingInformeClaimCount > 0 ? (
           <HomePendingInformeClaimBanner
+            serviciosCount={pendingInformeClaimCount}
             patente={
               pendingInformeClaim.patente
               || pendingInformeClaim.vehicleData?.patente

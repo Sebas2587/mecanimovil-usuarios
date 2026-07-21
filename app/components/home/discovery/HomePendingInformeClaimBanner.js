@@ -14,6 +14,7 @@ const HomePendingInformeClaimBanner = ({
   marca,
   modelo,
   anio,
+  serviciosCount = 1,
   onRegister,
   onViewInforme,
   onDismiss,
@@ -22,6 +23,8 @@ const HomePendingInformeClaimBanner = ({
 
   const vehicleLabel = [marca, modelo, anio].filter(Boolean).join(' ').trim();
   const plate = patente ? String(patente).toUpperCase().trim() : null;
+  const count = Math.max(1, Number(serviciosCount) || 1);
+  const title = count > 1 ? `${count} servicios por vincular` : 'Servicio por vincular';
 
   return (
     <View style={styles.wrap}>
@@ -29,11 +32,13 @@ const HomePendingInformeClaimBanner = ({
         <ClipboardList size={20} color={COLORS.brand.magenta} strokeWidth={2} />
       </View>
       <View style={styles.copy}>
-        <Text style={styles.title}>Servicio por vincular</Text>
+        <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>
           {plate
-            ? `Registra ${vehicleLabel ? `${vehicleLabel} · ` : ''}${plate} para ver el checklist del taller en tu garaje.`
-            : 'Tienes un informe de servicio listo. Registra el vehículo para vincularlo.'}
+            ? `Registra ${vehicleLabel ? `${vehicleLabel} · ` : ''}${plate} para ver ${count > 1 ? 'los checklists' : 'el checklist'} del taller en tu garaje.`
+            : count > 1
+              ? 'Tienes servicios de taller listos. Registra el vehículo para vincularlos.'
+              : 'Tienes un informe de servicio listo. Registra el vehículo para vincularlo.'}
         </Text>
         <View style={styles.actions}>
           <Button

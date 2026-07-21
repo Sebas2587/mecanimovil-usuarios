@@ -9,6 +9,7 @@ import GuestServiceOfferScreen from '../screens/guest/GuestServiceOfferScreen';
 import GuestSectionProvidersScreen from '../screens/guest/GuestSectionProvidersScreen';
 import GuestSectionServicesScreen from '../screens/guest/GuestSectionServicesScreen';
 import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
+import EscanearInformeServicioScreen from '../screens/guest/EscanearInformeServicioScreen';
 import TermsScreen from '../screens/support/TermsScreen';
 import PrivacyPolicyScreen from '../screens/support/PrivacyPolicyScreen';
 import PublicProviderDetailScreen from '../screens/providers/PublicProviderDetailScreen';
@@ -229,6 +230,11 @@ const AuthNavigator = ({ registerSuccess }) => {
               }
             : undefined
         }
+      />
+      <Stack.Screen
+        name={ROUTES.ESCANEAR_INFORME_SERVICIO}
+        component={EscanearInformeServicioScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name={ROUTES.LOGIN}

@@ -27,19 +27,37 @@ export async function savePendingGuestIntent(payload = {}) {
   await AsyncStorage.setItem(PENDING_GUEST_INTENT_KEY, JSON.stringify(data));
 }
 
-/** Guarda token de informe firmado para reclamar tras registro/login. */
-export async function savePendingInformeClaimIntent({ token, vehicleData } = {}) {
-  const safeToken = token ? String(token).trim() : null;
-  if (!safeToken) return;
+/** Guarda token(s) de informe firmado para reclamar tras registro/login. */
+export async function savePendingInformeClaimIntent({ token, tokens, vehicleData } = {}) {
+  const tokenList = Array.isArray(tokens) && tokens.length
+    ? tokens.map((t) => String(t || '').trim()).filter(Boolean)
+    : token
+      ? [String(token).trim()]
+      : [];
+  if (!tokenList.length) return;
+
   const payload = {
     type: 'informe_claim',
-    informeToken: safeToken,
+    informeToken: tokenList[0],
+    informeTokens: tokenList,
     patente: vehicleData?.patente ? String(vehicleData.patente).toUpperCase().trim() : null,
     vehicleData: vehicleData || null,
     savedAt: Date.now(),
   };
   await AsyncStorage.setItem(PENDING_GUEST_INTENT_KEY, JSON.stringify(payload));
   await AsyncStorage.setItem(PENDING_INFORME_CLAIM_KEY, JSON.stringify(payload));
+}
+
+/** Tokens pendientes normalizados desde el payload guardado. */
+export function getPendingInformeClaimTokens(intent) {
+  if (!intent) return [];
+  if (Array.isArray(intent.informeTokens) && intent.informeTokens.length) {
+    return intent.informeTokens.map((t) => String(t || '').trim()).filter(Boolean);
+  }
+  if (intent.informeToken) {
+    return [String(intent.informeToken).trim()];
+  }
+  return [];
 }
 
 export async function peekPendingInformeClaimIntent() {

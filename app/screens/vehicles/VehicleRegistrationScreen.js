@@ -30,6 +30,8 @@ import {
   Camera,
   Pencil,
   CircleAlert,
+  ClipboardList,
+  QrCode,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BackButton from '../../components/navigation/BackButton';
@@ -61,8 +63,13 @@ import {
     mensajeSinMileageSii,
     tieneMileageSii,
     validarKilometrajeContraSii,
+    compararKmConChecklist,
+    mergeKmValidationHints,
 } from '../../utils/vehicleMileage';
-import { reclamarInformeServicio } from '../../services/informeServicioService';
+import {
+    getInformesPendientesPorPatente,
+    reclamarInformesServicio,
+} from '../../services/informeServicioService';
 import {
     clearPendingInformeClaimIntent,
     savePendingInformeClaimIntent,
@@ -224,24 +231,53 @@ const VehicleRegistrationScreen = () => {
         return Array.isArray(fromRoute) ? fromRoute.map(Number).filter(Boolean) : [];
     });
     const pendingInformeClaimToken = route.params?.pendingInformeClaimToken || null;
+    const pendingInformeClaimTokens = route.params?.pendingInformeClaimTokens || [];
     const claimPersistedRef = useRef(false);
+    const [informesPendientes, setInformesPendientes] = useState([]);
     const [maintenanceExpanded, setMaintenanceExpanded] = useState(true);
     const [valorMercado, setValorMercado] = useState('');
     const [showValorMercadoAlert, setShowValorMercadoAlert] = useState(false);
     const [kmValidationHint, setKmValidationHint] = useState(null);
     const queryClient = useQueryClient();
 
+    const loadInformesPendientes = useCallback(async (plate) => {
+        const normalized = String(plate || '').toUpperCase().trim();
+        if (normalized.length < 6) {
+            setInformesPendientes([]);
+            return;
+        }
+        try {
+            const data = await getInformesPendientesPorPatente(normalized);
+            setInformesPendientes(Array.isArray(data?.informes) ? data.informes : []);
+        } catch (err) {
+            console.warn('Informes pendientes por patente:', err);
+            setInformesPendientes([]);
+        }
+    }, []);
+
+    /**
+     * Solo tokens obtenidos por QR/enlace del informe.
+     * La patente sola no autoriza vincular historial (anti-apropiación).
+     */
+    const claimTokensFromProof = useMemo(
+        () => [...new Set([
+            pendingInformeClaimToken,
+            ...(Array.isArray(pendingInformeClaimTokens) ? pendingInformeClaimTokens : []),
+        ].filter(Boolean))],
+        [pendingInformeClaimToken, pendingInformeClaimTokens],
+    );
+
     /**
      * Si el usuario cancela el registro, el claim debe seguir disponible
      * en home / Mis vehículos (no solo en params de esta pantalla).
      */
     useEffect(() => {
-        if (!pendingInformeClaimToken) return undefined;
+        if (!claimTokensFromProof.length) return undefined;
         const persistClaim = () => {
             if (claimPersistedRef.current) return;
             const prefill = route.params?.prefillVehicleData || vehicleData || null;
             void savePendingInformeClaimIntent({
-                token: pendingInformeClaimToken,
+                tokens: claimTokensFromProof,
                 vehicleData: prefill
                     ? { ...prefill, patente: prefill.patente || patente || route.params?.prefillPatente }
                     : { patente: patente || route.params?.prefillPatente },
@@ -252,7 +288,7 @@ const VehicleRegistrationScreen = () => {
         return unsub;
     }, [
         navigation,
-        pendingInformeClaimToken,
+        claimTokensFromProof,
         route.params?.prefillVehicleData,
         route.params?.prefillPatente,
         vehicleData,
@@ -409,6 +445,9 @@ const VehicleRegistrationScreen = () => {
                         setKilometraje(String(kmInt));
                     }
                 }
+                if (plate) {
+                    await loadInformesPendientes(plate);
+                }
             } else if (plate) {
                 // Patente lista; el usuario puede pulsar buscar (GetAPI falló).
                 setStep('search');
@@ -418,7 +457,7 @@ const VehicleRegistrationScreen = () => {
         return () => {
             cancelled = true;
         };
-    }, [route.params?.prefillPatente, route.params?.prefillVehicleData, navigation]);
+    }, [route.params?.prefillPatente, route.params?.prefillVehicleData, navigation, loadInformesPendientes]);
 
     // Fetch checklist for maintenance section
     const engineForChecklist = selectedEngineType || 'GASOLINA';
@@ -534,6 +573,7 @@ const VehicleRegistrationScreen = () => {
                     setKmValidationHint(null);
                 }
                 setStep('success');
+                await loadInformesPendientes(patente);
             } else {
                 showAlert(
                     'Patente no encontrada',
@@ -593,17 +633,22 @@ const VehicleRegistrationScreen = () => {
         }
 
         const validacionKm = validarKilometrajeContraSii(kilometraje, vehicleData);
+        const validacionChecklist = compararKmConChecklist(kilometraje, informesPendientes);
         if (!validacionKm.valid) {
             showAlert('Kilometraje inconsistente', validacionKm.mensaje);
             return;
         }
 
-        if (validacionKm.requiere_confirmacion && !kilometrajeConfirmado) {
+        const needKmConfirm =
+            (validacionKm.requiere_confirmacion || validacionChecklist.requiere_confirmacion)
+            && !kilometrajeConfirmado;
+        if (needKmConfirm) {
+            const mensajes = [validacionKm.mensaje, validacionChecklist.mensaje].filter(Boolean);
             const titulo =
                 validacionKm.code === 'km_posible_typo'
                     ? 'Revisar kilometraje'
                     : 'Confirmar kilometraje';
-            showConfirm(titulo, validacionKm.mensaje, {
+            showConfirm(titulo, mensajes.join('\n\n'), {
                 confirmText: 'Sí, es correcto',
                 onConfirm: () => handleSave(true),
             });
@@ -785,21 +830,50 @@ const VehicleRegistrationScreen = () => {
             const created = await vehicleService.createVehicle(formData);
 
             let claimMessage = null;
-            if (pendingInformeClaimToken) {
+            if (claimTokensFromProof.length > 0) {
                 try {
-                    const claim = await reclamarInformeServicio(pendingInformeClaimToken);
+                    const batch = await reclamarInformesServicio(claimTokensFromProof);
                     claimPersistedRef.current = true;
                     await clearPendingInformeClaimIntent();
-                    claimMessage = claim?.message || 'Servicio del taller vinculado a tu vehículo.';
-                    const oficiales = claim?.componentes_oficiales;
-                    if (Array.isArray(oficiales) && oficiales.length > 0) {
-                        setComponentesOficialesIds(oficiales.map((c) => Number(c.id)).filter(Boolean));
+                    const exitosos = batch?.exitosos ?? 0;
+                    const total = batch?.total ?? claimTokensFromProof.length;
+                    const restantes = Math.max(0, informesPendientes.length - exitosos);
+                    if (exitosos > 0 && restantes > 0) {
+                        claimMessage =
+                            `Vehículo creado. Se vincularon ${exitosos} servicio(s). ` +
+                            `Quedan ${restantes} por vincular: usa el QR o enlace del taller.`;
+                    } else if (exitosos > 0) {
+                        claimMessage =
+                            total === 1
+                                ? 'Vehículo creado. El servicio del taller quedó vinculado.'
+                                : `Vehículo creado. Se vincularon ${exitosos} de ${total} servicio(s).`;
+                    } else {
+                        claimMessage =
+                            'Vehículo creado. No se pudieron vincular los informes. Escanea el QR del taller.';
+                    }
+                    const failedTokens = (batch?.resultados || [])
+                        .filter((item) => !item.success)
+                        .map((item) => item.token)
+                        .filter(Boolean);
+                    if (failedTokens.length) {
+                        await savePendingInformeClaimIntent({
+                            tokens: failedTokens,
+                            vehicleData: { ...vehicleData, patente },
+                        });
                     }
                 } catch (claimErr) {
-                    console.warn('Reclamo de informe post-registro:', claimErr);
+                    console.warn('Reclamo batch de informes post-registro:', claimErr);
                     claimMessage = claimErr?.response?.data?.error
                         || 'Vehículo creado. Escanea el QR del informe para vincular el servicio.';
+                    await savePendingInformeClaimIntent({
+                        tokens: claimTokensFromProof,
+                        vehicleData: { ...vehicleData, patente },
+                    });
                 }
+            } else if (informesPendientes.length > 0) {
+                claimMessage =
+                    'Vehículo creado. Hay servicios de taller pendientes: ' +
+                    'escanea el QR o abre el enlace del informe para vincularlos.';
             }
 
             // Invalidar listas (UserPanel / CrearSolicitud usan ['userVehicles']; hooks usan ['vehicles', userId])
@@ -888,6 +962,7 @@ const VehicleRegistrationScreen = () => {
         setImage(null);
         setImageAsset(null);
         setMaintenanceSelections({});
+        setInformesPendientes([]);
     };
 
     const mileageSiiRegistro = vehicleData ? getMileageSii(vehicleData) : null;
@@ -906,9 +981,10 @@ const VehicleRegistrationScreen = () => {
                 return;
             }
             const v = validarKilometrajeContraSii(cleaned, vehicleData);
-            setKmValidationHint(kmValidacionToHint(v));
+            const checklist = compararKmConChecklist(cleaned, informesPendientes);
+            setKmValidationHint(mergeKmValidationHints(v, checklist));
         },
-        [vehicleData],
+        [vehicleData, informesPendientes],
     );
 
     const aplicarKmSugerido = useCallback(() => {
@@ -916,9 +992,10 @@ const VehicleRegistrationScreen = () => {
             const sugerido = String(kmValidationHint.km_sugerido);
             setKilometraje(sugerido);
             const v = validarKilometrajeContraSii(sugerido, vehicleData);
-            setKmValidationHint(kmValidacionToHint(v));
+            const checklist = compararKmConChecklist(sugerido, informesPendientes);
+            setKmValidationHint(mergeKmValidationHints(v, checklist));
         }
-    }, [kmValidationHint, vehicleData]);
+    }, [kmValidationHint, vehicleData, informesPendientes]);
 
     const requiereValorMercadoManual =
         step === 'success' && vehicleData && necesitaValorMercadoManual(vehicleData);
@@ -1099,6 +1176,86 @@ const VehicleRegistrationScreen = () => {
                                     <Text style={styles.successBadgeText}>Vehículo Identificado</Text>
                                 </View>
                             </View>
+
+                            {informesPendientes.length > 0 ? (
+                                <View style={styles.informesPendientesCard}>
+                                    <View style={styles.informesPendientesHeader}>
+                                        <View style={styles.informesPendientesIconWrap}>
+                                            <ClipboardList
+                                                size={20}
+                                                color={COLORS.brand?.magenta || COLORS.primary[500]}
+                                                strokeWidth={2}
+                                            />
+                                        </View>
+                                        <View style={styles.informesPendientesTitleCol}>
+                                            <Text style={styles.informesPendientesEyebrow}>
+                                                Historial en la red
+                                            </Text>
+                                            <Text style={styles.informesPendientesTitle}>
+                                                {informesPendientes.length === 1
+                                                    ? '1 servicio con checklist'
+                                                    : `${informesPendientes.length} servicios con checklist`}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Text style={styles.informesPendientesBody}>
+                                        {claimTokensFromProof.length > 0
+                                            ? 'Al registrar el auto vincularemos el informe que ya confirmaste con el QR o enlace del taller. El resto requiere su propio informe.'
+                                            : 'Para vincular estos servicios a tu garaje necesitas el QR o el enlace del informe que te dio el taller. La patente sola no alcanza: así protegemos al dueño real del auto.'}
+                                    </Text>
+                                    {informesPendientes.map((informe) => (
+                                        <View
+                                            key={informe.id || `${informe.taller_nombre}-${informe.fecha_servicio}`}
+                                            style={styles.informePendienteRow}
+                                        >
+                                            <Text style={styles.informePendienteTaller} numberOfLines={1}>
+                                                {informe.taller_nombre || 'Taller Mecanimovil'}
+                                            </Text>
+                                            <Text style={styles.informePendienteMeta}>
+                                                {informe.fecha_servicio
+                                                    ? new Date(informe.fecha_servicio).toLocaleDateString('es-CL')
+                                                    : 'Servicio reciente'}
+                                                {informe.kilometraje_servicio
+                                                    ? ` · ${Number(informe.kilometraje_servicio).toLocaleString('es-CL')} km`
+                                                    : ''}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                    {claimTokensFromProof.length > 0 ? (
+                                        <View style={styles.informesProofBadge}>
+                                            <CircleCheck
+                                                size={16}
+                                                color={COLORS.success[600]}
+                                                strokeWidth={2}
+                                            />
+                                            <Text style={styles.informesProofBadgeText}>
+                                                {claimTokensFromProof.length === 1
+                                                    ? '1 informe listo para vincular al registrar'
+                                                    : `${claimTokensFromProof.length} informes listos para vincular al registrar`}
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={styles.scanInformeCta}
+                                            onPress={() =>
+                                                navigation.navigate(ROUTES.ESCANEAR_INFORME_SERVICIO)
+                                            }
+                                            activeOpacity={0.85}
+                                            accessibilityRole="button"
+                                            accessibilityLabel="Escanear QR del informe de servicio"
+                                        >
+                                            <QrCode
+                                                size={18}
+                                                color={COLORS.brand?.magenta || COLORS.primary[500]}
+                                                strokeWidth={2.25}
+                                            />
+                                            <Text style={styles.scanInformeCtaText}>
+                                                Escanear QR del informe
+                                            </Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            ) : null}
 
                             {/* Data Card */}
                             <PaperCard style={styles.vehicleCard}>
@@ -1516,6 +1673,93 @@ const styles = StyleSheet.create({
     successBadgeText: {
         ...TYPOGRAPHY.styles.captionBold,
         color: COLORS.success[700],
+    },
+    informesPendientesCard: {
+        marginBottom: SPACING.md,
+        gap: SPACING.sm,
+        padding: SPACING.md,
+        borderRadius: BORDERS.radius.lg,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.selection?.border || COLORS.border.light,
+        backgroundColor: COLORS.selection?.background || COLORS.base?.soft || COLORS.background.paper,
+    },
+    informesPendientesHeader: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: SPACING.sm,
+    },
+    informesPendientesIconWrap: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: COLORS.background.paper,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    informesPendientesTitleCol: {
+        flex: 1,
+        minWidth: 0,
+        gap: 2,
+    },
+    informesPendientesEyebrow: {
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.secondary,
+    },
+    informesPendientesTitle: {
+        ...TYPOGRAPHY.styles.bodyBold,
+        color: COLORS.text.primary,
+    },
+    informesPendientesBody: {
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.text.secondary,
+        lineHeight: 18,
+    },
+    informePendienteRow: {
+        paddingTop: SPACING.sm,
+        borderTopWidth: BORDERS.width.thin,
+        borderTopColor: COLORS.selection?.border || COLORS.border.light,
+        gap: 2,
+    },
+    informePendienteTaller: {
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.text.primary,
+    },
+    informePendienteMeta: {
+        ...TYPOGRAPHY.styles.caption,
+        color: COLORS.text.secondary,
+    },
+    informesProofBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xs,
+        marginTop: SPACING.xs,
+        paddingVertical: SPACING.sm,
+        paddingHorizontal: SPACING.sm,
+        borderRadius: BORDERS.radius.md,
+        backgroundColor: COLORS.success[50] || COLORS.background.paper,
+    },
+    informesProofBadgeText: {
+        ...TYPOGRAPHY.styles.captionBold,
+        color: COLORS.success[700] || COLORS.text.primary,
+        flex: 1,
+    },
+    scanInformeCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: SPACING.sm,
+        minHeight: 48,
+        marginTop: SPACING.xs,
+        borderRadius: BORDERS.radius.lg,
+        borderWidth: BORDERS.width.thin,
+        borderColor: COLORS.brand?.magenta || COLORS.primary[500],
+        backgroundColor: COLORS.background.paper,
+        paddingHorizontal: SPACING.md,
+    },
+    scanInformeCtaText: {
+        ...TYPOGRAPHY.styles.button,
+        color: COLORS.brand?.magenta || COLORS.primary[500],
+        fontWeight: TYPOGRAPHY.fontWeight.semibold,
     },
     vehicleCard: {
         marginBottom: SPACING.md,

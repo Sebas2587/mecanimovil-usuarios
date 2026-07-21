@@ -14,6 +14,7 @@ import {
 } from '../../services/informeServicioService';
 import { savePendingInformeClaimIntent } from '../../utils/guestIntent';
 import { obtenerInformePublico } from '../../services/informeServicioService';
+import { useAuth } from '../../context/AuthContext';
 
 const SCAN_AREA_SIZE = 280;
 
@@ -21,6 +22,7 @@ const EscanearInformeServicioScreen = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const navigation = useNavigation();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) {
@@ -37,6 +39,11 @@ const EscanearInformeServicioScreen = () => {
       Alert.alert('Código inválido', 'Este QR no corresponde a un informe de servicio.', [
         { text: 'Reintentar', onPress: () => setScanned(false) },
       ]);
+      return;
+    }
+
+    if (!isAuthenticated) {
+      navigation.navigate(ROUTES.INFORME_SERVICIO, { token });
       return;
     }
 

@@ -246,6 +246,76 @@ export function validarKilometrajeContraSii(kilometrajeInput, vehicleData) {
   return plaus;
 }
 
+/**
+ * Compara km ingresado contra el mayor kilometraje_servicio de informes pendientes.
+ * Siempre aviso (no bloquea registro).
+ */
+export function compararKmConChecklist(kilometrajeInput, informesPendientes) {
+  if (!Array.isArray(informesPendientes) || !informesPendientes.length) {
+    return { valid: true, nivel: 'ok', mensaje: '', requiere_confirmacion: false };
+  }
+
+  const kmUser = parseInt(String(kilometrajeInput || '').replace(/\D/g, ''), 10);
+  if (!Number.isFinite(kmUser) || kmUser <= 0) {
+    return { valid: true, nivel: 'ok', mensaje: '', requiere_confirmacion: false };
+  }
+
+  const conKm = informesPendientes.filter((i) => Number(i?.kilometraje_servicio) > 0);
+  if (!conKm.length) {
+    return { valid: true, nivel: 'ok', mensaje: '', requiere_confirmacion: false };
+  }
+
+  const maxInforme = conKm.reduce((best, curr) => {
+    if (!best || Number(curr.kilometraje_servicio) > Number(best.kilometraje_servicio)) {
+      return curr;
+    }
+    return best;
+  }, null);
+
+  const kmChecklist = Number(maxInforme.kilometraje_servicio);
+  if (kmUser >= kmChecklist) {
+    return { valid: true, nivel: 'ok', mensaje: '', requiere_confirmacion: false };
+  }
+
+  const taller = maxInforme.taller_nombre || 'un taller de la red';
+  let fechaTxt = '';
+  if (maxInforme.fecha_servicio) {
+    try {
+      fechaTxt = ` (${new Date(maxInforme.fecha_servicio).toLocaleDateString('es-CL')})`;
+    } catch {
+      fechaTxt = '';
+    }
+  }
+
+  return {
+    valid: true,
+    nivel: 'aviso',
+    code: 'km_menor_que_checklist',
+    mensaje:
+      `El kilometraje ingresado (${fmtKmCl(kmUser)} km) es menor al registrado en un servicio anterior ` +
+      `(${fmtKmCl(kmChecklist)} km en ${taller}${fechaTxt}). Si el odómetro es correcto, confirma para continuar.`,
+    requiere_confirmacion: true,
+  };
+}
+
+/** Fusiona hints de validación SII y checklist para el input de km. */
+export function mergeKmValidationHints(siiResult, checklistResult) {
+  const siiHint = kmValidacionToHint(siiResult);
+  const checklistHint = kmValidacionToHint(checklistResult);
+  if (siiHint?.tipo === 'error') return siiHint;
+  if (siiHint?.mensaje && checklistHint?.mensaje) {
+    return {
+      tipo: 'aviso',
+      mensaje: `${siiHint.mensaje}\n\n${checklistHint.mensaje}`,
+      requiere_confirmacion: Boolean(
+        siiHint.requiere_confirmacion || checklistHint.requiere_confirmacion,
+      ),
+      km_sugerido: siiHint.km_sugerido ?? null,
+    };
+  }
+  return siiHint || checklistHint;
+}
+
 /** Mapea resultado de validación a hint del input. */
 export function kmValidacionToHint(validacion) {
   if (!validacion?.mensaje) return null;
