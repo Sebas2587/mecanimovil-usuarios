@@ -1,15 +1,15 @@
 {
-    "buildCommand": "npx expo export --platform web",
-    "outputDirectory": "dist",
-    "git": {
-        "deploymentEnabled": {
-            "main": true
-        }
-    },
-    "rewrites": [
-        {
-            "source": "/(.*)",
-            "destination": "/index.html"
-        }
-    ]
+  "buildCommand": "npx expo export --platform web && cp -f public/og-default.png dist/og-default.png",
+  "outputDirectory": "dist",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
