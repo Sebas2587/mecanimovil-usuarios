@@ -303,14 +303,13 @@ const AppNavigator = () => (
       options={
         Platform.OS === 'web'
           ? {
-              /** Scroll en la card; ScrollView interno rompe el wheel en Chrome. */
+              /** Altura acotada; el ScrollView de la pantalla maneja el scroll (iOS Safari). */
               cardStyle: {
                 backgroundColor: COLORS.background.default,
                 flex: 1,
-                maxHeight: '100vh',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                WebkitOverflowScrolling: 'touch',
+                height: '100%',
+                maxHeight: '100dvh',
+                overflow: 'hidden',
               },
             }
           : undefined
@@ -322,13 +321,13 @@ const AppNavigator = () => (
       options={
         Platform.OS === 'web'
           ? {
+              /** Altura acotada; el ScrollView de la pantalla maneja el scroll (iOS Safari). */
               cardStyle: {
                 backgroundColor: COLORS.background.default,
                 flex: 1,
-                maxHeight: '100vh',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                WebkitOverflowScrolling: 'touch',
+                height: '100%',
+                maxHeight: '100dvh',
+                overflow: 'hidden',
               },
             }
           : undefined

@@ -250,13 +250,13 @@ const AuthNavigator = ({ registerSuccess }) => {
         options={
           Platform.OS === 'web'
             ? {
+                /** Altura acotada; el ScrollView de la pantalla maneja el scroll (iOS Safari). */
                 cardStyle: {
                   backgroundColor: COLORS.background.default,
                   flex: 1,
-                  maxHeight: '100vh',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                  WebkitOverflowScrolling: 'touch',
+                  height: '100%',
+                  maxHeight: '100dvh',
+                  overflow: 'hidden',
                 },
               }
             : undefined
@@ -269,13 +269,13 @@ const AuthNavigator = ({ registerSuccess }) => {
         options={
           Platform.OS === 'web'
             ? {
+                /** Altura acotada; el ScrollView de la pantalla maneja el scroll (iOS Safari). */
                 cardStyle: {
                   backgroundColor: COLORS.background.default,
                   flex: 1,
-                  maxHeight: '100vh',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                  WebkitOverflowScrolling: 'touch',
+                  height: '100%',
+                  maxHeight: '100dvh',
+                  overflow: 'hidden',
                 },
               }
             : undefined

@@ -650,10 +650,7 @@ const InformeServicioScreen = () => {
   );
 
   return (
-    <SafeAreaView
-      style={[styles.root, Platform.OS === 'web' && styles.rootWebFlow]}
-      edges={['top', 'bottom']}
-    >
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <LinearGradient
         colors={[COLORS.base.soft, COLORS.background.default, COLORS.background.default]}
         locations={[0, 0.28, 1]}
@@ -667,22 +664,19 @@ const InformeServicioScreen = () => {
       </View>
 
       {/*
-        Web: sin ScrollView interno — el stack card hace overflowY:auto
-        (ScrollView + overflow:hidden del navigator rompe el wheel en Chrome).
-        Native: ScrollView normal.
+        ScrollView en todas las plataformas. En web el stack card usa overflow:hidden
+        + altura acotada; el scroll lo maneja este ScrollView.
+        Antes se delegaba overflowY:auto al card (sin ScrollView) y en iOS Safari el
+        hijo flex:1 no expandía el scrollHeight → touch scroll bloqueado.
       */}
-      {Platform.OS === 'web' ? (
-        <View style={[styles.scrollContent, contentWidthStyle]}>{informeBody}</View>
-      ) : (
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[styles.scrollContent, contentWidthStyle]}
-          showsVerticalScrollIndicator
-          keyboardShouldPersistTaps="handled"
-        >
-          {informeBody}
-        </ScrollView>
-      )}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, contentWidthStyle]}
+        showsVerticalScrollIndicator
+        keyboardShouldPersistTaps="handled"
+      >
+        {informeBody}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -691,14 +685,13 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.background.default,
-  },
-  /** Misma estrategia que PublicProviderDetailScreen: la escena crece y scrollea el card. */
-  rootWebFlow: {
-    flexGrow: 0,
-    flexShrink: 0,
-    width: '100%',
-    minHeight: '100%',
-    alignSelf: 'stretch',
+    ...(Platform.OS === 'web'
+      ? {
+          height: '100%',
+          maxHeight: '100%',
+          overflow: 'hidden',
+        }
+      : null),
   },
   topBar: {
     flexDirection: 'row',
@@ -718,6 +711,14 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    ...(Platform.OS === 'web'
+      ? {
+          height: '100%',
+          maxHeight: '100%',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+        }
+      : null),
   },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
