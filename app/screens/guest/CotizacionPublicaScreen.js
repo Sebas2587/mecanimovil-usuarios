@@ -163,7 +163,6 @@ const CotizacionPublicaScreen = () => {
   }
 
   const repuestos = data.repuestos || [];
-  const advertencias = data.advertencias || [];
   const puedeResponder = Boolean(data.puede_responder);
   const estado = estadoMeta(data.estado);
   const contentWidthStyle = { maxWidth: 752, width: '100%', alignSelf: 'center' };
@@ -258,22 +257,6 @@ const CotizacionPublicaScreen = () => {
           </View>
         </View>
       </View>
-
-      {/* Condiciones */}
-      {advertencias.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionEyebrow}>Condiciones</Text>
-          <Text style={styles.sectionTitle}>Ten en cuenta</Text>
-          <View style={styles.sectionRule} />
-          <View style={styles.condicionesBlock}>
-            {advertencias.map((adv, i) => (
-              <Text key={`adv-${i}`} style={styles.resumenParagraph}>
-                {adv}
-              </Text>
-            ))}
-          </View>
-        </View>
-      ) : null}
 
       {/* Taller */}
       {data.taller?.telefono || data.taller?.direccion ? (
