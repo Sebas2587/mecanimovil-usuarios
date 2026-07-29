@@ -39,6 +39,7 @@ import {
   HomePendingReviewBanner,
   HomeGuestVehicleSuggestionBanner,
   HomePendingInformeClaimBanner,
+  HomePendingSyncBanner,
   HomeHighlightedRow,
   HomeMultimarcaRow,
   HomeMarketActivitySection,
@@ -50,6 +51,11 @@ import { useTripTracking } from '../../context/TripTrackingContext';
 import { TRIP_ACTIVE_BAR_HEIGHT, TRIP_ACTIVE_BAR_GAP } from '../../components/trip/TripActiveBar';
 import { H_PAD, TAB_BAR_BASE_HEIGHT, SCROLL_BOTTOM_GAP } from '../../components/home/shared/homeLayoutConstants';
 import { COLORS } from '../../design-system/tokens';
+import { showAlert } from '../../utils/platformAlert';
+import {
+  getInformesPendientesPorPatente,
+  reclamarInformesServicio,
+} from '../../services/informeServicioService';
 import {
   peekPendingGuestVehicleSuggestion,
   clearPendingGuestVehicleSuggestion,
@@ -290,6 +296,71 @@ const UserPanelScreen = () => {
     await clearPendingInformeClaimIntent();
     setPendingInformeClaim(null);
   }, []);
+
+  const [syncingInformes, setSyncingInformes] = useState(false);
+  const [pendingSyncInformes, setPendingSyncInformes] = useState([]);
+  const [dismissedSyncPatentes, setDismissedSyncPatentes] = useState([]);
+
+  const selectedVehiclePlate = useMemo(() => {
+    const v = vehicles.find((item) => item.id === selectedVehicleId) || vehicles[0];
+    return v?.patente ? String(v.patente).toUpperCase().trim() : null;
+  }, [vehicles, selectedVehicleId]);
+
+  const fetchPendingSyncInformes = useCallback(async () => {
+    if (!selectedVehiclePlate || dismissedSyncPatentes.includes(selectedVehiclePlate)) {
+      setPendingSyncInformes([]);
+      return;
+    }
+    try {
+      const res = await getInformesPendientesPorPatente(selectedVehiclePlate);
+      const items = res?.informes || [];
+      setPendingSyncInformes(items);
+    } catch {
+      setPendingSyncInformes([]);
+    }
+  }, [selectedVehiclePlate, dismissedSyncPatentes]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const run = async () => {
+        if (!active) return;
+        await fetchPendingSyncInformes();
+      };
+      run();
+      return () => {
+        active = false;
+      };
+    }, [fetchPendingSyncInformes]),
+  );
+
+  const handleSyncPendingInformes = useCallback(async () => {
+    if (!pendingSyncInformes.length) return;
+    const tokens = pendingSyncInformes.map((inf) => inf.token).filter(Boolean);
+    if (!tokens.length) return;
+    setSyncingInformes(true);
+    try {
+      await reclamarInformesServicio(tokens);
+      showAlert('Servicios sincronizados', 'Los informes de taller se vincularon exitosamente a tu vehículo.');
+      setPendingSyncInformes([]);
+      refetchVehicles();
+      queryClient.invalidateQueries({ queryKey: ['vehicleHealth'] });
+      if (selectedVehicleId) {
+        queryClient.invalidateQueries({ queryKey: ['vehicleServiceHistory', selectedVehicleId] });
+      }
+    } catch (err) {
+      showAlert('No se pudo sincronizar', err?.response?.data?.error || err?.message || 'Intenta nuevamente.');
+    } finally {
+      setSyncingInformes(false);
+    }
+  }, [pendingSyncInformes, selectedVehicleId, refetchVehicles, queryClient]);
+
+  const dismissPendingSyncBanner = useCallback(() => {
+    if (selectedVehiclePlate) {
+      setDismissedSyncPatentes((prev) => [...prev, selectedVehiclePlate]);
+    }
+    setPendingSyncInformes([]);
+  }, [selectedVehiclePlate]);
 
   const selectedVehicle = useMemo(
     () => vehicles.find((v) => v.id === selectedVehicleId) || null,
@@ -642,6 +713,16 @@ const UserPanelScreen = () => {
             onRegister={resumePendingInformeClaim}
             onViewInforme={viewPendingInforme}
             onDismiss={dismissPendingInformeClaim}
+          />
+        ) : null}
+
+        {pendingSyncInformes.length > 0 ? (
+          <HomePendingSyncBanner
+            patente={selectedVehiclePlate}
+            count={pendingSyncInformes.length}
+            syncing={syncingInformes}
+            onSync={handleSyncPendingInformes}
+            onDismiss={dismissPendingSyncBanner}
           />
         ) : null}
 

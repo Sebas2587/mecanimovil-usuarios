@@ -21,4 +21,5 @@ export { default as HomeNearbyRow } from './HomeNearbyRow';
 export { default as HomeMultimarcaRow } from './HomeMultimarcaRow';
 export { default as HomeTrendingServicesRow } from './HomeTrendingServicesRow';
 export { default as HomeHealthServicesRow } from './HomeHealthServicesRow';
+export { default as HomePendingSyncBanner } from './HomePendingSyncBanner';
 export { default as HomeAgendamientoSheet } from './HomeAgendamientoSheet';

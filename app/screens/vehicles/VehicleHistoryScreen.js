@@ -11,9 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { ClipboardList } from 'lucide-react-native';
+import { ClipboardList, QrCode, RefreshCw } from 'lucide-react-native';
 import { ROUTES } from '../../utils/constants';
 import * as vehicleService from '../../services/vehicle';
+import {
+  getInformesPendientesPorPatente,
+  reclamarInformesServicio,
+} from '../../services/informeServicioService';
+import { showAlert } from '../../utils/platformAlert';
 import HistoryItemCard from '../../components/cards/HistoryItemCard';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
 import BackButton from '../../components/navigation/BackButton';
@@ -86,6 +91,21 @@ const VehicleHistoryScreen = () => {
   const [selectedChecklistId, setSelectedChecklistId] = useState(null);
   const [selectedServiceName, setSelectedServiceName] = useState('');
   const [checklistProveedorPreview, setChecklistProveedorPreview] = useState(null);
+  const [pendingSyncInformes, setPendingSyncInformes] = useState([]);
+  const [syncingInformes, setSyncingInformes] = useState(false);
+
+  const fetchPendingSyncInformes = useCallback(async (plate) => {
+    if (!plate) {
+      setPendingSyncInformes([]);
+      return;
+    }
+    try {
+      const res = await getInformesPendientesPorPatente(plate);
+      setPendingSyncInformes(res?.informes || []);
+    } catch {
+      setPendingSyncInformes([]);
+    }
+  }, []);
 
   const fetchHistory = useCallback(async () => {
     if (!vehicleId) {
@@ -102,13 +122,17 @@ const VehicleHistoryScreen = () => {
       ]);
 
       setHistoryItems(Array.isArray(history) ? history : []);
+      const targetVehicle = vehicle || vehicleData;
       if (!vehicle && vehicleData) setVehicle(vehicleData);
+      if (targetVehicle?.patente) {
+        await fetchPendingSyncInformes(targetVehicle.patente);
+      }
     } catch (err) {
       console.error('Error cargando historial del vehículo:', err);
     } finally {
       setLoading(false);
     }
-  }, [vehicleId, vehicle]);
+  }, [vehicleId, vehicle, fetchPendingSyncInformes]);
 
   useEffect(() => {
     fetchHistory();
@@ -119,6 +143,23 @@ const VehicleHistoryScreen = () => {
     await fetchHistory();
     setRefreshing(false);
   }, [fetchHistory]);
+
+  const handleSyncPendingInformes = useCallback(async () => {
+    if (!pendingSyncInformes.length) return;
+    const tokens = pendingSyncInformes.map((inf) => inf.token).filter(Boolean);
+    if (!tokens.length) return;
+    setSyncingInformes(true);
+    try {
+      await reclamarInformesServicio(tokens);
+      showAlert('Servicios sincronizados', 'Los informes de taller se vincularon a tu vehículo.');
+      setPendingSyncInformes([]);
+      await fetchHistory();
+    } catch (err) {
+      showAlert('No se pudo sincronizar', err?.response?.data?.error || err?.message || 'Intenta nuevamente.');
+    } finally {
+      setSyncingInformes(false);
+    }
+  }, [pendingSyncInformes, fetchHistory]);
 
   const handleViewChecklist = useCallback((item, proveedorPreview) => {
     if (item.tipo === 'informe_taller') {
@@ -146,13 +187,23 @@ const VehicleHistoryScreen = () => {
       </View>
       <Text style={styles.emptyTitle}>Sin servicios completados</Text>
       <Text style={styles.emptySubtitle}>
-        Cuando este vehículo tenga servicios completados, aparecerán aquí.
+        Cuando este vehículo tenga servicios completados en la app o en la red de talleres, aparecerán aquí.
       </Text>
-      <Button
-        title="Crear solicitud"
-        onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)}
-        icon="add"
-      />
+      <View style={styles.emptyActionsRow}>
+        <Button
+          title="Crear solicitud"
+          onPress={() => navigation.navigate(ROUTES.CREAR_SOLICITUD)}
+          icon="add"
+        />
+        <TouchableOpacity
+          style={styles.emptyScanBtn}
+          onPress={() => navigation.navigate(ROUTES.ESCANEAR_INFORME_SERVICIO)}
+          activeOpacity={0.8}
+        >
+          <QrCode size={16} color={COLORS.brand.magenta} strokeWidth={2} />
+          <Text style={styles.emptyScanBtnText}>Escanear QR</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -170,6 +221,34 @@ const VehicleHistoryScreen = () => {
           </Text>
         )}
       </View>
+
+      {pendingSyncInformes.length > 0 ? (
+        <View style={styles.syncBannerCard}>
+          <View style={styles.syncBannerLeft}>
+            <RefreshCw size={18} color={COLORS.brand.orange} strokeWidth={2} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.syncBannerTitle}>
+                {pendingSyncInformes.length === 1
+                  ? '1 servicio de taller pendiente de sincronizar'
+                  : `${pendingSyncInformes.length} servicios de taller pendientes de sincronizar`}
+              </Text>
+              <Text style={styles.syncBannerSub}>
+                Encontramos registros de taller en Mecanimovil para esta patente.
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.syncBannerBtn}
+            onPress={handleSyncPendingInformes}
+            disabled={syncingInformes}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.syncBannerBtnText}>
+              {syncingInformes ? 'Sincronizando…' : 'Sincronizar'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 
@@ -219,7 +298,14 @@ const VehicleHistoryScreen = () => {
           <View style={styles.navHeader}>
             <BackButton onPress={() => navigation.goBack()} />
             <Text style={styles.navTitle}>Historial</Text>
-            <View style={{ width: 40 }} />
+            <TouchableOpacity
+              style={styles.qrScanNavBtn}
+              onPress={() => navigation.navigate(ROUTES.ESCANEAR_INFORME_SERVICIO)}
+              activeOpacity={0.8}
+            >
+              <QrCode size={16} color={COLORS.brand.magenta} strokeWidth={2} />
+              <Text style={styles.qrScanNavBtnText}>Escanear QR</Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary[500]} />
@@ -238,7 +324,14 @@ const VehicleHistoryScreen = () => {
         <View style={styles.navHeader}>
           <BackButton onPress={() => navigation.goBack()} />
           <Text style={styles.navTitle}>Historial</Text>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity
+            style={styles.qrScanNavBtn}
+            onPress={() => navigation.navigate(ROUTES.ESCANEAR_INFORME_SERVICIO)}
+            activeOpacity={0.8}
+          >
+            <QrCode size={16} color={COLORS.brand.magenta} strokeWidth={2} />
+            <Text style={styles.qrScanNavBtnText}>Escanear QR</Text>
+          </TouchableOpacity>
         </View>
 
         <FlatList
@@ -390,6 +483,83 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     textAlign: 'center',
     marginBottom: SPACING.lg,
+  },
+  qrScanNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BORDERS.radius.full || 999,
+    borderWidth: 1,
+    borderColor: COLORS.brand.magenta,
+    backgroundColor: COLORS.background.paper,
+  },
+  qrScanNavBtnText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.brand.magenta,
+    fontSize: 12,
+  },
+  syncBannerCard: {
+    marginTop: SPACING.sm,
+    padding: SPACING.md,
+    borderRadius: BORDERS.radius.card.lg,
+    borderWidth: 1,
+    borderColor: COLORS.primary[200],
+    backgroundColor: COLORS.primary[50],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  syncBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    flex: 1,
+  },
+  syncBannerTitle: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.text.primary,
+    fontSize: 13,
+  },
+  syncBannerSub: {
+    ...TYPOGRAPHY.styles.caption,
+    color: COLORS.text.secondary,
+    fontSize: 11,
+  },
+  syncBannerBtn: {
+    backgroundColor: COLORS.primary[600],
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: BORDERS.radius.md,
+  },
+  syncBannerBtnText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.base.white,
+    fontSize: 12,
+  },
+  emptyActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  emptyScanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: 1,
+    borderColor: COLORS.brand.magenta,
+    backgroundColor: COLORS.background.paper,
+  },
+  emptyScanBtnText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.brand.magenta,
   },
 });
 

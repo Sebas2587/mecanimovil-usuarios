@@ -703,12 +703,27 @@ const GuestLandingScreen = () => {
                 <View style={styles.serviciosPendientesTextCol}>
                   <Text style={styles.serviciosPendientesTitle}>
                     {serviciosPendientesCount === 1
-                      ? '1 servicio registrado en la red'
-                      : `${serviciosPendientesCount} servicios registrados en la red`}
+                      ? '1 servicio realizado en taller encontrado'
+                      : `${serviciosPendientesCount} servicios realizados en taller encontrados`}
                   </Text>
                   <Text style={styles.serviciosPendientesBody}>
-                    Hay checklist(s) de taller en Mecanimovil. Para vincular el historial a tu cuenta necesitas el QR o el enlace del informe que te dio el taller; luego regístrate y agrega el auto.
+                    Encontramos {serviciosPendientesCount} {serviciosPendientesCount === 1 ? 'servicio' : 'servicios'} realizado(s) por nuestra red de talleres para la patente {normalizedPatente}. Regístrate o escanea su código QR para vincularlo a tu auto.
                   </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+                    <GuestGradientButton
+                      title="Registrar auto y vincular"
+                      onPress={handleRegisterWithIntent}
+                      size="sm"
+                    />
+                    <TouchableOpacity
+                      style={styles.scanQrBtn}
+                      onPress={() => navigation.navigate(ROUTES.ESCANEAR_INFORME_SERVICIO)}
+                      activeOpacity={0.8}
+                    >
+                      <QrCode size={14} color={COLORS.brand.magenta} strokeWidth={2} />
+                      <Text style={styles.scanQrBtnText}>Escanear QR</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             ) : null}
@@ -1383,6 +1398,21 @@ const styles = StyleSheet.create({
   footerSecondaryText: {
     ...TYPOGRAPHY.styles.captionBold,
     color: COLORS.primary[600],
+  },
+  scanQrBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: 1,
+    borderColor: COLORS.brand.magenta,
+    backgroundColor: COLORS.background.paper,
+  },
+  scanQrBtnText: {
+    ...TYPOGRAPHY.styles.captionBold,
+    color: COLORS.brand.magenta,
   },
 });
 
