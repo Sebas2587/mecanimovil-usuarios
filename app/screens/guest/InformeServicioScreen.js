@@ -164,25 +164,48 @@ function AmenityValue({ item, attentionStyle }) {
   );
 }
 
-/** Resalta el nombre del taller dentro del párrafo del resumen. */
+const KEYWORD_HIGHLIGHT_REGEX = /(crítico|critico|urgente|atención|atencion|reemplazo|reemplazar|desgaste|bajo|fuga|desalineado|daño|dañada|dañado|observación|observacion|inspección|inspeccion|revisar)/i;
+
+/** Resalta el nombre del taller y palabras clave de atención dentro del resumen. */
 function HighlightedResumenText({ text, tallerNombre, style }) {
   const taller = String(tallerNombre || '').trim();
   const body = String(text || '');
-  if (!taller || !body) {
+  if (!body) return null;
+
+  const termPattern = taller
+    ? `${taller.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|crítico|critico|urgente|atención|atencion|reemplazo|reemplazar|desgaste|bajo|fuga|desalineado|daño|dañada|dañado|observación|observacion|inspección|inspeccion|revisar`
+    : 'crítico|critico|urgente|atención|atencion|reemplazo|reemplazar|desgaste|bajo|fuga|desalineado|daño|dañada|dañado|observación|observacion|inspección|inspeccion|revisar';
+
+  const regex = new RegExp(`(${termPattern})`, 'gi');
+  const parts = body.split(regex);
+
+  if (parts.length <= 1) {
     return <Text style={style}>{body}</Text>;
   }
-  const idx = body.toLowerCase().indexOf(taller.toLowerCase());
-  if (idx < 0) {
-    return <Text style={style}>{body}</Text>;
-  }
-  const before = body.slice(0, idx);
-  const match = body.slice(idx, idx + taller.length);
-  const after = body.slice(idx + taller.length);
+
   return (
     <Text style={style}>
-      {before}
-      <Text style={styles.tallerHighlight}>{match}</Text>
-      {after}
+      {parts.map((part, idx) => {
+        if (!part) return null;
+        const isTaller = taller && part.toLowerCase() === taller.toLowerCase();
+        const isAttention = !isTaller && KEYWORD_HIGHLIGHT_REGEX.test(part);
+
+        if (isTaller) {
+          return (
+            <Text key={`p-${idx}`} style={styles.tallerHighlight}>
+              {part}
+            </Text>
+          );
+        }
+        if (isAttention) {
+          return (
+            <Text key={`p-${idx}`} style={styles.attentionHighlight}>
+              {part}
+            </Text>
+          );
+        }
+        return part;
+      })}
     </Text>
   );
 }
@@ -213,6 +236,7 @@ const InformeServicioScreen = () => {
   const [showHallazgos, setShowHallazgos] = useState(true);
   // Airbnb: listados largos parten cerrados; el cliente abre si quiere el detalle.
   const [showDetalleChecklist, setShowDetalleChecklist] = useState(false);
+  const [itemFilter, setItemFilter] = useState('all'); // 'all' | 'attention' | 'photos'
 
   const cargarInforme = useCallback(async () => {
     if (!token) {
@@ -264,6 +288,19 @@ const InformeServicioScreen = () => {
     () => itemsConValor.filter((it) => (it.fotos || []).length > 0).length,
     [itemsConValor],
   );
+  const itemsConHallazgoCount = useMemo(
+    () => itemsConValor.filter((it) => it.es_hallazgo).length,
+    [itemsConValor],
+  );
+  const filteredItems = useMemo(() => {
+    if (itemFilter === 'attention') {
+      return itemsConValor.filter((it) => it.es_hallazgo);
+    }
+    if (itemFilter === 'photos') {
+      return itemsConValor.filter((it) => (it.fotos || []).length > 0);
+    }
+    return itemsConValor;
+  }, [itemsConValor, itemFilter]);
   const kmLabel = formatKm(informe?.vehiculo?.kilometraje_servicio);
   const qrPayload = informe?.qr_payload || informe?.url_publica;
 
@@ -379,24 +416,23 @@ const InformeServicioScreen = () => {
 
   const informeBody = (
     <>
-        {/* Hero: marca, vehículo, meta y Taller con foto */}
+        {/* Hero: marca, vehículo, meta e info de taller sin card envolvente */}
         <View style={styles.hero}>
-          {/* Tarjeta del Taller / Proveedor con Foto */}
-          <View style={styles.tallerHeaderCard}>
+          <View style={styles.tallerHeaderRow}>
             {informe.taller_foto_url ? (
               <Image
                 source={{ uri: informe.taller_foto_url }}
-                style={styles.tallerPhoto}
+                style={styles.tallerAvatar}
                 resizeMode="cover"
                 accessibilityLabel={informe.taller_nombre || 'Taller'}
               />
             ) : (
-              <View style={styles.tallerPhotoPlaceholder}>
-                <Wrench size={22} color={COLORS.brand.orange} />
+              <View style={styles.tallerAvatarPlaceholder}>
+                <Wrench size={18} color={COLORS.brand.orange} />
               </View>
             )}
-            <View style={styles.tallerHeaderInfo}>
-              <Text style={styles.brandKicker}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.brandKicker} numberOfLines={1}>
                 {informe.taller_nombre || 'Informe de servicio'}
               </Text>
               <View style={styles.tallerBadgeRow}>
@@ -454,7 +490,7 @@ const InformeServicioScreen = () => {
           </View>
         ) : null}
 
-        {/* Hallazgos — tarjetas estructuradas Airbnb Insights */}
+        {/* Hallazgos — tarjetas estructuradas con justificación y atención limpia */}
         {hallazgos.length > 0 ? (
           <View style={styles.section}>
             <TouchableOpacity
@@ -499,7 +535,7 @@ const InformeServicioScreen = () => {
           </View>
         ) : null}
 
-        {/* Detalle checklist — amenities table + evidencia */}
+        {/* Detalle checklist — Respuestas estructuradas del técnico */}
         {itemsConValor.length > 0 ? (
           <View style={styles.section}>
             <TouchableOpacity
@@ -510,7 +546,7 @@ const InformeServicioScreen = () => {
               accessibilityState={{ expanded: showDetalleChecklist }}
             >
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.sectionEyebrow}>Inspección</Text>
+                <Text style={styles.sectionEyebrow}>Inspección detallada</Text>
                 <Text style={styles.sectionTitle}>Respuestas del técnico</Text>
                 <Text style={styles.sectionMeta}>
                   {informe.checklist?.items_completados ?? itemsConValor.length}
@@ -534,37 +570,72 @@ const InformeServicioScreen = () => {
                 activeOpacity={0.88}
               >
                 <Text style={styles.showAllBtnText}>
-                  Mostrar las {itemsConValor.length} respuestas
+                  Ver las {itemsConValor.length} respuestas del técnico
                 </Text>
               </TouchableOpacity>
             ) : (
-              <View style={styles.amenityList}>
-                {itemsConValor.map((item) => (
-                  <View key={item.id} style={styles.checklistBlock}>
-                    <View style={styles.amenityRow}>
-                      <View style={styles.amenityLabelCol}>
-                        <Text style={styles.amenityLabel}>{item.pregunta_texto}</Text>
-                        {item.es_hallazgo ? (
-                          <View style={styles.attentionChip}>
-                            <Text style={styles.attentionChipText}>Atención</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      <AmenityValue
-                        item={item}
-                        attentionStyle={item.es_hallazgo && item.formato !== 'porcentaje'}
-                      />
-                    </View>
-                    {item.fotos?.length ? (
-                      <View style={styles.checklistPhotosWrap}>
-                        <PhotoGrid
-                          fotos={item.fotos}
-                          contentWidth={Math.max(contentWidth - 4, 280)}
+              <View style={styles.checklistDetailContainer}>
+                {/* Filtros rápidos por estado */}
+                <View style={styles.filterPillsRow}>
+                  <TouchableOpacity
+                    style={[styles.filterPill, itemFilter === 'all' && styles.filterPillActive]}
+                    onPress={() => setItemFilter('all')}
+                  >
+                    <Text style={[styles.filterPillText, itemFilter === 'all' && styles.filterPillTextActive]}>
+                      Todos ({itemsConValor.length})
+                    </Text>
+                  </TouchableOpacity>
+                  {itemsConHallazgoCount > 0 ? (
+                    <TouchableOpacity
+                      style={[styles.filterPill, itemFilter === 'attention' && styles.filterPillActive]}
+                      onPress={() => setItemFilter('attention')}
+                    >
+                      <Text style={[styles.filterPillText, itemFilter === 'attention' && styles.filterPillTextActive]}>
+                        Atención ({itemsConHallazgoCount})
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {itemsConFotos > 0 ? (
+                    <TouchableOpacity
+                      style={[styles.filterPill, itemFilter === 'photos' && styles.filterPillActive]}
+                      onPress={() => setItemFilter('photos')}
+                    >
+                      <Text style={[styles.filterPillText, itemFilter === 'photos' && styles.filterPillTextActive]}>
+                        Con fotos ({itemsConFotos})
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+
+                <View style={styles.checklistGrid}>
+                  {filteredItems.map((item) => (
+                    <View key={item.id} style={styles.checklistItemCard}>
+                      <View style={styles.checklistItemHeader}>
+                        <View style={styles.checklistItemTitleCol}>
+                          <Text style={styles.checklistItemTitle}>{item.pregunta_texto}</Text>
+                          {item.es_hallazgo ? (
+                            <View style={styles.attentionChip}>
+                              <Text style={styles.attentionChipText}>Atención</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        <AmenityValue
+                          item={item}
+                          attentionStyle={item.es_hallazgo && item.formato !== 'porcentaje'}
                         />
                       </View>
-                    ) : null}
-                  </View>
-                ))}
+                      {item.fotos?.length ? (
+                        <View style={styles.checklistPhotosWrap}>
+                          <PhotoGrid
+                            fotos={item.fotos}
+                            contentWidth={Math.max(contentWidth - 24, 280)}
+                          />
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+
                 <TouchableOpacity
                   style={styles.showAllBtn}
                   onPress={() => setShowDetalleChecklist(false)}
@@ -577,63 +648,45 @@ const InformeServicioScreen = () => {
           </View>
         ) : null}
 
-        {/* Sección de Certificación Digital y Firmas */}
+        {/* Sección ÚNICA de Certificación y Firma (1 sola card) */}
         <View style={styles.section}>
           <Text style={styles.sectionEyebrow}>Respaldo del servicio</Text>
-          <Text style={styles.sectionTitle}>Certificación y Firmas</Text>
+          <Text style={styles.sectionTitle}>Certificación y Firma</Text>
           <View style={styles.sectionRule} />
 
-          <View style={styles.firmasContainer}>
-            {/* Firma del Técnico / Taller */}
-            <View style={styles.firmaCard}>
-              <View style={styles.firmaHeader}>
-                <View style={styles.firmaBadgeIcon}>
-                  <CheckCircle2 size={18} color={COLORS.success.main} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.firmaRoleTitle}>Firma del Técnico / Taller</Text>
-                  <Text style={styles.firmaRoleSub}>{informe.taller_nombre || 'Taller responsable'}</Text>
-                </View>
+          <View style={styles.singleSignatureCard}>
+            {/* Certificación del Taller */}
+            <View style={styles.firmaTecnicoRow}>
+              <View style={styles.firmaBadgeIcon}>
+                <CheckCircle2 size={18} color={COLORS.success.main} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.firmaRoleTitle}>Inspeccionado y Certificado por Taller</Text>
+                <Text style={styles.firmaRoleSub}>{informe.taller_nombre || 'Taller verificado Mecanimovil'}</Text>
               </View>
               {informe.firmas?.tecnico || informe.firmas?.supervisor ? (
-                <View style={styles.firmaImageWrap}>
-                  <Image
-                    source={{ uri: informe.firmas.tecnico || informe.firmas.supervisor }}
-                    style={styles.firmaImg}
-                    resizeMode="contain"
-                    accessibilityLabel="Firma del técnico"
-                  />
-                  <Text style={styles.firmaVerifiedLabel}>✓ Firma digital verificada</Text>
+                <View style={styles.firmaMiniBadge}>
+                  <Text style={styles.firmaMiniBadgeText}>Firma técnico ✓</Text>
                 </View>
-              ) : (
-                <View style={styles.firmaBadgeWrap}>
-                  <Text style={styles.firmaVerifiedText}>✓ Registrada en checklist por el técnico</Text>
-                </View>
-              )}
+              ) : null}
             </View>
 
-            {/* Firma del Cliente */}
-            <View style={styles.firmaCard}>
-              <View style={styles.firmaHeader}>
-                <View style={styles.firmaBadgeIcon}>
-                  {yaFirmado ? (
-                    <CheckCircle2 size={18} color={COLORS.brand.magenta} />
-                  ) : (
-                    <FileText size={18} color={COLORS.text.secondary} />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.firmaRoleTitle}>Firma del Cliente</Text>
-                  <Text style={styles.firmaRoleSub}>
-                    {yaFirmado
-                      ? (informe.firmado_por_nombre || 'Cliente conforme')
-                      : 'Pendiente de firma'}
-                  </Text>
-                </View>
-              </View>
+            <View style={styles.signatureCardDivider} />
 
-              {yaFirmado ? (
-                informe.firmas?.cliente ? (
+            {/* Bloque ÚNICO de Firma del Cliente (FIRMADO o PENDIENTE) */}
+            {yaFirmado ? (
+              <View style={styles.signedCompletedBlock}>
+                <View style={styles.signedCompletedHeader}>
+                  <CheckCircle2 size={20} color={COLORS.brand.magenta} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.signedTitle}>Conformidad del Cliente</Text>
+                    {informe.firmado_por_nombre ? (
+                      <Text style={styles.signedMeta}>Firmado por {informe.firmado_por_nombre}</Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                {informe.firmas?.cliente ? (
                   <View style={styles.firmaImageWrap}>
                     <Image
                       source={{ uri: informe.firmas.cliente }}
@@ -641,72 +694,64 @@ const InformeServicioScreen = () => {
                       resizeMode="contain"
                       accessibilityLabel="Firma del cliente"
                     />
-                    <Text style={styles.firmaVerifiedLabel}>
-                      Firmado por {informe.firmado_por_nombre || 'Cliente'}
-                    </Text>
+                    <Text style={styles.firmaVerifiedLabel}>Firma digital registrada</Text>
                   </View>
                 ) : (
                   <View style={styles.firmaBadgeWrap}>
-                    <Text style={styles.firmaVerifiedText}>
-                      ✓ Confirmado por {informe.firmado_por_nombre || 'Cliente'}
-                    </Text>
+                    <Text style={styles.firmaVerifiedText}>✓ Servicio certificado por el cliente</Text>
                   </View>
-                )
-              ) : (
-                <Text style={styles.firmaPendingHint}>
-                  Firma requerida a continuación para certificar la recepción del servicio.
-                </Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* Modal / Card para que el cliente firme si está pendiente */}
-        {puedeFirmar ? (
-          <View style={styles.actionCard}>
-            <Text style={styles.actionTitle}>Firma de conformidad del cliente</Text>
-            <Text style={styles.actionHint}>
-              Confirma que recibiste el servicio realizado por el taller. No necesitas crear una cuenta.
-            </Text>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Tu nombre completo</Text>
-              <TextInput
-                style={styles.nameInput}
-                placeholder="Ej. Juan Pérez"
-                placeholderTextColor={COLORS.text.hint}
-                value={nombreCliente}
-                onChangeText={setNombreCliente}
-              />
-            </View>
-            <View style={styles.inputGroup}>
-              <View style={styles.signaturePadHeader}>
-                <Text style={styles.inputLabel}>Tu firma digital</Text>
-                {hasDrawn ? (
-                  <TouchableOpacity onPress={() => signatureRef.current?.clearSignature()}>
-                    <Text style={styles.clearSignatureText}>Limpiar firma</Text>
-                  </TouchableOpacity>
-                ) : null}
+                )}
               </View>
-              <View style={styles.signatureBox}>
-                <SignaturePad
-                  ref={signatureRef}
-                  onOK={handleFirmar}
-                  onEmpty={() => showAlert('Firma requerida', 'Dibuja tu firma antes de continuar.')}
-                  onBegin={() => setHasDrawn(true)}
-                  webStyle={SIGNATURE_WEB_STYLE}
-                  style={styles.signaturePad}
+            ) : puedeFirmar ? (
+              <View style={styles.interactiveSignatureBlock}>
+                <Text style={styles.actionTitle}>Firma de conformidad del cliente</Text>
+                <Text style={styles.actionHint}>
+                  Confirma que recibiste el servicio realizado por el taller. No necesitas crear cuenta.
+                </Text>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Tu nombre completo</Text>
+                  <TextInput
+                    style={styles.nameInput}
+                    placeholder="Ej. Juan Pérez"
+                    placeholderTextColor={COLORS.text.hint}
+                    value={nombreCliente}
+                    onChangeText={setNombreCliente}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <View style={styles.signaturePadHeader}>
+                    <Text style={styles.inputLabel}>Tu firma digital</Text>
+                    {hasDrawn ? (
+                      <TouchableOpacity onPress={() => signatureRef.current?.clearSignature()}>
+                        <Text style={styles.clearSignatureText}>Limpiar firma</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <View style={styles.signatureBox}>
+                    <SignaturePad
+                      ref={signatureRef}
+                      onOK={handleFirmar}
+                      onEmpty={() => showAlert('Firma requerida', 'Dibuja tu firma antes de continuar.')}
+                      onBegin={() => setHasDrawn(true)}
+                      webStyle={SIGNATURE_WEB_STYLE}
+                      style={styles.signaturePad}
+                    />
+                  </View>
+                </View>
+
+                <GuestGradientButton
+                  title={submitting ? 'Guardando firma…' : 'Firmar y certificar servicio'}
+                  onPress={handleLeerFirma}
+                  loading={submitting}
+                  disabled={submitting || !hasDrawn}
+                  fullWidth
                 />
               </View>
-            </View>
-            <GuestGradientButton
-              title={submitting ? 'Guardando firma…' : 'Firmar y certificar servicio'}
-              onPress={handleLeerFirma}
-              loading={submitting}
-              disabled={submitting || !hasDrawn}
-              fullWidth
-            />
+            ) : null}
           </View>
-        ) : null}
+        </View>
 
         {yaFirmado && !informe.reclamado ? (
           <View style={styles.actionCard}>
@@ -1038,88 +1083,42 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.md,
     lineHeight: 20,
   },
-  tallerHighlight: {
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    color: COLORS.brand.orange,
-  },
-  attentionChip: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.badge.especialista.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.badge.especialista.border,
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 2,
-    borderRadius: BORDERS.radius.sm,
-  },
-  attentionChipText: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.badge.especialista.text,
-    letterSpacing: 0.2,
-  },
-  checklistBlock: {
-    gap: SPACING.sm,
-  },
-  checklistPhotosWrap: {
-    paddingBottom: SPACING.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border.light,
-  },
-  showAllBtn: {
-    marginTop: SPACING.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 48,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: 1,
-    borderColor: COLORS.text.primary,
-    backgroundColor: COLORS.base.white,
-    paddingHorizontal: SPACING.lg,
-  },
-  showAllBtnText: {
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.primary,
-  },
-  tallerHeaderCard: {
+  tallerHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
-    backgroundColor: COLORS.background.paper,
-    padding: SPACING.md,
-    borderRadius: BORDERS.radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border.light,
-    marginBottom: SPACING.xs,
+    gap: SPACING.sm,
+    marginBottom: 4,
   },
-  tallerPhoto: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  tallerAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: COLORS.buttonSecondary.background,
+    borderWidth: 1,
+    borderColor: COLORS.border.light,
   },
-  tallerPhotoPlaceholder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  tallerAvatarPlaceholder: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: withOpacity(COLORS.brand.orange, 0.12),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tallerHeaderInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  tallerBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  tallerBadgeText: {
+  tallerVerifiedSub: {
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.success.main,
+    marginTop: 2,
+  },
+  tallerHighlight: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    color: COLORS.brand.orange,
+  },
+  attentionHighlight: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    color: COLORS.brand.orange,
+    backgroundColor: withOpacity(COLORS.brand.orange, 0.08),
   },
   hallazgosContainer: {
     gap: SPACING.md,
@@ -1131,7 +1130,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
     padding: SPACING.md,
-    gap: SPACING.xs,
+    gap: SPACING.sm,
   },
   hallazgoCardHeader: {
     flexDirection: 'row',
@@ -1153,21 +1152,109 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
   },
   hallazgoCardBody: {
-    paddingLeft: 40,
+    marginTop: 2,
   },
-  firmasContainer: {
+  attentionChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.badge.especialista.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.badge.especialista.border,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderRadius: BORDERS.radius.sm,
+  },
+  attentionChipText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.badge.especialista.text,
+    letterSpacing: 0.2,
+  },
+  checklistDetailContainer: {
     gap: SPACING.md,
     marginTop: SPACING.xs,
   },
-  firmaCard: {
+  filterPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  filterPill: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: BORDERS.radius.full,
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+  },
+  filterPillActive: {
+    backgroundColor: COLORS.brand.magenta,
+    borderColor: COLORS.brand.magenta,
+  },
+  filterPillText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+  },
+  filterPillTextActive: {
+    color: COLORS.base.white,
+  },
+  checklistGrid: {
+    gap: SPACING.sm,
+  },
+  checklistItemCard: {
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
+    borderRadius: BORDERS.radius.md,
     padding: SPACING.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
-    gap: SPACING.sm,
+    gap: SPACING.xs,
   },
-  firmaHeader: {
+  checklistItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+  },
+  checklistItemTitleCol: {
+    flex: 1,
+    gap: 4,
+  },
+  checklistItemTitle: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    lineHeight: 22,
+    color: COLORS.text.primary,
+  },
+  checklistPhotosWrap: {
+    marginTop: SPACING.xs,
+    paddingTop: SPACING.xs,
+  },
+  showAllBtn: {
+    marginTop: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.brand.magenta,
+    backgroundColor: withOpacity(COLORS.brand.magenta, 0.04),
+    paddingHorizontal: SPACING.lg,
+  },
+  showAllBtnText: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.brand.magenta,
+  },
+  singleSignatureCard: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    gap: SPACING.md,
+  },
+  firmaTecnicoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.xs,
@@ -1190,91 +1277,28 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.text.secondary,
   },
-  firmaImageWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.base.white,
-    padding: SPACING.sm,
-    borderRadius: BORDERS.radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border.light,
-    gap: 4,
+  firmaMiniBadge: {
+    backgroundColor: withOpacity(COLORS.success.main, 0.1),
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 4,
+    borderRadius: BORDERS.radius.sm,
   },
-  firmaImg: {
-    width: '100%',
-    height: 80,
-  },
-  firmaVerifiedLabel: {
+  firmaMiniBadgeText: {
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.xs,
     color: COLORS.success.main,
   },
-  firmaBadgeWrap: {
-    backgroundColor: withOpacity(COLORS.success.main, 0.08),
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderRadius: BORDERS.radius.md,
-    alignItems: 'center',
+  signatureCardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border.light,
   },
-  firmaVerifiedText: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.success.main,
+  signedCompletedBlock: {
+    gap: SPACING.md,
   },
-  firmaPendingText: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
-    fontStyle: 'italic',
-  },
-  firmaPendingHint: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-  },
-  inputGroup: {
-    gap: 6,
-  },
-  inputLabel: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.primary,
-  },
-  signaturePadHeader: {
+  signedCompletedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  clearSignatureText: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.brand.orange,
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  photoCard: {
-    gap: 6,
-  },
-  photoTile: {
-    borderRadius: BORDERS.radius.md,
-    backgroundColor: COLORS.buttonSecondary.background,
-  },
-  photoCaption: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    lineHeight: 18,
-    color: COLORS.text.primary,
-  },
-  signedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
-    paddingVertical: SPACING.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border.light,
+    gap: SPACING.xs,
   },
   signedTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
@@ -1287,13 +1311,8 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: 2,
   },
-  actionCard: {
-    backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
-    padding: SPACING.lg,
+  interactiveSignatureBlock: {
     gap: SPACING.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border.light,
   },
   actionTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
@@ -1328,6 +1347,80 @@ const styles = StyleSheet.create({
   },
   signaturePad: {
     flex: 1,
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  inputLabel: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.primary,
+  },
+  signaturePadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  clearSignatureText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.brand.orange,
+  },
+  firmaImageWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.base.white,
+    padding: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    gap: 4,
+  },
+  firmaImg: {
+    width: '100%',
+    height: 80,
+  },
+  firmaVerifiedLabel: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.success.main,
+  },
+  firmaBadgeWrap: {
+    backgroundColor: withOpacity(COLORS.success.main, 0.08),
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
+    alignItems: 'center',
+  },
+  firmaVerifiedText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.success.main,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  photoCard: {
+    gap: 6,
+  },
+  photoTile: {
+    borderRadius: BORDERS.radius.md,
+    backgroundColor: COLORS.buttonSecondary.background,
+  },
+  photoCaption: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 18,
+    color: COLORS.text.primary,
+  },
+  actionCard: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.lg,
+    gap: SPACING.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
   },
   qrSection: {
     gap: SPACING.sm,
