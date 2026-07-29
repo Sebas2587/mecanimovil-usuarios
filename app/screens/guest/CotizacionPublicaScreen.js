@@ -215,7 +215,7 @@ const CotizacionPublicaScreen = () => {
       {repuestos.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionEyebrow}>Materiales</Text>
-          <Text style={styles.sectionTitle}>Repuestos estimados</Text>
+          <Text style={styles.sectionTitle}>Repuestos estimados (IVA incl.)</Text>
           <View style={styles.sectionRule} />
           <View style={styles.amenityList}>
             {repuestos.map((rep, idx) => (
@@ -235,24 +235,27 @@ const CotizacionPublicaScreen = () => {
         </View>
       ) : null}
 
-      {/* Totales */}
+      {/* Totales — montos finales al cliente (IVA 19% incluido) */}
       <View style={styles.section}>
         <Text style={styles.sectionEyebrow}>Precio</Text>
-        <Text style={styles.sectionTitle}>Resumen</Text>
+        <Text style={styles.sectionTitle}>Resumen (IVA incluido)</Text>
         <View style={styles.sectionRule} />
+        <Text style={styles.ivaHint}>
+          Los montos ya incluyen IVA 19%. No se suma impuesto adicional al total.
+        </Text>
         <View style={styles.amenityList}>
           <View style={styles.amenityRow}>
-            <Text style={styles.amenityLabel}>Mano de obra</Text>
+            <Text style={styles.amenityLabel}>Mano de obra (IVA incl.)</Text>
             <Text style={styles.amenityValue}>{formatCLP(data.mano_obra_clp)}</Text>
           </View>
           {Number(data.costo_repuestos_clp) > 0 ? (
             <View style={styles.amenityRow}>
-              <Text style={styles.amenityLabel}>Repuestos</Text>
+              <Text style={styles.amenityLabel}>Repuestos (IVA incl.)</Text>
               <Text style={styles.amenityValue}>{formatCLP(data.costo_repuestos_clp)}</Text>
             </View>
           ) : null}
           <View style={[styles.amenityRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total estimado</Text>
+            <Text style={styles.totalLabel}>Total estimado (IVA incluido)</Text>
             <Text style={styles.totalValue}>{formatCLP(data.total_clp)}</Text>
           </View>
         </View>
@@ -500,6 +503,13 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.md,
     lineHeight: 24,
     color: COLORS.text.secondary,
+  },
+  ivaHint: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 18,
+    color: COLORS.text.secondary,
+    marginBottom: SPACING.xs,
   },
   condicionesBlock: {
     gap: SPACING.sm,

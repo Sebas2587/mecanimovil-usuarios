@@ -114,7 +114,10 @@ export function buildOgHtml({
   <meta property="og:description" content="${d}"/>
   <meta property="og:url" content="${u}"/>
   <meta property="og:image" content="${img}"/>
+  <meta property="og:image:secure_url" content="${img}"/>
   <meta property="og:image:alt" content="${t}"/>
+  <meta property="og:image:width" content="600"/>
+  <meta property="og:image:height" content="600"/>
   <meta name="twitter:card" content="summary_large_image"/>
   <meta name="twitter:title" content="${t}"/>
   <meta name="twitter:description" content="${d}"/>
@@ -175,24 +178,34 @@ export async function buildPreviewForRoute(route, {
       anio: data.vehiculo_anio,
       patente: data.vehiculo_patente,
     });
-    const taller = (data.taller && data.taller.nombre) || 'Taller';
-    const servicio = data.servicio_nombre || 'Servicio';
+    const taller = (data.taller && data.taller.nombre) || 'Taller verificado MecaniMovil';
+    const servicio = data.servicio_nombre || 'Servicio automotriz';
     const total = formatClp(data.total_clp);
     const modalidad =
       data.modalidad === 'domicilio' ? 'A domicilio' : data.modalidad === 'taller' ? 'En taller' : '';
+
+    const tallerFoto =
+      (data.taller && (data.taller.foto_perfil || data.taller.logo || data.taller.foto)) ||
+      data.taller_foto_url ||
+      null;
+
     const title = truncate(
-      veh ? `Cotización · ${veh}` : `Cotización · ${servicio}`,
+      veh ? `Cotización: ${servicio} · ${veh}` : `Cotización: ${servicio} · ${taller}`,
       90,
     );
     const description = truncate(
-      [servicio, taller, total, modalidad, 'Revisa y responde en MecaniMovil']
+      [
+        total ? `Total: ${total}` : null,
+        `Taller: ${taller}`,
+        modalidad,
+        'Revisa los detalles, repuestos y responde (aceptar o rechazar) online en MecaniMovil.',
+      ]
         .filter(Boolean)
         .join(' · '),
       200,
     );
-    const image =
-      absoluteMediaUrl(data.taller && data.taller.foto_perfil, base) || fallbackImage;
-    return { title, description, image, url: pageUrl };
+    const image = absoluteMediaUrl(tallerFoto, base) || fallbackImage;
+    return { title, description, image, url: pageUrl, siteName: taller };
   }
 
   if (route.kind === 'informe') {

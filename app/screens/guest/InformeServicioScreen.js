@@ -93,32 +93,35 @@ function splitResumenParagraphs(text, { stripHallazgosBlock = false } = {}) {
     .filter((p) => p && !/^•/.test(p) && !p.includes('Hallazgos que conviene'));
 }
 
-function photoGridMetrics(contentWidth) {
-  const gap = SPACING.xs;
-  const cols = contentWidth >= 720 ? 3 : contentWidth >= 420 ? 2 : 1;
-  const tile = Math.max(
-    120,
-    Math.floor((contentWidth - gap * (cols - 1)) / cols),
-  );
-  return { cols, gap, tile, height: Math.round(tile * 0.72) };
+function photoGridMetrics(contentWidth, screenWidth) {
+  const gap = SPACING.sm;
+  const isWebOrWide = Platform.OS === 'web' || (screenWidth && screenWidth >= 600);
+  const cols = isWebOrWide ? 2 : 1;
+  const tile = cols === 1
+    ? contentWidth
+    : Math.floor((contentWidth - gap) / 2);
+  const height = cols === 1
+    ? Math.round(tile * 0.58)
+    : Math.round(tile * 0.70);
+  return { cols, gap, tile, height };
 }
 
-function PhotoGrid({ fotos, contentWidth }) {
-  const { gap, tile, height } = photoGridMetrics(contentWidth);
+function PhotoGrid({ fotos, contentWidth, screenWidth }) {
+  const { gap, tile, height } = photoGridMetrics(contentWidth, screenWidth);
   if (!fotos?.length) return null;
   return (
     <View style={[styles.photoGrid, { gap }]}>
       {fotos.map((foto, index) => {
         const caption = String(foto.descripcion || '').trim() || `Foto ${index + 1}`;
         return (
-          <View key={foto.id} style={[styles.photoCard, { width: tile }]}>
+          <View key={foto.id || index} style={[styles.photoCard, { width: tile }]}>
             <Image
-              source={{ uri: foto.imagen_url }}
+              source={{ uri: foto.imagen_url || foto.url }}
               style={[styles.photoTile, { width: tile, height }]}
               resizeMode="cover"
               accessibilityLabel={caption}
             />
-            <Text style={styles.photoCaption} numberOfLines={3}>
+            <Text style={styles.photoCaption} numberOfLines={2}>
               {caption}
             </Text>
           </View>
@@ -139,12 +142,42 @@ function severityColor(severidad) {
   return SEVERIDAD_COLORS[severidad] || COLORS.text.secondary;
 }
 
-/** Valor de amenity: % con barra por gravedad, o texto. */
-function AmenityValue({ item, attentionStyle }) {
+function parseRawValueToList(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s || s === '—') return null;
+
+  if ((s.startsWith('[') && s.endsWith(']')) || (s.startsWith('(') && s.endsWith(')'))) {
+    try {
+      const jsonStr = s.replace(/'/g, '"');
+      const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((item) => String(item).trim()).filter(Boolean);
+      }
+    } catch {
+      const matches = s.match(/['"]([^'"]+)['"]/g);
+      if (matches && matches.length > 0) {
+        return matches.map((m) => m.replace(/['"]/g, '').trim()).filter(Boolean);
+      }
+    }
+  }
+
+  if (s.includes(',') && !s.match(/^\$?[\d,.]+(?:\s*km|\s*%|\s*clp)?$/i)) {
+    const parts = s.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      return parts;
+    }
+  }
+
+  return null;
+}
+
+/** Formatted answer value with distinct styling from item title (chips for lists, styled pills for scalar values). */
+function FormattedValue({ item, attentionStyle }) {
   const formato = item?.formato;
   const pct = Number(item?.porcentaje);
   if (formato === 'porcentaje' && Number.isFinite(pct)) {
-    const color = severityColor(item.severidad);
+    const color = severityColor(item?.severidad);
     const widthPct = Math.max(0, Math.min(100, pct));
     return (
       <View style={styles.pctValueWrap}>
@@ -152,15 +185,45 @@ function AmenityValue({ item, attentionStyle }) {
           <View style={[styles.pctBarFill, { width: `${widthPct}%`, backgroundColor: color }]} />
         </View>
         <Text style={[styles.pctValueText, { color }]}>
-          {item.valor || `${Math.round(widthPct)}%`}
+          {item?.valor || `${Math.round(widthPct)}%`}
         </Text>
       </View>
     );
   }
+
+  const rawVal = item?.valor;
+  const listItems = parseRawValueToList(rawVal);
+
+  if (listItems && listItems.length > 0) {
+    return (
+      <View style={styles.valueChipsContainer}>
+        {listItems.map((chipText, idx) => (
+          <View key={`chip-${idx}`} style={styles.valueChip}>
+            <View style={styles.valueChipDot} />
+            <Text style={styles.valueChipText}>{chipText}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  const displayText = rawVal || '—';
+  const isOk = ['ok', 'buen estado', 'bueno', 'buena', 'normal', 'correcto', 'correcta', 'si', 'sí'].includes(displayText.toLowerCase());
+
   return (
-    <Text style={[styles.amenityValue, attentionStyle && styles.amenityValueAttention]}>
-      {item?.valor || '—'}
-    </Text>
+    <View style={[
+      styles.valueBadge,
+      attentionStyle && styles.valueBadgeAttention,
+      isOk && styles.valueBadgeOk,
+    ]}>
+      <Text style={[
+        styles.valueBadgeText,
+        attentionStyle && styles.valueBadgeTextAttention,
+        isOk && styles.valueBadgeTextOk,
+      ]}>
+        {displayText}
+      </Text>
+    </View>
   );
 }
 
@@ -231,6 +294,7 @@ const InformeServicioScreen = () => {
   const [error, setError] = useState(null);
   const [informe, setInforme] = useState(null);
   const [nombreCliente, setNombreCliente] = useState('');
+  const [tallerImgError, setTallerImgError] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showHallazgos, setShowHallazgos] = useState(true);
@@ -419,11 +483,12 @@ const InformeServicioScreen = () => {
         {/* Hero: marca, vehículo, meta e info de taller sin card envolvente */}
         <View style={styles.hero}>
           <View style={styles.tallerHeaderRow}>
-            {informe.taller_foto_url ? (
+            {informe.taller_foto_url && !tallerImgError ? (
               <Image
                 source={{ uri: informe.taller_foto_url }}
                 style={styles.tallerAvatar}
                 resizeMode="cover"
+                onError={() => setTallerImgError(true)}
                 accessibilityLabel={informe.taller_nombre || 'Taller'}
               />
             ) : (
@@ -471,6 +536,25 @@ const InformeServicioScreen = () => {
           </View>
         </View>
 
+        {/* Código del informe (Requisito 5: al principio después de la cabecera principal) */}
+        <View style={styles.reportCodeBanner}>
+          <View style={styles.reportCodeLeft}>
+            <FileText size={16} color={COLORS.brand.orange} strokeWidth={2} />
+            <Text style={styles.reportCodeLabel}>Código de informe:</Text>
+            <Text style={styles.reportCodeValue}>#{informe.token || token}</Text>
+          </View>
+          {yaFirmado ? (
+            <View style={styles.reportCodeStatusOk}>
+              <Check size={12} color={COLORS.brand.magenta} strokeWidth={2.5} />
+              <Text style={styles.reportCodeStatusOkText}>Certificado</Text>
+            </View>
+          ) : (
+            <View style={styles.reportCodeStatusPending}>
+              <Text style={styles.reportCodeStatusPendingText}>Pendiente</Text>
+            </View>
+          )}
+        </View>
+
         {/* Sobre el servicio — prosa Airbnb */}
         {resumenParrafos.length > 0 ? (
           <View style={styles.section}>
@@ -516,7 +600,7 @@ const InformeServicioScreen = () => {
               <View style={styles.hallazgosContainer}>
                 {hallazgos.map((h, idx) => (
                   <View key={String(h.id || idx)} style={styles.hallazgoCard}>
-                    <View style={styles.hallazgoCardHeader}>
+                    <View style={styles.hallazgoCardTopRow}>
                       <View style={styles.hallazgoIconWrap}>
                         <AlertTriangle size={18} color={COLORS.brand.orange} />
                       </View>
@@ -526,7 +610,7 @@ const InformeServicioScreen = () => {
                       </View>
                     </View>
                     <View style={styles.hallazgoCardBody}>
-                      <AmenityValue item={h} attentionStyle />
+                      <FormattedValue item={h} attentionStyle />
                     </View>
                   </View>
                 ))}
@@ -619,16 +703,27 @@ const InformeServicioScreen = () => {
                             </View>
                           ) : null}
                         </View>
-                        <AmenityValue
-                          item={item}
-                          attentionStyle={item.es_hallazgo && item.formato !== 'porcentaje'}
-                        />
+                        {item.formato === 'porcentaje' ? (
+                          <FormattedValue
+                            item={item}
+                            attentionStyle={item.es_hallazgo}
+                          />
+                        ) : null}
                       </View>
+                      {item.formato !== 'porcentaje' ? (
+                        <View style={styles.checklistItemValueRow}>
+                          <FormattedValue
+                            item={item}
+                            attentionStyle={item.es_hallazgo}
+                          />
+                        </View>
+                      ) : null}
                       {item.fotos?.length ? (
                         <View style={styles.checklistPhotosWrap}>
                           <PhotoGrid
                             fotos={item.fotos}
-                            contentWidth={Math.max(contentWidth - 24, 280)}
+                            contentWidth={Math.max(contentWidth - 32, 280)}
+                            screenWidth={width}
                           />
                         </View>
                       ) : null}
@@ -1444,6 +1539,124 @@ const styles = StyleSheet.create({
   qrWrap: {
     alignItems: 'center',
     paddingVertical: SPACING.md,
+  },
+  reportCodeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: COLORS.background.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    borderRadius: BORDERS.radius.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  reportCodeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reportCodeLabel: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  reportCodeValue: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.primary,
+  },
+  reportCodeStatusOk: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: withOpacity(COLORS.brand.magenta, 0.08),
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 3,
+    borderRadius: BORDERS.radius.sm,
+  },
+  reportCodeStatusOkText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.brand.magenta,
+  },
+  reportCodeStatusPending: {
+    backgroundColor: COLORS.badge.meta.background,
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 3,
+    borderRadius: BORDERS.radius.sm,
+  },
+  reportCodeStatusPendingText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+  },
+  hallazgoCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  valueChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  valueChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: withOpacity(COLORS.brand.orange, 0.08),
+    borderColor: withOpacity(COLORS.brand.orange, 0.25),
+    borderWidth: 1,
+    borderRadius: BORDERS.radius.sm,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 5,
+  },
+  valueChipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.brand.orange,
+  },
+  valueChipText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.primary,
+  },
+  valueBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.badge.meta.background,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 4,
+    borderRadius: BORDERS.radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+  },
+  valueBadgeAttention: {
+    backgroundColor: withOpacity(COLORS.brand.orange, 0.12),
+    borderColor: withOpacity(COLORS.brand.orange, 0.3),
+  },
+  valueBadgeOk: {
+    backgroundColor: withOpacity(COLORS.success.main, 0.08),
+    borderColor: withOpacity(COLORS.success.main, 0.2),
+  },
+  valueBadgeText: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.primary,
+  },
+  valueBadgeTextAttention: {
+    color: COLORS.brand.orange,
+  },
+  valueBadgeTextOk: {
+    color: COLORS.success.main,
+  },
+  checklistItemValueRow: {
+    marginTop: 4,
   },
 });
 
