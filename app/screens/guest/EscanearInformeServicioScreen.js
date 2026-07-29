@@ -54,7 +54,6 @@ const EscanearInformeServicioScreen = () => {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
 
-  // Renderizado condicional seguro de permisos de cámara en nativo vs web
   let permission = null;
   let requestPermission = () => {};
   if (Platform.OS !== 'web') {
@@ -229,212 +228,232 @@ const EscanearInformeServicioScreen = () => {
     } catch (_e) {}
   }
 
+  // Componente Informativo / Explicativo (Paso a paso + Confianza)
+  const renderInfoSection = () => (
+    <View style={[styles.leftCol, isWide && styles.leftColWide]}>
+      <View style={styles.badgeWrap}>
+        <Sparkles size={14} color={COLORS.brand.magenta} />
+        <Text style={styles.badgeText}>Red de Talleres Oficiales</Text>
+      </View>
+
+      <Text style={styles.heroTitle}>Escanear e Integrar Informe de Servicio</Text>
+      <Text style={styles.heroSub}>
+        Sincroniza los mantenimientos e inspecciones realizados por talleres de la red MecaniMovil directamente en la salud e historial de tu vehículo.
+      </Text>
+
+      {/* Paso a paso */}
+      <View style={styles.stepsWrap}>
+        <View style={styles.stepItem}>
+          <View style={styles.stepNumWrap}>
+            <Text style={styles.stepNum}>1</Text>
+          </View>
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Escanea o sube el código QR</Text>
+            <Text style={styles.stepDesc}>
+              Apunta tu cámara al código QR impreso o digital entregado por el taller, o sube una imagen.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.stepItem}>
+          <View style={styles.stepNumWrap}>
+            <Text style={styles.stepNum}>2</Text>
+          </View>
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Detección de vehículo e inspección</Text>
+            <Text style={styles.stepDesc}>
+              Identifica los trabajos realizados, repuestos sustituidos y observaciones técnicas de la orden.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.stepItem}>
+          <View style={styles.stepNumWrap}>
+            <Text style={styles.stepNum}>3</Text>
+          </View>
+          <View style={styles.stepContent}>
+            <Text style={styles.stepTitle}>Actualización automática de salud</Text>
+            <Text style={styles.stepDesc}>
+              Actualiza el odómetro y recalcula el desgaste proyectado de aceite, filtros y frenos desde la fecha del servicio.
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Banner de confianza */}
+      <View style={styles.trustBanner}>
+        <ShieldCheck size={20} color={COLORS.primary[600]} strokeWidth={2} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.trustTitle}>Veracidad y Respaldo Oficial</Text>
+          <Text style={styles.trustBody}>
+            Todos los informes emitidos en la red cuentan con firma digital y registro inalterable.
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Componente Lector QR (Cámara / Subir Foto / Código Manual)
+  const renderScannerSection = () => (
+    <View style={[styles.rightCol, isWide && styles.rightColWide]}>
+      <View style={styles.scannerCard}>
+        {/* Tabs Selector */}
+        <View style={styles.tabsRow}>
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'camera' && styles.tabBtnActive]}
+            onPress={() => {
+              setActiveTab('camera');
+              setScanned(false);
+            }}
+            activeOpacity={0.8}
+          >
+            <Camera size={16} color={activeTab === 'camera' ? COLORS.brand.magenta : COLORS.text.secondary} />
+            <Text style={[styles.tabText, activeTab === 'camera' && styles.tabTextActive]}>
+              Cámara
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'file' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('file')}
+            activeOpacity={0.8}
+          >
+            <Upload size={16} color={activeTab === 'file' ? COLORS.brand.magenta : COLORS.text.secondary} />
+            <Text style={[styles.tabText, activeTab === 'file' && styles.tabTextActive]}>
+              Subir Foto
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'manual' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('manual')}
+            activeOpacity={0.8}
+          >
+            <KeyboardIcon size={16} color={activeTab === 'manual' ? COLORS.brand.magenta : COLORS.text.secondary} />
+            <Text style={[styles.tabText, activeTab === 'manual' && styles.tabTextActive]}>
+              Manual
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* TAB 1: CÁMARA */}
+        {activeTab === 'camera' && (
+          <View style={styles.tabContainer}>
+            {Platform.OS === 'web' ? (
+              <WebQrScanner onScanned={handleBarCodeScanned} scanning={!scanned && !loading} />
+            ) : permission?.granted && NativeCameraView ? (
+              <View style={styles.nativeCameraWrap}>
+                <NativeCameraView
+                  style={StyleSheet.absoluteFillObject}
+                  facing="back"
+                  onBarcodeScanned={scanned || loading ? undefined : handleBarCodeScanned}
+                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                />
+                <View style={styles.nativeOverlayFrame} />
+              </View>
+            ) : (
+              <View style={styles.permissionBox}>
+                <Camera size={32} color={COLORS.primary[500]} />
+                <Text style={styles.permissionTitle}>Permiso de cámara</Text>
+                <Text style={styles.permissionSub}>
+                  Se requiere acceso a la cámara para leer el código QR.
+                </Text>
+                <Button title="Conceder permiso" onPress={requestPermission} size="sm" />
+              </View>
+            )}
+
+            <Text style={styles.scanInstruction}>
+              {scanned || loading
+                ? 'Procesando código QR…'
+                : 'Centra el código QR del informe dentro del recuadro.'}
+            </Text>
+          </View>
+        )}
+
+        {/* TAB 2: SUBIR FOTO */}
+        {activeTab === 'file' && (
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={styles.uploadDropzone}
+              onPress={triggerFileInput}
+              activeOpacity={0.8}
+            >
+              <Upload size={32} color={COLORS.brand.magenta} strokeWidth={2} />
+              <Text style={styles.dropzoneTitle}>Seleccionar foto o captura del QR</Text>
+              <Text style={styles.dropzoneSub}>
+                Haz clic aquí para buscar una imagen en tu dispositivo (.png, .jpg, .jpeg)
+              </Text>
+            </TouchableOpacity>
+
+            {Platform.OS === 'web' &&
+              React.createElement('input', {
+                ref: fileInputRef,
+                type: 'file',
+                accept: 'image/*',
+                onChange: handleFileUpload,
+                style: { display: 'none' },
+              })}
+
+            {uploadError ? (
+              <Text style={styles.errorText}>{uploadError}</Text>
+            ) : null}
+          </View>
+        )}
+
+        {/* TAB 3: CÓDIGO MANUAL */}
+        {activeTab === 'manual' && (
+          <View style={styles.tabContainer}>
+            <Text style={styles.manualLabel}>
+              Código o Enlace del Informe
+            </Text>
+            <TextInput
+              style={styles.manualInput}
+              placeholder="Ej: 5ENHHZJX... o https://..."
+              placeholderTextColor={COLORS.text.tertiary}
+              value={manualCode}
+              onChangeText={setManualCode}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Button
+              title={loading ? 'Buscando…' : 'Buscar e Ingresar'}
+              onPress={handleManualSubmit}
+              disabled={loading || !manualCode.trim()}
+              loading={loading}
+              type="primary"
+              fullWidth
+            />
+          </View>
+        )}
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
         <AppHeader title="Escanear Informe de Servicio" onBack={handleGoBack} />
 
         <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={[styles.scrollContent, isWide && styles.scrollContentWide]}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
+          bounces={true}
         >
-          <View style={[styles.gridContainer, isWide && styles.gridContainerWide]}>
-            {/* COLUMNA IZQUIERDA: Informativa / Cómo Funciona */}
-            <View style={[styles.leftCol, isWide && styles.leftColWide]}>
-              <View style={styles.badgeWrap}>
-                <Sparkles size={14} color={COLORS.brand.magenta} />
-                <Text style={styles.badgeText}>Red de Talleres Oficiales</Text>
-              </View>
-
-              <Text style={styles.heroTitle}>Escanear e Integrar Informe de Servicio</Text>
-              <Text style={styles.heroSub}>
-                Sincroniza los mantenimientos e inspecciones realizados por talleres de la red MecaniMovil directamente en la salud e historial de tu vehículo.
-              </Text>
-
-              {/* Paso a paso */}
-              <View style={styles.stepsWrap}>
-                <View style={styles.stepItem}>
-                  <View style={styles.stepNumWrap}>
-                    <Text style={styles.stepNum}>1</Text>
-                  </View>
-                  <View style={styles.stepContent}>
-                    <Text style={styles.stepTitle}>Escanea o sube el código QR</Text>
-                    <Text style={styles.stepDesc}>
-                      Apunta tu cámara al código QR impreso o digital entregado por el taller, o sube una imagen.
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.stepItem}>
-                  <View style={styles.stepNumWrap}>
-                    <Text style={styles.stepNum}>2</Text>
-                  </View>
-                  <View style={styles.stepContent}>
-                    <Text style={styles.stepTitle}>Detección de vehículo e inspección</Text>
-                    <Text style={styles.stepDesc}>
-                      Identifica los trabajos realizados, repuestos sustituidos y observaciones técnicas de la orden.
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.stepItem}>
-                  <View style={styles.stepNumWrap}>
-                    <Text style={styles.stepNum}>3</Text>
-                  </View>
-                  <View style={styles.stepContent}>
-                    <Text style={styles.stepTitle}>Actualización automática de salud</Text>
-                    <Text style={styles.stepDesc}>
-                      Actualiza el odómetro y recalcula el desgaste proyectado de aceite, filtros y frenos desde la fecha del servicio.
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Banner de confianza */}
-              <View style={styles.trustBanner}>
-                <ShieldCheck size={20} color={COLORS.primary[600]} strokeWidth={2} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.trustTitle}>Veracidad y Respaldo Oficial</Text>
-                  <Text style={styles.trustBody}>
-                    Todos los informes emitidos en la red cuentan con firma digital y registro inalterable.
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* COLUMNA DERECHA: Lector QR y Métodos Alternativos */}
-            <View style={[styles.rightCol, isWide && styles.rightColWide]}>
-              <View style={styles.scannerCard}>
-                {/* Tabs Selector */}
-                <View style={styles.tabsRow}>
-                  <TouchableOpacity
-                    style={[styles.tabBtn, activeTab === 'camera' && styles.tabBtnActive]}
-                    onPress={() => {
-                      setActiveTab('camera');
-                      setScanned(false);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Camera size={16} color={activeTab === 'camera' ? COLORS.brand.magenta : COLORS.text.secondary} />
-                    <Text style={[styles.tabText, activeTab === 'camera' && styles.tabTextActive]}>
-                      Cámara
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.tabBtn, activeTab === 'file' && styles.tabBtnActive]}
-                    onPress={() => setActiveTab('file')}
-                    activeOpacity={0.8}
-                  >
-                    <Upload size={16} color={activeTab === 'file' ? COLORS.brand.magenta : COLORS.text.secondary} />
-                    <Text style={[styles.tabText, activeTab === 'file' && styles.tabTextActive]}>
-                      Subir Foto
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.tabBtn, activeTab === 'manual' && styles.tabBtnActive]}
-                    onPress={() => setActiveTab('manual')}
-                    activeOpacity={0.8}
-                  >
-                    <KeyboardIcon size={16} color={activeTab === 'manual' ? COLORS.brand.magenta : COLORS.text.secondary} />
-                    <Text style={[styles.tabText, activeTab === 'manual' && styles.tabTextActive]}>
-                      Manual
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* TAB 1: CÁMARA */}
-                {activeTab === 'camera' && (
-                  <View style={styles.tabContainer}>
-                    {Platform.OS === 'web' ? (
-                      <WebQrScanner onScanned={handleBarCodeScanned} scanning={!scanned && !loading} />
-                    ) : permission?.granted && NativeCameraView ? (
-                      <View style={styles.nativeCameraWrap}>
-                        <NativeCameraView
-                          style={StyleSheet.absoluteFillObject}
-                          facing="back"
-                          onBarcodeScanned={scanned || loading ? undefined : handleBarCodeScanned}
-                          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                        />
-                        <View style={styles.nativeOverlayFrame} />
-                      </View>
-                    ) : (
-                      <View style={styles.permissionBox}>
-                        <Camera size={32} color={COLORS.primary[500]} />
-                        <Text style={styles.permissionTitle}>Permiso de cámara</Text>
-                        <Text style={styles.permissionSub}>
-                          Se requiere acceso a la cámara para leer el código QR.
-                        </Text>
-                        <Button title="Conceder permiso" onPress={requestPermission} size="sm" />
-                      </View>
-                    )}
-
-                    <Text style={styles.scanInstruction}>
-                      {scanned || loading
-                        ? 'Procesando código QR…'
-                        : 'Centra el código QR del informe dentro del recuadro.'}
-                    </Text>
-                  </View>
-                )}
-
-                {/* TAB 2: SUBIR FOTO */}
-                {activeTab === 'file' && (
-                  <View style={styles.tabContainer}>
-                    <TouchableOpacity
-                      style={styles.uploadDropzone}
-                      onPress={triggerFileInput}
-                      activeOpacity={0.8}
-                    >
-                      <Upload size={32} color={COLORS.brand.magenta} strokeWidth={2} />
-                      <Text style={styles.dropzoneTitle}>Seleccionar foto o captura del QR</Text>
-                      <Text style={styles.dropzoneSub}>
-                        Haz clic aquí para buscar una imagen en tu dispositivo (.png, .jpg, .jpeg)
-                      </Text>
-                    </TouchableOpacity>
-
-                    {Platform.OS === 'web' &&
-                      React.createElement('input', {
-                        ref: fileInputRef,
-                        type: 'file',
-                        accept: 'image/*',
-                        onChange: handleFileUpload,
-                        style: { display: 'none' },
-                      })}
-
-                    {uploadError ? (
-                      <Text style={styles.errorText}>{uploadError}</Text>
-                    ) : null}
-                  </View>
-                )}
-
-                {/* TAB 3: CÓDIGO MANUAL */}
-                {activeTab === 'manual' && (
-                  <View style={styles.tabContainer}>
-                    <Text style={styles.manualLabel}>
-                      Código o Enlace del Informe
-                    </Text>
-                    <TextInput
-                      style={styles.manualInput}
-                      placeholder="Ej: 5ENHHZJX... o https://..."
-                      placeholderTextColor={COLORS.text.tertiary}
-                      value={manualCode}
-                      onChangeText={setManualCode}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    <Button
-                      title={loading ? 'Buscando…' : 'Buscar e Ingresar'}
-                      onPress={handleManualSubmit}
-                      disabled={loading || !manualCode.trim()}
-                      loading={loading}
-                      type="primary"
-                      fullWidth
-                    />
-                  </View>
-                )}
-              </View>
-            </View>
+          <View style={[styles.gridContainer, isWide ? styles.gridContainerWide : styles.gridContainerMobile]}>
+            {isWide ? (
+              <>
+                {/* En Web/Escritorio: Textos a la izquierda, Lector a la derecha */}
+                {renderInfoSection()}
+                {renderScannerSection()}
+              </>
+            ) : (
+              <>
+                {/* En Móvil: Lector arriba, Textos abajo */}
+                {renderScannerSection()}
+                {renderInfoSection()}
+              </>
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -446,11 +465,28 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: COLORS.background.default,
+    ...(Platform.OS === 'web'
+      ? {
+          overflowY: 'auto',
+          minHeight: '100vh',
+        }
+      : null),
   },
   flex: { flex: 1 },
+  scrollView: {
+    flex: 1,
+    width: '100%',
+    ...(Platform.OS === 'web'
+      ? {
+          overflowY: 'auto',
+        }
+      : null),
+  },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: SPACING.container.horizontal,
     paddingVertical: SPACING.md,
+    paddingBottom: SPACING['3xl'],
   },
   scrollContentWide: {
     paddingHorizontal: SPACING.xl,
@@ -459,8 +495,10 @@ const styles = StyleSheet.create({
   },
   gridContainer: {
     width: '100%',
+  },
+  gridContainerMobile: {
     flexDirection: 'column',
-    gap: SPACING.lg,
+    gap: SPACING.xl,
   },
   gridContainerWide: {
     flexDirection: 'row',
@@ -469,16 +507,17 @@ const styles = StyleSheet.create({
     gap: SPACING['2xl'],
   },
   leftCol: {
-    flex: 1,
+    width: '100%',
   },
   leftColWide: {
+    flex: 1,
     maxWidth: 480,
   },
   rightCol: {
-    flex: 1,
     width: '100%',
   },
   rightColWide: {
+    flex: 1,
     maxWidth: 480,
   },
   badgeWrap: {
