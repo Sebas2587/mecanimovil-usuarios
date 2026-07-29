@@ -46,6 +46,7 @@ import {
   HomeVehicleSelectorModal,
 } from '../../components/home/discovery';
 import VehicleValueTeaserCard from '../../components/vehicle/VehicleValueTeaserCard';
+import SyncConfirmationModal from '../../components/modals/SyncConfirmationModal';
 import { EXPLORE_MODE_PARA_TI } from '../../components/providers/explore';
 import { useTripTracking } from '../../context/TripTrackingContext';
 import { TRIP_ACTIVE_BAR_HEIGHT, TRIP_ACTIVE_BAR_GAP } from '../../components/trip/TripActiveBar';
@@ -300,6 +301,7 @@ const UserPanelScreen = () => {
   const [syncingInformes, setSyncingInformes] = useState(false);
   const [pendingSyncInformes, setPendingSyncInformes] = useState([]);
   const [dismissedSyncPatentes, setDismissedSyncPatentes] = useState([]);
+  const [syncModalVisible, setSyncModalVisible] = useState(false);
 
   const selectedVehiclePlate = useMemo(() => {
     const v = vehicles.find((item) => item.id === selectedVehicleId) || vehicles[0];
@@ -334,15 +336,26 @@ const UserPanelScreen = () => {
     }, [fetchPendingSyncInformes]),
   );
 
-  const handleSyncPendingInformes = useCallback(async () => {
+  const openSyncModal = useCallback(() => {
+    if (pendingSyncInformes.length > 0) {
+      setSyncModalVisible(true);
+    }
+  }, [pendingSyncInformes]);
+
+  const handleConfirmSync = useCallback(async () => {
     if (!pendingSyncInformes.length) return;
     const tokens = pendingSyncInformes.map((inf) => inf.token).filter(Boolean);
     if (!tokens.length) return;
     setSyncingInformes(true);
     try {
-      await reclamarInformesServicio(tokens);
-      showAlert('Servicios sincronizados', 'Los informes de taller se vincularon exitosamente a tu vehículo.');
+      const res = await reclamarInformesServicio(tokens);
+      const countComp = res?.componentes_oficiales?.length || 0;
+      const msg = countComp > 0
+        ? `Los informes de taller se vincularon a tu vehículo. Se actualizaron ${countComp} métrica(s) de salud.`
+        : 'Los informes de taller se vincularon exitosamente a tu vehículo.';
+      showAlert('Servicios sincronizados', msg);
       setPendingSyncInformes([]);
+      setSyncModalVisible(false);
       refetchVehicles();
       queryClient.invalidateQueries({ queryKey: ['vehicleHealth'] });
       if (selectedVehicleId) {
@@ -721,7 +734,7 @@ const UserPanelScreen = () => {
             patente={selectedVehiclePlate}
             count={pendingSyncInformes.length}
             syncing={syncingInformes}
-            onSync={handleSyncPendingInformes}
+            onSync={openSyncModal}
             onDismiss={dismissPendingSyncBanner}
           />
         ) : null}
@@ -830,6 +843,15 @@ const UserPanelScreen = () => {
         }
         onAdd={addGuestVehicleSuggestion}
         onDismiss={dismissGuestVehicleSuggestion}
+      />
+
+      <SyncConfirmationModal
+        visible={syncModalVisible}
+        onClose={() => setSyncModalVisible(false)}
+        onConfirm={handleConfirmSync}
+        syncing={syncingInformes}
+        informes={pendingSyncInformes}
+        vehiculoActualKm={selectedVehicle?.kilometraje || 0}
       />
     </View>
   );

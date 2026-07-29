@@ -21,6 +21,7 @@ import {
 import { showAlert } from '../../utils/platformAlert';
 import HistoryItemCard from '../../components/cards/HistoryItemCard';
 import ChecklistViewerModal from '../../components/modals/ChecklistViewerModal';
+import SyncConfirmationModal from '../../components/modals/SyncConfirmationModal';
 import BackButton from '../../components/navigation/BackButton';
 import { COLORS } from '../../design-system/tokens/colors';
 import { SPACING } from '../../design-system/tokens/spacing';
@@ -144,15 +145,28 @@ const VehicleHistoryScreen = () => {
     setRefreshing(false);
   }, [fetchHistory]);
 
-  const handleSyncPendingInformes = useCallback(async () => {
+  const [syncModalVisible, setSyncModalVisible] = useState(false);
+
+  const openSyncModal = useCallback(() => {
+    if (pendingSyncInformes.length > 0) {
+      setSyncModalVisible(true);
+    }
+  }, [pendingSyncInformes]);
+
+  const handleConfirmSync = useCallback(async () => {
     if (!pendingSyncInformes.length) return;
     const tokens = pendingSyncInformes.map((inf) => inf.token).filter(Boolean);
     if (!tokens.length) return;
     setSyncingInformes(true);
     try {
-      await reclamarInformesServicio(tokens);
-      showAlert('Servicios sincronizados', 'Los informes de taller se vincularon a tu vehículo.');
+      const res = await reclamarInformesServicio(tokens);
+      const countComp = res?.componentes_oficiales?.length || 0;
+      const msg = countComp > 0
+        ? `Los informes de taller se vincularon a tu vehículo. Se actualizaron ${countComp} métrica(s) de salud.`
+        : 'Los informes de taller se vincularon a tu vehículo.';
+      showAlert('Servicios sincronizados', msg);
       setPendingSyncInformes([]);
+      setSyncModalVisible(false);
       await fetchHistory();
     } catch (err) {
       showAlert('No se pudo sincronizar', err?.response?.data?.error || err?.message || 'Intenta nuevamente.');
@@ -239,7 +253,7 @@ const VehicleHistoryScreen = () => {
           </View>
           <TouchableOpacity
             style={styles.syncBannerBtn}
-            onPress={handleSyncPendingInformes}
+            onPress={openSyncModal}
             disabled={syncingInformes}
             activeOpacity={0.8}
           >
@@ -359,6 +373,15 @@ const VehicleHistoryScreen = () => {
         ordenId={selectedChecklistId}
         servicioNombre={selectedServiceName}
         proveedorPreview={checklistProveedorPreview}
+      />
+
+      <SyncConfirmationModal
+        visible={syncModalVisible}
+        onClose={() => setSyncModalVisible(false)}
+        onConfirm={handleConfirmSync}
+        syncing={syncingInformes}
+        informes={pendingSyncInformes}
+        vehiculoActualKm={vehicle?.kilometraje || 0}
       />
     </View>
   );
