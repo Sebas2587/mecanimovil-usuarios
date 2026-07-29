@@ -195,6 +195,13 @@ export const COLORS = {
     900: '#2d090e',
   },
 
+  danger: {
+    light: '#fde8ea',
+    main: '#d93049',
+    dark: '#ae263a',
+    darker: '#831c2b',
+  },
+
   info: {
     light: SOFT,
     main: MAGENTA,

@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.danger.main,
+    color: COLORS.error?.main || '#d93049',
     textAlign: 'center',
   },
   manualLabel: {

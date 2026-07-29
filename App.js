@@ -1743,7 +1743,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: COLORS.danger,
+    color: COLORS.error?.main || '#d93049',
   },
   errorText: {
     fontSize: 16,

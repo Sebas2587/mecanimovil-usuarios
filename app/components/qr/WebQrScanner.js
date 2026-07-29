@@ -205,7 +205,7 @@ const WebQrScanner = ({ onScanned, scanning = true }) => {
 
         {hasPermission === false ? (
           <View style={styles.fallbackBox}>
-            <AlertCircle size={36} color={COLORS.danger.main} strokeWidth={2} />
+            <AlertCircle size={36} color={COLORS.error?.main || '#d93049'} strokeWidth={2} />
             <Text style={styles.fallbackTitle}>Acceso a la cámara</Text>
             <Text style={styles.fallbackText}>{errorMessage || 'Cámara no disponible.'}</Text>
             <Button
