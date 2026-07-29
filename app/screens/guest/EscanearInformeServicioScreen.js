@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,21 +10,16 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useNavigation } from '@react-navigation/native';
 import {
   Camera,
-  X,
   QrCode,
   Upload,
   Keyboard as KeyboardIcon,
-  CheckCircle2,
   ShieldCheck,
-  ArrowRight,
-  RefreshCw,
   Sparkles,
 } from 'lucide-react-native';
-import jsQR from 'jsqr';
+import jsQRModule from 'jsqr';
 import AppHeader from '../../components/navigation/AppHeader';
 import Button from '../../components/base/Button/Button';
 import WebQrScanner from '../../components/qr/WebQrScanner';
@@ -40,14 +34,41 @@ import {
 import { savePendingInformeClaimIntent } from '../../utils/guestIntent';
 import { useAuth } from '../../context/AuthContext';
 
+function safeDecodeQR(imageData, width, height) {
+  try {
+    const fn = typeof jsQRModule === 'function'
+      ? jsQRModule
+      : (jsQRModule && jsQRModule.default)
+        ? jsQRModule.default
+        : (typeof window !== 'undefined' ? window.jsQR : null);
+    if (typeof fn === 'function') {
+      return fn(imageData, width, height, { inversionAttempts: 'dontInvert' });
+    }
+  } catch (err) {
+    console.warn('safeDecodeQR error:', err);
+  }
+  return null;
+}
+
 const EscanearInformeServicioScreen = () => {
   const { width } = useWindowDimensions();
-  const isWide = width >= 768; // Desktop / Web layout
+  const isWide = width >= 768;
 
-  const [permission, requestPermission] = useCameraPermissions();
+  // Renderizado condicional seguro de permisos de cámara en nativo vs web
+  let permission = null;
+  let requestPermission = () => {};
+  if (Platform.OS !== 'web') {
+    try {
+      const { useCameraPermissions } = require('expo-camera');
+      const [perm, reqPerm] = useCameraPermissions();
+      permission = perm;
+      requestPermission = reqPerm;
+    } catch (_e) {}
+  }
+
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('camera'); // 'camera' | 'file' | 'manual'
+  const [activeTab, setActiveTab] = useState('camera');
   const [manualCode, setManualCode] = useState('');
   const [uploadError, setUploadError] = useState(null);
 
@@ -173,9 +194,7 @@ const EscanearInformeServicioScreen = () => {
           ctx.drawImage(img, 0, 0);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert',
-          });
+          const code = safeDecodeQR(imageData.data, imageData.width, imageData.height);
 
           if (code && code.data) {
             processToken(code.data);
@@ -202,6 +221,13 @@ const EscanearInformeServicioScreen = () => {
   };
 
   const handleGoBack = () => navigation.goBack();
+
+  let NativeCameraView = null;
+  if (Platform.OS !== 'web') {
+    try {
+      NativeCameraView = require('expo-camera').CameraView;
+    } catch (_e) {}
+  }
 
   return (
     <View style={styles.root}>
@@ -323,9 +349,9 @@ const EscanearInformeServicioScreen = () => {
                   <View style={styles.tabContainer}>
                     {Platform.OS === 'web' ? (
                       <WebQrScanner onScanned={handleBarCodeScanned} scanning={!scanned && !loading} />
-                    ) : permission?.granted ? (
+                    ) : permission?.granted && NativeCameraView ? (
                       <View style={styles.nativeCameraWrap}>
-                        <CameraView
+                        <NativeCameraView
                           style={StyleSheet.absoluteFillObject}
                           facing="back"
                           onBarcodeScanned={scanned || loading ? undefined : handleBarCodeScanned}
@@ -367,15 +393,14 @@ const EscanearInformeServicioScreen = () => {
                       </Text>
                     </TouchableOpacity>
 
-                    {Platform.OS === 'web' && (
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        style={{ display: 'none' }}
-                      />
-                    )}
+                    {Platform.OS === 'web' &&
+                      React.createElement('input', {
+                        ref: fileInputRef,
+                        type: 'file',
+                        accept: 'image/*',
+                        onChange: handleFileUpload,
+                        style: { display: 'none' },
+                      })}
 
                     {uploadError ? (
                       <Text style={styles.errorText}>{uploadError}</Text>

@@ -1,9 +1,25 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
-import { Camera, AlertCircle, RefreshCw } from 'lucide-react-native';
-import jsQR from 'jsqr';
+import { Camera, AlertCircle } from 'lucide-react-native';
+import jsQRModule from 'jsqr';
 import { COLORS, BORDERS, TYPOGRAPHY, SPACING, withOpacity } from '../../design-system/tokens';
 import Button from '../base/Button/Button';
+
+function safeDecodeQR(imageData, width, height) {
+  try {
+    const fn = typeof jsQRModule === 'function'
+      ? jsQRModule
+      : (jsQRModule && jsQRModule.default)
+        ? jsQRModule.default
+        : (typeof window !== 'undefined' ? window.jsQR : null);
+    if (typeof fn === 'function') {
+      return fn(imageData, width, height, { inversionAttempts: 'dontInvert' });
+    }
+  } catch (err) {
+    console.warn('safeDecodeQR error:', err);
+  }
+  return null;
+}
 
 /**
  * Lector de códigos QR especializado para navegadores Web (HTML5 Video + Canvas + jsQR).
@@ -25,8 +41,12 @@ const WebQrScanner = ({ onScanned, scanning = true }) => {
       animFrameRef.current = null;
     }
     if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject;
-      stream.getTracks().forEach((track) => track.stop());
+      try {
+        const stream = videoRef.current.srcObject;
+        if (stream && stream.getTracks) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+      } catch (_e) {}
       videoRef.current.srcObject = null;
     }
     setIsStarted(false);
@@ -79,10 +99,8 @@ const WebQrScanner = ({ onScanned, scanning = true }) => {
             }
           }
 
-          // 2. jsQR decode
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: 'dontInvert',
-          });
+          // 2. Fallback con jsQR seguro
+          const code = safeDecodeQR(imageData.data, imageData.width, imageData.height);
 
           if (code && code.data) {
             onScanned({ data: code.data });
@@ -125,7 +143,6 @@ const WebQrScanner = ({ onScanned, scanning = true }) => {
         animFrameRef.current = requestAnimationFrame(tick);
       }
 
-      // Enumerar cámaras disponibles
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter((d) => d.kind === 'videoinput');
@@ -137,9 +154,7 @@ const WebQrScanner = ({ onScanned, scanning = true }) => {
             setSelectedCameraId(settings.deviceId);
           }
         }
-      } catch (_err) {
-        // ignora si enumerateDevices falla
-      }
+      } catch (_err) {}
     } catch (err) {
       console.warn('Error accediendo a cámara web:', err);
       setHasPermission(false);
@@ -167,12 +182,16 @@ const WebQrScanner = ({ onScanned, scanning = true }) => {
   return (
     <View style={styles.container}>
       <View style={styles.videoWrapper}>
-        <video
-          ref={videoRef}
-          style={styles.webVideo}
-          muted
-          playsInline
-        />
+        {React.createElement('video', {
+          ref: videoRef,
+          muted: true,
+          playsInline: true,
+          style: {
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          },
+        })}
 
         {isStarted && scanning ? (
           <View style={styles.overlayFrame}>
@@ -248,11 +267,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  webVideo: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-  },
   overlayFrame: {
     position: 'absolute',
     width: 220,
@@ -311,14 +325,13 @@ const styles = StyleSheet.create({
     width: '90%',
     height: 2,
     backgroundColor: COLORS.brand.magenta,
-    shadowColor: COLORS.brand.magenta,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
   },
   fallbackBox: {
     position: 'absolute',
-    inset: 0,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: COLORS.background.paper,
     padding: SPACING.md,
     alignItems: 'center',
