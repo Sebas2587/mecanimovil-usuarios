@@ -15,7 +15,17 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
-import { Check, ChevronDown, ChevronUp, QrCode } from 'lucide-react-native';
+import {
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  QrCode,
+  ShieldAlert,
+  Wrench,
+} from 'lucide-react-native';
 import BackButton from '../../components/navigation/BackButton';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import Button from '../../components/base/Button/Button';
@@ -40,6 +50,15 @@ const SIGNATURE_WEB_STYLE = `
   .m-signature-pad--footer { display: none; margin: 0; }
   .m-signature-pad--footer button { display: none !important; }
 `;
+
+function sanitizeName(raw) {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  if (s.startsWith('data:') || s.startsWith('iVBORw') || s.length > 45 || /^[A-Za-z0-9+/=]{30,}$/.test(s)) {
+    return '';
+  }
+  return s;
+}
 
 function formatKm(value) {
   if (value == null || value === '') return null;
@@ -206,8 +225,9 @@ const InformeServicioScreen = () => {
     try {
       const data = await obtenerInformePublico(token);
       setInforme(data);
-      if (data?.cliente_nombre && !nombreCliente) {
-        setNombreCliente(String(data.cliente_nombre).trim());
+      const cleanName = sanitizeName(data?.cliente_nombre || data?.firmado_por_nombre);
+      if (cleanName && !nombreCliente) {
+        setNombreCliente(cleanName);
       }
     } catch (e) {
       const status = e?.response?.status || e?.status;
@@ -359,11 +379,33 @@ const InformeServicioScreen = () => {
 
   const informeBody = (
     <>
-        {/* Hero: una composición — marca, vehículo, meta */}
+        {/* Hero: marca, vehículo, meta y Taller con foto */}
         <View style={styles.hero}>
-          <Text style={styles.brandKicker}>
-            {informe.taller_nombre || 'Informe de servicio'}
-          </Text>
+          {/* Tarjeta del Taller / Proveedor con Foto */}
+          <View style={styles.tallerHeaderCard}>
+            {informe.taller_foto_url ? (
+              <Image
+                source={{ uri: informe.taller_foto_url }}
+                style={styles.tallerPhoto}
+                resizeMode="cover"
+                accessibilityLabel={informe.taller_nombre || 'Taller'}
+              />
+            ) : (
+              <View style={styles.tallerPhotoPlaceholder}>
+                <Wrench size={22} color={COLORS.brand.orange} />
+              </View>
+            )}
+            <View style={styles.tallerHeaderInfo}>
+              <Text style={styles.brandKicker}>
+                {informe.taller_nombre || 'Informe de servicio'}
+              </Text>
+              <View style={styles.tallerBadgeRow}>
+                <CheckCircle2 size={13} color={COLORS.success.main} />
+                <Text style={styles.tallerBadgeText}>Taller verificado Mecanimovil</Text>
+              </View>
+            </View>
+          </View>
+
           <Text style={styles.heroTitle}>{vehicleHeadline(informe.vehiculo)}</Text>
           <Text style={styles.heroSupport}>
             {informe.checklist?.template_nombre
@@ -393,7 +435,7 @@ const InformeServicioScreen = () => {
           </View>
         </View>
 
-        {/* Sobre el servicio — prosa Airbnb (About this place) */}
+        {/* Sobre el servicio — prosa Airbnb */}
         {resumenParrafos.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionEyebrow}>Sobre el servicio</Text>
@@ -412,7 +454,7 @@ const InformeServicioScreen = () => {
           </View>
         ) : null}
 
-        {/* Hallazgos — filas tipo amenities Airbnb */}
+        {/* Hallazgos — tarjetas estructuradas Airbnb Insights */}
         {hallazgos.length > 0 ? (
           <View style={styles.section}>
             <TouchableOpacity
@@ -423,8 +465,11 @@ const InformeServicioScreen = () => {
               accessibilityState={{ expanded: showHallazgos }}
             >
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.sectionEyebrow}>Revisión</Text>
+                <Text style={styles.sectionEyebrow}>Revisión preventiva</Text>
                 <Text style={styles.sectionTitle}>Qué conviene revisar</Text>
+                <Text style={styles.sectionMeta}>
+                  {hallazgos.length} {hallazgos.length === 1 ? 'observación recomendada' : 'observaciones recomendadas'} por el taller
+                </Text>
               </View>
               {showHallazgos
                 ? <ChevronUp size={22} color={COLORS.icon.default} strokeWidth={2} />
@@ -432,11 +477,21 @@ const InformeServicioScreen = () => {
             </TouchableOpacity>
             <View style={styles.sectionRule} />
             {showHallazgos ? (
-              <View style={styles.amenityList}>
-                {hallazgos.map((h) => (
-                  <View key={String(h.id)} style={styles.amenityRow}>
-                    <Text style={styles.amenityLabel}>{h.pregunta}</Text>
-                    <AmenityValue item={h} />
+              <View style={styles.hallazgosContainer}>
+                {hallazgos.map((h, idx) => (
+                  <View key={String(h.id || idx)} style={styles.hallazgoCard}>
+                    <View style={styles.hallazgoCardHeader}>
+                      <View style={styles.hallazgoIconWrap}>
+                        <AlertTriangle size={18} color={COLORS.brand.orange} />
+                      </View>
+                      <Text style={styles.hallazgoTitle}>{h.pregunta}</Text>
+                      <View style={styles.attentionChip}>
+                        <Text style={styles.attentionChipText}>Atención</Text>
+                      </View>
+                    </View>
+                    <View style={styles.hallazgoCardBody}>
+                      <AmenityValue item={h} attentionStyle />
+                    </View>
                   </View>
                 ))}
               </View>
@@ -522,47 +577,129 @@ const InformeServicioScreen = () => {
           </View>
         ) : null}
 
-        {yaFirmado ? (
-          <View style={styles.signedBanner}>
-            <Check size={22} color={COLORS.brand.magenta} strokeWidth={2.5} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.signedTitle}>Servicio certificado</Text>
-              {informe.firmado_por_nombre ? (
-                <Text style={styles.signedMeta}>Firmado por {informe.firmado_por_nombre}</Text>
-              ) : null}
-              {informe.reclamado ? (
-                <Text style={styles.signedMeta}>Ya vinculado a tu vehículo en Mecanimovil</Text>
-              ) : null}
+        {/* Sección de Certificación Digital y Firmas */}
+        <View style={styles.section}>
+          <Text style={styles.sectionEyebrow}>Respaldo del servicio</Text>
+          <Text style={styles.sectionTitle}>Certificación y Firmas</Text>
+          <View style={styles.sectionRule} />
+
+          <View style={styles.firmasContainer}>
+            {/* Firma del Técnico / Taller */}
+            <View style={styles.firmaCard}>
+              <View style={styles.firmaHeader}>
+                <View style={styles.firmaBadgeIcon}>
+                  <CheckCircle2 size={18} color={COLORS.success.main} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.firmaRoleTitle}>Firma del Técnico / Taller</Text>
+                  <Text style={styles.firmaRoleSub}>{informe.taller_nombre || 'Taller responsable'}</Text>
+                </View>
+              </View>
+              {informe.firmas?.tecnico || informe.firmas?.supervisor ? (
+                <View style={styles.firmaImageWrap}>
+                  <Image
+                    source={{ uri: informe.firmas.tecnico || informe.firmas.supervisor }}
+                    style={styles.firmaImg}
+                    resizeMode="contain"
+                    accessibilityLabel="Firma del técnico"
+                  />
+                  <Text style={styles.firmaVerifiedLabel}>✓ Firma digital verificada</Text>
+                </View>
+              ) : (
+                <View style={styles.firmaBadgeWrap}>
+                  <Text style={styles.firmaVerifiedText}>✓ Registrada en checklist por el técnico</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Firma del Cliente */}
+            <View style={styles.firmaCard}>
+              <View style={styles.firmaHeader}>
+                <View style={styles.firmaBadgeIcon}>
+                  {yaFirmado ? (
+                    <CheckCircle2 size={18} color={COLORS.brand.magenta} />
+                  ) : (
+                    <FileText size={18} color={COLORS.text.secondary} />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.firmaRoleTitle}>Firma del Cliente</Text>
+                  <Text style={styles.firmaRoleSub}>
+                    {yaFirmado
+                      ? (informe.firmado_por_nombre || 'Cliente conforme')
+                      : 'Pendiente de firma'}
+                  </Text>
+                </View>
+              </View>
+
+              {yaFirmado ? (
+                informe.firmas?.cliente ? (
+                  <View style={styles.firmaImageWrap}>
+                    <Image
+                      source={{ uri: informe.firmas.cliente }}
+                      style={styles.firmaImg}
+                      resizeMode="contain"
+                      accessibilityLabel="Firma del cliente"
+                    />
+                    <Text style={styles.firmaVerifiedLabel}>
+                      Firmado por {informe.firmado_por_nombre || 'Cliente'}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.firmaBadgeWrap}>
+                    <Text style={styles.firmaVerifiedText}>
+                      ✓ Confirmado por {informe.firmado_por_nombre || 'Cliente'}
+                    </Text>
+                  </View>
+                )
+              ) : (
+                <Text style={styles.firmaPendingHint}>
+                  Firma requerida a continuación para certificar la recepción del servicio.
+                </Text>
+              )}
             </View>
           </View>
-        ) : null}
+        </View>
 
-        {/* Firma — único contenedor de interacción */}
+        {/* Modal / Card para que el cliente firme si está pendiente */}
         {puedeFirmar ? (
           <View style={styles.actionCard}>
-            <Text style={styles.actionTitle}>Certifica el servicio</Text>
+            <Text style={styles.actionTitle}>Firma de conformidad del cliente</Text>
             <Text style={styles.actionHint}>
-              Confirma que recibiste el trabajo descrito. No necesitas crear una cuenta.
+              Confirma que recibiste el servicio realizado por el taller. No necesitas crear una cuenta.
             </Text>
-            <TextInput
-              style={styles.nameInput}
-              placeholder="Tu nombre completo"
-              placeholderTextColor={COLORS.text.hint}
-              value={nombreCliente}
-              onChangeText={setNombreCliente}
-            />
-            <View style={styles.signatureBox}>
-              <SignaturePad
-                ref={signatureRef}
-                onOK={handleFirmar}
-                onEmpty={() => showAlert('Firma requerida', 'Dibuja tu firma antes de continuar.')}
-                onBegin={() => setHasDrawn(true)}
-                webStyle={SIGNATURE_WEB_STYLE}
-                style={styles.signaturePad}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Tu nombre completo</Text>
+              <TextInput
+                style={styles.nameInput}
+                placeholder="Ej. Juan Pérez"
+                placeholderTextColor={COLORS.text.hint}
+                value={nombreCliente}
+                onChangeText={setNombreCliente}
               />
             </View>
+            <View style={styles.inputGroup}>
+              <View style={styles.signaturePadHeader}>
+                <Text style={styles.inputLabel}>Tu firma digital</Text>
+                {hasDrawn ? (
+                  <TouchableOpacity onPress={() => signatureRef.current?.clearSignature()}>
+                    <Text style={styles.clearSignatureText}>Limpiar firma</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              <View style={styles.signatureBox}>
+                <SignaturePad
+                  ref={signatureRef}
+                  onOK={handleFirmar}
+                  onEmpty={() => showAlert('Firma requerida', 'Dibuja tu firma antes de continuar.')}
+                  onBegin={() => setHasDrawn(true)}
+                  webStyle={SIGNATURE_WEB_STYLE}
+                  style={styles.signaturePad}
+                />
+              </View>
+            </View>
             <GuestGradientButton
-              title={submitting ? 'Enviando…' : 'Certificar servicio'}
+              title={submitting ? 'Guardando firma…' : 'Firmar y certificar servicio'}
               onPress={handleLeerFirma}
               loading={submitting}
               disabled={submitting || !hasDrawn}
@@ -944,6 +1081,175 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.md,
     color: COLORS.text.primary,
   },
+  tallerHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    backgroundColor: COLORS.background.paper,
+    padding: SPACING.md,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    marginBottom: SPACING.xs,
+  },
+  tallerPhoto: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.buttonSecondary.background,
+  },
+  tallerPhotoPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: withOpacity(COLORS.brand.orange, 0.12),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tallerHeaderInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  tallerBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  tallerBadgeText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.success.main,
+  },
+  hallazgosContainer: {
+    gap: SPACING.md,
+    paddingTop: SPACING.xs,
+  },
+  hallazgoCard: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    padding: SPACING.md,
+    gap: SPACING.xs,
+  },
+  hallazgoCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  hallazgoIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: withOpacity(COLORS.brand.orange, 0.12),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hallazgoTitle: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.primary,
+  },
+  hallazgoCardBody: {
+    paddingLeft: 40,
+  },
+  firmasContainer: {
+    gap: SPACING.md,
+    marginTop: SPACING.xs,
+  },
+  firmaCard: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    gap: SPACING.sm,
+  },
+  firmaHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  firmaBadgeIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.badge.meta.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  firmaRoleTitle: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.primary,
+  },
+  firmaRoleSub: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+  },
+  firmaImageWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.base.white,
+    padding: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    gap: 4,
+  },
+  firmaImg: {
+    width: '100%',
+    height: 80,
+  },
+  firmaVerifiedLabel: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.success.main,
+  },
+  firmaBadgeWrap: {
+    backgroundColor: withOpacity(COLORS.success.main, 0.08),
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderRadius: BORDERS.radius.md,
+    alignItems: 'center',
+  },
+  firmaVerifiedText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.success.main,
+  },
+  firmaPendingText: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
+    fontStyle: 'italic',
+  },
+  firmaPendingHint: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  inputLabel: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.primary,
+  },
+  signaturePadHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  clearSignatureText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.brand.orange,
+  },
   photoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -985,7 +1291,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background.paper,
     borderRadius: BORDERS.radius.lg,
     padding: SPACING.lg,
-    gap: SPACING.sm,
+    gap: SPACING.md,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: COLORS.border.light,
   },
