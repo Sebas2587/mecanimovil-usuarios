@@ -9,14 +9,17 @@ import {
   View,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image as ExpoImage } from 'expo-image';
+import { MapPin, Phone, Wrench } from 'lucide-react-native';
 import BackButton from '../../components/navigation/BackButton';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import Button from '../../components/base/Button/Button';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY, withOpacity } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import { showAlert } from '../../utils/platformAlert';
+import { resolveToAbsoluteMediaUrl } from '../../utils/providerUtils';
 import {
   aceptarCotizacionPublica,
   obtenerCotizacionPublica,
@@ -51,12 +54,16 @@ function estadoMeta(estado) {
   if (estado === 'enviada') {
     return { label: 'Pendiente de respuesta', tone: 'muted' };
   }
+  if (estado === 'cancelada') {
+    return { label: 'Cancelada', tone: 'muted' };
+  }
   return estado ? { label: String(estado), tone: 'muted' } : null;
 }
 
 const CotizacionPublicaScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
 
   const token = useMemo(() => {
     const fromRoute = route.params?.token;
@@ -69,6 +76,7 @@ const CotizacionPublicaScreen = () => {
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [tallerImgError, setTallerImgError] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!token) {
@@ -81,6 +89,7 @@ const CotizacionPublicaScreen = () => {
     try {
       const res = await obtenerCotizacionPublica(token);
       setData(res);
+      setTallerImgError(false);
     } catch (e) {
       const status = e?.response?.status || e?.status;
       if (status === 410) {
@@ -162,18 +171,22 @@ const CotizacionPublicaScreen = () => {
     );
   }
 
-  const repuestos = data.repuestos || [];
+  const repuestos = Array.isArray(data.repuestos) ? data.repuestos : [];
   const puedeResponder = Boolean(data.puede_responder);
   const estado = estadoMeta(data.estado);
   const contentWidthStyle = { maxWidth: 752, width: '100%', alignSelf: 'center' };
+  const tallerFoto = resolveToAbsoluteMediaUrl(data.taller?.foto_perfil);
+  const footerPad = puedeResponder
+    ? 24 + 180 + Math.max(insets.bottom, Platform.OS === 'web' ? 16 : 0)
+    : SPACING['2xl'] + Math.max(insets.bottom, 16);
 
   const body = (
     <>
-      {/* Hero: marca (taller) + título + soporte — una composición */}
+      {/* Hero: etiqueta Servicio + título (no marca del taller) */}
       <View style={styles.hero}>
-        <Text style={styles.brandKicker}>
-          {data.taller?.nombre || 'Cotización de taller'}
-        </Text>
+        <View style={styles.serviceTag}>
+          <Text style={styles.serviceTagText}>Servicio</Text>
+        </View>
         <Text style={styles.heroTitle}>
           {data.servicio_nombre || 'Cotización de servicio'}
         </Text>
@@ -201,80 +214,122 @@ const CotizacionPublicaScreen = () => {
         </View>
       </View>
 
-      {/* Sobre el servicio */}
+      {/* Detalle del trabajo (texto, sin montos) */}
       {data.descripcion_problema ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionEyebrow}>Sobre el servicio</Text>
-          <Text style={styles.sectionTitle}>Qué incluye</Text>
-          <View style={styles.sectionRule} />
-          <Text style={styles.resumenLead}>{data.descripcion_problema}</Text>
+        <View style={styles.paper}>
+          <Text style={styles.paperEyebrow}>Detalle</Text>
+          <Text style={styles.paperTitle}>Sobre el servicio</Text>
+          <View style={styles.paperRule} />
+          <Text style={styles.bodyText}>{data.descripcion_problema}</Text>
         </View>
       ) : null}
 
-      {/* Repuestos — amenities */}
-      {repuestos.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionEyebrow}>Materiales</Text>
-          <Text style={styles.sectionTitle}>Repuestos estimados (IVA incl.)</Text>
-          <View style={styles.sectionRule} />
-          <View style={styles.amenityList}>
-            {repuestos.map((rep, idx) => (
-              <View key={`${rep.nombre}-${idx}`} style={styles.amenityRow}>
-                <Text style={styles.amenityLabel} numberOfLines={3}>
-                  {rep.nombre}
-                  {rep.cantidad && Number(rep.cantidad) !== 1
-                    ? ` · ×${rep.cantidad}`
-                    : ''}
-                </Text>
-                <Text style={styles.amenityValue}>
-                  {formatCLP((rep.precio_unitario_clp || 0) * (rep.cantidad || 1))}
-                </Text>
-              </View>
-            ))}
-          </View>
+      {/* Mano de obra — bloque propio */}
+      <View style={styles.paper}>
+        <Text style={styles.paperEyebrow}>Mano de obra</Text>
+        <Text style={styles.paperTitle}>Trabajo del taller</Text>
+        <View style={styles.paperRule} />
+        <View style={styles.lineRow}>
+          <Text style={styles.lineLabel}>Mano de obra (IVA incl.)</Text>
+          <Text style={styles.lineValue}>{formatCLP(data.mano_obra_clp)}</Text>
         </View>
-      ) : null}
-
-      {/* Totales — montos finales al cliente (IVA 19% incluido) */}
-      <View style={styles.section}>
-        <Text style={styles.sectionEyebrow}>Precio</Text>
-        <Text style={styles.sectionTitle}>Resumen (IVA incluido)</Text>
-        <View style={styles.sectionRule} />
-        <Text style={styles.ivaHint}>
-          Los montos ya incluyen IVA 19%. No se suma impuesto adicional al total.
+        <Text style={styles.hint}>
+          Incluye el tiempo y la intervención del mecánico. IVA 19% ya incluido.
         </Text>
-        <View style={styles.amenityList}>
-          <View style={styles.amenityRow}>
-            <Text style={styles.amenityLabel}>Mano de obra (IVA incl.)</Text>
-            <Text style={styles.amenityValue}>{formatCLP(data.mano_obra_clp)}</Text>
-          </View>
-          {Number(data.costo_repuestos_clp) > 0 ? (
-            <View style={styles.amenityRow}>
-              <Text style={styles.amenityLabel}>Repuestos (IVA incl.)</Text>
-              <Text style={styles.amenityValue}>{formatCLP(data.costo_repuestos_clp)}</Text>
-            </View>
-          ) : null}
-          <View style={[styles.amenityRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total estimado (IVA incluido)</Text>
-            <Text style={styles.totalValue}>{formatCLP(data.total_clp)}</Text>
-          </View>
-        </View>
       </View>
 
-      {/* Taller */}
-      {data.taller?.telefono || data.taller?.direccion ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionEyebrow}>Proveedor</Text>
-          <Text style={styles.sectionTitle}>
-            {data.taller?.nombre || 'Taller'}
-          </Text>
-          <View style={styles.sectionRule} />
-          {data.taller?.direccion ? (
-            <Text style={styles.resumenParagraph}>{data.taller.direccion}</Text>
+      {/* Repuestos — ítems separados de la mano de obra */}
+      {repuestos.length > 0 ? (
+        <View style={styles.paper}>
+          <Text style={styles.paperEyebrow}>Repuestos</Text>
+          <Text style={styles.paperTitle}>Materiales (IVA incl.)</Text>
+          <View style={styles.paperRule} />
+          <View style={styles.itemList}>
+            {repuestos.map((rep, idx) => {
+              const qty = Number(rep.cantidad) || 1;
+              const unit = Number(rep.precio_unitario_clp) || 0;
+              return (
+                <View key={`${rep.id || rep.nombre}-${idx}`} style={styles.itemRow}>
+                  <View style={styles.itemCopy}>
+                    <Text style={styles.itemName} numberOfLines={3}>
+                      {rep.nombre || 'Repuesto'}
+                    </Text>
+                    <Text style={styles.itemMeta}>
+                      {qty > 1 ? `${qty} × ${formatCLP(unit)}` : '1 unidad'}
+                    </Text>
+                  </View>
+                  <Text style={styles.itemAmount}>{formatCLP(unit * qty)}</Text>
+                </View>
+              );
+            })}
+          </View>
+          {Number(data.costo_repuestos_clp) > 0 ? (
+            <View style={[styles.lineRow, styles.subtotalRow]}>
+              <Text style={styles.subtotalLabel}>Subtotal repuestos</Text>
+              <Text style={styles.subtotalValue}>{formatCLP(data.costo_repuestos_clp)}</Text>
+            </View>
           ) : null}
-          {data.taller?.telefono ? (
-            <Text style={styles.resumenParagraph}>Tel. {data.taller.telefono}</Text>
+        </View>
+      ) : null}
+
+      {/* Total */}
+      <View style={[styles.paper, styles.totalPaper]}>
+        <View style={styles.totalBreakdown}>
+          <View style={styles.lineRow}>
+            <Text style={styles.lineLabelMuted}>Mano de obra</Text>
+            <Text style={styles.lineValueMuted}>{formatCLP(data.mano_obra_clp)}</Text>
+          </View>
+          {Number(data.costo_repuestos_clp) > 0 ? (
+            <View style={styles.lineRow}>
+              <Text style={styles.lineLabelMuted}>Repuestos</Text>
+              <Text style={styles.lineValueMuted}>{formatCLP(data.costo_repuestos_clp)}</Text>
+            </View>
           ) : null}
+        </View>
+        <View style={styles.totalRule} />
+        <View style={styles.lineRow}>
+          <Text style={styles.totalLabel}>Total estimado</Text>
+          <Text style={styles.totalValue}>{formatCLP(data.total_clp)}</Text>
+        </View>
+        <Text style={styles.hint}>IVA 19% incluido. No se suma impuesto adicional.</Text>
+      </View>
+
+      {/* Proveedor: foto + nombre + contacto */}
+      {data.taller?.nombre || data.taller?.telefono || data.taller?.direccion ? (
+        <View style={styles.paper}>
+          <Text style={styles.paperEyebrow}>Proveedor</Text>
+          <View style={styles.tallerRow}>
+            {tallerFoto && !tallerImgError ? (
+              <ExpoImage
+                source={{ uri: tallerFoto }}
+                style={styles.tallerAvatar}
+                contentFit="cover"
+                onError={() => setTallerImgError(true)}
+                accessibilityLabel={data.taller?.nombre || 'Taller'}
+              />
+            ) : (
+              <View style={styles.tallerAvatarPlaceholder}>
+                <Wrench size={20} color={COLORS.brand.orange} strokeWidth={2} />
+              </View>
+            )}
+            <View style={styles.tallerCopy}>
+              <Text style={styles.tallerName} numberOfLines={2}>
+                {data.taller?.nombre || 'Taller'}
+              </Text>
+              {data.taller?.direccion ? (
+                <View style={styles.contactRow}>
+                  <MapPin size={14} color={COLORS.icon.default} strokeWidth={2} />
+                  <Text style={styles.contactText}>{data.taller.direccion}</Text>
+                </View>
+              ) : null}
+              {data.taller?.telefono ? (
+                <View style={styles.contactRow}>
+                  <Phone size={14} color={COLORS.icon.default} strokeWidth={2} />
+                  <Text style={styles.contactText}>{data.taller.telefono}</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
         </View>
       ) : null}
 
@@ -288,37 +343,11 @@ const CotizacionPublicaScreen = () => {
           </View>
         </View>
       ) : null}
-
-      {/* CTA — único card interactivo */}
-      {puedeResponder ? (
-        <View style={styles.actionCard}>
-          <Text style={styles.actionTitle}>¿Aceptas esta cotización?</Text>
-          <Text style={styles.actionHint}>
-            Al aceptar, el taller te contactará para confirmar el horario. No necesitas crear una cuenta.
-          </Text>
-          <GuestGradientButton
-            title={submitting ? 'Enviando…' : 'Aceptar cotización'}
-            onPress={() => void handleAceptar()}
-            loading={submitting}
-            disabled={submitting}
-            fullWidth
-          />
-          <Button
-            title="Rechazar"
-            type="secondary"
-            variant="outline"
-            onPress={() => void handleRechazar()}
-            disabled={submitting}
-            fullWidth
-            style={styles.rejectBtn}
-          />
-        </View>
-      ) : null}
     </>
   );
 
   return (
-    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.root} edges={['top']}>
       <LinearGradient
         colors={[COLORS.base.soft, COLORS.background.default, COLORS.background.default]}
         locations={[0, 0.28, 1]}
@@ -336,20 +365,52 @@ const CotizacionPublicaScreen = () => {
         <View style={styles.topBarSpacer} />
       </View>
 
-      {/*
-        ScrollView en todas las plataformas. En web el stack card usa overflow:hidden
-        + altura acotada; el scroll lo maneja este ScrollView.
-        Antes se delegaba overflowY:auto al card (sin ScrollView) y en iOS Safari el
-        hijo flex:1 no expandía el scrollHeight → touch scroll bloqueado.
-      */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, contentWidthStyle]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          contentWidthStyle,
+          { paddingBottom: footerPad },
+        ]}
         showsVerticalScrollIndicator
         keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
       >
         {body}
       </ScrollView>
+
+      {/* Footer sticky: siempre visible en web/móvil (resuelve scroll cortado) */}
+      {puedeResponder ? (
+        <View
+          style={[
+            styles.stickyFooter,
+            { paddingBottom: Math.max(insets.bottom, Platform.OS === 'web' ? 16 : 12) },
+          ]}
+        >
+          <View style={[styles.stickyInner, contentWidthStyle]}>
+            <Text style={styles.actionTitle}>¿Aceptas esta cotización?</Text>
+            <Text style={styles.actionHint}>
+              Al aceptar, el taller te contactará para confirmar el horario. No necesitas crear una cuenta.
+            </Text>
+            <GuestGradientButton
+              title={submitting ? 'Enviando…' : 'Aceptar cotización'}
+              onPress={() => void handleAceptar()}
+              loading={submitting}
+              disabled={submitting}
+              fullWidth
+            />
+            <Button
+              title="Rechazar"
+              type="secondary"
+              variant="outline"
+              onPress={() => void handleRechazar()}
+              disabled={submitting}
+              fullWidth
+              style={styles.rejectBtn}
+            />
+          </View>
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 };
@@ -361,7 +422,7 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? {
           height: '100%',
-          maxHeight: '100%',
+          maxHeight: '100vh',
           overflow: 'hidden',
         }
       : null),
@@ -372,6 +433,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     zIndex: 2,
+    flexShrink: 0,
   },
   logo: {
     flex: 1,
@@ -384,10 +446,9 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    minHeight: 0,
     ...(Platform.OS === 'web'
       ? {
-          height: '100%',
-          maxHeight: '100%',
           WebkitOverflowScrolling: 'touch',
           overscrollBehavior: 'contain',
         }
@@ -395,8 +456,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING['2xl'],
-    gap: SPACING.xl,
+    gap: SPACING.md,
   },
   centered: {
     flex: 1,
@@ -424,12 +484,19 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
     gap: SPACING.xs,
   },
-  brandKicker: {
+  serviceTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.selection.background,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 5,
+    borderRadius: BORDERS.radius.sm,
+  },
+  serviceTagText: {
     fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
+    fontSize: TYPOGRAPHY.fontSize.xs,
     letterSpacing: TYPOGRAPHY.letterSpacing.wider,
     textTransform: 'uppercase',
-    color: COLORS.brand.orange,
+    color: COLORS.selection.text,
   },
   heroTitle: {
     ...TYPOGRAPHY.styles.h1,
@@ -467,101 +534,192 @@ const styles = StyleSheet.create({
   metaPillOkText: {
     color: COLORS.brand.magenta,
   },
-  section: {
+  paper: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    gap: SPACING.xs,
+    ...SHADOWS.sm,
+  },
+  totalPaper: {
     gap: SPACING.sm,
   },
-  sectionEyebrow: {
+  paperEyebrow: {
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.xs,
-    letterSpacing: TYPOGRAPHY.letterSpacing.section,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
     textTransform: 'uppercase',
     color: COLORS.text.secondary,
-    marginBottom: 2,
   },
-  sectionTitle: {
+  paperTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    lineHeight: 28,
-    letterSpacing: -0.3,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    lineHeight: 26,
     color: COLORS.text.primary,
   },
-  sectionRule: {
+  paperRule: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: COLORS.border.light,
-    marginTop: SPACING.xs,
-    marginBottom: SPACING.xs,
+    marginVertical: SPACING.xs,
   },
-  resumenLead: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.lg,
-    lineHeight: 28,
-    color: COLORS.text.primary,
-    paddingTop: SPACING.xs,
-  },
-  resumenParagraph: {
+  bodyText: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.md,
     lineHeight: 24,
-    color: COLORS.text.secondary,
+    color: COLORS.text.primary,
   },
-  ivaHint: {
+  hint: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.sm,
     lineHeight: 18,
     color: COLORS.text.secondary,
-    marginBottom: SPACING.xs,
+    marginTop: 2,
   },
-  condicionesBlock: {
-    gap: SPACING.sm,
-    paddingTop: SPACING.xs,
-  },
-  amenityList: {
-    gap: 0,
-  },
-  amenityRow: {
+  lineRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border.light,
+    gap: SPACING.md,
   },
-  amenityLabel: {
+  lineLabel: {
     flex: 1,
-    minWidth: 0,
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.md,
     lineHeight: 22,
     color: COLORS.text.primary,
   },
-  amenityValue: {
+  lineValue: {
     flexShrink: 0,
-    maxWidth: '42%',
-    textAlign: 'right',
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    lineHeight: 22,
+    color: COLORS.text.primary,
+  },
+  lineLabelMuted: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+  },
+  lineValueMuted: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+  },
+  itemList: {
+    gap: 0,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border.light,
+  },
+  itemCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  itemName: {
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.md,
     lineHeight: 22,
+    color: COLORS.text.primary,
+  },
+  itemMeta: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
   },
-  totalRow: {
-    borderBottomWidth: 0,
-    paddingTop: SPACING.md,
+  itemAmount: {
+    flexShrink: 0,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.primary,
+  },
+  subtotalRow: {
+    paddingTop: SPACING.sm,
+    borderTopWidth: 0,
+  },
+  subtotalLabel: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.secondary,
+  },
+  subtotalValue: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.primary,
+  },
+  totalBreakdown: {
+    gap: 6,
+  },
+  totalRule: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border.light,
   },
   totalLabel: {
     flex: 1,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontSize: TYPOGRAPHY.fontSize.lg,
-    lineHeight: 24,
     color: COLORS.text.primary,
   },
   totalValue: {
-    flexShrink: 0,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontSize: TYPOGRAPHY.fontSize.xl,
-    lineHeight: 28,
     letterSpacing: -0.3,
     color: COLORS.text.primary,
+  },
+  tallerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    marginTop: SPACING.xs,
+  },
+  tallerAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: COLORS.badge.meta.background,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+  },
+  tallerAvatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: withOpacity(COLORS.brand.orange, 0.12),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tallerCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+  },
+  tallerName: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.lg,
+    color: COLORS.text.primary,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  contactText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 20,
+    color: COLORS.text.secondary,
   },
   signedBanner: {
     flexDirection: 'row',
@@ -584,13 +742,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 18,
   },
-  actionCard: {
+  stickyFooter: {
+    flexShrink: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
-    borderRadius: BORDERS.radius.lg,
-    padding: SPACING.lg,
-    gap: SPACING.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border.light,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    ...SHADOWS.md,
+    zIndex: 10,
+  },
+  stickyInner: {
+    gap: SPACING.xs,
   },
   actionTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
@@ -599,13 +762,13 @@ const styles = StyleSheet.create({
   },
   actionHint: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.base,
+    fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
-    lineHeight: 20,
+    lineHeight: 18,
     marginBottom: SPACING.xs,
   },
   rejectBtn: {
-    marginTop: SPACING.xs,
+    marginTop: SPACING.xxs,
   },
 });
 
