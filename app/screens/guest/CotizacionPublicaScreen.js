@@ -34,6 +34,14 @@ function formatCLP(value) {
   return `$${Math.round(n).toLocaleString('es-CL')}`;
 }
 
+/** Desglose informativo desde total con IVA 19% incluido. */
+function desgloseIvaDesdeTotal(totalIvaIncl) {
+  const total = Math.round(Number(totalIvaIncl) || 0);
+  const neto = Math.round(total / 1.19);
+  const iva = total - neto;
+  return { neto, iva, total };
+}
+
 function vehicleHeadline(data) {
   if (!data) return 'Tu vehículo';
   const parts = [data.vehiculo_marca, data.vehiculo_modelo, data.vehiculo_anio].filter(Boolean);
@@ -230,11 +238,11 @@ const CotizacionPublicaScreen = () => {
         <Text style={styles.paperTitle}>Trabajo del taller</Text>
         <View style={styles.paperRule} />
         <View style={styles.lineRow}>
-          <Text style={styles.lineLabel}>Mano de obra (IVA incl.)</Text>
+          <Text style={styles.lineLabel}>Mano de obra</Text>
           <Text style={styles.lineValue}>{formatCLP(data.mano_obra_clp)}</Text>
         </View>
         <Text style={styles.hint}>
-          Incluye el tiempo y la intervención del mecánico. IVA 19% ya incluido.
+          Incluye el tiempo y la intervención del mecánico.
         </Text>
       </View>
 
@@ -242,12 +250,13 @@ const CotizacionPublicaScreen = () => {
       {repuestos.length > 0 ? (
         <View style={styles.paper}>
           <Text style={styles.paperEyebrow}>Repuestos</Text>
-          <Text style={styles.paperTitle}>Materiales (IVA incl.)</Text>
+          <Text style={styles.paperTitle}>Materiales</Text>
           <View style={styles.paperRule} />
           <View style={styles.itemList}>
             {repuestos.map((rep, idx) => {
               const qty = Number(rep.cantidad) || 1;
               const unit = Number(rep.precio_unitario_clp) || 0;
+              const marca = (rep.marca_repuesto || '').trim();
               return (
                 <View key={`${rep.id || rep.nombre}-${idx}`} style={styles.itemRow}>
                   <View style={styles.itemCopy}>
@@ -255,7 +264,12 @@ const CotizacionPublicaScreen = () => {
                       {rep.nombre || 'Repuesto'}
                     </Text>
                     <Text style={styles.itemMeta}>
-                      {qty > 1 ? `${qty} × ${formatCLP(unit)}` : '1 unidad'}
+                      {[
+                        qty > 1 ? `${qty} × ${formatCLP(unit)}` : '1 unidad',
+                        marca ? `Marca ${marca}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </Text>
                   </View>
                   <Text style={styles.itemAmount}>{formatCLP(unit * qty)}</Text>
@@ -272,7 +286,7 @@ const CotizacionPublicaScreen = () => {
         </View>
       ) : null}
 
-      {/* Total */}
+      {/* Total con desglose IVA informativo */}
       <View style={[styles.paper, styles.totalPaper]}>
         <View style={styles.totalBreakdown}>
           <View style={styles.lineRow}>
@@ -285,13 +299,30 @@ const CotizacionPublicaScreen = () => {
               <Text style={styles.lineValueMuted}>{formatCLP(data.costo_repuestos_clp)}</Text>
             </View>
           ) : null}
+          {(() => {
+            const d = desgloseIvaDesdeTotal(data.total_clp);
+            return (
+              <>
+                <View style={styles.lineRow}>
+                  <Text style={styles.lineLabelMuted}>Neto</Text>
+                  <Text style={styles.lineValueMuted}>{formatCLP(d.neto)}</Text>
+                </View>
+                <View style={styles.lineRow}>
+                  <Text style={styles.lineLabelMuted}>IVA 19%</Text>
+                  <Text style={styles.lineValueMuted}>{formatCLP(d.iva)}</Text>
+                </View>
+              </>
+            );
+          })()}
         </View>
         <View style={styles.totalRule} />
         <View style={styles.lineRow}>
-          <Text style={styles.totalLabel}>Total estimado</Text>
+          <Text style={styles.totalLabel}>Total a pagar</Text>
           <Text style={styles.totalValue}>{formatCLP(data.total_clp)}</Text>
         </View>
-        <Text style={styles.hint}>IVA 19% incluido. No se suma impuesto adicional.</Text>
+        <Text style={styles.hint}>
+          Los precios de línea ya incluyen IVA. El desglose neto/IVA es informativo.
+        </Text>
       </View>
 
       {/* Proveedor: foto + nombre + contacto */}
