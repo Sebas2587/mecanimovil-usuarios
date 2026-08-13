@@ -52,6 +52,30 @@ function vehicleHeadline(data) {
   return base || 'Tu vehículo';
 }
 
+function formatFechaHoraPropuesta(fecha, hora) {
+  if (!fecha) return '';
+  const iso = String(fecha).split('T')[0];
+  const [y, m, d] = iso.split('-').map((p) => parseInt(p, 10));
+  if (!y || !m || !d) return '';
+  const parsed = new Date(y, m - 1, d);
+  const fechaTxt = parsed.toLocaleDateString('es-CL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+  const horaTxt = String(hora || '').substring(0, 5);
+  return horaTxt ? `${fechaTxt} a las ${horaTxt}` : fechaTxt;
+}
+
+function mensajeAceptacionAdicional(data) {
+  if (data?.ejecucion_adicional === 'nueva_fecha') {
+    const slot = formatFechaHoraPropuesta(data.fecha_propuesta, data.hora_propuesta);
+    if (slot) return `Quedó agendado para el ${slot}.`;
+    return 'Quedó agendado en la fecha acordada con el taller.';
+  }
+  return 'El taller puede continuar este trabajo adicional en la misma visita.';
+}
+
 function estadoMeta(estado) {
   if (estado === 'aceptada') {
     return { label: 'Aceptada', tone: 'ok' };
@@ -122,7 +146,9 @@ const CotizacionPublicaScreen = () => {
       setData(res);
       showAlert(
         'Cotización aceptada',
-        'El taller coordinará el horario contigo. Te contactará pronto.',
+        res.es_trabajo_adicional
+          ? mensajeAceptacionAdicional(res)
+          : 'El taller coordinará el horario contigo. Te contactará pronto.',
       );
     } catch (e) {
       showAlert('Error', e?.message || 'No se pudo aceptar la cotización.');
@@ -188,12 +214,20 @@ const CotizacionPublicaScreen = () => {
     ? 24 + 180 + Math.max(insets.bottom, Platform.OS === 'web' ? 16 : 0)
     : SPACING['2xl'] + Math.max(insets.bottom, 16);
 
+  const esAdicional = Boolean(data.es_trabajo_adicional);
+  const nombrePrincipal = data.servicio_principal?.nombre;
+  const motivoAdicional = (data.motivo_servicio_adicional || '').trim();
+  const esNuevaFecha = data.ejecucion_adicional === 'nueva_fecha';
+  const slotPropuesto = formatFechaHoraPropuesta(data.fecha_propuesta, data.hora_propuesta);
+
   const body = (
     <>
       {/* Hero: etiqueta Servicio + título (no marca del taller) */}
       <View style={styles.hero}>
         <View style={styles.serviceTag}>
-          <Text style={styles.serviceTagText}>Servicio</Text>
+          <Text style={styles.serviceTagText}>
+            {esAdicional ? 'Trabajo adicional' : 'Servicio'}
+          </Text>
         </View>
         <Text style={styles.heroTitle}>
           {data.servicio_nombre || 'Cotización de servicio'}
@@ -221,6 +255,29 @@ const CotizacionPublicaScreen = () => {
           ) : null}
         </View>
       </View>
+
+      {esAdicional ? (
+        <View style={styles.paper}>
+          <Text style={styles.paperEyebrow}>Durante tu servicio</Text>
+          <Text style={styles.paperTitle}>
+            {nombrePrincipal || 'Servicio en curso'}
+          </Text>
+          <View style={styles.paperRule} />
+          <Text style={styles.bodyText}>
+            Este trabajo se propone durante el servicio que el taller ya está realizando
+            {nombrePrincipal ? ` (${nombrePrincipal})` : ''}.
+            {motivoAdicional ? ` ${motivoAdicional}` : ''}
+          </Text>
+          {esNuevaFecha && slotPropuesto ? (
+            <>
+              <View style={styles.paperRule} />
+              <Text style={styles.bodyText}>
+                Fecha propuesta: {slotPropuesto} (acordada con el taller).
+              </Text>
+            </>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* Detalle del trabajo (texto, sin montos) */}
       {data.descripcion_problema ? (
@@ -323,6 +380,12 @@ const CotizacionPublicaScreen = () => {
         <Text style={styles.hint}>
           Los precios de línea ya incluyen IVA. El desglose neto/IVA es informativo.
         </Text>
+        {esAdicional || data.pago_directo_taller ? (
+          <Text style={styles.hint}>
+            El pago de mano de obra y repuestos se coordina directo con el taller.
+            Mecanimovil no cobra este trabajo.
+          </Text>
+        ) : null}
       </View>
 
       {/* Proveedor: foto + nombre + contacto */}
@@ -364,12 +427,14 @@ const CotizacionPublicaScreen = () => {
         </View>
       ) : null}
 
-      {data.estado === 'aceptada' && data.horario_por_confirmar ? (
+      {data.estado === 'aceptada' && (esAdicional || data.horario_por_confirmar) ? (
         <View style={styles.signedBanner}>
           <View style={{ flex: 1 }}>
             <Text style={styles.signedTitle}>Cotización aceptada</Text>
             <Text style={styles.signedMeta}>
-              El taller coordinará el horario contigo. Revisa tu teléfono por si te contactan.
+              {esAdicional
+                ? mensajeAceptacionAdicional(data)
+                : 'El taller coordinará el horario contigo. Revisa tu teléfono por si te contactan.'}
             </Text>
           </View>
         </View>
