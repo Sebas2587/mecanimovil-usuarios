@@ -219,6 +219,12 @@ const CotizacionPublicaScreen = () => {
   const motivoAdicional = (data.motivo_servicio_adicional || '').trim();
   const esNuevaFecha = data.ejecucion_adicional === 'nueva_fecha';
   const slotPropuesto = formatFechaHoraPropuesta(data.fecha_propuesta, data.hora_propuesta);
+  const actualizadaPorTaller = Boolean(data.actualizada_por_taller)
+    || (
+      data.enviada_en
+      && data.actualizado_en
+      && new Date(data.actualizado_en).getTime() > new Date(data.enviada_en).getTime() + 2000
+    );
 
   const body = (
     <>
@@ -255,6 +261,17 @@ const CotizacionPublicaScreen = () => {
           ) : null}
         </View>
       </View>
+
+      {actualizadaPorTaller ? (
+        <View style={styles.paper}>
+          <Text style={styles.paperEyebrow}>Actualización</Text>
+          <Text style={styles.paperTitle}>El taller actualizó esta cotización</Text>
+          <View style={styles.paperRule} />
+          <Text style={styles.bodyText}>
+            Revisá el desglose. Si el total cambió y aún puedes responder, aceptá o rechazá de nuevo.
+          </Text>
+        </View>
+      ) : null}
 
       {esAdicional ? (
         <View style={styles.paper}>
