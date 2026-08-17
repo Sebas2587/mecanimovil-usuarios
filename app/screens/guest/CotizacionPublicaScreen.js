@@ -76,6 +76,20 @@ function mensajeAceptacionAdicional(data) {
   return 'El taller puede continuar este trabajo adicional en la misma visita.';
 }
 
+function hintFooterAceptacion(data) {
+  if (data?.es_trabajo_adicional) {
+    if (data.ejecucion_adicional === 'nueva_fecha') {
+      const slot = formatFechaHoraPropuesta(data.fecha_propuesta, data.hora_propuesta);
+      if (slot) {
+        return `Al aceptar, confirmas el día y hora propuestos (${slot}). No necesitas crear una cuenta.`;
+      }
+      return 'Al aceptar, confirmas la fecha acordada con el taller. No necesitas crear una cuenta.';
+    }
+    return 'Al aceptar, el taller puede continuar este trabajo en la misma visita. No necesitas crear una cuenta.';
+  }
+  return 'Al aceptar, el taller te contactará para confirmar el horario. No necesitas crear una cuenta.';
+}
+
 function estadoMeta(estado) {
   if (estado === 'aceptada') {
     return { label: 'Aceptada', tone: 'ok' };
@@ -268,7 +282,7 @@ const CotizacionPublicaScreen = () => {
           <Text style={styles.paperTitle}>El taller actualizó esta cotización</Text>
           <View style={styles.paperRule} />
           <Text style={styles.bodyText}>
-            Revisá el desglose. Si el total cambió y aún puedes responder, aceptá o rechazá de nuevo.
+            Revisa el desglose. Si el total cambió y aún puedes responder, acepta o rechaza de nuevo.
           </Text>
         </View>
       ) : null}
@@ -281,15 +295,19 @@ const CotizacionPublicaScreen = () => {
           </Text>
           <View style={styles.paperRule} />
           <Text style={styles.bodyText}>
-            Este trabajo se propone durante el servicio que el taller ya está realizando
-            {nombrePrincipal ? ` (${nombrePrincipal})` : ''}.
-            {motivoAdicional ? ` ${motivoAdicional}` : ''}
+            Este trabajo se propone durante tu servicio en curso
+            {nombrePrincipal ? `: ${nombrePrincipal}` : ''}.
           </Text>
-          {esNuevaFecha && slotPropuesto ? (
+          {motivoAdicional ? (
+            <Text style={[styles.bodyText, { marginTop: 8 }]}>{motivoAdicional}</Text>
+          ) : null}
+          {esNuevaFecha ? (
             <>
               <View style={styles.paperRule} />
               <Text style={styles.bodyText}>
-                Fecha propuesta: {slotPropuesto} (acordada con el taller).
+                {slotPropuesto
+                  ? `Fecha propuesta: ${slotPropuesto} (acordada con el taller).`
+                  : 'Fecha a confirmar con el taller.'}
               </Text>
             </>
           ) : null}
@@ -503,7 +521,7 @@ const CotizacionPublicaScreen = () => {
           <View style={[styles.stickyInner, contentWidthStyle]}>
             <Text style={styles.actionTitle}>¿Aceptas esta cotización?</Text>
             <Text style={styles.actionHint}>
-              Al aceptar, el taller te contactará para confirmar el horario. No necesitas crear una cuenta.
+              {hintFooterAceptacion(data)}
             </Text>
             <GuestGradientButton
               title={submitting ? 'Enviando…' : 'Aceptar cotización'}
