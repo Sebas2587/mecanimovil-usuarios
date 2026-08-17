@@ -19,7 +19,7 @@ import Button from '../../components/base/Button/Button';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import { showAlert } from '../../utils/platformAlert';
-import { resolveToAbsoluteMediaUrl } from '../../utils/providerUtils';
+import { buildProviderAvatarUri, resolveToAbsoluteMediaUrl } from '../../utils/providerUtils';
 import {
   aceptarCotizacionPublica,
   obtenerCotizacionPublica,
@@ -223,7 +223,8 @@ const CotizacionPublicaScreen = () => {
   const puedeResponder = Boolean(data.puede_responder);
   const estado = estadoMeta(data.estado);
   const contentWidthStyle = { maxWidth: 752, width: '100%', alignSelf: 'center' };
-  const tallerFoto = resolveToAbsoluteMediaUrl(data.taller?.foto_perfil);
+  const tallerFoto = buildProviderAvatarUri(data.taller)
+    || resolveToAbsoluteMediaUrl(data.taller?.foto_perfil || data.taller?.foto_perfil_url);
   const footerPad = puedeResponder
     ? 24 + 180 + Math.max(insets.bottom, Platform.OS === 'web' ? 16 : 0)
     : SPACING['2xl'] + Math.max(insets.bottom, 16);
