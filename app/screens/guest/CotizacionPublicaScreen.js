@@ -12,10 +12,11 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image as ExpoImage } from 'expo-image';
-import { MapPin, Phone, Wrench } from 'lucide-react-native';
+import { MapPin, Phone, Star } from 'lucide-react-native';
 import BackButton from '../../components/navigation/BackButton';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import Button from '../../components/base/Button/Button';
+import VerifiedSeal from '../../components/base/VerifiedSeal/VerifiedSeal';
 import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import { showAlert } from '../../utils/platformAlert';
@@ -104,6 +105,102 @@ function estadoMeta(estado) {
     return { label: 'Cancelada', tone: 'muted' };
   }
   return estado ? { label: String(estado), tone: 'muted' } : null;
+}
+
+const TALLER_ACCENT_POOL = [
+  COLORS.brand.magenta,
+  COLORS.brand.orange,
+  '#6366F1',
+  '#0EA5E9',
+];
+
+function tallerAccentColor(nombre) {
+  const s = String(nombre || 'Taller');
+  let hash = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return TALLER_ACCENT_POOL[hash % TALLER_ACCENT_POOL.length];
+}
+
+function tallerInitials(nombre) {
+  const parts = String(nombre || 'T').trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
+  }
+  return (parts[0]?.slice(0, 2) || 'T').toUpperCase();
+}
+
+function TallerSelloCard({ taller, fotoUri, imgError, onImgError }) {
+  if (!taller?.nombre && !taller?.telefono && !taller?.direccion) return null;
+
+  const nombre = taller?.nombre || 'Taller';
+  const accent = tallerAccentColor(nombre);
+  const rating = Number(taller?.calificacion_promedio) || 0;
+  const showPhoto = Boolean(fotoUri) && !imgError;
+
+  return (
+    <View style={styles.selloCard}>
+      <Text style={styles.selloEyebrow}>Cotización de</Text>
+      <View style={styles.selloRow}>
+        <View style={[styles.selloAvatarRing, { borderColor: accent }]}>
+          {showPhoto ? (
+            <ExpoImage
+              source={{ uri: fotoUri }}
+              style={styles.selloAvatar}
+              contentFit="cover"
+              onError={onImgError}
+              accessibilityLabel={nombre}
+            />
+          ) : (
+            <View style={[styles.selloAvatarFallback, { backgroundColor: withOpacity(accent, 0.12) }]}>
+              <Text style={[styles.selloInitials, { color: accent }]}>{tallerInitials(nombre)}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.selloCopy}>
+          <View style={styles.selloNameRow}>
+            <Text style={styles.selloName} numberOfLines={2}>
+              {nombre}
+            </Text>
+            {taller?.verificado ? (
+              <VerifiedSeal size={16} checkSize={10} accessibilityLabel="Taller verificado" />
+            ) : null}
+          </View>
+
+          {rating > 0 ? (
+            <View style={styles.selloRatingRow}>
+              <Star size={13} color={COLORS.text.primary} fill={COLORS.text.primary} />
+              <Text style={styles.selloRatingText}>{rating.toFixed(1)}</Text>
+            </View>
+          ) : null}
+
+          {taller?.direccion ? (
+            <View style={styles.contactRow}>
+              <MapPin size={14} color={COLORS.icon.default} strokeWidth={2} />
+              <Text style={styles.contactText}>{taller.direccion}</Text>
+            </View>
+          ) : null}
+          {taller?.telefono ? (
+            <View style={styles.contactRow}>
+              <Phone size={14} color={COLORS.icon.default} strokeWidth={2} />
+              <Text style={styles.contactText}>{taller.telefono}</Text>
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      <View style={styles.selloFooter}>
+        <View style={[styles.selloAccentDot, { backgroundColor: accent }]} />
+        <Text style={styles.selloFooterText}>
+          {taller?.verificado
+            ? 'Taller verificado en Mecanimovil'
+            : 'Identidad del taller que envió esta cotización'}
+        </Text>
+      </View>
+    </View>
+  );
 }
 
 const CotizacionPublicaScreen = () => {
@@ -243,7 +340,14 @@ const CotizacionPublicaScreen = () => {
 
   const body = (
     <>
-      {/* Hero: etiqueta Servicio + título (no marca del taller) */}
+      <TallerSelloCard
+        taller={data.taller}
+        fotoUri={tallerFoto}
+        imgError={tallerImgError}
+        onImgError={() => setTallerImgError(true)}
+      />
+
+      {/* Hero: etiqueta Servicio + título */}
       <View style={styles.hero}>
         <View style={styles.serviceTag}>
           <Text style={styles.serviceTagText}>
@@ -424,45 +528,6 @@ const CotizacionPublicaScreen = () => {
         ) : null}
       </View>
 
-      {/* Proveedor: foto + nombre + contacto */}
-      {data.taller?.nombre || data.taller?.telefono || data.taller?.direccion ? (
-        <View style={styles.paper}>
-          <Text style={styles.paperEyebrow}>Proveedor</Text>
-          <View style={styles.tallerRow}>
-            {tallerFoto && !tallerImgError ? (
-              <ExpoImage
-                source={{ uri: tallerFoto }}
-                style={styles.tallerAvatar}
-                contentFit="cover"
-                onError={() => setTallerImgError(true)}
-                accessibilityLabel={data.taller?.nombre || 'Taller'}
-              />
-            ) : (
-              <View style={styles.tallerAvatarPlaceholder}>
-                <Wrench size={20} color={COLORS.brand.orange} strokeWidth={2} />
-              </View>
-            )}
-            <View style={styles.tallerCopy}>
-              <Text style={styles.tallerName} numberOfLines={2}>
-                {data.taller?.nombre || 'Taller'}
-              </Text>
-              {data.taller?.direccion ? (
-                <View style={styles.contactRow}>
-                  <MapPin size={14} color={COLORS.icon.default} strokeWidth={2} />
-                  <Text style={styles.contactText}>{data.taller.direccion}</Text>
-                </View>
-              ) : null}
-              {data.taller?.telefono ? (
-                <View style={styles.contactRow}>
-                  <Phone size={14} color={COLORS.icon.default} strokeWidth={2} />
-                  <Text style={styles.contactText}>{data.taller.telefono}</Text>
-                </View>
-              ) : null}
-            </View>
-          </View>
-        </View>
-      ) : null}
-
       {data.estado === 'aceptada' && (esAdicional || data.horario_por_confirmar) ? (
         <View style={styles.signedBanner}>
           <View style={{ flex: 1 }}>
@@ -613,8 +678,105 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   hero: {
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.xs,
     gap: SPACING.xs,
+  },
+  selloCard: {
+    backgroundColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: COLORS.border.light,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+    gap: SPACING.sm,
+    ...SHADOWS.md,
+  },
+  selloEyebrow: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
+    textTransform: 'uppercase',
+    color: COLORS.text.secondary,
+  },
+  selloRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: SPACING.md,
+  },
+  selloAvatarRing: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    padding: 3,
+    flexShrink: 0,
+  },
+  selloAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    backgroundColor: COLORS.badge.meta.background,
+  },
+  selloAvatarFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selloInitials: {
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    letterSpacing: -0.5,
+  },
+  selloCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+    paddingTop: 2,
+  },
+  selloNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selloName: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    lineHeight: 28,
+    color: COLORS.text.primary,
+  },
+  selloRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  selloRatingText: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    color: COLORS.text.primary,
+  },
+  selloFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    paddingTop: SPACING.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: COLORS.border.light,
+  },
+  selloAccentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    flexShrink: 0,
+  },
+  selloFooterText: {
+    flex: 1,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
   },
   serviceTag: {
     alignSelf: 'flex-start',
@@ -807,38 +969,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontSize: TYPOGRAPHY.fontSize.xl,
     letterSpacing: -0.3,
-    color: COLORS.text.primary,
-  },
-  tallerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.sm,
-    marginTop: SPACING.xs,
-  },
-  tallerAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.badge.meta.background,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border.light,
-  },
-  tallerAvatarPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: withOpacity(COLORS.brand.orange, 0.12),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tallerCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 6,
-  },
-  tallerName: {
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.lg,
     color: COLORS.text.primary,
   },
   contactRow: {
