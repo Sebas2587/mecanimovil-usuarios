@@ -1,212 +1,55 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Image as ExpoImage } from 'expo-image';
-import { MapPin, Phone, Star } from 'lucide-react-native';
+import { Download } from 'lucide-react-native';
 import BackButton from '../../components/navigation/BackButton';
 import GuestGradientButton from '../../components/guest/GuestGradientButton';
 import Button from '../../components/base/Button/Button';
-import VerifiedSeal from '../../components/base/VerifiedSeal/VerifiedSeal';
-import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS, withOpacity } from '../../design-system/tokens';
+import { COLORS, SPACING, BORDERS, TYPOGRAPHY, SHADOWS } from '../../design-system/tokens';
 import { ROUTES } from '../../utils/constants';
 import { showAlert } from '../../utils/platformAlert';
 import { buildProviderAvatarUri, resolveToAbsoluteMediaUrl } from '../../utils/providerUtils';
 import {
   aceptarCotizacionPublica,
+  descargarPdfCotizacionPublica,
   obtenerCotizacionPublica,
   rechazarCotizacionPublica,
 } from '../../services/cotizacionPublicaService';
 import { getCotizacionTokenFromWebPath } from '../../utils/publicListingRoute';
+import DocumentoHeader from './cotizacion/DocumentoHeader';
+import LineasCotizacion from './cotizacion/LineasCotizacion';
+import {
+  buildLineas,
+  desgloseIvaDesdeTotal,
+  duracionLabel,
+  formatCLP,
+  formatFechaCorta,
+  formatFechaHoraPropuesta,
+  hintFooterAceptacion,
+  mensajeAceptacionAdicional,
+  resolveCliente,
+  vehicleHeadline,
+} from './cotizacion/cotizacionPublicaFormat';
 
-const LOGO = require('../../../assets/images/Group 27logo_negro_mecanimovil.png');
-
-function formatCLP(value) {
-  const n = Number(value || 0);
-  return `$${Math.round(n).toLocaleString('es-CL')}`;
-}
-
-/** Desglose informativo desde total con IVA 19% incluido. */
-function desgloseIvaDesdeTotal(totalIvaIncl) {
-  const total = Math.round(Number(totalIvaIncl) || 0);
-  const neto = Math.round(total / 1.19);
-  const iva = total - neto;
-  return { neto, iva, total };
-}
-
-function vehicleHeadline(data) {
-  if (!data) return 'Tu vehículo';
-  const parts = [data.vehiculo_marca, data.vehiculo_modelo, data.vehiculo_anio].filter(Boolean);
-  const base = parts.join(' ');
-  if (data.vehiculo_patente) {
-    return base ? `${base} · ${data.vehiculo_patente}` : data.vehiculo_patente;
-  }
-  return base || 'Tu vehículo';
-}
-
-function formatFechaHoraPropuesta(fecha, hora) {
-  if (!fecha) return '';
-  const iso = String(fecha).split('T')[0];
-  const [y, m, d] = iso.split('-').map((p) => parseInt(p, 10));
-  if (!y || !m || !d) return '';
-  const parsed = new Date(y, m - 1, d);
-  const fechaTxt = parsed.toLocaleDateString('es-CL', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-  const horaTxt = String(hora || '').substring(0, 5);
-  return horaTxt ? `${fechaTxt} a las ${horaTxt}` : fechaTxt;
-}
-
-function mensajeAceptacionAdicional(data) {
-  if (data?.ejecucion_adicional === 'nueva_fecha') {
-    const slot = formatFechaHoraPropuesta(data.fecha_propuesta, data.hora_propuesta);
-    if (slot) return `Quedó agendado para el ${slot}.`;
-    return 'Quedó agendado en la fecha acordada con el taller.';
-  }
-  return 'El taller puede continuar este trabajo adicional en la misma visita.';
-}
-
-function hintFooterAceptacion(data) {
-  if (data?.es_trabajo_adicional) {
-    if (data.ejecucion_adicional === 'nueva_fecha') {
-      const slot = formatFechaHoraPropuesta(data.fecha_propuesta, data.hora_propuesta);
-      if (slot) {
-        return `Al aceptar, confirmas el día y hora propuestos (${slot}). No necesitas crear una cuenta.`;
-      }
-      return 'Al aceptar, confirmas la fecha acordada con el taller. No necesitas crear una cuenta.';
-    }
-    return 'Al aceptar, el taller puede continuar este trabajo en la misma visita. No necesitas crear una cuenta.';
-  }
-  return 'Al aceptar, el taller te contactará para confirmar el horario. No necesitas crear una cuenta.';
-}
-
-function estadoMeta(estado) {
-  if (estado === 'aceptada') {
-    return { label: 'Aceptada', tone: 'ok' };
-  }
-  if (estado === 'rechazada') {
-    return { label: 'Rechazada', tone: 'muted' };
-  }
-  if (estado === 'enviada') {
-    return { label: 'Pendiente de respuesta', tone: 'muted' };
-  }
-  if (estado === 'cancelada') {
-    return { label: 'Cancelada', tone: 'muted' };
-  }
-  return estado ? { label: String(estado), tone: 'muted' } : null;
-}
-
-const TALLER_ACCENT_POOL = [
-  COLORS.brand.magenta,
-  COLORS.brand.orange,
-  '#6366F1',
-  '#0EA5E9',
-];
-
-function tallerAccentColor(nombre) {
-  const s = String(nombre || 'Taller');
-  let hash = 0;
-  for (let i = 0; i < s.length; i += 1) {
-    hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
-  }
-  return TALLER_ACCENT_POOL[hash % TALLER_ACCENT_POOL.length];
-}
-
-function tallerInitials(nombre) {
-  const parts = String(nombre || 'T').trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
-  }
-  return (parts[0]?.slice(0, 2) || 'T').toUpperCase();
-}
-
-function TallerSelloCard({ taller, fotoUri, imgError, onImgError }) {
-  if (!taller?.nombre && !taller?.telefono && !taller?.direccion) return null;
-
-  const nombre = taller?.nombre || 'Taller';
-  const accent = tallerAccentColor(nombre);
-  const rating = Number(taller?.calificacion_promedio) || 0;
-  const showPhoto = Boolean(fotoUri) && !imgError;
-
-  return (
-    <View style={styles.selloCard}>
-      <Text style={styles.selloEyebrow}>Cotización de</Text>
-      <View style={styles.selloRow}>
-        <View style={[styles.selloAvatarRing, { borderColor: accent }]}>
-          {showPhoto ? (
-            <ExpoImage
-              source={{ uri: fotoUri }}
-              style={styles.selloAvatar}
-              contentFit="cover"
-              onError={onImgError}
-              accessibilityLabel={nombre}
-            />
-          ) : (
-            <View style={[styles.selloAvatarFallback, { backgroundColor: withOpacity(accent, 0.12) }]}>
-              <Text style={[styles.selloInitials, { color: accent }]}>{tallerInitials(nombre)}</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.selloCopy}>
-          <View style={styles.selloNameRow}>
-            <Text style={styles.selloName} numberOfLines={2}>
-              {nombre}
-            </Text>
-            {taller?.verificado ? (
-              <VerifiedSeal size={16} checkSize={10} accessibilityLabel="Taller verificado" />
-            ) : null}
-          </View>
-
-          {rating > 0 ? (
-            <View style={styles.selloRatingRow}>
-              <Star size={13} color={COLORS.text.primary} fill={COLORS.text.primary} />
-              <Text style={styles.selloRatingText}>{rating.toFixed(1)}</Text>
-            </View>
-          ) : null}
-
-          {taller?.direccion ? (
-            <View style={styles.contactRow}>
-              <MapPin size={14} color={COLORS.icon.default} strokeWidth={2} />
-              <Text style={styles.contactText}>{taller.direccion}</Text>
-            </View>
-          ) : null}
-          {taller?.telefono ? (
-            <View style={styles.contactRow}>
-              <Phone size={14} color={COLORS.icon.default} strokeWidth={2} />
-              <Text style={styles.contactText}>{taller.telefono}</Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
-
-      <View style={styles.selloFooter}>
-        <View style={[styles.selloAccentDot, { backgroundColor: accent }]} />
-        <Text style={styles.selloFooterText}>
-          {taller?.verificado
-            ? 'Taller verificado en Mecanimovil'
-            : 'Identidad del taller que envió esta cotización'}
-        </Text>
-      </View>
-    </View>
-  );
-}
+const BREAKPOINT = 768;
+const DOC_MAX = 896;
 
 const CotizacionPublicaScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const wide = width >= BREAKPOINT;
 
   const token = useMemo(() => {
     const fromRoute = route.params?.token;
@@ -217,6 +60,7 @@ const CotizacionPublicaScreen = () => {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [tallerImgError, setTallerImgError] = useState(false);
@@ -235,7 +79,11 @@ const CotizacionPublicaScreen = () => {
       setTallerImgError(false);
     } catch (e) {
       const status = e?.response?.status || e?.status;
-      if (status === 410) {
+      const payload = e?.response?.data || e?.data;
+      if (status === 410 && payload?.cotizacion) {
+        setData(payload.cotizacion);
+        setError(null);
+      } else if (status === 410) {
         setError('Este enlace de cotización expiró. Solicita una nueva al taller.');
       } else {
         setError(e?.message || 'No se pudo cargar la cotización.');
@@ -248,6 +96,14 @@ const CotizacionPublicaScreen = () => {
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined' || !data) return;
+    const folio = data.numero_publico ? `#${data.numero_publico}` : 'Cotización';
+    const servicio = data.servicio_nombre || 'servicio';
+    const taller = data.taller?.nombre || 'Mecanimovil';
+    document.title = `${folio} · ${servicio} · ${taller}`;
+  }, [data]);
 
   const handleAceptar = useCallback(async () => {
     if (!token || !data?.puede_responder) return;
@@ -281,6 +137,18 @@ const CotizacionPublicaScreen = () => {
       setSubmitting(false);
     }
   }, [token, data?.puede_responder]);
+
+  const handleDescargar = useCallback(async () => {
+    if (!token) return;
+    setDownloading(true);
+    try {
+      await descargarPdfCotizacionPublica(token, data?.numero_publico);
+    } catch (e) {
+      showAlert('Error', e?.message || 'No se pudo descargar el PDF.');
+    } finally {
+      setDownloading(false);
+    }
+  }, [token, data?.numero_publico]);
 
   const goBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -316,14 +184,12 @@ const CotizacionPublicaScreen = () => {
     );
   }
 
-  const repuestos = Array.isArray(data.repuestos) ? data.repuestos : [];
   const puedeResponder = Boolean(data.puede_responder);
-  const estado = estadoMeta(data.estado);
-  const contentWidthStyle = { maxWidth: 752, width: '100%', alignSelf: 'center' };
+  const contentWidthStyle = { maxWidth: DOC_MAX, width: '100%', alignSelf: 'center' };
   const tallerFoto = buildProviderAvatarUri(data.taller)
     || resolveToAbsoluteMediaUrl(data.taller?.foto_perfil || data.taller?.foto_perfil_url);
   const footerPad = puedeResponder
-    ? 24 + 180 + Math.max(insets.bottom, Platform.OS === 'web' ? 16 : 0)
+    ? 24 + 200 + Math.max(insets.bottom, Platform.OS === 'web' ? 16 : 0)
     : SPACING['2xl'] + Math.max(insets.bottom, 16);
 
   const esAdicional = Boolean(data.es_trabajo_adicional);
@@ -337,46 +203,63 @@ const CotizacionPublicaScreen = () => {
       && data.actualizado_en
       && new Date(data.actualizado_en).getTime() > new Date(data.enviada_en).getTime() + 2000
     );
+  const cliente = resolveCliente(data);
+  const lineas = buildLineas(data);
+  const iva = desgloseIvaDesdeTotal(data.total_clp);
+  const notas = (data.notas_cotizacion || '').trim();
+  const vehiculo = vehicleHeadline(data);
+  const duracion = duracionLabel(data.duracion_minutos_estimada);
+  const desc = (data.descripcion_problema || '').trim();
+  const mostrarDesc = desc && (!notas || !notas.includes(desc));
+
+  const downloadBtn = (
+    <Button
+      title={downloading ? 'Descargando…' : 'Descargar PDF'}
+      type="secondary"
+      variant="outline"
+      onPress={() => void handleDescargar()}
+      disabled={downloading || submitting}
+      fullWidth
+      iconNode={<Download size={18} color={COLORS.buttonSecondary.outlineText} strokeWidth={2} />}
+    />
+  );
 
   const body = (
     <>
-      <TallerSelloCard
+      <DocumentoHeader
         taller={data.taller}
         fotoUri={tallerFoto}
         imgError={tallerImgError}
         onImgError={() => setTallerImgError(true)}
+        numeroPublico={data.numero_publico}
+        estado={data.estado}
+        enviadaEn={data.enviada_en}
+        fechaExpiracion={data.fecha_expiracion_publica}
+        wide={wide}
       />
 
-      {/* Hero: etiqueta Servicio + título */}
-      <View style={styles.hero}>
-        <View style={styles.serviceTag}>
-          <Text style={styles.serviceTagText}>
-            {esAdicional ? 'Trabajo adicional' : 'Servicio'}
-          </Text>
-        </View>
-        <Text style={styles.heroTitle}>
-          {data.servicio_nombre || 'Cotización de servicio'}
-        </Text>
-        <Text style={styles.heroSupport}>{vehicleHeadline(data)}</Text>
-        <View style={styles.metaRow}>
-          {estado ? (
-            <View style={[styles.metaPill, estado.tone === 'ok' && styles.metaPillOk]}>
-              <Text style={[styles.metaPillText, estado.tone === 'ok' && styles.metaPillOkText]}>
-                {estado.label}
-              </Text>
-            </View>
-          ) : null}
-          <View style={styles.metaPill}>
-            <Text style={styles.metaPillText}>
-              {data.modalidad === 'domicilio' ? 'A domicilio' : 'En taller'}
-            </Text>
+      <View style={[styles.facts, wide && styles.factsWide]}>
+        {cliente?.nombre ? (
+          <View style={[styles.factCol, wide && styles.factColHalf]}>
+            <Text style={styles.paperEyebrow}>Cliente</Text>
+            <Text style={styles.paperTitle}>{cliente.nombre}</Text>
+            {cliente.telefono ? <Text style={styles.bodyText}>{cliente.telefono}</Text> : null}
+            {cliente.direccion ? <Text style={styles.bodyMuted}>{cliente.direccion}</Text> : null}
           </View>
-          {data.duracion_minutos_estimada ? (
-            <View style={styles.metaPill}>
-              <Text style={styles.metaPillText}>
-                {data.duracion_minutos_estimada} min est.
-              </Text>
-            </View>
+        ) : null}
+        <View style={[styles.factCol, wide && styles.factColHalf]}>
+          <Text style={styles.paperEyebrow}>Vehículo</Text>
+          <Text style={styles.paperTitle}>{vehiculo || 'Tu vehículo'}</Text>
+          <Text style={styles.bodyMuted}>
+            {[
+              data.modalidad === 'domicilio' ? 'A domicilio' : 'En taller',
+              duracion,
+              data.tipo_motor_label,
+              data.vehiculo_cilindraje,
+            ].filter(Boolean).join(' · ')}
+          </Text>
+          {data.modalidad === 'domicilio' && data.direccion_servicio ? (
+            <Text style={styles.bodyMuted}>{data.direccion_servicio}</Text>
           ) : null}
         </View>
       </View>
@@ -394,10 +277,11 @@ const CotizacionPublicaScreen = () => {
 
       {esAdicional ? (
         <View style={styles.paper}>
+          <View style={styles.serviceTag}>
+            <Text style={styles.serviceTagText}>Trabajo adicional</Text>
+          </View>
           <Text style={styles.paperEyebrow}>Durante tu servicio</Text>
-          <Text style={styles.paperTitle}>
-            {nombrePrincipal || 'Servicio en curso'}
-          </Text>
+          <Text style={styles.paperTitle}>{nombrePrincipal || 'Servicio en curso'}</Text>
           <View style={styles.paperRule} />
           <Text style={styles.bodyText}>
             Este trabajo se propone durante tu servicio en curso
@@ -417,115 +301,79 @@ const CotizacionPublicaScreen = () => {
             </>
           ) : null}
         </View>
+      ) : data.servicio_nombre ? (
+        <View style={styles.hero}>
+          <View style={styles.serviceTag}>
+            <Text style={styles.serviceTagText}>Servicio</Text>
+          </View>
+          <Text style={styles.heroTitle}>{data.servicio_nombre}</Text>
+        </View>
       ) : null}
 
-      {/* Detalle del trabajo (texto, sin montos) */}
-      {data.descripcion_problema ? (
+      {mostrarDesc ? (
         <View style={styles.paper}>
           <Text style={styles.paperEyebrow}>Detalle</Text>
           <Text style={styles.paperTitle}>Sobre el servicio</Text>
           <View style={styles.paperRule} />
-          <Text style={styles.bodyText}>{data.descripcion_problema}</Text>
+          <Text style={styles.bodyText}>{desc}</Text>
         </View>
       ) : null}
 
-      {/* Mano de obra — bloque propio */}
-      <View style={styles.paper}>
-        <Text style={styles.paperEyebrow}>Mano de obra</Text>
-        <Text style={styles.paperTitle}>Trabajo del taller</Text>
-        <View style={styles.paperRule} />
-        <View style={styles.lineRow}>
-          <Text style={styles.lineLabel}>Mano de obra</Text>
-          <Text style={styles.lineValue}>{formatCLP(data.mano_obra_clp)}</Text>
-        </View>
-        <Text style={styles.hint}>
-          Incluye el tiempo y la intervención del mecánico.
-        </Text>
-      </View>
+      <LineasCotizacion lineas={lineas} wide={wide} />
 
-      {/* Repuestos — ítems separados de la mano de obra */}
-      {repuestos.length > 0 ? (
+      {notas ? (
         <View style={styles.paper}>
-          <Text style={styles.paperEyebrow}>Repuestos</Text>
-          <Text style={styles.paperTitle}>Materiales</Text>
+          <Text style={styles.paperEyebrow}>Notas de cotización</Text>
           <View style={styles.paperRule} />
-          <View style={styles.itemList}>
-            {repuestos.map((rep, idx) => {
-              const qty = Number(rep.cantidad) || 1;
-              const unit = Number(rep.precio_unitario_clp) || 0;
-              const marca = (rep.marca_repuesto || '').trim();
-              return (
-                <View key={`${rep.id || rep.nombre}-${idx}`} style={styles.itemRow}>
-                  <View style={styles.itemCopy}>
-                    <Text style={styles.itemName} numberOfLines={3}>
-                      {rep.nombre || 'Repuesto'}
-                    </Text>
-                    <Text style={styles.itemMeta}>
-                      {[
-                        qty > 1 ? `${qty} × ${formatCLP(unit)}` : '1 unidad',
-                        marca ? `Marca ${marca}` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </Text>
-                  </View>
-                  <Text style={styles.itemAmount}>{formatCLP(unit * qty)}</Text>
-                </View>
-              );
-            })}
-          </View>
-          {Number(data.costo_repuestos_clp) > 0 ? (
-            <View style={[styles.lineRow, styles.subtotalRow]}>
-              <Text style={styles.subtotalLabel}>Subtotal repuestos</Text>
-              <Text style={styles.subtotalValue}>{formatCLP(data.costo_repuestos_clp)}</Text>
-            </View>
-          ) : null}
+          <Text style={styles.bodyText}>{notas}</Text>
         </View>
       ) : null}
 
-      {/* Total con desglose IVA informativo */}
-      <View style={[styles.paper, styles.totalPaper]}>
-        <View style={styles.totalBreakdown}>
-          <View style={styles.lineRow}>
-            <Text style={styles.lineLabelMuted}>Mano de obra</Text>
-            <Text style={styles.lineValueMuted}>{formatCLP(data.mano_obra_clp)}</Text>
+      <View style={[styles.bottomRow, wide && styles.bottomRowWide]}>
+        {data.fecha_expiracion_publica ? (
+          <View style={[styles.noteAmber, wide && styles.noteAmberWide]}>
+            <Text style={styles.paperEyebrow}>Validez</Text>
+            <Text style={styles.bodyText}>
+              Esta cotización es válida hasta el {formatFechaCorta(data.fecha_expiracion_publica)}.
+              Los precios de repuestos pueden variar si cambia disponibilidad o marca.
+            </Text>
           </View>
+        ) : null}
+
+        <View style={[styles.paper, styles.totalPaper, wide && styles.totalWide]}>
           {Number(data.costo_repuestos_clp) > 0 ? (
             <View style={styles.lineRow}>
               <Text style={styles.lineLabelMuted}>Repuestos</Text>
               <Text style={styles.lineValueMuted}>{formatCLP(data.costo_repuestos_clp)}</Text>
             </View>
           ) : null}
-          {(() => {
-            const d = desgloseIvaDesdeTotal(data.total_clp);
-            return (
-              <>
-                <View style={styles.lineRow}>
-                  <Text style={styles.lineLabelMuted}>Neto</Text>
-                  <Text style={styles.lineValueMuted}>{formatCLP(d.neto)}</Text>
-                </View>
-                <View style={styles.lineRow}>
-                  <Text style={styles.lineLabelMuted}>IVA 19%</Text>
-                  <Text style={styles.lineValueMuted}>{formatCLP(d.iva)}</Text>
-                </View>
-              </>
-            );
-          })()}
-        </View>
-        <View style={styles.totalRule} />
-        <View style={styles.lineRow}>
-          <Text style={styles.totalLabel}>Total a pagar</Text>
-          <Text style={styles.totalValue}>{formatCLP(data.total_clp)}</Text>
-        </View>
-        <Text style={styles.hint}>
-          Los precios de línea ya incluyen IVA. El desglose neto/IVA es informativo.
-        </Text>
-        {esAdicional || data.pago_directo_taller ? (
+          <View style={styles.lineRow}>
+            <Text style={styles.lineLabelMuted}>Mano de obra</Text>
+            <Text style={styles.lineValueMuted}>{formatCLP(data.mano_obra_clp)}</Text>
+          </View>
+          <View style={styles.lineRow}>
+            <Text style={styles.lineLabelMuted}>Neto</Text>
+            <Text style={styles.lineValueMuted}>{formatCLP(iva.neto)}</Text>
+          </View>
+          <View style={styles.lineRow}>
+            <Text style={styles.lineLabelMuted}>IVA 19%</Text>
+            <Text style={styles.lineValueMuted}>{formatCLP(iva.iva)}</Text>
+          </View>
+          <View style={styles.totalRule} />
+          <View style={styles.lineRow}>
+            <Text style={styles.totalLabel}>Total a pagar</Text>
+            <Text style={styles.totalValue}>{formatCLP(data.total_clp)}</Text>
+          </View>
           <Text style={styles.hint}>
-            El pago de mano de obra y repuestos se coordina directo con el taller.
-            Mecanimovil no cobra este trabajo.
+            Los precios de línea ya incluyen IVA. El desglose neto/IVA es informativo.
           </Text>
-        ) : null}
+          {esAdicional || data.pago_directo_taller ? (
+            <Text style={styles.hint}>
+              El pago de mano de obra y repuestos se coordina directo con el taller.
+              Mecanimovil no cobra este trabajo.
+            </Text>
+          ) : null}
+        </View>
       </View>
 
       {data.estado === 'aceptada' && (esAdicional || data.horario_por_confirmar) ? (
@@ -540,6 +388,10 @@ const CotizacionPublicaScreen = () => {
           </View>
         </View>
       ) : null}
+
+      <View style={styles.downloadWrap}>{downloadBtn}</View>
+
+      <Text style={styles.issued}>Emitida en Mecanimovil</Text>
     </>
   );
 
@@ -553,12 +405,9 @@ const CotizacionPublicaScreen = () => {
 
       <View style={styles.topBar}>
         <BackButton onPress={goBack} />
-        <Image
-          source={LOGO}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityLabel="Mecanimovil"
-        />
+        <Text style={styles.topBarTitle} numberOfLines={1}>
+          {data.numero_publico ? `#${data.numero_publico}` : 'Cotización'}
+        </Text>
         <View style={styles.topBarSpacer} />
       </View>
 
@@ -576,7 +425,6 @@ const CotizacionPublicaScreen = () => {
         {body}
       </ScrollView>
 
-      {/* Footer sticky: siempre visible en web/móvil (resuelve scroll cortado) */}
       {puedeResponder ? (
         <View
           style={[
@@ -585,10 +433,15 @@ const CotizacionPublicaScreen = () => {
           ]}
         >
           <View style={[styles.stickyInner, contentWidthStyle]}>
-            <Text style={styles.actionTitle}>¿Aceptas esta cotización?</Text>
-            <Text style={styles.actionHint}>
-              {hintFooterAceptacion(data)}
+            <Text style={styles.actionTitle}>
+              ¿Aceptas {formatCLP(data.total_clp)}?
             </Text>
+            <Text style={styles.actionHint}>{hintFooterAceptacion(data)}</Text>
+            {data.fecha_expiracion_publica ? (
+              <Text style={styles.actionHint}>
+                Válida hasta el {formatFechaCorta(data.fecha_expiracion_publica)}.
+              </Text>
+            ) : null}
             <GuestGradientButton
               title={submitting ? 'Enviando…' : 'Aceptar cotización'}
               onPress={() => void handleAceptar()}
@@ -617,11 +470,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background.default,
     ...(Platform.OS === 'web'
-      ? {
-          height: '100%',
-          maxHeight: '100vh',
-          overflow: 'hidden',
-        }
+      ? { height: '100%', maxHeight: '100vh', overflow: 'hidden' }
       : null),
   },
   topBar: {
@@ -632,23 +481,19 @@ const styles = StyleSheet.create({
     zIndex: 2,
     flexShrink: 0,
   },
-  logo: {
+  topBarTitle: {
     flex: 1,
-    height: 28,
-    maxWidth: 160,
-    alignSelf: 'center',
+    textAlign: 'center',
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.md,
+    color: COLORS.text.primary,
   },
-  topBarSpacer: {
-    width: 40,
-  },
+  topBarSpacer: { width: 40 },
   scrollView: {
     flex: 1,
     minHeight: 0,
     ...(Platform.OS === 'web'
-      ? {
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehavior: 'contain',
-        }
+      ? { WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }
       : null),
   },
   scrollContent: {
@@ -677,107 +522,19 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     textAlign: 'center',
   },
-  hero: {
-    paddingTop: SPACING.xs,
-    gap: SPACING.xs,
-  },
-  selloCard: {
-    backgroundColor: COLORS.background.paper,
+  facts: {
+    backgroundColor: COLORS.badge.meta.background,
     borderRadius: BORDERS.radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border.light,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-    gap: SPACING.sm,
-    ...SHADOWS.md,
-  },
-  selloEyebrow: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
-    textTransform: 'uppercase',
-    color: COLORS.text.secondary,
-  },
-  selloRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    padding: SPACING.md,
     gap: SPACING.md,
   },
-  selloAvatarRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    padding: 3,
-    flexShrink: 0,
-  },
-  selloAvatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 32,
-    backgroundColor: COLORS.badge.meta.background,
-  },
-  selloAvatarFallback: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selloInitials: {
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    letterSpacing: -0.5,
-  },
-  selloCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 6,
-    paddingTop: 2,
-  },
-  selloNameRow: {
+  factsWide: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    gap: SPACING.lg,
   },
-  selloName: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.xl,
-    lineHeight: 28,
-    color: COLORS.text.primary,
-  },
-  selloRatingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  selloRatingText: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.primary,
-  },
-  selloFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.xs,
-    paddingTop: SPACING.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: COLORS.border.light,
-  },
-  selloAccentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    flexShrink: 0,
-  },
-  selloFooterText: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.xs,
-    color: COLORS.text.secondary,
-  },
+  factCol: { flex: 1, gap: 4, minWidth: 0 },
+  factColHalf: { flex: 1 },
+  hero: { gap: SPACING.xs },
   serviceTag: {
     alignSelf: 'flex-start',
     backgroundColor: COLORS.selection.background,
@@ -793,40 +550,10 @@ const styles = StyleSheet.create({
     color: COLORS.selection.text,
   },
   heroTitle: {
-    ...TYPOGRAPHY.styles.h1,
+    fontFamily: TYPOGRAPHY.fontFamily.semibold,
+    fontSize: TYPOGRAPHY.fontSize.xl,
+    lineHeight: 28,
     color: COLORS.text.primary,
-  },
-  heroSupport: {
-    ...TYPOGRAPHY.styles.body,
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    color: COLORS.text.secondary,
-    marginTop: 2,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING.xs,
-    marginTop: SPACING.sm,
-  },
-  metaPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: COLORS.badge.meta.background,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: 6,
-    borderRadius: BORDERS.radius.sm,
-  },
-  metaPillOk: {
-    backgroundColor: withOpacity(COLORS.brand.magenta, 0.08),
-  },
-  metaPillText: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.badge.meta.text,
-  },
-  metaPillOkText: {
-    color: COLORS.brand.magenta,
   },
   paper: {
     backgroundColor: COLORS.background.paper,
@@ -838,9 +565,7 @@ const styles = StyleSheet.create({
     gap: SPACING.xs,
     ...SHADOWS.sm,
   },
-  totalPaper: {
-    gap: SPACING.sm,
-  },
+  totalPaper: { gap: SPACING.sm },
   paperEyebrow: {
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.xs,
@@ -865,6 +590,12 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: COLORS.text.primary,
   },
+  bodyMuted: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 20,
+    color: COLORS.text.secondary,
+  },
   hint: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.sm,
@@ -872,25 +603,24 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     marginTop: 2,
   },
+  bottomRow: { gap: SPACING.md },
+  bottomRowWide: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  noteAmber: {
+    backgroundColor: COLORS.warning.light,
+    borderRadius: BORDERS.radius.lg,
+    padding: SPACING.md,
+    gap: SPACING.xs,
+  },
+  noteAmberWide: { flex: 1 },
+  totalWide: { width: 320, flexShrink: 0 },
   lineRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: SPACING.md,
-  },
-  lineLabel: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    lineHeight: 22,
-    color: COLORS.text.primary,
-  },
-  lineValue: {
-    flexShrink: 0,
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    lineHeight: 22,
-    color: COLORS.text.primary,
   },
   lineLabelMuted: {
     flex: 1,
@@ -902,58 +632,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
-  },
-  itemList: {
-    gap: 0,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: SPACING.md,
-    paddingVertical: SPACING.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.border.light,
-  },
-  itemCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  itemName: {
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    lineHeight: 22,
-    color: COLORS.text.primary,
-  },
-  itemMeta: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-  },
-  itemAmount: {
-    flexShrink: 0,
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.md,
-    color: COLORS.text.primary,
-  },
-  subtotalRow: {
-    paddingTop: SPACING.sm,
-    borderTopWidth: 0,
-  },
-  subtotalLabel: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fontFamily.medium,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.secondary,
-  },
-  subtotalValue: {
-    fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    color: COLORS.text.primary,
-  },
-  totalBreakdown: {
-    gap: 6,
   },
   totalRule: {
     height: StyleSheet.hairlineWidth,
@@ -969,24 +647,9 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontSize: TYPOGRAPHY.fontSize.xl,
     letterSpacing: -0.3,
-    color: COLORS.text.primary,
-  },
-  contactRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  contactText: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    lineHeight: 20,
-    color: COLORS.text.secondary,
+    color: COLORS.brand.magenta,
   },
   signedBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.sm,
     paddingVertical: SPACING.md,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -1004,6 +667,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
     lineHeight: 18,
   },
+  downloadWrap: { marginTop: SPACING.xs },
+  issued: {
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    letterSpacing: TYPOGRAPHY.letterSpacing.wider,
+    textTransform: 'uppercase',
+    color: COLORS.text.secondary,
+    textAlign: 'center',
+    paddingBottom: SPACING.md,
+  },
   stickyFooter: {
     flexShrink: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -1014,9 +687,7 @@ const styles = StyleSheet.create({
     ...SHADOWS.md,
     zIndex: 10,
   },
-  stickyInner: {
-    gap: SPACING.xs,
-  },
+  stickyInner: { gap: SPACING.xs },
   actionTitle: {
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontSize: TYPOGRAPHY.fontSize.lg,
@@ -1029,9 +700,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: SPACING.xs,
   },
-  rejectBtn: {
-    marginTop: SPACING.xxs,
-  },
+  rejectBtn: { marginTop: SPACING.xxs },
 });
 
 export default CotizacionPublicaScreen;

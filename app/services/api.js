@@ -687,13 +687,14 @@ export const get = async (url, params = {}, options = {}) => {
       const apiInstance = await getApiInstance();
       const config = { params, requiresAuth: options.requiresAuth };
       if (options.timeout) config.timeout = options.timeout;
+      if (options.responseType) config.responseType = options.responseType;
       return apiInstance.get(url, config);
     };
 
     const response = await withRetry(doRequest);
 
     const cacheControl = response.headers?.['cache-control'] || response.headers?.['Cache-Control'];
-    if (cacheControl) {
+    if (cacheControl && !options.responseType) {
       setCachedResponse(url, params, response.data, cacheControl);
     }
 

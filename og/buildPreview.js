@@ -189,8 +189,9 @@ export async function buildPreviewForRoute(route, {
       data.taller_foto_url ||
       null;
 
+    const folio = data.numero_publico ? `#${data.numero_publico}` : 'Cotización';
     const title = truncate(
-      veh ? `Cotización: ${servicio} · ${veh}` : `Cotización: ${servicio} · ${taller}`,
+      veh ? `${folio}: ${servicio} · ${veh}` : `${folio}: ${servicio} · ${taller}`,
       90,
     );
     const description = truncate(
