@@ -189,7 +189,7 @@ const CotizacionPublicaScreen = () => {
   const tallerFoto = buildProviderAvatarUri(data.taller)
     || resolveToAbsoluteMediaUrl(data.taller?.foto_perfil || data.taller?.foto_perfil_url);
   const footerPad = puedeResponder
-    ? 24 + 200 + Math.max(insets.bottom, Platform.OS === 'web' ? 16 : 0)
+    ? 132 + Math.max(insets.bottom, Platform.OS === 'web' ? 16 : 0)
     : SPACING['2xl'] + Math.max(insets.bottom, 16);
 
   const esAdicional = Boolean(data.es_trabajo_adicional);
@@ -433,31 +433,45 @@ const CotizacionPublicaScreen = () => {
           ]}
         >
           <View style={[styles.stickyInner, contentWidthStyle]}>
-            <Text style={styles.actionTitle}>
-              ¿Aceptas {formatCLP(data.total_clp)}?
-            </Text>
-            <Text style={styles.actionHint}>{hintFooterAceptacion(data)}</Text>
-            {data.fecha_expiracion_publica ? (
-              <Text style={styles.actionHint}>
-                Válida hasta el {formatFechaCorta(data.fecha_expiracion_publica)}.
+            <View style={styles.actionCopy}>
+              <View style={styles.actionTitleRow}>
+                <Text style={styles.actionTitle} numberOfLines={1}>
+                  ¿Aceptas {formatCLP(data.total_clp)}?
+                </Text>
+                {wide && data.fecha_expiracion_publica ? (
+                  <Text style={styles.actionExpiry} numberOfLines={1}>
+                    Hasta {formatFechaCorta(data.fecha_expiracion_publica)}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={styles.actionHint} numberOfLines={wide ? 1 : 2}>
+                {hintFooterAceptacion(data)}
+                {!wide && data.fecha_expiracion_publica
+                  ? ` · Hasta ${formatFechaCorta(data.fecha_expiracion_publica)}`
+                  : ''}
               </Text>
-            ) : null}
-            <GuestGradientButton
-              title={submitting ? 'Enviando…' : 'Aceptar cotización'}
-              onPress={() => void handleAceptar()}
-              loading={submitting}
-              disabled={submitting}
-              fullWidth
-            />
-            <Button
-              title="Rechazar"
-              type="secondary"
-              variant="outline"
-              onPress={() => void handleRechazar()}
-              disabled={submitting}
-              fullWidth
-              style={styles.rejectBtn}
-            />
+            </View>
+            <View style={styles.actionRow}>
+              <Button
+                title="Rechazar"
+                type="secondary"
+                variant="outline"
+                size="lg"
+                onPress={() => void handleRechazar()}
+                disabled={submitting}
+                style={styles.rejectBtn}
+              />
+              <View style={styles.acceptWrap}>
+                <GuestGradientButton
+                  title={submitting ? 'Enviando…' : 'Aceptar'}
+                  accessibilityLabel="Aceptar cotización"
+                  onPress={() => void handleAceptar()}
+                  loading={submitting}
+                  disabled={submitting}
+                  fullWidth
+                />
+              </View>
+            </View>
           </View>
         </View>
       ) : null}
@@ -683,24 +697,48 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.border.light,
     backgroundColor: COLORS.background.paper,
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.sm,
     ...SHADOWS.md,
     zIndex: 10,
   },
-  stickyInner: { gap: SPACING.xs },
+  stickyInner: { gap: SPACING.sm },
+  actionCopy: { gap: 2 },
+  actionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
   actionTitle: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
-    fontSize: TYPOGRAPHY.fontSize.lg,
+    fontSize: TYPOGRAPHY.fontSize.md,
     color: COLORS.text.primary,
+  },
+  actionExpiry: {
+    flexShrink: 0,
+    fontFamily: TYPOGRAPHY.fontFamily.medium,
+    fontSize: TYPOGRAPHY.fontSize.xs,
+    color: COLORS.text.secondary,
   },
   actionHint: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
     lineHeight: 18,
-    marginBottom: SPACING.xs,
   },
-  rejectBtn: { marginTop: SPACING.xxs },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: SPACING.sm,
+  },
+  rejectBtn: {
+    flex: 1,
+  },
+  acceptWrap: {
+    flex: 1.55,
+  },
 });
 
 export default CotizacionPublicaScreen;

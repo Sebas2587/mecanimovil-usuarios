@@ -80,13 +80,13 @@ export function hintFooterAceptacion(data) {
     if (data.ejecucion_adicional === 'nueva_fecha') {
       const slot = formatFechaHoraPropuesta(data.fecha_propuesta, data.hora_propuesta);
       if (slot) {
-        return `Al aceptar, confirmas el día y hora propuestos (${slot}). No necesitas crear una cuenta.`;
+        return `Confirmas el día y hora propuestos (${slot}).`;
       }
-      return 'Al aceptar, confirmas la fecha acordada con el taller. No necesitas crear una cuenta.';
+      return 'Confirmas la fecha acordada con el taller.';
     }
-    return 'Al aceptar, el taller puede continuar este trabajo en la misma visita. No necesitas crear una cuenta.';
+    return 'El taller puede continuar este trabajo en la misma visita.';
   }
-  return 'Al aceptar, el taller te contactará para confirmar el horario. No necesitas crear una cuenta.';
+  return 'El taller te contactará para confirmar el horario.';
 }
 
 export function estadoMeta(estado) {
