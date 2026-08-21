@@ -235,6 +235,7 @@ const CotizacionPublicaScreen = () => {
         estado={data.estado}
         enviadaEn={data.enviada_en}
         fechaExpiracion={data.fecha_expiracion_publica}
+        actualizadaPorTaller={actualizadaPorTaller}
         wide={wide}
       />
 
@@ -263,17 +264,6 @@ const CotizacionPublicaScreen = () => {
           ) : null}
         </View>
       </View>
-
-      {actualizadaPorTaller ? (
-        <View style={styles.paper}>
-          <Text style={styles.paperEyebrow}>Actualización</Text>
-          <Text style={styles.paperTitle}>El taller actualizó esta cotización</Text>
-          <View style={styles.paperRule} />
-          <Text style={styles.bodyText}>
-            Revisa el desglose. Si el total cambió y aún puedes responder, acepta o rechaza de nuevo.
-          </Text>
-        </View>
-      ) : null}
 
       {esAdicional ? (
         <View style={styles.paper}>

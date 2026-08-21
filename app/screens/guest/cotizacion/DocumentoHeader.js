@@ -20,6 +20,7 @@ function DocumentoHeaderInner({
   estado,
   enviadaEn,
   fechaExpiracion,
+  actualizadaPorTaller = false,
   wide,
 }) {
   if (!taller?.nombre && !taller?.telefono && !taller?.direccion) return null;
@@ -34,31 +35,36 @@ function DocumentoHeaderInner({
     <View style={[styles.card, wide && styles.cardWide]}>
       <View style={[styles.top, wide && styles.topWide]}>
         <View style={styles.emisor}>
-          <View style={[styles.avatarRing, { borderColor: accent }]}>
-            {showPhoto ? (
-              <ExpoImage
-                source={{ uri: fotoUri }}
-                style={styles.avatar}
-                contentFit="cover"
-                onError={onImgError}
-                accessibilityLabel={nombre}
+          <View style={styles.avatarWrap}>
+            <View style={[styles.avatarRing, { borderColor: accent }]}>
+              {showPhoto ? (
+                <ExpoImage
+                  source={{ uri: fotoUri }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                  onError={onImgError}
+                  accessibilityLabel={nombre}
+                />
+              ) : (
+                <View style={[styles.avatarFallback, { backgroundColor: withOpacity(accent, 0.12) }]}>
+                  <Text style={[styles.initials, { color: accent }]}>{tallerInitials(nombre)}</Text>
+                </View>
+              )}
+            </View>
+            {taller?.verificado ? (
+              <VerifiedSeal
+                size={18}
+                checkSize={11}
+                style={styles.verifiedBadge}
+                accessibilityLabel="Taller verificado"
               />
-            ) : (
-              <View style={[styles.avatarFallback, { backgroundColor: withOpacity(accent, 0.12) }]}>
-                <Text style={[styles.initials, { color: accent }]}>{tallerInitials(nombre)}</Text>
-              </View>
-            )}
+            ) : null}
           </View>
           <View style={styles.emisorCopy}>
             <Text style={styles.eyebrow}>Cotización de</Text>
-            <View style={styles.nameRow}>
-              <Text accessibilityRole="header" style={styles.h1} numberOfLines={2}>
-                {nombre}
-              </Text>
-              {taller?.verificado ? (
-                <VerifiedSeal size={16} checkSize={10} accessibilityLabel="Taller verificado" />
-              ) : null}
-            </View>
+            <Text accessibilityRole="header" style={styles.h1} numberOfLines={2}>
+              {nombre}
+            </Text>
             {rating > 0 ? (
               <View style={styles.ratingRow}>
                 <Star size={13} color={COLORS.text.primary} fill={COLORS.text.primary} />
@@ -89,6 +95,12 @@ function DocumentoHeaderInner({
           ) : null}
         </View>
       </View>
+
+      {actualizadaPorTaller ? (
+        <Text style={styles.statusHint}>
+          El taller actualizó esta cotización. Revisa el desglose antes de responder.
+        </Text>
+      ) : null}
 
       <View style={styles.contactBlock}>
         {taller?.direccion ? (
@@ -143,6 +155,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  avatarWrap: {
+    position: 'relative',
+    flexShrink: 0,
+  },
   avatarRing: {
     width: 64,
     height: 64,
@@ -169,6 +185,14 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.xl,
     letterSpacing: -0.5,
   },
+  verifiedBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    borderWidth: 2,
+    borderColor: COLORS.background.paper,
+    borderRadius: BORDERS.radius.full,
+  },
   emisorCopy: {
     flex: 1,
     minWidth: 0,
@@ -182,13 +206,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     color: COLORS.text.secondary,
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
   h1: {
-    flex: 1,
     fontFamily: TYPOGRAPHY.fontFamily.semibold,
     fontSize: TYPOGRAPHY.fontSize.xl,
     lineHeight: 28,
@@ -247,6 +265,13 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.sm,
     color: COLORS.text.secondary,
+  },
+  statusHint: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 20,
+    color: COLORS.text.secondary,
+    paddingTop: SPACING.xxs,
   },
   contactBlock: {
     gap: 6,
