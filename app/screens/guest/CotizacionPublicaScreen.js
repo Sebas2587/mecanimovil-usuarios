@@ -207,6 +207,8 @@ const CotizacionPublicaScreen = () => {
   const lineas = buildLineas(data);
   const iva = desgloseIvaDesdeTotal(data.total_clp);
   const notas = (data.notas_cotizacion || '').trim();
+  const textoPoliticas = (data.politicas_cotizacion || '').trim()
+    || 'Los precios de repuestos pueden variar si cambia disponibilidad o marca.';
   const vehiculo = vehicleHeadline(data);
   const duracion = duracionLabel(data.duracion_minutos_estimada);
   const desc = (data.descripcion_problema || '').trim();
@@ -320,15 +322,24 @@ const CotizacionPublicaScreen = () => {
       ) : null}
 
       <View style={[styles.bottomRow, wide && styles.bottomRowWide]}>
-        {data.fecha_expiracion_publica ? (
-          <View style={[styles.noteAmber, wide && styles.noteAmberWide]}>
-            <Text style={styles.paperEyebrow}>Validez</Text>
+        <View style={[styles.noteAmber, wide && styles.noteAmberWide]}>
+          <Text style={styles.paperEyebrow}>Validez</Text>
+          {data.fecha_expiracion_publica ? (
             <Text style={styles.bodyText}>
               Esta cotización es válida hasta el {formatFechaCorta(data.fecha_expiracion_publica)}.
-              Los precios de repuestos pueden variar si cambia disponibilidad o marca.
             </Text>
-          </View>
-        ) : null}
+          ) : null}
+          <Text style={styles.bodyText}>{textoPoliticas}</Text>
+          <Text style={styles.bodyText}>
+            Los precios de línea ya incluyen IVA. El desglose neto/IVA es informativo.
+          </Text>
+          {esAdicional || data.pago_directo_taller ? (
+            <Text style={styles.bodyText}>
+              El pago de mano de obra y repuestos se coordina directo con el taller.
+              Mecanimovil no cobra este trabajo.
+            </Text>
+          ) : null}
+        </View>
 
         <View style={[styles.paper, styles.totalPaper, wide && styles.totalWide]}>
           {Number(data.costo_repuestos_clp) > 0 ? (
@@ -354,15 +365,6 @@ const CotizacionPublicaScreen = () => {
             <Text style={styles.totalLabel}>Total a pagar</Text>
             <Text style={styles.totalValue}>{formatCLP(data.total_clp)}</Text>
           </View>
-          <Text style={styles.hint}>
-            Los precios de línea ya incluyen IVA. El desglose neto/IVA es informativo.
-          </Text>
-          {esAdicional || data.pago_directo_taller ? (
-            <Text style={styles.hint}>
-              El pago de mano de obra y repuestos se coordina directo con el taller.
-              Mecanimovil no cobra este trabajo.
-            </Text>
-          ) : null}
         </View>
       </View>
 
@@ -599,13 +601,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.sm,
     lineHeight: 20,
     color: COLORS.text.secondary,
-  },
-  hint: {
-    fontFamily: TYPOGRAPHY.fontFamily.regular,
-    fontSize: TYPOGRAPHY.fontSize.sm,
-    lineHeight: 18,
-    color: COLORS.text.secondary,
-    marginTop: 2,
   },
   bottomRow: { gap: SPACING.md },
   bottomRowWide: {
