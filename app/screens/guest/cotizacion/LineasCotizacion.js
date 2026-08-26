@@ -4,7 +4,7 @@ import { BORDERS, COLORS, SPACING, TYPOGRAPHY } from '../../../design-system/tok
 import { formatCLP } from './cotizacionPublicaFormat';
 
 const LineaRow = memo(function LineaRow({ item, wide, last }) {
-  const isServicio = item.tipo === 'Servicio';
+  const isServicio = item.tipo !== 'Repuesto';
   const qtyLabel = item.unitLabel
     ? `${item.qty} ${item.unitLabel}`
     : String(item.qty);
@@ -36,7 +36,7 @@ const LineaRow = memo(function LineaRow({ item, wide, last }) {
   );
 });
 
-function LineasCotizacionInner({ lineas, wide }) {
+function LineasCotizacionInner({ lineas, wide, titulo, subtitulo }) {
   const renderItem = useCallback(
     (item, idx) => (
       <LineaRow
@@ -54,7 +54,8 @@ function LineasCotizacionInner({ lineas, wide }) {
   return (
     <View style={styles.card}>
       <Text style={styles.eyebrow}>Detalle</Text>
-      <Text style={styles.title}>Repuestos y servicio</Text>
+      <Text style={styles.title}>{titulo || 'Detalle'}</Text>
+      {subtitulo ? <Text style={styles.subtitle}>{subtitulo}</Text> : null}
       <View style={styles.rule} />
       {wide ? (
         <View style={styles.headRow}>
@@ -90,6 +91,12 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.fontSize.lg,
     lineHeight: 26,
     color: COLORS.text.primary,
+  },
+  subtitle: {
+    fontFamily: TYPOGRAPHY.fontFamily.regular,
+    fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 20,
+    color: COLORS.text.secondary,
   },
   rule: {
     height: StyleSheet.hairlineWidth,

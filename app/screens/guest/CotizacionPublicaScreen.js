@@ -30,6 +30,7 @@ import DocumentoHeader from './cotizacion/DocumentoHeader';
 import LineasCotizacion from './cotizacion/LineasCotizacion';
 import {
   buildLineas,
+  descuentoVisibleClp,
   desgloseIvaDesdeTotal,
   duracionLabel,
   formatCLP,
@@ -213,6 +214,7 @@ const CotizacionPublicaScreen = () => {
   const duracion = duracionLabel(data.duracion_minutos_estimada);
   const desc = (data.descripcion_problema || '').trim();
   const mostrarDesc = desc && (!notas || !notas.includes(desc));
+  const descClp = descuentoVisibleClp(data);
 
   const downloadBtn = (
     <Button
@@ -293,25 +295,14 @@ const CotizacionPublicaScreen = () => {
             </>
           ) : null}
         </View>
-      ) : data.servicio_nombre ? (
-        <View style={styles.hero}>
-          <View style={styles.serviceTag}>
-            <Text style={styles.serviceTagText}>Servicio</Text>
-          </View>
-          <Text style={styles.heroTitle}>{data.servicio_nombre}</Text>
-        </View>
       ) : null}
 
-      {mostrarDesc ? (
-        <View style={styles.paper}>
-          <Text style={styles.paperEyebrow}>Detalle</Text>
-          <Text style={styles.paperTitle}>Sobre el servicio</Text>
-          <View style={styles.paperRule} />
-          <Text style={styles.bodyText}>{desc}</Text>
-        </View>
-      ) : null}
-
-      <LineasCotizacion lineas={lineas} wide={wide} />
+      <LineasCotizacion
+        lineas={lineas}
+        wide={wide}
+        titulo={data.servicio_nombre || 'Detalle'}
+        subtitulo={mostrarDesc ? desc : ''}
+      />
 
       {notas ? (
         <View style={styles.paper}>
@@ -352,12 +343,12 @@ const CotizacionPublicaScreen = () => {
             <Text style={styles.lineLabelMuted}>Mano de obra</Text>
             <Text style={styles.lineValueMuted}>{formatCLP(data.mano_obra_clp)}</Text>
           </View>
-          {Number(data.descuento_clp) > 0 ? (
+          {descClp > 0 ? (
             <View style={styles.lineRow}>
               <Text style={[styles.lineLabelMuted, { flex: 1, paddingRight: 8 }]}>
                 {data.descuento_etiqueta || 'Descuento'}
               </Text>
-              <Text style={styles.lineValueMuted}>−{formatCLP(data.descuento_clp)}</Text>
+              <Text style={styles.lineValueMuted}>−{formatCLP(descClp)}</Text>
             </View>
           ) : null}
           <View style={styles.lineRow}>

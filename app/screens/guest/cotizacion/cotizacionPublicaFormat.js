@@ -124,6 +124,15 @@ export function resolveCliente(data) {
   return { nombre, telefono, direccion };
 }
 
+export function descuentoVisibleClp(data) {
+  const stored = Math.max(0, Math.round(Number(data?.descuento_clp) || 0));
+  if (stored > 0) return stored;
+  const bruto = Math.max(0, Math.round(Number(data?.costo_repuestos_clp) || 0))
+    + Math.max(0, Math.round(Number(data?.mano_obra_clp) || 0));
+  const total = Math.max(0, Math.round(Number(data?.total_clp) || 0));
+  return Math.max(0, bruto - total);
+}
+
 export function buildLineas(data) {
   const rows = [];
   const mo = Number(data?.mano_obra_clp) || 0;
@@ -131,8 +140,8 @@ export function buildLineas(data) {
   if (mo > 0 || servicio) {
     rows.push({
       key: 'servicio',
-      nombre: servicio || 'Servicio',
-      tipo: 'Servicio',
+      nombre: 'Mano de obra',
+      tipo: 'Mano de obra',
       qty: 1,
       unitLabel: '',
       unitario: mo,
