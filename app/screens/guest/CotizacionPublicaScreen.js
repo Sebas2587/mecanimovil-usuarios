@@ -352,6 +352,14 @@ const CotizacionPublicaScreen = () => {
             <Text style={styles.lineLabelMuted}>Mano de obra</Text>
             <Text style={styles.lineValueMuted}>{formatCLP(data.mano_obra_clp)}</Text>
           </View>
+          {Number(data.descuento_clp) > 0 ? (
+            <View style={styles.lineRow}>
+              <Text style={[styles.lineLabelMuted, { flex: 1, paddingRight: 8 }]}>
+                {data.descuento_etiqueta || 'Descuento'}
+              </Text>
+              <Text style={styles.lineValueMuted}>−{formatCLP(data.descuento_clp)}</Text>
+            </View>
+          ) : null}
           <View style={styles.lineRow}>
             <Text style={styles.lineLabelMuted}>Neto</Text>
             <Text style={styles.lineValueMuted}>{formatCLP(iva.neto)}</Text>
