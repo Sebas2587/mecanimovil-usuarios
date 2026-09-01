@@ -135,19 +135,37 @@ export function descuentoVisibleClp(data) {
 
 export function buildLineas(data) {
   const rows = [];
-  const mo = Number(data?.mano_obra_clp) || 0;
-  const servicio = (data?.servicio_nombre || '').trim();
-  if (mo > 0 || servicio) {
-    rows.push({
-      key: 'servicio',
-      nombre: 'Mano de obra',
-      tipo: 'Mano de obra',
-      qty: 1,
-      unitLabel: '',
-      unitario: mo,
-      subtotal: mo,
-      meta: '',
+  const moLineas = Array.isArray(data?.mano_obra_lineas) ? data.mano_obra_lineas : [];
+  if (moLineas.length) {
+    moLineas.forEach((lin, idx) => {
+      const nombre = String(lin?.nombre || '').trim() || 'Mano de obra';
+      const monto = Number(lin?.monto_clp) || 0;
+      rows.push({
+        key: `mo-${idx}`,
+        nombre,
+        tipo: 'Mano de obra',
+        qty: 1,
+        unitLabel: '',
+        unitario: monto,
+        subtotal: monto,
+        meta: '',
+      });
     });
+  } else {
+    const mo = Number(data?.mano_obra_clp) || 0;
+    const servicio = (data?.servicio_nombre || '').trim();
+    if (mo > 0 || servicio) {
+      rows.push({
+        key: 'servicio',
+        nombre: servicio || 'Mano de obra',
+        tipo: 'Mano de obra',
+        qty: 1,
+        unitLabel: '',
+        unitario: mo,
+        subtotal: mo,
+        meta: '',
+      });
+    }
   }
   const reps = Array.isArray(data?.repuestos) ? data.repuestos : [];
   reps.forEach((rep, idx) => {
