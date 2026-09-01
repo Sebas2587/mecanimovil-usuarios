@@ -8,7 +8,10 @@ import { get, post, getAxiosApiBaseSync } from './api';
 export async function obtenerCotizacionPublica(token) {
   const safe = String(token || '').trim();
   if (!safe) throw new Error('Token de cotización inválido');
-  return get(`/ordenes/cotizaciones-publicas/${encodeURIComponent(safe)}/`, {}, { requiresAuth: false });
+  return get(`/ordenes/cotizaciones-publicas/${encodeURIComponent(safe)}/`, {}, {
+    requiresAuth: false,
+    forceRefresh: true,
+  });
 }
 
 /**

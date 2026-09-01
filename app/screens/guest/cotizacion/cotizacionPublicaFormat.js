@@ -164,6 +164,26 @@ export function lineasManoObraPublicas(data) {
   return [];
 }
 
+export function tituloDetalleCotizacion(data) {
+  const raw = String(data?.servicio_nombre || '').trim();
+  if (!raw) return 'Detalle';
+  if (raw.length > 72) return 'Detalle del presupuesto';
+  return raw;
+}
+
+export function subtituloDetalleCotizacion(data) {
+  const desc = String(data?.descripcion_problema || '').trim();
+  const titulo = String(data?.servicio_nombre || '').trim();
+  const notas = String(data?.notas_cotizacion || '').trim();
+  if (desc && (!notas || !notas.includes(desc))) {
+    return desc;
+  }
+  if (titulo.length > 72 && lineasManoObraPublicas(data).length <= 1) {
+    return '';
+  }
+  return '';
+}
+
 export function buildLineas(data) {
   const rows = [];
   const moLineas = lineasManoObraPublicas(data);

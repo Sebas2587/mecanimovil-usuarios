@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Platform,
   ScrollView,
   StyleSheet,
@@ -39,6 +40,8 @@ import {
   hintFooterAceptacion,
   mensajeAceptacionAdicional,
   resolveCliente,
+  subtituloDetalleCotizacion,
+  tituloDetalleCotizacion,
   vehicleHeadline,
 } from './cotizacion/cotizacionPublicaFormat';
 
@@ -66,31 +69,37 @@ const CotizacionPublicaScreen = () => {
   const [error, setError] = useState(null);
   const [tallerImgError, setTallerImgError] = useState(false);
 
-  const cargar = useCallback(async () => {
+  const cargar = useCallback(async (opts = {}) => {
+    const silent = Boolean(opts.silent);
     if (!token) {
       setError('Enlace de cotización inválido.');
       setLoading(false);
       return;
     }
-    setLoading(true);
-    setError(null);
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const res = await obtenerCotizacionPublica(token);
       setData(res);
       setTallerImgError(false);
+      if (silent) setError(null);
     } catch (e) {
       const status = e?.response?.status || e?.status;
       const payload = e?.response?.data || e?.data;
       if (status === 410 && payload?.cotizacion) {
         setData(payload.cotizacion);
         setError(null);
-      } else if (status === 410) {
-        setError('Este enlace de cotización expiró. Solicita una nueva al taller.');
-      } else {
-        setError(e?.message || 'No se pudo cargar la cotización.');
+      } else if (!silent) {
+        if (status === 410) {
+          setError('Este enlace de cotización expiró. Solicita una nueva al taller.');
+        } else {
+          setError(e?.message || 'No se pudo cargar la cotización.');
+        }
       }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [token]);
 
@@ -99,9 +108,34 @@ const CotizacionPublicaScreen = () => {
   }, [cargar]);
 
   useEffect(() => {
+    const tick = () => {
+      void cargar({ silent: true });
+    };
+    const interval = setInterval(tick, 20000);
+    const onVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        tick();
+      }
+    };
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', onVisible);
+    }
+    const appSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') tick();
+    });
+    return () => {
+      clearInterval(interval);
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisible);
+      }
+      appSub.remove();
+    };
+  }, [cargar]);
+
+  useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined' || !data) return;
     const folio = data.numero_publico ? `#${data.numero_publico}` : 'Cotización';
-    const servicio = data.servicio_nombre || 'servicio';
+    const servicio = tituloDetalleCotizacion(data);
     const taller = data.taller?.nombre || 'Mecanimovil';
     document.title = `${folio} · ${servicio} · ${taller}`;
   }, [data]);
@@ -212,8 +246,7 @@ const CotizacionPublicaScreen = () => {
     || 'Los precios de repuestos pueden variar si cambia disponibilidad o marca.';
   const vehiculo = vehicleHeadline(data);
   const duracion = duracionLabel(data.duracion_minutos_estimada);
-  const desc = (data.descripcion_problema || '').trim();
-  const mostrarDesc = desc && (!notas || !notas.includes(desc));
+  const subtituloDetalle = subtituloDetalleCotizacion(data);
   const descClp = descuentoVisibleClp(data);
 
   const downloadBtn = (
@@ -300,8 +333,8 @@ const CotizacionPublicaScreen = () => {
       <LineasCotizacion
         lineas={lineas}
         wide={wide}
-        titulo={data.servicio_nombre || 'Detalle'}
-        subtitulo={mostrarDesc ? desc : ''}
+        titulo={tituloDetalleCotizacion(data)}
+        subtitulo={subtituloDetalle}
       />
 
       {notas ? (

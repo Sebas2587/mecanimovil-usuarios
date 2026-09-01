@@ -54,7 +54,7 @@ function LineasCotizacionInner({ lineas, wide, titulo, subtitulo }) {
   return (
     <View style={styles.card}>
       <Text style={styles.eyebrow}>Detalle</Text>
-      <Text style={styles.title}>{titulo || 'Detalle'}</Text>
+      <Text style={styles.title} numberOfLines={3}>{titulo || 'Detalle'}</Text>
       {subtitulo ? <Text style={styles.subtitle}>{subtitulo}</Text> : null}
       <View style={styles.rule} />
       {wide ? (
