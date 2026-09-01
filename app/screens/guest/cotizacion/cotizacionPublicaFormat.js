@@ -133,40 +133,52 @@ export function descuentoVisibleClp(data) {
   return Math.max(0, bruto - total);
 }
 
+function montoLineaMo(lin) {
+  if (!lin || typeof lin !== 'object') return 0;
+  for (const key of ['monto_clp', 'precio_mano_obra_clp', 'precio_clp', 'precio_catalogo_clp']) {
+    if (lin[key] == null || lin[key] === '') continue;
+    const n = Number(lin[key]);
+    if (Number.isFinite(n)) return Math.max(0, Math.round(n));
+  }
+  return 0;
+}
+
+export function lineasManoObraPublicas(data) {
+  const raw = Array.isArray(data?.mano_obra_lineas) && data.mano_obra_lineas.length
+    ? data.mano_obra_lineas
+    : (Array.isArray(data?.servicios_lineas) ? data.servicios_lineas : []);
+  const out = [];
+  raw.forEach((lin) => {
+    if (!lin || typeof lin !== 'object') return;
+    const nombre = String(lin.nombre || '').trim();
+    const monto = montoLineaMo(lin);
+    if (monto <= 0) return;
+    out.push({ nombre: nombre || 'Mano de obra', monto_clp: monto });
+  });
+  if (out.length) return out;
+  const mo = Math.max(0, Math.round(Number(data?.mano_obra_clp) || 0));
+  const servicio = (data?.servicio_nombre || '').trim();
+  if (mo > 0) {
+    return [{ nombre: servicio || 'Mano de obra', monto_clp: mo }];
+  }
+  return [];
+}
+
 export function buildLineas(data) {
   const rows = [];
-  const moLineas = Array.isArray(data?.mano_obra_lineas) ? data.mano_obra_lineas : [];
-  if (moLineas.length) {
-    moLineas.forEach((lin, idx) => {
-      const nombre = String(lin?.nombre || '').trim() || 'Mano de obra';
-      const monto = Number(lin?.monto_clp) || 0;
-      rows.push({
-        key: `mo-${idx}`,
-        nombre,
-        tipo: 'Mano de obra',
-        qty: 1,
-        unitLabel: '',
-        unitario: monto,
-        subtotal: monto,
-        meta: '',
-      });
+  const moLineas = lineasManoObraPublicas(data);
+  moLineas.forEach((lin, idx) => {
+    rows.push({
+      key: `mo-${idx}`,
+      nombre: lin.nombre,
+      tipo: 'Mano de obra',
+      qty: 1,
+      unitLabel: '',
+      unitario: lin.monto_clp,
+      subtotal: lin.monto_clp,
+      meta: '',
     });
-  } else {
-    const mo = Number(data?.mano_obra_clp) || 0;
-    const servicio = (data?.servicio_nombre || '').trim();
-    if (mo > 0 || servicio) {
-      rows.push({
-        key: 'servicio',
-        nombre: servicio || 'Mano de obra',
-        tipo: 'Mano de obra',
-        qty: 1,
-        unitLabel: '',
-        unitario: mo,
-        subtotal: mo,
-        meta: '',
-      });
-    }
-  }
+  });
   const reps = Array.isArray(data?.repuestos) ? data.repuestos : [];
   reps.forEach((rep, idx) => {
     const qty = Number(rep.cantidad) || 1;

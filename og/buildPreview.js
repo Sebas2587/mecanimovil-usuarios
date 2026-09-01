@@ -194,9 +194,14 @@ export async function buildPreviewForRoute(route, {
       veh ? `${folio}: ${servicio} · ${veh}` : `${folio}: ${servicio} · ${taller}`,
       90,
     );
+    const trabajos = (Array.isArray(data.mano_obra_lineas) ? data.mano_obra_lineas : [])
+      .map((lin) => String(lin?.nombre || '').trim())
+      .filter(Boolean)
+      .slice(0, 3);
     const description = truncate(
       [
         total ? `Total: ${total}` : null,
+        trabajos.length ? trabajos.join(', ') : null,
         `Taller: ${taller}`,
         modalidad,
         'Revisa los detalles, repuestos y responde (aceptar o rechazar) online en MecaniMovil.',

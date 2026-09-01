@@ -339,10 +339,12 @@ const CotizacionPublicaScreen = () => {
               <Text style={styles.lineValueMuted}>{formatCLP(data.costo_repuestos_clp)}</Text>
             </View>
           ) : null}
-          <View style={styles.lineRow}>
-            <Text style={styles.lineLabelMuted}>Mano de obra</Text>
-            <Text style={styles.lineValueMuted}>{formatCLP(data.mano_obra_clp)}</Text>
-          </View>
+          {Number(data.mano_obra_clp) > 0 ? (
+            <View style={styles.lineRow}>
+              <Text style={styles.lineLabelMuted}>Mano de obra</Text>
+              <Text style={styles.lineValueMuted}>{formatCLP(data.mano_obra_clp)}</Text>
+            </View>
+          ) : null}
           {descClp > 0 ? (
             <View style={styles.lineRow}>
               <Text style={[styles.lineLabelMuted, { flex: 1, paddingRight: 8 }]}>
