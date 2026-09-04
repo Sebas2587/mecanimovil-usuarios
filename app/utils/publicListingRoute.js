@@ -106,6 +106,22 @@ export function getCotizacionTokenFromWebPath() {
 }
 
 /**
+ * Token de vitrina de repuestos en /repuestos/:token (web).
+ */
+export function getVitrinaTokenFromWebPath() {
+  if (Platform.OS !== 'web') return null;
+  if (typeof window === 'undefined') return null;
+  const raw = String(window.location?.pathname || '');
+  const path = raw.split('?')[0].split('#')[0];
+  const hash = String(window.location?.hash || '').replace(/^#\/?/, '');
+  let m = path.match(/\/repuestos\/([A-Za-z0-9_-]+)\/?$/i);
+  if (!m && hash) {
+    m = hash.match(/repuestos\/([A-Za-z0-9_-]+)/i);
+  }
+  return m ? m[1] : null;
+}
+
+/**
  * Token de traspaso en /transferencia/claim/:token (web).
  * token_urlsafe: A-Za-z0-9_- (+ posible % encoding).
  */

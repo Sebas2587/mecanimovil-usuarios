@@ -208,6 +208,8 @@ export const ROUTES = {
   INFORME_SERVICIO: 'InformeServicio',
   /** Cotización pública del taller (guest, /cotizacion/:token) */
   COTIZACION_PUBLICA: 'CotizacionPublica',
+  /** Vitrina pública de repuestos (guest, /repuestos/:token) */
+  VITRINA_REPUESTOS: 'VitrinaRepuestos',
   /** Escanear QR de informe para reclamar servicio (autenticado) */
   ESCANEAR_INFORME_SERVICIO: 'EscanearInformeServicio',
   LOGIN: 'Login',

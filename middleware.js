@@ -4,6 +4,7 @@
  *
  * Covers:
  * - /cotizacion/:token
+ * - /repuestos/:token
  * - /reporte/:token  (informe / checklist)
  * - /provider/:type/:id
  * - /marketplace/vehicle/:id
@@ -22,6 +23,7 @@ import {
 export const config = {
   matcher: [
     '/cotizacion/:token*',
+    '/repuestos/:token*',
     '/reporte/:token*',
     '/provider/:path*',
     '/marketplace/vehicle/:id*',

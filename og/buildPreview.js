@@ -67,6 +67,9 @@ export function matchShareRoute(pathname) {
   let m = path.match(/^\/cotizacion\/([A-Za-z0-9_-]+)\/?$/i);
   if (m) return { kind: 'cotizacion', token: m[1] };
 
+  m = path.match(/^\/repuestos\/([A-Za-z0-9_-]+)\/?$/i);
+  if (m) return { kind: 'vitrina', token: m[1] };
+
   m = path.match(/^\/reporte\/([A-Za-z0-9_-]+)\/?$/i);
   if (m) return { kind: 'informe', token: m[1] };
 
@@ -161,6 +164,31 @@ export async function buildPreviewForRoute(route, {
 }) {
   const fallbackImage = defaultOgImage(requestOrigin);
   const base = String(apiBase || DEFAULT_API_BASE).replace(/\/$/, '');
+
+  if (route.kind === 'vitrina') {
+    const data = await fetchJson(`${base}/ordenes/vitrinas-repuestos/${encodeURIComponent(route.token)}/`);
+    if (!data || data.expirado) {
+      return {
+        title: 'Opciones de repuestos · MecaniMovil',
+        description: 'Elige las piezas para tu auto. El taller confirma el valor.',
+        image: fallbackImage,
+        url: pageUrl,
+      };
+    }
+    const veh = vehicleLabel({
+      marca: data.vehiculo && data.vehiculo.marca,
+      modelo: data.vehiculo && data.vehiculo.modelo,
+      anio: data.vehiculo && data.vehiculo.anio,
+      patente: data.vehiculo && data.vehiculo.patente,
+    });
+    const taller = (data.taller && data.taller.nombre) || 'Taller';
+    return {
+      title: truncate(veh ? `Repuestos · ${veh}` : `Repuestos · ${taller}`),
+      description: 'Estas son las opciones que encontramos para tu auto. El taller confirma el valor final.',
+      image: fallbackImage,
+      url: pageUrl,
+    };
+  }
 
   if (route.kind === 'cotizacion') {
     const data = await fetchJson(`${base}/ordenes/cotizaciones-publicas/${encodeURIComponent(route.token)}/`);

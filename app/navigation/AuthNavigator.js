@@ -10,6 +10,7 @@ import GuestSectionProvidersScreen from '../screens/guest/GuestSectionProvidersS
 import GuestSectionServicesScreen from '../screens/guest/GuestSectionServicesScreen';
 import InformeServicioScreen from '../screens/guest/InformeServicioScreen';
 import CotizacionPublicaScreen from '../screens/guest/CotizacionPublicaScreen';
+import VitrinaRepuestosScreen from '../screens/guest/VitrinaRepuestosScreen';
 import EscanearInformeServicioScreen from '../screens/guest/EscanearInformeServicioScreen';
 import PublicVehicleFichaScreen from '../screens/guest/PublicVehicleFichaScreen';
 import TransferenciaClaimScreen from '../screens/marketplace/TransferenciaClaimScreen';
@@ -22,6 +23,7 @@ import {
   getPublicProviderFromWebPath,
   getInformeTokenFromWebPath,
   getCotizacionTokenFromWebPath,
+  getVitrinaTokenFromWebPath,
   getMarketplaceVehicleIdFromWebPath,
   getTransferClaimTokenFromWebPath,
 } from '../utils/publicListingRoute';
@@ -71,6 +73,7 @@ const AuthNavigator = ({ registerSuccess }) => {
   const publicProviderData = Platform.OS === 'web' ? getPublicProviderFromWebPath() : null;
   const informeTokenFromWeb = Platform.OS === 'web' ? getInformeTokenFromWebPath() : null;
   const cotizacionTokenFromWeb = Platform.OS === 'web' ? getCotizacionTokenFromWebPath() : null;
+  const vitrinaTokenFromWeb = Platform.OS === 'web' ? getVitrinaTokenFromWebPath() : null;
   const marketplaceVehicleIdFromWeb = Platform.OS === 'web' ? getMarketplaceVehicleIdFromWebPath() : null;
   const transferClaimTokenFromWeb = Platform.OS === 'web' ? getTransferClaimTokenFromWebPath() : null;
 
@@ -98,6 +101,7 @@ const AuthNavigator = ({ registerSuccess }) => {
     if (transferClaimTokenFromWeb) return ROUTES.TRANSFERENCIA_CLAIM;
     if (informeTokenFromWeb) return ROUTES.INFORME_SERVICIO;
     if (cotizacionTokenFromWeb) return ROUTES.COTIZACION_PUBLICA;
+    if (vitrinaTokenFromWeb) return ROUTES.VITRINA_REPUESTOS;
     if (registerSuccess) return ROUTES.REGISTER;
     if (hasSeenOnboarding === false) return ROUTES.ONBOARDING;
     return ROUTES.GUEST_LANDING;
@@ -107,6 +111,7 @@ const AuthNavigator = ({ registerSuccess }) => {
     transferClaimTokenFromWeb,
     informeTokenFromWeb,
     cotizacionTokenFromWeb,
+    vitrinaTokenFromWeb,
     registerSuccess,
     hasSeenOnboarding,
   ]);
@@ -118,6 +123,7 @@ const AuthNavigator = ({ registerSuccess }) => {
     && !transferClaimTokenFromWeb
     && !informeTokenFromWeb
     && !cotizacionTokenFromWeb
+    && !vitrinaTokenFromWeb
     && !registerSuccess
   ) {
     return <SplashScreen />;
@@ -251,6 +257,24 @@ const AuthNavigator = ({ registerSuccess }) => {
           Platform.OS === 'web'
             ? {
                 /** Altura acotada; el ScrollView de la pantalla maneja el scroll (iOS Safari). */
+                cardStyle: {
+                  backgroundColor: COLORS.background.default,
+                  flex: 1,
+                  height: '100%',
+                  maxHeight: '100dvh',
+                  overflow: 'hidden',
+                },
+              }
+            : undefined
+        }
+      />
+      <Stack.Screen
+        name={ROUTES.VITRINA_REPUESTOS}
+        component={VitrinaRepuestosScreen}
+        initialParams={vitrinaTokenFromWeb ? { token: vitrinaTokenFromWeb } : undefined}
+        options={
+          Platform.OS === 'web'
+            ? {
                 cardStyle: {
                   backgroundColor: COLORS.background.default,
                   flex: 1,

@@ -228,6 +228,12 @@ const linking = {
           token: (token) => (token ? String(token).trim() : null),
         },
       },
+      VitrinaRepuestos: {
+        path: 'repuestos/:token',
+        parse: {
+          token: (token) => (token ? String(token).trim() : null),
+        },
+      },
       TransferenciaClaim: {
         path: 'transferencia/claim/:token',
         parse: {
