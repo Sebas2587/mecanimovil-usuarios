@@ -12,6 +12,19 @@ export function formatCLP(value) {
   return `$${Math.round(n).toLocaleString('es-CL')}`;
 }
 
+export function formatRangoCLP(min, max) {
+  const a = Math.round(Number(min) || 0);
+  const b = Math.round(Number(max) || 0);
+  if (a > 0 && b > 0 && a !== b) {
+    return `${formatCLP(a)} – ${formatCLP(b)}`;
+  }
+  return formatCLP(b || a);
+}
+
+export function esEstimacion(data) {
+  return String(data?.tipo_documento || '').trim() === 'estimacion';
+}
+
 export function desgloseIvaDesdeTotal(totalIvaIncl) {
   const total = Math.round(Number(totalIvaIncl) || 0);
   const neto = Math.round(total / 1.19);
@@ -203,8 +216,11 @@ export function buildLineas(data) {
   reps.forEach((rep, idx) => {
     const qty = Number(rep.cantidad) || 1;
     const unit = Number(rep.precio_unitario_clp) || 0;
+    const min = Number(rep.precio_min_clp) || 0;
+    const max = Number(rep.precio_max_clp) || 0;
     const marca = (rep.marca_repuesto || '').trim();
     const comentario = (rep.comentario || '').trim();
+    const especificacion = (rep.especificacion || '').trim();
     rows.push({
       key: `${rep.id || rep.nombre || 'rep'}-${idx}`,
       nombre: rep.nombre || 'Repuesto',
@@ -212,8 +228,10 @@ export function buildLineas(data) {
       qty,
       unitLabel: 'und',
       unitario: unit,
+      unitario_min: min,
+      unitario_max: max,
       subtotal: unit * qty,
-      meta: [marca, comentario].filter(Boolean).join(' · '),
+      meta: [especificacion, marca, comentario].filter(Boolean).join(' · '),
     });
   });
   return rows;

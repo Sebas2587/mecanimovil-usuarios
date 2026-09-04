@@ -17,6 +17,7 @@ function DocumentoHeaderInner({
   imgError,
   onImgError,
   numeroPublico,
+  tipoDocumento,
   estado,
   enviadaEn,
   fechaExpiracion,
@@ -78,6 +79,15 @@ function DocumentoHeaderInner({
           {numeroPublico ? (
             <View style={styles.folioBadge}>
               <Text style={styles.folioText}>#{numeroPublico}</Text>
+            </View>
+          ) : null}
+          {tipoDocumento === 'estimacion' ? (
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>Estimación</Text>
+            </View>
+          ) : tipoDocumento === 'cotizacion' ? (
+            <View style={[styles.pill, styles.pillOk]}>
+              <Text style={[styles.pillText, styles.pillOkText]}>Cotización firme</Text>
             </View>
           ) : null}
           {estadoUi ? (

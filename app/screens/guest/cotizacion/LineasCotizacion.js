@@ -1,13 +1,17 @@
 import React, { memo, useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { BORDERS, COLORS, SPACING, TYPOGRAPHY } from '../../../design-system/tokens';
-import { formatCLP } from './cotizacionPublicaFormat';
+import { formatCLP, formatRangoCLP } from './cotizacionPublicaFormat';
 
 const LineaRow = memo(function LineaRow({ item, wide, last }) {
   const isServicio = item.tipo !== 'Repuesto';
   const qtyLabel = item.unitLabel
     ? `${item.qty} ${item.unitLabel}`
     : String(item.qty);
+  const min = Number(item.unitario_min) || 0;
+  const max = Number(item.unitario_max) || 0;
+  const muestraRango = min > 0 && max > 0 && min !== max;
+  const unitarioLabel = muestraRango ? formatRangoCLP(min, max) : formatCLP(item.unitario);
   return (
     <View style={[styles.row, wide && styles.rowWide, !last && styles.rowBorder]}>
       <View style={styles.copy}>
@@ -21,12 +25,12 @@ const LineaRow = memo(function LineaRow({ item, wide, last }) {
         </View>
         {item.meta ? <Text style={styles.meta}>{item.meta}</Text> : null}
         <Text style={styles.qty}>
-          {qtyLabel} × {formatCLP(item.unitario)}
+          {qtyLabel} × {unitarioLabel}
         </Text>
       </View>
       {wide ? (
         <View style={styles.amounts}>
-          <Text style={styles.unit}>{formatCLP(item.unitario)}</Text>
+          <Text style={styles.unit}>{unitarioLabel}</Text>
           <Text style={styles.subtotal}>{formatCLP(item.subtotal)}</Text>
         </View>
       ) : (

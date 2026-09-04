@@ -34,8 +34,10 @@ import {
   descuentoVisibleClp,
   desgloseIvaDesdeTotal,
   duracionLabel,
+  esEstimacion,
   formatCLP,
   formatFechaCorta,
+  formatRangoCLP,
   formatFechaHoraPropuesta,
   hintFooterAceptacion,
   mensajeAceptacionAdicional,
@@ -269,6 +271,7 @@ const CotizacionPublicaScreen = () => {
         imgError={tallerImgError}
         onImgError={() => setTallerImgError(true)}
         numeroPublico={data.numero_publico}
+        tipoDocumento={data.tipo_documento}
         estado={data.estado}
         enviadaEn={data.enviada_en}
         fechaExpiracion={data.fecha_expiracion_publica}
@@ -396,9 +399,20 @@ const CotizacionPublicaScreen = () => {
           </View>
           <View style={styles.totalRule} />
           <View style={styles.lineRow}>
-            <Text style={styles.totalLabel}>Total a pagar</Text>
-            <Text style={styles.totalValue}>{formatCLP(data.total_clp)}</Text>
+            <Text style={styles.totalLabel}>
+              {esEstimacion(data) ? 'Total estimado' : 'Total a pagar'}
+            </Text>
+            <Text style={styles.totalValue}>
+              {esEstimacion(data)
+                ? formatRangoCLP(data.total_min_clp, data.total_max_clp || data.total_clp)
+                : formatCLP(data.total_clp)}
+            </Text>
           </View>
+          {esEstimacion(data) ? (
+            <Text style={styles.bodyMuted}>
+              Valores de referencia. El taller confirma antes de comprar; si el precio sube más de 10% te avisa.
+            </Text>
+          ) : null}
         </View>
       </View>
 
