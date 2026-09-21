@@ -19,13 +19,11 @@ const LineaRow = memo(function LineaRow({ item, wide, last }) {
   return (
     <View style={[styles.row, wide && styles.rowWide, !last && styles.rowBorder]}>
       <View style={styles.copy}>
-        <View style={styles.titleRow}>
-          <Text style={styles.name} numberOfLines={3}>{item.nombre}</Text>
-          <View style={[styles.badge, isServicio ? styles.badgeServicio : styles.badgeRepuesto]}>
-            <Text style={[styles.badgeText, isServicio && styles.badgeServicioText]}>
-              {item.tipo}
-            </Text>
-          </View>
+        <Text style={styles.name}>{item.nombre}</Text>
+        <View style={[styles.badge, isServicio ? styles.badgeServicio : styles.badgeRepuesto]}>
+          <Text style={[styles.badgeText, isServicio && styles.badgeServicioText]}>
+            {item.tipo}
+          </Text>
         </View>
         {item.meta ? <Text style={styles.meta}>{item.meta}</Text> : null}
         <Text style={styles.qty}>
@@ -62,7 +60,7 @@ function LineasCotizacionInner({ lineas, wide, titulo, subtitulo }) {
   return (
     <View style={styles.card}>
       <Text style={styles.eyebrow}>Detalle</Text>
-      <Text style={styles.title} numberOfLines={3}>{titulo || 'Detalle'}</Text>
+      <Text style={styles.title}>{titulo || 'Detalle'}</Text>
       {subtitulo ? <Text style={styles.subtitle}>{subtitulo}</Text> : null}
       <View style={styles.rule} />
       {wide ? (
@@ -143,23 +141,17 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 2,
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING.xs,
-  },
   name: {
-    flex: 1,
     fontFamily: TYPOGRAPHY.fontFamily.medium,
     fontSize: TYPOGRAPHY.fontSize.md,
     lineHeight: 22,
     color: COLORS.text.primary,
   },
   badge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BORDERS.radius.sm,
-    flexShrink: 0,
   },
   badgeRepuesto: {
     backgroundColor: COLORS.badge.meta.background,
@@ -178,11 +170,13 @@ const styles = StyleSheet.create({
   meta: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 20,
     color: COLORS.text.secondary,
   },
   qty: {
     fontFamily: TYPOGRAPHY.fontFamily.regular,
     fontSize: TYPOGRAPHY.fontSize.sm,
+    lineHeight: 20,
     color: COLORS.text.secondary,
   },
   amounts: {

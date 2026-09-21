@@ -6,11 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "scheme": "mecanimovil",
-    "splash": {
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "requireFullScreen": false,
@@ -53,7 +49,6 @@
         "foregroundImage": "./assets/images/app-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": false,
       "softwareKeyboardLayoutMode": "pan",
       "package": "com.mecanimovil.app",
       "intentFilters": [
@@ -75,7 +70,9 @@
     "web": {
       "favicon": "./assets/images/app-icon.png"
     },
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 10000,
@@ -130,7 +127,12 @@
       ],
       "./plugins/withAndroidSingleTask.js",
       "expo-audio",
-      "expo-video"
+      "expo-video",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser",
+      "expo-asset",
+      "expo-font"
     ],
     "extra": {
       "publicListingWebOrigin": "https://mecanimovil-usuarios.vercel.app",

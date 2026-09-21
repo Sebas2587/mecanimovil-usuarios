@@ -86,7 +86,14 @@ const Tab = createBottomTabNavigator();
 const ProfileStack = createStackNavigator();
 
 const ProfileStackNavigator = ({ tabRoot = false }) => (
-  <ProfileStack.Navigator screenOptions={{ headerShown: true }}>
+  <ProfileStack.Navigator
+    screenOptions={{
+      headerShown: true,
+      presentation: 'card',
+      animation: 'slide_from_right',
+      gestureDirection: 'horizontal',
+    }}
+  >
     <ProfileStack.Screen
       name="UserProfileMain"
       component={UserProfileScreen}
@@ -113,7 +120,14 @@ const ProfileStackNavigator = ({ tabRoot = false }) => (
 const HomeStack = createStackNavigator();
 
 const HomeNavigator = () => (
-  <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+  <HomeStack.Navigator
+    screenOptions={{
+      headerShown: false,
+      presentation: 'card',
+      animation: 'slide_from_right',
+      gestureDirection: 'horizontal',
+    }}
+  >
     <HomeStack.Screen name="UserPanel" component={UserPanelScreen} />
     <HomeStack.Screen
       name={ROUTES.EXPLORE_PROVIDERS}
@@ -265,7 +279,15 @@ const TabNavigator = () => (
 );
 
 const AppNavigator = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false, detachInactiveScreens: false }}>
+  <Stack.Navigator
+    screenOptions={{
+      headerShown: false,
+      detachInactiveScreens: false,
+      presentation: 'card',
+      animation: 'slide_from_right',
+      gestureDirection: 'horizontal',
+    }}
+  >
     <Stack.Screen name="TabNavigator" component={TabNavigator} />
 
     <Stack.Screen name={ROUTES.REGISTRAR_VIAJE} component={RegistrarViajeScreen} options={getHeaderOptions('Registrar viaje')} />

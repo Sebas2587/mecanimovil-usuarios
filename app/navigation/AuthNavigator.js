@@ -135,6 +135,9 @@ const AuthNavigator = ({ registerSuccess }) => {
       initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
+        presentation: 'card',
+        animation: 'slide_from_right',
+        gestureDirection: 'horizontal',
         // No usar opacity: progress en la card inicial: en Android release el progress puede
         // quedar en 0 un tiempo → pantalla "gris" (fondo nativo) y sin UI.
         cardStyle: { backgroundColor: COLORS.background.default },
