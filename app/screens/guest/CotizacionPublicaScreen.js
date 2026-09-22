@@ -389,14 +389,18 @@ const CotizacionPublicaScreen = () => {
               <Text style={styles.lineValueMuted}>−{formatCLP(descClp)}</Text>
             </View>
           ) : null}
-          <View style={styles.lineRow}>
-            <Text style={styles.lineLabelMuted}>Neto</Text>
-            <Text style={styles.lineValueMuted}>{formatCLP(iva.neto)}</Text>
-          </View>
-          <View style={styles.lineRow}>
-            <Text style={styles.lineLabelMuted}>IVA 19%</Text>
-            <Text style={styles.lineValueMuted}>{formatCLP(iva.iva)}</Text>
-          </View>
+          {esEstimacion(data) && Number(data.total_min_clp) !== Number(data.total_max_clp) ? null : (
+            <>
+              <View style={styles.lineRow}>
+                <Text style={styles.lineLabelMuted}>Neto</Text>
+                <Text style={styles.lineValueMuted}>{formatCLP(iva.neto)}</Text>
+              </View>
+              <View style={styles.lineRow}>
+                <Text style={styles.lineLabelMuted}>IVA 19%</Text>
+                <Text style={styles.lineValueMuted}>{formatCLP(iva.iva)}</Text>
+              </View>
+            </>
+          )}
           <View style={styles.totalRule} />
           <View style={styles.lineRow}>
             <Text style={styles.totalLabel}>

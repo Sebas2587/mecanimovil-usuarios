@@ -12,8 +12,7 @@ const LineaRow = memo(function LineaRow({ item, wide, last }) {
   const max = Number(item.unitario_max) || 0;
   const muestraRango = min > 0 && max > 0 && min !== max;
   const unitarioLabel = muestraRango ? formatRangoCLP(min, max) : formatCLP(item.unitario);
-  // Sin monto cerrado el subtotal también es un rango: no mostramos $0.
-  const subtotalLabel = !(Number(item.unitario) || 0) && muestraRango
+  const subtotalLabel = muestraRango
     ? formatRangoCLP(min * item.qty, max * item.qty)
     : formatCLP(item.subtotal);
   return (

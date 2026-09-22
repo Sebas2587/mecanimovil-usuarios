@@ -193,6 +193,7 @@ export function subtituloDetalleCotizacion(data) {
 
 export function buildLineas(data) {
   const rows = [];
+  const estimacion = esEstimacion(data);
   const moLineas = lineasManoObraPublicas(data);
   moLineas.forEach((lin, idx) => {
     rows.push({
@@ -222,8 +223,8 @@ export function buildLineas(data) {
       qty,
       unitLabel: 'und',
       unitario: unit,
-      unitario_min: min,
-      unitario_max: max,
+      unitario_min: estimacion ? min : 0,
+      unitario_max: estimacion ? max : 0,
       subtotal: unit * qty,
       meta: [especificacion, marca, comentario].filter(Boolean).join(' · '),
     });
