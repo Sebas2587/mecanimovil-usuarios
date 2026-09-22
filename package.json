@@ -80,7 +80,7 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@react-native-community/cli": "latest",
-    "vercel": "^59.11.1"
+    "vercel": "^59.23.2"
   },
   "overrides": {
     "@urql/core": "5.0.6"
